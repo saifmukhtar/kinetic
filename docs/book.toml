@@ -16,3 +16,4 @@ git-repository-url = "https://github.com/saifmukhtar/kinetic"
 edit-url-template = "https://github.com/saifmukhtar/kinetic/edit/main/docs/src/{path}"
 
 [output.pdf]
+optional = true
