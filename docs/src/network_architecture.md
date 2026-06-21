@@ -16,15 +16,15 @@ Kademlia solves this by treating both nodes and data as points in a massive, mat
 
 ### The XOR Distance Metric
 
-When you start a Kinetic Daemon, it generates a unique cryptographic identity (a `PeerId`). When you register a name like `apple.kin`, that name is hashed into a 256-bit key ($K = H(\text{"apple.kin"}) $).
+When you start a Kinetic Daemon, it generates a unique cryptographic identity (a `PeerId`). When you register a name like `apple.kin`, that name is hashed into a 256-bit key (\\(K = H(\text{"apple.kin"}) \\)).
 
 Kademlia routes data by calculating the "distance" between two keys using the exclusive OR (XOR) bitwise operation:
 
-$$ \text{Distance}(A, B) = A \oplus B $$
+\\[ \text{Distance}(A, B) = A \oplus B \\]
 
-This XOR metric is brilliant because it is perfectly symmetric ($A \oplus B = B \oplus A$), unidirectional, and satisfies the triangle inequality. 
+This XOR metric is brilliant because it is perfectly symmetric (\\(A \oplus B = B \oplus A\\)), unidirectional, and satisfies the triangle inequality. 
 
-When your node wants to find the payload for `apple.kin`, it asks its closest known peers, "Do you know who is closer to $K$?" Those peers respond with nodes they know that are mathematically closer to $K$. This process repeats iteratively. Because of the XOR topology, the search space halves with every hop. It guarantees that any node or piece of data in the network can be found in exactly $O(\log N)$ network hops, regardless of how massive the network scales.
+When your node wants to find the payload for `apple.kin`, it asks its closest known peers, "Do you know who is closer to \\(K\\)?" Those peers respond with nodes they know that are mathematically closer to \\(K\\). This process repeats iteratively. Because of the XOR topology, the search space halves with every hop. It guarantees that any node or piece of data in the network can be found in exactly \\(O(\log N)\\) network hops, regardless of how massive the network scales.
 
 ---
 
@@ -62,7 +62,7 @@ This mechanism is called **Competitive Gossip**. The network acts as an active i
 
 What if an attacker tries to execute a CPU exhaustion attack by sending millions of mathematically invalid VDFs to a single honest node, forcing the node to constantly verify (and reject) them?
 
-While VDF verification is extremely fast ($O(\log T)$), it still requires CPU cycles. To mitigate this, Kinetic nodes implement a lightweight **Hashcash PoW** at the connection layer. 
+While VDF verification is extremely fast (\\(O(\log T)\\)), it still requires CPU cycles. To mitigate this, Kinetic nodes implement a lightweight **Hashcash PoW** at the connection layer. 
 
 When a peer connects, they are required to solve a trivial, 50-millisecond Hashcash puzzle before they are allowed to submit DHT requests. If a peer submits a mathematically invalid VDF, their "reputation" drops. If they submit multiple invalid VDFs, the honest node drops the TCP connection entirely and bans their IP address. To reconnect and resume the attack, the attacker must pay the Hashcash PoW again. 
 
@@ -74,8 +74,8 @@ This makes sustained CPU exhaustion attacks economically irrational, as the atta
 
 The final, most critical vulnerability in any DHT is the **Eclipse Attack**.
 
-In standard Kademlia, data is stored at a single specific key $K = H(\text{"apple.kin"})$.
-If an adversary wants to censor `apple.kin`, they can generate thousands of Sybil nodes with `PeerIds` mathematically adjacent to $K$. Eventually, the attacker's malicious nodes become the authoritative storage peers for $K$.
+In standard Kademlia, data is stored at a single specific key \\(K = H(\text{"apple.kin"})\\).
+If an adversary wants to censor `apple.kin`, they can generate thousands of Sybil nodes with `PeerIds` mathematically adjacent to \\(K\\). Eventually, the attacker's malicious nodes become the authoritative storage peers for \\(K\\).
 
 When an honest user queries `apple.kin`, their request routes directly to the attacker's nodes. The attacker simply replies "Record Not Found" or serves an outdated payload. The honest payload is effectively "eclipsed" from the network.
 
@@ -85,29 +85,29 @@ Because Kinetic client-side validation can only verify data it receives, the cli
 
 To definitively neutralize Eclipse attacks without resorting to centralized servers, Kinetic utilizes **Redundant Deterministic Storage**.
 
-Instead of storing the payload at a single key $K$, the registrant's daemon mathematically scatters the exact same signed payload across $M$ independent, uncorrelated locations in the DHT.
+Instead of storing the payload at a single key \\(K\\), the registrant's daemon mathematically scatters the exact same signed payload across \\(M\\) independent, uncorrelated locations in the DHT.
 
 The keys are derived using a domain-separated cryptographic hash:
-$$ K_i = H(\text{"apple.kin"} \parallel i \parallel \text{"kinetic-dht"}), \quad \text{for } i \in \{0, 1, \dots, M-1\} $$
+\\[ K_i = H(\text{"apple.kin"} \parallel i \parallel \text{"kinetic-dht"}), \quad \text{for } i \in \{0, 1, \dots, M-1\} \\]
 
-Because the hash function acts as a random oracle, $K_0$, $K_1$, and $K_2$ are located in completely different, uniformly random sectors of the global Kademlia keyspace.
+Because the hash function acts as a random oracle, \\(K_0\\), \\(K_1\\), and \\(K_2\\) are located in completely different, uniformly random sectors of the global Kademlia keyspace.
 
-When an honest user wants to resolve `apple.kin`, their client fires off $M$ parallel Kademlia `GET` queries to all locations simultaneously. It then takes the union of all returned payloads, validates their VDFs, and selects the genuine record.
+When an honest user wants to resolve `apple.kin`, their client fires off \\(M\\) parallel Kademlia `GET` queries to all locations simultaneously. It then takes the union of all returned payloads, validates their VDFs, and selects the genuine record.
 
 ### The Probabilistic Impossibility of Eclipsing
 
 Why is this so powerful?
 
-Let's assume a highly capable attacker controls an astounding **20%** ($f = 0.2$) of all nodes in the global Kinetic network. 
-The probability of the attacker successfully clustering enough Sybil nodes to eclipse a single key is roughly equal to $f$.
+Let's assume a highly capable attacker controls an astounding **20%** (\\(f = 0.2\\)) of all nodes in the global Kinetic network. 
+The probability of the attacker successfully clustering enough Sybil nodes to eclipse a single key is roughly equal to \\(f\\).
 
-If Kinetic uses $M = 5$ redundant keys, the keys are mathematically independent. The probability that the attacker successfully eclipses all 5 keys simultaneously is:
+If Kinetic uses \\(M = 5\\) redundant keys, the keys are mathematically independent. The probability that the attacker successfully eclipses all 5 keys simultaneously is:
 
-$$ P(\text{total eclipse}) = f^M = (0.2)^5 = 0.00032 \text{ (or 0.03%)} $$
+\\[ P(\text{total eclipse}) = f^M = (0.2)^5 = 0.00032 \text{ (or 0.03%)} \\]
 
-If the client increases $M$ to 10:
+If the client increases \\(M\\) to 10:
 
-$$ P(\text{total eclipse}) = (0.2)^{10} = 0.0000001024 \text{ (or 0.00001%)} $$
+\\[ P(\text{total eclipse}) = (0.2)^{10} = 0.0000001024 \text{ (or 0.00001%)} \\]
 
 By simply duplicating a 2-kilobyte payload across a few independent keys, the probability of an Eclipse attack drops from a distinct threat to a statistical impossibility. The marginal bandwidth overhead for the user is practically zero, but the censorship resistance is multiplied exponentially.
 

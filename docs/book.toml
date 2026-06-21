@@ -9,8 +9,8 @@ build-dir = "book"
 
 [output.html]
 mathjax-support = true
-default-theme = "ayu"
-preferred-dark-theme = "ayu"
+default-theme = "light"
+preferred-dark-theme = "light"
 additional-css = ["custom.css"]
 git-repository-url = "https://github.com/saifmukhtar/kinetic"
 edit-url-template = "https://github.com/saifmukhtar/kinetic/edit/main/docs/src/{path}"

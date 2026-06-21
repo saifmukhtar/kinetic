@@ -166,7 +166,7 @@ Once the commitment is constructed, the CLI invokes the `kinetic-vdf` engine.
 
 This is the most critical chokepoint in the entire protocol. `vdf_engine.evaluate` is a blocking FFI call to the C++ Chia engine. 
 
-Depending on the length of `fqdn` and the resultant `actual_iterations`, the CLI will sit on this line of code for seconds, hours, or weeks. The CPU core assigned to this process will pin to 100% utilization, relentlessly executing the $x^{2^T}$ repeated squarings. 
+Depending on the length of `fqdn` and the resultant `actual_iterations`, the CLI will sit on this line of code for seconds, hours, or weeks. The CPU core assigned to this process will pin to 100% utilization, relentlessly executing the \\(x^{2^T}\\) repeated squarings. 
 
 Because the CLI is a separate binary from the daemon, this intense, single-threaded CPU block does not impact the daemon's ability to maintain background heartbeats or serve DNS loopback traffic.
 

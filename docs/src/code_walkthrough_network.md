@@ -89,7 +89,7 @@ If the payload is a `Reveal`, the node executes `validate_reveal`.
             return false; // Did not compute the required squatter penalty
         }
 
-        // 4. The Final $O(\log T)$ O(1) Verification
+        // 4. The Final \\(O(\log T)\\) O(1) Verification
         self.vdf_engine.verify(
             &Commitment { hash },
             reveal.iterations,

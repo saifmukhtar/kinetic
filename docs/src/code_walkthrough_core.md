@@ -41,7 +41,7 @@ pub struct Reveal {
 * **`pub salt: [u8; 32]`**: A 32-byte high-entropy array. This ensures that if two users attempt to register the exact same name at the exact same time, their commitment hashes are completely distinct, preventing one from copying the other's VDF.
 * **`pub drand_pulse` & `pub drand_randomness`**: The exact round number and corresponding entropy fetched from the external Drand beacon. This forms the absolute timestamp of the commitment.
 * **`pub iterations: u64`**: The exact number of VDF iterations (Repeated Squarings) the user claims to have computed. The network nodes will verify if this number matches the length-based minimum requirement.
-* **`pub vdf_proof: VdfProof`**: A wrapper around the raw bytes returned by the Chia VDF engine. This concise proof allows honest nodes to instantly verify the computation in $O(\log T)$ time.
+* **`pub vdf_proof: VdfProof`**: A wrapper around the raw bytes returned by the Chia VDF engine. This concise proof allows honest nodes to instantly verify the computation in \\(O(\log T)\\) time.
 * **`pub pubkey: Vec<u8>`**: The 32-byte Ed25519 public key of the registrant. 
 * **`pub signature: Vec<u8>`**: The 64-byte Ed25519 signature. Crucially, the signature is calculated over a strictly serialized byte array of *all preceding fields*, ensuring that an attacker cannot alter the IP payload without invalidating the signature.
 
@@ -88,7 +88,7 @@ pub fn calculate_required_iterations(name: &str) -> u64 {
 }
 ```
 
-This simple, deterministic function is identical across every node. If a user registers a 1-character name (`a.kin.`) and submits a `Reveal` with $T = 100,000$ iterations, the honest DHT nodes will run this function, see that 5,000,000 iterations were required, and instantly drop the hostile payload.
+This simple, deterministic function is identical across every node. If a user registers a 1-character name (`a.kin.`) and submits a `Reveal` with \\(T = 100,000\\) iterations, the honest DHT nodes will run this function, see that 5,000,000 iterations were required, and instantly drop the hostile payload.
 
 ---
 
@@ -151,7 +151,7 @@ impl VdfEngine for ChiaVdfEngine {
 
 #### Line-by-Line Breakdown:
 * **`let discriminant_size_bits = 1024;`**: The discriminant specifies the mathematical size of the Imaginary Quadratic Class Group. A 1024-bit discriminant offers a robust security margin against classical factorization attacks (equivalent to approximately RSA-3072).
-* **`chiavdf::prove_vdf`**: This is a blocking call. When `kinetic-cli` invokes this, the thread is completely hijacked by the C++ engine. The CPU will max out a single core, aggressively executing the $x^{2^T}$ repeated squarings. Because this operation cannot be parallelized, giving it multiple threads does not speed it up.
+* **`chiavdf::prove_vdf`**: This is a blocking call. When `kinetic-cli` invokes this, the thread is completely hijacked by the C++ engine. The CPU will max out a single core, aggressively executing the \\(x^{2^T}\\) repeated squarings. Because this operation cannot be parallelized, giving it multiple threads does not speed it up.
 * **`chiavdf::verify_vdf`**: This is where the magic of the VDF lies. When a DHT node receives the proof, it calls this function. Even if `iterations` is 50,000,000 (representing weeks of work), `verify_vdf` returns `true` or `false` in a fraction of a millisecond.
 
 This stark asymmetry between `prove_vdf` and `verify_vdf` is what makes the Immunological DHT possible. Nodes can relentlessly verify millions of proofs with virtually zero CPU overhead, while attackers must burn astronomical amounts of physical time to generate even a single valid proof.

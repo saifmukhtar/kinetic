@@ -28,15 +28,15 @@ Attempts to square the triangle inevitably confront the Sybil attack vector: if 
 
 In a permissionless environment, the cost of generating a network request is effectively zero. Therefore, if the namespace lacks a friction mechanism, the network is highly vulnerable to dictionary and enumeration attacks.
 
-Let $C_a$ be the cost to the attacker, and $N$ be the total addressable space of desirable names. If the registration cost function $C_a(N) \approx 0$, a rational attacker will attempt to claim $N$. To secure the registry, a protocol must ensure that the marginal cost of acquiring the $i$-th name, $c_i$, scales such that attempting to acquire a vast number of names becomes prohibitively expensive:
+Let \\(C_a\\) be the cost to the attacker, and \\(N\\) be the total addressable space of desirable names. If the registration cost function \\(C_a(N) \approx 0\\), a rational attacker will attempt to claim \\(N\\). To secure the registry, a protocol must ensure that the marginal cost of acquiring the \\(i\\)-th name, \\(c_i\\), scales such that attempting to acquire a vast number of names becomes prohibitively expensive:
 
-$$ \sum_{i=1}^{N} c_i > R_{max} $$
+\\[ \sum_{i=1}^{N} c_i > R_{max} \\]
 
-where $R_{max}$ is the maximum resources available to the attacker. The debate in decentralized engineering is entirely about what unit of friction the variable $c$ represents.
+where \\(R_{max}\\) is the maximum resources available to the attacker. The debate in decentralized engineering is entirely about what unit of friction the variable \\(c\\) represents.
 
 ### 2.2 The Flaw of Capital-Gated Names (Economic Rent-Seeking)
 
-The most common approach—utilized by protocols like the Ethereum Name Service (ENS)—is to define $c$ as financial capital. To prevent permanent squatting and dead state, these systems institute recurring renewal fees based on string length.
+The most common approach—utilized by protocols like the Ethereum Name Service (ENS)—is to define \\(c\\) as financial capital. To prevent permanent squatting and dead state, these systems institute recurring renewal fees based on string length.
 
 While financially gating the namespace solves the Sybil problem, it introduces severe economic downstream effects:
 
@@ -46,7 +46,7 @@ While financially gating the namespace solves the Sybil problem, it introduces s
 
 ### 2.3 The Identity Bottleneck (Proof of Personhood)
 
-To eliminate capital requirements, alternative protocols attempt to define $c$ as physical human uniqueness. These Proof of Personhood (PoP) systems ensure that one human maps to exactly one identity, effectively hard-capping $N \leq 1$ per person.
+To eliminate capital requirements, alternative protocols attempt to define \\(c\\) as physical human uniqueness. These Proof of Personhood (PoP) systems ensure that one human maps to exactly one identity, effectively hard-capping \\(N \leq 1\\) per person.
 
 While mathematically elegant for Sybil resistance, PoP introduces severe sociotechnical bottlenecks:
 
@@ -58,7 +58,7 @@ While mathematically elegant for Sybil resistance, PoP introduces severe sociote
 
 We are left with an architectural impasse: a truly decentralized namespace cannot survive without friction, but defining that friction as **money** recreates Web2 rent-extraction, and defining it as **identity** destroys the user experience.
 
-The Kinetic Protocol abandons both. By defining $c$ strictly as un-parallelizable time and kinetic computation, we return to the purest form of permissionless security.
+The Kinetic Protocol abandons both. By defining \\(c\\) strictly as un-parallelizable time and kinetic computation, we return to the purest form of permissionless security.
 
 ---
 
@@ -72,11 +72,11 @@ In any public, permissionless registry, transmitting a plaintext claim for a des
 
 To render sniper bots completely blind without relying on a synchronized global clock, Kinetic mandates a **Sequential VDF Linking** scheme anchored to an external randomness beacon (specifically, `drand`, which provides highly reliable, lightweight BLS threshold signatures every 30 seconds).
 
-Let $S$ be the set of all valid human-readable strings, and let $n \in S$ be the target name. 
+Let \\(S\\) be the set of all valid human-readable strings, and let \\(n \in S\\) be the target name. 
 
-1. **Commitment Generation:** The user generates a high-entropy salt $s \in \{0,1\}^{256}$ and fetches the latest `drand` randomness pulse $B_{t_1}$. Crucially, the client binds their public key into the hash commitment: $C = H(n \parallel s \parallel B_{t_1} \parallel \text{PubKey})$.
-2. **Sequential VDF Linking:** The client does not merely wait; they must use $C$ as the base seed input for the massive Verifiable Delay Function (VDF) computation. The VDF takes $T$ time to compute.
-3. **The Reveal:** After $T$ time, the VDF completes. The client broadcasts a signed payload containing the plaintext tuple $(n, s, B_{t_1}, \text{VDF}_{\text{proof}})$. Nodes verify that the payload signature matches the $\text{PubKey}$ embedded inside $C$. 
+1. **Commitment Generation:** The user generates a high-entropy salt \\(s \in \{0,1\}^{256}\\) and fetches the latest `drand` randomness pulse \\(B_{t_1}\\). Crucially, the client binds their public key into the hash commitment: \\(C = H(n \parallel s \parallel B_{t_1} \parallel \text{PubKey})\\).
+2. **Sequential VDF Linking:** The client does not merely wait; they must use \\(C\\) as the base seed input for the massive Verifiable Delay Function (VDF) computation. The VDF takes \\(T\\) time to compute.
+3. **The Reveal:** After \\(T\\) time, the VDF completes. The client broadcasts a signed payload containing the plaintext tuple \\((n, s, B_{t_1}, \text{VDF}_{\text{proof}})\\). Nodes verify that the payload signature matches the \\(\text{PubKey}\\) embedded inside \\(C\\). 
 
 ```mermaid
 sequenceDiagram
@@ -105,29 +105,29 @@ sequenceDiagram
     end
 ```
 
-Because the `drand` pulse $B_{t_1}$ was unpredictable before $t_1$, an attacker cannot pre-compute the VDF. Because the VDF inherently takes $T$ time to solve, the completion of the VDF mathematically proves that the commitment $C$ existed at least $T$ time ago. If a sniper bot sees the reveal and attempts to steal the name, they must start their own VDF. By the time they finish at $t_1 + 2T$, the original claim is deeply embedded in the network. Furthermore, because the commitment $C$ is uniquely bound to the original user's public key, an attacker cannot simply intercept the reveal tuple and replay it wrapped in their own signature.
+Because the `drand` pulse \\(B_{t_1}\\) was unpredictable before \\(t_1\\), an attacker cannot pre-compute the VDF. Because the VDF inherently takes \\(T\\) time to solve, the completion of the VDF mathematically proves that the commitment \\(C\\) existed at least \\(T\\) time ago. If a sniper bot sees the reveal and attempts to steal the name, they must start their own VDF. By the time they finish at \\(t_1 + 2T\\), the original claim is deeply embedded in the network. Furthermore, because the commitment \\(C\\) is uniquely bound to the original user's public key, an attacker cannot simply intercept the reveal tuple and replay it wrapped in their own signature.
 
 ### 3.2 Phase II: Dynamic Verifiable Delay Functions (Dictionary Neutralization)
 
 If the Commit-Reveal phase hides the target, the Verifiable Delay Function (VDF) serves as the protocol's primary Sybil-resistance mechanism.
 
-A VDF is a cryptographic function $f: X \to Y$ that takes a prescribed amount of sequential time to evaluate, but is exponentially faster to verify. Crucially, a VDF cannot be accelerated through parallel processing. An attacker with an array of 10,000 ASICs cannot compute a single VDF any faster than a solitary user on a consumer-grade laptop.
+A VDF is a cryptographic function \\(f: X \to Y\\) that takes a prescribed amount of sequential time to evaluate, but is exponentially faster to verify. Crucially, a VDF cannot be accelerated through parallel processing. An attacker with an array of 10,000 ASICs cannot compute a single VDF any faster than a solitary user on a consumer-grade laptop.
 
 #### The Mathematical Construction
 
-The Kinetic Protocol utilizes a VDF based on repeated squaring in a finite abelian group of unknown order.[^1] The user is challenged to compute an output $y$ given a base element $x$ and a time parameter $T$:
+The Kinetic Protocol utilizes a VDF based on repeated squaring in a finite abelian group of unknown order.[^1] The user is challenged to compute an output \\(y\\) given a base element \\(x\\) and a time parameter \\(T\\):
 
-$$ y = x^{2^T} \pmod N $$
+\\[ y = x^{2^T} \pmod N \\]
 
-They are mathematically forced to execute $T$ sequential squarings. Alongside $y$, the prover generates a concise cryptographic proof $\pi$. While evaluating $y$ requires $O(T)$ operations, any network node can verify the tuple $(x, y, \pi)$ in $O(\log T)$ or $O(1)$ time.
+They are mathematically forced to execute \\(T\\) sequential squarings. Alongside \\(y\\), the prover generates a concise cryptographic proof \\(\pi\\). While evaluating \\(y\\) requires \\(O(T)\\) operations, any network node can verify the tuple \\((x, y, \pi)\\) in \\(O(\log T)\\) or \\(O(1)\\) time.
 
-[^1]: **Note on Trust Assumptions**: If using an RSA modulus $N = p \cdot q$, the protocol requires a trusted setup ceremony to generate the modulus and definitively destroy the prime factors. To avoid a trusted setup entirely, the protocol may substitute the RSA group with an imaginary quadratic class group, sacrificing some performance for trustless mathematical purity.
+[^1]: **Note on Trust Assumptions**: If using an RSA modulus \\(N = p \cdot q\\), the protocol requires a trusted setup ceremony to generate the modulus and definitively destroy the prime factors. To avoid a trusted setup entirely, the protocol may substitute the RSA group with an imaginary quadratic class group, sacrificing some performance for trustless mathematical purity.
 
 #### Hardware Acceleration & Dynamic Difficulty
 
-To ensure the Sybil defense doesn't decay over the decades as hardware single-thread performance improves, the protocol dynamically synchronizes the difficulty variable $k$.
+To ensure the Sybil defense doesn't decay over the decades as hardware single-thread performance improves, the protocol dynamically synchronizes the difficulty variable \\(k\\).
 
-* **Primary Driver (External Time Beacon):** The baseline difficulty constant $k$ is deterministically derived from the `drand` beacon height. This provides global consensus with zero coordination cost, slowly tightening the baseline difficulty over time.
+* **Primary Driver (External Time Beacon):** The baseline difficulty constant \\(k\\) is deterministically derived from the `drand` beacon height. This provides global consensus with zero coordination cost, slowly tightening the baseline difficulty over time.
 * **Fallback (Re-Squaring):** If the beacon becomes unreachable, the protocol gracefully degrades to a static difficulty. To prevent long-term decay in a beacon-less world, any name crossing a multi-year epoch must refresh its claim with a "re-squaring" VDF.
 * **Alert Layer (Local Observation):** Clients passively measure the rate of new registrations and computational lag. If hardware drastically outpaces the beacon's difficulty curve, clients raise a user-visible warning, providing a social signal for manual fallback adjustments without breaking deterministic consensus.
 
@@ -170,9 +170,9 @@ Ownership is maintained by a localized, continuous Proof of Work (PoW) heartbeat
 
 If a user goes offline and misses their heartbeat, the name is **not** instantly evicted. Instead, it enters **Grace-Period Escalation**. An abandoned name requires an attacker to compute an *exponentially harder* VDF to steal it based on how long it has been idle. The difficulty to steal is formalized as:
 
-$$ T_{\text{steal}}(\Delta t) = T_{\text{max}} \cdot e^{-\beta \cdot \Delta t} $$
+\\[ T_{\text{steal}}(\Delta t) = T_{\text{max}} \cdot e^{-\beta \cdot \Delta t} \\]
 
-where $\Delta t$ is the idle time, $T_{\text{max}}$ is the initial massive VDF difficulty (e.g., weeks of computation), and $\beta$ is the decay constant. 
+where \\(\Delta t\\) is the idle time, \\(T_{\text{max}}\\) is the initial massive VDF difficulty (e.g., weeks of computation), and \\(\beta\\) is the decay constant. 
 
 ```mermaid
 xychart-beta
@@ -183,12 +183,12 @@ xychart-beta
 ```
 
 To initiate a challenge without a centralized clock, the attacker must mathematically prove the idle time using the DHT state:
-1. The attacker retrieves the last known valid heartbeat for the name. (Heartbeats include the current `drand` round: $\text{Heartbeat} = \text{Sign}_{\text{owner}}( \text{PubKey} \parallel \text{drand\_round} \parallel \text{nonce} )$).
-2. The attacker calculates $\Delta t$ as the difference between the current `drand` round and the round in the owner's last signed heartbeat.
-3. The attacker computes the Challenge VDF of difficulty $T_{\text{steal}}(\Delta t)$.
+1. The attacker retrieves the last known valid heartbeat for the name. (Heartbeats include the current `drand` round: \\(\text{Heartbeat} = \text{Sign}_{\text{owner}}( \text{PubKey} \parallel \text{drand\_round} \parallel \text{nonce} )\\)).
+2. The attacker calculates \\(\Delta t\\) as the difference between the current `drand` round and the round in the owner's last signed heartbeat.
+3. The attacker computes the Challenge VDF of difficulty \\(T_{\text{steal}}(\Delta t)\\).
 4. The attacker submits the challenge, referencing the old heartbeat.
 
-Because the heartbeat is signed by the owner, the attacker cannot forge a newer heartbeat to artificially shorten the idle time. If the name is actually active, honest network nodes will hold a cached recent heartbeat that contradicts the attacker's $\Delta t$ claim, instantly invalidating the attack. 
+Because the heartbeat is signed by the owner, the attacker cannot forge a newer heartbeat to artificially shorten the idle time. If the name is actually active, honest network nodes will hold a cached recent heartbeat that contradicts the attacker's \\(\Delta t\\) claim, instantly invalidating the attack. 
 
 Even if the attacker computes a valid Challenge VDF, this merely opens the **Challenge Window**. The original owner can return at any moment during this window and reclaim the name instantly with a single, standard heartbeat, effortlessly invalidating the attacker's massive computation.
 
@@ -208,11 +208,11 @@ Kinetic achieves global consensus without a global ledger or blockchain by decou
 
 ### 4.1 The Kademlia DHT and Competitive Gossip
 
-Kinetic leverages a **Kademlia Distributed Hash Table (DHT)** via the `libp2p` networking stack. When a user computes a VDF to claim a name, their daemon pushes the payload to the DHT address $K = H(n)$.
+Kinetic leverages a **Kademlia Distributed Hash Table (DHT)** via the `libp2p` networking stack. When a user computes a VDF to claim a name, their daemon pushes the payload to the DHT address \\(K = H(n)\\).
 
 Because a standard DHT has no execution environment, it is inherently vulnerable to storage exhaustion attacks (spam). To prevent an attacker from flooding the DHT with invalid payloads, Kinetic introduces two critical defenses:
 
-1. **Competitive Gossip:** Every DHT node performs the $O(1)$ VDF mathematical validation *before* storing or propagating a payload. If the math is invalid, the node drops the payload entirely. The network acts as an active immune system, ensuring that only cryptographically sound data consumes storage space.
+1. **Competitive Gossip:** Every DHT node performs the \\(O(1)\\) VDF mathematical validation *before* storing or propagating a payload. If the math is invalid, the node drops the payload entirely. The network acts as an active immune system, ensuring that only cryptographically sound data consumes storage space.
 2. **Lightweight Proof-of-Connection:** To prevent an attacker from opening millions of connections to spam mathematically invalid VDFs, every node requires a trivial, connection-specific Hashcash PoW. If a connection repeatedly sends mathematically invalid VDFs, the node aggressively rate-limits, drops the connection, and forces the attacker to pay the Hashcash again, making sustained CPU-exhaustion attacks economically irrational.
 
 ### 4.2 Deterministic Client-Side Validation
@@ -220,12 +220,12 @@ Because a standard DHT has no execution environment, it is inherently vulnerable
 Consensus is not a state stored on a server; it is a deterministic calculation run by the user's own machine.
 
 When a user resolves `saif.kin`:
-1. **Fetch:** The local daemon queries the Kademlia DHT at $H(\text{saif})$ and retrieves the list of stored payloads.
+1. **Fetch:** The local daemon queries the Kademlia DHT at \\(H(\text{saif})\\) and retrieves the list of stored payloads.
 2. **Filter (Math):** The daemon locally verifies the VDF proofs and Heartbeat nonces.
 3. **Filter (Time):** Of the valid payloads, the daemon evaluates the sequential VDF timestamps anchored to the `drand` beacon.
 4. **Resolve:** The daemon deterministically selects the payload with the earliest valid commitment and active heartbeat, extracts the routing IP address, and seamlessly resolves the local browser's request.
 
-**Tie-Breaking (The XOR Lottery):** If two honest users generate valid commitments for the exact same name within the exact same 30-second `drand` window ($B_{t_1}$ is identical), the protocol must break the tie without recreating a grinding PoW race. The winner is determined by the payload whose VDF output $y$ has the smallest XOR distance to the subsequent `drand` pulse $B_{t_2}$ at the time the first reveal is published. Because neither user can predict the future `drand` pulse, and neither can manipulate their VDF output $y$ (which is deterministically derived from the fixed inputs), this functions as a perfectly fair, mathematically un-gameable lottery.
+**Tie-Breaking (The XOR Lottery):** If two honest users generate valid commitments for the exact same name within the exact same 30-second `drand` window (\\(B_{t_1}\\) is identical), the protocol must break the tie without recreating a grinding PoW race. The winner is determined by the payload whose VDF output \\(y\\) has the smallest XOR distance to the subsequent `drand` pulse \\(B_{t_2}\\) at the time the first reveal is published. Because neither user can predict the future `drand` pulse, and neither can manipulate their VDF output \\(y\\) (which is deterministically derived from the fixed inputs), this functions as a perfectly fair, mathematically un-gameable lottery.
 
 ```mermaid
 graph TD
@@ -261,9 +261,9 @@ The cost to operate the network remains exactly $0.
 
 #### The Vulnerability: Single-Key Eclipse Attacks
 
-The protocol as described thus far assumes the Kademlia DHT acts as an honest bulletin board. In practice, permissionless DHTs are vulnerable to Eclipse attacks: an adversary can generate a large number of Sybil node IDs mathematically close to a target key $K$, becoming the authoritative storage peers for that key. Once in position, these malicious nodes can silently drop legitimate payloads and serve only the attacker's data.
+The protocol as described thus far assumes the Kademlia DHT acts as an honest bulletin board. In practice, permissionless DHTs are vulnerable to Eclipse attacks: an adversary can generate a large number of Sybil node IDs mathematically close to a target key \\(K\\), becoming the authoritative storage peers for that key. Once in position, these malicious nodes can silently drop legitimate payloads and serve only the attacker's data.
 
-If a resolver queries $K = H(n)$ and the attacker controls the surrounding keyspace, the resolver receives only the attacker's payload. Because client-side validation can only evaluate data it receives, and the attacker's payload contains a valid VDF proof and commitment, the resolver has no cryptographic basis to reject it. The honest registrant's payload simply never arrives. The XOR tie-breaker, which assumes both payloads are visible, is powerless against this network-layer censorship.
+If a resolver queries \\(K = H(n)\\) and the attacker controls the surrounding keyspace, the resolver receives only the attacker's payload. Because client-side validation can only evaluate data it receives, and the attacker's payload contains a valid VDF proof and commitment, the resolver has no cryptographic basis to reject it. The honest registrant's payload simply never arrives. The XOR tie-breaker, which assumes both payloads are visible, is powerless against this network-layer censorship.
 
 This is not a theoretical concern. Eclipse attacks have been demonstrated against Ethereum's discovery layer, IPFS's Kademlia DHT, and other production P2P networks. A motivated adversary with freely generated Sybil identities can isolate specific name entries at relatively low cost.
 
@@ -271,72 +271,72 @@ This is not a theoretical concern. Eclipse attacks have been demonstrated agains
 
 To defend against Eclipse attacks without introducing a blockchain, central coordinator, or monetary cost, the Kinetic Protocol adopts a Redundant Deterministic Storage scheme inspired by BitTorrent's multi-tracker resilience.
 
-Instead of storing a name's payload at a single DHT key, the registrant publishes the identical, signed payload to $M$ independent, deterministically derived storage locations. A resolver queries all $M$ locations in parallel and applies the standard deterministic validation logic across the union of all returned payloads.
+Instead of storing a name's payload at a single DHT key, the registrant publishes the identical, signed payload to \\(M\\) independent, deterministically derived storage locations. A resolver queries all \\(M\\) locations in parallel and applies the standard deterministic validation logic across the union of all returned payloads.
 
 #### Derivation of Storage Keys
 
-Let $n \in S$ be the registered name. The $M$ storage keys are derived using a cryptographic hash function $H$ with a domain-separated namespace constant:
+Let \\(n \in S\\) be the registered name. The \\(M\\) storage keys are derived using a cryptographic hash function \\(H\\) with a domain-separated namespace constant:
 
-$$ K_i = H(n \parallel i \parallel \text{domain\_tag}), \quad \text{for } i \in \{0, 1, \dots, M-1\} $$
+\\[ K_i = H(n \parallel i \parallel \text{domain\_tag}), \quad \text{for } i \in \{0, 1, \dots, M-1\} \\]
 
-where $\text{domain\_tag}$ is a fixed protocol string (e.g., "kinetic-dht-v1"). Because $H$ behaves as a random oracle, the $M$ keys are uniformly distributed across the Kademlia ID space and are mathematically uncorrelated. Controlling the keyspace around $K_0$ gives the attacker no advantage in controlling $K_1$, $K_2$, or any other key. Each key is an independent, uniformly random point in the DHT.
+where \\(\text{domain\_tag}\\) is a fixed protocol string (e.g., "kinetic-dht-v1"). Because \\(H\\) behaves as a random oracle, the \\(M\\) keys are uniformly distributed across the Kademlia ID space and are mathematically uncorrelated. Controlling the keyspace around \\(K_0\\) gives the attacker no advantage in controlling \\(K_1\\), \\(K_2\\), or any other key. Each key is an independent, uniformly random point in the DHT.
 
 #### Registration with Redundant Storage
 
-When a registrant completes their VDF and prepares the reveal payload $\mathcal{P}$:
+When a registrant completes their VDF and prepares the reveal payload \\(\mathcal{P}\\):
 
-$$ \mathcal{P} = \{n, s, B_{t_1}, \pi_{\text{VDF}}, \text{PubKey}, \text{signature}\} $$
+\\[ \mathcal{P} = \{n, s, B_{t_1}, \pi_{\text{VDF}}, \text{PubKey}, \text{signature}\} \\]
 
 they execute the following publication procedure:
 
-1. **Compute storage keys:** Derive $K_0, K_1, \dots, K_{M-1}$ as defined above.
-2. **Publish to majority:** Push $\mathcal{P}$ to the DHT, targeting all $M$ keys. The DHT's standard put operation routes the payload to the peers closest to each $K_i$.
-3. **Confirm threshold:** The registrant waits until acknowledgments confirm that $\mathcal{P}$ has been stored at a supermajority of the $M$ locations (e.g., at least $\lceil M/2 \rceil$). If the threshold is not met—perhaps due to transient network issues—the registrant retries until the majority is achieved.
+1. **Compute storage keys:** Derive \\(K_0, K_1, \dots, K_{M-1}\\) as defined above.
+2. **Publish to majority:** Push \\(\mathcal{P}\\) to the DHT, targeting all \\(M\\) keys. The DHT's standard put operation routes the payload to the peers closest to each \\(K_i\\).
+3. **Confirm threshold:** The registrant waits until acknowledgments confirm that \\(\mathcal{P}\\) has been stored at a supermajority of the \\(M\\) locations (e.g., at least \\(\lceil M/2 \rceil\\)). If the threshold is not met—perhaps due to transient network issues—the registrant retries until the majority is achieved.
 
-The registrant is not required to succeed at all $M$ locations. A majority threshold ensures that honest resolvers will find the legitimate payload with high probability, while tolerating partial network failures or partial eclipse.
+The registrant is not required to succeed at all \\(M\\) locations. A majority threshold ensures that honest resolvers will find the legitimate payload with high probability, while tolerating partial network failures or partial eclipse.
 
-*Note on Fake ACKs:* Standard Kademlia `STORE` RPCs do not contain cryptographic proofs of storage. A malicious node in the routing path could intercept the registrant's payload, reply with a fake "Stored successfully" ACK, and silently drop the data. The protocol mitigates this relying on Kademlia's probabilistic replication and parallel queries. A missing payload at an attacked key is gracefully ignored, and the valid payloads at the other $M-1$ keys win. Registrants can also asynchronously verify storage by performing a `GET` immediately after a `PUT`.
+*Note on Fake ACKs:* Standard Kademlia `STORE` RPCs do not contain cryptographic proofs of storage. A malicious node in the routing path could intercept the registrant's payload, reply with a fake "Stored successfully" ACK, and silently drop the data. The protocol mitigates this relying on Kademlia's probabilistic replication and parallel queries. A missing payload at an attacked key is gracefully ignored, and the valid payloads at the other \\(M-1\\) keys win. Registrants can also asynchronously verify storage by performing a `GET` immediately after a `PUT`.
 
 #### Resolution with Redundant Storage
 
-When a client resolves a name $n$:
+When a client resolves a name \\(n\\):
 
-1. **Compute all storage keys:** Derive $K_0, K_1, \dots, K_{M-1}$ locally.
-2. **Parallel fetch:** Query the DHT for payloads stored at each $K_i$. This is a parallel operation; the total latency is bounded by the slowest response.
-3. **Union of results:** Collect all distinct payloads returned from any of the $M$ keys.
+1. **Compute all storage keys:** Derive \\(K_0, K_1, \dots, K_{M-1}\\) locally.
+2. **Parallel fetch:** Query the DHT for payloads stored at each \\(K_i\\). This is a parallel operation; the total latency is bounded by the slowest response.
+3. **Union of results:** Collect all distinct payloads returned from any of the \\(M\\) keys.
 4. **Deterministic validation:** Apply the standard client-side validation logic across all collected payloads:
-   - Verify each payload's VDF proof $\pi_{\text{VDF}}$ and commitment $C = H(n \parallel s \parallel B_{t_1} \parallel \text{PubKey})$.
-   - Verify the signature against the embedded $\text{PubKey}$.
+   - Verify each payload's VDF proof \\(\pi_{\text{VDF}}\\) and commitment \\(C = H(n \parallel s \parallel B_{t_1} \parallel \text{PubKey})\\).
+   - Verify the signature against the embedded \\(\text{PubKey}\\).
    - Discard any payload failing these checks.
-5. **Select the winner:** Among the valid payloads, select the one with the earliest $B_{t_1}$ (drand round). If two payloads share the same $B_{t_1}$, apply the XOR lottery tie-breaker using the VDF output $y$ and the drand pulse at the reveal epoch.
+5. **Select the winner:** Among the valid payloads, select the one with the earliest \\(B_{t_1}\\) (drand round). If two payloads share the same \\(B_{t_1}\\), apply the XOR lottery tie-breaker using the VDF output \\(y\\) and the drand pulse at the reveal epoch.
 
-This procedure guarantees that if at least one of the $M$ storage locations is honest and stores the legitimate payload, every resolver will see it. The attacker must eclipse all $M$ locations simultaneously to censor the legitimate claim.
+This procedure guarantees that if at least one of the \\(M\\) storage locations is honest and stores the legitimate payload, every resolver will see it. The attacker must eclipse all \\(M\\) locations simultaneously to censor the legitimate claim.
 
 #### Probabilistic Security Analysis
 
-Let $f$ be the fraction of DHT nodes controlled by the adversary. The adversary can successfully eclipse a single storage key $K_i$ if they control the $k$ closest nodes to $K_i$, where $k$ is the DHT's replication factor (typically $k \approx 20$ in Kademlia). For a given $f$, the probability of successfully eclipsing a single uniformly random key is approximately $f^{k}$ in a static model, or bounded by $f$ in a sustained Sybil attack.
+Let \\(f\\) be the fraction of DHT nodes controlled by the adversary. The adversary can successfully eclipse a single storage key \\(K_i\\) if they control the \\(k\\) closest nodes to \\(K_i\\), where \\(k\\) is the DHT's replication factor (typically \\(k \approx 20\\) in Kademlia). For a given \\(f\\), the probability of successfully eclipsing a single uniformly random key is approximately \\(f^{k}\\) in a static model, or bounded by \\(f\\) in a sustained Sybil attack.
 
-The critical security property of redundant storage is that the $M$ keys are independent and uniformly distributed. The probability that the adversary eclipses all $M$ keys simultaneously is:
+The critical security property of redundant storage is that the \\(M\\) keys are independent and uniformly distributed. The probability that the adversary eclipses all \\(M\\) keys simultaneously is:
 
-$$ P(\text{total eclipse}) = \prod_{i=0}^{M-1} P(\text{eclipse } K_i) \approx f^{M \cdot k} $$
+\\[ P(\text{total eclipse}) = \prod_{i=0}^{M-1} P(\text{eclipse } K_i) \approx f^{M \cdot k} \\]
 
-Concrete example: Suppose the adversary controls $f = 20\%$ of the DHT nodes — a massive Sybil investment. With $M = 5$ redundant keys and a standard libp2p replication factor of $k = 20$:
+Concrete example: Suppose the adversary controls \\(f = 20\%\\) of the DHT nodes — a massive Sybil investment. With \\(M = 5\\) redundant keys and a standard libp2p replication factor of \\(k = 20\\):
 
-$$ P(\text{total eclipse}) = (0.2)^{5 \cdot 20} = (0.2)^{100} \approx 1.26 \times 10^{-70} $$
+\\[ P(\text{total eclipse}) = (0.2)^{5 \cdot 20} = (0.2)^{100} \approx 1.26 \times 10^{-70} \\]
 
 The probability that the attacker can censor a specific name is practically zero. This represents an astronomical improvement over single-key storage, demonstrating the immense security multiplier of scattering payloads across independent Kademlia buckets.
 
-Increasing $M$ to 7 reduces the probability below $10^{-5}$. The marginal storage and bandwidth overhead is linear in $M$, while the censorship resistance is exponential. The protocol defaults to $M = 5$, with individual implementations free to increase this parameter for higher-value names.
+Increasing \\(M\\) to 7 reduces the probability below \\(10^{-5}\\). The marginal storage and bandwidth overhead is linear in \\(M\\), while the censorship resistance is exponential. The protocol defaults to \\(M = 5\\), with individual implementations free to increase this parameter for higher-value names.
 
 #### Practical Considerations
 
-**Storage overhead:** Each name consumes $M$ DHT entries instead of one. For $M = 5$ and a payload size of approximately 2 KB (commitment, VDF proof, signature, and metadata), total storage per name is approximately 10 KB distributed across the network. For even 10 million active names, total DHT storage is approximately 100 GB, trivially manageable for a global P2P network.
+**Storage overhead:** Each name consumes \\(M\\) DHT entries instead of one. For \\(M = 5\\) and a payload size of approximately 2 KB (commitment, VDF proof, signature, and metadata), total storage per name is approximately 10 KB distributed across the network. For even 10 million active names, total DHT storage is approximately 100 GB, trivially manageable for a global P2P network.
 
-**Query latency:** The $M$ DHT queries are issued in parallel. The resolver's perceived latency is the maximum of $M$ Kademlia lookups, each requiring $O(\log N)$ hops. In practice, this adds tens of milliseconds compared to a single lookup, which is imperceptible in the context of DNS resolution (already subject to caching and upstream resolver latency).
+**Query latency:** The \\(M\\) DHT queries are issued in parallel. The resolver's perceived latency is the maximum of \\(M\\) Kademlia lookups, each requiring \\(O(\log N)\\) hops. In practice, this adds tens of milliseconds compared to a single lookup, which is imperceptible in the context of DNS resolution (already subject to caching and upstream resolver latency).
 
 **No central coordination required:** The storage keys are computed deterministically by both registrants and resolvers. No registry, committee, or blockchain coordinates which nodes store what. The mechanism is entirely client-driven and preserves the protocol's stateless, zero-cost architecture.
 
-**DHT TTL (Time-To-Live) Degradation:** DHT entries do not live forever; they expire based on a TTL (e.g., 24-72 hours in standard libp2p). If a name's payload expires at $K_2$ but not the others, the redundancy drops from $M$ to $M-1$. The protocol mandates that the client daemon treat the republishing of the payload to all $M$ keys as part of its background maintenance loop. Tied directly to the heartbeat mechanism, the daemon re-`PUT`s the payload proactively to ensure redundancy never degrades.
+**DHT TTL (Time-To-Live) Degradation:** DHT entries do not live forever; they expire based on a TTL (e.g., 24-72 hours in standard libp2p). If a name's payload expires at \\(K_2\\) but not the others, the redundancy drops from \\(M\\) to \\(M-1\\). The protocol mandates that the client daemon treat the republishing of the payload to all \\(M\\) keys as part of its background maintenance loop. Tied directly to the heartbeat mechanism, the daemon re-`PUT`s the payload proactively to ensure redundancy never degrades.
 
 #### Integration with Existing Defenses
 
@@ -344,7 +344,7 @@ Redundant storage complements, rather than replaces, other DHT security measures
 
 * **S/Kademlia extensions:** libp2p supports cryptographic node ID generation, making Sybil identity generation computationally expensive. When combined with redundant storage, the attacker faces both an increased cost per identity and the need to control multiple independent keyspace regions.
 * **Competitive Gossip:** DHT nodes continue to validate payloads before storing or propagating them, preventing the redundant locations from being filled with invalid spam.
-* **Grace-Period Escalation:** Even if an attacker successfully eclipses a name temporarily, the legitimate owner's heartbeat can be re-published to all $M$ locations, restoring visibility to the network.
+* **Grace-Period Escalation:** Even if an attacker successfully eclipses a name temporarily, the legitimate owner's heartbeat can be re-published to all \\(M\\) locations, restoring visibility to the network.
 
 By adding redundant deterministic storage, the Kinetic Protocol eliminates the single most critical vulnerability of its stateless DHT architecture while maintaining zero fees, zero central authority, and purely client-side consensus.
 

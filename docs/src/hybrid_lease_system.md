@@ -18,7 +18,7 @@ This is achieved via a **Proof of Work (PoW) Heartbeat**.
 
 A Heartbeat is an incredibly lightweight cryptographic struct, generated and broadcast by the owner's daemon every 60 seconds.
 
-$$ \text{Heartbeat} = \text{Sign}_{\text{Ed25519}} ( \text{Name} \parallel \text{drand\_pulse}_{t} ) $$
+\\[ \text{Heartbeat} = \text{Sign}_{\text{Ed25519}} ( \text{Name} \parallel \text{drand\_pulse}_{t} ) \\]
 
 The daemon automatically queries the external Drand beacon for the latest entropy pulse, binds it to the domain name, and signs it with the exact same Ed25519 private key that was used during the initial VDF Reveal. 
 
@@ -50,13 +50,13 @@ An abandoned name does not immediately become "free". Instead, an attacker wishi
 
 ### The Mathematics of Stealing
 
-Let $\Delta t$ be the idle time (the time elapsed since the last valid Heartbeat was seen on the DHT).
-Let $T_{\text{max}}$ be the maximum possible VDF penalty (e.g., millions of iterations, requiring weeks of computation).
-Let $\beta$ be the exponential decay constant.
+Let \\(\Delta t\\) be the idle time (the time elapsed since the last valid Heartbeat was seen on the DHT).
+Let \\(T_{\text{max}}\\) be the maximum possible VDF penalty (e.g., millions of iterations, requiring weeks of computation).
+Let \\(\beta\\) be the exponential decay constant.
 
 The number of iterations required to steal a name is formalized as:
 
-$$ T_{\text{steal}}(\Delta t) = T_{\text{max}} \cdot e^{-\beta \cdot \Delta t} $$
+\\[ T_{\text{steal}}(\Delta t) = T_{\text{max}} \cdot e^{-\beta \cdot \Delta t} \\]
 
 * **Day 1 of Offline Time:** The required VDF is astronomical. It would take an attacker three months of continuous, un-parallelizable ASIC computation to steal the name.
 * **Day 30 of Offline Time:** The exponential decay curve lowers the difficulty. It might now take the attacker three weeks of computation.
@@ -66,10 +66,10 @@ $$ T_{\text{steal}}(\Delta t) = T_{\text{max}} \cdot e^{-\beta \cdot \Delta t} $
 To steal a name without a centralized clock, the attacker must mathematically prove to the Kademlia swarm exactly how long the name has been dead.
 
 1. The attacker queries the DHT and retrieves the last known valid Heartbeat for `apple.kin`. (This heartbeat contains a specific Drand pulse number, definitively marking its exact creation time).
-2. The attacker calculates the elapsed Drand rounds $\Delta t$.
-3. The attacker's local `kinetic-cli` calculates the required penalty iterations $T_{\text{steal}}(\Delta t)$.
+2. The attacker calculates the elapsed Drand rounds \\(\Delta t\\).
+3. The attacker's local `kinetic-cli` calculates the required penalty iterations \\(T_{\text{steal}}(\Delta t)\\).
 4. The attacker grinds the massive VDF.
-5. The attacker broadcasts a new `Reveal` struct, embedding the original owner's last Heartbeat to prove the $\Delta t$ variable.
+5. The attacker broadcasts a new `Reveal` struct, embedding the original owner's last Heartbeat to prove the \\(\Delta t\\) variable.
 
 ### The Kademlia Record Store Enforcement
 When the DHT nodes receive this hostile `Reveal`, the `KineticRecordStore` executes the following logic:
@@ -79,7 +79,7 @@ When the DHT nodes receive this hostile `Reveal`, the `KineticRecordStore` execu
 
 If the honest node possesses a Heartbeat newer than the one the attacker claims is the "last", the attacker's entire computation is instantly invalidated. The attacker is flagged for attempting a fraudulent takeover, and their connection is dropped.
 
-This means an attacker cannot simply ignore recent heartbeats to artificially shorten $\Delta t$. They must be mathematically honest about the exact time of death.
+This means an attacker cannot simply ignore recent heartbeats to artificially shorten \\(\Delta t\\). They must be mathematically honest about the exact time of death.
 
 ---
 

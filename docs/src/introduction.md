@@ -38,7 +38,7 @@ In a permissionless network, the cost of generating a network request is effecti
 To prevent this "mass-dictionary squatting," decentralized protocols instituted a gating function: **Financial Capital**.
 
 ### The Flaw of Capital-Gated Names
-Systems like ENS enforce recurring, annual monetary fees (payable in ETH) based on string length (e.g., $5/year for long names, $640/year for 3-character names). While financially gating the namespace solves the Sybil problem (it is too expensive to register every word), it introduces severe economic downstream effects:
+Systems like ENS enforce recurring, annual monetary fees (payable in ETH) based on string length (e.g., \\(5/year for long names, \\)640/year for 3-character names). While financially gating the namespace solves the Sybil problem (it is too expensive to register every word), it introduces severe economic downstream effects:
 
 1. **Digital Landlordism:** A capital-gated registry inherently favors entities with the deepest financial liquidity. Wealthy speculators can afford the carry costs to hoard premium, short-character names. They sit on these names, extracting rent from legitimate developers or organizations who actually intend to build on them. This recreates the exact rent-seeking dynamics of Web2, simply replacing centralized registries with decentralized whales.
 2. **Developer Pricing-Out:** For a protocol meant to serve as a foundational network primitive (e.g., exposing a local port or routing a decentralized app), an annual monetary fee creates a continuous liability. Peer-to-peer network routing should not require a perpetual subscription fee.

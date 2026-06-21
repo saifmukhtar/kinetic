@@ -1,37 +1,67 @@
-/* Custom Typography for Kinetic Documentation */
+/* Custom Typography & "Sky Blue Cream" Theme for Kinetic Documentation */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+    --bg: #FDFBF7; /* Cream/off-white background */
+    --fg: #334155; /* Slate 700 text for less strain */
+    --sidebar-bg: #F8FAFC;
+    --sidebar-fg: #64748B;
+    --sidebar-active: #0284C7; /* Sky blue 600 */
+    --links: #0284C7;
+    --quote-bg: #F0F9FF; /* Soft sky blue */
+    --quote-border: #38BDF8;
+    --inline-code-color: #0284C7;
+    --code-bg: #F1F5F9;
+}
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
     font-size: 16px;
     line-height: 1.7;
     -webkit-font-smoothing: antialiased;
+    background-color: var(--bg);
+    color: var(--fg);
 }
 
 h1, h2, h3, h4, h5, .sidebar, .menu-title {
     font-family: 'Inter', sans-serif !important;
     letter-spacing: -0.02em;
+    color: #0f172a; /* Slate 900 */
+}
+
+a {
+    color: var(--links);
 }
 
 code, pre {
     font-family: 'JetBrains Mono', Consolas, Monaco, monospace !important;
 }
 
+code {
+    background-color: var(--code-bg);
+    color: var(--inline-code-color);
+    padding: 0.1em 0.3em;
+    border-radius: 4px;
+}
+
 /* Beautiful Blockquotes */
 blockquote {
-    border-left-width: 4px;
+    border-left: 4px solid var(--quote-border);
     font-style: normal;
     padding: 1rem 1.5rem;
     border-radius: 0 8px 8px 0;
     margin: 2rem 0;
-    background: rgba(100, 150, 255, 0.05);
+    background: var(--quote-bg);
+    color: #1e293b;
 }
 
 /* Mermaid Container */
 .mermaid {
     display: flex;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     padding: 2rem;
     border-radius: 12px;
     margin: 2rem 0;
