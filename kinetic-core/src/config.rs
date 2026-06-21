@@ -37,10 +37,8 @@ impl Default for KineticConfig {
             network: P2pConfig {
                 p2p_port: 6070,
                 bootstrap_nodes: vec![
-                    // REPLACE THESE WITH YOUR AWS/DIGITALOCEAN EC2 INSTANCE IPS ONCE DEPLOYED
-                    // Format: /ip4/<STATIC_IP>/tcp/6070/p2p/<PEER_ID>
-                    "/ip4/198.51.100.10/tcp/6070/p2p/12D3KooWPlaceholderAlphaNode1...".to_string(),
-                    "/ip4/198.51.100.11/tcp/6070/p2p/12D3KooWPlaceholderBetaNode2...".to_string(),
+                    "/ip4/54.146.215.204/tcp/6070/p2p/12D3KooWSeNyiZPyr798mE6PAc7Mhh1dikvBv4PEaxp2hxDWuAUD".to_string(),
+                    "/ip4/54.82.243.125/tcp/6070/p2p/12D3KooWLdtVq46VggMkHJdtfo9fMrYbiHWmUEm6Cgzhe1vrhbup".to_string(),
                 ],
             },
         }

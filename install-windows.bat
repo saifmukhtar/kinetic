@@ -7,7 +7,8 @@ echo === Kinetic Daemon Installer (Windows) ===
 :: 1. Setup Windows Service (requires nssm or native sc)
 echo Configuring background Windows Service...
 mkdir "C:\Program Files\Kinetic" 2>nul
-:: copy kinetic-daemon.exe "C:\Program Files\Kinetic\kinetic-daemon.exe"
+:: Download latest release binary
+curl -L https://github.com/saifmukhtar/kinetic/releases/latest/download/kinetic-daemon-windows.exe -o "C:\Program Files\Kinetic\kinetic-daemon.exe"
 sc create KineticDaemon binPath= "C:\Program Files\Kinetic\kinetic-daemon.exe" start= auto
 sc start KineticDaemon
 

@@ -5,9 +5,9 @@ echo "=== Kinetic Daemon Installer (macOS) ==="
 
 # 1. Download the latest binary
 echo "Downloading Kinetic Daemon..."
-# curl -L https://github.com/saifmukhtar/kinetic/releases/latest/download/kinetic-daemon-macos -o /tmp/kinetic-daemon
-# sudo mv /tmp/kinetic-daemon /usr/local/bin/kinetic-daemon
-# sudo chmod +x /usr/local/bin/kinetic-daemon
+curl -L https://github.com/saifmukhtar/kinetic/releases/latest/download/kinetic-daemon-macos -o /tmp/kinetic-daemon
+sudo mv /tmp/kinetic-daemon /usr/local/bin/kinetic-daemon
+sudo chmod +x /usr/local/bin/kinetic-daemon
 
 # 2. Setup launchd background service
 echo "Configuring background launchd service..."
