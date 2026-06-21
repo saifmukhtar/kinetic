@@ -1,0 +1,14 @@
+# IDEs
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Kinetic AI Agents
+.agents/
+
+# Build / Runtime generic
+*.log
+*.tmp
