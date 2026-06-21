@@ -1,0 +1,42 @@
+name: Build and Release Binaries
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: kinetic-daemon
+            asset_name: kinetic-daemon-linux
+          - os: macos-latest
+            artifact_name: kinetic-daemon
+            asset_name: kinetic-daemon-macos
+          - os: windows-latest
+            artifact_name: kinetic-daemon.exe
+            asset_name: kinetic-daemon-windows.exe
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build Kinetic Daemon (Release)
+      run: cargo build --release -p kinetic-daemon
+
+    - name: Upload Binary to Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: target/release/${{ matrix.artifact_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

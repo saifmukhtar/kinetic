@@ -1,0 +1,12 @@
+[package]
+name = "kinetic-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kinetic-core = { path = "../kinetic-core" }
+sled = "0.34"
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true

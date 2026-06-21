@@ -1,0 +1,18 @@
+[package]
+name = "kinetic-dns"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kinetic-core = { version = "0.1.0", path = "../kinetic-core" }
+hickory-server = "0.24"
+async-trait = "0.1"
+tokio = { workspace = true, features = ["sync"] }
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+hickory-proto = "0.24"
+kinetic-network = { version = "0.1.0", path = "../kinetic-network" }
+hickory-resolver = "0.24.4"
+serde_json = "1.0.150"

@@ -1,0 +1,25 @@
+[package]
+name = "kinetic-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kinetic-core = { path = "../kinetic-core" }
+kinetic-vdf = { path = "../kinetic-vdf" }
+kinetic-network = { path = "../kinetic-network" }
+kinetic-storage = { path = "../kinetic-storage" }
+kinetic-dns = { path = "../kinetic-dns" }
+tokio = { workspace = true, features = ["net"] }
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+libp2p = { version = "0.53", features = ["ed25519"] }
+hickory-server = "0.24.4"
+axum = "0.8.9"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+ed25519-dalek = "2.2.0"
+rand = "0.10.1"
+reqwest = { version = "0.13.4", features = ["json"] }
+hex = "0.4.3"

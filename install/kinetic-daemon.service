@@ -1,0 +1,14 @@
+[Unit]
+Description=Kinetic Decentralized DNS Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/kinetic-daemon
+Restart=on-failure
+Environment="KINETIC_CONFIG_PATH=/root/.kinetic/config.toml"
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

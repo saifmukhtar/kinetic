@@ -1,0 +1,18 @@
+[package]
+name = "kinetic-network"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kinetic-core = { path = "../kinetic-core" }
+libp2p = { version = "0.53", features = ["tokio", "kad", "gossipsub", "tcp", "noise", "yamux", "dns", "macros"] }
+sha2 = "0.10"
+tokio.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+ed25519-dalek = "2.2.0"
+serde_json = "1.0.150"
+kinetic-vdf = { version = "0.1.0", path = "../kinetic-vdf" }
+hex = "0.4.3"

@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "kinetic-core",
+    "kinetic-vdf",
+    "kinetic-network",
+    "kinetic-storage",
+    "kinetic-dns",
+    "kinetic-daemon", "kinetic-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+# Common Workspace Dependencies (Ensures all crates use the same versions)
+anyhow = "1.0.86"
+thiserror = "1.0.61"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+tokio = { version = "1.38.0", features = ["full"] }

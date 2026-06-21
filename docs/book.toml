@@ -1,0 +1,14 @@
+[book]
+authors = ["The Kinetic Protocol Team"]
+language = "en"
+multilingual = false
+src = "src"
+title = "The Kinetic Architecture Book"
+
+[build]
+build-dir = "book"
+
+[output.html]
+mathjax-support = true
+git-repository-url = "https://github.com/saifmukhtar/kinetic"
+edit-url-template = "https://github.com/saifmukhtar/kinetic/edit/main/docs/src/{path}"

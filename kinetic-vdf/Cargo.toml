@@ -1,0 +1,15 @@
+[package]
+name = "kinetic-vdf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kinetic-core = { path = "../kinetic-core" }
+thiserror.workspace = true
+anyhow.workspace = true
+chiavdf = { version = "1.1.14", path = "chiavdf/rust_bindings" }
+
+cmake = "0.1.58"
+# cmake = "0.1" # Uncomment when compiling real C++ submodule
+# bindgen = "0.69"
