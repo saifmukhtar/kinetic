@@ -1,0 +1,39 @@
+/* Custom Typography for Kinetic Documentation */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, .sidebar, .menu-title {
+    font-family: 'Inter', sans-serif !important;
+    letter-spacing: -0.02em;
+}
+
+code, pre {
+    font-family: 'JetBrains Mono', Consolas, Monaco, monospace !important;
+}
+
+/* Beautiful Blockquotes */
+blockquote {
+    border-left-width: 4px;
+    font-style: normal;
+    padding: 1rem 1.5rem;
+    border-radius: 0 8px 8px 0;
+    margin: 2rem 0;
+    background: rgba(100, 150, 255, 0.05);
+}
+
+/* Mermaid Container */
+.mermaid {
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 2rem;
+    border-radius: 12px;
+    margin: 2rem 0;
+    overflow-x: auto;
+}
