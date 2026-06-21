@@ -45,9 +45,13 @@ jobs:
     - name: Build Kinetic Daemon (Release)
       run: cargo build --release -p kinetic-daemon
 
+    - name: Rename Binary for Release
+      shell: bash
+      run: cp target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
+
     - name: Upload Binary to Release
       uses: softprops/action-gh-release@v1
       with:
-        files: target/release/${{ matrix.artifact_name }}
+        files: target/release/${{ matrix.asset_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
