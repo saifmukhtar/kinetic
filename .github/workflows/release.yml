@@ -33,6 +33,12 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Install MPIR (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd kinetic-vdf/chiavdf
+        git clone https://github.com/Chia-Network/mpir_gc_x64.git
+
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable
 
