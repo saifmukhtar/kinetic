@@ -90,7 +90,6 @@ async fn main() -> Result<()> {
             #[derive(serde::Deserialize)]
             struct DrandPulse {
                 round: u64,
-                randomness: String,
             }
             
             let pulse = match drand_resp.json::<DrandPulse>().await {
