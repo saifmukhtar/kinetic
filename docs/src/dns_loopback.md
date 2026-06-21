@@ -57,7 +57,7 @@ graph LR
         App -->|DNS Query| Daemon
     end
 
-    subgraph Split-DNS Router (kinetic-dns)
+    subgraph Router [Split-DNS Router kinetic-dns]
         Daemon -->|Ends in .kin| Kin{Intercept}
         Daemon -->|Other TLDs| Pass{Pass-Through}
     end
