@@ -60,8 +60,8 @@ async fn main() -> Result<()> {
     // Create and bind the Hickory DNS Server
     let mut server = ServerFuture::new(dns_handler);
     // Warning: Binding to port 53 requires elevated privileges (sudo)
-    server.register_socket(UdpSocket::bind(format!("0.0.0.0:{}", config.daemon.dns_port)).await?);
-    info!("DNS proxy ready on 0.0.0.0:{}", config.daemon.dns_port);
+    server.register_socket(UdpSocket::bind(format!("127.0.0.2:{}", config.daemon.dns_port)).await?);
+    info!("DNS proxy ready on 127.0.0.2:{}", config.daemon.dns_port);
 
     // 6. Initialize Local API Server
     let api_future = api::start_server(network_client.clone(), storage.clone(), config.daemon.api_port);

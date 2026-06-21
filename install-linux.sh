@@ -36,7 +36,7 @@ echo "Configuring OS DNS integration..."
 sudo mkdir -p /etc/systemd/resolved.conf.d/
 cat << EOF | sudo tee /etc/systemd/resolved.conf.d/kinetic.conf > /dev/null
 [Resolve]
-DNS=127.0.0.1
+DNS=127.0.0.2
 Domains=~kin
 EOF
 
