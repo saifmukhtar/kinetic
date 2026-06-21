@@ -58,4 +58,4 @@ We welcome contributions from cryptographers, distributed systems engineers, and
 
 This project operates under a dual-license structure:
 * **Codebase:** Licensed under the **[Apache License 2.0](LICENSE)**.
-* **Whitepaper & Documentation:** The contents of the `whitepaper/` directory are licensed under **[CC BY-ND 4.0](./whitepaper/LICENSE)** (Attribution-NoDerivatives 4.0 International). This allows anyone to freely share the whitepaper, but legally prevents them from modifying, remixing, or altering the text and distributing it as their own.
+* **Whitepaper & Documentation:** The contents of the `whitepaper/` directory are licensed under **[CC BY 4.0](./whitepaper/LICENSE)** (Attribution 4.0 International). This allows anyone to freely share and adapt the whitepaper, provided they give appropriate credit.
