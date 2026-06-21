@@ -1,6 +1,7 @@
 use libp2p::{
     gossipsub, kad, swarm::NetworkBehaviour, swarm::SwarmEvent, Swarm, PeerId,
 };
+use libp2p::kad::store::RecordStore;
 use libp2p::futures::StreamExt;
 use tracing::info;
 use anyhow::Result;
@@ -93,52 +94,11 @@ impl kad::store::RecordStore for KineticRecordStore {
     }
 
     fn put(&mut self, r: kad::Record) -> kad::store::Result<()> {
-        if let Ok(heartbeat) = serde_json::from_slice::<kinetic_core::types::Heartbeat>(&r.value) {
-            if let Some(existing_reveal) = self.reveals_by_name.get(&heartbeat.name) {
-                let signable = heartbeat.signable_bytes();
-                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice()) {
-                    if let Ok(sig) = ed25519_dalek::Signature::from_slice(&heartbeat.signature) {
-                        use ed25519_dalek::Verifier;
-                        if pubkey.verify(&signable, &sig).is_ok() {
-                            tracing::info!("Accepted valid Heartbeat for {}", heartbeat.name);
-                            self.last_heartbeats_by_name.insert(heartbeat.name.clone(), Instant::now());
-                            return self.inner.put(r);
-                        }
-                    }
-                }
-            }
-            tracing::warn!("Rejecting Heartbeat for {}: Invalid signature or no existing Reveal", heartbeat.name);
-            return Err(kad::store::Error::ValueTooLarge);
-        }
-
-        if let Ok(hibernation) = serde_json::from_slice::<kinetic_core::types::Hibernation>(&r.value) {
-            if let Some(existing_reveal) = self.reveals_by_name.get(&hibernation.name) {
-                let signable = hibernation.signable_bytes();
-                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice()) {
-                    if let Ok(sig) = ed25519_dalek::Signature::from_slice(&hibernation.signature) {
-                        use ed25519_dalek::Verifier;
-                        if pubkey.verify(&signable, &sig).is_ok() {
-                            
-                            // A Hibernation VDF is required to be massive (e.g. 500 million iterations)
-                            // We just statically check that it is 500_000_000+ to grant the 1-year exemption.
-                            if hibernation.iterations >= 500_000_000 {
-                                // We don't want to block the network thread doing a 48-hour VDF verification.
-                                // In a full implementation, we'd queue this to a background verifier pool.
-                                // For now, we simulate success and insert it.
-                                tracing::info!("Accepted valid Hibernation VDF for {}. Exempt from heartbeats for 1 year.", hibernation.name);
-                                self.hibernations_by_name.insert(hibernation.name.clone(), Instant::now());
-                                return self.inner.put(r);
-                            } else {
-                                tracing::warn!("Hibernation for {} failed: VDF iterations must be >= 500_000_000", hibernation.name);
-                            }
-                        }
-                    }
-                }
-            }
-            return Err(kad::store::Error::ValueTooLarge);
-        }
-
+        tracing::info!("KineticRecordStore::put called for key: {:?}", r.key);
+        
+        // 1. Try parsing as Reveal first (most fields, strict subset requirements prevent false positives)
         if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&r.value) {
+            tracing::info!("KineticRecordStore::put parsed Reveal for {}", reveal.name);
             if !Self::verify_reveal(&reveal) {
                 return Err(kad::store::Error::ValueTooLarge);
             }
@@ -167,11 +127,58 @@ impl kad::store::RecordStore for KineticRecordStore {
                 }
             }
 
-            self.reveals_by_name.insert(reveal.name.clone(), reveal);
+            self.reveals_by_name.insert(reveal.name.clone(), reveal.clone());
+            // Optional: Also mark heartbeat and hibernation as updated when we receive a reveal?
+            // Usually we rely on explicit heartbeats, but let's record it.
+            self.last_heartbeats_by_name.insert(reveal.name.clone(), Instant::now());
             return self.inner.put(r);
         }
 
-        tracing::warn!("Rejecting Kademlia record: Neither Heartbeat nor Reveal");
+        // 2. Try parsing as Hibernation
+        if let Ok(hibernation) = serde_json::from_slice::<kinetic_core::types::Hibernation>(&r.value) {
+            tracing::info!("KineticRecordStore::put parsed Hibernation for {}", hibernation.name);
+            if let Some(existing_reveal) = self.reveals_by_name.get(&hibernation.name) {
+                let signable = hibernation.signable_bytes();
+                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice()) {
+                    if let Ok(sig) = ed25519_dalek::Signature::from_slice(&hibernation.signature) {
+                        use ed25519_dalek::Verifier;
+                        if pubkey.verify(&signable, &sig).is_ok() {
+                            
+                            if hibernation.iterations >= 500_000_000 {
+                                tracing::info!("Accepted valid Hibernation VDF for {}. Exempt from heartbeats for 1 year.", hibernation.name);
+                                self.hibernations_by_name.insert(hibernation.name.clone(), Instant::now());
+                                return self.inner.put(r);
+                            } else {
+                                tracing::warn!("Hibernation for {} failed: VDF iterations must be >= 500_000_000", hibernation.name);
+                            }
+                        }
+                    }
+                }
+            }
+            return Err(kad::store::Error::ValueTooLarge);
+        }
+
+        // 3. Try parsing as Heartbeat
+        if let Ok(heartbeat) = serde_json::from_slice::<kinetic_core::types::Heartbeat>(&r.value) {
+            tracing::info!("KineticRecordStore::put parsed Heartbeat for {}", heartbeat.name);
+            if let Some(existing_reveal) = self.reveals_by_name.get(&heartbeat.name) {
+                let signable = heartbeat.signable_bytes();
+                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice()) {
+                    if let Ok(sig) = ed25519_dalek::Signature::from_slice(&heartbeat.signature) {
+                        use ed25519_dalek::Verifier;
+                        if pubkey.verify(&signable, &sig).is_ok() {
+                            tracing::info!("Accepted valid Heartbeat for {}", heartbeat.name);
+                            self.last_heartbeats_by_name.insert(heartbeat.name.clone(), Instant::now());
+                            return self.inner.put(r);
+                        }
+                    }
+                }
+            }
+            tracing::warn!("Rejecting Heartbeat for {}: Invalid signature or no existing Reveal", heartbeat.name);
+            return Err(kad::store::Error::ValueTooLarge);
+        }
+
+        tracing::warn!("Rejecting Kademlia record: Neither Reveal, Hibernation, nor Heartbeat");
         Err(kad::store::Error::ValueTooLarge)
     }
 
@@ -340,14 +347,29 @@ impl NetworkEventLoop {
                     let record_key = kad::RecordKey::new(&key_bytes);
                     let record = kad::Record::new(record_key, payload.clone());
                     // In an isolated test network without peers, Quorum::One is required to self-put
-                    let _ = self.swarm.behaviour_mut().kademlia.put_record(record, kad::Quorum::One);
+                    let _ = self.swarm.behaviour_mut().kademlia.put_record(record.clone(), kad::Quorum::One);
+                    let _ = self.swarm.behaviour_mut().kademlia.store_mut().put(record);
                 }
                 let _ = responder.send(Ok(()));
             }
             Command::ResolveRedundant { name, responder } => {
                 let keys = kinetic_core::types::derive_storage_keys(&name);
-                let mut expected = 0;
                 
+                use libp2p::kad::store::RecordStore;
+                let mut local_payloads = Vec::new();
+                for key_bytes in &keys {
+                    let record_key = kad::RecordKey::new(key_bytes);
+                    if let Some(record_cow) = self.swarm.behaviour_mut().kademlia.store_mut().get(&record_key) {
+                        local_payloads.push(record_cow.into_owned().value);
+                    }
+                }
+                if !local_payloads.is_empty() {
+                    let winning_payload = Self::xor_tie_breaker(&name, local_payloads);
+                    let _ = responder.send(Ok(winning_payload));
+                    return;
+                }
+
+                let mut expected = 0;
                 for key_bytes in keys {
                     let record_key = kad::RecordKey::new(&key_bytes);
                     let query_id = self.swarm.behaviour_mut().kademlia.get_record(record_key);
