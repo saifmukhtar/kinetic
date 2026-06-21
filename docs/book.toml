@@ -1,7 +1,6 @@
 [book]
 authors = ["The Kinetic Protocol Team"]
 language = "en"
-multilingual = false
 src = "src"
 title = "The Kinetic Architecture Book"
 
