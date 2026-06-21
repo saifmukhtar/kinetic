@@ -48,16 +48,19 @@ graph LR
 
 ---
 
-## 🚀 Quick Setup (Linux)
+## 🚀 Quick Setup (macOS & Linux)
 
-You can install the compiled Kinetic Daemon and integrate it into your system DNS with a single command. The installer configures `systemd-resolved` safely by binding the proxy to `127.0.0.2`, meaning your standard internet traffic will **never** break.
+You can install the compiled Kinetic Daemon and integrate it into your system DNS with a single command. The installer safely integrates with your OS (`systemd-resolved` on Linux, `/etc/resolver` on macOS) without breaking your standard internet traffic.
 
 ```bash
 # 1. Install the Daemon and CLI
-curl -sL https://raw.githubusercontent.com/saifmukhtar/kinetic/main/install-linux.sh | sudo bash
+curl -sL https://raw.githubusercontent.com/saifmukhtar/kinetic/main/install.sh | bash
 
-# 2. Check that the background service is running
+# 2. (Linux) Check that the background service is running
 sudo systemctl status kinetic-daemon
+
+# 2. (macOS) Check that the background service is running
+sudo launchctl list | grep kinetic
 ```
 
 ---
