@@ -6,9 +6,14 @@ echo "=== Kinetic Daemon Installer (Linux) ==="
 # 1. Download the latest binary (Assuming standard x86_64 linux)
 # In production, this would hit the GitHub Releases API
 echo "Downloading Kinetic Daemon..."
-curl -L https://github.com/saifmukhtar/kinetic/releases/latest/download/kinetic-daemon-linux -o /tmp/kinetic-daemon
+curl -sL https://github.com/saifmukhtar/kinetic/releases/latest/download/kinetic-daemon-linux -o /tmp/kinetic-daemon
 sudo mv /tmp/kinetic-daemon /usr/local/bin/kinetic-daemon
 sudo chmod +x /usr/local/bin/kinetic-daemon
+
+echo "Downloading Kinetic CLI..."
+curl -sL https://github.com/saifmukhtar/kinetic/releases/latest/download/kinetic-cli-linux -o /tmp/kinetic-cli
+sudo mv /tmp/kinetic-cli /usr/local/bin/kinetic-cli
+sudo chmod +x /usr/local/bin/kinetic-cli
 
 # 2. Setup systemd service
 echo "Configuring background systemd service..."

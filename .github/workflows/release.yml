@@ -21,12 +21,18 @@ jobs:
           - os: ubuntu-latest
             artifact_name: kinetic-daemon
             asset_name: kinetic-daemon-linux
+            cli_artifact: kinetic-cli
+            cli_asset: kinetic-cli-linux
           - os: macos-latest
             artifact_name: kinetic-daemon
             asset_name: kinetic-daemon-macos
+            cli_artifact: kinetic-cli
+            cli_asset: kinetic-cli-macos
           - os: windows-latest
             artifact_name: kinetic-daemon.exe
             asset_name: kinetic-daemon-windows.exe
+            cli_artifact: kinetic-cli.exe
+            cli_asset: kinetic-cli-windows.exe
 
     steps:
     - uses: actions/checkout@v4
@@ -45,13 +51,20 @@ jobs:
     - name: Build Kinetic Daemon (Release)
       run: cargo build --release -p kinetic-daemon
 
-    - name: Rename Binary for Release
+    - name: Build Kinetic CLI (Release)
+      run: cargo build --release -p kinetic-cli
+
+    - name: Rename Binaries for Release
       shell: bash
-      run: cp target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
+      run: |
+        cp target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
+        cp target/release/${{ matrix.cli_artifact }} target/release/${{ matrix.cli_asset }}
 
     - name: Upload Binary to Release
       uses: softprops/action-gh-release@v1
       with:
-        files: target/release/${{ matrix.asset_name }}
+        files: |
+          target/release/${{ matrix.asset_name }}
+          target/release/${{ matrix.cli_asset }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
