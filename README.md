@@ -63,6 +63,16 @@ sudo systemctl status kinetic-daemon
 sudo launchctl list | grep kinetic
 ```
 
+## 🪟 Quick Setup (Windows)
+
+Open **PowerShell as Administrator** and run:
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/saifmukhtar/kinetic/main/install.ps1" -OutFile "install.ps1"; .\install.ps1
+```
+
+The Windows installer uses native **NRPT (Name Resolution Policy Table)** to magically route strictly `.kin` domains without altering your primary Wi-Fi/Ethernet DNS settings!
+
 ---
 
 ## ⛏️ Mining Your Name (The CLI)
