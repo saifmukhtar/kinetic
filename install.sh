@@ -102,3 +102,4 @@ fi
 
 echo "=== Kinetic is successfully installed and running! ==="
 echo "You can now run 'kinetic-cli' to secure your names."
+echo "Documentation & Guide: https://saifmukhtar.github.io/kinetic/"

@@ -50,3 +50,4 @@ Add-DnsClientNrptRule -Namespace ".kin" -NameServers "127.0.0.1"
 
 Write-Host "=== Kinetic is successfully installed and running! ===" -ForegroundColor Green
 Write-Host "Please restart your terminal window so you can start using 'kinetic-cli' commands!" -ForegroundColor Yellow
+Write-Host "Documentation & Guide: https://saifmukhtar.github.io/kinetic/" -ForegroundColor Cyan

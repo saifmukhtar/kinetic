@@ -46,6 +46,10 @@ graph LR
     style Pass fill:#228B22,stroke:#000,stroke-width:2px,color:#fff
 ```
 
+## 📖 Official Documentation
+Everything you need to know about Kinetic, the VDF math, and how to build on the network is available at:
+**[https://saifmukhtar.github.io/kinetic/](https://saifmukhtar.github.io/kinetic/)**
+
 ---
 
 ## 🚀 Quick Setup (macOS & Linux)
