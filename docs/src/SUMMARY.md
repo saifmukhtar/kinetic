@@ -10,7 +10,11 @@
 - [Chapter 8: Exhaustive Code Walkthrough (kinetic-network)](./code_walkthrough_network.md)
 - [Chapter 9: Future Horizons](./future_horizons.md)
 - [Chapter 10: Getting Started](./getting_started.md)
+- [Chapter 11: Vdf Calibration](./vdf-calibration.md)
 
 ---
 
-- [Appendix: Original Whitepaper](./whitepaper.md)
+- [Appendix I: Original Whitepaper (Network Layer)](./whitepaper.md)
+- [Appendix II: Kinetic Identity Architecture (KID)](./kinetic-kid.md)
+- [Appendix III: Adversarial Analysis (Red-Team Audit)](./adversarial_analysis.md)
+- [Appendix IV: Kinetic Protocol Specification v1](./protocol_specification.md)

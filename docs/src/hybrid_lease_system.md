@@ -4,7 +4,7 @@ The central dilemma of any free, permissionless registry is **Dead State**.
 
 If a registry costs nothing, what prevents early adopters from registering thousands of premium names, shutting down their computers, and leaving those names permanently locked and unusable for the next generation of internet users?
 
-Capital-gated registries (like ENS or traditional ICANN DNS) solve this through recurring financial renewal fees. If you stop paying rent, the registry evicts you, and the name returns to the open market.
+Capital-gated registries solve this through recurring financial renewal fees. If you stop paying rent, the registry evicts you, and the name returns to the open market.
 
 Because the Kinetic Protocol is fundamentally zero-cost, it must employ a different eviction mechanism. It replaces monetary rent with localized, ongoing computational life support: **The Hybrid Lease System**.
 
@@ -14,7 +14,7 @@ Because the Kinetic Protocol is fundamentally zero-cost, it must employ a differ
 
 In Kinetic, ownership is not a static database entry; it is an active state of defense. To maintain control over a name, the owner's `kinetic-daemon` must periodically prove to the network that it is alive, interested, and capable of participating in consensus.
 
-This is achieved via a **Proof of Work (PoW) Heartbeat**.
+This is achieved via a **cryptographic signature heartbeat**.
 
 A Heartbeat is an incredibly lightweight cryptographic struct, generated and broadcast by the owner's daemon every 60 seconds.
 

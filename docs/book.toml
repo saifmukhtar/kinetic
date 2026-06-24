@@ -3,6 +3,7 @@ authors = ["Saif Mukhtar"]
 language = "en"
 src = "src"
 title = "The Kinetic Architecture Book"
+description = "The Kinetic Protocol is a stateless, Sybil-resistant naming system secured purely by math and time, featuring decentralized identity, VDF leases, and zero-cost registration."
 
 [build]
 build-dir = "book"
@@ -14,3 +15,4 @@ preferred-dark-theme = "light"
 additional-css = ["custom.css"]
 git-repository-url = "https://github.com/saifmukhtar/kinetic"
 edit-url-template = "https://github.com/saifmukhtar/kinetic/edit/main/docs/src/{path}"
+site-url = "https://saifmukhtar.github.io/kinetic/"
