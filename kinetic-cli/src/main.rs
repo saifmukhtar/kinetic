@@ -50,6 +50,30 @@ enum Commands {
         #[arg(short, long, default_value = "watchtower.json")]
         output: String,
     },
+    /// Identity management for KIDs and Capability Manifests
+    Identity {
+        #[command(subcommand)]
+        cmd: IdentityCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum IdentityCommands {
+    /// Create a new Kinetic Identity Document (KID) keypair and JSON file
+    Create {
+        #[arg(short, long, default_value = "kid.json")]
+        output: String,
+    },
+    /// Publish a KID JSON file to the network via the local daemon
+    PublishKid {
+        /// Path to the kid.json file
+        file: String,
+    },
+    /// Publish a Capability Manifest JSON file to the network
+    PublishManifest {
+        /// Path to the manifest.json file
+        file: String,
+    },
 }
 
 #[derive(serde::Deserialize)]
@@ -367,6 +391,77 @@ async fn main() -> anyhow::Result<()> {
             std::fs::write(&output, json_data)?;
             info!("Successfully wrote {} watchtower tokens to {}.", rounds, output);
             info!("A Watchtower daemon can now load this file to maintain your name.");
+        }
+        Commands::Identity { cmd } => {
+            match cmd {
+                IdentityCommands::Create { output } => {
+                    info!("Generating new Ed25519 keypair for Kinetic Identity...");
+                    // Note: This relies on rand_core which might require adding rand_core to kinetic-cli deps
+                    // We can use rand instead since kinetic-cli already has it.
+                    use rand_core::OsRng;
+                    let keypair = ed25519_dalek::SigningKey::generate(&mut OsRng);
+                    
+                    use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+                    let pub_key_b64 = b64_url.encode(keypair.verifying_key().to_bytes());
+                    
+                    let mut hasher = sha2::Sha256::new();
+                    hasher.update(keypair.verifying_key().to_bytes());
+                    let did_str = format!("did:kin:{}", hex::encode(hasher.finalize()));
+                    
+                    let kid_did = kinetic_kid::KineticDid::new(&did_str).unwrap();
+                    let doc = kinetic_kid::KidDocument {
+                        doc_type: "kinetic.kid.v1".to_string(),
+                        kid: kid_did,
+                        created_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                        controller_keys: vec![kinetic_kid::ControllerKey {
+                            id: format!("{}#primary", did_str),
+                            key_type: "Ed25519".to_string(),
+                            public_key: pub_key_b64,
+                        }],
+                        manifest: None,
+                        revocation_keys: vec![],
+                        signature: None,
+                    };
+                    
+                    let signed_doc = doc.sign(&keypair).expect("Failed to sign KID");
+                    let json_data = serde_json::to_string_pretty(&signed_doc)?;
+                    
+                    std::fs::write(&output, json_data)?;
+                    info!("Successfully generated KID and wrote to {}", output);
+                }
+                IdentityCommands::PublishKid { file } => {
+                    let data = std::fs::read_to_string(&file)?;
+                    let doc: kinetic_kid::KidDocument = serde_json::from_str(&data)?;
+                    
+                    let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
+                    let daemon_url = format!("http://127.0.0.1:{}/publish-kid", config.daemon.api_port);
+                    
+                    info!("Publishing KID {} to local daemon...", doc.kid.as_str());
+                    let response = client.post(daemon_url).json(&doc).send().await;
+                    
+                    match response {
+                        Ok(res) if res.status().is_success() => info!("Success! KID successfully routed to DHT."),
+                        Ok(res) => warn!("Daemon rejected KID: {}", res.status()),
+                        Err(e) => warn!("Failed to connect to daemon: {}", e),
+                    }
+                }
+                IdentityCommands::PublishManifest { file } => {
+                    let data = std::fs::read_to_string(&file)?;
+                    let manifest: kinetic_kid::CapabilityManifest = serde_json::from_str(&data)?;
+                    
+                    let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
+                    let daemon_url = format!("http://127.0.0.1:{}/publish-manifest", config.daemon.api_port);
+                    
+                    info!("Publishing Capability Manifest for KID {}...", manifest.kid.as_str());
+                    let response = client.post(daemon_url).json(&manifest).send().await;
+                    
+                    match response {
+                        Ok(res) if res.status().is_success() => info!("Success! Manifest routed to DHT."),
+                        Ok(res) => warn!("Daemon rejected Manifest: {}", res.status()),
+                        Err(e) => warn!("Failed to connect to daemon: {}", e),
+                    }
+                }
+            }
         }
     }
 

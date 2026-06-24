@@ -1038,6 +1038,7 @@ checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
+ "rand_core 0.6.4",
  "serde",
  "sha2 0.10.9",
  "subtle",
@@ -2036,15 +2037,18 @@ name = "kinetic-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "clap",
  "directories",
  "ed25519-dalek",
  "getrandom 0.4.3",
  "hex",
  "kinetic-core",
+ "kinetic-kid",
  "kinetic-vdf",
  "libp2p",
  "rand 0.10.1",
+ "rand_core 0.6.4",
  "reqwest",
  "serde",
  "serde_json",
@@ -2092,6 +2096,7 @@ dependencies = [
  "hyper-util",
  "kinetic-core",
  "kinetic-dns",
+ "kinetic-kid",
  "kinetic-network",
  "kinetic-storage",
  "kinetic-vdf",
@@ -2104,6 +2109,7 @@ dependencies = [
  "rustls-pki-types",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
  "thiserror 1.0.69",
  "time",
@@ -2131,6 +2137,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kinetic-kid"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "ed25519-dalek",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "kinetic-network"
 version = "0.1.0"
 dependencies = [
@@ -2138,6 +2158,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "kinetic-core",
+ "kinetic-kid",
  "kinetic-storage",
  "kinetic-vdf",
  "libp2p",
@@ -3869,6 +3890,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
+name = "ryu-js"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6518fc26bced4d53678a22d6e423e9d8716377def84545fe328236e3af070e7f"
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3949,6 +3976,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_jcs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cacecf649bc1a7c5f0e299cc813977c6a78116abda2b93b1ee01735b71ead9a8"
+dependencies = [
+ "ryu-js",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

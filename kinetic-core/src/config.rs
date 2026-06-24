@@ -77,20 +77,29 @@ impl KineticConfig {
         };
 
         // Phase 5.3: Bootstrap Node DNS-Based Discovery Fallback
-        use hickory_resolver::Resolver;
-        use hickory_resolver::config::*;
-        if let Ok(resolver) = Resolver::new(ResolverConfig::default(), ResolverOpts::default()) {
-            if let Ok(txt_lookup) = resolver.txt_lookup("_kinetic-bootstrap.kin.network.") {
-                for txt in txt_lookup.iter() {
-                    if let Some(txt_str) = txt.txt_data().first() {
-                        if let Ok(addr_str) = std::str::from_utf8(txt_str) {
-                            if !config.network.bootstrap_nodes.contains(&addr_str.to_string()) {
-                                tracing::info!("Discovered dynamic bootstrap node from DNS: {}", addr_str);
-                                config.network.bootstrap_nodes.push(addr_str.to_string());
+        // Run in a separate thread to prevent hickory_resolver from panicking due to nested tokio runtimes.
+        let discovered_nodes = std::thread::spawn(|| {
+            let mut nodes = Vec::new();
+            use hickory_resolver::Resolver;
+            use hickory_resolver::config::*;
+            if let Ok(resolver) = Resolver::new(ResolverConfig::default(), ResolverOpts::default()) {
+                if let Ok(txt_lookup) = resolver.txt_lookup("_kinetic-bootstrap.kin.network.") {
+                    for txt in txt_lookup.iter() {
+                        if let Some(txt_str) = txt.txt_data().first() {
+                            if let Ok(addr_str) = std::str::from_utf8(txt_str) {
+                                nodes.push(addr_str.to_string());
                             }
                         }
                     }
                 }
+            }
+            nodes
+        }).join().unwrap_or_default();
+
+        for addr_str in discovered_nodes {
+            if !config.network.bootstrap_nodes.contains(&addr_str) {
+                tracing::info!("Discovered dynamic bootstrap node from DNS: {}", addr_str);
+                config.network.bootstrap_nodes.push(addr_str);
             }
         }
 

@@ -205,9 +205,9 @@ async fn forward_to_backend_direct(
         .map_err(|_| ProxyError::InvalidPayload)?;
 
     // Validate it is actually a routable IP before constructing the URL
-    if ip_str.parse::<std::net::IpAddr>().is_err() {
+    if ip_str.parse::<std::net::IpAddr>().is_err() && ip_str.parse::<std::net::SocketAddr>().is_err() {
         warn!(
-            "Payload for {} is not a valid IP address (got {:?}) — \
+            "Payload for {} is not a valid IP address or SocketAddr (got {:?}) — \
              RegisterPeer routing via P2P not yet implemented",
             domain, ip_str
         );
