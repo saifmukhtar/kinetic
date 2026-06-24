@@ -1,0 +1,8 @@
+[daemon]
+api_port = 16002
+dns_port = 10054
+storage_dir = "/tmp/kinetic_config_local/db"
+
+[network]
+p2p_port = 16071
+bootstrap_nodes = []

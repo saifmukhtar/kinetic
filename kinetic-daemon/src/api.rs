@@ -42,6 +42,9 @@ pub async fn start_server(network: NetworkClient, storage: Arc<SledStorage>, por
         .route("/commit", post(handle_commit))
         .route("/publish", post(handle_publish))
         .route("/publish-hibernation", post(handle_publish_hibernation))
+        .route("/publish-kid", post(handle_publish_kid))
+        .route("/publish-manifest", post(handle_publish_manifest))
+        .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
         .with_state(state);
 
     let addr = format!("127.0.0.1:{}", port);
@@ -214,4 +217,117 @@ async fn handle_commit(
             Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to publish: {}", e)))
         }
     }
+}
+
+async fn handle_publish_kid(
+    State(state): State<ApiState>,
+    Json(kid): Json<kinetic_kid::KidDocument>,
+) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    info!("Received API publish request for KID: {}", kid.kid.as_str());
+
+    // 1. Verify the KID document mathematically
+    if let Err(e) = kid.verify() {
+        return Err((StatusCode::BAD_REQUEST, format!("Invalid KID signature: {}", e)));
+    }
+
+    // 2. Serialize and Publish to DHT
+    let payload_bytes = serde_json::to_vec(&kid).unwrap();
+    let fqdn = kid.kid.as_str().to_string(); // Use DID as the DHT key
+    
+    match state.network.publish_redundant_payload(&fqdn, payload_bytes).await {
+        Ok(_) => {
+            info!("Successfully published KID {} to the DHT", fqdn);
+            Ok(Json(PublishResponse {
+                status: "success".to_string(),
+                message: "KID accepted and routed to DHT".to_string(),
+            }))
+        }
+        Err(e) => {
+            error!("Failed to publish KID to DHT: {}", e);
+            Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to publish: {}", e)))
+        }
+    }
+}
+
+async fn handle_publish_manifest(
+    State(state): State<ApiState>,
+    Json(manifest): Json<kinetic_kid::CapabilityManifest>,
+) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    let did_str = manifest.kid.as_str();
+    info!("Received API publish request for Manifest of KID: {}", did_str);
+
+    // 1. Resolve the KID Document from DHT to verify against
+    let kid_payload = match state.network.resolve_redundant_payload(did_str).await {
+        Ok(Some(p)) => p,
+        Ok(None) => return Err((StatusCode::NOT_FOUND, "KID not found on the network".to_string())),
+        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("DHT lookup failed: {}", e))),
+    };
+
+    let kid_doc: kinetic_kid::KidDocument = match serde_json::from_slice(&kid_payload) {
+        Ok(doc) => doc,
+        Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, "Invalid KID payload on DHT".to_string())),
+    };
+
+    // 2. Verify the manifest against the registered KID
+    if let Err(e) = manifest.verify(&kid_doc) {
+        return Err((StatusCode::BAD_REQUEST, format!("Invalid Manifest signature: {}", e)));
+    }
+
+    // 3. Serialize and Publish to DHT under the derived manifest key
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(format!("{}#manifest", did_str).as_bytes());
+    let manifest_key = hex::encode(hasher.finalize());
+
+    let payload_bytes = serde_json::to_vec(&manifest).unwrap();
+    match state.network.publish_redundant_payload(&manifest_key, payload_bytes).await {
+        Ok(_) => {
+            info!("Successfully published Manifest for {} to the DHT", did_str);
+            Ok(Json(PublishResponse {
+                status: "success".to_string(),
+                message: "Manifest accepted and routed to DHT".to_string(),
+            }))
+        }
+        Err(e) => {
+            error!("Failed to publish Manifest to DHT: {}", e);
+            Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to publish: {}", e)))
+        }
+    }
+}
+
+use axum::extract::Path;
+
+async fn handle_resolve_kid(
+    State(state): State<ApiState>,
+    Path(did): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    info!("Resolving KID via API: {}", did);
+
+    // Resolve KID
+    let kid_payload = match state.network.resolve_redundant_payload(&did).await {
+        Ok(Some(p)) => p,
+        Ok(None) => return Err((StatusCode::NOT_FOUND, "KID not found".to_string())),
+        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("DHT error: {}", e))),
+    };
+    
+    let kid_doc: kinetic_kid::KidDocument = serde_json::from_slice(&kid_payload)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Invalid KID data".to_string()))?;
+
+    // Try to resolve Manifest
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(format!("{}#manifest", did).as_bytes());
+    let manifest_key = hex::encode(hasher.finalize());
+
+    let mut response = serde_json::json!({
+        "kid_document": kid_doc,
+    });
+
+    if let Ok(Some(man_payload)) = state.network.resolve_redundant_payload(&manifest_key).await {
+        if let Ok(manifest) = serde_json::from_slice::<kinetic_kid::CapabilityManifest>(&man_payload) {
+            response["manifest_document"] = serde_json::to_value(manifest).unwrap();
+        }
+    }
+
+    Ok(Json(response))
 }

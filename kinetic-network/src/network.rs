@@ -363,7 +363,24 @@ impl kad::store::RecordStore for KineticRecordStore {
             return Err(kad::store::Error::ValueTooLarge);
         }
 
-        tracing::warn!("Rejecting Kademlia record: Neither Reveal, Hibernation, nor Heartbeat");
+        // 4. Try parsing as KID Document
+        if let Ok(kid_doc) = serde_json::from_slice::<kinetic_kid::KidDocument>(&r.value) {
+            if kid_doc.verify().is_ok() {
+                tracing::info!("KineticRecordStore::put accepted valid KID Document for {}", kid_doc.kid.as_str());
+                return self.inner.put(r);
+            } else {
+                tracing::warn!("Rejecting KID Document: Invalid signature");
+                return Err(kad::store::Error::ValueTooLarge);
+            }
+        }
+
+        // 5. Try parsing as Capability Manifest
+        if let Ok(manifest) = serde_json::from_slice::<kinetic_kid::CapabilityManifest>(&r.value) {
+            tracing::info!("KineticRecordStore::put accepted Capability Manifest for {} (App layer must verify)", manifest.kid.as_str());
+            return self.inner.put(r);
+        }
+
+        tracing::warn!("Rejecting Kademlia record: Neither Reveal, Hibernation, Heartbeat, KID, nor Manifest");
         Err(kad::store::Error::ValueTooLarge)
     }
 
