@@ -1,226 +1,174 @@
-# Kinetic Identity Architecture
+# Kinetic Identity Architecture (KID)
 ## Beyond DNS: Human Names, Permanent Identities, and Verifiable Services
-**Draft Research Whitepaper v0.1**
+
+**Version 1.0 (Formal Specification)**
+
 ## Abstract
-Most decentralized naming systems attempt to replicate the Domain Name System (DNS) without addressing its fundamental limitations.
-Traditional DNS answers a single question:
+Most decentralized naming systems attempt to replicate the Domain Name System (DNS) without addressing its fundamental limitations. Traditional DNS answers a single question:
+
 > What network location corresponds to this name?
-> 
-A DNS record ultimately resolves human-readable identifiers into network locations such as IP addresses.
-However, modern digital entities are no longer merely servers. A single online identity may expose websites, APIs, storage systems, AI agents, messaging endpoints, peer-to-peer applications, and future services that do not map naturally to a single machine or location.
-This paper proposes a new architecture for Kinetic.
-Rather than acting as a decentralized DNS replacement, Kinetic evolves into an identity-centric service discovery network.
-The core idea is simple:
-**Human Name ↓ Permanent Identity ↓ Capability Manifest ↓ Verifiable Services ↓ Content**
-Instead of resolving names into locations, Kinetic resolves names into cryptographic identities capable of exposing arbitrary services.
-This creates a generalized naming primitive that separates:
- * Human discovery
- * Identity
- * Service discovery
- * Content distribution
-into independent layers with distinct mutability guarantees.
-## The Problem With DNS
-DNS was designed for a different internet.
-The DNS model is:
-**Name ↓ IP Address**
-Example:
-openai.com ↓ 104.x.x.x
-DNS knows nothing about:
- * Ownership
- * Identity
- * Capabilities
- * Content integrity
- * Service verification
-It only answers:
-> Where?
-> 
-Modern internet applications require answering:
-> Who? What? How?
-> 
-DNS was never designed to answer these questions.
-## Existing Decentralized Naming Systems
-Most decentralized naming systems preserve the DNS mindset.
-### ENS
-**Name ↓ Address ↓ Content**
- * Human-readable names exist.
- * Identity remains secondary.
-### IPFS
-**CID ↓ Content**
- * Content integrity exists.
- * Human-readable naming does not.
-### DID
-**Identifier ↓ Identity ↓ Services**
- * Identity exists.
- * Human-readable names are largely absent.
-### Nostr
-**Public Key ↓ Identity ↓ Content**
- * Permanent identity exists.
- * Human naming remains external.
-## Kinetic's Architectural Direction
-Kinetic combines four concepts that are traditionally separated.
-**Human Name ↓ Permanent Identity ↓ Capability Manifest ↓ Immutable Content**
-Each layer has a distinct purpose.
+
+A DNS record ultimately resolves human-readable identifiers into network locations (IP addresses). However, modern digital entities are no longer merely servers. A single online identity may expose websites, APIs, storage systems, AI agents, messaging endpoints, peer-to-peer applications, and future services that do not map naturally to a single machine or location.
+
+This document formally proposes a new architecture for Kinetic. Rather than acting as a decentralized DNS replacement, Kinetic has evolved into a mature **Identity-Centric Service Discovery Network**.
+
+The core thesis is a strict, four-layer progression:
+**Human Name ↓ Permanent Identity (KID) ↓ Capability Manifest ↓ Verifiable Services**
+
+Instead of resolving names into locations, Kinetic resolves names into cryptographic identities capable of exposing arbitrary services. This creates a generalized naming primitive that separates Human Discovery, Identity, Service Discovery, and Content Distribution into independent, mathematically verifiable layers with distinct mutability guarantees.
+
+---
+
+## 1. The Core Philosophy: Name $\neq$ Identity
+
+A surprising number of naming systems never properly separate a human-readable alias from the underlying identity.
+
+Suppose `saif.kin` belongs to Alice. Later, ownership transfers to Bob. 
+The name remains `saif.kin`, but the underlying identity has changed completely. 
+
+If a system conflates the Name and the Identity, it falls victim to **Semantic Attacks** (or Long Range Resurrection). A user might send funds or encrypted messages to `saif.kin` assuming Alice still owns it, only to have Bob intercept them.
+
+Therefore, the foundational axiom of the Kinetic Identity Architecture is:
+
+> **Name $\neq$ Identity**
+
+Kinetic explicitly separates these concepts. A name is an ephemeral, transferable routing alias. An identity is a permanent, immutable cryptographic anchor.
+
+---
+
+## 2. The Four-Layer Architecture
+
+Kinetic combines four concepts that are traditionally separated. Each layer has a distinct purpose and is governed by different mutability rules.
+
 ### Layer 1: Human Namespace
-Example:
-saif.kin
-Purpose:
- * Human discovery
- * Branding
- * Reputation
- * Memorability
-The namespace is secured using Kinetic's VDF-based registration system.
-Names are transferable.
-Ownership may change.
-Therefore names are not permanent identities.
+Example: `saif.kin`
+
+**Purpose:**
+* Human discovery
+* Branding and Reputation
+* Memorability
+
+The namespace is secured using Kinetic's VDF-based registration system. Names are transferable, and ownership may change over time based on the Heartbeat and Escalation algorithms. Therefore, names are **not** permanent identities.
+
 ### Layer 2: Permanent Identity (KID)
-A name should not directly represent an identity.
-Instead:
-saif.kin ↓ kid1abc...
-The KID becomes the cryptographic root of trust.
-Example:
-```
-{ "kid": "kid1abc...", "pubkey": "...", "created": 1750000000 } 
+A name does not resolve to an IP address. Instead, it resolves to a Kinetic Identity Document (KID):
 
+`saif.kin` $\rightarrow$ `did:kin:kid1abc9f7...`
+
+The KID becomes the permanent cryptographic root of trust. It is bound to an Ed25519 or secp256k1 keypair.
+
+**KID Schema Example:**
+```json
+{
+  "kid": "did:kin:kid1abc9f7...",
+  "pubkey": "ed25519:8b3a...",
+  "created_at": 1750000000,
+  "revocation_key": "ed25519:4f2c..."
+}
 ```
+
 Unlike names:
- * KIDs are permanent
- * KIDs are cryptographic
- * KIDs are machine-oriented
-A KID represents an entity.
-A name represents a human-facing alias.
-### Why Names And Identities Must Be Separate
-Suppose:
-saif.kin
-belongs to Alice.
-Later ownership transfers to Bob.
-The name remains:
-saif.kin
-but the identity changes.
-Therefore:
-**Name ≠ Identity**
-Kinetic explicitly separates these concepts.
+* KIDs are permanent and non-transferable.
+* KIDs are strictly cryptographic and machine-oriented.
+
+A KID represents an entity. A name represents a human-facing alias pointing to that entity. If `saif.kin` changes ownership, it simply points to a different KID.
+
 ### Layer 3: Capability Manifest
-A KID points to a manifest.
-The manifest describes available services.
-Example:
-```
-{ "version": 1, "services": [ { "type": "website", "target": "..." }, { "type": "api", "target": "..." }, { "type": "chat", "target": "..." } ] } 
+A KID points to a Capability Manifest. The manifest describes exactly what services this identity currently exposes to the network.
 
+**Capability Manifest Schema Example:**
+```json
+{
+  "version": "1.0",
+  "owner": "did:kin:kid1abc9f7...",
+  "services": [
+    {
+      "type": "website",
+      "protocol": "https",
+      "target": "104.21.44.11"
+    },
+    {
+      "type": "api",
+      "protocol": "grpc",
+      "target": "api.backend.local",
+      "port": 50051
+    },
+    {
+      "type": "nostr-relay",
+      "protocol": "wss",
+      "target": "relay.nostr.info"
+    }
+  ],
+  "signature": "0x7a8b9c..."
+}
 ```
-The manifest becomes the capability layer.
-### Why Manifests Matter
-Without manifests:
-**Identity ↓ Content**
-This limits future expansion.
-With manifests:
-**Identity ↓ Services ↓ Content**
-The protocol becomes service-agnostic.
-New services can be introduced without changing the naming layer.
-### Layer 4: Content
-Services ultimately resolve to content.
-Examples:
- * Website Files
- * Images
- * Documents
- * Applications
- * APIs
-Content may be stored using:
- * Traditional servers
- * IPFS
- * BitTorrent
- * Distributed storage
- * Future systems
-Kinetic does not mandate storage.
-Storage remains an implementation choice.
-### Content Is Not Kinetic's Responsibility
-Kinetic answers:
-> Who owns this?
-> 
-and
-> What services exist?
-> 
-It does not answer:
-> Where are the bytes stored?
-> 
-Just as DNS does not guarantee a website remains online, Kinetic does not guarantee content availability.
-Content hosting remains the responsibility of operators.
-### Dynamic Applications
-Applications requiring computation remain outside Kinetic's scope.
-Examples:
- * AI Chatbots
- * Databases
- * Authentication
- * Payments
- * Video Streaming
-These services still require compute infrastructure.
-Kinetic discovers them.
-Kinetic does not execute them.
-### Verifiable Content Chain
-Every service must be verifiable.
-The verification chain becomes:
-**KID Public Key ↓ signs Manifest Hash ↓ references Content Hashes ↓ produce Content**
-This creates end-to-end integrity.
-A malicious renderer cannot modify content without breaking signatures.
-### Renderer Independence
-A renderer is not trusted.
-A renderer merely displays content.
-Example:
- * Renderer A
- * Renderer B
- * Renderer C
-All render the same content.
-All verify the same signatures.
-Trust shifts from infrastructure to cryptography.
-### Comparison To Bitcoin
-Different Bitcoin wallets display identical balances because they verify the same chain.
-Similarly:
- * Renderer A
- * Renderer B
- * Renderer C
-should display identical Kinetic content because they verify identical proofs.
-The renderer becomes replaceable.
-Verification becomes mandatory.
-### The Complete Kinetic Stack
-```
-Human Name saif.kin ↓ Permanent Identity kid1abc... ↓ Capability Manifest website api chat storage ↓ Content Roots hashes objects resources ↓ Verification Layer signatures proofs hash checks ↓ Rendering Layer websites applications interfaces 
 
+**Why Manifests Matter:**
+Without manifests (`Identity ↓ Content`), the architecture is limited to static websites. With manifests (`Identity ↓ Services ↓ Content`), the protocol becomes service-agnostic. New applications and services can be introduced in the future without ever changing the core naming layer.
+
+### Layer 4: Content and Compute
+Services ultimately resolve to actionable content or compute.
+Examples: Website Files, APIs, AI Chatbots, Databases, Messaging Relays.
+
+**Content is Not Kinetic's Responsibility.**
+Kinetic answers: *"Who owns this name?"* and *"What services exist for this identity?"*
+It does not answer: *"Where are the bytes stored?"*
+
+Just as DNS does not guarantee a website remains online, Kinetic does not guarantee content availability or execute dynamic backend code. Content hosting and compute remain the responsibility of infrastructure operators (whether via centralized clouds or decentralized storage like IPFS/BitTorrent).
+
+---
+
+## 3. Light Client Resolution Architecture
+
+Because ownership state in Kinetic is entirely encapsulated inside self-authenticating, mathematically verifiable payloads (Signed Lease Records), a client does not need to participate in Kademlia peer discovery to resolve a name. 
+
+**Kinetic supports trust-minimized light clients through untrusted gateway acquisition and local cryptographic verification of lease records.**
+
+This is mathematically equivalent to Bitcoin’s SPV (Simplified Payment Verification) architecture, unlocking Kinetic for iOS, Android, and Web Browsers without requiring them to run embedded DHT nodes.
+
+### The Untrusted Gateway Model
+The resolution flow for a light client (e.g., a standard web browser) is straightforward:
+
+1. **Browser** requests lease records via standard HTTPS from an untrusted gateway.
+2. **Gateway** acts purely as a data transport, querying the DHT and returning the raw payloads.
+3. **Browser** locally verifies the cryptographic signatures, the `drand` heartbeat timestamps, and the VDF proofs.
+
+The critical insight is that the gateway is **not** a Trusted Resolver; it is merely a Data Transport. It cannot forge ownership, forge VDFs, or forge heartbeats because local verification stops that immediately. The cryptography decides the truth, not the peer.
+
+### Mitigating Gateway Censorship
+While a malicious gateway cannot forge a record, it *can* censor the network by intentionally hiding the newest lease record, causing the browser to resolve an outdated owner.
+
+To mitigate this, light clients query a Minimum Gateway Set (e.g., 3 independent public gateways). The client collects all returned lease records, performs local verification on all of them, and deterministically chooses the winning payload using the Protocol Specification v1 rules (the oldest initial commitment tied-broken by the XOR distance to a future `drand` pulse).
+
+Once a single honest gateway is queried, malicious censorship by the others becomes mathematically irrelevant.
+
+---
+
+## 4. The Complete Kinetic Stack Flow
+
+```mermaid
+graph TD
+    A[Human Name: 'saif.kin'] -->|Resolves via Kademlia| B(Permanent Identity: KID)
+    B -->|Cryptographic Root| C{Capability Manifest}
+    C -->|Service 1| D[Website/Content]
+    C -->|Service 2| E[API Endpoint]
+    C -->|Service 3| F[Messaging Relay]
+    
+    B -.->|Signs| C
+    C -.->|Hashes/Points to| D
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
 ```
-## The Remaining Open Problem
-Most architectural questions have been solved conceptually.
-The primary unresolved challenge is bootstrap.
-Question:
-> How does a device with zero Kinetic knowledge obtain the first piece of Kinetic state?
-> 
-Specifically:
-**saif.kin ↓ ? ↓ current KID**
-A device must somehow discover the current state associated with a human-readable name.
-This remains an open research area.
-## Future Research Directions
-Potential approaches include:
-### Federated Bootstrap Network
-Independent nodes expose name-to-state mappings.
-No single operator owns resolution.
-### Portable Identity Objects
-Users exchange KIDs directly.
-Examples:
- * QR Codes
- * Files
- * Links
- * NFC
-### Deterministic Name Identifiers
-Example:
-name_id = H("saif.kin")
-Any client can derive the same identifier locally.
-The remaining challenge becomes discovering state associated with that identifier.
+
 ## Conclusion
-Kinetic began as a decentralized naming protocol.
-This research suggests a broader direction.
-Instead of:
+
+Kinetic began as a decentralized naming protocol. However, through rigorous architectural evolution, it has matured into something much more comprehensive.
+
+Instead of a simple:
 **Name ↓ Location**
-Kinetic can evolve toward:
+
+Kinetic provides a mathematically verifiable stack:
 **Human Name ↓ Identity ↓ Services ↓ Content**
-This transforms naming from machine resolution into identity-driven service discovery.
-The most important object in the system may not be the name itself.
-It may be the permanent cryptographic identity that the name resolves to.
-Under this model, Kinetic becomes more than a decentralized domain system.
-It becomes an identity-centric service layer for the internet.
+
+This transforms naming from machine resolution into identity-driven service discovery. Under this model, Kinetic becomes more than a decentralized domain system. It becomes the foundational identity-centric service layer for the internet.

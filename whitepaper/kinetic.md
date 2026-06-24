@@ -10,7 +10,7 @@ The protocol operates on a three-tier cryptographic security lifecycle:
 
 1. **Commit-Reveal & Sequential Linking:** To eliminate network front-running and blind sniper attacks, registration requests are initially broadcast as obscured cryptographic commitments anchored to an external randomness beacon (`drand`) and bound uniquely to the claimant's public key. The subsequent Verifiable Delay Function mathematically proves the commitment existed in the past, completely eliminating the need for a synchronized network clock.
 2. **Dynamic Difficulty via Verifiable Delay Functions (VDFs):** To eliminate mass-dictionary squatting, the computational expenditure required to claim a name scales inversely with its character length. An attacker with massive hardware concurrency cannot resolve a single contested handle faster than a standard client, shifting the cost of entry from hardware scale to sheer patience. The network difficulty is globally synchronized via the `drand` beacon, with a fallback re-squaring mechanism to ensure difficulty scales with hardware advancements.
-3. **The Multi-Tiered Lease:** To maintain namespace fluidity without an administrative state, name retention requires an active, low-overhead background Proof of Work (PoW) heartbeat. If a heartbeat flatlines, the name is not instantly lost; instead, it enters a Grace-Period Escalation where the computational cost to steal the name increases the less idle it has been. Users can also opt into Hibernation VDFs for long-term offline periods or utilize Watchtowers for convenience.
+3. **The Multi-Tiered Lease:** To maintain namespace fluidity without an administrative state, name retention requires an active, low-overhead cryptographic signature heartbeat. If a heartbeat flatlines, the name is not instantly lost; instead, it enters a Grace-Period Escalation where the computational cost to steal the name increases the less idle it has been. Users can also opt into Hibernation VDFs for long-term offline periods or utilize Watchtowers for convenience.
 
 By combining these mechanics within a conceptually stateless, distributed peer-to-peer network layer defended by Competitive Gossip and Hashcash PoW, Kinetic achieves global, human-meaningful, and unique handle resolution.
 
@@ -36,7 +36,7 @@ where $R_{max}$ is the maximum resources available to the attacker. The debate i
 
 ### 2.2 The Flaw of Capital-Gated Names (Economic Rent-Seeking)
 
-The most common approach—utilized by protocols like the Ethereum Name Service (ENS)—is to define $c$ as financial capital. To prevent permanent squatting and dead state, these systems institute recurring renewal fees based on string length.
+The most common approach—utilized by legacy blockchain-based naming systems—is to define $c$ as financial capital. To prevent permanent squatting and dead state, these systems institute recurring renewal fees based on string length.
 
 While financially gating the namespace solves the Sybil problem, it introduces severe economic downstream effects:
 
@@ -115,13 +115,15 @@ A VDF is a cryptographic function $f: X \to Y$ that takes a prescribed amount of
 
 #### The Mathematical Construction
 
-The Kinetic Protocol utilizes a VDF based on repeated squaring in a finite abelian group of unknown order.[^1] The user is challenged to compute an output $y$ given a base element $x$ and a time parameter $T$:
+To maintain a strict trustless philosophy, the Kinetic Protocol constructs its VDF over **Class Groups of Imaginary Quadratic Fields**, adopting the same mathematical foundations as the Chia network. Unlike RSA-based VDFs, Class Groups do not require a "Trusted Setup" ceremony to generate a modulus, eliminating human trust entirely.
 
-$$ y = x^{2^T} \pmod N $$
+The user is challenged to compute an output element $y$ within the Class Group given a base element $x$ and a time parameter $T$:
 
-They are mathematically forced to execute $T$ sequential squarings. Alongside $y$, the prover generates a concise cryptographic proof $\pi$. While evaluating $y$ requires $O(T)$ operations, any network node can verify the tuple $(x, y, \pi)$ in $O(\log T)$ or $O(1)$ time.
+$$ y = x^{2^T} $$
 
-[^1]: **Note on Trust Assumptions**: If using an RSA modulus $N = p \cdot q$, the protocol requires a trusted setup ceremony to generate the modulus and definitively destroy the prime factors. To avoid a trusted setup entirely, the protocol may substitute the RSA group with an imaginary quadratic class group, sacrificing some performance for trustless mathematical purity.
+Because the group order is unknown, the user is mathematically forced to execute $T$ sequential, non-parallelizable squarings. 
+
+Alongside $y$, the prover generates a concise cryptographic proof $\pi$ using the **Wesolowski Proof Protocol**. While evaluating $y$ requires $O(T)$ operations and is computationally grueling, any node in the Kinetic network can verify the tuple $(x, y, \pi)$ in $O(\log T)$ time, ensuring network validation remains near-instantaneous.
 
 #### Hardware Acceleration & Dynamic Difficulty
 
@@ -141,7 +143,7 @@ stateDiagram-v2
     
     state Active {
         [*] --> Sending_Heartbeats
-        Sending_Heartbeats --> Sending_Heartbeats: Periodic PoW Heartbeat
+        Sending_Heartbeats --> Sending_Heartbeats: Periodic Signature Heartbeat
     }
     
     Active --> Idle: User goes offline
@@ -166,7 +168,7 @@ stateDiagram-v2
 
 #### Layer 1: Grace-Period Escalation (The Base Layer)
 
-Ownership is maintained by a localized, continuous Proof of Work (PoW) heartbeat, requiring less than a minute of background computation per week. 
+Ownership is maintained by a localized, continuous cryptographic signature heartbeat, requiring minimal background computation. 
 
 If a user goes offline and misses their heartbeat, the name is **not** instantly evicted. Instead, it enters **Grace-Period Escalation**. An abandoned name requires an attacker to compute an *exponentially harder* VDF to steal it based on how long it has been idle. The difficulty to steal is formalized as:
 
@@ -226,6 +228,36 @@ When a user resolves `saif.kin`:
 4. **Resolve:** The daemon deterministically selects the payload with the earliest valid commitment and active heartbeat, extracts the routing IP address, and seamlessly resolves the local browser's request.
 
 **Tie-Breaking (The XOR Lottery):** If two honest users generate valid commitments for the exact same name within the exact same 30-second `drand` window ($B_{t_1}$ is identical), the protocol must break the tie without recreating a grinding PoW race. The winner is determined by the payload whose VDF output $y$ has the smallest XOR distance to the subsequent `drand` pulse $B_{t_2}$ at the time the first reveal is published. Because neither user can predict the future `drand` pulse, and neither can manipulate their VDF output $y$ (which is deterministically derived from the fixed inputs), this functions as a perfectly fair, mathematically un-gameable lottery.
+
+### 4.3 Cryptographic Payload Schemas
+
+To ensure deterministic client-side validation across all nodes, the network relies on strict data schemas. Below is a representation of the Reveal Payload (the final structure stored in the Kademlia DHT).
+
+```json
+{
+  "version": 1,
+  "name": "saif.kin",
+  "routing_target": "192.168.1.100", // Or a KID in the Identity Architecture
+  "commitment": {
+    "drand_round_t1": 3485721,
+    "salt": "a1b2c3d4e5f6",
+    "hash": "0x8f7a9..." 
+  },
+  "vdf_proof": {
+    "iterations_T": 1000000,
+    "output_y": "0x4b2c...",
+    "wesolowski_pi": "0x9d3f..."
+  },
+  "heartbeat": {
+    "drand_round_current": 3488000,
+    "nonce": 42
+  },
+  "owner_pubkey": "ed25519:3a9b...",
+  "signature": "0x7c4e..." // Signs the entire payload
+}
+```
+
+Every node in the network independently verifies the `vdf_proof`, confirms the `drand_round` sequences, and checks the Ed25519 `signature` before serving this routing record.
 
 ```mermaid
 graph TD
@@ -312,25 +344,35 @@ When a client resolves a name $n$:
 
 This procedure guarantees that if at least one of the $M$ storage locations is honest and stores the legitimate payload, every resolver will see it. The attacker must eclipse all $M$ locations simultaneously to censor the legitimate claim.
 
-#### Probabilistic Security Analysis
+#### Compute-Cost Security Analysis
 
-Let $f$ be the fraction of DHT nodes controlled by the adversary. The adversary can successfully eclipse a single storage key $K_i$ if they control the $k$ closest nodes to $K_i$, where $k$ is the DHT's replication factor (typically $k \approx 20$ in Kademlia). For a given $f$, the probability of successfully eclipsing a single uniformly random key is approximately $f^{k}$ in a static model, or bounded by $f$ in a sustained Sybil attack.
+In standard Kademlia, Node IDs are self-assigned. This means an eclipse attack does not require an adversary to control a massive fraction of the global network. Instead, an attacker only needs to locally generate enough cheap Sybil identities that happen to be mathematically closer to the target key $K_i$ than any honest node.
 
-The critical security property of redundant storage is that the $M$ keys are independent and uniformly distributed. The probability that the adversary eclipses all $M$ keys simultaneously is:
+If an attacker controls a fraction $f$ of the network's identity-generation hash power (or PoW-solving capability), the probability of them naturally controlling the $k$ closest nodes to a single target key is approximately $P_{single} \approx f^k$.
 
-$$ P(\text{total eclipse}) = \prod_{i=0}^{M-1} P(\text{eclipse } K_i) \approx f^{M \cdot k} $$
+Because the $M$ target keys are generated via a cryptographic hash function, their locations are perfectly uniform and mathematically uncorrelated. To censor the name, the attacker must simultaneously eclipse all $M$ distinct keys. The probability of a successful total eclipse attack is therefore:
 
-Concrete example: Suppose the adversary controls $f = 20\%$ of the DHT nodes — a massive Sybil investment. With $M = 5$ redundant keys and a standard libp2p replication factor of $k = 20$:
+$$ P_{\text{eclipse}} = \prod_{i=0}^{M-1} P(K_i \text{ eclipsed}) \approx (f^k)^M = f^{k \cdot M} $$
 
-$$ P(\text{total eclipse}) = (0.2)^{5 \cdot 20} = (0.2)^{100} \approx 1.26 \times 10^{-70} $$
+Because $f < 1$, the probability of a successful eclipse attack decays exponentially as $M$ increases. For example, if an attacker commands a massive $20\%$ of the global network's PoW capacity ($f=0.2$) and the Kademlia bucket size is $k=20$, eclipsing a single key has a probability of $0.2^{20} \approx 10^{-14}$. Eclipsing $M=5$ redundant keys drops that probability to $0.2^{100} \approx 10^{-70}$.
 
-The probability that the attacker can censor a specific name is practically zero. This represents an astronomical improvement over single-key storage, demonstrating the immense security multiplier of scattering payloads across independent Kademlia buckets.
+This mathematically guarantees that unless the attacker fundamentally controls a supermajority of the entire global network (a 51% attack on the PoW identity layer), isolating and censoring a specific name is statistically impossible.
 
-Increasing $M$ to 7 reduces the probability below $10^{-5}$. The marginal storage and bandwidth overhead is linear in $M$, while the censorship resistance is exponential. The protocol defaults to $M = 5$, with individual implementations free to increase this parameter for higher-value names.
+### 4.5 — A Note on the Boundaries of Sybil Resistance
+
+The Kinetic Protocol makes a precise, bounded claim about Sybil resistance, and intellectual honesty demands that claim be stated exactly rather than allowed to imply more than it delivers.
+
+At the per-name level, Kinetic's Proof-of-Patience construction is sound. No attacker — regardless of hardware budget — can accelerate a single VDF computation. A well-funded actor cannot register `stripe.kin` faster than a developer on a consumer laptop; they are both subject to the same irreducible wall of sequential time. Within this scope, the core promise of the protocol holds.
+
+The impossibility result lies one layer below, at the identity-creation layer. In any permissionless system where generating a cryptographic identity (a public key) is computationally free, a single actor controlling N machines is mathematically indistinguishable from N independent legitimate users. This is not a flaw in Kinetic's engineering — it is a consequence of the protocol's own foundational constraints. Kinetic explicitly and intentionally rejects the three known mechanisms that resolve this ambiguity: financial capital (which reproduces digital landlordism), Proof-of-Personhood (which reintroduces extreme onboarding friction and surveillance risk), and a globally-ordered consensus ledger (which reintroduces the shared bottleneck the protocol is architecturally designed to avoid). Having rejected all three, the protocol accepts the following corollary as an honest consequence: a patient, well-resourced attacker who spreads registrations across independent identities at a rate statistically indistinguishable from organic network growth cannot be detected or prevented by any mechanism available to a stateless, permissionless DHT.
+
+What Kinetic does offer is a meaningful, honest mitigation. The steeply-scaled VDF difficulty curve ensures that bulk acquisition of the contested namespace — the high-value, short-character dictionary words where squatter incentives are highest — requires a real and non-trivial expenditure of sequential compute-time per name. Unlike capital-gated registries, this cost cannot be amortized across names via economies of scale: ten thousand parallel VDF grinds cost exactly ten thousand times the single-name cost, with no discount for volume. This does not bankrupt a sufficiently patient, sufficiently capitalized attacker — nothing in a permissionless system without global consensus can — but it meaningfully raises the minimum sustained cost of bulk accumulation above zero, unlike any purely free namespace. The protocol's correct positioning is therefore as a system that makes large-scale fast acquisition expensive and large-scale patient accumulation time-consuming, while acknowledging that neither property constitutes a complete cryptographic guarantee against a determined, well-resourced adversary.
+
+The authors consider this an honest and defensible position. Every deployed naming system in the literature — whether capital-gated, identity-gated, or centrally managed — either reintroduces a central authority, charges monetary rent, or accepts some form of bulk squatting as an unresolved open problem. Kinetic sits in the same honest company. The goal of this protocol is not to claim a solution to an open problem in distributed systems theory, but to minimize the practical footprint of that problem for the class of users — individual developers, small teams, infrastructure hobbyists — for whom it matters most.
 
 #### Practical Considerations
 
-**Storage overhead:** Each name consumes $M$ DHT entries instead of one. For $M = 5$ and a payload size of approximately 2 KB (commitment, VDF proof, signature, and metadata), total storage per name is approximately 10 KB distributed across the network. For even 10 million active names, total DHT storage is approximately 100 GB, trivially manageable for a global P2P network.
+**Storage overhead:** Each name consumes $M$ DHT entries instead of one. For $M = 5$ and a payload size of approximately 2–5 KB (commitment, VDF proof, signature, and metadata), total storage per name is approximately 10–25 KB distributed across the network. For even 10 million active names, total DHT storage is approximately 100–250 GB, trivially manageable for a global P2P network.
 
 **Query latency:** The $M$ DHT queries are issued in parallel. The resolver's perceived latency is the maximum of $M$ Kademlia lookups, each requiring $O(\log N)$ hops. In practice, this adds tens of milliseconds compared to a single lookup, which is imperceptible in the context of DNS resolution (already subject to caching and upstream resolver latency).
 
@@ -389,15 +431,6 @@ graph LR
     style Pass fill:#228B22,stroke:#000,stroke-width:2px,color:#fff
 ```
 
-### 5.2 Bridging the Ecosystem: Progressive Degradation
+### 5.2 Native Installation
 
-While the loopback daemon provides maximum sovereignty and security, requiring full node installation creates onboarding friction for non-technical users. To ensure global accessibility, Kinetic implements progressive degradation across three distinct access tiers:
-
-* **Tier 1: The Native Daemon (Full Sovereignty)**
-  The ideal implementation described above. The user runs the full node, calculates VDFs locally, and acts as their own consensus judge. Used by developers, node operators, and infrastructure providers.
-* **Tier 2: Browser Extensions (Light Clients)**
-  For users who cannot alter OS-level DNS settings, a lightweight browser extension intercepts `.kin` requests directly at the DOM level. It connects to trusted Bootstrap Nodes to fetch the DHT payloads but still performs the VDF verification locally, preserving mathematical trust.
-* **Tier 3: Legacy Gateways (Web2 Bridges)**
-  To allow `.kin` addresses to be shared on legacy platforms (e.g., texting a link to a mobile phone), the protocol supports public HTTP gateways. By appending a legacy TLD (e.g., `saif.kin.network`), the request routes through a central Web2 server that runs a Kinetic node on the backend, proxying the peer-to-peer tunnel to standard HTTP clients.
-
-Through this tiered architecture, Kinetic establishes a self-contained, mathematically rigorous namespace that remains fully backward-compatible with the legacy internet.
+The ideal implementation described above requires the user to run the full node locally. The user calculates VDFs locally and acts as their own consensus judge. This maximizes sovereignty, privacy, and mathematical trust. It is designed to be used natively by developers, node operators, and infrastructure providers without relying on trusted intermediaries.
