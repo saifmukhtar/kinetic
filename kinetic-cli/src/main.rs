@@ -30,6 +30,14 @@ enum Commands {
         #[arg(short, long, default_value_t = 100_000)]
         iterations: u64,
     },
+    /// Register a .kin name to resolve to this device's Libp2p PeerId (Hole-Punching Proxy Routing)
+    RegisterPeer {
+        /// The name to register (e.g. myname.kin)
+        name: String,
+        /// Number of VDF iterations (difficulty)
+        #[arg(short, long, default_value_t = 100_000)]
+        iterations: u64,
+    },
     /// Generate a 48-hour Hibernation VDF to exempt a name from heartbeats for 1 year
     Hibernate {
         name: String,
@@ -91,8 +99,9 @@ async fn main() -> anyhow::Result<()> {
             info!("Initializing Chia VDF Engine. Generating cryptographic proof...");
             let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
             
-            // Using a zero salt for simplicity, but could be random
-            let salt = [0u8; 32];
+            // Generate a random salt to prevent pre-computation attacks
+            let mut salt = [0u8; 32];
+            getrandom::fill(&mut salt).expect("Failed to generate random salt");
             
             let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
             
@@ -110,6 +119,22 @@ async fn main() -> anyhow::Result<()> {
             
             let challenge = Commitment { hash };
             
+            // Phase 4.1: POST the commitment *before* generating the VDF proof
+            info!("Broadcasting Commitment to DHT (Phase 1 of 2)...");
+            let commit_req = kinetic_core::types::CommitRequest {
+                name: fqdn.clone(),
+                commitment: challenge.clone(),
+            };
+            let commit_res = client.post(format!("http://127.0.0.1:{}/commit", config.daemon.api_port))
+                .json(&commit_req)
+                .send()
+                .await?;
+            if !commit_res.status().is_success() {
+                let err_text = commit_res.text().await.unwrap_or_default();
+                return Err(anyhow::anyhow!("Failed to broadcast commitment: {}", err_text));
+            }
+            info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
+            
             let required_iterations = kinetic_core::types::calculate_required_iterations(&fqdn, drand_data.round);
             let actual_iterations = std::cmp::max(iterations, required_iterations);
 
@@ -123,6 +148,7 @@ async fn main() -> anyhow::Result<()> {
             let payload = ip.as_bytes().to_vec();
             
             let mut reveal = Reveal {
+                protocol_version: 2,
                 name: fqdn.clone(),
                 payload,
                 salt,
@@ -165,6 +191,99 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         }
+        Commands::RegisterPeer { name, iterations } => {
+            let fqdn = if !name.ends_with(".kin.") {
+                if name.ends_with(".kin") { format!("{}.", name) } else { format!("{}.kin.", name) }
+            } else { name.clone() };
+
+            info!("Starting Peer Registration process for '{}' ({} iterations)", fqdn, iterations);
+
+            let keypair = load_or_create_keypair()?;
+            let pubkey = keypair.verifying_key().to_bytes();
+            
+            // Derive PeerId from the ed25519 signing key
+            let mut secret_bytes = keypair.to_bytes();
+            let libp2p_keypair = libp2p::identity::ed25519::SecretKey::try_from_bytes(&mut secret_bytes)
+                .map(|sk| libp2p::identity::Keypair::from(libp2p::identity::ed25519::Keypair::from(sk)))
+                .expect("Valid ed25519 key");
+            let peer_id = libp2p_keypair.public().to_peer_id();
+            
+            info!("Local PeerId derived: {}", peer_id);
+
+            let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
+            let drand_res = client.get("https://api.drand.sh/public/latest").send().await?;
+            let drand_data = drand_res.json::<DrandResponse>().await?;
+
+            let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
+            let mut salt = [0u8; 32];
+            getrandom::fill(&mut salt).expect("Failed to generate random salt");
+            let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
+            
+            let mut hasher = sha2::Sha256::new();
+            hasher.update(fqdn.as_bytes());
+            hasher.update(&salt);
+            hasher.update(&challenge_bytes);
+            hasher.update(&pubkey);
+            let mut hash = [0u8; 32];
+            hash.copy_from_slice(&hasher.finalize());
+            let challenge = Commitment { hash };
+            
+            // Phase 4.1: POST the commitment *before* generating the VDF proof
+            info!("Broadcasting Commitment to DHT (Phase 1 of 2)...");
+            let commit_req = kinetic_core::types::CommitRequest {
+                name: fqdn.clone(),
+                commitment: challenge.clone(),
+            };
+            let commit_res = client.post(format!("http://127.0.0.1:{}/commit", config.daemon.api_port))
+                .json(&commit_req)
+                .send()
+                .await?;
+            if !commit_res.status().is_success() {
+                let err_text = commit_res.text().await.unwrap_or_default();
+                return Err(anyhow::anyhow!("Failed to broadcast commitment: {}", err_text));
+            }
+            info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
+            
+            let required_iterations = kinetic_core::types::calculate_required_iterations(&fqdn, drand_data.round);
+            let actual_iterations = std::cmp::max(iterations, required_iterations);
+
+            let proof = vdf_engine.evaluate(&challenge, actual_iterations)?;
+            
+            // The payload is the PeerId's string representation (or bytes)
+            // Let's use bytes for efficiency.
+            let payload = peer_id.to_bytes();
+            
+            let mut reveal = Reveal {
+                protocol_version: 2,
+                name: fqdn.clone(),
+                payload,
+                salt,
+                drand_pulse: drand_data.round,
+                drand_randomness: drand_data.randomness.clone(),
+                iterations: actual_iterations,
+                vdf_proof: VdfProof { proof_bytes: proof.proof_bytes },
+                pubkey: pubkey.to_vec(),
+                signature: vec![],
+            };
+            
+            let signable = reveal.signable_bytes();
+            reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
+            
+            let daemon_url = format!("http://127.0.0.1:{}/publish", config.daemon.api_port);
+            let response = client.post(daemon_url).json(&json!({"reveal": reveal})).send().await;
+
+            match response {
+                Ok(res) if res.status().is_success() => {
+                    info!("Success! '{}' now resolves to PeerId {}", fqdn, peer_id);
+                }
+                Ok(res) => {
+                    warn!("Daemon returned an error: {}", res.status());
+                }
+                Err(e) => {
+                    warn!("Failed to connect to local daemon: {}", e);
+                }
+            }
+        }
         Commands::Hibernate { name } => {
             let fqdn = if !name.ends_with(".kin.") { if name.ends_with(".kin") { format!("{}.", name) } else { format!("{}.kin.", name) } } else { name.clone() };
             info!("Generating massive 1-year Hibernation VDF for {}...", fqdn);
@@ -179,9 +298,12 @@ async fn main() -> anyhow::Result<()> {
             let keypair = load_or_create_keypair()?;
             let pubkey = keypair.verifying_key().to_bytes();
             
+            let mut salt = [0u8; 32];
+            getrandom::fill(&mut salt).expect("Failed to generate random salt");
+            
             let mut hasher = sha2::Sha256::new();
             hasher.update(fqdn.as_bytes());
-            hasher.update(&[0u8; 32]);
+            hasher.update(&salt);
             hasher.update(&challenge_bytes);
             hasher.update(&pubkey);
             let mut hash = [0u8; 32];
@@ -202,6 +324,7 @@ async fn main() -> anyhow::Result<()> {
                 iterations: actual_iterations,
                 vdf_proof: VdfProof { proof_bytes: proof.proof_bytes },
                 pubkey: pubkey.to_vec(),
+                salt,
                 signature: vec![],
             };
             

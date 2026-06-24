@@ -39,6 +39,7 @@ pub async fn start_server(network: NetworkClient, storage: Arc<SledStorage>, por
     let state = ApiState { network, storage };
 
     let app = Router::new()
+        .route("/commit", post(handle_commit))
         .route("/publish", post(handle_publish))
         .route("/publish-hibernation", post(handle_publish_hibernation))
         .with_state(state);
@@ -78,6 +79,8 @@ async fn handle_publish(
         }
     };
 
+    let payload_clone = payload_bytes.clone();
+
     match state.network.publish_redundant_payload(&fqdn, payload_bytes).await {
         Ok(_) => {
             info!("Successfully queued payload for {} to the DHT network", fqdn);
@@ -95,6 +98,19 @@ async fn handle_publish(
                     info!("Persisted {} to daemon storage for automatic Heartbeats", fqdn);
                 }
             }
+
+            // Phase 4.2: Spawn a background task to verify quorum threshold
+            let network = state.network.clone();
+            let fqdn_clone = fqdn.clone();
+            tokio::spawn(async move {
+                // Wait briefly for DHT propagation
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                match network.verify_quorum(&fqdn_clone, payload_clone).await {
+                    Ok(quorum) if quorum >= 3 => tracing::info!("Quorum reached for {}: {}/5 nodes confirmed.", fqdn_clone, quorum),
+                    Ok(quorum) => tracing::warn!("Quorum failed for {}: only {}/5 nodes confirmed storage.", fqdn_clone, quorum),
+                    Err(e) => tracing::warn!("Quorum check failed for {}: {}", fqdn_clone, e),
+                }
+            });
 
             Ok(Json(PublishResponse {
                 status: "success".to_string(),
@@ -120,9 +136,22 @@ async fn handle_publish_hibernation(
         Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Serialization failed: {}", e))),
     };
 
-    match state.network.publish_redundant_payload(&fqdn, payload_bytes).await {
+    match state.network.publish_redundant_payload(&fqdn, payload_bytes.clone()).await {
         Ok(_) => {
             info!("Successfully queued Hibernation VDF for {} to the DHT network", fqdn);
+            
+            // Phase 4.2: Spawn a background task to verify quorum threshold
+            let network = state.network.clone();
+            let fqdn_clone = fqdn.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                match network.verify_quorum(&fqdn_clone, payload_bytes).await {
+                    Ok(quorum) if quorum >= 3 => tracing::info!("Quorum reached for hibernation of {}: {}/5 nodes confirmed.", fqdn_clone, quorum),
+                    Ok(quorum) => tracing::warn!("Quorum failed for hibernation of {}: only {}/5 nodes confirmed storage.", fqdn_clone, quorum),
+                    Err(e) => tracing::warn!("Quorum check failed for hibernation of {}: {}", fqdn_clone, e),
+                }
+            });
+
             Ok(Json(PublishResponse {
                 status: "success".to_string(),
                 message: "Hibernation accepted and routed to DHT".to_string(),
@@ -130,6 +159,58 @@ async fn handle_publish_hibernation(
         }
         Err(e) => {
             error!("Failed to publish Hibernation to DHT: {}", e);
+            Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to publish: {}", e)))
+        }
+    }
+}
+
+async fn handle_commit(
+    State(state): State<ApiState>,
+    Json(req): Json<kinetic_core::types::CommitRequest>,
+) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    info!("Received API commit request for name: {}", req.name);
+    
+    // Normalize to FQDN format
+    let fqdn = if !req.name.ends_with(".kin.") {
+        if req.name.ends_with(".kin") {
+            format!("{}.", req.name)
+        } else {
+            format!("{}.kin.", req.name)
+        }
+    } else {
+        req.name.clone()
+    };
+
+    let payload_bytes = match serde_json::to_vec(&req.commitment) {
+        Ok(b) => b,
+        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Serialization failed: {}", e))),
+    };
+
+    // The commitment is stored as a special JSON payload (which the network differentiates based on struct parsing)
+    // and broadcast to the same 5 derived DHT keys.
+    match state.network.publish_redundant_payload(&fqdn, payload_bytes.clone()).await {
+        Ok(_) => {
+            info!("Successfully queued Commitment for {} to the DHT network", fqdn);
+            
+            // Phase 4.2: Spawn a background task to verify quorum threshold
+            let network = state.network.clone();
+            let fqdn_clone = fqdn.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                match network.verify_quorum(&fqdn_clone, payload_bytes).await {
+                    Ok(quorum) if quorum >= 3 => tracing::info!("Quorum reached for commitment of {}: {}/5 nodes confirmed.", fqdn_clone, quorum),
+                    Ok(quorum) => tracing::warn!("Quorum failed for commitment of {}: only {}/5 nodes confirmed storage.", fqdn_clone, quorum),
+                    Err(e) => tracing::warn!("Quorum check failed for commitment of {}: {}", fqdn_clone, e),
+                }
+            });
+
+            Ok(Json(PublishResponse {
+                status: "success".to_string(),
+                message: "Commitment accepted and routed to DHT".to_string(),
+            }))
+        }
+        Err(e) => {
+            error!("Failed to publish Commitment to DHT: {}", e);
             Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to publish: {}", e)))
         }
     }

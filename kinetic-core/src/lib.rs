@@ -1,5 +1,5 @@
 pub mod config;
-pub mod drand;
+
 pub mod error;
 pub mod traits;
 pub mod types;

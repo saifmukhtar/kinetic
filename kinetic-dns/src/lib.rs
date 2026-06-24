@@ -47,6 +47,8 @@ impl RequestHandler for KineticDnsHandler {
                         if let Ok(ip) = Ipv4Addr::from_str(&ip_str) {
                             let name = Name::from_str(&query_name).unwrap();
                             let record = Record::from_rdata(name, 60, RData::A(ip.into()));
+                            // Set response code BEFORE sending the response
+                            header.set_response_code(hickory_proto::op::ResponseCode::NoError);
                             let response = builder.build(
                                 header,
                                 std::iter::once(&record),
@@ -55,7 +57,6 @@ impl RequestHandler for KineticDnsHandler {
                                 std::iter::empty(),
                             );
                             let _ = response_handle.send_response(response).await;
-                            header.set_response_code(hickory_proto::op::ResponseCode::NoError);
                             return header.into();
                         }
                         } else {
@@ -94,7 +95,8 @@ impl RequestHandler for KineticDnsHandler {
             }
         }
         
-        header.set_response_code(hickory_proto::op::ResponseCode::NoError);
+        // Fallthrough: return whatever response code header currently holds
+        // (NXDomain if the .kin lookup failed, NoError if passthrough succeeded)
         header.into()
     }
 }

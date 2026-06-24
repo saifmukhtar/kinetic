@@ -1,0 +1,17 @@
+[package]
+name = "simulations"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rayon = "1.12.0"
+sha2 = "0.11.0"
+
+[[bin]]
+name = "sim_escalation"
+path = "src/sim_escalation.rs"
+
+[[bin]]
+name = "sim_dht_eclipse"
+path = "src/sim_dht_eclipse.rs"
