@@ -1,7 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-use directories::ProjectDirs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KineticConfig {
@@ -24,9 +23,10 @@ pub struct P2pConfig {
 
 impl Default for KineticConfig {
     fn default() -> Self {
-        let storage_dir = ProjectDirs::from("com", "kinetic", "kinetic")
-            .map(|d| d.data_dir().to_path_buf())
-            .unwrap_or_else(|| PathBuf::from("/tmp/kinetic_db"));
+        let storage_dir = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("kinetic")
+            .join("db");
 
         Self {
             daemon: DaemonConfig {
@@ -50,12 +50,13 @@ impl KineticConfig {
         let config_path = std::env::var("KINETIC_CONFIG_PATH")
             .map(PathBuf::from)
             .unwrap_or_else(|_| {
-                ProjectDirs::from("com", "kinetic", "kinetic")
-                    .map(|d| d.config_dir().join("config.toml"))
-                    .unwrap_or_else(|| PathBuf::from("/tmp/kinetic_config.toml"))
+                dirs::config_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join("kinetic")
+                    .join("config.toml")
             });
 
-        if let Ok(config_str) = fs::read_to_string(&config_path) {
+        let mut config = if let Ok(config_str) = fs::read_to_string(&config_path) {
             match toml::from_str(&config_str) {
                 Ok(config) => config,
                 Err(e) => {
@@ -73,6 +74,26 @@ impl KineticConfig {
                 }
             }
             default_cfg
+        };
+
+        // Phase 5.3: Bootstrap Node DNS-Based Discovery Fallback
+        use hickory_resolver::Resolver;
+        use hickory_resolver::config::*;
+        if let Ok(resolver) = Resolver::new(ResolverConfig::default(), ResolverOpts::default()) {
+            if let Ok(txt_lookup) = resolver.txt_lookup("_kinetic-bootstrap.kin.network.") {
+                for txt in txt_lookup.iter() {
+                    if let Some(txt_str) = txt.txt_data().first() {
+                        if let Ok(addr_str) = std::str::from_utf8(txt_str) {
+                            if !config.network.bootstrap_nodes.contains(&addr_str.to_string()) {
+                                tracing::info!("Discovered dynamic bootstrap node from DNS: {}", addr_str);
+                                config.network.bootstrap_nodes.push(addr_str.to_string());
+                            }
+                        }
+                    }
+                }
+            }
         }
+
+        config
     }
 }

@@ -17,3 +17,12 @@ toml = "1.1.2"
 directories = "6.0.0"
 ed25519-dalek = "2.2.0"
 getrandom = "0.4.3"
+dirs = "6.0.0"
+hickory-resolver = "0.24.4"
+
+[dev-dependencies]
+criterion = "0.8.2"
+
+[[bench]]
+name = "crypto_bench"
+harness = false

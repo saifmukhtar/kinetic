@@ -13,6 +13,7 @@ getrandom = "0.4.3"
 hex = "0.4.3"
 kinetic-core = { version = "0.1.0", path = "../kinetic-core" }
 kinetic-vdf = { version = "0.1.0", path = "../kinetic-vdf" }
+libp2p = { version = "0.53", features = ["ed25519"] }
 rand = "0.10.1"
 reqwest = { version = "0.13.4", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }

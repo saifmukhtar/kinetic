@@ -5,7 +5,10 @@ members = [
     "kinetic-network",
     "kinetic-storage",
     "kinetic-dns",
-    "kinetic-daemon", "kinetic-cli",
+    "kinetic-daemon", "kinetic-cli", "kinetic-test", "simulations",
+]
+exclude = [
+    "kinetic-core/fuzz",
 ]
 resolver = "2"
 

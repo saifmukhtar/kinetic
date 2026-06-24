@@ -8,7 +8,7 @@ Have you ever tried to register a domain name for a side project, only to find o
 
 Why are we paying endless rent for mathematical space?
 
-Current decentralized identity and naming architectures (like ENS or Handshake) inevitably replicate the rent-seeking vulnerabilities of Web2 registry systems, creating an artificial economy of **digital landlordism**. To secure human-readable namespaces against Sybil attacks and squatting, existing protocols rely on:
+Current decentralized identity and naming architectures inevitably replicate the rent-seeking vulnerabilities of Web2 registry systems, creating an artificial economy of **digital landlordism**. To secure human-readable namespaces against Sybil attacks and squatting, legacy blockchain protocols rely on:
 1. **Continuous capital allocation** (perpetual renewal fees) which prices out independent developers and favors wealthy speculators.
 2. **Intrusive identity verification** (Proof of Personhood) which introduces severe onboarding friction and privacy concerns.
 
@@ -47,8 +47,19 @@ graph LR
 ```
 
 ## 📖 Official Documentation
-Everything you need to know about Kinetic, the VDF math, and how to build on the network is available at:
+Everything you need to know about Kinetic, the VDF math, and how to build on the network is available at the official docs:
 **[https://saifmukhtar.github.io/kinetic/](https://saifmukhtar.github.io/kinetic/)**
+
+### Official IETF Internet-Drafts
+- **[draft-mukhtar-kinetic-network-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-network-00.html)**: The Kinetic Network Protocol specification.
+- **[draft-mukhtar-kinetic-identity-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-identity-00.html)**: Kinetic Identity Documents and Service Manifests.
+
+### Documentation & Whitepapers
+- **[Kinetic Protocol Specification v1](https://saifmukhtar.github.io/kinetic/protocol_specification.html)**: The definitive formal engineering specification including state machines, payload schemas, and empirical algorithms.
+- **[The Kinetic Architecture (Network Layer)](https://saifmukhtar.github.io/kinetic/whitepaper.html)**: The mathematical foundation of the stateless routing protocol.
+- **[The Kinetic Identity Architecture (KID)](https://saifmukhtar.github.io/kinetic/kinetic-kid.html)**: The identity and service capability layer (Names → KIDs → Manifests).
+- **[Kinetic Adversarial Analysis](https://saifmukhtar.github.io/kinetic/adversarial_analysis.html)**: A red-team audit proving the cryptographic resilience of the resolution rules.
+Created and maintained by Saif Mukhtar: **[https://saifmukhtar.dev](https://saifmukhtar.dev)**
 
 ---
 
@@ -114,6 +125,14 @@ The whitepaper details our solutions to critical decentralized naming vulnerabil
 *   **The Dictionary Squatting Fix:** Dynamic difficulty scaling via Verifiable Delay Functions.
 *   **The Vacation Problem Fix:** A Hybrid Lease System combining Grace-Period Escalation and Hibernation VDFs.
 *   **The Spam Fix:** Competitive Gossip and connection-level Hashcash Proof-of-Work.
+
+## 🛡️ Security & Auditing
+
+Kinetic is rigorously tested and hardened against adversarial network conditions using modern Rust infrastructure:
+* **`kinetic-test` E2E DHT Harness:** A fully simulated P2P Kademlia swarm environment that resolves and rejects payloads in memory, verifying the deterministic XOR tie-breaker and dynamic difficulty limits.
+* **Fuzzing Engine (`cargo-fuzz`):** Actively tests the core JSON parsers and Kademlia storage engines against memory safety attacks and malicious gossip spam.
+* **Cryptographic Benchmarks (`criterion`):** Ensures high-performance mathematical throughput for the Ed25519 signature verifications and Chia VDF engines.
+* **Embedded Storage (`sled`):** Built on the high-performance, lock-free Sled database to ensure crash-resilient asynchronous persistence for your Heartbeats and Kademlia records.
 
 ## 📄 License
 

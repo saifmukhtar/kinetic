@@ -1,0 +1,19 @@
+[package]
+name = "kinetic-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+kinetic-core = { path = "../kinetic-core" }
+kinetic-network = { path = "../kinetic-network" }
+kinetic-vdf = { path = "../kinetic-vdf" }
+kinetic-storage = { path = "../kinetic-storage" }
+libp2p = { version = "0.53", features = ["tokio", "tcp", "noise", "yamux", "dns", "kad", "request-response", "macros", "gossipsub"] }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+serde_json = "1.0.150"
+tempfile = "3.27.0"

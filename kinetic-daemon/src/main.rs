@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tracing::{info, Level};
+use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use hickory_server::ServerFuture;
 use tokio::net::UdpSocket;
@@ -13,9 +13,15 @@ use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::{Heartbeat, load_or_create_keypair};
 use ed25519_dalek::Signer;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
+use tokio::sync::watch;
 
 mod api;
+mod proxy;
+mod pac;
+mod ca;
+pub mod drand;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -43,16 +49,98 @@ async fn main() -> Result<()> {
     let daemon_keypair = load_or_create_keypair()?;
     info!("Daemon identity loaded: {:?}", hex::encode(daemon_keypair.verifying_key().as_bytes()));
 
+    // 4.5 Fetch initial Drand pulse for PoW
+    let drand_client = Arc::new(drand::DrandClient::new(storage.clone()));
+    
+    let initial_pulse = match drand_client.fetch_latest().await {
+        Ok(pulse) => {
+            info!("Drand beacon connected — pulse #{}", pulse.round);
+            pulse
+        }
+        Err(e) => {
+            warn!("Drand beacon unavailable on startup: {}", e);
+            warn!("P2P swarm and proxy will start — registration disabled until beacon reachable");
+            // Use a sentinel value — heartbeat loop will retry on next tick
+            drand::DrandPulse::unavailable()
+        }
+    };
+    
+    let initial_drand_pulse = initial_pulse.round;
+
+    // 4.6 Create drand pulse watch channel — heartbeat loop pushes real rounds; network event
+    // loop receives them so current_drand_pulse stays tethered to the actual beacon.
+    let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
+
     // 5. Initialize P2P Network (DHT + Gossipsub)
-    // We use the same ed25519 keypair for libp2p identity to ensure consistency
-    let mut key_bytes = daemon_keypair.to_bytes();
-    let local_key = libp2p::identity::Keypair::ed25519_from_bytes(&mut key_bytes).unwrap();
+    // We explicitly decouple the DHT routing identity from the Kinetic registrant identity.
+    // The libp2p Keypair is an ephemeral identity that must satisfy the S/Kademlia PoW for the current epoch.
+    let local_key = kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, 4);
+    
     let network_config = NetworkConfig { 
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.p2p_port),
         bootstrap_nodes: config.network.bootstrap_nodes,
+        initial_drand_pulse,
     };
-    let (network_client, network_loop) = NetworkEventLoop::new(network_config, local_key)?;
+    
+    let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
+    let (network_client, network_loop) = NetworkEventLoop::new(network_config, local_key, storage.clone(), drand_pulse_rx, Some(incoming_tx))?;
     info!("P2P Network architecture wired");
+
+    // Base config dir for CA and lockfiles
+    let base_config_dir = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("kinetic");
+    std::fs::create_dir_all(&base_config_dir)?;
+
+    // Initialize Root CA
+    let root_ca = match ca::load_or_create_root_ca(&base_config_dir) {
+        Ok((root_ca, is_new)) => {
+            if is_new {
+                let cert_path = base_config_dir.join("ca_cert.pem");
+                println!("\n{}", "=".repeat(60));
+                println!("  KINETIC: ONE-TIME SETUP REQUIRED");
+                println!("{}", "=".repeat(60));
+                println!("  A local Root CA has been generated at:");
+                println!("  {}", cert_path.display());
+                println!();
+                println!("  To enable HTTPS for .kin domains, install it:");
+                println!("  Linux (Chrome): Settings > Privacy > Manage Certs");
+                println!("                  > Authorities > Import");
+                println!("  Linux (Firefox): about:preferences#privacy");
+                println!("                   > View Certificates > Import");  
+                println!("  Or run: certutil -d sql:$HOME/.pki/nssdb \\");
+                println!("          -A -t 'C,,' -n 'Kinetic' \\");
+                println!("          -i {}", cert_path.display());
+                println!("{}", "=".repeat(60));
+                println!();
+            } else {
+                tracing::info!("Root CA loaded from {}", base_config_dir.display());
+            }
+            std::sync::Arc::new(root_ca)
+        }
+        Err(e) => {
+            tracing::error!("Failed to initialize Root CA: {}", e);
+            return Err(anyhow::anyhow!("CA Init Failed"));
+        }
+    };
+
+    let leaf_cache = std::sync::Arc::new(tokio::sync::Mutex::new(ca::LeafCertCache::new()));
+
+    // 5. Initialize the Local HTTP Proxy (port 5463)
+    let proxy_client = network_client.clone();
+    let ca_clone = std::sync::Arc::clone(&root_ca);
+    let cache_clone = std::sync::Arc::clone(&leaf_cache);
+    tokio::spawn(async move {
+        if let Err(e) = proxy::start_proxy_server(proxy_client, 5463, ca_clone, cache_clone).await {
+            tracing::error!("Proxy server crashed: {}", e);
+        }
+    });
+
+    // 5.b Initialize the incoming P2P Proxy Handler
+    let handler_client = network_client.clone();
+    tokio::spawn(async move {
+        proxy::handle_incoming_proxy_requests(handler_client, incoming_rx, 80).await;
+    });
 
     // 5. Initialize DNS Proxy
     let dns_handler = KineticDnsHandler::new(network_client.clone());
@@ -66,8 +154,22 @@ async fn main() -> Result<()> {
     };
 
     // Warning: Binding to port 53 requires elevated privileges (sudo/CAP_NET_BIND_SERVICE)
-    server.register_socket(UdpSocket::bind(format!("{}:{}", bind_ip, config.daemon.dns_port)).await?);
-    info!("DNS proxy ready on {}:{}", bind_ip, config.daemon.dns_port);
+    match UdpSocket::bind(format!("{}:{}", bind_ip, config.daemon.dns_port)).await {
+        Ok(socket) => {
+            server.register_socket(socket);
+            tokio::spawn(async move {
+                if let Err(e) = server.block_until_done().await {
+                    tracing::error!("DNS Server error: {:?}", e);
+                }
+            });
+            info!("DNS proxy ready on {}:{}", bind_ip, config.daemon.dns_port);
+        }
+        Err(e) => {
+            warn!("Failed to bind DNS proxy to 127.0.0.2:53: {}", e);
+            warn!("DNS server could not bind to port 53 — run with sudo for DNS interception");
+            warn!("HTTPS .kin resolution via proxy (port 5463) remains fully functional");
+        }
+    }
 
     // 6. Initialize Local API Server
     let api_future = api::start_server(network_client.clone(), storage.clone(), config.daemon.api_port);
@@ -77,34 +179,45 @@ async fn main() -> Result<()> {
     // 7. Background Heartbeat Loop
     let hb_storage = storage.clone();
     let hb_network = network_client.clone();
+    let hb_drand = drand_client.clone();
+    // Tracks the most recent *live* (non-cached) drand round seen. Used to detect stale cache.
+    let last_known_live_round = Arc::new(AtomicU64::new(initial_drand_pulse));
+    let lklr = last_known_live_round.clone();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(60));
-        let client = reqwest::Client::new();
+        // 3.5: Align heartbeat interval to Drand pulse (30 seconds)
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
         loop {
             interval.tick().await;
             
-            // 7a. Fetch latest drand pulse
-            let drand_url = "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest";
-            let drand_resp = match client.get(drand_url).send().await {
-                Ok(resp) => resp,
+            // 7a. Fetch latest drand pulse using the resilient client
+            let pulse = match hb_drand.fetch_latest().await {
+                Ok(p) => {
+                    if p.is_from_cache {
+                        warn!("Heartbeat using cached Drand pulse #{} — beacon may be unreachable", p.round);
+                    } else {
+                        // Update the live-round watermark
+                        lklr.store(p.round, Ordering::Relaxed);
+                    }
+                    // Compare cached round against the last confirmed live round for staleness
+                    let current_live = lklr.load(Ordering::Relaxed);
+                    if !p.is_usable_for_heartbeat(current_live) {
+                        tracing::warn!(
+                            "Heartbeat loop: Drand cache (round {}) too stale vs last live round {} — skipping.",
+                            p.round, current_live
+                        );
+                        continue;
+                    }
+                    p
+                }
                 Err(e) => {
                     tracing::warn!("Heartbeat loop: Failed to fetch drand: {}", e);
                     continue;
                 }
             };
-            
-            #[derive(serde::Deserialize)]
-            struct DrandPulse {
-                round: u64,
-            }
-            
-            let pulse = match drand_resp.json::<DrandPulse>().await {
-                Ok(p) => p,
-                Err(e) => {
-                    tracing::warn!("Heartbeat loop: Failed to parse drand: {}", e);
-                    continue;
-                }
-            };
+
+            // 7a.5 Push the real drand round into the watch channel so the network event loop
+            // stays anchored to the actual beacon (fixes 3.13).
+            let _ = drand_pulse_tx.send(pulse.round);
 
             // 7b. Iterate over owned names and send heartbeats
             let owned_key = b"kinetic_owned_names";
@@ -121,11 +234,26 @@ async fn main() -> Result<()> {
                         
                         let sig = daemon_keypair.sign(&heartbeat.signable_bytes());
                         heartbeat.signature = sig.to_vec();
+
+                        // 3.3b: Check if hibernation is expiring and warn
+                        let hib_key = format!("krs_hib:{}", name);
+                        if let Ok(Some(bytes)) = hb_storage.get(hib_key.as_bytes()) {
+                            if bytes.len() == 8 {
+                                let mut arr = [0u8; 8];
+                                arr.copy_from_slice(&bytes);
+                                let hib_round = u64::from_be_bytes(arr);
+                                let age = pulse.round.saturating_sub(hib_round);
+                                let year_rounds = 1_051_200;
+                                let ninety_percent = (year_rounds as f64 * 0.9) as u64;
+                                if age > ninety_percent {
+                                    tracing::warn!("⚠️ HIBERNATION EXPIRING FOR {}: Exhausted {}/{} rounds. Re-square immediately using `kinetic hibernate {}`!", name, age, year_rounds, name);
+                                }
+                            }
+                        }
                         
-                        // Publish the heartbeat under the heartbeat key hash
+                        // Publish the heartbeat at the same key as the Reveal so resolvers find it
                         if let Ok(payload) = serde_json::to_vec(&heartbeat) {
-                            let heartbeat_topic = format!("{}-heartbeat", name);
-                            if let Err(e) = hb_network.publish_redundant_payload(&heartbeat_topic, payload).await {
+                            if let Err(e) = hb_network.publish_redundant_payload(&name, payload).await {
                                 tracing::warn!("Failed to publish heartbeat for {}: {}", name, e);
                             } else {
                                 info!("Successfully published heartbeat for {} at pulse {}", name, pulse.round);
@@ -151,9 +279,22 @@ async fn main() -> Result<()> {
                     for (name, heartbeat) in best_by_name {
                         // Only broadcast if the token is recent enough (within last 10 rounds = 5 mins)
                         if pulse.round - heartbeat.latest_drand_pulse <= 10 {
+                            // Verify the Ed25519 signature before broadcasting
+                            let signable = heartbeat.signable_bytes();
+                            let vk = daemon_keypair.verifying_key();
+                            use ed25519_dalek::Verifier as _;
+                            let sig_valid = ed25519_dalek::Signature::from_slice(&heartbeat.signature)
+                                .map(|sig| vk.verify(&signable, &sig).is_ok())
+                                .unwrap_or(false);
+
+                            if !sig_valid {
+                                warn!("Watchtower token for {} failed signature check — dropping", name);
+                                continue;
+                            }
+
                             if let Ok(payload) = serde_json::to_vec(&heartbeat) {
-                                let heartbeat_topic = format!("{}-heartbeat", name);
-                                if let Err(e) = hb_network.publish_redundant_payload(&heartbeat_topic, payload).await {
+                                // Publish at the plain name key (same keyspace as Reveal)
+                                if let Err(e) = hb_network.publish_redundant_payload(&name, payload).await {
                                     tracing::warn!("Failed to publish Watchtower delegated heartbeat for {}: {}", name, e);
                                 } else {
                                     info!("Successfully published Watchtower delegated heartbeat for {} at pulse {}", name, heartbeat.latest_drand_pulse);
@@ -166,16 +307,32 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Start P2P event loop, DNS Server, and API Server
+    // Start PAC file server (port 16001)
+    tokio::spawn(async move {
+        if let Err(e) = pac::start_pac_server(16001).await {
+            tracing::error!("PAC server crashed: {}", e);
+        }
+    });
+
+    // Initialize OS Proxy Configuration
+    let pac_manager = pac::PacManager::new(&base_config_dir);
+    if let Err(e) = pac_manager.install("http://127.0.0.1:16001/proxy.pac") {
+        tracing::error!("Failed to install OS proxy configuration: {}", e);
+    }
+
+    // Start P2P event loop and API Server
     tokio::select! {
         _ = network_loop.run() => {
             info!("P2P Network loop exited");
         },
-        _ = server.block_until_done() => {
-            info!("DNS Server exited");
-        },
         res = api_future => {
             info!("API Server exited: {:?}", res);
+        },
+        _ = tokio::signal::ctrl_c() => {
+            info!("Ctrl+C received. Commencing graceful shutdown...");
+            if let Err(e) = pac_manager.uninstall() {
+                tracing::error!("Failed to uninstall OS proxy configuration: {}", e);
+            }
         }
     }
 
