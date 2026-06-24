@@ -1,4 +1,11 @@
-# Chapter 1: The History of Naming Systems & The Kinetic Philosophy
+# 1. Introduction
+
+*A stateless, Sybil-resistant naming system secured purely by math and time.*  
+*Created by [Saif Mukhtar](https://saifmukhtar.dev)*
+
+> **Official IETF Internet-Drafts:**
+> - [draft-mukhtar-kinetic-network-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-network-00.html)
+> - [draft-mukhtar-kinetic-identity-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-identity-00.html)
 
 To understand the necessity of the Kinetic Protocol, one must first understand the complete historical and sociological failures of digital naming architectures. The internet, at its lowest level, speaks the language of IP addresses (e.g., `192.168.1.100` or `2001:0db8:85a3:0000:0000:8a2e:0370:7334`). While mathematically precise and perfectly suited for silicon routing, these numerical identifiers are completely alien to human cognition. Humans require semantics, semantics require names, and names require registries.
 
@@ -29,7 +36,7 @@ Legacy DNS is highly functional but fundamentally contradicts the ethos of a fre
 
 ## 2. The Blockchain Era: Capital-Gated Registries (2017 - Present)
 
-With the advent of blockchains and smart contracts, engineers attempted to build decentralized alternatives. Projects like the **Ethereum Name Service (ENS)** and **Handshake** sought to achieve all three legs of Zooko's Triangle by placing the registry on a decentralized, immutable ledger.
+With the advent of blockchains and smart contracts, engineers attempted to build decentralized alternatives. Legacy blockchain-based naming systems sought to achieve all three legs of Zooko's Triangle by placing the registry on a decentralized, immutable ledger.
 
 However, moving a registry to a permissionless environment immediately invites the **Sybil Attack**. 
 
@@ -38,7 +45,7 @@ In a permissionless network, the cost of generating a network request is effecti
 To prevent this "mass-dictionary squatting," decentralized protocols instituted a gating function: **Financial Capital**.
 
 ### The Flaw of Capital-Gated Names
-Systems like ENS enforce recurring, annual monetary fees (payable in ETH) based on string length (e.g., \\(5/year for long names, \\)640/year for 3-character names). While financially gating the namespace solves the Sybil problem (it is too expensive to register every word), it introduces severe economic downstream effects:
+These systems enforce recurring, annual monetary fees based on string length. While financially gating the namespace solves the Sybil problem (it is too expensive to register every word), it introduces severe economic downstream effects:
 
 1. **Digital Landlordism:** A capital-gated registry inherently favors entities with the deepest financial liquidity. Wealthy speculators can afford the carry costs to hoard premium, short-character names. They sit on these names, extracting rent from legitimate developers or organizations who actually intend to build on them. This recreates the exact rent-seeking dynamics of Web2, simply replacing centralized registries with decentralized whales.
 2. **Developer Pricing-Out:** For a protocol meant to serve as a foundational network primitive (e.g., exposing a local port or routing a decentralized app), an annual monetary fee creates a continuous liability. Peer-to-peer network routing should not require a perpetual subscription fee.
@@ -52,7 +59,7 @@ Capital-gated registries did not solve digital landlordism; they merely democrat
 
 To eliminate capital requirements and make naming systems truly free, alternative protocols attempted to define the friction mechanism as **physical human uniqueness**. 
 
-These Proof of Personhood (PoP) systems (like Worldcoin or BrightID) ensure that one human maps to exactly one digital identity, effectively hard-capping a user to a single name. While mathematically elegant for Sybil resistance (an attacker cannot spoof a million physical bodies), PoP introduces severe sociotechnical bottlenecks:
+These Proof of Personhood (PoP) systems ensure that one human maps to exactly one digital identity, effectively hard-capping a user to a single name. While mathematically elegant for Sybil resistance (an attacker cannot spoof a million physical bodies), PoP introduces severe sociotechnical bottlenecks:
 
 1. **Extreme Onboarding Friction:** To verify physical uniqueness, these protocols require synchronous video verification parties, specialized hardware (iris scanning or biometrics), or global cryptographic puzzle ceremonies. This destroys the developer experience. A developer cannot instantly spin up an ephemeral tunnel domain at 2:00 AM if they must wait for a scheduled validation epoch or scan their retina.
 2. **Trust Anchors and Privacy Decay:** Extracting unique identity, even via advanced zero-knowledge proofs (zkTLS or NFC passports), almost always shackles the decentralized system to high-friction Web2 institutions or government-issued physical credentials, sacrificing pseudonymity.
@@ -76,7 +83,7 @@ Kinetic enforces an economic reality where mass-scale automated squatting become
 This is achieved through a three-tier lifecycle:
 1. **Verifiable Delay Functions (VDFs):** Mathematical puzzles that take a specific, sequential amount of time to solve. They cannot be parallelized. A billionaire with 10,000 ASICs cannot solve a single VDF faster than a hobbyist on a laptop.
 2. **Dynamic Scaling:** Shorter names require exponentially larger VDFs. A 1-character name takes weeks to grind; a 6-character name takes seconds. This physically limits the rate at which premium namespace can be consumed.
-3. **The Hybrid Lease:** Ownership is maintained not by paying rent, but by keeping a node alive. A low-overhead background "Heartbeat" proves the name is actively being used. If the heartbeat flatlines, the name isn't instantly lost, but enters a Grace-Period Escalation where attackers must burn massive computation to steal it.
+3. **The Hybrid Lease:** Ownership is maintained not by paying rent, but by keeping a node alive. A low-overhead background "Heartbeat" (a cryptographic signature over the current time) proves the name is actively being used. If the heartbeat flatlines, the name isn't instantly lost, but enters a Grace-Period Escalation where attackers must burn massive computation to steal it.
 
 Through these mechanics, Kinetic establishes a self-cleaning, purely mathematical namespace. There is no ICANN. There are no renewal fees. There are no biometric scans. There is only math, time, and the decentralized Kademlia swarm. 
 
