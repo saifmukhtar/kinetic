@@ -63,8 +63,9 @@ impl Default for KineticConfig {
                 p2p_port: 6070,
                 bootstrap_nodes: vec![
                     // Using IP based bootnodes as fallback
-                    "/ip4/54.146.215.204/tcp/6070/p2p/12D3KooWEqEvWSLzjyKTzK7xJ9y9B8oJQQi4d5NRRwyj81ecshfh".to_string(),
-                    "/ip4/54.82.243.125/tcp/6070/p2p/12D3KooWPRCBErRJFjiHvbM323UpwUsMe81oQYwYQXoYZp8Qzdyb".to_string(),
+                    "/ip4/18.209.46.127/tcp/6070".to_string(),
+                    "/ip4/35.172.227.109/tcp/6070".to_string(),
+                    "/ip4/52.87.221.199/tcp/6070".to_string(),
                 ],
                 seed_domains: vec![
                     "seed.saifmukhtar.dev".to_string(),
