@@ -95,12 +95,7 @@ async fn main() -> Result<()> {
     };
     
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
-    let (network_client, mut network_loop) = NetworkEventLoop::new(network_config, local_key, storage.clone(), drand_pulse_rx, Some(incoming_tx))?;
-    tokio::spawn(async move {
-        if let Err(e) = network_loop.run().await {
-            tracing::error!("Network loop crashed: {:?}", e);
-        }
-    });
+    let (network_client, network_loop) = NetworkEventLoop::new(network_config, local_key, storage.clone(), drand_pulse_rx, Some(incoming_tx))?;
     info!("P2P Network architecture wired");
 
     // Base config dir for CA and lockfiles
