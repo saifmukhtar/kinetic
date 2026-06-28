@@ -22,7 +22,7 @@ mod api_tests;
 mod proxy;
 mod pac;
 mod ca;
-pub mod drand;
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
     info!("Daemon identity loaded: {:?}", hex::encode(daemon_keypair.verifying_key().as_bytes()));
 
     // 4.5 Fetch initial Drand pulse for PoW
-    let drand_client = Arc::new(drand::DrandClient::new(storage.clone()));
+    let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(storage.clone()));
     
     let initial_pulse = match drand_client.fetch_latest().await {
         Ok(pulse) => {
@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
             warn!("Drand beacon unavailable on startup: {}", e);
             warn!("P2P swarm and proxy will start — registration disabled until beacon reachable");
             // Use a sentinel value — heartbeat loop will retry on next tick
-            drand::DrandPulse::unavailable()
+            kinetic_core::drand::DrandPulse::unavailable()
         }
     };
     
@@ -75,22 +75,7 @@ async fn main() -> Result<()> {
     // 5. Initialize P2P Network (DHT + Gossipsub)
     // We explicitly decouple the DHT routing identity from the Kinetic registrant identity.
     // The libp2p Keypair is an ephemeral identity that must satisfy the S/Kademlia PoW for the current epoch.
-    let is_static_node = std::env::var("KINETIC_STATIC_NODE").is_ok();
-    let key_path = kinetic_core::config::get_base_dir().join("static_network_key.bin");
-    let local_key = if is_static_node {
-        if let Ok(bytes) = std::fs::read(&key_path) {
-            tracing::info!("Loaded static identity from disk");
-            libp2p::identity::Keypair::from_protobuf_encoding(&bytes).unwrap_or_else(|_| {
-                kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, kinetic_network::pow::DEFAULT_DIFFICULTY_BITS)
-            })
-        } else {
-            let k = kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, kinetic_network::pow::DEFAULT_DIFFICULTY_BITS);
-            std::fs::write(&key_path, k.to_protobuf_encoding().unwrap()).unwrap();
-            k
-        }
-    } else {
-        kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, kinetic_network::pow::DEFAULT_DIFFICULTY_BITS)
-    };
+    let local_key = kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, kinetic_network::pow::DEFAULT_DIFFICULTY_BITS);
     
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     tracing::info!("Daemon starting with Peer ID: {}", local_peer_id);

@@ -1,0 +1,21 @@
+[Unit]
+Description=Kinetic Infrastructure Node
+After=network.target
+
+[Service]
+Type=simple
+User=saif
+Group=saif
+LimitNOFILE=65535
+
+# The binary path
+ExecStart=/usr/local/bin/kinetic-node
+Restart=always
+RestartSec=3
+
+# Let the node know it's a static infrastructure node (though the binary enforces it anyway)
+Environment="KINETIC_STATIC_NODE=1"
+Environment="RUST_LOG=info"
+
+[Install]
+WantedBy=multi-user.target

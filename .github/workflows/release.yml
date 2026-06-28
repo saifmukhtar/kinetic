@@ -23,16 +23,22 @@ jobs:
             asset_name: kinetic-daemon-linux
             cli_artifact: kinetic-cli
             cli_asset: kinetic-cli-linux
+            node_artifact: kinetic-node
+            node_asset: kinetic-node-linux
           - os: macos-latest
             artifact_name: kinetic-daemon
             asset_name: kinetic-daemon-macos
             cli_artifact: kinetic-cli
             cli_asset: kinetic-cli-macos
+            node_artifact: kinetic-node
+            node_asset: kinetic-node-macos
           - os: windows-latest
             artifact_name: kinetic-daemon.exe
             asset_name: kinetic-daemon-windows.exe
             cli_artifact: kinetic-cli.exe
             cli_asset: kinetic-cli-windows.exe
+            node_artifact: kinetic-node.exe
+            node_asset: kinetic-node-windows.exe
 
     steps:
     - uses: actions/checkout@v4
@@ -73,11 +79,15 @@ jobs:
     - name: Build Kinetic CLI (Release)
       run: cargo build --release -p kinetic-cli
 
+    - name: Build Kinetic Node (Release)
+      run: cargo build --release -p kinetic-node
+
     - name: Rename Binaries for Release
       shell: bash
       run: |
         cp target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
         cp target/release/${{ matrix.cli_artifact }} target/release/${{ matrix.cli_asset }}
+        cp target/release/${{ matrix.node_artifact }} target/release/${{ matrix.node_asset }}
 
     - name: Upload Binary to Release
       uses: softprops/action-gh-release@v1
@@ -85,5 +95,6 @@ jobs:
         files: |
           target/release/${{ matrix.asset_name }}
           target/release/${{ matrix.cli_asset }}
+          target/release/${{ matrix.node_asset }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

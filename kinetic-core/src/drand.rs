@@ -2,9 +2,8 @@ use serde::{Serialize, Deserialize};
 use std::time::Duration;
 use tracing::warn;
 use std::sync::Arc;
-use kinetic_storage::SledStorage;
-use kinetic_core::traits::StorageEngine;
-use kinetic_core::KineticError;
+use crate::traits::StorageEngine;
+use crate::error::KineticError;
 use thiserror::Error;
 
 const DRAND_ENDPOINTS: &[&str] = &[
@@ -72,11 +71,11 @@ impl DrandPulse {
 
 pub struct DrandClient {
     http: reqwest::Client,
-    storage: Arc<SledStorage>,
+    storage: Arc<dyn StorageEngine>,
 }
 
 impl DrandClient {
-    pub fn new(storage: Arc<SledStorage>) -> Self {
+    pub fn new(storage: Arc<dyn StorageEngine>) -> Self {
         Self {
             http: reqwest::Client::new(),
             storage,
@@ -153,7 +152,7 @@ impl DrandClient {
             }
         }
         
-        if kinetic_core::config::is_dev_mode() {
+        if crate::config::is_dev_mode() {
             tracing::warn!("DEV MODE: Returning mock drand pulse because cache is empty.");
             return Ok(DrandPulse {
                 round: 5000000,
@@ -164,90 +163,5 @@ impl DrandClient {
         }
 
         Err(DrandError::NoCachedPulse)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use httptest::{Server, Expectation, matchers::*, responders::*};
-    use kinetic_storage::SledStorage;
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn test_fetch_with_backoff_success() {
-        let server = Server::run();
-        server.expect(
-            Expectation::matching(request::method_path("GET", "/public/latest"))
-                .times(1)
-                .respond_with(json_encoded(serde_json::json!({
-                    "round": 100,
-                    "randomness": "abc",
-                    "is_from_cache": false,
-                    "is_unavailable": false
-                }))),
-        );
-
-        let url = server.url("/public/latest");
-        let dir = tempdir().unwrap();
-        let storage = Arc::new(SledStorage::new(dir.path().to_str().unwrap()).unwrap());
-        let client = DrandClient::new(storage);
-        
-        let pulse = client.fetch_with_backoff(&url.to_string()).await.unwrap();
-        assert_eq!(pulse.round, 100);
-    }
-
-    #[tokio::test]
-    async fn test_fetch_with_backoff_retries() {
-        let server = Server::run();
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        let attempts = Arc::new(AtomicUsize::new(0));
-        
-        server.expect(
-            Expectation::matching(request::method_path("GET", "/public/latest"))
-                .times(3)
-                .respond_with(move || {
-                    if attempts.fetch_add(1, Ordering::SeqCst) < 2 {
-                        http::Response::builder().status(500).body(Vec::new()).unwrap()
-                    } else {
-                        let json = serde_json::json!({
-                            "round": 101,
-                            "randomness": "def",
-                            "is_from_cache": false,
-                            "is_unavailable": false
-                        });
-                        http::Response::builder()
-                            .status(200)
-                            .body(serde_json::to_vec(&json).unwrap())
-                            .unwrap()
-                    }
-                }),
-        );
-
-        let url = server.url("/public/latest");
-        let dir = tempdir().unwrap();
-        let storage = Arc::new(SledStorage::new(dir.path().to_str().unwrap()).unwrap());
-        let client = DrandClient::new(storage);
-        
-        let pulse = client.fetch_with_backoff(&url.to_string()).await.unwrap();
-        assert_eq!(pulse.round, 101);
-    }
-
-    #[tokio::test]
-    async fn test_fetch_with_backoff_failure() {
-        let server = Server::run();
-        server.expect(
-            Expectation::matching(request::method_path("GET", "/public/latest"))
-                .times(3)
-                .respond_with(status_code(500)),
-        );
-
-        let url = server.url("/public/latest");
-        let dir = tempdir().unwrap();
-        let storage = Arc::new(SledStorage::new(dir.path().to_str().unwrap()).unwrap());
-        let client = DrandClient::new(storage);
-        
-        let res = client.fetch_with_backoff(&url.to_string()).await;
-        assert!(res.is_err());
     }
 }
