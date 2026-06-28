@@ -5,7 +5,7 @@ members = [
     "kinetic-network",
     "kinetic-storage",
     "kinetic-dns",
-    "kinetic-daemon", "kinetic-cli", "kinetic-test", "simulations", "kinetic-kid",
+    "kinetic-daemon", "kinetic-cli", "kinetic-test", "simulations", "kinetic-kid", "kinetic-node",
 ]
 exclude = [
     "kinetic-core/fuzz",

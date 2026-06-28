@@ -540,7 +540,7 @@ async fn handle_vdf_register(State(state): State<ApiState>, Json(req): Json<VdfR
     tokio::spawn(async move {
         // Step 1: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let drand_client = crate::drand::DrandClient::new(storage_clone.clone());
+        let drand_client = kinetic_core::drand::DrandClient::new(storage_clone.clone());
         let drand_data = match drand_client.fetch_latest().await {
             Ok(d) => d,
             Err(e) => {

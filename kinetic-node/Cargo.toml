@@ -1,0 +1,21 @@
+[package]
+name = "kinetic-node"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kinetic-core = { path = "../kinetic-core" }
+kinetic-network = { path = "../kinetic-network" }
+kinetic-storage = { path = "../kinetic-storage" }
+kinetic-vdf = { path = "../kinetic-vdf" }
+tokio = { workspace = true, features = ["net"] }
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+libp2p = { version = "0.53", features = ["ed25519", "tokio", "macros"] }
+axum = "0.8.9"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+hex = "0.4.3"
+dirs = "6.0.0"
