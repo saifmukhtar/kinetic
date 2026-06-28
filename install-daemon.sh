@@ -52,6 +52,7 @@ ExecStart=/usr/local/bin/kinetic-daemon
 Restart=always
 RestartSec=3
 LimitNOFILE=65536
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target

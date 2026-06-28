@@ -109,7 +109,7 @@ impl NetworkEventLoop {
                 
                 KineticBehavior { relay_client, dcutr, identify, ping, proxy, kademlia, gossipsub, mdns }
             }).unwrap()
-            .with_swarm_config(|c| c.with_idle_connection_timeout(std::time::Duration::from_secs(60)))
+            .with_swarm_config(|c| c.with_idle_connection_timeout(std::time::Duration::from_secs(30 * 24 * 3600)))
             .build();
             
         if config.mode == NetworkMode::FullNode && !config.listen_addr.is_empty() {
@@ -190,8 +190,16 @@ impl NetworkEventLoop {
     pub async fn run(mut self) {
         info!("Starting Kinetic P2P event loop");
         
+        let mut keepalive_interval = tokio::time::interval(std::time::Duration::from_secs(30));
+        
         loop {
             tokio::select! {
+                _ = keepalive_interval.tick() => {
+                    // Send a dummy DHT query every 30s to reset the strict 60s idle timeout
+                    // enforced by legacy kinetic-nodes on the AWS infrastructure.
+                    let random_peer = libp2p::PeerId::random();
+                    self.swarm.behaviour_mut().kademlia.get_closest_peers(random_peer);
+                }
                 Ok(()) = self.drand_pulse_rx.changed() => {
                     let new_round = *self.drand_pulse_rx.borrow();
                     if new_round > self.current_drand_pulse {

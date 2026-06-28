@@ -26,3 +26,7 @@ criterion = "0.8.2"
 [[bench]]
 name = "crypto_bench"
 harness = false
+
+[[bin]]
+name = "bin_test"
+path = "src/bin_test.rs"

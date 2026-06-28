@@ -21,14 +21,15 @@ impl Default for ConsensusParams {
 impl ConsensusParams {
     /// The hardcoded public key allowed to claim Genesis names.
     pub const GENESIS_PUBKEY: Option<[u8; 32]> = Some([
-        21, 62, 43, 16, 185, 42, 33, 65, 183, 232, 92, 246, 118,
-        183, 35, 90, 83, 17, 115, 232, 249, 152, 11, 186, 114, 183, 185, 107, 11, 104, 227, 72
+        148, 100, 103, 139, 110, 187, 7, 207, 47, 201, 200, 160, 12, 86, 194, 76, 
+        25, 176, 157, 180, 249, 145, 27, 251, 254, 117, 11, 19, 53, 249, 131, 236
     ]);
 
     /// The exact list of names the Genesis Key is allowed to claim.
-    pub const GENESIS_ALLOWLIST: [&'static str; 10] = [
+    pub const GENESIS_ALLOWLIST: [&'static str; 13] = [
         "saif", "saifmukhtar", "admin", "kinetic", "root",
-        "genesis", "dev", "test", "system", "network"
+        "genesis", "test", "system", "network", "example",
+        "kin", "web", "docs"
     ];
 
     /// The Drand pulse when the network launches.
@@ -39,8 +40,8 @@ impl ConsensusParams {
 
     /// Calculate base iterations anchor adjusted for hardware advancements over time
     pub fn calculate_hardware_anchor(&self, current_round: u64) -> f64 {
-        // Base starting point for 0 drift
-        let genesis_base: f64 = 1_000_000.0;
+        // Base starting point for 0 drift (22-bit iterations)
+        let genesis_base: f64 = 4_194_304.0;
         let drift = current_round as f64 / self.hardware_drift_rounds;
         // Doubles every hardware_drift_rounds
         genesis_base * 2.0f64.powf(drift)
@@ -59,11 +60,9 @@ impl ConsensusParams {
             // Strip the `.kin` to compare against GENESIS_ALLOWLIST
             let label_without_tld = normalized_name.strip_suffix(".kin").unwrap_or(&normalized_name);
             if Self::GENESIS_ALLOWLIST.contains(&label_without_tld) {
-                // If it's the genesis key and we are within the launch window, required iterations is 0!
+                // If it's the genesis key, required iterations is 0!
                 if pubkey == genesis_pk {
-                    if current_round >= Self::GENESIS_START_PULSE && current_round < Self::GENESIS_START_PULSE + Self::GENESIS_EXPIRY_ROUNDS {
-                        return 0;
-                    }
+                    return 0;
                 }
             }
         }

@@ -25,7 +25,7 @@ enum Commands {
         /// The name to register (e.g. myname.kin)
         name: String,
         /// Number of VDF iterations (difficulty)
-        #[arg(short, long, default_value_t = 100_000)]
+        #[arg(short, long, default_value_t = 4_194_304)]
         iterations: u64,
     },
     /// Push your local zone.json routing configuration to the decentralized network
