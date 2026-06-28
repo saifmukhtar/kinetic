@@ -118,13 +118,25 @@ impl NetworkEventLoop {
         
         let mut bootstrap_peers = std::collections::HashSet::new();
         for node_str in &config.bootstrap_nodes {
-            if let Ok(addr) = node_str.parse::<libp2p::Multiaddr>() {
-                if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.iter().last() {
-                    bootstrap_peers.insert(peer_id);
-                    swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
-                    let _ = swarm.dial(addr);
-                } else {
-                    let _ = swarm.dial(addr);
+            match node_str.parse::<libp2p::Multiaddr>() {
+                Ok(addr) => {
+                    tracing::info!("Successfully parsed bootstrap node: {}", addr);
+                    if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.iter().last() {
+                        bootstrap_peers.insert(peer_id);
+                        swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
+                        if let Err(e) = swarm.dial(addr.clone()) {
+                            tracing::warn!("Failed to dial bootstrap node {}: {:?}", addr, e);
+                        } else {
+                            tracing::info!("Dialing bootstrap node: {}", addr);
+                        }
+                    } else {
+                        if let Err(e) = swarm.dial(addr.clone()) {
+                            tracing::warn!("Failed to dial bootstrap node (no peer ID) {}: {:?}", addr, e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to parse bootstrap node '{}': {:?}", node_str, e);
                 }
             }
         }
@@ -294,6 +306,7 @@ impl NetworkEventLoop {
     async fn handle_swarm_event(&mut self, event: SwarmEvent<KineticBehaviorEvent>) {
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                tracing::info!("Connection established with {:?}", peer_id);
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
                 let pow_valid = crate::pow::is_valid_sybil_pow(&peer_id, self.current_drand_pulse, crate::pow::DEFAULT_DIFFICULTY_BITS);
                 
@@ -419,11 +432,13 @@ impl NetworkEventLoop {
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Identify(e)) => {
                 if let libp2p::identify::Event::Received { peer_id, info } = e {
+                    tracing::info!("Received Identify from peer {:?} with addrs: {:?}", peer_id, info.listen_addrs);
                     let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
                     let pow_valid = crate::pow::is_valid_sybil_pow(&peer_id, self.current_drand_pulse, crate::pow::DEFAULT_DIFFICULTY_BITS);
                     
                     if pow_valid || is_bootstrap {
                         for addr in info.listen_addrs {
+                            tracing::info!("Adding peer {:?} addr {:?} to Kademlia", peer_id, addr);
                             self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
                         }
                     } else {
@@ -443,6 +458,15 @@ impl NetworkEventLoop {
                         }
                     }
                 }
+            }
+            SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+                tracing::warn!("Outgoing connection error to peer {:?}: {:?}", peer_id, error);
+            }
+            SwarmEvent::Dialing { peer_id, .. } => {
+                tracing::debug!("Dialing peer {:?}", peer_id);
+            }
+            SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                tracing::debug!("Connection closed for peer {:?}: {:?}", peer_id, cause);
             }
             _ => {}
         }
