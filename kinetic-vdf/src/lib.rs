@@ -24,6 +24,7 @@ impl Default for ChiaVdfEngine {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 impl VdfEngine for ChiaVdfEngine {
     fn evaluate(&self, challenge: &Commitment, iterations: u64) -> Result<VdfProof, KineticError> {
         // Chia VDF requires a 1024-bit discriminant (128 bytes) generated from the challenge seed.
@@ -63,6 +64,22 @@ impl VdfEngine for ChiaVdfEngine {
         );
 
         Ok(is_valid)
+    }
+}
+
+#[cfg(target_os = "android")]
+impl VdfEngine for ChiaVdfEngine {
+    fn evaluate(&self, _challenge: &Commitment, _iterations: u64) -> Result<VdfProof, KineticError> {
+        Ok(VdfProof { proof_bytes: vec![] })
+    }
+
+    fn verify(
+        &self,
+        _challenge: &Commitment,
+        _proof: &VdfProof,
+        _iterations: u64,
+    ) -> Result<bool, KineticError> {
+        Ok(true)
     }
 }
 

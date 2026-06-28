@@ -185,7 +185,7 @@ xychart-beta
 ```
 
 To initiate a challenge without a centralized clock, the attacker must mathematically prove the idle time using the DHT state:
-1. The attacker retrieves the last known valid heartbeat for the name. (Heartbeats include the current `drand` round: $\text{Heartbeat} = \text{Sign}_{\text{owner}}( \text{PubKey} \parallel \text{drand\_round} \parallel \text{nonce} )$).
+1. The attacker retrieves the last known valid heartbeat for the name. (Heartbeats include the current `drand` round: $\text{Heartbeat} = \text{Sign}_{\text{owner}}( \text{Name} \parallel \text{drand\_round} )$).
 2. The attacker calculates $\Delta t$ as the difference between the current `drand` round and the round in the owner's last signed heartbeat.
 3. The attacker computes the Challenge VDF of difficulty $T_{\text{steal}}(\Delta t)$.
 4. The attacker submits the challenge, referencing the old heartbeat.

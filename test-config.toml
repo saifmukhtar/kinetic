@@ -1,6 +1,7 @@
 [daemon]
 api_port = 16002
 dns_port = 10054
+backend_port = 8000
 storage_dir = "/tmp/kinetic_config_local/db"
 
 [network]

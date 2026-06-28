@@ -5,7 +5,7 @@ use hickory_server::ServerFuture;
 use tokio::net::UdpSocket;
 
 use kinetic_dns::KineticDnsHandler;
-use kinetic_network::network::{NetworkConfig, NetworkEventLoop};
+use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
 use kinetic_vdf::ChiaVdfEngine;
 use kinetic_core::config::KineticConfig;
@@ -18,6 +18,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 
 mod api;
+mod api_tests;
 mod proxy;
 mod pac;
 mod ca;
@@ -29,7 +30,7 @@ async fn main() -> Result<()> {
 
     // 1. Initialize structured tracing
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .finish();
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default subscriber failed");
@@ -74,11 +75,37 @@ async fn main() -> Result<()> {
     // 5. Initialize P2P Network (DHT + Gossipsub)
     // We explicitly decouple the DHT routing identity from the Kinetic registrant identity.
     // The libp2p Keypair is an ephemeral identity that must satisfy the S/Kademlia PoW for the current epoch.
-    let local_key = kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, 4);
+    let is_static_node = std::env::var("KINETIC_STATIC_NODE").is_ok();
+    let key_path = kinetic_core::config::get_base_dir().join("static_network_key.bin");
+    let local_key = if is_static_node {
+        if let Ok(bytes) = std::fs::read(&key_path) {
+            tracing::info!("Loaded static identity from disk");
+            libp2p::identity::Keypair::from_protobuf_encoding(&bytes).unwrap_or_else(|_| {
+                kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, kinetic_network::pow::DEFAULT_DIFFICULTY_BITS)
+            })
+        } else {
+            let k = kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, kinetic_network::pow::DEFAULT_DIFFICULTY_BITS);
+            std::fs::write(&key_path, k.to_protobuf_encoding().unwrap()).unwrap();
+            k
+        }
+    } else {
+        kinetic_network::pow::mine_sybil_keypair(initial_drand_pulse, kinetic_network::pow::DEFAULT_DIFFICULTY_BITS)
+    };
     
+    let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
+    tracing::info!("Daemon starting with Peer ID: {}", local_peer_id);
+
+    let mode = match config.daemon.network_mode.as_str() {
+        "LightClient" => NetworkMode::LightClient,
+        _ => NetworkMode::FullNode,
+    };
+
     let network_config = NetworkConfig { 
+        mode,
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.p2p_port),
-        bootstrap_nodes: config.network.bootstrap_nodes,
+        bootstrap_nodes: config.network.bootstrap_nodes.clone(),
+        seed_domains: config.network.seed_domains.clone(),
+        enable_mdns: config.network.enable_mdns,
         initial_drand_pulse,
     };
     
@@ -126,12 +153,12 @@ async fn main() -> Result<()> {
 
     let leaf_cache = std::sync::Arc::new(tokio::sync::Mutex::new(ca::LeafCertCache::new()));
 
-    // 5. Initialize the Local HTTP Proxy (port 5463)
+    // 5. Initialize the Local HTTP Proxy
     let proxy_client = network_client.clone();
     let ca_clone = std::sync::Arc::clone(&root_ca);
     let cache_clone = std::sync::Arc::clone(&leaf_cache);
     tokio::spawn(async move {
-        if let Err(e) = proxy::start_proxy_server(proxy_client, 5463, ca_clone, cache_clone).await {
+        if let Err(e) = proxy::start_proxy_server(proxy_client, config.daemon.proxy_port, ca_clone, cache_clone).await {
             tracing::error!("Proxy server crashed: {}", e);
         }
     });
@@ -139,7 +166,7 @@ async fn main() -> Result<()> {
     // 5.b Initialize the incoming P2P Proxy Handler
     let handler_client = network_client.clone();
     tokio::spawn(async move {
-        proxy::handle_incoming_proxy_requests(handler_client, incoming_rx, 80).await;
+        proxy::handle_incoming_proxy_requests(handler_client, incoming_rx, config.daemon.backend_port).await;
     });
 
     // 5. Initialize DNS Proxy
@@ -167,7 +194,7 @@ async fn main() -> Result<()> {
         Err(e) => {
             warn!("Failed to bind DNS proxy to 127.0.0.2:53: {}", e);
             warn!("DNS server could not bind to port 53 — run with sudo for DNS interception");
-            warn!("HTTPS .kin resolution via proxy (port 5463) remains fully functional");
+            warn!("HTTPS .kin resolution via proxy (port {}) remains fully functional", config.daemon.proxy_port);
         }
     }
 
@@ -235,30 +262,62 @@ async fn main() -> Result<()> {
                         let sig = daemon_keypair.sign(&heartbeat.signable_bytes());
                         heartbeat.signature = sig.to_vec();
 
-                        // 3.3b: Check if hibernation is expiring and warn
-                        let hib_key = format!("krs_hib:{}", name);
-                        if let Ok(Some(bytes)) = hb_storage.get(hib_key.as_bytes()) {
-                            if bytes.len() == 8 {
-                                let mut arr = [0u8; 8];
-                                arr.copy_from_slice(&bytes);
-                                let hib_round = u64::from_be_bytes(arr);
-                                let age = pulse.round.saturating_sub(hib_round);
-                                let year_rounds = 1_051_200;
-                                let ninety_percent = (year_rounds as f64 * 0.9) as u64;
-                                if age > ninety_percent {
-                                    tracing::warn!("⚠️ HIBERNATION EXPIRING FOR {}: Exhausted {}/{} rounds. Re-square immediately using `kinetic hibernate {}`!", name, age, year_rounds, name);
+                        let name_clone = name.clone();
+                        let hb_network_clone = hb_network.clone();
+                        let hb_storage_clone = hb_storage.clone();
+                        let pulse_round = pulse.round;
+                        
+                        tokio::spawn(async move {
+                            // 3.3b: Check if hibernation is expiring and warn
+                            let hib_key = format!("krs_hib:{}", name_clone);
+                            if let Ok(Some(bytes)) = hb_storage_clone.get(hib_key.as_bytes()) {
+                                let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
+                                
+                                let (hib_round, iters) = if bytes.len() == 16 {
+                                    let mut r_arr = [0u8; 8];
+                                    let mut i_arr = [0u8; 8];
+                                    r_arr.copy_from_slice(&bytes[0..8]);
+                                    i_arr.copy_from_slice(&bytes[8..16]);
+                                    (u64::from_be_bytes(r_arr), u64::from_be_bytes(i_arr))
+                                } else if bytes.len() == 8 {
+                                    let mut r_arr = [0u8; 8];
+                                    r_arr.copy_from_slice(&bytes);
+                                    (u64::from_be_bytes(r_arr), 500_000_000)
+                                } else {
+                                    (0, 0)
+                                };
+
+                                if iters > 0 {
+                                    let age = pulse_round.saturating_sub(hib_round);
+                                    let exemption_rounds = consensus_math.hibernation_exemption_rounds(iters);
+                                    let ninety_percent = (exemption_rounds as f64 * 0.9) as u64;
+                                    if age > ninety_percent {
+                                        tracing::warn!("⚠️ HIBERNATION EXPIRING FOR {}: Exhausted {}/{} rounds. Re-square immediately using `kinetic hibernate {}`!", name_clone, age, exemption_rounds, name_clone);
+                                    }
                                 }
                             }
-                        }
-                        
-                        // Publish the heartbeat at the same key as the Reveal so resolvers find it
-                        if let Ok(payload) = serde_json::to_vec(&heartbeat) {
-                            if let Err(e) = hb_network.publish_redundant_payload(&name, payload).await {
-                                tracing::warn!("Failed to publish heartbeat for {}: {}", name, e);
-                            } else {
-                                info!("Successfully published heartbeat for {} at pulse {}", name, pulse.round);
+                            
+                            // Check if the original Reveal VDF is expiring
+                            if let Ok(Some(bytes)) = hb_network_clone.resolve_redundant_payload(&name_clone).await {
+                                if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {
+                                    let age = pulse_round.saturating_sub(reveal.drand_pulse);
+                                    let max_age_rounds = 1_000_000;
+                                    let ninety_percent = (max_age_rounds as f64 * 0.9) as u64;
+                                    if age > ninety_percent {
+                                        tracing::warn!("⚠️ REVEAL VDF EXPIRING FOR {}: Exhausted {}/{} rounds. Renew immediately using `kinetic renew {}`!", name_clone, age, max_age_rounds, name_clone);
+                                    }
+                                }
                             }
-                        }
+
+                            // Publish the heartbeat at the same key as the Reveal so resolvers find it
+                            if let Ok(payload) = serde_json::to_vec(&heartbeat) {
+                                if let Err(e) = hb_network_clone.publish_redundant_payload(&name_clone, payload).await {
+                                    tracing::warn!("Failed to publish heartbeat for {}: {}", name_clone, e);
+                                } else {
+                                    info!("Successfully published heartbeat for {} at pulse {}", name_clone, pulse_round);
+                                }
+                            }
+                        });
                     }
                 }
             }
@@ -279,27 +338,38 @@ async fn main() -> Result<()> {
                     for (name, heartbeat) in best_by_name {
                         // Only broadcast if the token is recent enough (within last 10 rounds = 5 mins)
                         if pulse.round - heartbeat.latest_drand_pulse <= 10 {
-                            // Verify the Ed25519 signature before broadcasting
-                            let signable = heartbeat.signable_bytes();
-                            let vk = daemon_keypair.verifying_key();
-                            use ed25519_dalek::Verifier as _;
-                            let sig_valid = ed25519_dalek::Signature::from_slice(&heartbeat.signature)
-                                .map(|sig| vk.verify(&signable, &sig).is_ok())
-                                .unwrap_or(false);
-
-                            if !sig_valid {
-                                warn!("Watchtower token for {} failed signature check — dropping", name);
-                                continue;
-                            }
-
-                            if let Ok(payload) = serde_json::to_vec(&heartbeat) {
-                                // Publish at the plain name key (same keyspace as Reveal)
-                                if let Err(e) = hb_network.publish_redundant_payload(&name, payload).await {
-                                    tracing::warn!("Failed to publish Watchtower delegated heartbeat for {}: {}", name, e);
-                                } else {
-                                    info!("Successfully published Watchtower delegated heartbeat for {} at pulse {}", name, heartbeat.latest_drand_pulse);
+                            let name_clone = name.clone();
+                            let hb_network_clone = hb_network.clone();
+                            
+                            tokio::spawn(async move {
+                                // Verify the Ed25519 signature before broadcasting by fetching the Reveal pubkey
+                                let mut sig_valid = false;
+                                if let Ok(Some(payload)) = hb_network_clone.resolve_redundant_payload(&name_clone).await {
+                                    if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&payload) {
+                                        use ed25519_dalek::Verifier as _;
+                                        if let Ok(vk) = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice()) {
+                                            let signable = heartbeat.signable_bytes();
+                                            if let Ok(sig) = ed25519_dalek::Signature::from_slice(&heartbeat.signature) {
+                                                sig_valid = vk.verify(&signable, &sig).is_ok();
+                                            }
+                                        }
+                                    }
                                 }
-                            }
+
+                                if !sig_valid {
+                                    warn!("Watchtower token for {} failed signature check (or missing Reveal) — dropping", name_clone);
+                                    return;
+                                }
+
+                                if let Ok(payload) = serde_json::to_vec(&heartbeat) {
+                                    // Publish at the plain name key (same keyspace as Reveal)
+                                    if let Err(e) = hb_network_clone.publish_redundant_payload(&name_clone, payload).await {
+                                        tracing::warn!("Failed to publish Watchtower delegated heartbeat for {}: {}", name_clone, e);
+                                    } else {
+                                        info!("Successfully published Watchtower delegated heartbeat for {} at pulse {}", name_clone, heartbeat.latest_drand_pulse);
+                                    }
+                                }
+                            });
                         }
                     }
                 }

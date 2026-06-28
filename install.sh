@@ -102,4 +102,5 @@ fi
 
 echo "=== Kinetic is successfully installed and running! ==="
 echo "You can now run 'kinetic-cli' to secure your names."
+echo "You can access the Kinetic Dashboard at: http://localhost:16002"
 echo "Documentation & Guide: https://saifmukhtar.github.io/kinetic/"
