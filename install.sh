@@ -67,6 +67,10 @@ EOF
     fi
 
 elif [ "$OS" = "Darwin" ]; then
+    echo "Configuring macOS Global Data Directory..."
+    sudo mkdir -p "/Library/Application Support/Kinetic"
+    sudo chmod 777 "/Library/Application Support/Kinetic"
+
     echo "Configuring macOS launchd service..."
     # Create the launch daemon for macOS
     cat << EOF | sudo tee /Library/LaunchDaemons/com.kinetic.daemon.plist > /dev/null

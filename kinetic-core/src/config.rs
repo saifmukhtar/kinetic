@@ -141,11 +141,27 @@ pub fn get_zones_dir() -> PathBuf {
     get_base_dir().join("zones")
 }
 
-/// Returns the base kinetic directory
 pub fn get_base_dir() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("kinetic")
+    if let Ok(path) = std::env::var("KINETIC_DATA_DIR") {
+        return PathBuf::from(path);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return PathBuf::from(r"C:\ProgramData\Kinetic");
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        return PathBuf::from("/Library/Application Support/Kinetic");
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("kinetic")
+    }
 }
 
 /// Returns the path to the API secret token used for local CLI authentication.
