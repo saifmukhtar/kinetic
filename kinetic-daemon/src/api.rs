@@ -524,7 +524,7 @@ async fn handle_vdf_register(State(state): State<ApiState>, Json(req): Json<VdfR
         let mut tasks = state.vdf_tasks.lock().unwrap();
         tasks.insert(task_id.clone(), VdfTaskStatus {
             status: "Initializing".to_string(),
-            iterations: req.iterations.unwrap_or(100_000), // Default lower for testing in UI
+            iterations: req.iterations.unwrap_or(4_194_304), // Default lower for testing in UI
             progress: 0,
             error: None,
         });
@@ -535,7 +535,7 @@ async fn handle_vdf_register(State(state): State<ApiState>, Json(req): Json<VdfR
     let network_clone = state.network.clone();
     let storage_clone = state.storage.clone();
     let task_id_clone = task_id.clone();
-    let iterations = req.iterations.unwrap_or(100_000);
+    let iterations = req.iterations.unwrap_or(4_194_304);
 
     tokio::spawn(async move {
         // Step 1: Drand

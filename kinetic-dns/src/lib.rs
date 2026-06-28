@@ -89,9 +89,13 @@ impl RequestHandler for KineticDnsHandler {
         let mut header = *request.header();
         header.set_message_type(hickory_proto::op::MessageType::Response);
         
-        let domain_name = kinetic_core::types::normalize_name(&query_name);
+        let mut clean_name = query_name.to_lowercase();
+        if clean_name.ends_with('.') {
+            clean_name.pop();
+        }
         
-        if domain_name.ends_with(".kin") {
+        if clean_name.ends_with(".kin") {
+            let domain_name = kinetic_core::types::normalize_name(&clean_name);
             let apex_domain = kinetic_core::types::extract_apex_domain(&domain_name);
             
             let network_clone = self.network.clone();
