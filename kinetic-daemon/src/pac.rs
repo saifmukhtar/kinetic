@@ -87,10 +87,23 @@ impl ProxyConfigurator for KdeConfigurator {
     }
 
     fn save_previous_state(&self) -> Result<SavedState, ProxyConfigError> {
-        // Since reading from kreadconfig5 might be complex or fail, we'll implement a basic version that
-        // defaults to restoring to "0" (No Proxy) if we don't have existing config parsing right now.
-        // For a more robust v2, we'd invoke kreadconfig5 here.
-        Ok(SavedState { previous_pac_url: None, proxy_type: Some("0".to_string()) })
+        let proxy_type = Command::new("kreadconfig5")
+            .args(["--file", "kioslaverc", "--group", "Proxy Settings", "--key", "ProxyType"])
+            .output()
+            .ok()
+            .and_then(|o| if o.status.success() { String::from_utf8(o.stdout).ok() } else { None })
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+            
+        let pac_url = Command::new("kreadconfig5")
+            .args(["--file", "kioslaverc", "--group", "Proxy Settings", "--key", "Proxy Config Script"])
+            .output()
+            .ok()
+            .and_then(|o| if o.status.success() { String::from_utf8(o.stdout).ok() } else { None })
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+            
+        Ok(SavedState { previous_pac_url: pac_url, proxy_type: proxy_type.or(Some("0".to_string())) })
     }
 
     fn restore_state(&self, state: &SavedState) -> Result<(), ProxyConfigError> {
@@ -188,18 +201,28 @@ pub struct MacosConfigurator;
 #[cfg(target_os = "macos")]
 impl ProxyConfigurator for MacosConfigurator {
     fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError> {
-        // networksetup -setautoproxyurl Wi-Fi <url>
-        let _ = Command::new("networksetup")
-            .args(["-setautoproxyurl", "Wi-Fi", pac_url])
-            .status();
+        if let Ok(output) = Command::new("networksetup").arg("-listallnetworkservices").output() {
+            if let Ok(services_str) = String::from_utf8(output.stdout) {
+                for service in services_str.lines().skip(1) {
+                    if !service.starts_with('*') && !service.is_empty() {
+                        let _ = Command::new("networksetup").args(["-setautoproxyurl", service, pac_url]).status();
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
     fn uninstall(&self) -> Result<(), ProxyConfigError> {
-        // networksetup -setautoproxystate Wi-Fi off
-        let _ = Command::new("networksetup")
-            .args(["-setautoproxystate", "Wi-Fi", "off"])
-            .status();
+        if let Ok(output) = Command::new("networksetup").arg("-listallnetworkservices").output() {
+            if let Ok(services_str) = String::from_utf8(output.stdout) {
+                for service in services_str.lines().skip(1) {
+                    if !service.starts_with('*') && !service.is_empty() {
+                        let _ = Command::new("networksetup").args(["-setautoproxystate", service, "off"]).status();
+                    }
+                }
+            }
+        }
         Ok(())
     }
 

@@ -6,7 +6,7 @@ use tracing_subscriber::FmtSubscriber;
 use std::time::Duration;
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::{Commitment, Reveal, VdfProof, load_or_create_keypair};
-use kinetic_core::config::KineticConfig;
+use kinetic_core::config::{KineticConfig, get_zones_dir};
 use ed25519_dalek::Signer;
 use sha2::Digest;
 
@@ -20,23 +20,18 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Register a .kin name and publish it to the local Daemon
+    /// Claim and register a .kin name to secure ownership. This generates a blank local zone.json file.
     Register {
         /// The name to register (e.g. myname.kin)
         name: String,
-        /// The IP address the name should resolve to
-        ip: String,
         /// Number of VDF iterations (difficulty)
         #[arg(short, long, default_value_t = 100_000)]
         iterations: u64,
     },
-    /// Register a .kin name to resolve to this device's Libp2p PeerId (Hole-Punching Proxy Routing)
-    RegisterPeer {
-        /// The name to register (e.g. myname.kin)
+    /// Push your local zone.json routing configuration to the decentralized network
+    Publish {
+        /// The name to publish routing for (e.g. myname.kin)
         name: String,
-        /// Number of VDF iterations (difficulty)
-        #[arg(short, long, default_value_t = 100_000)]
-        iterations: u64,
     },
     /// Generate a 48-hour Hibernation VDF to exempt a name from heartbeats for 1 year
     Hibernate {
@@ -94,25 +89,16 @@ async fn main() -> anyhow::Result<()> {
     let config = KineticConfig::load();
 
     match cli.command {
-        Commands::Register { name, ip, iterations } => {
-            // Normalize to FQDN immediately so the signature matches the daemon's expectations
-            let fqdn = if !name.ends_with(".kin.") {
-                if name.ends_with(".kin") {
-                    format!("{}.", name)
-                } else {
-                    format!("{}.kin.", name)
-                }
-            } else {
-                name.clone()
-            };
+        Commands::Register { name, iterations } => {
+            let fqdn = kinetic_core::types::normalize_name(&name);
 
-            info!("Starting registration process for '{}' -> {} ({} iterations)", fqdn, ip, iterations);
+            info!("Starting registration process for '{}' ({} iterations)", fqdn, iterations);
 
             // 1. Fetch latest Drand beacon
             info!("Fetching latest Drand entropy beacon...");
-            let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
+            let client = build_client(30)?;
             let drand_res = client
-                .get("https://api.drand.sh/public/latest")
+                .get("https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest")
                 .send()
                 .await?;
             
@@ -159,7 +145,7 @@ async fn main() -> anyhow::Result<()> {
             }
             info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
             
-            let required_iterations = kinetic_core::types::calculate_required_iterations(&fqdn, drand_data.round);
+            let required_iterations = kinetic_core::consensus_math::ConsensusParams::default().required_iterations(&fqdn, drand_data.round, &pubkey);
             let actual_iterations = std::cmp::max(iterations, required_iterations);
 
             // In a real scenario, the proof generation blocks the thread.
@@ -168,8 +154,10 @@ async fn main() -> anyhow::Result<()> {
             info!("VDF Proof successfully generated!");
             info!("Proof: {}", hex::encode(&proof.proof_bytes));
 
-            // 3. Construct and Sign the Reveal tuple
-            let payload = ip.as_bytes().to_vec();
+            // 3. Construct and Sign the empty Reveal tuple (Blank Zone)
+            let records = std::collections::HashMap::new();
+            let zone = kinetic_core::types::DnsZone { records };
+            let payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
             
             let mut reveal = Reveal {
                 protocol_version: 2,
@@ -203,6 +191,8 @@ async fn main() -> anyhow::Result<()> {
             match response {
                 Ok(res) if res.status().is_success() => {
                     info!("Success! {} has been published to the Kinetic DHT network.", fqdn);
+                    let _ = save_zone_file(&fqdn, &zone);
+                    info!("Your zone configuration was saved to {}/{}.json", get_zones_dir().display(), fqdn);
                 }
                 Ok(res) => {
                     warn!("Daemon returned an error: {}", res.status());
@@ -215,106 +205,28 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         }
-        Commands::RegisterPeer { name, iterations } => {
-            let fqdn = if !name.ends_with(".kin.") {
-                if name.ends_with(".kin") { format!("{}.", name) } else { format!("{}.kin.", name) }
-            } else { name.clone() };
-
-            info!("Starting Peer Registration process for '{}' ({} iterations)", fqdn, iterations);
-
-            let keypair = load_or_create_keypair()?;
-            let pubkey = keypair.verifying_key().to_bytes();
+        Commands::Publish { name } => {
+            let fqdn = kinetic_core::types::normalize_name(&name);
+            let mut zone_file = get_zones_dir();
+            zone_file.push(format!("{}.json", fqdn));
             
-            // Derive PeerId from the ed25519 signing key
-            let mut secret_bytes = keypair.to_bytes();
-            let libp2p_keypair = libp2p::identity::ed25519::SecretKey::try_from_bytes(&mut secret_bytes)
-                .map(|sk| libp2p::identity::Keypair::from(libp2p::identity::ed25519::Keypair::from(sk)))
-                .expect("Valid ed25519 key");
-            let peer_id = libp2p_keypair.public().to_peer_id();
-            
-            info!("Local PeerId derived: {}", peer_id);
-
-            let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
-            let drand_res = client.get("https://api.drand.sh/public/latest").send().await?;
-            let drand_data = drand_res.json::<DrandResponse>().await?;
-
-            let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
-            let mut salt = [0u8; 32];
-            getrandom::fill(&mut salt).expect("Failed to generate random salt");
-            let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
-            
-            let mut hasher = sha2::Sha256::new();
-            hasher.update(fqdn.as_bytes());
-            hasher.update(&salt);
-            hasher.update(&challenge_bytes);
-            hasher.update(&pubkey);
-            let mut hash = [0u8; 32];
-            hash.copy_from_slice(&hasher.finalize());
-            let challenge = Commitment { hash };
-            
-            // Phase 4.1: POST the commitment *before* generating the VDF proof
-            info!("Broadcasting Commitment to DHT (Phase 1 of 2)...");
-            let commit_req = kinetic_core::types::CommitRequest {
-                name: fqdn.clone(),
-                commitment: challenge.clone(),
-            };
-            let commit_res = client.post(format!("http://127.0.0.1:{}/commit", config.daemon.api_port))
-                .json(&commit_req)
-                .send()
-                .await?;
-            if !commit_res.status().is_success() {
-                let err_text = commit_res.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!("Failed to broadcast commitment: {}", err_text));
+            if !zone_file.exists() {
+                return Err(anyhow::anyhow!("No zone file found at {}. Please create it or run 'register' first.", zone_file.display()));
             }
-            info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
             
-            let required_iterations = kinetic_core::types::calculate_required_iterations(&fqdn, drand_data.round);
-            let actual_iterations = std::cmp::max(iterations, required_iterations);
-
-            let proof = vdf_engine.evaluate(&challenge, actual_iterations)?;
+            let file_contents = std::fs::read_to_string(&zone_file)?;
+            let zone: kinetic_core::types::DnsZone = serde_json::from_str(&file_contents)
+                .map_err(|e| anyhow::anyhow!("Invalid DnsZone JSON in {}: {}", zone_file.display(), e))?;
             
-            // The payload is the PeerId's string representation (or bytes)
-            // Let's use bytes for efficiency.
-            let payload = peer_id.to_bytes();
-            
-            let mut reveal = Reveal {
-                protocol_version: 2,
-                name: fqdn.clone(),
-                payload,
-                salt,
-                drand_pulse: drand_data.round,
-                drand_randomness: drand_data.randomness.clone(),
-                iterations: actual_iterations,
-                vdf_proof: VdfProof { proof_bytes: proof.proof_bytes },
-                pubkey: pubkey.to_vec(),
-                signature: vec![],
-            };
-            
-            let signable = reveal.signable_bytes();
-            reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
-            
-            let daemon_url = format!("http://127.0.0.1:{}/publish", config.daemon.api_port);
-            let response = client.post(daemon_url).json(&json!({"reveal": reveal})).send().await;
-
-            match response {
-                Ok(res) if res.status().is_success() => {
-                    info!("Success! '{}' now resolves to PeerId {}", fqdn, peer_id);
-                }
-                Ok(res) => {
-                    warn!("Daemon returned an error: {}", res.status());
-                }
-                Err(e) => {
-                    warn!("Failed to connect to local daemon: {}", e);
-                }
-            }
+            update_zone_logic(fqdn, zone, &config, "ZonePublish".to_string()).await?;
         }
         Commands::Hibernate { name } => {
             let fqdn = if !name.ends_with(".kin.") { if name.ends_with(".kin") { format!("{}.", name) } else { format!("{}.kin.", name) } } else { name.clone() };
             info!("Generating massive 1-year Hibernation VDF for {}...", fqdn);
             info!("WARNING: This will take approximately 48 hours on a standard CPU core.");
             
-            let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
-            let drand_res = client.get("https://api.drand.sh/public/latest").send().await?;
+            let client = build_client(30)?;
+            let drand_res = client.get("https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest").send().await?;
             let drand_data = drand_res.json::<DrandResponse>().await?;
             
             let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
@@ -369,8 +281,8 @@ async fn main() -> anyhow::Result<()> {
             let fqdn = if !name.ends_with(".kin.") { if name.ends_with(".kin") { format!("{}.", name) } else { format!("{}.kin.", name) } } else { name.clone() };
             info!("Generating Watchtower Delegation for {}: Pre-signing {} future rounds.", fqdn, rounds);
             
-            let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
-            let drand_res = client.get("https://api.drand.sh/public/latest").send().await?;
+            let client = build_client(30)?;
+            let drand_res = client.get("https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest").send().await?;
             let drand_data = drand_res.json::<DrandResponse>().await?;
             
             let keypair = load_or_create_keypair()?;
@@ -408,11 +320,11 @@ async fn main() -> anyhow::Result<()> {
                     hasher.update(keypair.verifying_key().to_bytes());
                     let did_str = format!("did:kin:{}", hex::encode(hasher.finalize()));
                     
-                    let kid_did = kinetic_kid::KineticDid::new(&did_str).unwrap();
+                    let kid_did = kinetic_kid::KineticDid::new(&did_str).map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
                     let doc = kinetic_kid::KidDocument {
                         doc_type: "kinetic.kid.v1".to_string(),
                         kid: kid_did,
-                        created_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                        created_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("Time went backwards").as_secs(),
                         controller_keys: vec![kinetic_kid::ControllerKey {
                             id: format!("{}#primary", did_str),
                             key_type: "Ed25519".to_string(),
@@ -433,7 +345,7 @@ async fn main() -> anyhow::Result<()> {
                     let data = std::fs::read_to_string(&file)?;
                     let doc: kinetic_kid::KidDocument = serde_json::from_str(&data)?;
                     
-                    let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
+                    let client = build_client(30)?;
                     let daemon_url = format!("http://127.0.0.1:{}/publish-kid", config.daemon.api_port);
                     
                     info!("Publishing KID {} to local daemon...", doc.kid.as_str());
@@ -449,7 +361,7 @@ async fn main() -> anyhow::Result<()> {
                     let data = std::fs::read_to_string(&file)?;
                     let manifest: kinetic_kid::CapabilityManifest = serde_json::from_str(&data)?;
                     
-                    let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
+                    let client = build_client(30)?;
                     let daemon_url = format!("http://127.0.0.1:{}/publish-manifest", config.daemon.api_port);
                     
                     info!("Publishing Capability Manifest for KID {}...", manifest.kid.as_str());
@@ -466,4 +378,67 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+async fn update_zone_logic(fqdn: String, zone: kinetic_core::types::DnsZone, config: &KineticConfig, _display_val: String) -> anyhow::Result<()> {
+    if !kinetic_core::types::is_valid_apex_name(&fqdn) {
+        tracing::error!("Invalid domain name: '{}'. You must update an apex domain.", fqdn);
+        return Ok(());
+    }
+    let keypair = load_or_create_keypair()?;
+    let client = build_client(30)?;
+    let resolve_url = format!("http://127.0.0.1:{}/resolve/{}", config.daemon.api_port, fqdn);
+    let resolve_res = client.get(&resolve_url).send().await?;
+    if !resolve_res.status().is_success() {
+        return Err(anyhow::anyhow!("Failed to resolve existing name."));
+    }
+    let mut existing_reveal: Reveal = resolve_res.json().await?;
+    let challenge_bytes = hex::decode(&existing_reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(existing_reveal.name.as_bytes());
+    hasher.update(&existing_reveal.salt);
+    hasher.update(&challenge_bytes);
+    hasher.update(&existing_reveal.pubkey);
+    let mut hash = [0u8; 32];
+    hash.copy_from_slice(&hasher.finalize());
+    let commit_res = client.post(format!("http://127.0.0.1:{}/commit", config.daemon.api_port))
+        .json(&kinetic_core::types::CommitRequest { name: fqdn.clone(), commitment: Commitment { hash } })
+        .send().await?;
+    if !commit_res.status().is_success() { return Err(anyhow::anyhow!("Commit failed")); }
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    existing_reveal.payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
+    let signable = existing_reveal.signable_bytes();
+    existing_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
+    let response = client.post(format!("http://127.0.0.1:{}/publish", config.daemon.api_port))
+        .json(&json!({"reveal": existing_reveal})).send().await?;
+    if response.status().is_success() {
+        info!("Success! {} updated.", fqdn);
+        let _ = save_zone_file(&fqdn, &zone);
+    }
+    Ok(())
+}
+
+fn save_zone_file(fqdn: &str, zone: &kinetic_core::types::DnsZone) -> Result<(), std::io::Error> {
+    let zones_dir = get_zones_dir();
+    std::fs::create_dir_all(&zones_dir)?;
+    let path = zones_dir.join(format!("{}.json", fqdn));
+    let json_str = serde_json::to_string_pretty(zone)?;
+    std::fs::write(path, json_str)
+}
+
+fn get_api_token() -> anyhow::Result<String> {
+    let path = kinetic_core::config::get_api_token_path();
+    std::fs::read_to_string(&path)
+        .map_err(|e| anyhow::anyhow!("Failed to read API token from {}: {}. Is kinetic-daemon running?", path.display(), e))
+}
+
+fn build_client(timeout_secs: u64) -> anyhow::Result<Client> {
+    let token = get_api_token()?;
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(reqwest::header::AUTHORIZATION, reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token))?);
+
+    Ok(Client::builder()
+        .timeout(Duration::from_secs(timeout_secs))
+        .default_headers(headers)
+        .build()?)
 }

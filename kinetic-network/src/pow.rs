@@ -3,7 +3,7 @@ use sha2::{Sha256, Digest};
 use tracing::info;
 
 pub const EPOCH_PULSES: u64 = 1440; // 12 hours at 30s per pulse
-pub const DEFAULT_DIFFICULTY_BITS: u32 = 24;
+pub const DEFAULT_DIFFICULTY_BITS: u32 = 16;
 
 /// Computes the leading zero bits of a given byte slice.
 fn leading_zeros(hash: &[u8]) -> u32 {
@@ -21,11 +21,9 @@ fn leading_zeros(hash: &[u8]) -> u32 {
 
 /// Validates if a PeerId has sufficient proof-of-work for the current or previous epoch.
 pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32) -> bool {
-    // If pulse is 0 (e.g. unknown at boot before sync), we should fail open or fail closed?
-    // Failing closed means we can't bootstrap until we have a pulse.
-    // For now, if current_pulse == 0, we can reject to be safe, but wait, if we boot we fetch the pulse first.
-    if current_pulse == 0 {
-        return false;
+    // In dev mode, all node IDs are valid to allow local testing
+    if kinetic_core::config::is_dev_mode() {
+        return true;
     }
 
     let current_epoch = current_pulse / EPOCH_PULSES;

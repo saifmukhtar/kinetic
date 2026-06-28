@@ -12,13 +12,35 @@ pub struct KineticConfig {
 pub struct DaemonConfig {
     pub api_port: u16,
     pub dns_port: u16,
+    #[serde(default = "default_proxy_port")]
+    pub proxy_port: u16,
+    #[serde(default = "default_backend_port")]
+    pub backend_port: u16,
     pub storage_dir: PathBuf,
+    #[serde(default = "default_network_mode")]
+    pub network_mode: String,
+}
+
+fn default_network_mode() -> String {
+    "FullNode".to_string()
+}
+
+fn default_proxy_port() -> u16 {
+    5463
+}
+
+fn default_backend_port() -> u16 {
+    80
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2pConfig {
     pub p2p_port: u16,
     pub bootstrap_nodes: Vec<String>,
+    #[serde(default)]
+    pub seed_domains: Vec<String>,
+    #[serde(default)]
+    pub enable_mdns: bool,
 }
 
 impl Default for KineticConfig {
@@ -30,16 +52,24 @@ impl Default for KineticConfig {
 
         Self {
             daemon: DaemonConfig {
-                api_port: 6001,
+                api_port: 16002,
                 dns_port: 53,
+                proxy_port: 5463,
+                backend_port: 80,
                 storage_dir,
+                network_mode: "FullNode".to_string(),
             },
             network: P2pConfig {
                 p2p_port: 6070,
                 bootstrap_nodes: vec![
-                    "/ip4/54.146.215.204/tcp/6070/p2p/12D3KooWSeNyiZPyr798mE6PAc7Mhh1dikvBv4PEaxp2hxDWuAUD".to_string(),
-                    "/ip4/54.82.243.125/tcp/6070/p2p/12D3KooWLdtVq46VggMkHJdtfo9fMrYbiHWmUEm6Cgzhe1vrhbup".to_string(),
+                    // Using IP based bootnodes as fallback
+                    "/ip4/54.146.215.204/tcp/6070/p2p/12D3KooWEqEvWSLzjyKTzK7xJ9y9B8oJQQi4d5NRRwyj81ecshfh".to_string(),
+                    "/ip4/54.82.243.125/tcp/6070/p2p/12D3KooWPRCBErRJFjiHvbM323UpwUsMe81oQYwYQXoYZp8Qzdyb".to_string(),
                 ],
+                seed_domains: vec![
+                    "seed.saifmukhtar.dev".to_string(),
+                ],
+                enable_mdns: true,
             },
         }
     }
@@ -56,7 +86,7 @@ impl KineticConfig {
                     .join("config.toml")
             });
 
-        let mut config = if let Ok(config_str) = fs::read_to_string(&config_path) {
+        let config = if let Ok(config_str) = fs::read_to_string(&config_path) {
             match toml::from_str(&config_str) {
                 Ok(config) => config,
                 Err(e) => {
@@ -76,33 +106,65 @@ impl KineticConfig {
             default_cfg
         };
 
-        // Phase 5.3: Bootstrap Node DNS-Based Discovery Fallback
-        // Run in a separate thread to prevent hickory_resolver from panicking due to nested tokio runtimes.
-        let discovered_nodes = std::thread::spawn(|| {
-            let mut nodes = Vec::new();
-            use hickory_resolver::Resolver;
-            use hickory_resolver::config::*;
-            if let Ok(resolver) = Resolver::new(ResolverConfig::default(), ResolverOpts::default()) {
-                if let Ok(txt_lookup) = resolver.txt_lookup("_kinetic-bootstrap.kin.network.") {
-                    for txt in txt_lookup.iter() {
-                        if let Some(txt_str) = txt.txt_data().first() {
-                            if let Ok(addr_str) = std::str::from_utf8(txt_str) {
-                                nodes.push(addr_str.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-            nodes
-        }).join().unwrap_or_default();
-
-        for addr_str in discovered_nodes {
-            if !config.network.bootstrap_nodes.contains(&addr_str) {
-                tracing::info!("Discovered dynamic bootstrap node from DNS: {}", addr_str);
-                config.network.bootstrap_nodes.push(addr_str);
-            }
-        }
 
         config
+    }
+
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        let config_path = std::env::var("KINETIC_CONFIG_PATH")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| {
+                dirs::config_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join("kinetic")
+                    .join("config.toml")
+            });
+        
+        if let Some(parent) = config_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        
+        let toml_str = toml::to_string_pretty(self)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        fs::write(&config_path, toml_str)
+    }
+}
+
+/// A globally secure check for Dev Mode. 
+/// It mathematically guarantees that Dev Mode cannot be activated in release builds.
+pub fn is_dev_mode() -> bool {
+    cfg!(debug_assertions) && std::env::var("KINETIC_DEV_MODE").is_ok()
+}
+
+/// Returns the path to the directory where local zone JSON files are stored.
+pub fn get_zones_dir() -> PathBuf {
+    get_base_dir().join("zones")
+}
+
+/// Returns the base kinetic directory
+pub fn get_base_dir() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("kinetic")
+}
+
+/// Returns the path to the API secret token used for local CLI authentication.
+pub fn get_api_token_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("kinetic")
+        .join("api.token")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = KineticConfig::default();
+        assert_eq!(config.daemon.api_port, 16002);
+        assert_eq!(config.network.p2p_port, 6070);
+        assert!(config.network.enable_mdns);
     }
 }

@@ -1,5 +1,36 @@
 use serde::{Serialize, Deserialize};
 
+/// Normalizes a name by ensuring it is lowercase and ends with exactly one `.kin`.
+pub fn normalize_name(name: &str) -> String {
+    let mut norm = name.to_lowercase();
+    while norm.ends_with('.') {
+        norm.pop();
+    }
+    if !norm.ends_with(".kin") {
+        norm.push_str(".kin");
+    }
+    norm
+}
+
+/// Validates that a name is exactly an apex domain (e.g., `saif.kin` and not `blog.saif.kin`)
+pub fn is_valid_apex_name(name: &str) -> bool {
+    let norm = normalize_name(name);
+    norm.split('.').count() == 2
+}
+
+/// Extracts the apex domain from a potentially subdomain string.
+/// For example, `blog.saif.kin` -> `saif.kin`
+pub fn extract_apex_domain(name: &str) -> String {
+    let norm = normalize_name(name);
+    let parts: Vec<&str> = norm.split('.').collect();
+    if parts.len() >= 2 {
+        let last_two = &parts[parts.len() - 2..];
+        format!("{}.{}", last_two[0], last_two[1])
+    } else {
+        norm
+    }
+}
+
 /// Maximum age of a VDF proof in drand rounds (~1 year at 30s/round)
 pub const RESQUARING_EPOCH_ROUNDS: u64 = 1_051_200;
 
@@ -111,11 +142,12 @@ pub const M_REDUNDANCY: u8 = 5;
 /// This prevents single-key eclipse attacks.
 pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
     use sha2::{Sha256, Digest};
+    let normalized = normalize_name(name);
     let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
     
     for i in 0..M_REDUNDANCY {
         let mut hasher = Sha256::new();
-        hasher.update(name.as_bytes());
+        hasher.update(normalized.as_bytes());
         hasher.update(&[i]);
         hasher.update(b"kinetic-dht-v1");
         
@@ -127,29 +159,8 @@ pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
     keys
 }
 
-/// Calculate the minimum required VDF iterations based on name length to prevent squatting.
-pub fn calculate_required_iterations(name: &str, current_drand_round: u64) -> u64 {
-    // CALIBRATION NEEDED: Conservative estimates based on ~300k ips.
-    let label = name.trim_end_matches('.');
-    let len = label.split('.').next().unwrap_or("").chars().count();
-    
-    let base: u64 = match len {
-        0 | 1 => 8_640_000_000,
-        2     => 2_160_000_000,
-        3     =>   540_000_000,
-        4     =>   144_000_000,
-        5..=8 =>    36_000_000,
-        9..=15 =>   12_000_000,
-        _     =>    3_000_000,
-    };
-    
-    // ~1% per 12-hour epoch to account for Moore's Law (1440 rounds = 12 hours at 30s/round)
-    let epochs_since_genesis = current_drand_round / 1440;
-    let multiplier = 1.0f64 + 0.01 * (epochs_since_genesis as f64);
-    (base as f64 * multiplier) as u64
-}
 
-pub fn load_or_create_keypair() -> std::io::Result<ed25519_dalek::SigningKey> {
+pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::error::KineticError> {
     use std::path::PathBuf;
     use directories::ProjectDirs;
     use std::fs;
@@ -177,10 +188,10 @@ pub fn load_or_create_keypair() -> std::io::Result<ed25519_dalek::SigningKey> {
 
     let mut bytes = [0u8; 32];
     if getrandom::fill(&mut bytes).is_err() {
-        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Random generation failed"));
+        return Err(crate::error::KineticError::CryptoError("Random generation failed".to_string()));
     }
     let signing_key = ed25519_dalek::SigningKey::from_bytes(&bytes);
-    let _ = fs::write(&key_path, signing_key.to_bytes());
+    let _ = fs::write(&key_path, signing_key.to_bytes())?;
     Ok(signing_key)
 }
 
@@ -206,34 +217,88 @@ mod tests {
     }
 
     #[test]
-    fn test_dynamic_difficulty_lengths() {
-        let r0 = 0;
-        // 1 char
-        assert_eq!(calculate_required_iterations("a", r0), 8_640_000_000);
-        // 2 chars
-        assert_eq!(calculate_required_iterations("ab", r0), 2_160_000_000);
-        // 3 chars
-        assert_eq!(calculate_required_iterations("abc", r0), 540_000_000);
-        // 4 chars
-        assert_eq!(calculate_required_iterations("abcd", r0), 144_000_000);
-        // 6 chars
-        assert_eq!(calculate_required_iterations("abcdef", r0), 36_000_000);
-        // 10 chars
-        assert_eq!(calculate_required_iterations("abcdefghij", r0), 12_000_000);
-        // 16 chars
-        assert_eq!(calculate_required_iterations("abcdefghijklmnop", r0), 3_000_000);
+    fn test_normalize_name() {
+        assert_eq!(normalize_name("SAIF.KIN"), "saif.kin");
+        assert_eq!(normalize_name("saif..."), "saif.kin");
+        assert_eq!(normalize_name("saif"), "saif.kin");
+        assert_eq!(normalize_name("blog.saif.kin."), "blog.saif.kin");
     }
 
     #[test]
-    fn test_difficulty_moores_law_decay() {
-        let base = calculate_required_iterations("abcdef", 0); // 36M
-        
-        // Exactly 1 epoch (1440 rounds)
-        let one_epoch = calculate_required_iterations("abcdef", 1440);
-        assert_eq!(one_epoch, (base as f64 * 1.01) as u64);
+    fn test_is_valid_apex_name() {
+        assert!(is_valid_apex_name("saif.kin"));
+        assert!(is_valid_apex_name("saif")); // gets normalized
+        assert!(!is_valid_apex_name("blog.saif.kin"));
+    }
 
-        // 100 epochs
-        let hundred_epochs = calculate_required_iterations("abcdef", 144000);
-        assert_eq!(hundred_epochs, (base as f64 * 2.0) as u64); // +100%
+    #[test]
+    fn test_extract_apex_domain() {
+        assert_eq!(extract_apex_domain("blog.saif.kin"), "saif.kin");
+        assert_eq!(extract_apex_domain("saif.kin"), "saif.kin");
+        assert_eq!(extract_apex_domain("api.v1.saif.kin"), "saif.kin");
+    }
+
+    #[test]
+    fn test_signable_bytes() {
+        let reveal = Reveal {
+            protocol_version: 2,
+            name: "test.kin".to_string(),
+            payload: vec![1, 2, 3],
+            salt: [0u8; 32],
+            drand_pulse: 100,
+            drand_randomness: "random".to_string(),
+            iterations: 1000,
+            vdf_proof: VdfProof { proof_bytes: vec![4, 5, 6] },
+            pubkey: vec![7, 8, 9],
+            signature: vec![],
+        };
+        let bytes = reveal.signable_bytes();
+        assert_eq!(bytes[0], 2); // Protocol version
+        assert!(bytes.len() > 10);
+    }
+}
+
+/// Represents a Decentralized DNS Zone stored in the DHT payload
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DnsZone {
+    #[serde(default)]
+    pub records: std::collections::HashMap<String, Vec<DnsRecord>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", content = "value")]
+pub enum DnsRecord {
+    A(String),
+    AAAA(String),
+    CNAME(String),
+    TXT(String),
+    PeerId(String),
+}
+
+impl DnsZone {
+    pub fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::KineticError> {
+        serde_json::from_slice::<DnsZone>(payload)
+            .map_err(|e| crate::error::KineticError::ParseError(e))
+    }
+}
+
+#[cfg(test)]
+mod zone_tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_payload() {
+        let json = r#"{"records": {"@": [{"type": "PeerId", "value": "12D3K"}]}}"#;
+        let zone = DnsZone::parse_payload(json.as_bytes()).unwrap();
+        if let Some(records) = zone.records.get("@") {
+            assert_eq!(records.len(), 1);
+            if let DnsRecord::PeerId(ref pid) = records[0] {
+                assert_eq!(pid, "12D3K");
+            } else {
+                panic!("Expected PeerId");
+            }
+        } else {
+            panic!("Expected @ record");
+        }
     }
 }

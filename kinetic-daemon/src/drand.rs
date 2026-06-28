@@ -41,7 +41,9 @@ pub enum DrandError {
 pub struct DrandPulse {
     pub round: u64,
     pub randomness: String,
+    #[serde(default)]
     pub is_from_cache: bool,
+    #[serde(default)]
     pub is_unavailable: bool,
 }
 
@@ -144,11 +146,24 @@ impl DrandClient {
     }
 
     pub fn load_cached_pulse(&self) -> Result<DrandPulse, DrandError> {
-        let bytes = self.storage.get(CACHE_KEY.as_bytes())?
-            .ok_or(DrandError::NoCachedPulse)?;
-        let mut pulse: DrandPulse = serde_json::from_slice(&bytes)?;
-        pulse.is_from_cache = true;
-        Ok(pulse)
+        if let Ok(Some(bytes)) = self.storage.get(CACHE_KEY.as_bytes()) {
+            if let Ok(mut pulse) = serde_json::from_slice::<DrandPulse>(&bytes) {
+                pulse.is_from_cache = true;
+                return Ok(pulse);
+            }
+        }
+        
+        if kinetic_core::config::is_dev_mode() {
+            tracing::warn!("DEV MODE: Returning mock drand pulse because cache is empty.");
+            return Ok(DrandPulse {
+                round: 5000000,
+                randomness: "mock_randomness".to_string(),
+                is_from_cache: true,
+                is_unavailable: false,
+            });
+        }
+
+        Err(DrandError::NoCachedPulse)
     }
 }
 

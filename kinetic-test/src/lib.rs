@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use kinetic_network::network::{NetworkConfig, NetworkEventLoop, NetworkClient};
+    use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkClient};
     use kinetic_core::types::Commitment;
     use kinetic_storage::SledStorage;
     use libp2p::identity::Keypair;
@@ -15,12 +15,15 @@ mod tests {
             listen_addr: format!("/ip4/127.0.0.1/tcp/{}", port),
             bootstrap_nodes,
             initial_drand_pulse: 1000,
+            mode: kinetic_network::NetworkMode::FullNode,
+            enable_mdns: false,
+            seed_domains: vec![],
         };
         let dir = tempdir().unwrap();
         let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
         let (_pulse_tx, pulse_rx) = watch::channel(1000);
         
-        let (client, mut event_loop) = NetworkEventLoop::new(config, keypair, storage, pulse_rx, None).unwrap();
+        let (client, event_loop) = NetworkEventLoop::new(config, keypair, storage, pulse_rx, None).unwrap();
         
         let handle = tokio::spawn(async move {
             event_loop.run().await;
