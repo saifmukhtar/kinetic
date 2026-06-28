@@ -41,9 +41,9 @@ After=network.target
 [Service]
 ExecStart=/usr/local/bin/kinetic-daemon
 Restart=always
-User=$USER
-# Note: Binding to port 53 requires CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_BIND_SERVICE
+User=root
+Environment="KINETIC_STATIC_NODE=1"
+LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target
