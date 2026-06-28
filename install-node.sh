@@ -16,6 +16,25 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+echo "Cleaning up previous daemon installations (if any)..."
+if systemctl is-active --quiet kinetic-daemon.service 2>/dev/null || systemctl is-enabled --quiet kinetic-daemon.service 2>/dev/null; then
+    echo "Stopping and disabling old kinetic-daemon service..."
+    systemctl stop kinetic-daemon.service || true
+    systemctl disable kinetic-daemon.service || true
+fi
+
+if [ -f "/etc/systemd/system/kinetic-daemon.service" ]; then
+    rm -f /etc/systemd/system/kinetic-daemon.service
+fi
+
+if [ -f "/usr/local/bin/kinetic-daemon" ]; then
+    rm -f /usr/local/bin/kinetic-daemon
+fi
+
+if [ -f "/usr/local/bin/kinetic-cli" ]; then
+    rm -f /usr/local/bin/kinetic-cli
+fi
+
 echo "Fetching latest release information..."
 LATEST_RELEASE_URL=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep "browser_download_url.*$BINARY_NAME" | cut -d '"' -f 4)
 
