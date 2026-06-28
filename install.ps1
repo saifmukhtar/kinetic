@@ -28,7 +28,18 @@ if ($OldPath -notmatch [regex]::Escape($InstallDir)) {
     [Environment]::SetEnvironmentVariable("Path", "$OldPath;$InstallDir", [EnvironmentVariableTarget]::Machine)
 }
 
-# 4. Setup Windows Background Service
+# 4. Setup Global Data Directory
+Write-Host "Configuring Global Data Directory..."
+$DataDir = "C:\ProgramData\Kinetic"
+if (-not (Test-Path $DataDir)) {
+    New-Item -ItemType Directory -Path $DataDir | Out-Null
+}
+$acl = Get-Acl $DataDir
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("Users","FullControl","ContainerInherit,ObjectInherit","None","Allow")
+$acl.AddAccessRule($rule)
+Set-Acl $DataDir $acl
+
+# 5. Setup Windows Background Service
 Write-Host "Configuring Windows Background Service..."
 if (Get-Service -Name "KineticDaemon" -ErrorAction SilentlyContinue) {
     Stop-Service -Name "KineticDaemon" -Force
