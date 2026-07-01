@@ -1,5 +1,5 @@
-use libp2p::{PeerId, identity::Keypair};
-use sha2::{Sha256, Digest};
+use libp2p::{identity::Keypair, PeerId};
+use sha2::{Digest, Sha256};
 use tracing::info;
 
 pub const EPOCH_PULSES: u64 = 1440; // 12 hours at 30s per pulse
@@ -19,57 +19,78 @@ fn leading_zeros(hash: &[u8]) -> u32 {
     zeros
 }
 
+/// Computes a peer-specific epoch to stagger identity churn across the network.
+fn get_staggered_epoch(peer_id: &PeerId, pulse: u64) -> u64 {
+    let bytes = peer_id.to_bytes();
+    let mut offset_bytes = [0u8; 8];
+    let len = bytes.len();
+    if len >= 8 {
+        offset_bytes.copy_from_slice(&bytes[len - 8..len]);
+    } else {
+        offset_bytes[..len].copy_from_slice(&bytes[..len]);
+    }
+    let offset = u64::from_be_bytes(offset_bytes) % EPOCH_PULSES;
+    (pulse + offset) / EPOCH_PULSES
+}
+
 /// Validates if a PeerId has sufficient proof-of-work for the current or previous epoch.
 pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32) -> bool {
-    // In dev mode, all node IDs are valid to allow local testing
     if kinetic_core::config::is_dev_mode() {
         return true;
     }
 
-    let current_epoch = current_pulse / EPOCH_PULSES;
     let peer_bytes = peer_id.to_bytes();
-    
+    let current_epoch = get_staggered_epoch(peer_id, current_pulse);
+
     // Check current epoch
     let mut hasher = Sha256::new();
     hasher.update(&peer_bytes);
-    hasher.update(&current_epoch.to_be_bytes());
+    hasher.update(current_epoch.to_be_bytes());
     if leading_zeros(&hasher.finalize()) >= difficulty {
         return true;
     }
-    
+
     // Check previous epoch (allows 12-hour overlap so nodes don't drop exactly at the boundary)
     if current_epoch > 0 {
         let mut hasher = Sha256::new();
         hasher.update(&peer_bytes);
-        hasher.update(&(current_epoch - 1).to_be_bytes());
+        hasher.update((current_epoch - 1).to_be_bytes());
         if leading_zeros(&hasher.finalize()) >= difficulty {
             return true;
         }
     }
-    
+
     false
 }
 
 /// Grinds an Ed25519 keypair whose PeerId satisfies the PoW for the current epoch.
 pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
-    let current_epoch = current_pulse / EPOCH_PULSES;
     let mut attempts: u64 = 0;
-    
-    info!("Mining epoch-bound S/Kademlia identity for epoch {} (difficulty: {} bits)...", current_epoch, difficulty);
+
+    info!(
+        "Mining epoch-bound S/Kademlia identity (difficulty: {} bits)...",
+        difficulty
+    );
     let start = std::time::Instant::now();
-    
+
     loop {
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let peer_bytes = peer_id.to_bytes();
-        
+        let current_epoch = get_staggered_epoch(&peer_id, current_pulse);
+
         let mut hasher = Sha256::new();
         hasher.update(&peer_bytes);
-        hasher.update(&current_epoch.to_be_bytes());
-        
+        hasher.update(current_epoch.to_be_bytes());
+
         attempts += 1;
         if leading_zeros(&hasher.finalize()) >= difficulty {
-            info!("Mined S/Kademlia identity {} in {} attempts ({:?})", peer_id, attempts, start.elapsed());
+            info!(
+                "Mined S/Kademlia identity {} in {} attempts ({:?})",
+                peer_id,
+                attempts,
+                start.elapsed()
+            );
             return keypair;
         }
     }

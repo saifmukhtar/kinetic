@@ -16,14 +16,19 @@ export default function Registration() {
     setStatusMessage('Starting registration...');
 
     try {
+      const iters = Math.max(100000, Math.floor(20000000 / domainName.length));
       const res = await fetch('/api/vdf/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: domainName, iterations: 100000 })
+        body: JSON.stringify({ name: domainName, iterations: iters })
       });
       
       const data = await res.json();
-      if (data.task_id) {
+      if (data.error) {
+        setStatusMessage('Error: ' + data.error);
+        setIsRegistering(false);
+        alert(data.error);
+      } else if (data.task_id) {
         pollStatus(data.task_id);
       }
     } catch (e) {
@@ -33,10 +38,13 @@ export default function Registration() {
   };
 
   const pollStatus = (taskId: string) => {
+    let failCount = 0;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/vdf/status/${taskId}`);
+        if (!res.ok) throw new Error(`API returned ${res.status}`);
         const data = await res.json();
+        failCount = 0; // reset on success
         
         if (data.error) {
           clearInterval(interval);
@@ -53,13 +61,21 @@ export default function Registration() {
           setIsRegistering(false);
           alert('Registration Complete!');
           setDomainName('');
+          fetch(`/api/vdf/status/${taskId}`, { method: 'DELETE' }).catch(console.error);
         } else if (data.status === 'Failed') {
           clearInterval(interval);
           setIsRegistering(false);
           alert('Registration Failed: ' + data.error);
+          fetch(`/api/vdf/status/${taskId}`, { method: 'DELETE' }).catch(console.error);
         }
       } catch (e) {
-        console.error(e);
+        console.error("Polling error:", e);
+        failCount++;
+        if (failCount > 10) {
+          clearInterval(interval);
+          setStatusMessage('Network connection lost. Registration continues in daemon background.');
+          setIsRegistering(false);
+        }
       }
     }, 2000);
   };

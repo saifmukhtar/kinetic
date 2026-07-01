@@ -1,8 +1,8 @@
-use libp2p::{gossipsub, kad, swarm::NetworkBehaviour};
-use crate::store::KineticRecordStore;
 use crate::client::{ProxyRequest, ProxyResponse};
+use crate::store::KineticRecordStore;
+use libp2p::{gossipsub, kad, swarm::NetworkBehaviour};
 
-/// The aggregate network behavior combining Kademlia DHT for state and 
+/// The aggregate network behavior combining Kademlia DHT for state and
 /// Gossipsub for real-time propagation of reveals and heartbeats.
 #[derive(NetworkBehaviour)]
 pub struct KineticBehavior {

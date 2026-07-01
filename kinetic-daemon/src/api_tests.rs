@@ -6,17 +6,17 @@ mod tests {
         http::{Request, StatusCode},
     };
     use http_body_util::BodyExt;
-    use tower::ServiceExt;
-    use tokio::sync::mpsc;
     use kinetic_network::client::{Command, NetworkClient};
     use kinetic_storage::SledStorage;
     use std::sync::Arc;
     use tempfile::tempdir;
+    use tokio::sync::mpsc;
+    use tower::ServiceExt;
 
     async fn setup_test_app() -> (axum::Router, mpsc::Receiver<Command>) {
         let dir = tempdir().unwrap();
         let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
-        
+
         // Mock network client
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let network = NetworkClient::new(cmd_tx);
@@ -26,6 +26,11 @@ mod tests {
             storage,
             auth_token: "test-token-123".to_string(),
             vdf_tasks: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+            dns_handler: None,
+            mempool: Arc::new(std::sync::Mutex::new(kinetic_core::mempool::Mempool::new(
+                100,
+                std::time::Duration::from_secs(3600),
+            ))),
         };
 
         let router = app(state);
@@ -105,7 +110,7 @@ mod tests {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         println!("Response body: {}", body_str);
-        
+
         // Let's just assert that it contains the validation error we expect
         // Or if it's 422, we might just be failing the serde parse for another reason
         // Since we are mocking the payload and testing the daemon API layer,

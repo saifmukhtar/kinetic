@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Normalizes a name by ensuring it is lowercase and ends with exactly one `.kin`.
 pub fn normalize_name(name: &str) -> String {
@@ -12,16 +12,53 @@ pub fn normalize_name(name: &str) -> String {
     norm
 }
 
+pub const KINETIC_TLDS: &[&str] = &[
+    "co.uk.kin",
+    "uk.kin",
+    "co.kin",
+    "id.kin",
+    "app.kin",
+    "dapp.kin",
+    "kin",
+];
+
 /// Validates that a name is exactly an apex domain (e.g., `saif.kin` and not `blog.saif.kin`)
 pub fn is_valid_apex_name(name: &str) -> bool {
     let norm = normalize_name(name);
-    norm.split('.').count() == 2
+
+    // DNS specification limits labels to 63 characters and total length to 253.
+    if norm.len() > 253 || norm.is_empty() {
+        return false;
+    }
+    for part in norm.split('.') {
+        if part.len() > 63 || part.is_empty() {
+            return false;
+        }
+    }
+
+    let apex = extract_apex_domain(&norm);
+    norm == apex
 }
 
 /// Extracts the apex domain from a potentially subdomain string.
 /// For example, `blog.saif.kin` -> `saif.kin`
+/// `blog.saif.co.uk.kin` -> `saif.co.uk.kin`
 pub fn extract_apex_domain(name: &str) -> String {
     let norm = normalize_name(name);
+
+    for tld in KINETIC_TLDS {
+        if norm.ends_with(&format!(".{}", tld)) || norm == *tld {
+            let without_tld = norm.strip_suffix(&format!(".{}", tld)).unwrap_or(&norm);
+            if without_tld.is_empty() || without_tld == norm {
+                return norm;
+            }
+            let parts: Vec<&str> = without_tld.split('.').collect();
+            let apex_label = parts.last().unwrap_or(&"");
+            return format!("{}.{}", apex_label, tld);
+        }
+    }
+
+    // Fallback
     let parts: Vec<&str> = norm.split('.').collect();
     if parts.len() >= 2 {
         let last_two = &parts[parts.len() - 2..];
@@ -33,6 +70,9 @@ pub fn extract_apex_domain(name: &str) -> String {
 
 /// Maximum age of a VDF proof in drand rounds (~1 year at 30s/round)
 pub const RESQUARING_EPOCH_ROUNDS: u64 = 1_051_200;
+
+/// Maximum allowed size for a Decentralized DNS Zone payload (64 KB)
+pub const MAX_PAYLOAD_SIZE: usize = 65_536;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Commitment {
@@ -51,7 +91,9 @@ pub struct CommitRequest {
     pub commitment: Commitment,
 }
 
-fn default_protocol_version() -> u8 { 1 }
+fn default_protocol_version() -> u8 {
+    2
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Reveal {
@@ -76,11 +118,35 @@ pub struct Reveal {
 }
 
 impl Reveal {
+    pub fn validate(&self) -> Result<(), crate::error::KineticError> {
+        if self.protocol_version != 2 {
+            return Err(crate::error::KineticError::Internal(format!(
+                "Invalid protocol version {}. Only protocol version 2 is supported.",
+                self.protocol_version
+            )));
+        }
+
+        if !crate::types::is_valid_apex_name(&self.name) {
+            return Err(crate::error::KineticError::Internal(format!(
+                "Invalid name '{}'. Only apex domains are allowed.",
+                self.name
+            )));
+        }
+
+        if self.payload.len() > MAX_PAYLOAD_SIZE {
+            return Err(crate::error::KineticError::Internal(format!(
+                "Payload size {} exceeds MAX_PAYLOAD_SIZE {}",
+                self.payload.len(),
+                MAX_PAYLOAD_SIZE
+            )));
+        }
+        Ok(())
+    }
+
     pub fn signable_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
-        if self.protocol_version >= 2 {
-            bytes.push(self.protocol_version);
-        }
+        // Edge Case 29: Protocol Version is the absolute truth
+        bytes.push(self.protocol_version);
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&self.payload);
         bytes.extend_from_slice(&self.salt);
@@ -136,21 +202,52 @@ impl Hibernation {
     }
 }
 
-pub const M_REDUNDANCY: u8 = 5;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DelegationRequest {
+    pub name: String,
+    pub payload: Vec<u8>,
+    pub delegated_to_pubkey: Vec<u8>,
+    pub mobile_pubkey: Vec<u8>,
+    pub signature: Vec<u8>,
+    pub hashcash_nonce: u64,
+}
+
+impl DelegationRequest {
+    pub fn signable_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"DELEGATION");
+        bytes.extend_from_slice(self.name.as_bytes());
+        bytes.extend_from_slice(&self.payload);
+        bytes.extend_from_slice(&self.delegated_to_pubkey);
+        bytes.extend_from_slice(&self.hashcash_nonce.to_le_bytes());
+        bytes
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VdfJobRequest {
+    pub challenge_hash: [u8; 32],
+    pub name_length: u8,
+    pub hashcash_nonce: u64,
+    pub drand_pulse: u64,
+}
+
+pub const M_REDUNDANCY: u8 = 32;
+pub const MIN_DIFFICULTY: u32 = 20; // Example minimum difficulty
 
 /// Deterministically derive the `M` Kademlia DHT storage keys for a given name.
 /// This prevents single-key eclipse attacks.
 pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);
     let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
-    
+
     for i in 0..M_REDUNDANCY {
         let mut hasher = Sha256::new();
         hasher.update(normalized.as_bytes());
-        hasher.update(&[i]);
+        hasher.update([i]);
         hasher.update(b"kinetic-dht-v1");
-        
+
         let result = hasher.finalize();
         let mut key = [0u8; 32];
         key.copy_from_slice(&result);
@@ -159,18 +256,43 @@ pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
     keys
 }
 
+/// Derive the `M` Kademlia DHT keys for heartbeat liveness signals.
+/// These are deliberately separate from `derive_storage_keys` so heartbeat records
+/// never overwrite or pollute the Reveal keyspace used by resolvers.
+pub fn derive_heartbeat_keys(name: &str) -> Vec<[u8; 32]> {
+    use sha2::{Digest, Sha256};
+    let normalized = normalize_name(name);
+    let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
+
+    for i in 0..M_REDUNDANCY {
+        let mut hasher = Sha256::new();
+        hasher.update(b"kinetic-hb-v1"); // distinct domain separator
+        hasher.update(normalized.as_bytes());
+        hasher.update([i]);
+
+        let result = hasher.finalize();
+        let mut key = [0u8; 32];
+        key.copy_from_slice(&result);
+        keys.push(key);
+    }
+    keys
+}
 
 pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::error::KineticError> {
-    use std::path::PathBuf;
     use directories::ProjectDirs;
     use std::fs;
+    use std::path::PathBuf;
 
     let key_path = std::env::var("KINETIC_KEY_PATH")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
             ProjectDirs::from("com", "kinetic", "kinetic")
                 .map(|d| d.config_dir().join("id.bin"))
-                .unwrap_or_else(|| PathBuf::from("/tmp/kinetic_id.bin"))
+                .unwrap_or_else(|| {
+                    std::env::current_dir()
+                        .unwrap_or_else(|_| PathBuf::from("."))
+                        .join(".kinetic/id.bin")
+                })
         });
 
     if let Some(parent) = key_path.parent() {
@@ -183,15 +305,26 @@ pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::erro
             let mut array = [0u8; 32];
             array.copy_from_slice(&bytes);
             return Ok(ed25519_dalek::SigningKey::from_bytes(&array));
+        } else {
+            return Err(crate::error::KineticError::CryptoError(
+                format!("Identity file is corrupted! Expected 32 bytes, found {}. Please restore from a backup or manually delete the file to generate a new identity.", bytes.len())
+            ));
         }
     }
 
     let mut bytes = [0u8; 32];
     if getrandom::fill(&mut bytes).is_err() {
-        return Err(crate::error::KineticError::CryptoError("Random generation failed".to_string()));
+        return Err(crate::error::KineticError::CryptoError(
+            "Random generation failed".to_string(),
+        ));
     }
     let signing_key = ed25519_dalek::SigningKey::from_bytes(&bytes);
-    let _ = fs::write(&key_path, signing_key.to_bytes())?;
+
+    // Atomic write to prevent file corruption during generation
+    let tmp_path = key_path.with_extension("tmp");
+    fs::write(&tmp_path, signing_key.to_bytes())?;
+    fs::rename(tmp_path, &key_path)?;
+
     Ok(signing_key)
 }
 
@@ -201,19 +334,19 @@ mod tests {
 
     #[test]
     fn test_derive_storage_keys() {
-        let keys = derive_storage_keys("alice.kin");
-        assert_eq!(keys.len(), 5);
-        
+        let keys = derive_storage_keys("saif.kin");
+        assert_eq!(keys.len(), 32);
+
+        // Ensure determinism
+        let keys2 = derive_storage_keys("SAIF.KIN");
+        assert_eq!(keys, keys2);
+
         // Ensure keys are unique
         for i in 0..keys.len() {
-            for j in (i + 1)..keys.len() {
+            for j in i + 1..keys.len() {
                 assert_ne!(keys[i], keys[j]);
             }
         }
-        
-        // Ensure determinism
-        let keys2 = derive_storage_keys("alice.kin");
-        assert_eq!(keys, keys2);
     }
 
     #[test]
@@ -248,7 +381,9 @@ mod tests {
             drand_pulse: 100,
             drand_randomness: "random".to_string(),
             iterations: 1000,
-            vdf_proof: VdfProof { proof_bytes: vec![4, 5, 6] },
+            vdf_proof: VdfProof {
+                proof_bytes: vec![4, 5, 6],
+            },
             pubkey: vec![7, 8, 9],
             signature: vec![],
         };
@@ -277,8 +412,36 @@ pub enum DnsRecord {
 
 impl DnsZone {
     pub fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::KineticError> {
+        // Prevent deeply nested JSON payloads from overflowing the stack on small mobile threads.
+        // A DnsZone schema is flat (max depth ~4), so anything > 10 is malicious.
+        let mut depth = 0;
+        let mut in_string = false;
+        let mut escape = false;
+        for &b in payload {
+            if escape {
+                escape = false;
+                continue;
+            }
+            match b {
+                b'"' => in_string = !in_string,
+                b'\\' if in_string => escape = true,
+                b'{' | b'[' if !in_string => {
+                    depth += 1;
+                    if depth > 10 {
+                        return Err(crate::error::KineticError::Internal(
+                            "Payload rejected: JSON nested too deeply".to_string(),
+                        ));
+                    }
+                }
+                b'}' | b']' if !in_string && depth > 0 => {
+                    depth -= 1;
+                }
+                _ => {}
+            }
+        }
+
         serde_json::from_slice::<DnsZone>(payload)
-            .map_err(|e| crate::error::KineticError::ParseError(e))
+            .map_err(crate::error::KineticError::ParseError)
     }
 }
 

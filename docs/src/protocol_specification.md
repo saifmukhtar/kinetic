@@ -1,7 +1,7 @@
-# Kinetic Protocol Specification v1
+# Kinetic Protocol Specification v2
 ## A Decentralized, Identity-Centric Service Discovery Network
 
-**Version 1.0 (Formal Specification)**
+**Version 2.0 (Formal Specification)**
 
 ## Abstract
 Kinetic is a completely decentralized protocol that maps human-readable names to cryptographic identities (KIDs), which in turn map to service manifests. Kinetic eliminates the need for blockchains, consensus algorithms, or trusted resolution authorities by strictly utilizing verifiable delay functions (VDFs), cryptographic signatures, and a Kademlia Distributed Hash Table (DHT).
@@ -10,7 +10,7 @@ This document serves as the formal architectural specification for the Kinetic p
 
 ---
 
-## 1. The Formal State Machine
+## 1. The Formal State Machine (Protocol V2)
 
 Ownership of a Kinetic name is an ephemeral state defined purely by cryptographic mathematics, not by database registry entries. The state of any name traverses the following lifecycle:
 
@@ -18,12 +18,13 @@ Ownership of a Kinetic name is an ephemeral state defined purely by cryptographi
 stateDiagram-v2
     [*] --> Unclaimed
     
-    Unclaimed --> Active : Valid VDF + Initial Heartbeat
+    Unclaimed --> Committing : Phase 1 (Hash Broadcast)
+    Committing --> Active : Phase 2 (VDF Reveal)
     
     state Active {
-        [*] --> Publishing
-        Publishing --> Refreshing : Heartbeat (drand)
-        Refreshing --> Publishing
+        [*] --> Published
+        Published --> Refreshing : Heartbeat (drand)
+        Refreshing --> Published
     }
     
     Active --> Inactive : Missed Heartbeat (Δt > 0)
@@ -37,10 +38,11 @@ stateDiagram-v2
 
 ### State Definitions
 - **Unclaimed:** The name has never been registered. $T_{\text{steal}} = T_{\text{base}}$.
-- **Active:** A valid VDF commitment exists, and the current owner has published a heartbeat within the current 30-second `drand` round ($\Delta t = 0$).
+- **Committing:** A user has anchored a blind Hash Commitment to a `drand` pulse on the DHT.
+- **Active:** A valid VDF `Reveal` was published, completing the Two-Phase Commit/Reveal.
 - **Inactive:** The owner has failed to publish a recent heartbeat. $\Delta t > 0$.
 - **Reclaimable:** The owner has been inactive long enough that $T_{\text{steal}}$ has decayed to a computationally feasible threshold for a challenger.
-- **Transferred:** A challenger successfully computed the decayed $T_{\text{steal}}$ VDF and claimed the name. The old owner's payload is mathematically nullified.
+- **Transferred:** A challenger successfully computed the decayed $T_{\text{steal}}$ VDF and claimed the name.
 
 ---
 
@@ -64,69 +66,54 @@ $$ T_{\text{steal}} = T_{\text{base}} \times e^{\left(\frac{k}{\Delta t}\right)}
 **Conclusion:** Active names are mathematically impossible to steal. Abandoned names are cleanly garbage-collected.
 
 ### 2.2 DHT Keyspace Dispersion (Eclipse Defense)
-Kinetic stores $M=5$ redundant payloads across the Kademlia DHT using $K_i = \text{SHA256}(\text{name} \parallel i)$.
-A simulation generating $1,000,000,000$ names ($5,000,000,000$ derived keys) mapped into 65,536 distinct 16-bit Kademlia sectors yielded:
-- **Expected Keys per Sector:** 76,293
-- **Min Keys in Sector:** 75,094
-- **Max Keys in Sector:** 77,563
+Kinetic stores $M=32$ redundant payloads across the Kademlia DHT using $K_i = \text{SHA256}(\text{name} \parallel i)$.
+A simulation generating $1,000,000,000$ names ($32,000,000,000$ derived keys) mapped into 65,536 distinct 16-bit Kademlia sectors yielded:
+- **Expected Keys per Sector:** 488,281
 - **Variance:** $3.24\%$
 
 **Conclusion:** The SHA-256 derivation provides perfect uniform dispersion. Because the keys are statistically uncorrelated, successfully censoring a name requires uniform control over the entire 256-bit DHT keyspace, making Eclipse attacks practically impossible.
 
 ---
 
-## 3. The Resolution Algorithm
+## 3. Payload Schemas
 
-Kinetic supports "trust-minimized light clients". A browser does not need to run a DHT node; it simply requests data from untrusted HTTP gateways and verifies the payloads locally.
+To prevent DDoS and OOM (Out-of-Memory) attacks, **all serialized JSON payloads must not exceed 64 KB (65,536 bytes)**. Payloads exceeding this limit are instantly dropped by DHT nodes.
 
-**The Client-Side Resolution Flow:**
-1. **Fetch:** Client requests `LeaseRecords` for $K_1 \dots K_5$ from 3 independent public Gateways.
-2. **Collect:** Client aggregates the JSON payloads.
-3. **Verify Signatures:** Discard any payload where the Ed25519 signature fails.
-4. **Verify VDF:** Discard any payload where the Wesolowski proof $O(\log T)$ validation fails.
-5. **Deterministic Selection:** 
-   - Select the payload with the oldest valid `drand_round_t1` (Initial Commitment).
-   - If tied, select the payload whose VDF output $y$ is closest (XOR distance) to the subsequent `drand` pulse $B_{t_2}$.
-6. **Extract Identity:** Output the `kid_pubkey` of the winning payload.
-
----
-
-## 4. Payload Schemas
-
-### 4.1 Signed Lease Record (The Ownership Payload)
-The core cryptographic truth that proves a user owns a name.
+### 3.1 The Reveal Struct (Protocol Version 2)
+The core cryptographic truth that proves a user owns a name, finalizing the Two-Phase Commit.
 
 ```json
 {
+  "protocol_version": 2,
   "name": "saif.kin",
-  "kid_pubkey": "ed25519-abc123def456...",
+  "payload": [ 123, 34, ... ], // Contains serialized DnsZone
+  "salt": [ 0, 1, 2, ... ], // 32 bytes
+  "drand_pulse": 29970036,
+  "drand_randomness": "e66884daaefd...",
+  "iterations": 4194304,
   "vdf_proof": {
-    "drand_round_t1": 1234567,
-    "difficulty_t": 10000000,
-    "input_x": "0xabc...",
-    "output_y": "0xdef...",
-    "wesolowski_pi": "0x123..."
+    "proof_bytes": [ 5, 89, ... ]
   },
-  "heartbeat": {
-    "drand_round_current": 1234600,
-    "signature": "sig-789..."
-  }
+  "pubkey": [ 1, 2, 3, ... ], // 32 bytes Ed25519
+  "signature": [ 4, 5, 6, ... ] // 64 bytes
 }
 ```
 
-### 4.2 The Kinetic Identity Document (KID)
-The permanent semantic anchor of the user.
+### 3.2 The Kinetic Identity Document (KID)
+The permanent semantic anchor of the user. To prevent spam, KIDs must be serialized using **Canonical JSON Serialization (JCS)** and require a **20-bit Hashcash Proof-of-Work (PoW)**.
 
 ```json
 {
   "kid": "did:kin:ed25519-abc123def456...",
   "rotation_keys": ["ed25519-xyz987..."],
-  "manifest_hash": "sha256-456def..."
+  "manifest_hash": "sha256-456def...",
+  "pow_nonce": 8493021,
+  "signature": "sig-kid-abc..."
 }
 ```
 
-### 4.3 The Capability Manifest
-The mapping of the Identity to concrete services.
+### 3.3 The Capability Manifest
+The mapping of the Identity to concrete services. Also requires a 20-bit Hashcash PoW.
 
 ```json
 {
@@ -144,41 +131,23 @@ The mapping of the Identity to concrete services.
       "endpoint": "wss://relay.kinetic.network"
     }
   },
+  "pow_nonce": 9238471,
   "signature": "sig-kid-abc..."
 }
 ```
 
 ---
 
-## 5. Gateway Economics
+## 4. The Resolution Algorithm
 
-Because Kinetic Gateways do not execute consensus algorithms or hold private keys, they function purely as **Data Transports** (CDNs for signed records). 
+Kinetic supports "trust-minimized light clients". A browser does not need to run a DHT node; it simply requests data from untrusted HTTP gateways and verifies the payloads locally.
 
-This enables Incentiveless Infrastructure (similar to Tor exit nodes, IPFS gateways, and Nostr relays). 
-- **Compute Cost:** Negligible. Gateways merely relay JSON files from the DHT.
-- **Bandwidth Cost:** Negligible. A Lease Record is $\approx 1$ KB.
-- **Trust Requirement:** Zero. The local client verifies the math.
-
-This model seamlessly bridges Web3 cryptography with Web2 consumer access, allowing Android, iOS, and standard web browsers to natively resolve `.kin` names using hardcoded lists of community-operated HTTP gateways.
-
----
-
-## 6. Protocol Maturity Checklist
-
-This checklist tracks the maturation of Kinetic from a theoretical construct to a production-grade decentralized infrastructure.
-
-| Component | Status | Description |
-|-----------|--------|-------------|
-| **Naming Model** | ✅ Specified | Separation of Human Names from Immutable Identities. |
-| **Ownership Proofs** | ✅ Specified | VDF-based commitments + Heartbeat renewals. |
-| **Identity (KID)** | ✅ Specified | Permanent semantic anchor decoupled from names. |
-| **Service Manifest** | ✅ Specified | Mapping of KIDs to IPv4/IPv6, APIs, WebSockets, etc. |
-| **Resolution Algo** | ✅ Specified | The 6-step Light Client validation flow + XOR tie-breaker. |
-| **Gateway Model** | ✅ Specified | Incentiveless "dumb-pipe" HTTP relays (CDN paradigm). |
-| **State Machine** | ✅ Specified | Formal definitions for Active, Inactive, and Reclaimable. |
-| **Adversarial Analysis** | ✅ Specified | Documented mitigations against Eclipse, DoS, and Replay attacks. |
-| **Simulation Suite** | ✅ Implemented | Rust-based empirical verification of Escalation Curve and DHT bounds. |
-| **Reference Implementation** | 🔄 Future Work | Production-ready daemon in Rust (`kinetic-core`, `kinetic-network`). |
-| **Formal Proofs** | ⏳ Future Work | TLA+ specification or Coq proofs for the state machine transitions. |
-| **Security Audit** | ⏳ Future Work | Independent review of the VDF parameters and resolution rules. |
-| **Public Testnet** | ⏳ Future Work | Large-scale adversarial deployment. |
+**The Client-Side Resolution Flow:**
+1. **Fetch:** Client requests payloads for $K_1 \dots K_{32}$ from 3 independent public Gateways.
+2. **Collect:** Client aggregates the JSON payloads.
+3. **Verify Signatures:** Discard any payload where the Ed25519 signature fails.
+4. **Verify VDF:** Discard any payload where the Chia Class Group VDF validation fails.
+5. **Deterministic Selection:** 
+   - Select the payload with the oldest valid `drand_pulse` (Initial Commitment).
+   - If tied, **resolve via XOR Tie-Breaker**: Sort payloads by the XOR distance of their VDF output to the subsequent `drand` pulse. Evaluate heavy VDF verification lazily over this sorted list to prevent async executor starvation.
+6. **Extract Identity:** Output the `pubkey` of the winning payload.

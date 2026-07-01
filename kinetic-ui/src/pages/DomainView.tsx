@@ -16,12 +16,24 @@ export default function DomainView() {
   const [unsaved, setUnsaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadedRawData, setLoadedRawData] = useState<string>('');
+  const [page, setPage] = useState(0);
+  const RECORDS_PER_PAGE = 100;
+  
+  const totalPages = Math.ceil(records.length / RECORDS_PER_PAGE);
+  const paginatedRecords = records.slice(page * RECORDS_PER_PAGE, (page + 1) * RECORDS_PER_PAGE);
 
   useEffect(() => {
-    fetch(`/api/zone/${name}`)
-      .then(res => res.json())
+    fetch(`/api/zone/${encodeURIComponent(name || '')}`)
+      .then(res => {
+        if (!res.ok) throw new Error(`API returned ${res.status}`);
+        return res.json();
+      })
       .then(data => {
+        if (data.error) throw new Error(data.error);
         if (data.records) {
+          setLoadedRawData(JSON.stringify(data.records));
           const loadedRecords: DnsRecord[] = [];
           Object.entries(data.records).forEach(([recordName, recList]: [string, any]) => {
             recList.forEach((r: any) => {
@@ -40,6 +52,7 @@ export default function DomainView() {
       })
       .catch(e => {
         console.error(e);
+        setLoadError(e.message);
         setLoading(false);
       });
   }, [name]);
@@ -50,7 +63,15 @@ export default function DomainView() {
   };
 
   const handleUpdateRecord = (id: string, field: keyof DnsRecord, value: string) => {
-    setRecords(records.map(r => r.id === id ? { ...r, [field]: value } : r));
+    setRecords(records.map(r => {
+      if (r.id === id) {
+        if (field === 'type' && r.type !== value) {
+          return { ...r, [field]: value, content: '' };
+        }
+        return { ...r, [field]: value };
+      }
+      return r;
+    }));
     setUnsaved(true);
   };
 
@@ -69,16 +90,35 @@ export default function DomainView() {
     });
 
     try {
-      await fetch(`/api/zone/${name}`, {
+      // Edge Case 61: Optimistic Concurrency Check
+      if (loadedRawData) {
+        const currentRes = await fetch(`/api/zone/${encodeURIComponent(name || '')}`);
+        if (currentRes.ok) {
+          const currentData = await currentRes.json();
+          if (currentData.records && JSON.stringify(currentData.records) !== loadedRawData) {
+             const confirmOverwrite = window.confirm("Warning: Another device or process has modified this zone since you loaded it. Saving will overwrite their changes! Are you sure you want to proceed?");
+             if (!confirmOverwrite) {
+                setIsSaving(false);
+                return;
+             }
+          }
+        }
+      }
+
+      const res = await fetch(`/api/zone/${encodeURIComponent(name || '')}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ records: zoneRecords })
       });
-      // We could also call /api/zone/{name}/publish here, but it's not fully implemented yet
-      setUnsaved(false);
-      alert('DNS records saved locally!');
+      const data = await res.json();
+      if (data.error) {
+        alert('Failed to publish records: ' + data.error);
+      } else {
+        setUnsaved(false);
+        alert('DNS records saved and published to the network!');
+      }
     } catch (e) {
-      alert('Failed to save records');
+      alert('Failed to save records. Check daemon connection.');
     }
     setIsSaving(false);
   };
@@ -109,6 +149,10 @@ export default function DomainView() {
         <div className="table-container">
           {loading ? (
             <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>
+          ) : loadError ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger-red)' }}>
+              Error loading DNS records: {loadError}. Please check daemon connection.
+            </div>
           ) : (
             <table>
               <thead>
@@ -121,7 +165,7 @@ export default function DomainView() {
                 </tr>
               </thead>
               <tbody>
-                {records.map(record => (
+                {paginatedRecords.map(record => (
                   <tr key={record.id}>
                     <td>
                       <select 
@@ -164,6 +208,13 @@ export default function DomainView() {
             </table>
           )}
         </div>
+        {!loading && !loadError && totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem', gap: '1rem', alignItems: 'center' }}>
+            <button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
+            <span>Page {page + 1} of {totalPages}</span>
+            <button className="btn" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</button>
+          </div>
+        )}
       </div>
 
       {unsaved && (

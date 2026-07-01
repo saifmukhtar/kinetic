@@ -4,7 +4,7 @@ import { Globe, Plus, ShieldCheck } from 'lucide-react';
 
 interface Domain {
   name: string;
-  status: 'active' | 'hibernating';
+  status: 'active' | 'hibernating' | 'checking';
   expires_in: string;
 }
 
@@ -15,16 +15,34 @@ export default function Dashboard() {
   useEffect(() => {
     fetch('/api/owned-names')
       .then(res => res.json())
-      .then(data => {
-        // data is an array of strings e.g. ["saif.kin", "test.kin"]
-        // Map it to our frontend format
+      .then(async data => {
         const formatted = data.map((name: string) => ({
           name,
-          status: 'active',
-          expires_in: 'Auto-renewing (Daemon Active)'
+          status: 'checking',
+          expires_in: 'Checking DHT network status...'
         }));
         setDomains(formatted);
         setLoading(false);
+
+        // Verify each domain on the network
+        for (const name of data) {
+          try {
+            const res = await fetch(`/api/resolve/${encodeURIComponent(name)}`);
+            const resolveData = await res.json();
+            setDomains(prev => prev.map(d => {
+              if (d.name === name) {
+                if (resolveData.error) {
+                  return { ...d, status: 'hibernating', expires_in: 'Offline / Expired on DHT' };
+                } else {
+                  return { ...d, status: 'active', expires_in: 'Auto-renewing (Daemon Active)' };
+                }
+              }
+              return d;
+            }));
+          } catch (e) {
+            setDomains(prev => prev.map(d => d.name === name ? { ...d, status: 'hibernating', expires_in: 'Failed to verify' } : d));
+          }
+        }
       })
       .catch(err => {
         console.error("Failed to fetch owned domains", err);
@@ -50,14 +68,16 @@ export default function Dashboard() {
           <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem' }}>Loading domains...</div>
         ) : domains.length > 0 ? (
           domains.map(d => (
-            <Link to={`/domain/${d.name}`} key={d.name} style={{ color: 'inherit' }}>
+            <Link to={`/domain/${encodeURIComponent(d.name)}`} key={d.name} style={{ color: 'inherit' }}>
               <div className="card">
                 <div className="card-header">
                   <h3 className="card-title">{d.name}</h3>
                   {d.status === 'active' ? (
                     <span className="badge badge-success">Active</span>
-                  ) : (
+                  ) : d.status === 'hibernating' ? (
                     <span className="badge badge-warning">Hibernating</span>
+                  ) : (
+                    <span className="badge" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>Checking...</span>
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>

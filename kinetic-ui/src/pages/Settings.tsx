@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Eye, EyeOff } from 'lucide-react';
 
 export default function Settings() {
   const [config, setConfig] = useState<any>(null);
   const [networkMode, setNetworkMode] = useState('FullNode');
+  const [token, setToken] = useState(localStorage.getItem('kinetic_auth_token') || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     fetch('/api/config')
@@ -12,12 +14,17 @@ export default function Settings() {
       .then(data => {
         setConfig(data);
         if (data.mode) setNetworkMode(data.mode);
+        if (data.token && !localStorage.getItem('kinetic_auth_token')) {
+          setToken(data.token);
+          localStorage.setItem('kinetic_auth_token', data.token);
+        }
       })
       .catch(console.error);
   }, []);
 
   const handleSave = async () => {
     setIsSaving(true);
+    localStorage.setItem('kinetic_auth_token', token);
     try {
       const res = await fetch('/api/config', {
         method: 'POST',
@@ -55,14 +62,23 @@ export default function Settings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.875rem', color: '#888', marginBottom: '0.5rem' }}>API Token (Bearer)</label>
-              <input 
-                type="text" 
-                className="input-field" 
-                value={config.token || ''} 
-                readOnly 
-                style={{ width: '100%', fontFamily: 'monospace' }} 
-              />
-              <p style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem' }}>This token is required to authenticate against the local Daemon REST API.</p>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input 
+                  type={showToken ? 'text' : 'password'} 
+                  className="input-field" 
+                  value={token} 
+                  onChange={e => setToken(e.target.value)}
+                  style={{ width: '100%', fontFamily: 'monospace', paddingRight: '40px' }} 
+                />
+                <button 
+                  onClick={() => setShowToken(!showToken)}
+                  style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: '#888', cursor: 'pointer', display: 'flex' }}
+                  title={showToken ? "Hide Token" : "Show Token"}
+                >
+                  {showToken ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem' }}>This token is required to authenticate against the local Daemon REST API. Saved locally in your browser.</p>
             </div>
 
 

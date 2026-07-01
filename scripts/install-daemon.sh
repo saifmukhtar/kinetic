@@ -25,11 +25,6 @@ rm -f /usr/local/bin/kinetic-cli
 rm -f /usr/local/bin/kinetic-node
 systemctl daemon-reload
 
-echo "Wiping existing local data and configurations..."
-rm -rf "$USER_HOME/.config/kinetic"
-rm -rf "$USER_HOME/.local/share/kinetic"
-rm -rf "/root/.config/kinetic"
-rm -rf "/root/.local/share/kinetic"
 
 echo "Copying newly compiled binaries to /usr/local/bin..."
 # Assuming we are in the source directory where `cargo build --release` was run

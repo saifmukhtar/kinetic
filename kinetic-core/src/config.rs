@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KineticConfig {
@@ -41,6 +41,8 @@ pub struct P2pConfig {
     pub seed_domains: Vec<String>,
     #[serde(default)]
     pub enable_mdns: bool,
+    #[serde(default)]
+    pub external_address: Option<String>,
 }
 
 impl Default for KineticConfig {
@@ -62,14 +64,15 @@ impl Default for KineticConfig {
             network: P2pConfig {
                 p2p_port: 6070,
                 bootstrap_nodes: vec![
-                    "/ip4/18.209.46.127/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs".to_string(),
-                    "/ip4/35.172.227.109/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D".to_string(),
-                    "/ip4/52.87.221.199/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc".to_string(),
+                    "/ip4/44.219.188.204/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs".to_string(),
+                    "/ip4/44.219.155.172/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D".to_string(),
+                    "/ip4/100.60.156.241/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc".to_string(),
                 ],
                 seed_domains: vec![
                     "seed.saifmukhtar.dev".to_string(),
                 ],
                 enable_mdns: true,
+                external_address: None,
             },
         }
     }
@@ -106,7 +109,6 @@ impl KineticConfig {
             default_cfg
         };
 
-
         config
     }
 
@@ -119,18 +121,18 @@ impl KineticConfig {
                     .join("kinetic")
                     .join("config.toml")
             });
-        
+
         if let Some(parent) = config_path.parent() {
             let _ = fs::create_dir_all(parent);
         }
-        
+
         let toml_str = toml::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         fs::write(&config_path, toml_str)
     }
 }
 
-/// A globally secure check for Dev Mode. 
+/// A globally secure check for Dev Mode.
 /// It mathematically guarantees that Dev Mode cannot be activated in release builds.
 pub fn is_dev_mode() -> bool {
     cfg!(debug_assertions) && std::env::var("KINETIC_DEV_MODE").is_ok()

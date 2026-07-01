@@ -11,7 +11,7 @@ Together, these three components construct a cryptographic sequence that perfect
 
 ---
 
-## 1. Verifiable Delay Functions: The Mathematics of Patience
+## 1. Securing Names with Verifiable Delay Functions (VDFs)
 
 If the Kinetic Protocol relies on computational friction to prevent mass squatting, why not use standard Proof of Work (PoW) hashes, like Bitcoin's SHA-256?
 
@@ -58,7 +58,7 @@ To render sniper bots completely blind, Kinetic mandates a **Sequential VDF Link
 
 ---
 
-## 3. The Commit-Reveal Pipeline
+## 3. The Commit-Reveal Pipeline for Sybil Attack Prevention
 
 To claim a name, a Kinetic user must complete a three-phase cryptographic lifecycle that mathematically proves they committed to the name *before* the network ever saw it in plaintext.
 

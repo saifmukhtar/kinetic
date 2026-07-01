@@ -1,16 +1,16 @@
 use anyhow::Result;
-use tracing::{info, warn, Level};
-use tracing_subscriber::FmtSubscriber;
-use std::sync::Arc;
-use tokio::sync::watch;
 use axum::{routing::get, Router};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::watch;
+use tracing::{info, warn, Level};
+use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
+use kinetic_core::drand::{DrandClient, DrandPulse};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
-use kinetic_core::drand::{DrandClient, DrandPulse};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -20,19 +20,22 @@ async fn main() -> Result<()> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let storage_path = config.daemon.storage_dir.to_str().unwrap_or("/tmp/kinetic_db");
+    let storage_path = config
+        .daemon
+        .storage_dir
+        .to_str()
+        .unwrap_or("/tmp/kinetic_db");
     let storage = Arc::new(SledStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
     let drand_client = Arc::new(DrandClient::new(storage.clone()));
-    
+
     let initial_pulse = match drand_client.fetch_latest().await {
         Ok(pulse) => {
             info!("Drand beacon connected — pulse #{}", pulse.round);
@@ -43,7 +46,7 @@ async fn main() -> Result<()> {
             DrandPulse::unavailable()
         }
     };
-    
+
     let initial_drand_pulse = initial_pulse.round;
     let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
 
@@ -65,22 +68,32 @@ async fn main() -> Result<()> {
         tracing::info!("Generated new static infrastructure identity");
         k
     };
-    
+
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
-    tracing::info!("Infrastructure Node starting with Static Peer ID: {}", local_peer_id);
+    tracing::info!(
+        "Infrastructure Node starting with Static Peer ID: {}",
+        local_peer_id
+    );
 
     // 5. Initialize P2P Network (FullNode mode, no mDNS by default for cloud)
-    let network_config = NetworkConfig { 
+    let network_config = NetworkConfig {
         mode: NetworkMode::FullNode,
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.p2p_port),
         bootstrap_nodes: config.network.bootstrap_nodes.clone(),
         seed_domains: config.network.seed_domains.clone(),
         enable_mdns: false, // Cloud infrastructure nodes don't need local mDNS
         initial_drand_pulse,
+        external_address: config.network.external_address.clone(),
     };
-    
+
     let (incoming_tx, _incoming_rx) = tokio::sync::mpsc::channel(32);
-    let (_network_client, mut network_loop) = NetworkEventLoop::new(network_config, local_key, storage.clone(), drand_pulse_rx, Some(incoming_tx))?;
+    let (_network_client, network_loop) = NetworkEventLoop::new(
+        network_config,
+        local_key,
+        storage.clone(),
+        drand_pulse_rx,
+        Some(incoming_tx),
+    )?;
     tokio::spawn(async move {
         network_loop.run().await;
         tracing::warn!("Network loop exited");
@@ -104,11 +117,17 @@ async fn main() -> Result<()> {
     // 7. Start Health-check API (Port 16003)
     let app = Router::new()
         .route("/health", get(|| async { "OK" }))
-        .route("/peer_id", get(move || async move { local_peer_id.to_string() }));
+        .route(
+            "/peer_id",
+            get(move || async move { local_peer_id.to_string() }),
+        );
 
     let api_port = 16003;
     let addr = SocketAddr::from(([0, 0, 0, 0], api_port));
-    info!("Node Health-check API listening on http://0.0.0.0:{}", api_port);
+    info!(
+        "Node Health-check API listening on http://0.0.0.0:{}",
+        api_port
+    );
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 

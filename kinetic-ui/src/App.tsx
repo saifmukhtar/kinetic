@@ -9,6 +9,7 @@ import DomainView from './pages/DomainView';
 import NetworkStatus from './pages/NetworkStatus';
 import Watchtowers from './pages/Watchtowers';
 import SettingsView from './pages/Settings';
+import { ErrorBoundary } from './ErrorBoundary';
 
 function App() {
   return (
@@ -62,22 +63,24 @@ function App() {
 
         {/* Main Content */}
         <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/register" element={<Registration />} />
-            <Route path="/domain/:name" element={<DomainView />} />
-            <Route path="/network" element={<NetworkStatus />} />
-            <Route path="/watchtowers" element={<Watchtowers />} />
-            <Route path="/settings" element={<SettingsView />} />
-            {/* Fallbacks */}
-            <Route path="*" element={
-              <div>
-                <h1>Coming Soon</h1>
-                <p className="subtitle">This page is under construction.</p>
-              </div>
-            } />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/register" element={<Registration />} />
+              <Route path="/domain/:name" element={<DomainView />} />
+              <Route path="/network" element={<NetworkStatus />} />
+              <Route path="/watchtowers" element={<Watchtowers />} />
+              <Route path="/settings" element={<SettingsView />} />
+              {/* Fallbacks */}
+              <Route path="*" element={
+                <div>
+                  <h1>Coming Soon</h1>
+                  <p className="subtitle">This page is under construction.</p>
+                </div>
+              } />
+            </Routes>
+          </ErrorBoundary>
         </main>
       </div>
     </Router>

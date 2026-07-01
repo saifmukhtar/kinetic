@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Instant;
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
 use rcgen::{
     BasicConstraints, Certificate, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair,
 };
 use rustls::ServerConfig;
+use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Instant;
 use time::{Duration, OffsetDateTime};
 
 #[derive(Debug, thiserror::Error)]
@@ -29,45 +29,92 @@ pub struct RootCa {
 pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaError> {
     let cert_path = config_dir.join("ca_cert.pem");
     let key_path = config_dir.join("ca_key.pem");
+    let lock_path = config_dir.join(".ca.lock");
 
-    if cert_path.exists() && key_path.exists() {
-        let cert_pem = std::fs::read_to_string(&cert_path)?;
-        let key_pem = std::fs::read_to_string(&key_path)?;
-        let key_pair = KeyPair::from_pem(&key_pem)?;
-        let params = CertificateParams::from_ca_cert_pem(&cert_pem)?;
+    let mut retries = 0;
+    loop {
+        // Try to acquire lock
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lock_path)
+        {
+            Ok(_) => break, // Acquired lock!
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                retries += 1;
+                if retries > 100 {
+                    // Stale lock file, force remove it
+                    let _ = std::fs::remove_file(&lock_path);
+                } else {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+            }
+            Err(e) => return Err(CaError::Io(e)),
+        }
+    }
+
+    // Wrap the rest in a closure to ensure we delete the lock file on return/error
+    let result = (|| -> Result<(RootCa, bool), CaError> {
+        if cert_path.exists() && key_path.exists() {
+            let cert_pem = std::fs::read_to_string(&cert_path)?;
+            let key_pem = std::fs::read_to_string(&key_path)?;
+            let key_pair = KeyPair::from_pem(&key_pem)?;
+            let params = CertificateParams::from_ca_cert_pem(&cert_pem)?;
+            let cert = params.self_signed(&key_pair)?;
+            return Ok((
+                RootCa {
+                    cert_pem,
+                    key_pair,
+                    cert,
+                },
+                false,
+            ));
+        }
+
+        // Generate new CA
+        let mut params = CertificateParams::new(vec![])?;
+        let mut dn = DistinguishedName::new();
+        dn.push(DnType::CommonName, "Kinetic Local Root CA");
+        dn.push(DnType::OrganizationName, "Kinetic Protocol");
+        params.distinguished_name = dn;
+        params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+        params.not_before = OffsetDateTime::now_utc();
+        params.not_after = OffsetDateTime::now_utc() + Duration::days(730); // 2 years
+
+        let key_pair = KeyPair::generate()?;
         let cert = params.self_signed(&key_pair)?;
-        return Ok((RootCa { cert_pem, key_pair, cert }, false));
-    }
+        let cert_pem = cert.pem();
+        let key_pem = key_pair.serialize_pem();
 
-    // Generate new CA
-    let mut params = CertificateParams::new(vec![])?;
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "Kinetic Local Root CA");
-    dn.push(DnType::OrganizationName, "Kinetic Protocol");
-    params.distinguished_name = dn;
-    params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-    params.not_before = OffsetDateTime::now_utc();
-    params.not_after = OffsetDateTime::now_utc() + Duration::days(730); // 2 years
+        std::fs::write(&cert_path, &cert_pem)?;
+        std::fs::write(&key_path, &key_pem)?;
 
-    let key_pair = KeyPair::generate()?;
-    let cert = params.self_signed(&key_pair)?;
-    let cert_pem = cert.pem();
-    let key_pem = key_pair.serialize_pem();
+        #[cfg(unix)]
+        std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o600))?;
+        #[cfg(windows)]
+        {
+            let _ = std::process::Command::new("icacls")
+                .args([
+                    key_path.to_str().unwrap(),
+                    "/inheritance:r",
+                    "/grant:r",
+                    &format!("{}:F", std::env::var("USERNAME").unwrap_or_default()),
+                ])
+                .status();
+        }
 
-    std::fs::write(&cert_path, &cert_pem)?;
-    std::fs::write(&key_path, &key_pem)?;
+        Ok((
+            RootCa {
+                cert_pem,
+                key_pair,
+                cert,
+            },
+            true,
+        ))
+    })();
 
-    #[cfg(unix)]
-    std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o600))?;
-    #[cfg(windows)]
-    {
-        let _ = std::process::Command::new("icacls")
-            .args([key_path.to_str().unwrap(), "/inheritance:r", "/grant:r",
-                   &format!("{}:F", std::env::var("USERNAME").unwrap_or_default())])
-            .status();
-    }
-
-    Ok((RootCa { cert_pem, key_pair, cert }, true))
+    let _ = std::fs::remove_file(&lock_path);
+    result
 }
 
 pub fn generate_leaf_cert(domain: &str, root_ca: &RootCa) -> Result<ServerConfig, CaError> {
@@ -81,25 +128,26 @@ pub fn generate_leaf_cert(domain: &str, root_ca: &RootCa) -> Result<ServerConfig
 
     let key_pair = KeyPair::generate()?;
     let cert = params.signed_by(&key_pair, &root_ca.cert, &root_ca.key_pair)?;
-    
+
     let cert_pem = cert.pem();
     let key_pem = key_pair.serialize_pem();
 
     // Convert to rustls format
     let mut cert_reader = std::io::BufReader::new(cert_pem.as_bytes());
-    let certs: Vec<rustls_pki_types::CertificateDer<'static>> = rustls_pemfile::certs(&mut cert_reader)
-        .collect::<Result<Vec<_>, _>>()?;
+    let certs: Vec<rustls_pki_types::CertificateDer<'static>> =
+        rustls_pemfile::certs(&mut cert_reader).collect::<Result<Vec<_>, _>>()?;
 
     let mut root_cert_reader = std::io::BufReader::new(root_ca.cert_pem.as_bytes());
-    let root_certs: Vec<rustls_pki_types::CertificateDer<'static>> = rustls_pemfile::certs(&mut root_cert_reader)
-        .collect::<Result<Vec<_>, _>>()?;
+    let root_certs: Vec<rustls_pki_types::CertificateDer<'static>> =
+        rustls_pemfile::certs(&mut root_cert_reader).collect::<Result<Vec<_>, _>>()?;
 
     let mut full_chain = certs;
     full_chain.extend(root_certs);
 
     let mut key_reader = std::io::BufReader::new(key_pem.as_bytes());
-    let key = rustls_pemfile::private_key(&mut key_reader)?
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "No private key found"))?;
+    let key = rustls_pemfile::private_key(&mut key_reader)?.ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, "No private key found")
+    })?;
 
     let server_config = ServerConfig::builder()
         .with_no_client_auth()
@@ -115,7 +163,7 @@ pub struct LeafCertCache {
 
 impl LeafCertCache {
     pub fn new() -> Self {
-        Self { 
+        Self {
             entries: HashMap::new(),
             max_entries: 256, // reasonable ceiling
         }
@@ -127,7 +175,7 @@ impl LeafCertCache {
         root_ca: &RootCa,
     ) -> Result<Arc<ServerConfig>, CaError> {
         let now = Instant::now();
-        
+
         if let Some((config, created)) = self.entries.get(domain) {
             if now.duration_since(*created) < std::time::Duration::from_secs(3600) {
                 return Ok(Arc::clone(config));
@@ -137,7 +185,9 @@ impl LeafCertCache {
         // Evict if at capacity before inserting
         if self.entries.len() >= self.max_entries {
             // Remove oldest entry
-            let oldest = self.entries.iter()
+            let oldest = self
+                .entries
+                .iter()
                 .min_by_key(|(_, (_, t))| t)
                 .map(|(k, _)| k.clone());
             if let Some(key) = oldest {
@@ -146,7 +196,8 @@ impl LeafCertCache {
         }
 
         let config = Arc::new(generate_leaf_cert(domain, root_ca)?);
-        self.entries.insert(domain.to_string(), (Arc::clone(&config), now));
+        self.entries
+            .insert(domain.to_string(), (Arc::clone(&config), now));
         Ok(config)
     }
 }

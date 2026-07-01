@@ -9,6 +9,7 @@ Thumbs.db
 # Kinetic AI Agents
 .agents/
 scratch/
+scratch_site/
 
 # Build / Runtime generic
 *.log

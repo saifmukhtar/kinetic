@@ -30,6 +30,12 @@ jobs:
         run: mdbook build
         working-directory: ./docs
         
+      - name: Generate Sitemap
+        run: |
+          chmod +x generate_sitemap.sh
+          ./generate_sitemap.sh
+        working-directory: ./docs
+        
       - name: Setup Pages
         uses: actions/configure-pages@v4
         
