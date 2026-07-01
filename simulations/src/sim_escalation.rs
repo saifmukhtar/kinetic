@@ -18,20 +18,26 @@ fn main() {
         ("1 Year", 8760.0),
     ];
 
-    println!("{:<15} | {:<25} | {:<25}", "Delta T", "T_steal (Iterations)", "Estimated ASIC Time");
+    println!(
+        "{:<15} | {:<25} | {:<25}",
+        "Delta T", "T_steal (Iterations)", "Estimated ASIC Time"
+    );
     println!("{:-<15}-|-{:-<25}-|-{:-<25}", "", "", "");
 
     for (label, hours) in time_points {
         let exponent = k / hours;
         let t_steal = t_base * exponent.exp();
-        
+
         let seconds = t_steal / asic_speed;
         let time_string = format_time(seconds);
 
         if t_steal.is_infinite() {
             println!("{:<15} | {:<25} | {:<25}", label, "Infinity", "Forever");
         } else if t_steal > 1e30 {
-            println!("{:<15} | {:<25.2e} | {:<25}", label, t_steal, "> Age of Universe");
+            println!(
+                "{:<15} | {:<25.2e} | {:<25}",
+                label, t_steal, "> Age of Universe"
+            );
         } else {
             println!("{:<15} | {:<25.2e} | {:<25}", label, t_steal, time_string);
         }

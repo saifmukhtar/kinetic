@@ -50,9 +50,10 @@ Inside `kinetic-network`, the standard `libp2p` Kademlia implementation is augme
 
 When a Kinetic node receives a `PUT` request for a domain, it does not blindly store it. Instead, before a single byte touches the disk or is propagated to other peers, the node executes the following deterministic validation loop:
 
-1. **Format Validation:** Does the payload correctly deserialize into a `Reveal` or `Heartbeat` struct?
-2. **Signature Verification:** Is the Ed25519 signature valid against the embedded public key?
-3. **VDF Mathematical Proof:** Does the Chia VDF proof cleanly verify the commitment hash and the required number of iterations?
+1. **Size Limits:** Does the payload strictly adhere to the **64 KB size limit**? If not, it is instantly dropped to prevent OOM panics.
+2. **Format Validation:** Does the payload correctly deserialize into a `Reveal` or `CommitRequest` struct?
+3. **Signature Verification:** Is the Ed25519 signature valid against the embedded public key?
+4. **VDF Mathematical Proof:** Does the Chia VDF proof cleanly verify the commitment hash and the required number of iterations?
 
 If the payload fails *any* of these checks, the node instantly rejects the record. 
 
@@ -85,14 +86,14 @@ Because Kinetic client-side validation can only verify data it receives, the cli
 
 To definitively neutralize Eclipse attacks without resorting to centralized servers, Kinetic utilizes **Redundant Deterministic Storage**.
 
-Instead of storing the payload at a single key \\(K\\), the registrant's daemon mathematically scatters the exact same signed payload across \\(M\\) independent, uncorrelated locations in the DHT.
+Instead of storing the payload at a single key \\(K\\), the registrant's daemon mathematically scatters the exact same signed payload across \\(M=32\\) independent, uncorrelated locations in the DHT.
 
 The keys are derived using a domain-separated cryptographic hash:
 \\[ K_i = H(\text{"apple.kin"} \parallel i \parallel \text{"kinetic-dht"}), \quad \text{for } i \in \{0, 1, \dots, M-1\} \\]
 
 Because the hash function acts as a random oracle, \\(K_0\\), \\(K_1\\), and \\(K_2\\) are located in completely different, uniformly random sectors of the global Kademlia keyspace.
 
-When an honest user wants to resolve `apple.kin`, their client fires off \\(M\\) parallel Kademlia `GET` queries to all locations simultaneously. It then takes the union of all returned payloads, validates their VDFs, and selects the genuine record.
+When an honest user wants to resolve `apple.kin`, their client fires off parallel Kademlia `GET` queries to all locations simultaneously. It then takes the union of all returned payloads, validates their VDFs, and selects the genuine record.
 
 ### The Probabilistic Impossibility of Eclipsing
 
@@ -101,14 +102,10 @@ Why is this so powerful?
 Let's assume a highly capable attacker controls an astounding **20%** (\\(f = 0.2\\)) of all nodes in the global Kinetic network. 
 The probability of the attacker successfully clustering enough Sybil nodes to eclipse a single key is roughly equal to \\(f\\).
 
-If Kinetic uses \\(M = 5\\) redundant keys, the keys are mathematically independent. The probability that the attacker successfully eclipses all 5 keys simultaneously is:
+With Kinetic Protocol V2 using \\(M = 32\\) redundant keys, the keys are mathematically independent. The probability that the attacker successfully eclipses all 32 keys simultaneously is:
 
-\\[ P(\text{total eclipse}) = f^M = (0.2)^5 = 0.00032 \text{ (or 0.03%)} \\]
+\\[ P(\text{total eclipse}) = f^M = (0.2)^{32} \approx 4.29 \times 10^{-23} \\]
 
-If the client increases \\(M\\) to 10:
-
-\\[ P(\text{total eclipse}) = (0.2)^{10} = 0.0000001024 \text{ (or 0.00001%)} \\]
-
-By simply duplicating a 2-kilobyte payload across a few independent keys, the probability of an Eclipse attack drops from a distinct threat to a statistical impossibility. The marginal bandwidth overhead for the user is practically zero, but the censorship resistance is multiplied exponentially.
+By simply duplicating a small 64KB-limited payload across multiple independent keys, the probability of an Eclipse attack drops from a distinct threat to a statistical impossibility. The marginal bandwidth overhead for the user is low, but the censorship resistance is multiplied exponentially.
 
 Through Competitive Gossip, Hashcash PoW, and Redundant Deterministic Storage, Kinetic transforms the naive Kademlia DHT into an impenetrable fortress of data availability.

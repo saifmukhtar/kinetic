@@ -1,15 +1,18 @@
+use hickory_proto::rr::{Name, RData, Record};
+use hickory_resolver::{
+    config::{ResolverConfig, ResolverOpts},
+    TokioAsyncResolver,
+};
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
-use hickory_resolver::{TokioAsyncResolver, config::{ResolverConfig, ResolverOpts}};
-use hickory_proto::rr::{Record, RData, Name};
-use tracing::{info, warn, error};
 use kinetic_network::NetworkClient;
 use std::str::FromStr;
+use tracing::{error, info, warn};
 
 use moka::future::Cache;
 use moka::Expiry;
-use std::time::{Duration, Instant};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 struct KineticExpiry;
 
@@ -65,14 +68,28 @@ pub struct KineticDnsHandler {
 impl KineticDnsHandler {
     pub fn new(network: NetworkClient) -> Self {
         // Use Cloudflare 1.1.1.1 DoH (DNS-over-HTTPS) for encrypted upstream proxy resolution
-        let resolver = TokioAsyncResolver::tokio(ResolverConfig::cloudflare_https(), ResolverOpts::default());
-        
+        let resolver =
+            TokioAsyncResolver::tokio(ResolverConfig::cloudflare_https(), ResolverOpts::default());
+
         // Initialize moka cache for caching DHT resolves and preventing request stampedes
-        let cache = Cache::builder()
-            .expire_after(KineticExpiry)
-            .build();
-            
-        Self { network, resolver, cache }
+        let cache = Cache::builder().expire_after(KineticExpiry).build();
+
+        Self {
+            network,
+            resolver,
+            cache,
+        }
+    }
+
+    /// Explicitly invalidate the DNS cache for a given apex domain.
+    /// This is called by the daemon after a successful local update to prevent serving stale data.
+    pub async fn invalidate_cache(&self, apex_domain: &str) {
+        let domain_normalized = kinetic_core::types::extract_apex_domain(apex_domain);
+        self.cache.invalidate(&domain_normalized).await;
+        tracing::info!(
+            "Invalidated DNS cache for apex domain: {}",
+            domain_normalized
+        );
     }
 }
 
@@ -88,31 +105,37 @@ impl RequestHandler for KineticDnsHandler {
         let builder = MessageResponseBuilder::from_message_request(request);
         let mut header = *request.header();
         header.set_message_type(hickory_proto::op::MessageType::Response);
-        
+
         let mut clean_name = query_name.to_lowercase();
         if clean_name.ends_with('.') {
             clean_name.pop();
         }
-        
+
         if clean_name.ends_with(".kin") {
             let domain_name = kinetic_core::types::normalize_name(&clean_name);
             let apex_domain = kinetic_core::types::extract_apex_domain(&domain_name);
-            
+
             let network_clone = self.network.clone();
-            
+
             // `try_get_with` provides cache stampede protection natively!
             let apex_domain_clone = apex_domain.clone();
-            let cache_result = self.cache.try_get_with(apex_domain.clone(), async move {
-                // If it's a cache miss, we hit the DHT.
-                info!("Cache miss for apex: {}. Hitting DHT...", apex_domain_clone);
-                // `moka::try_get_with` requires the error type to be cloneable or put in an Arc
-                network_clone.resolve_redundant_payload(&apex_domain_clone).await.map_err(|e| Arc::new(e))
-            }).await;
+            let cache_result = self
+                .cache
+                .try_get_with(apex_domain.clone(), async move {
+                    // If it's a cache miss, we hit the DHT.
+                    info!("Cache miss for apex: {}. Hitting DHT...", apex_domain_clone);
+                    // `moka::try_get_with` requires the error type to be cloneable or put in an Arc
+                    network_clone
+                        .resolve_redundant_payload(&apex_domain_clone)
+                        .await
+                        .map_err(Arc::new)
+                })
+                .await;
 
             match cache_result {
                 Ok(Some(payload_bytes)) => {
                     info!("Successfully resolved .kin from Cache/DHT");
-                    
+
                     // Robustly handle parsing errors to prevent crashes on bad DHT data
                     match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload_bytes) {
                         Ok(reveal) => {
@@ -121,7 +144,9 @@ impl RequestHandler for KineticDnsHandler {
                                     let subdomain = if domain_name == apex_domain {
                                         "@".to_string()
                                     } else {
-                                        let mut sub = domain_name.trim_end_matches(&format!(".{}", apex_domain)).to_string();
+                                        let mut sub = domain_name
+                                            .trim_end_matches(&format!(".{}", apex_domain))
+                                            .to_string();
                                         if sub.ends_with('.') {
                                             sub.pop();
                                         }
@@ -132,14 +157,24 @@ impl RequestHandler for KineticDnsHandler {
                                         }
                                     };
 
-                                    if let Some(records) = zone.records.get(&subdomain) {
+                                    if let Some(records) = zone
+                                        .records
+                                        .get(&subdomain)
+                                        .or_else(|| zone.records.get("*"))
+                                    {
                                         let name = match Name::from_str(&query_name) {
                                             Ok(n) => n,
                                             Err(e) => {
                                                 error!("Invalid query name format: {}", e);
-                                                let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::FormErr);
-                                                let _ = response_handle.send_response(response).await;
-                                                header.set_response_code(hickory_proto::op::ResponseCode::FormErr);
+                                                let response = builder.error_msg(
+                                                    request.header(),
+                                                    hickory_proto::op::ResponseCode::FormErr,
+                                                );
+                                                let _ =
+                                                    response_handle.send_response(response).await;
+                                                header.set_response_code(
+                                                    hickory_proto::op::ResponseCode::FormErr,
+                                                );
                                                 return header.into();
                                             }
                                         };
@@ -148,30 +183,72 @@ impl RequestHandler for KineticDnsHandler {
 
                                         for record in records {
                                             match record {
-                                                kinetic_core::types::DnsRecord::A(ip) if q_type == hickory_proto::rr::RecordType::A => {
-                                                    if let Ok(ipv4) = std::net::Ipv4Addr::from_str(ip) {
-                                                        response_records.push(Record::from_rdata(name.clone(), 60, RData::A(ipv4.into())));
+                                                kinetic_core::types::DnsRecord::A(ip)
+                                                    if q_type
+                                                        == hickory_proto::rr::RecordType::A =>
+                                                {
+                                                    if let Ok(ipv4) =
+                                                        std::net::Ipv4Addr::from_str(ip)
+                                                    {
+                                                        response_records.push(Record::from_rdata(
+                                                            name.clone(),
+                                                            60,
+                                                            RData::A(ipv4.into()),
+                                                        ));
                                                     }
                                                 }
-                                                kinetic_core::types::DnsRecord::AAAA(ip) if q_type == hickory_proto::rr::RecordType::AAAA => {
-                                                    if let Ok(ipv6) = std::net::Ipv6Addr::from_str(ip) {
-                                                        response_records.push(Record::from_rdata(name.clone(), 60, RData::AAAA(ipv6.into())));
+                                                kinetic_core::types::DnsRecord::AAAA(ip)
+                                                    if q_type
+                                                        == hickory_proto::rr::RecordType::AAAA =>
+                                                {
+                                                    if let Ok(ipv6) =
+                                                        std::net::Ipv6Addr::from_str(ip)
+                                                    {
+                                                        response_records.push(Record::from_rdata(
+                                                            name.clone(),
+                                                            60,
+                                                            RData::AAAA(ipv6.into()),
+                                                        ));
                                                     }
                                                 }
-                                                kinetic_core::types::DnsRecord::CNAME(target) if q_type == hickory_proto::rr::RecordType::CNAME => {
+                                                kinetic_core::types::DnsRecord::CNAME(target)
+                                                    if q_type
+                                                        == hickory_proto::rr::RecordType::CNAME =>
+                                                {
                                                     if let Ok(cname) = Name::from_str(target) {
-                                                        response_records.push(Record::from_rdata(name.clone(), 60, RData::CNAME(hickory_proto::rr::rdata::CNAME(cname))));
+                                                        response_records.push(Record::from_rdata(
+                                                            name.clone(),
+                                                            60,
+                                                            RData::CNAME(
+                                                                hickory_proto::rr::rdata::CNAME(
+                                                                    cname,
+                                                                ),
+                                                            ),
+                                                        ));
                                                     }
                                                 }
-                                                kinetic_core::types::DnsRecord::TXT(txt) if q_type == hickory_proto::rr::RecordType::TXT => {
-                                                    response_records.push(Record::from_rdata(name.clone(), 60, RData::TXT(hickory_proto::rr::rdata::TXT::new(vec![txt.clone()]))));
+                                                kinetic_core::types::DnsRecord::TXT(txt)
+                                                    if q_type
+                                                        == hickory_proto::rr::RecordType::TXT =>
+                                                {
+                                                    response_records.push(Record::from_rdata(
+                                                        name.clone(),
+                                                        60,
+                                                        RData::TXT(
+                                                            hickory_proto::rr::rdata::TXT::new(
+                                                                vec![txt.clone()],
+                                                            ),
+                                                        ),
+                                                    ));
                                                 }
                                                 _ => {}
                                             }
                                         }
 
                                         if !response_records.is_empty() {
-                                            header.set_response_code(hickory_proto::op::ResponseCode::NoError);
+                                            header.set_response_code(
+                                                hickory_proto::op::ResponseCode::NoError,
+                                            );
                                             let response = builder.build(
                                                 header,
                                                 response_records.iter(),
@@ -195,35 +272,37 @@ impl RequestHandler for KineticDnsHandler {
                 Ok(None) => warn!("No payload found for .kin query (NXDOMAIN cached)"),
                 Err(e) => {
                     error!("Error resolving .kin query via DHT/Cache: {:?}", e);
-                    let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
+                    let response = builder
+                        .error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
                     let _ = response_handle.send_response(response).await;
                     header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
                     return header.into();
-                },
+                }
             }
-            
+
             // If we fall through here, it means we didn't find any valid records or payload was malformed. NXDOMAIN.
-            let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
+            let response =
+                builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
             let _ = response_handle.send_response(response).await;
             header.set_response_code(hickory_proto::op::ResponseCode::NXDomain);
-            
         } else {
             let name = match Name::from_str(&query_name) {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Failed to parse query name: {}", e);
-                    let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::FormErr);
+                    let response = builder
+                        .error_msg(request.header(), hickory_proto::op::ResponseCode::FormErr);
                     let _ = response_handle.send_response(response).await;
                     header.set_response_code(hickory_proto::op::ResponseCode::FormErr);
                     return header.into();
                 }
             };
-            
+
             match self.resolver.lookup(name, query.query_type()).await {
                 Ok(lookup) => {
                     let records: Vec<Record> = lookup.record_iter().cloned().collect();
                     let response = builder.build(
-                        header.clone(),
+                        header,
                         records.iter(),
                         std::iter::empty(),
                         std::iter::empty(),
@@ -235,7 +314,9 @@ impl RequestHandler for KineticDnsHandler {
                 Err(e) => {
                     warn!("Upstream resolve error: {}", e);
                     let rcode = match e.kind() {
-                        hickory_resolver::error::ResolveErrorKind::NoRecordsFound { .. } => hickory_proto::op::ResponseCode::NXDomain,
+                        hickory_resolver::error::ResolveErrorKind::NoRecordsFound { .. } => {
+                            hickory_proto::op::ResponseCode::NXDomain
+                        }
                         _ => hickory_proto::op::ResponseCode::ServFail,
                     };
                     let response = builder.error_msg(request.header(), rcode);
@@ -245,7 +326,7 @@ impl RequestHandler for KineticDnsHandler {
                 }
             }
         }
-        
+
         header.into()
     }
 }

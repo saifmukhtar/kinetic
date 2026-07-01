@@ -1,6 +1,6 @@
+use crate::error::KidError;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use crate::error::KidError;
 
 /// A strict parser for the `did:kin:<method-specific-id>` identifier.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -14,12 +14,12 @@ impl KineticDid {
         if !id_str.starts_with("did:kin:") {
             return Err(KidError::InvalidDidPrefix);
         }
-        
+
         let method_specific_id = &id_str["did:kin:".len()..];
         if method_specific_id.is_empty() {
             return Err(KidError::InvalidDidFormat);
         }
-        
+
         Ok(KineticDid {
             id: id_str.to_string(),
         })

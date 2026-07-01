@@ -16,6 +16,25 @@ The core problem of any global namespace is mathematically bounded by **Zooko’
 
 For the past three decades, network engineers have attempted to square this triangle. Every attempt has failed to achieve all three without introducing fatal economic or sociological compromises.
 
+## Where to Start? (Choose Your Persona)
+
+Depending on your goals, the Kinetic documentation is structured into three primary paths:
+
+### 1. The Casual Developer & End-User
+If you just want to register a `.kin` domain name and use it for routing, or spin up the Web UI without delving into the math:
+- 🚀 **[Getting Started & Installation](./getting_started.html)**
+- 🌐 **[The Zero-Dollar Gateway (Split-DNS)](./dns_loopback.html)**
+
+### 2. The Protocol Engineer & Cryptographer
+If you are interested in how Kinetic prevents Sybil attacks without a blockchain, and the underlying mathematical proofs:
+- 🔐 **[Securing Names with Verifiable Delay Functions (VDFs)](./cryptography.html)**
+- 🛡️ **[Adversarial Analysis (Red-Team Audit)](./adversarial_analysis.html)**
+
+### 3. The Node Operator & Contributor
+If you want to run a daemon on a server, contribute to the Rust core, or understand the Kademlia DHT networking:
+- 📡 **[Network Architecture & Immunological DHT](./network_architecture.html)**
+- 💻 **[Exhaustive Code Walkthroughs](./code_walkthrough_core.html)**
+
 ---
 
 ## 1. The Legacy Era: ICANN and Absolute Centralization (1980s - Present)

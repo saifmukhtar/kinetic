@@ -1,4 +1,4 @@
-# Chapter 10: Getting Started (Installation & Quickstart)
+# Chapter 11: Getting Started (Installation & Quickstart)
 
 If you have made it through the intense mathematical theory and exhaustive code breakdowns of the previous chapters, you are ready to physically deploy Kinetic. 
 
@@ -33,12 +33,12 @@ brew install cmake gmp
 Clone the repository and compile the workspace in release mode. The VDF grind is highly sensitive to compiler optimizations; running it in debug mode will make domain registrations unbearably slow.
 
 ```bash
-git clone https://github.com/your-org/kinetic.git
+git clone https://github.com/saifmukhtar/kinetic.git
 cd kinetic
 cargo build --release
 ```
 
-This command will compile all five major crates (`kinetic-core`, `kinetic-network`, `kinetic-vdf`, `kinetic-dns`, and `kinetic-storage`), linking the C++ Chia VDF engine via `build.rs`, and finally producing the `kinetic-daemon` and `kinetic-cli` binaries.
+This command will compile all the major crates (`kinetic-core`, `kinetic-network`, `kinetic-vdf`, `kinetic-dns`, and `kinetic-storage`), linking the C++ Chia VDF engine via `build.rs`, and finally producing the `kinetic-daemon` and `kinetic-cli` binaries.
 
 ---
 
@@ -46,8 +46,8 @@ This command will compile all five major crates (`kinetic-core`, `kinetic-networ
 
 The `kinetic-daemon` must run continuously in the background. It serves three critical functions:
 1. Acting as your local Kademlia DHT peer.
-2. Maintaining the passive 60-second Sled Heartbeat loop for your domains.
-3. Intercepting port `53` to provide seamless Split-DNS to your browser.
+2. Intercepting port `53` to provide seamless Split-DNS to your browser.
+3. Serving the embedded **Kinetic UI** via its local Axum HTTP server.
 
 Because binding to port `53` (the standard DNS port) is a privileged operation on Linux and macOS, you **must** run the daemon with `sudo` or administrator privileges.
 
@@ -60,36 +60,61 @@ sudo ./target/release/kinetic-daemon
 
 *Note: In future production releases, the daemon will automatically drop privileges to a restricted `kinetic` user account immediately after binding to port 53, ensuring maximum system security.*
 
-Once running, the daemon will output logs indicating it has connected to the bootstrap DHT swarm, initialized its local Sled database at `/tmp/kinetic_db`, and bound the local REST API to `127.0.0.1:16001`.
+Once running, the daemon will output logs indicating it has connected to the bootstrap DHT swarm, initialized its auto-healing local Sled database, and bound the local REST API to `127.0.0.1:16001`.
 
 ---
 
-## 4. Registering Your First Domain
+## 4. The Kinetic UI Dashboard
 
-With the daemon silently protecting your system and routing traffic in the background, you can now use the `kinetic-cli` to claim territory on the network.
+With the daemon running, the absolute easiest way to manage your domains and network connections is via the bundled **Kinetic UI**. 
+
+The UI is a sleek React SPA served directly out of the daemon's binary memory using `rust-embed`.
+
+Open your browser and navigate to:
+**http://localhost:16001**
+
+From this dashboard, you can:
+- Track DHT node discovery.
+- View real-time Hashcash memory pool workers.
+- Graphically register new domains and watch the VDF progress bar.
+
+---
+
+## 5. Registering Your First Domain (CLI Workflow)
+
+If you prefer the command line over the web UI, you can use the `kinetic-cli` to claim territory on the network. This process uses the new **Two-Phase Commit/Reveal Protocol** to prevent front-running.
 
 Open a separate terminal window. You do *not* need `sudo` for the CLI.
 
-### The Registration Command
-Let's assume you want to register `mywebsite.kin` and point it to a local development server running on `192.168.1.100`.
+### Phase 1: The Commit & Grind
+To register `mywebsite.kin`, simply type:
 
 ```bash
-./target/release/kinetic-cli register mywebsite.kin 192.168.1.100
+./target/release/kinetic-cli register mywebsite.kin
 ```
 
 ### What Happens Next?
-1. The CLI contacts the external Drand beacon to pull down the latest, unpredictable entropy pulse.
-2. It hashes your requested name, the Drand pulse, and your Ed25519 public key into a blind commitment.
-3. It determines the string length of `mywebsite.kin` and calculates the required squatter penalty (e.g., 500,000 VDF iterations).
-4. **The Grind:** The CLI will pause. Your CPU fan may spin up. Depending on your hardware and the required iterations, this could take anywhere from a few seconds to a few minutes.
-5. **The Reveal:** Once the VDF proof is successfully mathematically generated, the CLI signs the payload and posts it to the local daemon via `http://127.0.0.1:16001`.
-6. The daemon saves it to the Sled database and unleashes the payload onto the global Kademlia swarm.
+1. The CLI contacts the external Drand beacon to pull down the latest entropy pulse.
+2. It hashes your requested name, a random salt, the Drand pulse, and your Ed25519 public key into a blind commitment, instantly broadcasting it to the DHT.
+3. **The Grind:** The CLI spins up a system-wide mutex lock (`fs2::FileExt`) and computes the VDF. Your CPU fan may spin up. Depending on the name length, this takes a few seconds to a few hours.
+4. **The Reveal Generation:** Once the VDF proof is generated, the CLI creates a local JSON template and saves your mathematical proof to `~/.config/kinetic/zones/mywebsite.kin.reveal.json`.
+
+### Phase 2: Configuration & Publishing
+Now, open the newly generated `~/.config/kinetic/zones/mywebsite.kin.json` configuration file in a text editor and add the IP address of your web server as an `A` record.
+
+Once you have configured the zone file, publish your records and your cryptographic reveal to the global swarm:
+
+```bash
+./target/release/kinetic-cli publish mywebsite.kin
+```
+
+Your name is instantly live globally!
 
 ---
 
-## 5. Testing the Resolution
+## 6. Testing the Resolution
 
-If the registration was successful, the domain is now globally available. However, because you are running the daemon locally, you can instantly test it without waiting for global DNS propagation.
+Because you are running the daemon locally, you can instantly test it without waiting for global DNS propagation.
 
 ### Testing with `dig`
 Use the standard network utility `dig` to query your local machine on port `53`.
@@ -98,7 +123,7 @@ Use the standard network utility `dig` to query your local machine on port `53`.
 dig @127.0.0.1 mywebsite.kin A
 ```
 
-You should receive an instantaneous response showing an `A` record pointing to `192.168.1.100`.
+You should receive an instantaneous response showing the `A` record you just configured.
 
 ### Testing in the Browser
 Because the daemon has updated your OS loopback, you can bypass the terminal entirely.
@@ -114,7 +139,7 @@ To verify that the daemon hasn't broken your normal internet connection, try pin
 dig @127.0.0.1 github.com A
 ```
 
-The daemon will instantly recognize that `github.com` does not end in `.kin` and forward the request to Cloudflare (`1.1.1.1`) or Google (`8.8.8.8`), returning the standard public IP.
+The daemon uses `hickory_resolver` to instantly recognize that `github.com` does not end in `.kin` and forwards the request to Cloudflare (`1.1.1.1`), returning the standard public IP while strictly dropping malicious SSRF requests to internal interfaces.
 
 ---
 

@@ -8,10 +8,23 @@ The theoretical models outlined in the previous chapters are strictly enforced b
 
 The `kinetic-core` crate acts as the shared dictionary for the entire workspace. It contains the exact structural definitions that must be serialized, signed, and validated by every peer in the network.
 
-### 1.1 The `Reveal` Struct
+### 1.1 The Two-Phase Commit Structs
 
-Located in `kinetic-core/src/types.rs`, the `Reveal` struct is the payload generated after a successful VDF computation. It is the core object passed to the DHT.
+Located in `kinetic-core/src/types.rs`, the ownership lifecycle is governed by two structs: `CommitRequest` and `Reveal`.
 
+#### Phase 1: The Commitment
+```rust
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct CommitRequest {
+    pub name: String,
+    pub salt: [u8; 32],
+    pub drand_pulse: u64,
+    pub pubkey: Vec<u8>,
+}
+```
+This lightweight struct is broadcast instantly. The `salt` ensures that if two users attempt to register the exact same name at the exact same time, their commitment hashes are completely distinct, preventing one from copying the other's VDF.
+
+#### Phase 2: The Reveal
 ```rust
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +35,7 @@ pub struct VdfProof {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Reveal {
+    pub protocol_version: u16,
     pub name: String,
     pub payload: Vec<u8>,
     pub salt: [u8; 32],
@@ -35,32 +49,18 @@ pub struct Reveal {
 ```
 
 #### Line-by-Line Breakdown:
-* **`#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]`**: We use the `serde` framework extensively. Because these structs traverse the network via Kademlia, they must be seamlessly serialized to and from binary (typically via JSON or Bincode depending on the exact network transport layer).
+* **`protocol_version: u16`**: Protocol V2.
 * **`pub name: String`**: The requested domain, strictly normalized to a Fully Qualified Domain Name (FQDN) ending in `.kin.` (e.g., `apple.kin.`).
-* **`pub payload: Vec<u8>`**: The actual routing target. For Phase 1 of Kinetic, this is a UTF-8 encoded string representing an IP address (e.g., `192.168.1.100`). In the future, this can hold an IPFS CID or an Onion address.
-* **`pub salt: [u8; 32]`**: A 32-byte high-entropy array. This ensures that if two users attempt to register the exact same name at the exact same time, their commitment hashes are completely distinct, preventing one from copying the other's VDF.
+* **`pub payload: Vec<u8>`**: The actual routing target (a serialized `DnsZone`). Must fit within the 64KB DHT limit.
 * **`pub drand_pulse` & `pub drand_randomness`**: The exact round number and corresponding entropy fetched from the external Drand beacon. This forms the absolute timestamp of the commitment.
 * **`pub iterations: u64`**: The exact number of VDF iterations (Repeated Squarings) the user claims to have computed. The network nodes will verify if this number matches the length-based minimum requirement.
 * **`pub vdf_proof: VdfProof`**: A wrapper around the raw bytes returned by the Chia VDF engine. This concise proof allows honest nodes to instantly verify the computation in \\(O(\log T)\\) time.
 * **`pub pubkey: Vec<u8>`**: The 32-byte Ed25519 public key of the registrant. 
 * **`pub signature: Vec<u8>`**: The 64-byte Ed25519 signature. Crucially, the signature is calculated over a strictly serialized byte array of *all preceding fields*, ensuring that an attacker cannot alter the IP payload without invalidating the signature.
 
-### 1.2 The `Heartbeat` Struct
+### 1.2 Heartbeats via Rebroadcast
 
-Also located in `kinetic-core/src/types.rs`, the `Heartbeat` is the lightweight payload used to continuously defend a domain against the Grace-Period Escalation Protocol.
-
-```rust
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Heartbeat {
-    pub name: String,
-    pub drand_pulse: u64,
-    pub pubkey: Vec<u8>,
-    pub signature: Vec<u8>,
-}
-```
-
-* **`drand_pulse: u64`**: The heartbeat's proof of current time. When the `kinetic-daemon` background loop wakes up every 60 seconds, it fetches the current pulse. Because Drand pulses are unpredictable, an attacker cannot pre-generate future heartbeats.
-* **`signature: Vec<u8>`**: The signature proves that the person submitting the heartbeat genuinely possesses the original `pubkey` used in the initial `Reveal`. 
+In Protocol V2, there is no separate `Heartbeat` struct. To prove an active lease and defend a name against grace-period escalation, the `kinetic-daemon` simply rebroadcasts the exact `Reveal` struct periodically.
 
 ### 1.3 The Dynamic Difficulty Engine
 
@@ -68,31 +68,25 @@ Inside `kinetic-core/src/types.rs`, the `calculate_required_iterations` function
 
 ```rust
 pub fn calculate_required_iterations(name: &str) -> u64 {
-    // Strip the trailing ".kin." for accurate length calculation
     let base_name = name.trim_end_matches(".kin.");
     let len = base_name.len();
 
-    let base_iterations: u64 = 10_000_000;
+    let base_iterations: u64 = 4_194_304; // Baseline for short names
     
-    // Exponential scale down: base_iterations / (2 ^ length)
-    // Ensures very short names (1-2 chars) are prohibitively difficult
-    // while longer names (5+ chars) are easy.
-    if len <= 1 {
-        base_iterations / 2
-    } else if len >= 20 {
-        // Floor for very long names
-        base_iterations / (1 << 20) 
-    } else {
-        base_iterations / (1 << len)
+    // Minimum 1024 iterations for long names
+    if len >= 10 {
+        return 1024;
     }
+    
+    base_iterations / (1 << (len - 1))
 }
 ```
 
-This simple, deterministic function is identical across every node. If a user registers a 1-character name (`a.kin.`) and submits a `Reveal` with \\(T = 100,000\\) iterations, the honest DHT nodes will run this function, see that 5,000,000 iterations were required, and instantly drop the hostile payload.
+This simple, deterministic function is identical across every node. If a user registers a 1-character name and submits a `Reveal` with too few iterations, the honest DHT nodes instantly drop the hostile payload.
 
 ---
 
-## 2. The FFI Boundary: `kinetic-vdf`
+## 2. The FFI Boundary & Concurrency Control: `kinetic-vdf`
 
 The `kinetic-vdf` crate is perhaps the most computationally intense part of the workspace. It serves as a bridge between the memory-safe Rust architecture and the official `chiavdf` C++ engine.
 
@@ -107,7 +101,27 @@ pub trait VdfEngine {
 }
 ```
 
-### 2.2 The Chia C++ Bindings
+### 2.2 Global Mutex via `fs2`
+
+Because VDF generation is intensely CPU-bound and fundamentally unparallelizable, running two VDF grinds concurrently on the same machine destroys cache locality and causes severe OS scheduler thrashing, doubling the completion time for both.
+
+`kinetic-vdf` solves this using `fs2::FileExt`:
+```rust
+use fs2::FileExt;
+use std::fs::OpenOptions;
+
+// Obtain a cross-process lock before hitting the C++ engine
+let lock_file = OpenOptions::new()
+    .read(true)
+    .write(true)
+    .create(true)
+    .open("/tmp/kinetic_vdf.lock")
+    .unwrap();
+    
+lock_file.lock_exclusive().unwrap(); // Blocks if another VDF is grinding
+```
+
+### 2.3 The Chia C++ Bindings
 
 Inside `kinetic-vdf/src/lib.rs`, the `ChiaVdfEngine` implements this trait using Rust's Foreign Function Interface (FFI). 
 
@@ -155,5 +169,3 @@ impl VdfEngine for ChiaVdfEngine {
 * **`chiavdf::verify_vdf`**: This is where the magic of the VDF lies. When a DHT node receives the proof, it calls this function. Even if `iterations` is 50,000,000 (representing weeks of work), `verify_vdf` returns `true` or `false` in a fraction of a millisecond.
 
 This stark asymmetry between `prove_vdf` and `verify_vdf` is what makes the Immunological DHT possible. Nodes can relentlessly verify millions of proofs with virtually zero CPU overhead, while attackers must burn astronomical amounts of physical time to generate even a single valid proof.
-
-Through `kinetic-core` and `kinetic-vdf`, the protocol defines an unbendable, mathematically strict rulebook that governs every interaction within the network.

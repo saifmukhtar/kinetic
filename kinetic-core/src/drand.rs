@@ -1,17 +1,20 @@
-use serde::{Serialize, Deserialize};
-use std::time::Duration;
-use tracing::warn;
-use std::sync::Arc;
-use crate::traits::StorageEngine;
 use crate::error::KineticError;
+use crate::traits::StorageEngine;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::Duration;
 use thiserror::Error;
+use tracing::warn;
 
-const DRAND_ENDPOINTS: &[&str] = &[
+pub const DRAND_ENDPOINTS: &[&str] = &[
     "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
     "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest", 
     "https://api2.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
     "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
 ];
+
+pub const QUICKNET_GENESIS_TIME: u64 = 1692803367;
+pub const QUICKNET_PERIOD: u64 = 3;
 
 const CACHE_KEY: &str = "drand_last_pulse";
 
@@ -55,14 +58,18 @@ impl DrandPulse {
             is_unavailable: true,
         }
     }
-    
+
     pub fn is_usable_for_registration(&self) -> bool {
         !self.is_unavailable && !self.is_from_cache
     }
-    
+
     pub fn is_usable_for_heartbeat(&self, current_live_round: u64) -> bool {
-        if self.is_unavailable { return false; }
-        if !self.is_from_cache { return true; }
+        if self.is_unavailable {
+            return false;
+        }
+        if !self.is_from_cache {
+            return true;
+        }
         // Cached: only accept if not too stale
         let staleness = current_live_round.saturating_sub(self.round);
         staleness <= MAX_STALE_ROUNDS_FOR_HEARTBEAT
@@ -85,7 +92,7 @@ impl DrandClient {
     pub async fn fetch_latest(&self) -> Result<DrandPulse, DrandError> {
         // Try each endpoint with exponential backoff
         let mut last_error = None;
-        
+
         for endpoint in DRAND_ENDPOINTS {
             match self.fetch_with_backoff(endpoint).await {
                 Ok(mut pulse) => {
@@ -113,7 +120,9 @@ impl DrandClient {
         let max_attempts = 3;
 
         for attempt in 0..max_attempts {
-            match self.http.get(url)
+            match self
+                .http
+                .get(url)
                 .timeout(Duration::from_secs(5))
                 .send()
                 .await
@@ -135,7 +144,7 @@ impl DrandClient {
                 Err(e) => return Err(DrandError::Network(e.to_string())),
             }
         }
-        unreachable!()
+        Err(DrandError::AllEndpointsFailed)
     }
 
     fn cache_pulse(&self, pulse: &DrandPulse) -> Result<(), DrandError> {
@@ -151,7 +160,7 @@ impl DrandClient {
                 return Ok(pulse);
             }
         }
-        
+
         if crate::config::is_dev_mode() {
             tracing::warn!("DEV MODE: Returning mock drand pulse because cache is empty.");
             return Ok(DrandPulse {
@@ -160,6 +169,23 @@ impl DrandClient {
                 is_from_cache: true,
                 is_unavailable: false,
             });
+        }
+
+        // Offline Fallback for Quicknet
+        if let Ok(now) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+            if now.as_secs() > QUICKNET_GENESIS_TIME {
+                let estimated_round = (now.as_secs() - QUICKNET_GENESIS_TIME) / QUICKNET_PERIOD;
+                tracing::warn!(
+                    "No drand cache found. Using offline estimated round: {}",
+                    estimated_round
+                );
+                return Ok(DrandPulse {
+                    round: estimated_round,
+                    randomness: String::new(),
+                    is_from_cache: true,
+                    is_unavailable: false,
+                });
+            }
         }
 
         Err(DrandError::NoCachedPulse)
