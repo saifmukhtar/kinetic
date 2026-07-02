@@ -138,9 +138,9 @@ impl NetworkClient {
         name: &str,
         payload_bytes: Vec<u8>,
     ) -> std::result::Result<(), PublishError> {
-        if payload_bytes.len() > 2000 {
+        if payload_bytes.len() > 8000 {
             return Err(PublishError::Internal {
-                message: format!("Payload size ({} bytes) exceeds the 2000-byte P2P network limit. Please compress or link to external storage.", payload_bytes.len()),
+                message: format!("Payload size ({} bytes) exceeds the 8000-byte P2P network limit. Please compress or link to external storage.", payload_bytes.len()),
                 source: None,
             });
         }

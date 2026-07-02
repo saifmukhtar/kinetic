@@ -27,13 +27,9 @@ async fn main() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let storage_path = config
-        .daemon
-        .storage_dir
-        .to_str()
-        .unwrap_or("/tmp/kinetic_db");
-    let storage = Arc::new(SledStorage::new(storage_path)?);
-    info!("Storage engine initialized at {}", storage_path);
+    let storage_path = dirs::config_dir().unwrap().join("kinetic/host_db");
+    let storage = Arc::new(SledStorage::new(storage_path.to_str().unwrap())?);
+    info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
     let drand_client = Arc::new(DrandClient::new(Some(storage.clone())));
@@ -129,31 +125,41 @@ async fn main() -> Result<()> {
     let publisher_client = network_client.clone();
     let publisher_host_key = host_key.clone();
     
-    // Publish immediately on startup
-    {
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut record = kinetic_core::types::HostRoutingRecord {
-            host_id: host_peer_id.to_string(),
-            current_peer_id: local_peer_id.to_string(),
-            timestamp,
-            signature: vec![],
-        };
-        if let Ok(sig) = publisher_host_key.sign(&record.signable_bytes()) {
-            record.signature = sig;
-            tokio::spawn(async move {
-                // Wait for DHT to populate
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                if let Err(e) = publisher_client.publish_host_routing_record(record).await {
-                    tracing::warn!("Failed to publish Host Routing Record: {}", e);
-                } else {
-                    tracing::info!("Published dynamic Host Routing Record to DHT");
-                }
-            });
+    let local_peer_id_str = local_peer_id.to_string();
+    let host_peer_id_str = host_peer_id.to_string();
+    
+    // Publish HostRoutingRecord periodically to ensure it stays alive and propagates
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        let ed_bytes = publisher_host_key.try_into_ed25519().unwrap().to_bytes();
+        let dalek_kp = ed25519_dalek::SigningKey::try_from(&ed_bytes[0..32]).unwrap();
+        
+        loop {
+            interval.tick().await;
+            
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            let mut record = kinetic_core::types::HostRoutingRecord {
+                host_id: host_peer_id_str.clone(),
+                current_peer_id: local_peer_id_str.clone(),
+                timestamp,
+                signature: vec![],
+            };
+            
+            use ed25519_dalek::Signer;
+            let signature = dalek_kp.sign(&record.signable_bytes());
+            record.signature = signature.to_bytes().to_vec();
+            
+            if let Err(e) = publisher_client.publish_host_routing_record(record).await {
+                tracing::warn!("Failed to publish HostRoutingRecord: {}", e);
+            } else {
+                tracing::info!("Published dynamic HostRoutingRecord to DHT");
+            }
         }
-    }
+    });
 
     let hb_local_peer_id = local_peer_id;
     tokio::spawn(async move {

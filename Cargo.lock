@@ -2441,6 +2441,7 @@ dependencies = [
  "axum",
  "bytes",
  "dirs",
+ "ed25519-dalek",
  "hex",
  "http 1.4.2",
  "http-body-util",

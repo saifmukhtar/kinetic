@@ -56,6 +56,47 @@ struct PendingQuorum {
     match_count: usize,
 }
 
+fn is_routable_multiaddr(addr: &libp2p::Multiaddr) -> bool {
+    if kinetic_core::config::is_dev_mode() {
+        return true;
+    }
+
+    use libp2p::multiaddr::Protocol;
+    for protocol in addr.iter() {
+        match protocol {
+            Protocol::Ip4(ip) => {
+                if ip.is_private()
+                    || ip.is_loopback()
+                    || ip.is_link_local()
+                    || ip.is_unspecified()
+                    || ip.is_broadcast()
+                    || ip.is_documentation()
+                {
+                    return false;
+                }
+            }
+            Protocol::Ip6(ip) => {
+                if ip.is_loopback() || ip.is_unspecified() {
+                    return false;
+                }
+                // Check if ULA (Unique Local Address) fc00::/7
+                if ip.segments()[0] & 0xfe00 == 0xfc00 {
+                    return false;
+                }
+                // Check if link-local fe80::/10
+                if ip.segments()[0] & 0xffc0 == 0xfe80 {
+                    return false;
+                }
+            }
+            Protocol::Memory(_) => {
+                return false;
+            }
+            _ => {}
+        }
+    }
+    true
+}
+
 impl NetworkEventLoop {
     pub fn new(
         config: NetworkConfig,
@@ -762,6 +803,10 @@ impl NetworkEventLoop {
 
                 if pow_valid || is_bootstrap {
                     for addr in info.listen_addrs {
+                        if !is_routable_multiaddr(&addr) {
+                            tracing::debug!("Ignoring unroutable/private address {:?} from peer {:?}", addr, peer_id);
+                            continue;
+                        }
                         tracing::info!("Adding peer {:?} addr {:?} to Kademlia", peer_id, addr);
                         self.swarm
                             .behaviour_mut()
@@ -788,10 +833,12 @@ impl NetworkEventLoop {
                     );
 
                     if pow_valid || is_bootstrap {
-                        self.swarm
-                            .behaviour_mut()
-                            .kademlia
-                            .add_address(&peer_id, multiaddr);
+                        if is_routable_multiaddr(&multiaddr) {
+                            self.swarm
+                                .behaviour_mut()
+                                .kademlia
+                                .add_address(&peer_id, multiaddr);
+                        }
                     }
                 }
             }

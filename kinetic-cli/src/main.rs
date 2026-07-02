@@ -248,7 +248,8 @@ async fn main() -> anyhow::Result<()> {
                     let _ = write!(&mut hex_hash, "{:02x}", byte);
                 }
                 
-                let did = kinetic_kid::did::KineticDid::new(&hex_hash).unwrap();
+                let did_string = format!("did:kin:{}", hex_hash);
+                let did = kinetic_kid::did::KineticDid::new(&did_string).unwrap();
                 let controller_key = kinetic_kid::document::ControllerKey {
                     id: format!("{}#key-1", did.as_str()),
                     key_type: "Ed25519".to_string(),
