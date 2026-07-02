@@ -68,49 +68,6 @@ enum IdentityCommands {
     },
 }
 
-#[derive(serde::Deserialize)]
-struct DrandResponse {
-    round: u64,
-    randomness: String,
-}
-
-async fn fetch_drand_resilient(client: &reqwest::Client) -> Result<DrandResponse, anyhow::Error> {
-    let endpoints = kinetic_core::drand::DRAND_ENDPOINTS;
-
-    let mut last_err = None;
-    for &url in endpoints.iter() {
-        match client.get(url).timeout(Duration::from_secs(5)).send().await {
-            Ok(resp) if resp.status().is_success() => {
-                return Ok(resp.json::<DrandResponse>().await?);
-            }
-            Ok(resp) => {
-                last_err = Some(anyhow::anyhow!("HTTP Error: {}", resp.status()));
-            }
-            Err(e) => {
-                last_err = Some(e.into());
-            }
-        }
-    }
-
-    // Offline fallback for Quicknet
-    if let Ok(now) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
-        if now.as_secs() > kinetic_core::drand::QUICKNET_GENESIS_TIME {
-            let estimated_round = (now.as_secs() - kinetic_core::drand::QUICKNET_GENESIS_TIME)
-                / kinetic_core::drand::QUICKNET_PERIOD;
-            tracing::warn!(
-                "All Drand endpoints unreachable! Using offline estimated round: {}",
-                estimated_round
-            );
-            return Ok(DrandResponse {
-                round: estimated_round,
-                randomness: String::new(),
-            });
-        }
-    }
-
-    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("All drand endpoints failed")))
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
@@ -120,6 +77,7 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     let config = KineticConfig::load();
+    let client = build_client(30)?;
 
     match cli.command {
         Commands::Register { name, iterations } => {
@@ -132,8 +90,8 @@ async fn main() -> anyhow::Result<()> {
 
             // 1. Fetch latest Drand beacon
             info!("Fetching latest Drand entropy beacon...");
-            let client = build_client(30)?;
-            let drand_data = fetch_drand_resilient(&client).await?;
+            let drand_client = kinetic_core::drand::DrandClient::new(None);
+            let drand_data = drand_client.fetch_latest().await?;
             info!(
                 "Successfully fetched Drand round {}. Randomness: {}",
                 drand_data.round, drand_data.randomness
@@ -179,11 +137,11 @@ async fn main() -> anyhow::Result<()> {
                 .send()
                 .await?;
             if !commit_res.status().is_success() {
+                let status = commit_res.status();
                 let err_text = commit_res.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!(
-                    "Failed to broadcast commitment: {}",
-                    err_text
-                ));
+                let msg =
+                    parse_and_format_api_error("Failed to broadcast commitment", status, &err_text);
+                return Err(anyhow::anyhow!("{}", msg));
             }
             info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
 
@@ -240,8 +198,97 @@ async fn main() -> anyhow::Result<()> {
             info!("VDF Proof successfully generated!");
             info!("Proof: {}", hex::encode(&proof.proof_bytes));
 
-            // 3. Construct and Sign the empty Reveal tuple (Blank Zone)
-            let records = std::collections::HashMap::new();
+            // 3. Construct the DnsZone and auto-generate/inherit KID
+            let mut records = std::collections::HashMap::new();
+            
+            // Check if this is a subdomain
+            let parts: Vec<&str> = fqdn.split('.').collect();
+            let base_name = if parts.len() >= 3 && fqdn.ends_with(".kin") {
+                format!("{}.kin", parts[parts.len() - 2])
+            } else {
+                fqdn.clone()
+            };
+
+            let kid_dir = dirs::config_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("kinetic")
+                .join("kids");
+            std::fs::create_dir_all(&kid_dir).unwrap_or_default();
+
+            let base_kid_path = kid_dir.join(format!("{}.json", base_name));
+            let kid_str = if base_kid_path.exists() {
+                // Subdomain inheriting base KID, or renewing base name
+                if let Ok(content) = std::fs::read_to_string(&base_kid_path) {
+                    if let Ok(doc) = serde_json::from_str::<kinetic_kid::document::KidDocument>(&content) {
+                        doc.kid.as_str().to_string()
+                    } else {
+                        "".to_string()
+                    }
+                } else {
+                    "".to_string()
+                }
+            } else {
+                "".to_string()
+            };
+
+            let final_kid_str = if kid_str.is_empty() {
+                // Generate a new KID for this new base name
+                use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+                let kid_keypair = ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng);
+                let pk_bytes = kid_keypair.verifying_key().to_bytes();
+                let pk_b64 = b64_url.encode(pk_bytes);
+                
+                use sha2::Digest;
+                let mut hasher = sha2::Sha256::new();
+                hasher.update(&pk_bytes);
+                let hash = hasher.finalize();
+                let mut hex_hash = String::new();
+                for byte in hash {
+                    use std::fmt::Write;
+                    let _ = write!(&mut hex_hash, "{:02x}", byte);
+                }
+                
+                let did = kinetic_kid::did::KineticDid::new(&hex_hash).unwrap();
+                let controller_key = kinetic_kid::document::ControllerKey {
+                    id: format!("{}#key-1", did.as_str()),
+                    key_type: "Ed25519".to_string(),
+                    public_key: pk_b64,
+                };
+                
+                let mut doc = kinetic_kid::document::KidDocument {
+                    doc_type: "kinetic.kid.v1".to_string(),
+                    kid: did.clone(),
+                    created_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                    pow_nonce: 0,
+                    controller_keys: vec![controller_key],
+                    manifest: None,
+                    revocation_keys: vec![],
+                    signature: None,
+                };
+                
+                doc.mine_pow();
+                let signed_doc = doc.sign(&kid_keypair).unwrap();
+                
+                // Save to file
+                let doc_json = serde_json::to_string_pretty(&signed_doc).unwrap();
+                std::fs::write(&base_kid_path, doc_json).unwrap();
+                
+                // Also save the private key for the user
+                let key_path = kid_dir.join(format!("{}.key.bin", base_name));
+                std::fs::write(&key_path, kid_keypair.to_bytes()).unwrap();
+
+                info!("Automatically generated new KID for {}: {}", base_name, did.as_str());
+                did.as_str().to_string()
+            } else {
+                info!("Inheriting existing KID for {}: {}", fqdn, kid_str);
+                kid_str
+            };
+
+            // Map the apex of the zone to this KID
+            if !final_kid_str.is_empty() {
+                records.insert("@".to_string(), vec![kinetic_core::types::DnsRecord::KID(final_kid_str)]);
+            }
+
             let zone = kinetic_core::types::DnsZone { records };
             let payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
 
@@ -293,8 +340,12 @@ async fn main() -> anyhow::Result<()> {
                 }
                 Ok(res) => {
                     warn!("Daemon returned an error: {}", res.status());
-                    let text = res.text().await?;
-                    warn!("Error Details: {}", text);
+                    let status = res.status();
+                    let text = res.text().await.unwrap_or_default();
+                    warn!(
+                        "{}",
+                        parse_and_format_api_error("Publish error", status, &text)
+                    );
                 }
                 Err(e) => {
                     warn!("Failed to connect to local daemon: {}", e);
@@ -334,8 +385,8 @@ async fn main() -> anyhow::Result<()> {
                 fqdn, rounds
             );
 
-            let client = build_client(30)?;
-            let drand_data = fetch_drand_resilient(&client).await?;
+            let drand_client = kinetic_core::drand::DrandClient::new(None);
+            let drand_data = drand_client.fetch_latest().await?;
 
             let keypair = load_or_create_keypair()?;
 
@@ -416,7 +467,14 @@ async fn main() -> anyhow::Result<()> {
                         Ok(res) if res.status().is_success() => {
                             info!("Success! KID successfully routed to DHT.")
                         }
-                        Ok(res) => warn!("Daemon rejected KID: {}", res.status()),
+                        Ok(res) => {
+                            let status = res.status();
+                            let text = res.text().await.unwrap_or_default();
+                            warn!(
+                                "Daemon rejected KID: {}",
+                                parse_and_format_api_error("Publish KID error", status, &text)
+                            );
+                        }
                         Err(e) => warn!("Failed to connect to daemon: {}", e),
                     }
                 }
@@ -440,7 +498,14 @@ async fn main() -> anyhow::Result<()> {
                         Ok(res) if res.status().is_success() => {
                             info!("Success! Manifest routed to DHT.")
                         }
-                        Ok(res) => warn!("Daemon rejected Manifest: {}", res.status()),
+                        Ok(res) => {
+                            let status = res.status();
+                            let text = res.text().await.unwrap_or_default();
+                            warn!(
+                                "Daemon rejected Manifest: {}",
+                                parse_and_format_api_error("Publish Manifest error", status, &text)
+                            );
+                        }
                         Err(e) => warn!("Failed to connect to daemon: {}", e),
                     }
                 }
@@ -480,7 +545,14 @@ async fn update_zone_logic(
         );
         let resolve_res = client.get(&resolve_url).send().await?;
         if !resolve_res.status().is_success() {
-            return Err(anyhow::anyhow!("No local reveal file found, and failed to resolve existing name from DHT. Did you register this name?"));
+            let status = resolve_res.status();
+            let text = resolve_res.text().await.unwrap_or_default();
+            let msg = parse_and_format_api_error(
+                "Failed to resolve existing name from DHT",
+                status,
+                &text,
+            );
+            return Err(anyhow::anyhow!("No local reveal file found, and {}", msg));
         }
         resolve_res.json().await?
     };
@@ -506,7 +578,12 @@ async fn update_zone_logic(
         .send()
         .await?;
     if !commit_res.status().is_success() {
-        return Err(anyhow::anyhow!("Commit failed"));
+        let status = commit_res.status();
+        let text = commit_res.text().await.unwrap_or_default();
+        return Err(anyhow::anyhow!(
+            "{}",
+            parse_and_format_api_error("Commit failed", status, &text)
+        ));
     }
     tokio::time::sleep(Duration::from_secs(5)).await;
     existing_reveal.payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
@@ -525,8 +602,23 @@ async fn update_zone_logic(
         let _ = save_zone_file(&fqdn, &zone);
         let reveal_str = serde_json::to_string_pretty(&existing_reveal)?;
         let _ = std::fs::write(&reveal_path, reveal_str);
+    } else {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        warn!(
+            "Daemon returned an error updating zone: {}",
+            parse_and_format_api_error("Publish zone error", status, &text)
+        );
     }
     Ok(())
+}
+
+fn parse_and_format_api_error(context: &str, status: reqwest::StatusCode, body: &str) -> String {
+    if let Ok(api_err) = serde_json::from_str::<kinetic_core::ApiError>(body) {
+        format!("[{}] {}: {}", api_err.code, context, api_err.detail)
+    } else {
+        format!("{}: HTTP {} - {}", context, status, body)
+    }
 }
 
 fn save_zone_file(fqdn: &str, zone: &kinetic_core::types::DnsZone) -> Result<(), std::io::Error> {

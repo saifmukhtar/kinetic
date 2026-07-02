@@ -1,4 +1,5 @@
 use anyhow::Result;
+use kinetic_core::error::{PublishError, ResolutionError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -57,7 +58,7 @@ pub enum Command {
     PublishRedundant {
         name: String,
         payload: Vec<u8>,
-        responder: oneshot::Sender<Result<()>>,
+        responder: oneshot::Sender<std::result::Result<(), PublishError>>,
     },
     /// Re-run the Kademlia bootstrap process. Useful for mobile clients
     /// waking up from OS background suspension.
@@ -69,11 +70,11 @@ pub enum Command {
     PublishHeartbeat {
         name: String,
         payload: Vec<u8>,
-        responder: oneshot::Sender<Result<()>>,
+        responder: oneshot::Sender<std::result::Result<(), PublishError>>,
     },
     ResolveRedundant {
         name: String,
-        responder: oneshot::Sender<Result<Option<Vec<u8>>>>,
+        responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
     },
     VerifyQuorum {
         name: String,
@@ -136,9 +137,12 @@ impl NetworkClient {
         &self,
         name: &str,
         payload_bytes: Vec<u8>,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), PublishError> {
         if payload_bytes.len() > 2000 {
-            anyhow::bail!("Payload size ({} bytes) exceeds the 2000-byte P2P network limit. Please compress or link to external storage.", payload_bytes.len());
+            return Err(PublishError::Internal {
+                message: format!("Payload size ({} bytes) exceeds the 2000-byte P2P network limit. Please compress or link to external storage.", payload_bytes.len()),
+                source: None,
+            });
         }
         let (tx, rx) = oneshot::channel();
         self.sender
@@ -147,13 +151,24 @@ impl NetworkClient {
                 payload: payload_bytes,
                 responder: tx,
             })
-            .await?;
-        rx.await?
+            .await
+            .map_err(|_| PublishError::Internal {
+                message: "Network channel closed unexpectedly".to_string(),
+                source: None,
+            })?;
+        rx.await.map_err(|_| PublishError::Internal {
+            message: "Network channel closed unexpectedly".to_string(),
+            source: None,
+        })?
     }
 
     /// Publish a heartbeat liveness signal to the dedicated heartbeat keyspace.
     /// This must NOT be used for Reveals or other resolution data.
-    pub async fn publish_heartbeat(&self, name: &str, payload_bytes: Vec<u8>) -> Result<()> {
+    pub async fn publish_heartbeat(
+        &self,
+        name: &str,
+        payload_bytes: Vec<u8>,
+    ) -> std::result::Result<(), PublishError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Command::PublishHeartbeat {
@@ -161,19 +176,36 @@ impl NetworkClient {
                 payload: payload_bytes,
                 responder: tx,
             })
-            .await?;
-        rx.await?
+            .await
+            .map_err(|_| PublishError::Internal {
+                message: "Network channel closed unexpectedly".to_string(),
+                source: None,
+            })?;
+        rx.await.map_err(|_| PublishError::Internal {
+            message: "Network channel closed unexpectedly".to_string(),
+            source: None,
+        })?
     }
 
-    pub async fn resolve_redundant_payload(&self, name: &str) -> Result<Option<Vec<u8>>> {
+    pub async fn resolve_redundant_payload(
+        &self,
+        name: &str,
+    ) -> std::result::Result<Vec<u8>, ResolutionError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Command::ResolveRedundant {
                 name: name.to_string(),
                 responder: tx,
             })
-            .await?;
-        rx.await?
+            .await
+            .map_err(|_| ResolutionError::Internal {
+                message: "Network channel closed unexpectedly".to_string(),
+                source: None,
+            })?;
+        rx.await.map_err(|_| ResolutionError::Internal {
+            message: "Network channel closed unexpectedly".to_string(),
+            source: None,
+        })?
     }
 
     pub async fn verify_quorum(&self, name: &str, payload_bytes: Vec<u8>) -> Result<usize> {
@@ -202,5 +234,30 @@ impl NetworkClient {
             .send(Command::Bootstrap { responder: tx })
             .await?;
         rx.await?
+    }
+
+    pub async fn publish_host_routing_record(
+        &self,
+        record: kinetic_core::types::HostRoutingRecord,
+    ) -> Result<()> {
+        let key = format!("host_route_{}", record.host_id);
+        let bytes = serde_json::to_vec(&record)?;
+        self.publish_redundant_payload(&key, bytes).await?;
+        Ok(())
+    }
+
+    pub async fn resolve_host_routing_record(
+        &self,
+        host_id: &str,
+    ) -> Result<Option<kinetic_core::types::HostRoutingRecord>> {
+        let key = format!("host_route_{}", host_id);
+        match self.resolve_redundant_payload(&key).await {
+            Ok(bytes) => {
+                let record = serde_json::from_slice(&bytes)?;
+                Ok(Some(record))
+            }
+            Err(ResolutionError::NotFound { .. }) => Ok(None),
+            Err(e) => Err(anyhow::anyhow!("Resolution error: {}", e)),
+        }
     }
 }

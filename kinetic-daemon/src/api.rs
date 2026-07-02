@@ -106,6 +106,12 @@ pub fn app(state: ApiState) -> Router {
         .route("/publish", post(handle_publish))
         .route("/publish-kid", post(handle_publish_kid))
         .route("/publish-manifest", post(handle_publish_manifest))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
+
+    let public_api_routes = Router::new()
         .route("/config", axum::routing::get(handle_config))
         .route("/config", axum::routing::post(handle_set_config))
         .route(
@@ -116,7 +122,7 @@ pub fn app(state: ApiState) -> Router {
             "/vdf/status/{task_id}",
             axum::routing::delete(handle_vdf_status_delete),
         )
-        // .route("/node-stats", axum::routing::get(handle_node_stats))
+        .route("/network-status", axum::routing::get(handle_network_status))
         .route("/owned-names", axum::routing::get(handle_owned_names))
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route("/zone/{name}", axum::routing::post(handle_post_zone))
@@ -124,14 +130,7 @@ pub fn app(state: ApiState) -> Router {
             "/zone/{name}/publish",
             axum::routing::post(handle_publish_zone),
         )
-        .route("/network-status", axum::routing::get(handle_network_status))
         .route("/vdf/register", axum::routing::post(handle_vdf_register))
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth_middleware,
-        ));
-
-    let public_api_routes = Router::new()
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
         .route("/delegation", axum::routing::post(handle_delegation))
@@ -154,9 +153,15 @@ pub fn app(state: ApiState) -> Router {
 
 fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<String> {
     let mut token_bytes = [0u8; 32];
-    if getrandom::fill(&mut token_bytes).is_err() {
-        tracing::error!("Failed to generate secure API token");
-    }
+    getrandom::fill(&mut token_bytes).map_err(|e| {
+        tracing::error!(
+            error_code = "KIN-IMPL-001",
+            severity = "Critical",
+            "FATAL: getrandom failed — cannot generate secure API token. Refusing to start with a predictable token. Error: {}",
+            e
+        );
+        anyhow::anyhow!("[KIN-IMPL-001] getrandom failed: {}. Cannot generate a secure API token.", e)
+    })?;
     let token = hex::encode(token_bytes);
 
     if let Some(parent) = token_path.parent() {
@@ -264,7 +269,8 @@ fn start_vdf_worker(state: ApiState) {
                 tracing::info!("VDF Worker processing privacy-preserving delegation request...");
 
                 // 1. Fetch Drand challenge to calculate required iterations based on hardware drift
-                let drand_client = kinetic_core::drand::DrandClient::new(state.storage.clone());
+                let drand_client =
+                    kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
                 let drand_data = match drand_client.fetch_latest().await {
                     Ok(d) => d,
                     Err(e) => {
@@ -297,8 +303,12 @@ fn start_vdf_worker(state: ApiState) {
                 .await
                 {
                     Ok(Ok(p)) => p,
-                    _ => {
-                        tracing::error!("VDF engine failed for challenge {}", challenge_hex);
+                    Ok(Err(e)) => {
+                        tracing::error!(error_code = "KIN-VDF-002", error = ?e, "VDF engine returned error for challenge {}", challenge_hex);
+                        continue;
+                    }
+                    Err(e) => {
+                        tracing::error!(error_code = "KIN-VDF-002", error = ?e, "VDF worker task panicked for challenge {}", challenge_hex);
                         continue;
                     }
                 };
@@ -327,10 +337,13 @@ async fn auth_middleware(
         .and_then(|h| h.to_str().ok());
 
     let token_path = kinetic_core::config::get_api_token_path();
-    let expected_token = std::fs::read_to_string(&token_path)
-        .unwrap_or_else(|_| state.auth_token.clone())
-        .trim()
-        .to_string();
+    let expected_token = match std::fs::read_to_string(&token_path) {
+        Ok(t) => t.trim().to_string(),
+        Err(e) => {
+            tracing::warn!(error_code="KIN-IMPL-004", error=?e, "Could not read token file {:?}, falling back to in-memory token", token_path);
+            state.auth_token.clone()
+        }
+    };
 
     match auth_header {
         Some(header) if header == format!("Bearer {}", expected_token) => Ok(next.run(req).await),
@@ -344,13 +357,18 @@ async fn auth_middleware(
 async fn handle_publish(
     State(state): State<ApiState>,
     Json(req): Json<PublishRequest>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
     info!("Received API publish request for name: {}", req.reveal.name);
 
     // Normalize to canonical format
     let fqdn = kinetic_core::types::normalize_name(&req.reveal.name);
     if !kinetic_core::types::is_valid_apex_name(&fqdn) {
-        return Err((StatusCode::BAD_REQUEST, "Invalid domain name. You can only register apex domains (e.g. 'saif.kin'). Subdomains are strictly routed dynamically at the DNS/Proxy level.".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(
+                serde_json::json!({"error": "Invalid domain name. You can only register apex domains (e.g. 'saif.kin'). Subdomains are strictly routed dynamically at the DNS/Proxy level."}),
+            ),
+        ));
     }
     // Ensure the Reveal internally matches the normalized name exactly
     let mut reveal = req.reveal;
@@ -361,7 +379,7 @@ async fn handle_publish(
         Err(e) => {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Serialization failed: {}", e),
+                Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
             ));
         }
     };
@@ -385,7 +403,13 @@ async fn handle_publish(
             // Persist the owned name to embedded storage so the Heartbeat loop can maintain it
             let owned_key = b"kinetic_owned_names";
             let mut owned_names: Vec<String> = match state.storage.get(owned_key) {
-                Ok(Some(bytes)) => serde_json::from_slice(&bytes).unwrap_or_default(),
+                Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::error!(error_code="KIN-IMPL-003", error=?e, "Corrupted data in Sled storage for owned_names key");
+                        Vec::new()
+                    }
+                },
                 _ => Vec::new(),
             };
             if !owned_names.contains(&fqdn) {
@@ -440,10 +464,11 @@ async fn handle_publish(
             }))
         }
         Err(e) => {
-            error!("Failed to publish to DHT: {}", e);
+            tracing::error!("Failed to publish to DHT: {}", e);
+            let api_err = kinetic_core::ApiError::from(e);
             Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to publish: {}", e),
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap()),
             ))
         }
     }
@@ -452,7 +477,7 @@ async fn handle_publish(
 async fn handle_commit(
     State(state): State<ApiState>,
     Json(req): Json<kinetic_core::types::CommitRequest>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
     info!("Received API commit request for name: {}", req.name);
 
     // Normalize to canonical format
@@ -460,8 +485,9 @@ async fn handle_commit(
     if !kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
             StatusCode::BAD_REQUEST,
-            "Invalid domain name. You can only commit to apex domains (e.g. 'saif.kin')."
-                .to_string(),
+            Json(
+                serde_json::json!({"error": "Invalid domain name. You can only commit to apex domains (e.g. 'saif.kin')."}),
+            ),
         ));
     }
 
@@ -470,7 +496,7 @@ async fn handle_commit(
         Err(e) => {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Serialization failed: {}", e),
+                Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
             ))
         }
     };
@@ -519,10 +545,11 @@ async fn handle_commit(
             }))
         }
         Err(e) => {
-            error!("Failed to publish Commitment to DHT: {}", e);
+            tracing::error!("Failed to publish Commitment to DHT: {}", e);
+            let api_err = kinetic_core::ApiError::from(e);
             Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to publish: {}", e),
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap()),
             ))
         }
     }
@@ -588,18 +615,14 @@ async fn handle_publish_manifest(
 
     // 1. Resolve the KID Document from DHT to verify against
     let kid_payload = match state.network.resolve_redundant_payload(did_str).await {
-        Ok(Some(p)) => p,
-        Ok(None) => {
-            return Err((
-                StatusCode::NOT_FOUND,
-                "KID not found on the network".to_string(),
-            ))
-        }
+        Ok(p) => p,
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("DHT lookup failed: {}", e),
-            ))
+            let status = match e {
+                kinetic_core::error::ResolutionError::NotFound { .. } => StatusCode::NOT_FOUND,
+                kinetic_core::error::ResolutionError::Offline => StatusCode::SERVICE_UNAVAILABLE,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            return Err((status, format!("DHT lookup failed: {}", e)));
         }
     };
 
@@ -661,20 +684,18 @@ async fn handle_publish_manifest(
 async fn handle_resolve_name(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<kinetic_core::types::Reveal>, (StatusCode, String)> {
+) -> Result<Json<kinetic_core::types::Reveal>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     match state.network.resolve_redundant_payload(&fqdn).await {
-        Ok(Some(payload)) => {
-            match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload) {
-                Ok(reveal) => Ok(Json(reveal)),
-                Err(_) => Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Invalid Reveal payload on DHT".to_string(),
-                )),
-            }
-        }
-        _ => {
+        Ok(payload) => match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload) {
+            Ok(reveal) => Ok(Json(reveal)),
+            Err(_) => Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "Invalid Reveal payload on DHT"})),
+            )),
+        },
+        Err(kinetic_core::error::ResolutionError::NotFound { .. }) => {
             // Fallback to local storage if DHT lookup fails or returns nothing
             // This rescues users who lost their local reveal.json and the DHT dropped their record
             let reveal_key = format!("kinetic_reveal:{}", fqdn);
@@ -687,15 +708,39 @@ async fn handle_resolve_name(
                         }
                         Err(_) => Err((
                             StatusCode::NOT_FOUND,
-                            format!("Name {} not found on DHT and local backup corrupted", fqdn),
+                            Json(
+                                serde_json::json!({"error": format!("Name {} not found on DHT and local backup corrupted", fqdn)}),
+                            ),
                         )),
                     }
                 }
                 _ => Err((
                     StatusCode::NOT_FOUND,
-                    format!("Name {} not found on DHT or local daemon cache", fqdn),
+                    Json(
+                        serde_json::json!({"error": format!("Name {} not found on DHT or local daemon cache", fqdn)}),
+                    ),
                 )),
             }
+        }
+        Err(kinetic_core::error::ResolutionError::Offline) => {
+            let api_err =
+                kinetic_core::ApiError::from(kinetic_core::error::ResolutionError::Offline);
+            Err((
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(serde_json::to_value(api_err).unwrap()),
+            ))
+        }
+        Err(e) => {
+            let api_err = kinetic_core::ApiError::from(e);
+            tracing::warn!(
+                error_code = api_err.code,
+                "Resolution error: {}",
+                api_err.detail
+            );
+            Err((
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap()),
+            ))
         }
     }
 }
@@ -708,13 +753,14 @@ async fn handle_resolve_kid(
 
     // Resolve KID
     let kid_payload = match state.network.resolve_redundant_payload(&did).await {
-        Ok(Some(p)) => p,
-        Ok(None) => return Err((StatusCode::NOT_FOUND, "KID not found".to_string())),
+        Ok(p) => p,
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("DHT error: {}", e),
-            ))
+            let status = match &e {
+                kinetic_core::error::ResolutionError::NotFound { .. } => StatusCode::NOT_FOUND,
+                kinetic_core::error::ResolutionError::Offline => StatusCode::SERVICE_UNAVAILABLE,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            return Err((status, format!("DHT error: {}", e)));
         }
     };
 
@@ -735,7 +781,7 @@ async fn handle_resolve_kid(
         "kid_document": kid_doc,
     });
 
-    if let Ok(Some(man_payload)) = state.network.resolve_redundant_payload(&manifest_key).await {
+    if let Ok(man_payload) = state.network.resolve_redundant_payload(&manifest_key).await {
         if let Ok(manifest) =
             serde_json::from_slice::<kinetic_kid::CapabilityManifest>(&man_payload)
         {
@@ -759,7 +805,13 @@ async fn handle_config(State(state): State<ApiState>) -> Json<serde_json::Value>
 async fn handle_owned_names(State(state): State<ApiState>) -> Json<Vec<String>> {
     let owned_key = b"kinetic_owned_names";
     let owned_names: Vec<String> = match state.storage.get(owned_key) {
-        Ok(Some(bytes)) => serde_json::from_slice(&bytes).unwrap_or_default(),
+        Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(error_code="KIN-IMPL-003", error=?e, "Corrupted data in Sled storage for owned_names key");
+                Vec::new()
+            }
+        },
         _ => Vec::new(),
     };
     Json(owned_names)
@@ -800,7 +852,7 @@ struct VdfRegisterRequest {
 async fn handle_vdf_register(
     State(state): State<ApiState>,
     Json(req): Json<VdfRegisterRequest>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&req.name);
     let task_id = uuid::Uuid::new_v4().to_string();
 
@@ -813,9 +865,12 @@ async fn handle_vdf_register(
             .filter(|t| t.progress < 100 && t.error.is_none())
             .count();
         if active_tasks >= 1 {
-            return Json(serde_json::json!({
-                "error": "A VDF registration is already in progress. Please wait for it to complete."
-            }));
+            return Err((
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({
+                    "error": "A VDF registration is already in progress. Please wait for it to complete."
+                })),
+            ));
         }
 
         tasks.insert(
@@ -839,7 +894,7 @@ async fn handle_vdf_register(
     tokio::spawn(async move {
         // Step 1: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let drand_client = kinetic_core::drand::DrandClient::new(storage_clone.clone());
+        let drand_client = kinetic_core::drand::DrandClient::new(Some(storage_clone.clone()));
         let drand_data = match drand_client.fetch_latest().await {
             Ok(d) => d,
             Err(e) => {
@@ -884,7 +939,22 @@ async fn handle_vdf_register(
             commitment: challenge.clone(),
         };
         // We'll skip sending the literal HTTP commit request internally, and just broadcast it directly to DHT:
-        let commit_bytes = serde_json::to_vec(&challenge).unwrap();
+        let commit_bytes = match serde_json::to_vec(&challenge) {
+            Ok(b) => b,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Serialization failed in VDF task: {}", e),
+                );
+                tracing::error!(
+                    error_code = "KIN-VDF-002",
+                    "Serialization failed in VDF task: {}",
+                    e
+                );
+                return;
+            }
+        };
         if let Err(e) = network_clone
             .publish_redundant_payload(&fqdn, commit_bytes)
             .await
@@ -938,7 +1008,22 @@ async fn handle_vdf_register(
         // Construct Reveal
         let records = HashMap::new();
         let zone = kinetic_core::types::DnsZone { records };
-        let payload = serde_json::to_vec(&zone).unwrap();
+        let payload = match serde_json::to_vec(&zone) {
+            Ok(b) => b,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Serialization failed in VDF task: {}", e),
+                );
+                tracing::error!(
+                    error_code = "KIN-VDF-002",
+                    "Serialization failed in VDF task: {}",
+                    e
+                );
+                return;
+            }
+        };
 
         let mut reveal = kinetic_core::types::Reveal {
             protocol_version: 2,
@@ -960,7 +1045,22 @@ async fn handle_vdf_register(
         reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
         // Publish to Network
-        let reveal_bytes = serde_json::to_vec(&reveal).unwrap();
+        let reveal_bytes = match serde_json::to_vec(&reveal) {
+            Ok(b) => b,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Serialization failed in VDF task: {}", e),
+                );
+                tracing::error!(
+                    error_code = "KIN-VDF-002",
+                    "Serialization failed in VDF task: {}",
+                    e
+                );
+                return;
+            }
+        };
         if let Err(e) = network_clone
             .publish_redundant_payload(&fqdn, reveal_bytes)
             .await
@@ -982,22 +1082,32 @@ async fn handle_vdf_register(
         }
         if !owned.contains(&fqdn) {
             owned.push(fqdn.clone());
-            let _ = storage_clone.put(b"kinetic_owned_names", &serde_json::to_vec(&owned).unwrap());
+            if let Ok(b) = serde_json::to_vec(&owned) {
+                let _ = storage_clone.put(b"kinetic_owned_names", &b);
+            }
         }
 
         // Save default zone file
         let zones_dir = kinetic_core::config::get_zones_dir();
         let _ = std::fs::create_dir_all(&zones_dir);
         let path = zones_dir.join(format!("{}.json", fqdn));
-        let _ = std::fs::write(path, serde_json::to_string_pretty(&zone).unwrap());
+        if let Ok(s) = serde_json::to_string_pretty(&zone) {
+            if let Err(e) = std::fs::write(&path, s) {
+                tracing::warn!(
+                    error_code = "KIN-IMPL-005",
+                    "Failed to write zone file: {}",
+                    e
+                );
+            }
+        }
 
         update_task_status(&tasks_clone, &task_id_clone, "Complete", 100);
     });
 
-    Json(serde_json::json!({
+    Ok(Json(serde_json::json!({
         "task_id": task_id,
         "message": "VDF generation started"
-    }))
+    })))
 }
 
 fn update_task_status(
@@ -1049,27 +1159,55 @@ async fn handle_vdf_status_delete(
     Json(serde_json::json!({ "success": removed }))
 }
 
-async fn handle_get_zone(Path(name): Path<String>) -> Json<serde_json::Value> {
+async fn handle_get_zone(
+    Path(name): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
     let path = kinetic_core::config::get_zones_dir().join(format!("{}.json", fqdn));
     if let Ok(content) = std::fs::read_to_string(path) {
-        if let Ok(zone) = serde_json::from_str::<serde_json::Value>(&content) {
-            return Json(zone);
+        match serde_json::from_str::<serde_json::Value>(&content) {
+            Ok(zone) => return Ok(Json(zone)),
+            Err(e) => {
+                return Err((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    Json(
+                        serde_json::json!({ "error": format!("Invalid zone file format: {}", e) }),
+                    ),
+                ))
+            }
         }
     }
-    Json(serde_json::json!({ "records": {} }))
+    Err((
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Zone not found" })),
+    ))
 }
 
 async fn handle_post_zone(
     Path(name): Path<String>,
     Json(zone): Json<kinetic_core::types::DnsZone>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
     let path = kinetic_core::config::get_zones_dir().join(format!("{}.json", fqdn));
     let _ = std::fs::create_dir_all(kinetic_core::config::get_zones_dir());
-    let _ = std::fs::write(path, serde_json::to_string_pretty(&zone).unwrap());
 
-    Json(serde_json::json!({ "success": true }))
+    let content = match serde_json::to_string_pretty(&zone) {
+        Ok(c) => c,
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Serialization failed: {}", e) })),
+            ))
+        }
+    };
+    if let Err(e) = std::fs::write(&path, content) {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("File write failed: {}", e) })),
+        ));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 async fn handle_delegation(
@@ -1221,7 +1359,7 @@ async fn process_ws_delegation(mut socket: WebSocket, state: ApiState) {
 async fn handle_publish_zone(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     // 1. Read the current zone file
@@ -1229,14 +1367,22 @@ async fn handle_publish_zone(
     let content = match std::fs::read_to_string(&zone_path) {
         Ok(c) => c,
         Err(_) => {
-            return Json(
-                serde_json::json!({ "error": "Zone file not found. Save your zone first via POST /zone/{name}." }),
-            )
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(
+                    serde_json::json!({ "error": "Zone file not found. Save your zone first via POST /zone/{name}." }),
+                ),
+            ))
         }
     };
     let zone: kinetic_core::types::DnsZone = match serde_json::from_str(&content) {
         Ok(z) => z,
-        Err(_) => return Json(serde_json::json!({ "error": "Invalid zone file format" })),
+        Err(_) => {
+            return Err((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(serde_json::json!({ "error": "Invalid zone file format" })),
+            ))
+        }
     };
 
     // 2. Load the persisted Reveal (stored at registration time)
@@ -1244,24 +1390,46 @@ async fn handle_publish_zone(
     let reveal_bytes = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(b)) => b,
         _ => {
-            return Json(
-                serde_json::json!({ "error": "No registration record found for this name. Register the name first." }),
-            )
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(
+                    serde_json::json!({ "error": "No registration record found for this name. Register the name first." }),
+                ),
+            ))
         }
     };
     let mut reveal: kinetic_core::types::Reveal = match serde_json::from_slice(&reveal_bytes) {
         Ok(r) => r,
         Err(_) => {
-            return Json(serde_json::json!({ "error": "Stored registration data is corrupted." }))
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "Stored registration data is corrupted." })),
+            ))
         }
     };
 
     // 3. Load the daemon keypair and re-sign with the updated payload
     let keypair = match kinetic_core::types::load_or_create_keypair() {
         Ok(k) => k,
-        Err(_) => return Json(serde_json::json!({ "error": "Could not load identity keypair." })),
+        Err(_) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "Could not load identity keypair." })),
+            ))
+        }
     };
-    reveal.payload = serde_json::to_vec(&zone).unwrap_or_default();
+
+    reveal.payload = match serde_json::to_vec(&zone) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!(error_code="KIN-VDF-002", error=?e, "Failed to serialize zone payload — cannot publish");
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "[KIN-VDF-002] Failed to serialize zone data" })),
+            ));
+        }
+    };
+
     let signable = reveal.signable_bytes();
     use ed25519_dalek::Signer;
     reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
@@ -1275,7 +1443,10 @@ async fn handle_publish_zone(
     let dht_payload = match serde_json::to_vec(&reveal) {
         Ok(b) => b,
         Err(e) => {
-            return Json(serde_json::json!({ "error": format!("Serialization error: {}", e) }))
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
+            ))
         }
     };
     match state
@@ -1284,14 +1455,19 @@ async fn handle_publish_zone(
         .await
     {
         Ok(_) => {
-            info!("Zone published to DHT for {}", fqdn);
+            tracing::info!("Zone published to DHT for {}", fqdn);
             if let Some(dns) = &state.dns_handler {
                 dns.invalidate_cache(&fqdn).await;
             }
-            Json(
+            Ok(Json(
                 serde_json::json!({ "success": true, "message": "Zone published to the Kinetic DHT network." }),
-            )
+            ))
         }
-        Err(e) => Json(serde_json::json!({ "error": format!("DHT publish failed: {}", e) })),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(
+                serde_json::json!({ "error": format!("DHT publish failed: {}", e.user_message()) }),
+            ),
+        )),
     }
 }

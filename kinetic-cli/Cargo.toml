@@ -25,3 +25,4 @@ sha2 = "0.11.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
+dirs = "6.0.0"

@@ -78,11 +78,11 @@ impl DrandPulse {
 
 pub struct DrandClient {
     http: reqwest::Client,
-    storage: Arc<dyn StorageEngine>,
+    storage: Option<Arc<dyn StorageEngine>>,
 }
 
 impl DrandClient {
-    pub fn new(storage: Arc<dyn StorageEngine>) -> Self {
+    pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
         Self {
             http: reqwest::Client::new(),
             storage,
@@ -148,16 +148,20 @@ impl DrandClient {
     }
 
     fn cache_pulse(&self, pulse: &DrandPulse) -> Result<(), DrandError> {
-        let bytes = serde_json::to_vec(pulse)?;
-        self.storage.put(CACHE_KEY.as_bytes(), &bytes)?;
+        if let Some(storage) = &self.storage {
+            let bytes = serde_json::to_vec(pulse)?;
+            storage.put(CACHE_KEY.as_bytes(), &bytes)?;
+        }
         Ok(())
     }
 
     pub fn load_cached_pulse(&self) -> Result<DrandPulse, DrandError> {
-        if let Ok(Some(bytes)) = self.storage.get(CACHE_KEY.as_bytes()) {
-            if let Ok(mut pulse) = serde_json::from_slice::<DrandPulse>(&bytes) {
-                pulse.is_from_cache = true;
-                return Ok(pulse);
+        if let Some(storage) = &self.storage {
+            if let Ok(Some(bytes)) = storage.get(CACHE_KEY.as_bytes()) {
+                if let Ok(mut pulse) = serde_json::from_slice::<DrandPulse>(&bytes) {
+                    pulse.is_from_cache = true;
+                    return Ok(pulse);
+                }
             }
         }
 

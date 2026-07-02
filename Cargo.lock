@@ -2326,6 +2326,7 @@ dependencies = [
  "base64 0.22.1",
  "clap",
  "directories",
+ "dirs",
  "ed25519-dalek",
  "getrandom 0.4.3",
  "hex",
@@ -2430,6 +2431,33 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "kinetic-host"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "bytes",
+ "dirs",
+ "hex",
+ "http 1.4.2",
+ "http-body-util",
+ "hyper 1.10.1",
+ "hyper-util",
+ "kinetic-core",
+ "kinetic-kid",
+ "kinetic-network",
+ "kinetic-storage",
+ "kinetic-vdf",
+ "libp2p",
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

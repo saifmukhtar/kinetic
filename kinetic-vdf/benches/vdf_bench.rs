@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use std::hint::black_box;
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::Commitment;
 use kinetic_vdf::ChiaVdfEngine;
+use std::hint::black_box;
 
 fn bench_vdf(c: &mut Criterion) {
     let engine = ChiaVdfEngine::new();

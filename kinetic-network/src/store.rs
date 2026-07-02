@@ -6,6 +6,8 @@ use std::sync::Arc;
 use kinetic_core::traits::StorageEngine;
 use kinetic_storage::SledStorage;
 
+use crate::error::KineticStoreError;
+
 pub const KRS_REVEAL_PREFIX: &str = "krs_reveal:";
 pub const KRS_HB_PREFIX: &str = "krs_hb:";
 pub const KRS_HIB_PREFIX: &str = "krs_hib:";
@@ -107,15 +109,27 @@ impl KineticRecordStore {
         reveal: &kinetic_core::types::Reveal,
     ) -> Result<(), kad::store::Error> {
         if self.current_drand_round.saturating_sub(reveal.drand_pulse) > 1_000_000 {
+            let age = self.current_drand_round.saturating_sub(reveal.drand_pulse);
+            let err = KineticStoreError::VdfExpired { age };
             tracing::warn!(
-                "Rejecting Reveal for {}: VDF proof is too old (> 1 year)",
-                reveal.name
+                error_code = "KIN-STORE-001",
+                name = %reveal.name,
+                age = age,
+                severity = ?err.severity(),
+                "Rejecting Reveal: {}", err
             );
-            return Err(kad::store::Error::ValueTooLarge);
+            return Err(err.into());
         }
 
         if !self.verify_reveal_internal(reveal) {
-            return Err(kad::store::Error::ValueTooLarge);
+            let err = KineticStoreError::InvalidVdf;
+            tracing::warn!(
+                error_code = "KIN-STORE-002",
+                name = %reveal.name,
+                severity = ?err.severity(),
+                "Rejecting Reveal: {}", err
+            );
+            return Err(err.into());
         }
 
         if let Some(existing_reveal) = self.reveals_by_name.get(&reveal.name) {
@@ -131,11 +145,16 @@ impl KineticRecordStore {
                     let hib_age = self.current_drand_round.saturating_sub(hib_round);
                     let exemption_rounds = consensus_math.hibernation_exemption_rounds(hib_iters);
                     if hib_age < exemption_rounds {
+                        let err = KineticStoreError::Hibernating;
                         tracing::warn!(
-                            "Rejecting Steal Reveal for {}: Name is hibernating (exemption lasts {} rounds, {} rounds elapsed)",
-                            reveal.name, exemption_rounds, hib_age
+                            error_code = "KIN-STORE-003",
+                            name = %reveal.name,
+                            hib_age = hib_age,
+                            exemption_rounds = exemption_rounds,
+                            severity = ?err.severity(),
+                            "Rejecting Steal Reveal: {}", err
                         );
-                        return Err(kad::store::Error::ValueTooLarge);
+                        return Err(err.into());
                     }
                 }
 
@@ -150,14 +169,29 @@ impl KineticRecordStore {
                 // Case 121: Deterministic Tie-Breaking
                 if reveal.iterations == existing_reveal.iterations && hb_age < 100 {
                     if reveal.pubkey > existing_reveal.pubkey {
-                        tracing::warn!("Rejecting Steal Reveal for {}: Tie-break lost (Lexicographical public key comparison)", reveal.name);
-                        return Err(kad::store::Error::ValueTooLarge);
+                        let err = KineticStoreError::TieBroken;
+                        tracing::warn!(
+                            error_code = "KIN-STORE-004",
+                            name = %reveal.name,
+                            severity = ?err.severity(),
+                            "Rejecting Steal Reveal: {}", err
+                        );
+                        return Err(err.into());
                     } else {
                         tracing::info!("Valid Steal Reveal for {}! Tie-break won!", reveal.name);
                     }
                 } else if reveal.iterations < steal_threshold {
-                    tracing::warn!("Rejecting Steal Reveal for {}: Iterations {} below mathematical decay steal threshold ({}) for being idle {} rounds", reveal.name, reveal.iterations, steal_threshold, hb_age);
-                    return Err(kad::store::Error::ValueTooLarge);
+                    let err = KineticStoreError::InsufficientIterations;
+                    tracing::warn!(
+                        error_code = "KIN-STORE-005",
+                        name = %reveal.name,
+                        iterations = reveal.iterations,
+                        required = steal_threshold,
+                        hb_age = hb_age,
+                        severity = ?err.severity(),
+                        "Rejecting Steal Reveal: {}", err
+                    );
+                    return Err(err.into());
                 } else {
                     tracing::info!("Valid Steal Reveal for {}! Overwriting previous owner (idle for {} rounds).", reveal.name, hb_age);
                 }
@@ -201,18 +235,51 @@ impl KineticRecordStore {
     ) -> Result<(), kad::store::Error> {
         let existing_reveal = match self.reveals_by_name.get(&hibernation.name) {
             Some(r) => r,
-            None => return Err(kad::store::Error::ValueTooLarge),
+            None => {
+                let err = KineticStoreError::RevealNotFound;
+                tracing::warn!(
+                    error_code = "KIN-STORE-006",
+                    name = %hibernation.name,
+                    severity = ?err.severity(),
+                    "Rejecting Hibernation: {}", err
+                );
+                return Err(err.into());
+            }
         };
 
         let signable = hibernation.signable_bytes();
         let pubkey = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice())
-            .map_err(|_| kad::store::Error::ValueTooLarge)?;
-        let sig = ed25519_dalek::Signature::from_slice(&hibernation.signature)
-            .map_err(|_| kad::store::Error::ValueTooLarge)?;
+            .map_err(|_| {
+                let err = KineticStoreError::InvalidPublicKey;
+                tracing::warn!(
+                    error_code = "KIN-STORE-007",
+                    name = %hibernation.name,
+                    severity = ?err.severity(),
+                    "Rejecting Hibernation: {}", err
+                );
+                kad::store::Error::ValueTooLarge
+            })?;
+        let sig = ed25519_dalek::Signature::from_slice(&hibernation.signature).map_err(|_| {
+            let err = KineticStoreError::MalformedSignature;
+            tracing::warn!(
+                error_code = "KIN-STORE-008",
+                name = %hibernation.name,
+                severity = ?err.severity(),
+                "Rejecting Hibernation: {}", err
+            );
+            kad::store::Error::ValueTooLarge
+        })?;
 
         use ed25519_dalek::Verifier;
         if pubkey.verify(&signable, &sig).is_err() {
-            return Err(kad::store::Error::ValueTooLarge);
+            let err = KineticStoreError::InvalidSignature;
+            tracing::warn!(
+                error_code = "KIN-STORE-009",
+                name = %hibernation.name,
+                severity = ?err.severity(),
+                "Rejecting Hibernation: {}", err
+            );
+            return Err(err.into());
         }
 
         use kinetic_core::traits::VdfEngine;
@@ -255,20 +322,25 @@ impl KineticRecordStore {
                 Ok(())
             }
             Ok(false) => {
+                let err = KineticStoreError::InvalidVdf;
                 tracing::warn!(
-                    "Hibernation for {} failed: VDF proof invalid for {} iterations",
-                    hibernation.name,
-                    hibernation.iterations
+                    error_code = "KIN-STORE-010",
+                    name = %hibernation.name,
+                    iterations = hibernation.iterations,
+                    severity = ?err.severity(),
+                    "Hibernation rejected: {}", err
                 );
-                Err(kad::store::Error::ValueTooLarge)
+                Err(err.into())
             }
             Err(e) => {
+                let err = KineticStoreError::VdfEngineError(e.to_string());
                 tracing::warn!(
-                    "Hibernation for {} failed: VDF verification error: {}",
-                    hibernation.name,
-                    e
+                    error_code = "KIN-STORE-011",
+                    name = %hibernation.name,
+                    severity = ?err.severity(),
+                    "Hibernation rejected: {}", err
                 );
-                Err(kad::store::Error::ValueTooLarge)
+                Err(err.into())
             }
         }
     }
@@ -279,22 +351,51 @@ impl KineticRecordStore {
     ) -> Result<(), kad::store::Error> {
         let existing_reveal = match self.reveals_by_name.get(&heartbeat.name) {
             Some(r) => r,
-            None => return Err(kad::store::Error::ValueTooLarge),
+            None => {
+                let err = KineticStoreError::RevealNotFound;
+                tracing::warn!(
+                    error_code = "KIN-STORE-012",
+                    name = %heartbeat.name,
+                    severity = ?err.severity(),
+                    "Rejecting Heartbeat: {}", err
+                );
+                return Err(err.into());
+            }
         };
 
         let signable = heartbeat.signable_bytes();
         let pubkey = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice())
-            .map_err(|_| kad::store::Error::ValueTooLarge)?;
-        let sig = ed25519_dalek::Signature::from_slice(&heartbeat.signature)
-            .map_err(|_| kad::store::Error::ValueTooLarge)?;
+            .map_err(|_| {
+                let err = KineticStoreError::InvalidPublicKey;
+                tracing::warn!(
+                    error_code = "KIN-STORE-013",
+                    name = %heartbeat.name,
+                    severity = ?err.severity(),
+                    "Rejecting Heartbeat: {}", err
+                );
+                kad::store::Error::ValueTooLarge
+            })?;
+        let sig = ed25519_dalek::Signature::from_slice(&heartbeat.signature).map_err(|_| {
+            let err = KineticStoreError::MalformedSignature;
+            tracing::warn!(
+                error_code = "KIN-STORE-014",
+                name = %heartbeat.name,
+                severity = ?err.severity(),
+                "Rejecting Heartbeat: {}", err
+            );
+            kad::store::Error::ValueTooLarge
+        })?;
 
         use ed25519_dalek::Verifier;
         if pubkey.verify(&signable, &sig).is_err() {
+            let err = KineticStoreError::InvalidSignature;
             tracing::warn!(
-                "Rejecting Heartbeat for {}: Invalid signature",
-                heartbeat.name
+                error_code = "KIN-STORE-015",
+                name = %heartbeat.name,
+                severity = ?err.severity(),
+                "Rejecting Heartbeat: {}", err
             );
-            return Err(kad::store::Error::ValueTooLarge);
+            return Err(err.into());
         }
 
         self.last_heartbeats_by_name
@@ -319,6 +420,21 @@ impl KineticRecordStore {
         let mut expired_names = Vec::new();
 
         for (name, reveal) in &self.reveals_by_name {
+            // --- Genesis Infinity Lock ---
+            if let Some(genesis_pk) = kinetic_core::consensus_math::ConsensusParams::GENESIS_PUBKEY {
+                let normalized_name = kinetic_core::types::normalize_name(name);
+                let label_without_tld = normalized_name
+                    .strip_suffix(".kin")
+                    .unwrap_or(&normalized_name);
+                if kinetic_core::consensus_math::ConsensusParams::GENESIS_ALLOWLIST.contains(&label_without_tld) {
+                    if reveal.pubkey.as_slice() == genesis_pk {
+                        tracing::debug!("Genesis Infinity Lock active for {}. Bypassing pruning.", name);
+                        continue;
+                    }
+                }
+            }
+            // -----------------------------
+
             let age = current_round.saturating_sub(reveal.drand_pulse);
             if age > max_age_rounds {
                 expired_names.push(name.clone());
@@ -493,8 +609,14 @@ impl kad::store::RecordStore for KineticRecordStore {
             self.handle_heartbeat(&heartbeat)?;
         } else if r.value.len() > 16 * 1024 {
             // 16KB size bomb protection
-            tracing::warn!("Rejecting Kademlia record: Payload exceeds 16KB limit (Case 174)");
-            return Err(kad::store::Error::ValueTooLarge);
+            let err = KineticStoreError::PayloadTooLarge;
+            tracing::warn!(
+                error_code = "KIN-STORE-016",
+                size = r.value.len(),
+                severity = ?err.severity(),
+                "Rejecting Kademlia record: {}", err
+            );
+            return Err(err.into());
         } else if let Ok(kid_doc) = serde_json::from_slice::<kinetic_kid::KidDocument>(&r.value) {
             if kid_doc.verify().is_ok() {
                 tracing::info!(
@@ -502,8 +624,13 @@ impl kad::store::RecordStore for KineticRecordStore {
                     kid_doc.kid.as_str()
                 );
             } else {
-                tracing::warn!("Rejecting KID Document: Invalid signature");
-                return Err(kad::store::Error::ValueTooLarge);
+                let err = KineticStoreError::InvalidKidSignature;
+                tracing::warn!(
+                    error_code = "KIN-STORE-017",
+                    severity = ?err.severity(),
+                    "Rejecting KID Document: {}", err
+                );
+                return Err(err.into());
             }
         } else if let Ok(manifest) =
             serde_json::from_slice::<kinetic_kid::CapabilityManifest>(&r.value)
@@ -514,12 +641,22 @@ impl kad::store::RecordStore for KineticRecordStore {
                     manifest.kid.as_str()
                 );
             } else {
-                tracing::warn!("Rejecting Capability Manifest: Invalid Proof of Work (Case 178)");
-                return Err(kad::store::Error::ValueTooLarge);
+                let err = KineticStoreError::InvalidManifestPoW;
+                tracing::warn!(
+                    error_code = "KIN-STORE-018",
+                    severity = ?err.severity(),
+                    "Rejecting Capability Manifest: {}", err
+                );
+                return Err(err.into());
             }
         } else {
-            tracing::warn!("Rejecting Kademlia record: Neither Reveal, Hibernation, Heartbeat, KID, nor Manifest");
-            return Err(kad::store::Error::ValueTooLarge);
+            let err = KineticStoreError::UnknownRecordType;
+            tracing::warn!(
+                error_code = "KIN-STORE-019",
+                severity = ?err.severity(),
+                "Rejecting Kademlia record: {}", err
+            );
+            return Err(err.into());
         }
 
         let sled_key = format!("kad_record:{}", hex::encode(r.key.as_ref()));

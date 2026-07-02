@@ -390,9 +390,7 @@ impl PacManager {
     pub fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError> {
         // Handle unclean shutdown recovery
         if self.lock_path.exists() {
-            match File::open(&self.lock_path)
-                .map(serde_json::from_reader::<_, SavedState>)
-            {
+            match File::open(&self.lock_path).map(serde_json::from_reader::<_, SavedState>) {
                 Ok(Ok(saved)) => {
                     let _ = self.configurator.restore_state(&saved);
                     warn!("Detected unclean shutdown — proxy settings restored from lockfile");
@@ -421,9 +419,7 @@ impl PacManager {
 
     pub fn uninstall(&self) -> Result<(), ProxyConfigError> {
         if self.lock_path.exists() {
-            match File::open(&self.lock_path)
-                .map(serde_json::from_reader::<_, SavedState>)
-            {
+            match File::open(&self.lock_path).map(serde_json::from_reader::<_, SavedState>) {
                 Ok(Ok(saved)) => {
                     let _ = self.configurator.restore_state(&saved);
                 }

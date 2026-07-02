@@ -17,6 +17,7 @@ mod tests {
     ) -> (NetworkClient, tokio::task::JoinHandle<()>) {
         let config = NetworkConfig {
             listen_addr: format!("/ip4/127.0.0.1/tcp/{}", port),
+            external_address: None,
             bootstrap_nodes,
             initial_drand_pulse: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
@@ -72,15 +73,17 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(3)).await;
 
         // Node A resolves from DHT
-        let resolved_a = client_a.resolve_redundant_payload(name).await.unwrap();
-        let res_a = resolved_a.expect("Node A should resolve the payload published by itself");
+        let res_a = client_a
+            .resolve_redundant_payload(name)
+            .await
+            .expect("Node A should resolve the payload published by itself");
         assert_eq!(res_a, payload);
 
         // Node B resolves from DHT
         // Note: Sometimes libp2p Kademlia bootstrap takes longer than 3 seconds on a cold start for 2 isolated nodes.
         // If B fails, at least we know A's storage engine pipeline works!
-        let resolved_b = client_b.resolve_redundant_payload(name).await.unwrap();
-        if let Some(res_b) = resolved_b {
+        let resolved_b = client_b.resolve_redundant_payload(name).await;
+        if let Ok(res_b) = resolved_b {
             assert_eq!(res_b, payload);
         } else {
             println!("Node B failed to resolve (likely Kademlia routing table not fully sync'd in 3s) but A succeeded.");
