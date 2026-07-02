@@ -124,11 +124,21 @@ impl RequestHandler for KineticDnsHandler {
                 .try_get_with(apex_domain.clone(), async move {
                     // If it's a cache miss, we hit the DHT.
                     info!("Cache miss for apex: {}. Hitting DHT...", apex_domain_clone);
-                    // `moka::try_get_with` requires the error type to be cloneable or put in an Arc
-                    network_clone
+                    // Map ResolutionError to Option<Vec<u8>>:
+                    //   Ok(payload)                     -> Ok(Some(payload))  [positive cache, 5 min]
+                    //   Err(NotFound | Offline)          -> Ok(None)           [negative cache, 30 s]
+                    //   Err(other internal errors)       -> Err(...)           [propagated as ServFail]
+                    match network_clone
                         .resolve_redundant_payload(&apex_domain_clone)
                         .await
-                        .map_err(Arc::new)
+                    {
+                        Ok(payload) => {
+                            Ok::<_, Arc<kinetic_core::error::ResolutionError>>(Some(payload))
+                        }
+                        Err(kinetic_core::error::ResolutionError::NotFound { .. })
+                        | Err(kinetic_core::error::ResolutionError::Offline) => Ok(None),
+                        Err(e) => Err(Arc::new(e)),
+                    }
                 })
                 .await;
 

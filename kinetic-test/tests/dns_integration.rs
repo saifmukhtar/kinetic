@@ -54,9 +54,13 @@ mod tests {
                         };
 
                         let reveal_payload = serde_json::to_vec(&reveal).unwrap();
-                        let _ = responder.send(Ok(Some(reveal_payload)));
+                        let _ = responder.send(Ok(reveal_payload));
                     } else {
-                        let _ = responder.send(Ok(None));
+                        let _ =
+                            responder.send(Err(kinetic_core::error::ResolutionError::NotFound {
+                                name: "doesntexist.kin".to_string(),
+                                peers_queried: 3,
+                            }));
                     }
                 }
             }

@@ -15,12 +15,11 @@ impl Default for ConsensusParams {
 impl ConsensusParams {
     /// The hardcoded public key allowed to claim Genesis names.
     pub const GENESIS_PUBKEY: Option<[u8; 32]> = Some([
-        148, 100, 103, 139, 110, 187, 7, 207, 47, 201, 200, 160, 12, 86, 194, 76, 25, 176, 157,
-        180, 249, 145, 27, 251, 254, 117, 11, 19, 53, 249, 131, 236,
+        80, 211, 223, 74, 91, 155, 132, 168, 78, 209, 214, 167, 237, 160, 157, 186, 48, 9, 140, 185, 74, 172, 136, 188, 246, 164, 147, 64, 96, 11, 197, 62
     ]);
 
     /// The exact list of names the Genesis Key is allowed to claim.
-    pub const GENESIS_ALLOWLIST: [&'static str; 17] = [
+    pub const GENESIS_ALLOWLIST: [&'static str; 39] = [
         "saif",
         "saifmukhtar",
         "admin",
@@ -38,6 +37,28 @@ impl ConsensusParams {
         "s",
         "security",
         "mail",
+        "seed",
+        "seed1",
+        "seed2",
+        "api",
+        "cdn",
+        "registry",
+        "id",
+        "identity",
+        "app",
+        "www",
+        "wallet",
+        "pay",
+        "code",
+        "git",
+        "status",
+        "dao",
+        "gov",
+        "foundation",
+        "localhost",
+        "local",
+        "support",
+        "help",
     ];
 
     /// The Drand pulse when the network launches.
@@ -81,9 +102,10 @@ impl ConsensusParams {
                 .strip_suffix(".kin")
                 .unwrap_or(&normalized_name);
             if Self::GENESIS_ALLOWLIST.contains(&label_without_tld) {
-                // If it's the genesis key, required iterations is 0!
+                // If it's the genesis key, required iterations is 10,000 (~0.1 seconds)
+                // This generates a mathematically valid VDF proof to satisfy validators.
                 if pubkey == genesis_pk {
-                    return 0;
+                    return 10_000;
                 }
             }
         }
@@ -146,15 +168,15 @@ mod tests {
         // Genesis key always gets 0 iterations for allowlisted names — no time window.
         let iters_at_launch =
             params.required_iterations("saif.kin", ConsensusParams::GENESIS_START_PULSE, &pk);
-        assert_eq!(iters_at_launch, 0);
+        assert_eq!(iters_at_launch, 10000);
 
-        // Still 0 long after launch — permanent grant for the fixed allowlist.
+        // Still 10000 long after launch — permanent grant for the fixed allowlist.
         let iters_later = params.required_iterations(
             "saif.kin",
             ConsensusParams::GENESIS_START_PULSE + 1_000_000,
             &pk,
         );
-        assert_eq!(iters_later, 0);
+        assert_eq!(iters_later, 10000);
 
         // Wrong key — must compute full VDF even for allowlisted names.
         let wrong_pk = [0u8; 32];

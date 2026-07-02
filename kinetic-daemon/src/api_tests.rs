@@ -60,7 +60,11 @@ mod tests {
                 match cmd {
                     Command::ResolveRedundant { name, responder } => {
                         assert_eq!(name, "example.kin");
-                        let _ = responder.send(Ok(None));
+                        let _ =
+                            responder.send(Err(kinetic_core::error::ResolutionError::NotFound {
+                                name: name.clone(),
+                                peers_queried: 3,
+                            }));
                     }
                     _ => panic!("Unexpected command"),
                 }

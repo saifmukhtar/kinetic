@@ -1,4 +1,5 @@
 use anyhow::Result;
+use kinetic_core::error::{PublishError, ResolutionError};
 use libp2p::kad::store::RecordStore;
 use libp2p::{kad, swarm::SwarmEvent, PeerId, Swarm};
 use std::collections::HashMap;
@@ -42,9 +43,10 @@ pub struct NetworkEventLoop {
 }
 
 struct PendingGet {
-    responder: oneshot::Sender<Result<Option<Vec<u8>>>>,
+    responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
     expected_responses: usize,
     received_payloads: Vec<Vec<u8>>,
+    peers_queried: usize,
 }
 
 struct PendingQuorum {
@@ -341,17 +343,35 @@ impl NetworkEventLoop {
                 responder,
             } => {
                 let keys = kinetic_core::types::derive_storage_keys(&name);
+                let total = keys.len();
+                let mut success_count = 0usize;
                 for key_bytes in keys {
                     let record_key = kad::RecordKey::new(&key_bytes);
                     let record = kad::Record::new(record_key, payload.clone());
-                    let _ = self
+                    let kad_ok = self
                         .swarm
                         .behaviour_mut()
                         .kademlia
-                        .put_record(record.clone(), kad::Quorum::One);
-                    let _ = self.swarm.behaviour_mut().kademlia.store_mut().put(record);
+                        .put_record(record.clone(), kad::Quorum::One)
+                        .is_ok();
+                    let store_ok = self
+                        .swarm
+                        .behaviour_mut()
+                        .kademlia
+                        .store_mut()
+                        .put(record)
+                        .is_ok();
+                    if kad_ok || store_ok {
+                        success_count += 1;
+                    }
                 }
-                let _ = responder.send(Ok(()));
+                if success_count > 0 {
+                    tracing::debug!(name = %name, success = %success_count, total = %total, "PublishRedundant succeeded");
+                    let _ = responder.send(Ok(()));
+                } else {
+                    tracing::warn!(error_code = "KIN-PUB-004", name = %name, total = %total, "PublishRedundant: all DHT puts failed");
+                    let _ = responder.send(Err(PublishError::AllFailed { count: total }));
+                }
             }
             Command::Bootstrap { responder } => {
                 let _ = self.swarm.behaviour_mut().kademlia.bootstrap();
@@ -370,17 +390,35 @@ impl NetworkEventLoop {
                 // Peer nodes' KRS will receive these records, validate the heartbeat signature,
                 // refresh the Reveal's TTL in their MemoryStore, and update liveness metadata.
                 let keys = kinetic_core::types::derive_heartbeat_keys(&name);
+                let total = keys.len();
+                let mut success_count = 0usize;
                 for key_bytes in keys {
                     let record_key = kad::RecordKey::new(&key_bytes);
                     let record = kad::Record::new(record_key, payload.clone());
-                    let _ = self
+                    let kad_ok = self
                         .swarm
                         .behaviour_mut()
                         .kademlia
-                        .put_record(record.clone(), kad::Quorum::One);
-                    let _ = self.swarm.behaviour_mut().kademlia.store_mut().put(record);
+                        .put_record(record.clone(), kad::Quorum::One)
+                        .is_ok();
+                    let store_ok = self
+                        .swarm
+                        .behaviour_mut()
+                        .kademlia
+                        .store_mut()
+                        .put(record)
+                        .is_ok();
+                    if kad_ok || store_ok {
+                        success_count += 1;
+                    }
                 }
-                let _ = responder.send(Ok(()));
+                if success_count > 0 {
+                    tracing::debug!(name = %name, success = %success_count, total = %total, "PublishHeartbeat succeeded");
+                    let _ = responder.send(Ok(()));
+                } else {
+                    tracing::warn!(error_code = "KIN-PUB-004", name = %name, total = %total, "PublishHeartbeat: all DHT puts failed");
+                    let _ = responder.send(Err(PublishError::AllFailed { count: total }));
+                }
             }
             Command::ResolveRedundant { name, responder } => {
                 let keys = kinetic_core::types::derive_storage_keys(&name);
@@ -391,15 +429,20 @@ impl NetworkEventLoop {
                     let k = kad::RecordKey::new(key_bytes);
                     if let Some(record) = self.swarm.behaviour_mut().kademlia.store_mut().get(&k) {
                         tracing::info!("Resolved {} locally from own store", name);
-                        let _ = responder.send(Ok(Some(record.value.clone())));
+                        let _ = responder.send(Ok(record.value.clone()));
                         return;
                     }
                 }
 
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
-                    tracing::warn!("Offline mode: Failing fast for ResolveRedundant (0 peers)");
-                    let _ = responder.send(Ok(None));
+                    let name_clean = name.trim_end_matches('.').to_string();
+                    tracing::warn!(
+                        error_code = "KIN-RES-001",
+                        name = %name_clean,
+                        "Resolution failed: node is offline (0 peers)"
+                    );
+                    let _ = responder.send(Err(ResolutionError::Offline));
                     return;
                 }
 
@@ -419,6 +462,7 @@ impl NetworkEventLoop {
                         responder,
                         expected_responses: expected,
                         received_payloads: Vec::new(),
+                        peers_queried: expected,
                     },
                 );
             }
@@ -583,12 +627,37 @@ impl NetworkEventLoop {
                                 }
                                 if complete {
                                     if let Some(pending) = self.pending_gets.remove(&mapped_name) {
-                                        let winning_payload = Self::xor_tie_breaker(
+                                        let name_clean =
+                                            mapped_name.trim_end_matches('.').to_string();
+                                        let peers_q = pending.peers_queried;
+                                        match Self::xor_tie_breaker(
                                             &mapped_name,
                                             pending.received_payloads,
                                             self.current_drand_pulse,
-                                        );
-                                        let _ = pending.responder.send(Ok(winning_payload));
+                                        ) {
+                                            Some(payload) => {
+                                                tracing::debug!(
+                                                    name = %name_clean,
+                                                    peers_queried = %peers_q,
+                                                    "DHT resolution succeeded"
+                                                );
+                                                let _ = pending.responder.send(Ok(payload));
+                                            }
+                                            None => {
+                                                tracing::warn!(
+                                                    error_code = "KIN-RES-002",
+                                                    name = %name_clean,
+                                                    peers_queried = %peers_q,
+                                                    "DHT resolution: name not found in network"
+                                                );
+                                                let _ = pending.responder.send(Err(
+                                                    ResolutionError::NotFound {
+                                                        name: name_clean,
+                                                        peers_queried: peers_q,
+                                                    },
+                                                ));
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -597,38 +666,40 @@ impl NetworkEventLoop {
                     _ => {}
                 },
                 kad::Event::InboundRequest {
-                    request: kad::InboundRequest::PutRecord { source, record: Some(record), .. },
+                    request:
+                        kad::InboundRequest::PutRecord {
+                            source,
+                            record: Some(record),
+                            ..
+                        },
                 } => {
-                        if let Ok(reveal) =
-                            serde_json::from_slice::<kinetic_core::types::Reveal>(&record.value)
-                        {
-                            let store = self.swarm.behaviour_mut().kademlia.store_mut();
-                            let was_accepted = store
-                                .reveals_by_name
-                                .get(&reveal.name)
-                                    .map(|r| r.pubkey == reveal.pubkey)
-                                    .unwrap_or(false);
+                    if let Ok(reveal) =
+                        serde_json::from_slice::<kinetic_core::types::Reveal>(&record.value)
+                    {
+                        let store = self.swarm.behaviour_mut().kademlia.store_mut();
+                        let was_accepted = store
+                            .reveals_by_name
+                            .get(&reveal.name)
+                            .map(|r| r.pubkey == reveal.pubkey)
+                            .unwrap_or(false);
 
-                                if !was_accepted {
-                                    let now = std::time::Instant::now();
-                                    let entry =
-                                        self.bad_vdf_counts.entry(source).or_insert((0, now));
-                                    if now.duration_since(entry.1)
-                                        > std::time::Duration::from_secs(60)
-                                    {
-                                        *entry = (1, now);
-                                    } else {
-                                        entry.0 += 1;
-                                    }
+                        if !was_accepted {
+                            let now = std::time::Instant::now();
+                            let entry = self.bad_vdf_counts.entry(source).or_insert((0, now));
+                            if now.duration_since(entry.1) > std::time::Duration::from_secs(60) {
+                                *entry = (1, now);
+                            } else {
+                                entry.0 += 1;
+                            }
 
-                                    if entry.0 >= 3 {
-                                        tracing::warn!("Peer {} sent 3 invalid VDF proofs within 60s — disconnecting and banning", source);
-                                        let _ = self.swarm.disconnect_peer_id(source);
-                                        self.banned_peers.insert(source);
-                                    }
-                                }
+                            if entry.0 >= 3 {
+                                tracing::warn!("Peer {} sent 3 invalid VDF proofs within 60s — disconnecting and banning", source);
+                                let _ = self.swarm.disconnect_peer_id(source);
+                                self.banned_peers.insert(source);
                             }
                         }
+                    }
+                }
                 _ => {}
             },
             SwarmEvent::Behaviour(KineticBehaviorEvent::Proxy(e)) => {
@@ -674,12 +745,41 @@ impl NetworkEventLoop {
                     _ => {}
                 }
             }
-            SwarmEvent::Behaviour(KineticBehaviorEvent::Identify(libp2p::identify::Event::Received { peer_id, info })) => {
-                    tracing::info!(
-                        "Received Identify from peer {:?} with addrs: {:?}",
-                        peer_id,
-                        info.listen_addrs
+            SwarmEvent::Behaviour(KineticBehaviorEvent::Identify(
+                libp2p::identify::Event::Received { peer_id, info },
+            )) => {
+                tracing::info!(
+                    "Received Identify from peer {:?} with addrs: {:?}",
+                    peer_id,
+                    info.listen_addrs
+                );
+                let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
+                let pow_valid = crate::pow::is_valid_sybil_pow(
+                    &peer_id,
+                    self.current_drand_pulse,
+                    crate::pow::DEFAULT_DIFFICULTY_BITS,
+                );
+
+                if pow_valid || is_bootstrap {
+                    for addr in info.listen_addrs {
+                        tracing::info!("Adding peer {:?} addr {:?} to Kademlia", peer_id, addr);
+                        self.swarm
+                            .behaviour_mut()
+                            .kademlia
+                            .add_address(&peer_id, addr);
+                    }
+                } else {
+                    tracing::debug!(
+                        "Peer {} failed PoW, ignoring for Kademlia routing table",
+                        peer_id
                     );
+                }
+                let _ = self.swarm.behaviour_mut().kademlia.bootstrap();
+            }
+            SwarmEvent::Behaviour(KineticBehaviorEvent::Mdns(libp2p::mdns::Event::Discovered(
+                list,
+            ))) => {
+                for (peer_id, multiaddr) in list {
                     let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
                     let pow_valid = crate::pow::is_valid_sybil_pow(
                         &peer_id,
@@ -688,38 +788,13 @@ impl NetworkEventLoop {
                     );
 
                     if pow_valid || is_bootstrap {
-                        for addr in info.listen_addrs {
-                            tracing::info!("Adding peer {:?} addr {:?} to Kademlia", peer_id, addr);
-                            self.swarm
-                                .behaviour_mut()
-                                .kademlia
-                                .add_address(&peer_id, addr);
-                        }
-                    } else {
-                        tracing::debug!(
-                            "Peer {} failed PoW, ignoring for Kademlia routing table",
-                            peer_id
-                        );
-                    }
-                    let _ = self.swarm.behaviour_mut().kademlia.bootstrap();
-                }
-            SwarmEvent::Behaviour(KineticBehaviorEvent::Mdns(libp2p::mdns::Event::Discovered(list))) => {
-                    for (peer_id, multiaddr) in list {
-                        let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                        let pow_valid = crate::pow::is_valid_sybil_pow(
-                            &peer_id,
-                            self.current_drand_pulse,
-                            crate::pow::DEFAULT_DIFFICULTY_BITS,
-                        );
-
-                        if pow_valid || is_bootstrap {
-                            self.swarm
-                                .behaviour_mut()
-                                .kademlia
-                                .add_address(&peer_id, multiaddr);
-                        }
+                        self.swarm
+                            .behaviour_mut()
+                            .kademlia
+                            .add_address(&peer_id, multiaddr);
                     }
                 }
+            }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 tracing::warn!(
                     "Outgoing connection error to peer {:?}: {:?}",
@@ -828,12 +903,21 @@ impl NetworkEventLoop {
                         use kinetic_vdf::ChiaVdfEngine;
                         use sha2::{Digest, Sha256};
 
-                        let challenge_bytes =
-                            hex::decode(&reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
+                        let drand_bytes = match hex::decode(&reveal.drand_randomness) {
+                            Ok(b) => b,
+                            Err(e) => {
+                                tracing::warn!(
+                                    error_code = "KIN-RES-003",
+                                    "Skipping candidate: invalid drand_randomness hex: {}",
+                                    e
+                                );
+                                continue;
+                            }
+                        };
                         let mut hasher = Sha256::new();
                         hasher.update(reveal.name.as_bytes());
                         hasher.update(reveal.salt);
-                        hasher.update(&challenge_bytes);
+                        hasher.update(&drand_bytes);
                         hasher.update(&reveal.pubkey);
                         let mut hash = [0u8; 32];
                         hash.copy_from_slice(&hasher.finalize());

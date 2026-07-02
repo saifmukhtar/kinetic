@@ -71,7 +71,7 @@ async fn main() -> Result<()> {
     );
 
     // 4.5 Fetch initial Drand pulse for PoW
-    let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(storage.clone()));
+    let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(Some(storage.clone())));
 
     let initial_pulse = match drand_client.fetch_latest().await {
         Ok(pulse) => {
@@ -162,7 +162,7 @@ async fn main() -> Result<()> {
         }
         Err(e) => {
             tracing::error!("Failed to initialize Root CA: {}", e);
-            return Err(anyhow::anyhow!("CA Init Failed"));
+            return Err(anyhow::anyhow!("CA Init Failed: {}", e));
         }
     };
 
@@ -381,7 +381,7 @@ async fn main() -> Result<()> {
 
                         tokio::spawn(async move {
                             // Check if the original Reveal VDF is expiring
-                            if let Ok(Some(bytes)) = hb_network_clone
+                            if let Ok(bytes) = hb_network_clone
                                 .resolve_redundant_payload(&name_clone)
                                 .await
                             {
@@ -445,7 +445,7 @@ async fn main() -> Result<()> {
                             tokio::spawn(async move {
                                 // Verify the Ed25519 signature before broadcasting by fetching the Reveal pubkey
                                 let mut sig_valid = false;
-                                if let Ok(Some(payload)) = hb_network_clone
+                                if let Ok(payload) = hb_network_clone
                                     .resolve_redundant_payload(&name_clone)
                                     .await
                                 {
@@ -523,7 +523,7 @@ async fn main() -> Result<()> {
             info!("P2P Network loop exited");
         },
         res = api_future => {
-            info!("API Server exited: {:?}", res);
+            tracing::error!("API Server exited unexpectedly: {:?}", res);
         },
         _ = tokio::signal::ctrl_c() => {
             info!("Ctrl+C received. Commencing graceful shutdown...");

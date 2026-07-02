@@ -8,16 +8,16 @@ fn test_002_silent_identity_wipe() {
     let _ = fs::remove_dir_all(&temp_dir);
     fs::create_dir_all(&temp_dir).unwrap();
 
-    let id_file = temp_dir.join("id.bin");
+    let id_file = temp_dir.join("identity.kin");
 
-    // 2. Create a corrupted id.bin (e.g. 10 bytes instead of 32)
+    // 2. Create a corrupted identity.kin (e.g. 10 bytes instead of 32)
     fs::write(&id_file, b"corrupted1").unwrap();
 
     // 3. Set the environment variable so `load_or_create_keypair` uses our test file
     env::set_var("KINETIC_KEY_PATH", &id_file);
 
     // 4. Attempt to load the keypair.
-    // Under the OLD logic (flawed), this would silently overwrite id.bin with a new 32-byte key
+    // Under the OLD logic (flawed), this would silently overwrite identity.kin with a new 32-byte key
     // and return Ok().
     // Under the NEW logic (fixed), this should return an Err() so the user knows it's corrupted.
 

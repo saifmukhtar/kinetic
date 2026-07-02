@@ -287,11 +287,11 @@ pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::erro
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
             ProjectDirs::from("com", "kinetic", "kinetic")
-                .map(|d| d.config_dir().join("id.bin"))
+                .map(|d| d.config_dir().join("identity.kin"))
                 .unwrap_or_else(|| {
                     std::env::current_dir()
                         .unwrap_or_else(|_| PathBuf::from("."))
-                        .join(".kinetic/id.bin")
+                        .join(".kinetic/identity.kin")
                 })
         });
 
@@ -408,6 +408,32 @@ pub enum DnsRecord {
     CNAME(String),
     TXT(String),
     PeerId(String),
+    KID(String),
+}
+
+/// A dynamic routing record to allow infrastructure hosts with static identities
+/// to point to ephemeral PoW-compliant Peer IDs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HostRoutingRecord {
+    /// The permanent Host Identity (usually the static PeerId string)
+    pub host_id: String,
+    /// The current 12-hour PoW-compliant temporary PeerId
+    pub current_peer_id: String,
+    /// The unix timestamp in seconds when this record was generated
+    pub timestamp: u64,
+    /// The cryptographic signature of `host_id + current_peer_id + timestamp`
+    /// signed by the permanent Host Key
+    pub signature: Vec<u8>,
+}
+
+impl HostRoutingRecord {
+    pub fn signable_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(self.host_id.as_bytes());
+        bytes.extend_from_slice(self.current_peer_id.as_bytes());
+        bytes.extend_from_slice(&self.timestamp.to_be_bytes());
+        bytes
+    }
 }
 
 impl DnsZone {
@@ -440,8 +466,7 @@ impl DnsZone {
             }
         }
 
-        serde_json::from_slice::<DnsZone>(payload)
-            .map_err(crate::error::KineticError::ParseError)
+        serde_json::from_slice::<DnsZone>(payload).map_err(crate::error::KineticError::ParseError)
     }
 }
 

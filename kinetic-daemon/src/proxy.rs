@@ -277,8 +277,7 @@ async fn forward_to_backend_direct(
     let payload = network_client
         .resolve_redundant_payload(&apex_domain)
         .await
-        .map_err(|_| ProxyError::NameNotFound(apex_domain.clone()))?
-        .ok_or_else(|| ProxyError::NameNotFound(apex_domain.clone()))?;
+        .map_err(|_| ProxyError::NameNotFound(apex_domain.clone()))?;
 
     // The DHT stores the full Reveal JSON (set by api.rs via serde_json::to_vec(&reveal)).
     // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
@@ -400,7 +399,22 @@ async fn forward_to_backend_direct(
 
         let body = backend_resp.bytes().await?;
         Ok(resp_builder.body(Full::new(body))?)
-    } else if let Ok(peer_id) = ip_str.parse::<libp2p::PeerId>() {
+    } else if let Ok(mut peer_id) = ip_str.parse::<libp2p::PeerId>() {
+        // Transparently resolve HostRoutingRecord if this PeerId is a static infrastructure node
+        if let Ok(Some(record)) = network_client.resolve_host_routing_record(&peer_id.to_string()).await {
+            tracing::info!(
+                "Resolved HostRoutingRecord for static Host ID {}: dynamically routing to Ephemeral Peer ID {} (timestamp: {})",
+                peer_id, record.current_peer_id, record.timestamp
+            );
+            if let Ok(dynamic_peer_id) = record.current_peer_id.parse::<libp2p::PeerId>() {
+                peer_id = dynamic_peer_id;
+            } else {
+                tracing::warn!("HostRoutingRecord returned invalid PeerId: {}", record.current_peer_id);
+            }
+        } else {
+            tracing::debug!("No HostRoutingRecord found for {}, routing directly.", peer_id);
+        }
+
         // Forward to the libp2p PeerId via P2P network
 
         let mut headers = std::collections::HashMap::new();
