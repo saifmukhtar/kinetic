@@ -284,26 +284,37 @@ async fn forward_to_backend_direct(
     let reveal = serde_json::from_slice::<kinetic_core::types::Reveal>(&payload)
         .map_err(|_| ProxyError::InvalidPayload)?;
 
-    let zone = kinetic_core::types::DnsZone::parse_payload(&reveal.payload)
-        .map_err(|_| ProxyError::InvalidPayload)?;
+    let zone = match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
+        Ok(z) => z,
+        Err(e) => {
+            tracing::warn!("Proxy Error: Invalid DnsZone payload: {}", e);
+            return Err(ProxyError::InvalidPayload);
+        }
+    };
 
-    let mut subdomain = domain
-        .trim_end_matches(&format!(".{}", apex_domain))
-        .to_string();
-    if subdomain.ends_with('.') {
-        subdomain.pop();
-    }
+    let mut subdomain = if domain == apex_domain {
+        "@".to_string()
+    } else {
+        let trimmed = domain.trim_end_matches(&format!(".{}", apex_domain));
+        trimmed.trim_end_matches('.').to_string()
+    };
     if subdomain.is_empty() {
         subdomain = "@".to_string();
     }
 
-    let records = zone
-        .records
-        .get(&subdomain)
-        .ok_or_else(|| ProxyError::NameNotFound(domain.to_string()))?;
+    tracing::info!("Proxy looking for subdomain '{}' in zone: {:?}", subdomain, zone);
+
+    let records = match zone.records.get(&subdomain) {
+        Some(r) => r,
+        None => {
+            tracing::warn!("Proxy Error: Subdomain '{}' not found in zone", subdomain);
+            return Err(ProxyError::NameNotFound(domain.to_string()));
+        }
+    };
 
     let mut target_str = String::new();
     for record in records {
+        tracing::info!("Proxy considering record: {:?}", record);
         match record {
             kinetic_core::types::DnsRecord::A(ip) => {
                 target_str = ip.clone();
@@ -315,6 +326,10 @@ async fn forward_to_backend_direct(
             }
             kinetic_core::types::DnsRecord::TXT(txt) => {
                 target_str = txt.clone();
+                break;
+            }
+            kinetic_core::types::DnsRecord::PeerId(peer_id) => {
+                target_str = peer_id.clone();
                 break;
             }
             // Note: If CNAME points to another .kin, we'd need to resolve recursively here,
@@ -403,8 +418,8 @@ async fn forward_to_backend_direct(
         // Transparently resolve HostRoutingRecord if this PeerId is a static infrastructure node
         if let Ok(Some(record)) = network_client.resolve_host_routing_record(&peer_id.to_string()).await {
             tracing::info!(
-                "Resolved HostRoutingRecord for static Host ID {}: dynamically routing to Ephemeral Peer ID {} (timestamp: {})",
-                peer_id, record.current_peer_id, record.timestamp
+                "Resolved HostRoutingRecord for static Host ID {}: dynamically routing to Ephemeral Peer ID {}",
+                peer_id, record.current_peer_id
             );
             if let Ok(dynamic_peer_id) = record.current_peer_id.parse::<libp2p::PeerId>() {
                 peer_id = dynamic_peer_id;
@@ -412,7 +427,7 @@ async fn forward_to_backend_direct(
                 tracing::warn!("HostRoutingRecord returned invalid PeerId: {}", record.current_peer_id);
             }
         } else {
-            tracing::debug!("No HostRoutingRecord found for {}, routing directly.", peer_id);
+            tracing::debug!("No dynamic route found for {}, routing directly.", peer_id);
         }
 
         // Forward to the libp2p PeerId via P2P network
@@ -450,7 +465,10 @@ async fn forward_to_backend_direct(
         let proxy_resp = network_client
             .send_proxy_request(peer_id, proxy_req)
             .await
-            .map_err(|_| ProxyError::InvalidPayload)?;
+            .map_err(|e| {
+                tracing::error!("send_proxy_request failed: {:?}", e);
+                ProxyError::InvalidPayload
+            })?;
 
         let mut resp_builder = Response::builder().status(proxy_resp.status);
 
