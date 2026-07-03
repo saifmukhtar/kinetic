@@ -1,0 +1,17 @@
+[daemon]
+api_port = 17002
+dns_port = 17053
+proxy_port = 17463
+backend_port = 17080
+storage_dir = "/home/saif/kinetic/temp_db"
+network_mode = "FullNode"
+
+[network]
+p2p_port = 17070
+bootstrap_nodes = [
+    "/ip4/44.219.188.204/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs",
+    "/ip4/44.219.155.172/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D",
+    "/ip4/100.60.156.241/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc",
+]
+seed_domains = ["seed.saifmukhtar.dev"]
+enable_mdns = true

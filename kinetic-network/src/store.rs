@@ -649,6 +649,13 @@ impl kad::store::RecordStore for KineticRecordStore {
                 );
                 return Err(err.into());
             }
+        } else if let Ok(host_route) =
+            serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&r.value)
+        {
+            tracing::info!(
+                "KineticRecordStore::put accepted HostRoutingRecord for {}",
+                host_route.host_id
+            );
         } else {
             let err = KineticStoreError::UnknownRecordType;
             tracing::warn!(
