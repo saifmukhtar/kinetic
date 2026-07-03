@@ -32,7 +32,6 @@ pub struct ApiState {
     pub vdf_tasks: Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
     pub mempool: Arc<Mutex<kinetic_core::mempool::Mempool>>,
     pub auth_token: String,
-    pub dns_handler: Option<kinetic_dns::KineticDnsHandler>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -184,7 +183,6 @@ pub async fn start_server(
     network: NetworkClient,
     storage: Arc<SledStorage>,
     port: u16,
-    dns_handler: Option<kinetic_dns::KineticDnsHandler>,
     mempool: Arc<Mutex<kinetic_core::mempool::Mempool>>,
 ) -> anyhow::Result<()> {
     let token_path = kinetic_core::config::get_api_token_path();
@@ -206,7 +204,6 @@ pub async fn start_server(
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
         mempool,
         auth_token: token,
-        dns_handler,
     };
 
     // Load persisted mempool state
@@ -374,6 +371,61 @@ async fn handle_publish(
     let mut reveal = req.reveal;
     reveal.name = fqdn.clone();
 
+    // Finding 4 (High): Run the structural validator before touching the network.
+    // Catches bad protocol versions and oversized payloads at the gate.
+    if let Err(e) = reveal.validate() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": format!("Invalid Reveal: {}", e)})),
+        ));
+    }
+
+    // Finding 4 (High): Enforce drand staleness — reject Reveals whose VDF pulse is older
+    // than RESQUARING_EPOCH_ROUNDS. Fetch the current beacon round, falling back to the
+    // sled-cached value so offline-first nodes aren’t broken.
+    let current_round: u64 = {
+        let drand_client =
+            kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+        match drand_client.fetch_latest().await {
+            Ok(pulse) => pulse.round,
+            Err(_) => {
+                // Graceful fallback: read the last known round from sled.
+                // If even that is unavailable, we allow the publish to proceed —
+                // the DHT store layer will still enforce its own staleness check.
+                tracing::warn!(
+                    error_code = "KIN-API-001",
+                    "handle_publish: Could not fetch live drand round, \
+                     falling back to cached value for staleness check"
+                );
+                state
+                    .storage
+                    .get(b"kinetic_last_drand_round")
+                    .ok()
+                    .flatten()
+                    .and_then(|b| b.get(..8).map(|s| u64::from_be_bytes(s.try_into().unwrap())))
+                    .unwrap_or(0)
+            }
+        }
+    };
+
+    if current_round > 0 {
+        let age = current_round.saturating_sub(reveal.drand_pulse);
+        if age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": format!(
+                        "Reveal rejected: VDF pulse {} is {} rounds old (max allowed: {}). \
+                         Please re-compute a fresh VDF proof.",
+                        reveal.drand_pulse,
+                        age,
+                        kinetic_core::types::RESQUARING_EPOCH_ROUNDS
+                    )
+                })),
+            ));
+        }
+    }
+
     let payload_bytes = match serde_json::to_vec(&reveal) {
         Ok(b) => b,
         Err(e) => {
@@ -396,9 +448,6 @@ async fn handle_publish(
                 "Successfully queued payload for {} to the DHT network",
                 fqdn
             );
-            if let Some(dns) = &state.dns_handler {
-                dns.invalidate_cache(&fqdn).await;
-            }
 
             // Persist the owned name to embedded storage so the Heartbeat loop can maintain it
             let owned_key = b"kinetic_owned_names";
@@ -488,6 +537,20 @@ async fn handle_commit(
             Json(
                 serde_json::json!({"error": "Invalid domain name. You can only commit to apex domains (e.g. 'saif.kin')."}),
             ),
+        ));
+    }
+
+    // Finding 1 (Medium): Reject null/all-zero commitment hashes.
+    // An all-zero hash is a trivial commitment that binds to nothing — any reveal whose
+    // hash also produces zeros would match it, creating a commitment without any
+    // cryptographic binding to the actual name or salt.
+    if req.commitment.hash == [0u8; 32] {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "Commitment hash must not be all-zeros. \
+                          Please provide a valid cryptographic commitment."
+            })),
         ));
     }
 
@@ -1456,9 +1519,6 @@ async fn handle_publish_zone(
     {
         Ok(_) => {
             tracing::info!("Zone published to DHT for {}", fqdn);
-            if let Some(dns) = &state.dns_handler {
-                dns.invalidate_cache(&fqdn).await;
-            }
             Ok(Json(
                 serde_json::json!({ "success": true, "message": "Zone published to the Kinetic DHT network." }),
             ))

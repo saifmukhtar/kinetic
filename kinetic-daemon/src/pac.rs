@@ -437,24 +437,34 @@ impl PacManager {
     }
 }
 
-pub async fn start_pac_server(port: u16) -> anyhow::Result<()> {
-    let pac_script = r#"
-function FindProxyForURL(url, host) {
-    if (shExpMatch(host, "*.kin")) return "PROXY 127.0.0.1:5463";
-    if (shExpMatch(host, "*.kin.")) return "PROXY 127.0.0.1:5463";
+pub async fn start_pac_server(port: u16, proxy_port: u16) -> anyhow::Result<()> {
+    let pac_script = format!(r#"
+function FindProxyForURL(url, host) {{
+    if (shExpMatch(host, "*.kin")) return "PROXY 127.0.0.1:{0}; PROXY [::1]:{0}; DIRECT";
+    if (shExpMatch(host, "*.kin.")) return "PROXY 127.0.0.1:{0}; PROXY [::1]:{0}; DIRECT";
     return "DIRECT";
-}
-"#
+}}"#, proxy_port)
     .trim()
     .to_string();
 
     let app = Router::new().route(
         "/proxy.pac",
-        get(move || async move {
-            axum::response::Response::builder()
-                .header("Content-Type", "application/x-ns-proxy-autoconfig")
-                .body(pac_script.clone())
-                .unwrap()
+        get(move |headers: axum::http::HeaderMap| async move {
+            let host = headers
+                .get(axum::http::header::HOST)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            if host.starts_with("localhost") || host.starts_with("127.0.0.1") || host.starts_with("[::1]") {
+                axum::response::Response::builder()
+                    .header("Content-Type", "application/x-ns-proxy-autoconfig")
+                    .body(pac_script.clone())
+                    .unwrap()
+            } else {
+                axum::response::Response::builder()
+                    .status(403)
+                    .body("Forbidden".to_string())
+                    .unwrap()
+            }
         }),
     );
 

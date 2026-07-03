@@ -17,13 +17,32 @@ pub async fn start_nostr_listener(
     mempool: Arc<Mutex<Mempool>>,
     storage: Arc<SledStorage>,
 ) -> Result<()> {
-    // 1. Derive secp256k1 SecretKey from the ed25519 secret seed (32 bytes)
+    // 1. Derive secp256k1 SecretKey from the ed25519 secret seed using a domain-separated hash
+    // (Prevents cross-curve key reuse vulnerability)
     let secret_bytes = daemon_keypair.to_bytes();
-    let secret_key = SecretKey::from_slice(&secret_bytes)?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"kinetic_nostr_secp256k1");
+    hasher.update(&secret_bytes);
+    let secp_seed = hasher.finalize();
+    
+    let secret_key = SecretKey::from_slice(&secp_seed)?;
     let keys = Keys::new(secret_key);
 
     let npub = keys.public_key().to_bech32()?;
     tracing::info!("📡 Nostr Listener active. Public Node Address: {}", npub);
+
+    let tofu_key = b"kinetic_trusted_mobile_pubkey";
+    let mut expected_pin: Option<u32> = None;
+    if let Ok(None) = storage.get(tofu_key) {
+        let val = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos();
+        let pin = (val % 900_000) + 100_000;
+        expected_pin = Some(pin);
+        tracing::info!("🔒 TOFU PIN for mobile app pairing: {}", pin);
+        tracing::info!("🔒 Please enter this PIN in your mobile app to pair.");
+    }
 
     // 2. Initialize Nostr Client
     let client = Client::new(&keys);
@@ -138,7 +157,7 @@ pub async fn start_nostr_listener(
                     // Add to cache
                     processed_events_set.insert(event.id);
                     processed_events_queue.push_back(event.id);
-                    if processed_events_queue.len() > 1000 {
+                    if processed_events_queue.len() > 100000 {
                         if let Some(old_id) = processed_events_queue.pop_front() {
                             processed_events_set.remove(&old_id);
                         }
@@ -184,14 +203,16 @@ pub async fn start_nostr_listener(
                             continue;
                         }
 
+                        // Validate that the requested name matches the commitment and has sufficient length
                         if req.name_length < 8 {
+                            tracing::warn!("Rejected VDF Request: Name length is too short (< 8 chars)");
                             continue;
                         }
 
                         // Verify Hashcash (minimum 20 leading zero bits)
                         let mut hasher = Sha256::new();
                         hasher.update(req.challenge_hash);
-                        hasher.update(req.hashcash_nonce.to_le_bytes());
+                        hasher.update(req.hashcash_nonce.to_be_bytes()); // Use big-endian for cross-platform consistency
                         let result = hasher.finalize();
 
                         let valid_hashcash =
@@ -215,8 +236,15 @@ pub async fn start_nostr_listener(
                                 continue;
                             }
                         } else {
+                            if let Some(expected) = expected_pin {
+                                if req.pin != Some(expected) {
+                                    tracing::warn!("Rejected pairing request: Incorrect or missing PIN from {}", sender);
+                                    continue;
+                                }
+                            }
                             // Trust this pubkey on first use
                             let _ = storage.put(tofu_key, &sender.to_bytes());
+                            expected_pin = None;
                             tracing::info!(
                                 "🔒 TOFU: Paired with mobile pubkey {}",
                                 sender.to_bech32().unwrap_or_default()
@@ -229,9 +257,20 @@ pub async fn start_nostr_listener(
                         let proof_key = format!("kinetic_delegation_proof:{}", challenge_hex);
                         if let Ok(Some(_)) = storage.get(proof_key.as_bytes()) {
                             tracing::warn!(
-                                "Replay attack or duplicate Nostr request dropped: {}",
+                                "Replay attack or duplicate Nostr request dropped (already computed): {}",
                                 challenge_hex
                             );
+                            continue;
+                        }
+                        let mut is_pending = false;
+                        {
+                            let pending = pending_requests.lock().unwrap_or_else(|e| e.into_inner());
+                            if pending.contains_key(&challenge_hex) {
+                                is_pending = true;
+                            }
+                        }
+                        if is_pending {
+                            tracing::warn!("Duplicate Nostr request dropped (currently computing): {}", challenge_hex);
                             continue;
                         }
 

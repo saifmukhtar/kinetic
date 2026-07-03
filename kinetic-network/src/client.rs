@@ -98,11 +98,16 @@ pub enum Command {
 #[derive(Clone)]
 pub struct NetworkClient {
     sender: mpsc::Sender<Command>,
+    stream_control: libp2p_stream::Control,
 }
 
 impl NetworkClient {
-    pub fn new(sender: mpsc::Sender<Command>) -> Self {
-        Self { sender }
+    pub fn new(sender: mpsc::Sender<Command>, stream_control: libp2p_stream::Control) -> Self {
+        Self { sender, stream_control }
+    }
+
+    pub fn stream_control(&self) -> &libp2p_stream::Control {
+        &self.stream_control
     }
 
     pub async fn send_proxy_request(

@@ -37,6 +37,12 @@ pub enum KineticStoreError {
     UnknownRecordType,
     #[error("drand_randomness field contains invalid hex")]
     InvalidDrandHex,
+    /// Finding 8: heartbeat pulse was not strictly greater than the stored value.
+    #[error("stale heartbeat: received pulse is not newer than existing record")]
+    StaleHeartbeat,
+    /// Finding 13: HostRoutingRecord failed signature verification or timestamp check.
+    #[error("HostRoutingRecord signature verification failed or record is stale")]
+    InvalidHostRouteSignature,
 }
 
 impl KineticStoreError {
@@ -55,7 +61,9 @@ impl KineticStoreError {
             | Self::VdfEngineError(_)
             | Self::InvalidKidSignature
             | Self::InvalidManifestPoW
-            | Self::InvalidDrandHex => Severity::Error,
+            | Self::InvalidDrandHex
+            | Self::StaleHeartbeat
+            | Self::InvalidHostRouteSignature => Severity::Error,
         }
     }
 }

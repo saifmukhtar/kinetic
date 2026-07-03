@@ -1,5 +1,6 @@
 use rcgen::{
-    BasicConstraints, Certificate, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair,
+    BasicConstraints, Certificate, CertificateParams, DistinguishedName, DnType, GeneralSubtree,
+    IsCa, KeyPair, NameConstraints,
 };
 use rustls::ServerConfig;
 use std::collections::HashMap;
@@ -77,7 +78,11 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         dn.push(DnType::CommonName, "Kinetic Local Root CA");
         dn.push(DnType::OrganizationName, "Kinetic Protocol");
         params.distinguished_name = dn;
-        params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+        params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
+        params.name_constraints = Some(NameConstraints {
+            permitted_subtrees: vec![GeneralSubtree::DnsName("kin".to_string()), GeneralSubtree::DnsName(".kin".to_string())],
+            excluded_subtrees: vec![],
+        });
         params.not_before = OffsetDateTime::now_utc();
         params.not_after = OffsetDateTime::now_utc() + Duration::days(730); // 2 years
 

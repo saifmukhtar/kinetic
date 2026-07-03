@@ -8,7 +8,7 @@ use tokio::sync::{mpsc, oneshot, watch};
 use tracing::info;
 
 use kinetic_storage::SledStorage;
-
+use kinetic_core::traits::StorageEngine;
 use crate::behavior::{KineticBehavior, KineticBehaviorEvent};
 use crate::client::{
     Command, NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, ProxyResponse,
@@ -40,6 +40,8 @@ pub struct NetworkEventLoop {
     bootstrap_peers: std::collections::HashSet<libp2p::PeerId>,
     startup_time: std::time::Instant,
     banned_peers: std::collections::HashSet<libp2p::PeerId>,
+    commitment_miss_counts: HashMap<PeerId, u32>,
+    bootstrap_connection_time: HashMap<PeerId, std::time::Instant>,
 }
 
 struct PendingGet {
@@ -131,23 +133,29 @@ impl NetworkEventLoop {
                 libp2p::yamux::Config::default,
             )?;
 
+        let (control_tx, control_rx) = std::sync::mpsc::channel();
+        let storage_clone = storage.clone();
+        let mode = config.mode.clone();
+        let initial_drand_pulse = config.initial_drand_pulse;
+        let enable_mdns = config.enable_mdns;
+        
         let mut swarm = builder
             .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
-            .with_behaviour(|key, relay_client| {
+            .with_behaviour(move |key, relay_client| {
                 let peer_id = key.public().to_peer_id();
                 let store =
-                    KineticRecordStore::new(peer_id, storage.clone(), config.initial_drand_pulse);
+                    KineticRecordStore::new(peer_id, storage_clone, initial_drand_pulse);
                 let mut kad_config = kad::Config::default();
                 kad_config
                     .set_protocol_names(vec![libp2p::StreamProtocol::new("/kinetic/kad/2.0.0")]);
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
-                if config.mode == NetworkMode::LightClient {
+                if mode == NetworkMode::LightClient {
                     kademlia.set_mode(Some(kad::Mode::Client));
                 } else {
                     kademlia.set_mode(Some(kad::Mode::Server));
                 }
 
-                let gossipsub_config = if config.mode == NetworkMode::LightClient {
+                let gossipsub_config = if mode == NetworkMode::LightClient {
                     // LightClient mesh params: mesh_n_low < mesh_n < mesh_n_high (strict)
                     // gossipsub panics with MeshParametersInvalid if this invariant is violated.
                     libp2p::gossipsub::ConfigBuilder::default()
@@ -190,7 +198,10 @@ impl NetworkEventLoop {
                         libp2p::request_response::Config::default(),
                     );
 
-                let mdns = if config.enable_mdns {
+                let stream = libp2p_stream::Behaviour::new();
+                let _ = control_tx.send(stream.new_control());
+
+                let mdns = if enable_mdns {
                     libp2p::swarm::behaviour::toggle::Toggle::from(Some(
                         libp2p::mdns::tokio::Behaviour::new(
                             libp2p::mdns::Config::default(),
@@ -208,6 +219,7 @@ impl NetworkEventLoop {
                     identify,
                     ping,
                     proxy,
+                    stream,
                     kademlia,
                     gossipsub,
                     mdns,
@@ -297,7 +309,8 @@ impl NetworkEventLoop {
         }
 
         let (tx, rx) = mpsc::channel(32);
-        let client = NetworkClient::new(tx);
+        let stream_control = control_rx.recv().unwrap();
+        let client = NetworkClient::new(tx, stream_control);
 
         let event_loop = Self {
             swarm,
@@ -313,7 +326,27 @@ impl NetworkEventLoop {
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers,
             startup_time: std::time::Instant::now(),
-            banned_peers: std::collections::HashSet::new(),
+            banned_peers: {
+                let mut peers = std::collections::HashSet::new();
+                if let Ok(iter) = storage.scan_prefix(b"kinetic_banned_peer:") {
+                    for (key_bytes, val_bytes) in iter {
+                        let key_str = String::from_utf8_lossy(&key_bytes).to_string();
+                        let peer_id_str = key_str.trim_start_matches("kinetic_banned_peer:");
+                        if let Ok(peer_id) = peer_id_str.parse::<libp2p::PeerId>() {
+                            if val_bytes.len() == 8 {
+                                let expire = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
+                                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+                                if expire > now {
+                                    peers.insert(peer_id);
+                                }
+                            }
+                        }
+                    }
+                }
+                peers
+            },
+            commitment_miss_counts: HashMap::new(),
+            bootstrap_connection_time: HashMap::new(),
         };
 
         Ok((client, event_loop))
@@ -601,7 +634,17 @@ impl NetworkEventLoop {
 
                 tracing::info!("Connection established with {:?}", peer_id);
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                let pow_valid = crate::pow::is_valid_sybil_pow(
+                if is_bootstrap {
+                    self.bootstrap_connection_time.insert(peer_id, std::time::Instant::now());
+                }
+
+                if self.current_drand_pulse == 0 && !is_bootstrap {
+                    tracing::debug!("Peer {} connected during uninitialized drand pulse, disconnecting", peer_id);
+                    let _ = self.swarm.disconnect_peer_id(peer_id);
+                    return;
+                }
+
+                let pow_valid = self.current_drand_pulse > 0 && crate::pow::is_valid_sybil_pow(
                     &peer_id,
                     self.current_drand_pulse,
                     crate::pow::DEFAULT_DIFFICULTY_BITS,
@@ -611,10 +654,8 @@ impl NetworkEventLoop {
                     tracing::debug!("Peer {} failed S/Kademlia PoW for epoch, disconnecting them to prevent connection slot exhaustion", peer_id);
                     let _ = self.swarm.disconnect_peer_id(peer_id);
                 } else if !pow_valid && is_bootstrap {
-                    // Bootstrap peers use static keys and do not mine PoW for each epoch.
-                    // We must ALWAYS permit them to remain connected so the network doesn't partition.
                     tracing::debug!(
-                        "Bootstrap peer {} failed PoW — permitted infinitely",
+                        "Bootstrap peer {} failed PoW — permitted initially",
                         peer_id
                     );
                 }
@@ -714,17 +755,15 @@ impl NetworkEventLoop {
                             ..
                         },
                 } => {
-                    if let Ok(reveal) =
-                        serde_json::from_slice::<kinetic_core::types::Reveal>(&record.value)
-                    {
-                        let store = self.swarm.behaviour_mut().kademlia.store_mut();
-                        let was_accepted = store
-                            .reveals_by_name
-                            .get(&reveal.name)
-                            .map(|r| r.pubkey == reveal.pubkey)
-                            .unwrap_or(false);
+                    let put_result = libp2p::kad::store::RecordStore::put(self.swarm.behaviour_mut().kademlia.store_mut(), record.clone());
 
-                        if !was_accepted {
+                    if put_result.is_err() {
+                        let is_commitment = serde_json::from_slice::<kinetic_core::types::Commitment>(&record.value).is_ok();
+                        
+                        if is_commitment {
+                            let entry = self.commitment_miss_counts.entry(source).or_insert(0);
+                            *entry += 1;
+                        } else {
                             let now = std::time::Instant::now();
                             let entry = self.bad_vdf_counts.entry(source).or_insert((0, now));
                             if now.duration_since(entry.1) > std::time::Duration::from_secs(60) {
@@ -734,9 +773,12 @@ impl NetworkEventLoop {
                             }
 
                             if entry.0 >= 3 {
-                                tracing::warn!("Peer {} sent 3 invalid VDF proofs within 60s — disconnecting and banning", source);
+                                tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
                                 let _ = self.swarm.disconnect_peer_id(source);
                                 self.banned_peers.insert(source);
+                                let expire_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() + 86400;
+                                let key = format!("kinetic_banned_peer:{}", source);
+                                let _ = self.swarm.behaviour_mut().kademlia.store_mut().storage.put(key.as_bytes(), &expire_time.to_be_bytes());
                             }
                         }
                     }
@@ -795,11 +837,21 @@ impl NetworkEventLoop {
                     info.listen_addrs
                 );
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                let pow_valid = crate::pow::is_valid_sybil_pow(
+                let pow_valid = self.current_drand_pulse > 0 && crate::pow::is_valid_sybil_pow(
                     &peer_id,
                     self.current_drand_pulse,
                     crate::pow::DEFAULT_DIFFICULTY_BITS,
                 );
+
+                if !pow_valid && is_bootstrap {
+                    if let Some(conn_time) = self.bootstrap_connection_time.get(&peer_id) {
+                        if conn_time.elapsed() > std::time::Duration::from_secs(24 * 3600) {
+                            tracing::warn!("Bootstrap peer {} failed to provide valid PoW after 24 hours. Disconnecting.", peer_id);
+                            let _ = self.swarm.disconnect_peer_id(peer_id);
+                            return;
+                        }
+                    }
+                }
 
                 if pow_valid || is_bootstrap {
                     for addr in info.listen_addrs {
@@ -826,7 +878,7 @@ impl NetworkEventLoop {
             ))) => {
                 for (peer_id, multiaddr) in list {
                     let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                    let pow_valid = crate::pow::is_valid_sybil_pow(
+                    let pow_valid = self.current_drand_pulse > 0 && crate::pow::is_valid_sybil_pow(
                         &peer_id,
                         self.current_drand_pulse,
                         crate::pow::DEFAULT_DIFFICULTY_BITS,

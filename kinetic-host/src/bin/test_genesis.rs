@@ -1,6 +1,5 @@
 use kinetic_core::consensus_math::ConsensusParams;
 use kinetic_core::types::load_or_create_keypair;
-use std::fs;
 
 fn main() {
     let keypair = load_or_create_keypair().unwrap();

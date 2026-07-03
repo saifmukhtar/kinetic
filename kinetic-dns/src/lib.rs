@@ -5,7 +5,6 @@ use hickory_resolver::{
 };
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
-use kinetic_network::NetworkClient;
 use std::str::FromStr;
 use tracing::{error, info, warn};
 
@@ -60,22 +59,25 @@ impl Expiry<String, Option<Vec<u8>>> for KineticExpiry {
 /// Standard queries (e.g., .com, .org) are passed through to upstream resolvers.
 #[derive(Clone)]
 pub struct KineticDnsHandler {
-    network: NetworkClient,
+    api_url: String,
+    http_client: reqwest::Client,
     resolver: TokioAsyncResolver,
     cache: Cache<String, Option<Vec<u8>>>,
 }
 
 impl KineticDnsHandler {
-    pub fn new(network: NetworkClient) -> Self {
+    pub fn new(api_url: String) -> Self {
         // Use Cloudflare 1.1.1.1 DoH (DNS-over-HTTPS) for encrypted upstream proxy resolution
         let resolver =
             TokioAsyncResolver::tokio(ResolverConfig::cloudflare_https(), ResolverOpts::default());
 
         // Initialize moka cache for caching DHT resolves and preventing request stampedes
         let cache = Cache::builder().expire_after(KineticExpiry).build();
+        let http_client = reqwest::Client::new();
 
         Self {
-            network,
+            api_url,
+            http_client,
             resolver,
             cache,
         }
@@ -115,29 +117,33 @@ impl RequestHandler for KineticDnsHandler {
             let domain_name = kinetic_core::types::normalize_name(&clean_name);
             let apex_domain = kinetic_core::types::extract_apex_domain(&domain_name);
 
-            let network_clone = self.network.clone();
+            let api_url_clone = self.api_url.clone();
+            let http_client_clone = self.http_client.clone();
 
             // `try_get_with` provides cache stampede protection natively!
             let apex_domain_clone = apex_domain.clone();
             let cache_result = self
                 .cache
                 .try_get_with(apex_domain.clone(), async move {
-                    // If it's a cache miss, we hit the DHT.
-                    info!("Cache miss for apex: {}. Hitting DHT...", apex_domain_clone);
-                    // Map ResolutionError to Option<Vec<u8>>:
-                    //   Ok(payload)                     -> Ok(Some(payload))  [positive cache, 5 min]
-                    //   Err(NotFound | Offline)          -> Ok(None)           [negative cache, 30 s]
-                    //   Err(other internal errors)       -> Err(...)           [propagated as ServFail]
-                    match network_clone
-                        .resolve_redundant_payload(&apex_domain_clone)
-                        .await
-                    {
-                        Ok(payload) => {
-                            Ok::<_, Arc<kinetic_core::error::ResolutionError>>(Some(payload))
+                    // If it's a cache miss, we hit the API.
+                    info!("Cache miss for apex: {}. Hitting daemon API...", apex_domain_clone);
+                    
+                    let url = format!("{}/api/v1/resolve/{}", api_url_clone, apex_domain_clone);
+                    match http_client_clone.get(&url).send().await {
+                        Ok(resp) => {
+                            if resp.status().is_success() {
+                                if let Ok(payload) = resp.bytes().await {
+                                    Ok::<_, Arc<anyhow::Error>>(Some(payload.to_vec()))
+                                } else {
+                                    Err(Arc::new(anyhow::anyhow!("Failed to read API response body")))
+                                }
+                            } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
+                                Ok(None)
+                            } else {
+                                Err(Arc::new(anyhow::anyhow!("API returned status: {}", resp.status())))
+                            }
                         }
-                        Err(kinetic_core::error::ResolutionError::NotFound { .. })
-                        | Err(kinetic_core::error::ResolutionError::Offline) => Ok(None),
-                        Err(e) => Err(Arc::new(e)),
+                        Err(e) => Err(Arc::new(anyhow::anyhow!("API request failed: {}", e))),
                     }
                 })
                 .await;
