@@ -9,19 +9,21 @@ pub async fn handle_incoming_proxy_requests(
         libp2p::request_response::ResponseChannel<ProxyResponse>,
     )>,
     local_port: u16,
+    backend_host: String,
 ) {
     let reqwest_client = reqwest::Client::new();
     info!(
-        "Listening for incoming P2P Proxy requests, forwarding to 127.0.0.1:{}",
-        local_port
+        "Listening for incoming P2P Proxy requests, forwarding to {}:{}",
+        backend_host, local_port
     );
 
     while let Some((req, channel)) = rx.recv().await {
         let reqwest_client = reqwest_client.clone();
         let client_clone = client.clone();
+        let backend_host_clone = backend_host.clone();
 
         tokio::spawn(async move {
-            let url = format!("http://127.0.0.1:{}{}", local_port, req.path);
+            let url = format!("http://{}:{}{}", backend_host_clone, local_port, req.path);
 
             let mut builder =
                 reqwest_client.request(req.method.parse().unwrap_or(reqwest::Method::GET), &url);

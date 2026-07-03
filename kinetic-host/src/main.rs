@@ -83,13 +83,17 @@ async fn main() -> Result<()> {
         local_peer_id
     );
 
-    // 5. Initialize P2P Network (FullNode mode, no mDNS by default for cloud)
+    let p2p_port = std::env::var("KINETIC_HOST_P2P_PORT")
+        .unwrap_or_else(|_| config.network.p2p_port.to_string())
+        .parse::<u16>()
+        .unwrap_or(config.network.p2p_port);
+
     let network_config = NetworkConfig {
         mode: NetworkMode::FullNode,
-        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.p2p_port),
+        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", p2p_port),
         bootstrap_nodes: config.network.bootstrap_nodes.clone(),
         seed_domains: config.network.seed_domains.clone(),
-        enable_mdns: false, // Cloud infrastructure nodes don't need local mDNS
+        enable_mdns: config.network.enable_mdns,
         initial_drand_pulse,
         external_address: config.network.external_address.clone(),
     };
@@ -112,11 +116,15 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|_| "80".to_string())
         .parse::<u16>()
         .unwrap_or(80);
+    
+    let backend_host = std::env::var("KINETIC_HOST_BACKEND_HOST")
+        .unwrap_or_else(|_| "127.0.0.1".to_string());
 
     tokio::spawn(proxy::handle_incoming_proxy_requests(
         network_client.clone(),
         incoming_rx,
         backend_port,
+        backend_host,
     ));
     info!("Proxy handler started. Proxying P2P traffic to local port {}", backend_port);
 
