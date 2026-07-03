@@ -24,6 +24,10 @@ fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
             if octets[0] == 10 {
                 return true;
             }
+            // 100.64.0.0/10 (CGNAT / Cloud Metadata)
+            if octets[0] == 100 && (octets[1] & 0b1100_0000) == 64 {
+                return true;
+            }
             // 172.16.0.0/12
             if octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31 {
                 return true;
@@ -34,6 +38,22 @@ fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
             }
             // 169.254.0.0/16 (Link-local)
             if octets[0] == 169 && octets[1] == 254 {
+                return true;
+            }
+            // 192.0.2.0/24 (TEST-NET-1)
+            if octets[0] == 192 && octets[1] == 0 && octets[2] == 2 {
+                return true;
+            }
+            // 198.51.100.0/24 (TEST-NET-2)
+            if octets[0] == 198 && octets[1] == 51 && octets[2] == 100 {
+                return true;
+            }
+            // 203.0.113.0/24 (TEST-NET-3)
+            if octets[0] == 203 && octets[1] == 0 && octets[2] == 113 {
+                return true;
+            }
+            // 240.0.0.0/4 (Reserved)
+            if (octets[0] & 0b1111_0000) == 240 {
                 return true;
             }
             false
@@ -324,9 +344,8 @@ async fn forward_to_backend_direct(
                 target_str = ip.clone();
                 break;
             }
-            kinetic_core::types::DnsRecord::TXT(txt) => {
-                target_str = txt.clone();
-                break;
+            kinetic_core::types::DnsRecord::TXT(_) => {
+                continue; // Do NOT parse TXT records as IPs for proxying
             }
             kinetic_core::types::DnsRecord::PeerId(peer_id) => {
                 target_str = peer_id.clone();
@@ -345,8 +364,20 @@ async fn forward_to_backend_direct(
     let ip_str = target_str;
 
     // Validate it is actually a routable IP or PeerId
-    let is_ip_or_socket = ip_str.parse::<std::net::IpAddr>().is_ok()
-        || ip_str.parse::<std::net::SocketAddr>().is_ok();
+    let is_ip_or_socket = if let Ok(_ip) = ip_str.parse::<std::net::IpAddr>() {
+        // Double check it wasn't a TXT/PeerId record that just happens to be a valid IP
+        matches!(records.iter().find(|r| match r {
+            kinetic_core::types::DnsRecord::A(s) | kinetic_core::types::DnsRecord::AAAA(s) => s == &ip_str,
+            _ => false,
+        }), Some(_))
+    } else if let Ok(_sa) = ip_str.parse::<std::net::SocketAddr>() {
+        matches!(records.iter().find(|r| match r {
+            kinetic_core::types::DnsRecord::A(s) | kinetic_core::types::DnsRecord::AAAA(s) => s == &ip_str,
+            _ => false,
+        }), Some(_))
+    } else {
+        false
+    };
 
     if is_ip_or_socket {
         // Prevent SSRF: Do not proxy to loopback, private, or multicast networks!
@@ -358,20 +389,27 @@ async fn forward_to_backend_direct(
             return Err(ProxyError::NameNotFound(domain.to_string()));
         };
 
-        if is_ssrf_risk(ip_addr) && !kinetic_core::config::is_dev_mode() {
-            return Err(ProxyError::Other("SSRF Protection: Cannot proxy to loopback or private IPs. (Use Dev Mode to bypass)".to_string()));
-        }
-
         // Case 199: Prevent infinite proxy loops even in Dev Mode
+        // This check must happen before the dev mode bypass to protect the daemon's internal ports.
         if ip_addr.is_loopback() || ip_addr.is_unspecified() {
             let cfg = kinetic_core::config::KineticConfig::load();
             if ip_str.contains(&format!(":{}", cfg.daemon.proxy_port))
                 || ip_str.contains(&format!(":{}", cfg.daemon.api_port))
+                || ip_str.contains(&format!(":{}", cfg.daemon.dns_port))
+                || ip_str.contains(&format!(":{}", cfg.daemon.backend_port))
+                || ip_str.contains(&format!(":{}", cfg.network.p2p_port))
+                || ip_str.contains(":16001") // PAC port
             {
                 return Err(ProxyError::Other(
                     "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
                 ));
             }
+        }
+
+        if is_ssrf_risk(ip_addr) && !kinetic_core::config::is_dev_mode() {
+            return Err(ProxyError::Other("SSRF Protection: Cannot proxy to loopback or private IPs. (Use Dev Mode to bypass)".to_string()));
+        } else if is_ssrf_risk(ip_addr) {
+            tracing::warn!("DEV MODE: Forwarding to private IP {}. This would be blocked in production.", ip_addr);
         }
 
         // Explicitly HTTP — no TLS to backend
@@ -385,8 +423,8 @@ async fn forward_to_backend_direct(
         );
 
         let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true) // Redundant for HTTP but explicit
             .timeout(std::time::Duration::from_secs(15))
+            .redirect(reqwest::redirect::Policy::none())
             .build()?;
 
         let mut backend_req = client.request(req.method().clone(), &backend_url);
@@ -433,9 +471,13 @@ async fn forward_to_backend_direct(
         // Forward to the libp2p PeerId via P2P network
 
         let mut headers = std::collections::HashMap::new();
+        let strip_req_headers = ["authorization", "cookie", "x-api-key", "proxy-authorization"];
         for (name, value) in req.headers() {
-            if let Ok(val_str) = value.to_str() {
-                headers.insert(name.as_str().to_string(), val_str.to_string());
+            let name_lower = name.as_str().to_lowercase();
+            if !strip_req_headers.contains(&name_lower.as_str()) && name_lower != "host" {
+                if let Ok(val_str) = value.to_str() {
+                    headers.insert(name.as_str().to_string(), val_str.to_string());
+                }
             }
         }
         headers.insert("Host".to_string(), domain.to_string());
@@ -448,12 +490,18 @@ async fn forward_to_backend_direct(
             .unwrap_or_else(|| "/".to_string());
 
         use http_body_util::BodyExt;
-        let body_bytes = req
-            .collect()
-            .await
-            .map_err(|_| ProxyError::InvalidPayload)?
-            .to_bytes()
-            .to_vec();
+        let mut body_bytes = Vec::new();
+        let mut body_stream = req.into_body();
+        while let Some(chunk) = body_stream.frame().await {
+            let frame = chunk.map_err(|_| ProxyError::InvalidPayload)?;
+            if let Ok(data) = frame.into_data() {
+                body_bytes.extend_from_slice(&data);
+                if body_bytes.len() > 5 * 1024 * 1024 {
+                    tracing::warn!("Blocked P2P proxy request payload exceeding 5MB limit");
+                    return Err(ProxyError::InvalidPayload);
+                }
+            }
+        }
 
         let proxy_req = kinetic_network::ProxyRequest {
             method,
@@ -472,8 +520,13 @@ async fn forward_to_backend_direct(
 
         let mut resp_builder = Response::builder().status(proxy_resp.status);
 
+        let strip_resp_headers = [
+            "strict-transport-security", "public-key-pins",
+            "x-frame-options", "content-security-policy",
+            "x-content-type-options", "set-cookie", "location"
+        ];
         for (name, value) in proxy_resp.headers {
-            if name.to_lowercase() == "strict-transport-security" {
+            if strip_resp_headers.contains(&name.to_lowercase().as_str()) {
                 continue;
             }
             resp_builder = resp_builder.header(&name, &value);
@@ -508,14 +561,52 @@ pub async fn handle_incoming_proxy_requests(
         let client_clone = client.clone();
 
         tokio::spawn(async move {
-            let url = format!("http://127.0.0.1:{}{}", local_port, req.path);
+            // Path traversal protection
+            let safe_path = if req.path.contains("..") || !req.path.starts_with('/') {
+                tracing::warn!("Blocked malicious P2P proxy path: {}", req.path);
+                let _ = client_clone.send_proxy_response(channel, ProxyResponse {
+                    status: 400,
+                    headers: HashMap::new(),
+                    body: b"Bad Request: Invalid Path".to_vec(),
+                }).await;
+                return;
+            } else {
+                &req.path
+            };
 
-            let mut builder =
-                reqwest_client.request(req.method.parse().unwrap_or(reqwest::Method::GET), &url);
+            // Limit body size to 5MB to prevent OOM
+            if req.body.len() > 5 * 1024 * 1024 {
+                tracing::warn!("Blocked oversized P2P proxy request ({} bytes)", req.body.len());
+                let _ = client_clone.send_proxy_response(channel, ProxyResponse {
+                    status: 413,
+                    headers: HashMap::new(),
+                    body: b"Payload Too Large".to_vec(),
+                }).await;
+                return;
+            }
+
+            let url = format!("http://127.0.0.1:{}{}", local_port, safe_path);
+
+            let method = match req.method.parse::<reqwest::Method>() {
+                Ok(m) => m,
+                Err(_) => {
+                    tracing::warn!("Blocked invalid HTTP method: {}", req.method);
+                    let _ = client_clone.send_proxy_response(channel, ProxyResponse {
+                        status: 400,
+                        headers: HashMap::new(),
+                        body: b"Bad Request: Invalid Method".to_vec(),
+                    }).await;
+                    return;
+                }
+            };
+
+            let mut builder = reqwest_client.request(method, &url);
 
             for (k, v) in req.headers {
+                if k.to_lowercase() == "host" { continue; } // Never forward remote Host header
                 builder = builder.header(k, v);
             }
+            builder = builder.header("Host", format!("127.0.0.1:{}", local_port));
             builder = builder.body(req.body);
 
             let proxy_res = match builder.send().await {

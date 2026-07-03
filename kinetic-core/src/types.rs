@@ -75,6 +75,7 @@ pub const RESQUARING_EPOCH_ROUNDS: u64 = 1_051_200;
 pub const MAX_PAYLOAD_SIZE: usize = 65_536;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Commitment {
     pub hash: [u8; 32],
 }
@@ -160,6 +161,7 @@ impl Reveal {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Heartbeat {
     pub name: String,
     pub latest_drand_pulse: u64,
@@ -176,6 +178,7 @@ impl Heartbeat {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Hibernation {
     pub name: String,
     pub drand_pulse: u64,
@@ -230,6 +233,8 @@ pub struct VdfJobRequest {
     pub name_length: u8,
     pub hashcash_nonce: u64,
     pub drand_pulse: u64,
+    #[serde(default)]
+    pub pin: Option<u32>,
 }
 
 pub const M_REDUNDANCY: u8 = 32;

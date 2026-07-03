@@ -11,6 +11,7 @@ pub struct KineticBehavior {
     pub identify: libp2p::identify::Behaviour,
     pub ping: libp2p::ping::Behaviour,
     pub proxy: libp2p::request_response::cbor::Behaviour<ProxyRequest, ProxyResponse>,
+    pub stream: libp2p_stream::Behaviour,
     pub kademlia: kad::Behaviour<KineticRecordStore>,
     pub gossipsub: gossipsub::Behaviour,
     pub mdns: libp2p::swarm::behaviour::toggle::Toggle<libp2p::mdns::tokio::Behaviour>,

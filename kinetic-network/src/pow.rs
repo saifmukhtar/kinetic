@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use tracing::info;
 
 pub const EPOCH_PULSES: u64 = 1440; // 12 hours at 30s per pulse
-pub const DEFAULT_DIFFICULTY_BITS: u32 = 16;
+pub const DEFAULT_DIFFICULTY_BITS: u32 = 20;
 
 /// Computes the leading zero bits of a given byte slice.
 fn leading_zeros(hash: &[u8]) -> u32 {
@@ -39,6 +39,10 @@ pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32)
         return true;
     }
 
+    if current_pulse == 0 {
+        return false;
+    }
+
     let peer_bytes = peer_id.to_bytes();
     let current_epoch = get_staggered_epoch(peer_id, current_pulse);
 
@@ -65,6 +69,9 @@ pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32)
 
 /// Grinds an Ed25519 keypair whose PeerId satisfies the PoW for the current epoch.
 pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
+    if current_pulse == 0 && !kinetic_core::config::is_dev_mode() {
+        panic!("Cannot generate PoW against pulse 0 (drand uninitialized)");
+    }
     let mut attempts: u64 = 0;
 
     info!(

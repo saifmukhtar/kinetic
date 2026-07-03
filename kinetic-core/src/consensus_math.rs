@@ -63,9 +63,11 @@ impl ConsensusParams {
 
     /// The Drand pulse when the network launches.
     pub const GENESIS_START_PULSE: u64 = 10_900_000; // Aligned with recent Quicknet rounds for launch
-                                                     // Note: No expiry window — the genesis key permanently gets 0-cost registration
-                                                     // for the hardcoded GENESIS_ALLOWLIST only. Since the allowlist is fixed at compile
-                                                     // time, no additional names can ever be claimed via this path regardless of key.
+
+    /// Finding 11: Genesis key expiry. After this pulse, the genesis key receives NO special
+    /// VDF exemption and must compete on equal terms. ~6 months at 3s/round (Quicknet).
+    /// 6 months = 180 days * 24h * 3600s / 3s = 5,184,000 rounds.
+    pub const GENESIS_EXPIRY_PULSE: u64 = Self::GENESIS_START_PULSE + 5_184_000;
 
     // Double Exponential Cliff: M(L) = 500000 * exp(-2.0 * L) + 250 * exp(-0.5 * L) + 5
     const MULTIPLIERS: [u64; 20] = [
@@ -102,9 +104,9 @@ impl ConsensusParams {
                 .strip_suffix(".kin")
                 .unwrap_or(&normalized_name);
             if Self::GENESIS_ALLOWLIST.contains(&label_without_tld) {
-                // If it's the genesis key, required iterations is 10,000 (~0.1 seconds)
-                // This generates a mathematically valid VDF proof to satisfy validators.
-                if pubkey == genesis_pk {
+                // Finding 11: Genesis key privilege expires after GENESIS_EXPIRY_PULSE.
+                // After that round, it must compute the same VDF as everyone else.
+                if pubkey == genesis_pk && current_round < Self::GENESIS_EXPIRY_PULSE {
                     return 10_000;
                 }
             }
@@ -165,18 +167,26 @@ mod tests {
         let params = ConsensusParams::default();
         let pk = ConsensusParams::GENESIS_PUBKEY.unwrap();
 
-        // Genesis key always gets 0 iterations for allowlisted names — no time window.
+        // Genesis key gets 10,000 iterations for allowlisted names before expiry.
         let iters_at_launch =
             params.required_iterations("saif.kin", ConsensusParams::GENESIS_START_PULSE, &pk);
         assert_eq!(iters_at_launch, 10000);
 
-        // Still 10000 long after launch — permanent grant for the fixed allowlist.
+        // Still 10000 well within the expiry window.
         let iters_later = params.required_iterations(
             "saif.kin",
             ConsensusParams::GENESIS_START_PULSE + 1_000_000,
             &pk,
         );
         assert_eq!(iters_later, 10000);
+
+        // Finding 11: After GENESIS_EXPIRY_PULSE, genesis key gets no exemption.
+        let iters_expired = params.required_iterations(
+            "saif.kin",
+            ConsensusParams::GENESIS_EXPIRY_PULSE + 1,
+            &pk,
+        );
+        assert!(iters_expired > 10000, "Genesis key must compute full VDF after expiry");
 
         // Wrong key — must compute full VDF even for allowlisted names.
         let wrong_pk = [0u8; 32];
