@@ -32,8 +32,12 @@ However, all technical disagreements must remain strictly focused on the code, t
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the Lead Maintainer at **saifmukhtar20@gmail.com**. 
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the Lead Maintainer and Founder at **saifmukhtar20@gmail.com**. 
 
-All complaints will be reviewed and investigated, and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. Further details of specific enforcement policies may be posted separately.
+Under the Kinetic Bicameral Governance model:
+- **Initial Enforcement** is centralized to the Lead Maintainer to ensure swift resolution.
+- **Escalation & Appeals:** For severe cases, or if a community member wishes to appeal a decision made by the Lead Maintainer, the issue can be formally escalated to the **On-Chain Council**. The Council has the authority to review the case and can overturn decisions or implement bans via a supermajority vote.
 
-Project maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions as determined by other members of the project's leadership.
+All complaints will be reviewed and investigated, and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. 
+
+Project maintainers or Council members who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions, including removal from the Council via a formal `RemoveCouncilMember` governance action as dictated by the network's rule book.

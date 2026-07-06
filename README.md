@@ -8,6 +8,12 @@
 
 *A stateless, Sybil-resistant naming system secured purely by math and time.*
 
+<div align="center">
+  <video src="./kinetic-demo.mp4" controls="controls" muted="muted" style="max-width: 100%; border-radius: 8px;"></video>
+  <br/>
+  <i>Watch the 50-node Kinetic Network live simulation in action</i>
+</div>
+
 Kinetic is a fundamentally new paradigm for internet identity and domain resolution. It replaces the centralized registrars of DNS and the perpetual rent-seeking fees of blockchain-based naming systems (like ENS) with sequential computational friction (Verifiable Delay Functions). 
 
 If you are a lone developer, registering a `.kin` domain is completely **free and permanent**. If you are a squatter trying to steal 10,000 domains, it will computationally bankrupt you.
@@ -69,6 +75,21 @@ Push your finished proof and DNS records to the global network:
 kinetic-cli publish myname.kin
 ```
 Your name is instantly live globally! Any device running Kinetic can now visit `http://myname.kin`.
+
+---
+
+## 🌐 The Kinetic Simulation (50-Node Sandbox)
+
+We have built a comprehensive, 50-container local simulation environment to demonstrate and red-team the protocol under real-world networking conditions. 
+
+Located in the **[`kinetic-sim/`](./kinetic-sim/)** directory, this sandbox orchestrates:
+- **10 DHT Nodes** (The core Kademlia network)
+- **6 CDN Hosts** (Decentralized web hosts providing capacity)
+- **34 AI-Driven User Daemons** (Simulated humans attempting to register domains and host websites)
+
+The simulation includes a beautiful **Live Dashboard** built with React/Vite that lets you watch the Daemons compute VDFs, handle naming conflicts, seamlessly failover domains, and negotiate hosting in real time. 
+
+👉 **[Read the Full Simulation Guide Here](./kinetic-sim/README.md)**
 
 ---
 
