@@ -80,7 +80,10 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         params.distinguished_name = dn;
         params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
         params.name_constraints = Some(NameConstraints {
-            permitted_subtrees: vec![GeneralSubtree::DnsName("kin".to_string()), GeneralSubtree::DnsName(".kin".to_string())],
+            permitted_subtrees: vec![
+                GeneralSubtree::DnsName("kin".to_string()),
+                GeneralSubtree::DnsName(kinetic_core::types::DOT_TLD.to_string()),
+            ],
             excluded_subtrees: vec![],
         });
         params.not_before = OffsetDateTime::now_utc();
@@ -100,7 +103,7 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         {
             let _ = std::process::Command::new("icacls")
                 .args([
-                    key_path.to_str().unwrap(),
+                    key_path.to_str().unwrap_or_default(),
                     "/inheritance:r",
                     "/grant:r",
                     &format!("{}:F", std::env::var("USERNAME").unwrap_or_default()),
@@ -162,8 +165,8 @@ pub fn generate_leaf_cert(domain: &str, root_ca: &RootCa) -> Result<ServerConfig
 }
 
 pub struct LeafCertCache {
-    entries: HashMap<String, (Arc<ServerConfig>, Instant)>,
-    max_entries: usize,
+    pub(crate) entries: HashMap<String, (Arc<ServerConfig>, Instant)>,
+    pub(crate) max_entries: usize,
 }
 
 impl LeafCertCache {

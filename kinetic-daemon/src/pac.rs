@@ -438,12 +438,15 @@ impl PacManager {
 }
 
 pub async fn start_pac_server(port: u16, proxy_port: u16) -> anyhow::Result<()> {
-    let pac_script = format!(r#"
+    let pac_script = format!(
+        r#"
 function FindProxyForURL(url, host) {{
     if (shExpMatch(host, "*.kin")) return "PROXY 127.0.0.1:{0}; PROXY [::1]:{0}; DIRECT";
     if (shExpMatch(host, "*.kin.")) return "PROXY 127.0.0.1:{0}; PROXY [::1]:{0}; DIRECT";
     return "DIRECT";
-}}"#, proxy_port)
+}}"#,
+        proxy_port
+    )
     .trim()
     .to_string();
 
@@ -454,22 +457,33 @@ function FindProxyForURL(url, host) {{
                 .get(axum::http::header::HOST)
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("");
-            if host.starts_with("localhost") || host.starts_with("127.0.0.1") || host.starts_with("[::1]") {
+            if host.starts_with("localhost")
+                || host.starts_with("127.0.0.1")
+                || host.starts_with("[::1]")
+            {
                 axum::response::Response::builder()
                     .header("Content-Type", "application/x-ns-proxy-autoconfig")
                     .body(pac_script.clone())
-                    .unwrap()
+                    .unwrap_or_default()
             } else {
                 axum::response::Response::builder()
                     .status(403)
                     .body("Forbidden".to_string())
-                    .unwrap()
+                    .unwrap_or_default()
             }
         }),
     );
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let mut listener = None;
+    for _ in 0..10 {
+        if let Ok(l) = tokio::net::TcpListener::bind(addr).await {
+            listener = Some(l);
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+    let listener = listener.ok_or_else(|| anyhow::anyhow!("Failed to bind to {}", addr))?;
     info!("Serving proxy.pac on http://{}/proxy.pac", addr);
 
     tokio::spawn(async move {

@@ -11,37 +11,77 @@ use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
 
 use std::collections::VecDeque;
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
 
 pub async fn start_nostr_listener(
     daemon_keypair: SigningKey,
     mempool: Arc<Mutex<Mempool>>,
     storage: Arc<SledStorage>,
+    public_miner: bool,
 ) -> Result<()> {
-    // 1. Derive secp256k1 SecretKey from the ed25519 secret seed using a domain-separated hash
-    // (Prevents cross-curve key reuse vulnerability)
-    let secret_bytes = daemon_keypair.to_bytes();
-    let mut hasher = Sha256::new();
-    hasher.update(b"kinetic_nostr_secp256k1");
-    hasher.update(&secret_bytes);
-    let secp_seed = hasher.finalize();
-    
-    let secret_key = SecretKey::from_slice(&secp_seed)?;
-    let keys = Keys::new(secret_key);
+    // 1. Load or Derive Nostr Keys
+    let base_dir = kinetic_core::config::get_base_dir();
+    let nostr_dir = base_dir.join("nostr");
+    let private_key_path = nostr_dir.join("private.key");
+    let public_key_path = nostr_dir.join("public.key");
+
+    let keys = if private_key_path.exists() {
+        let nsec_str = fs::read_to_string(&private_key_path)?.trim().to_string();
+        let secret_key = SecretKey::from_bech32(nsec_str)?;
+        let loaded_keys = Keys::new(secret_key);
+        tracing::info!("📡 Nostr Listener: Loaded existing key from disk.");
+        loaded_keys
+    } else {
+        // Derive secp256k1 SecretKey from the ed25519 secret seed using a domain-separated hash
+        let secret_bytes = daemon_keypair.to_bytes();
+        let mut hasher = Sha256::new();
+        hasher.update(b"kinetic_nostr_secp256k1");
+        hasher.update(secret_bytes);
+        let secp_seed = hasher.finalize();
+
+        let secret_key = SecretKey::from_slice(&secp_seed)?;
+        let derived_keys = Keys::new(secret_key);
+
+        // Save them to disk securely
+        fs::create_dir_all(&nostr_dir)?;
+        if let Ok(metadata) = fs::metadata(&nostr_dir) {
+            let mut perms = metadata.permissions();
+            perms.set_mode(0o700); // Only owner can rwx
+            let _ = fs::set_permissions(&nostr_dir, perms);
+        }
+
+        let nsec_str = derived_keys.secret_key().to_bech32()?;
+        let npub_str = derived_keys.public_key().to_bech32()?;
+
+        fs::write(&private_key_path, nsec_str)?;
+        if let Ok(metadata) = fs::metadata(&private_key_path) {
+            let mut perms = metadata.permissions();
+            perms.set_mode(0o600); // Only owner can rw
+            let _ = fs::set_permissions(&private_key_path, perms);
+        }
+
+        fs::write(&public_key_path, npub_str)?;
+        if let Ok(metadata) = fs::metadata(&public_key_path) {
+            let mut perms = metadata.permissions();
+            perms.set_mode(0o644); // Owner rw, others r
+            let _ = fs::set_permissions(&public_key_path, perms);
+        }
+
+        tracing::info!("📡 Nostr Listener: Derived new key and saved to disk.");
+        derived_keys
+    };
 
     let npub = keys.public_key().to_bech32()?;
-    tracing::info!("📡 Nostr Listener active. Public Node Address: {}", npub);
+    tracing::info!("📡 Public Node Address: {}", npub);
 
     let tofu_key = b"kinetic_trusted_mobile_pubkey";
-    let mut expected_pin: Option<u32> = None;
-    if let Ok(None) = storage.get(tofu_key) {
-        let val = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .subsec_nanos();
-        let pin = (val % 900_000) + 100_000;
-        expected_pin = Some(pin);
-        tracing::info!("🔒 TOFU PIN for mobile app pairing: {}", pin);
-        tracing::info!("🔒 Please enter this PIN in your mobile app to pair.");
+    if !public_miner {
+        if let Ok(None) = storage.get(tofu_key) {
+            tracing::info!("🔒 TOFU active: Waiting for first mobile app to pair...");
+        }
+    } else {
+        tracing::info!("🌍 Public Miner mode active! Accepting jobs from all Nostr clients.");
     }
 
     // 2. Initialize Nostr Client
@@ -73,6 +113,26 @@ pub async fn start_nostr_listener(
         .kind(Kind::EncryptedDirectMessage);
 
     let _ = client.subscribe(vec![subscription.clone()], None).await;
+
+    if public_miner {
+        let keys_clone = keys.clone();
+        let client_clone = client.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Ok(event) = EventBuilder::new(
+                    Kind::TextNote,
+                    "Kinetic Public Miner",
+                    [Tag::hashtag("kinetic-miner")],
+                )
+                .to_event(&keys_clone)
+                {
+                    let _ = client_clone.send_event(event).await;
+                    tracing::info!("📢 Broadcasted public miner presence to Nostr relays");
+                }
+                sleep(Duration::from_secs(3600)).await;
+            }
+        });
+    }
 
     // Keep track of pending requests: challenge_hex -> sender_pubkey
     let pending_requests: Arc<Mutex<HashMap<String, PublicKey>>> =
@@ -182,7 +242,7 @@ pub async fn start_nostr_listener(
                         // Case 164: Nostr Request Expiration (48-hour cutoff)
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
+                            .unwrap_or_default()
                             .as_secs();
                         let genesis = kinetic_core::drand::QUICKNET_GENESIS_TIME;
                         let period = kinetic_core::drand::QUICKNET_PERIOD;
@@ -205,19 +265,13 @@ pub async fn start_nostr_listener(
 
                         // Validate that the requested name matches the commitment and has sufficient length
                         if req.name_length < 8 {
-                            tracing::warn!("Rejected VDF Request: Name length is too short (< 8 chars)");
+                            tracing::warn!(
+                                "Rejected VDF Request: Name length is too short (< 8 chars)"
+                            );
                             continue;
                         }
 
-                        // Verify Hashcash (minimum 20 leading zero bits)
-                        let mut hasher = Sha256::new();
-                        hasher.update(req.challenge_hash);
-                        hasher.update(req.hashcash_nonce.to_be_bytes()); // Use big-endian for cross-platform consistency
-                        let result = hasher.finalize();
-
-                        let valid_hashcash =
-                            result[0] == 0 && result[1] == 0 && (result[2] & 0xF0) == 0;
-                        if !valid_hashcash {
+                        if !verify_hashcash(&req.challenge_hash, req.hashcash_nonce) {
                             tracing::warn!(
                                 "Invalid Hashcash (requires 20 leading zero bits) from {}",
                                 sender
@@ -225,30 +279,25 @@ pub async fn start_nostr_listener(
                             continue;
                         }
 
-                        // Task 4: Trust-on-First-Use (TOFU)
-                        let tofu_key = b"kinetic_trusted_mobile_pubkey";
-                        if let Ok(Some(trusted_bytes)) = storage.get(tofu_key) {
-                            if trusted_bytes != sender.to_bytes() {
-                                tracing::warn!(
-                                    "Rejected VDF Request from untrusted stranger: {}",
-                                    sender.to_bech32().unwrap_or_default()
-                                );
-                                continue;
-                            }
-                        } else {
-                            if let Some(expected) = expected_pin {
-                                if req.pin != Some(expected) {
-                                    tracing::warn!("Rejected pairing request: Incorrect or missing PIN from {}", sender);
+                        if !public_miner {
+                            // Task 4: Trust-on-First-Use (TOFU)
+                            let tofu_key = b"kinetic_trusted_mobile_pubkey";
+                            if let Ok(Some(trusted_bytes)) = storage.get(tofu_key) {
+                                if trusted_bytes != sender.to_bytes() {
+                                    tracing::warn!(
+                                        "Rejected VDF Request from untrusted stranger: {}",
+                                        sender.to_bech32().unwrap_or_default()
+                                    );
                                     continue;
                                 }
+                            } else {
+                                // Trust this pubkey on first use
+                                let _ = storage.put(tofu_key, &sender.to_bytes());
+                                tracing::info!(
+                                    "🔒 TOFU: Paired with mobile pubkey {}",
+                                    sender.to_bech32().unwrap_or_default()
+                                );
                             }
-                            // Trust this pubkey on first use
-                            let _ = storage.put(tofu_key, &sender.to_bytes());
-                            expected_pin = None;
-                            tracing::info!(
-                                "🔒 TOFU: Paired with mobile pubkey {}",
-                                sender.to_bech32().unwrap_or_default()
-                            );
                         }
 
                         let challenge_hex = hex::encode(req.challenge_hash);
@@ -264,13 +313,17 @@ pub async fn start_nostr_listener(
                         }
                         let mut is_pending = false;
                         {
-                            let pending = pending_requests.lock().unwrap_or_else(|e| e.into_inner());
+                            let pending =
+                                pending_requests.lock().unwrap_or_else(|e| e.into_inner());
                             if pending.contains_key(&challenge_hex) {
                                 is_pending = true;
                             }
                         }
                         if is_pending {
-                            tracing::warn!("Duplicate Nostr request dropped (currently computing): {}", challenge_hex);
+                            tracing::warn!(
+                                "Duplicate Nostr request dropped (currently computing): {}",
+                                challenge_hex
+                            );
                             continue;
                         }
 
@@ -298,4 +351,13 @@ pub async fn start_nostr_listener(
         client.connect().await;
         let _ = client.subscribe(vec![subscription.clone()], None).await;
     }
+}
+
+pub(crate) fn verify_hashcash(challenge_hash: &[u8; 32], nonce: u64) -> bool {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(challenge_hash);
+    hasher.update(nonce.to_be_bytes()); // Use big-endian for cross-platform consistency
+    let result = hasher.finalize();
+    result[0] == 0 && result[1] == 0 && (result[2] & 0xF0) == 0
 }
