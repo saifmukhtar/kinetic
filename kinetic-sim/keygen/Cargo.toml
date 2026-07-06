@@ -1,0 +1,9 @@
+[package]
+name = "keygen"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+libp2p = { version = "0.53", features = ["ed25519"] }
