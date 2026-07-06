@@ -13,7 +13,7 @@ use tracing::{error, info, warn};
 
 use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
 
-fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
+pub(crate) fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
     if ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() {
         return true;
     }
@@ -103,16 +103,24 @@ pub async fn start_proxy_server(
 ) -> anyhow::Result<()> {
     // Case 198: IPv6 Only Network Support
     let addr = format!("127.0.0.1:{}", port);
-    let listener = match TcpListener::bind(&addr).await {
-        Ok(l) => l,
-        Err(e) => {
-            tracing::warn!(
-                "Failed to bind Proxy to 127.0.0.1, trying IPv6 loopback [::1] (Case 198): {}",
-                e
-            );
-            TcpListener::bind(format!("[::1]:{}", port)).await?
+    let mut listener = None;
+    for _ in 0..10 {
+        if let Ok(l) = TcpListener::bind(&addr).await {
+            listener = Some(l);
+            break;
+        } else if let Ok(l) = TcpListener::bind(format!("[::1]:{}", port)).await {
+            tracing::warn!("Failed to bind Proxy to 127.0.0.1, successfully bound to IPv6 loopback [::1] (Case 198)");
+            listener = Some(l);
+            break;
         }
-    };
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+    let listener = listener.ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to bind Proxy to 127.0.0.1 or [::1] on port {}",
+            port
+        )
+    })?;
 
     let actual_addr = listener.local_addr()?;
     info!(
@@ -159,7 +167,7 @@ async fn handle_proxy_request(
         let raw_host = req.uri().host().unwrap_or("").to_string();
         let domain_name = kinetic_core::types::normalize_name(&raw_host);
 
-        if !domain_name.ends_with(".kin") {
+        if !domain_name.ends_with(kinetic_core::types::DOT_TLD) {
             // Reject non-.kin CONNECT — we are not a general proxy
             return Ok(Response::builder()
                 .status(StatusCode::FORBIDDEN)
@@ -214,7 +222,7 @@ async fn handle_proxy_request(
         .to_string();
 
     let host_name = kinetic_core::types::normalize_name(&host);
-    if !host_name.ends_with(".kin") {
+    if !host_name.ends_with(kinetic_core::types::DOT_TLD) {
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
             .body(Full::new(Bytes::from(
@@ -322,7 +330,11 @@ async fn forward_to_backend_direct(
         subdomain = "@".to_string();
     }
 
-    tracing::info!("Proxy looking for subdomain '{}' in zone: {:?}", subdomain, zone);
+    tracing::info!(
+        "Proxy looking for subdomain '{}' in zone: {:?}",
+        subdomain,
+        zone
+    );
 
     let records = match zone.records.get(&subdomain) {
         Some(r) => r,
@@ -364,20 +376,29 @@ async fn forward_to_backend_direct(
     let ip_str = target_str;
 
     // Validate it is actually a routable IP or PeerId
-    let is_ip_or_socket = if let Ok(_ip) = ip_str.parse::<std::net::IpAddr>() {
-        // Double check it wasn't a TXT/PeerId record that just happens to be a valid IP
-        matches!(records.iter().find(|r| match r {
-            kinetic_core::types::DnsRecord::A(s) | kinetic_core::types::DnsRecord::AAAA(s) => s == &ip_str,
-            _ => false,
-        }), Some(_))
-    } else if let Ok(_sa) = ip_str.parse::<std::net::SocketAddr>() {
-        matches!(records.iter().find(|r| match r {
-            kinetic_core::types::DnsRecord::A(s) | kinetic_core::types::DnsRecord::AAAA(s) => s == &ip_str,
-            _ => false,
-        }), Some(_))
-    } else {
-        false
-    };
+    let is_ip_or_socket =
+        if let Ok(_ip) = ip_str.parse::<std::net::IpAddr>() {
+            // Double check it wasn't a TXT/PeerId record that just happens to be a valid IP
+            records
+                .iter()
+                .find(|r| match r {
+                    kinetic_core::types::DnsRecord::A(s)
+                    | kinetic_core::types::DnsRecord::AAAA(s) => s == &ip_str,
+                    _ => false,
+                })
+                .is_some()
+        } else if let Ok(_sa) = ip_str.parse::<std::net::SocketAddr>() {
+            records
+                .iter()
+                .find(|r| match r {
+                    kinetic_core::types::DnsRecord::A(s)
+                    | kinetic_core::types::DnsRecord::AAAA(s) => s == &ip_str,
+                    _ => false,
+                })
+                .is_some()
+        } else {
+            false
+        };
 
     if is_ip_or_socket {
         // Prevent SSRF: Do not proxy to loopback, private, or multicast networks!
@@ -397,8 +418,9 @@ async fn forward_to_backend_direct(
                 || ip_str.contains(&format!(":{}", cfg.daemon.api_port))
                 || ip_str.contains(&format!(":{}", cfg.daemon.dns_port))
                 || ip_str.contains(&format!(":{}", cfg.daemon.backend_port))
-                || ip_str.contains(&format!(":{}", cfg.network.p2p_port))
-                || ip_str.contains(":16001") // PAC port
+                || ip_str.contains(&format!(":{}", cfg.network.daemon_port))
+                || ip_str.contains(":16001")
+            // PAC port
             {
                 return Err(ProxyError::Other(
                     "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
@@ -409,7 +431,10 @@ async fn forward_to_backend_direct(
         if is_ssrf_risk(ip_addr) && !kinetic_core::config::is_dev_mode() {
             return Err(ProxyError::Other("SSRF Protection: Cannot proxy to loopback or private IPs. (Use Dev Mode to bypass)".to_string()));
         } else if is_ssrf_risk(ip_addr) {
-            tracing::warn!("DEV MODE: Forwarding to private IP {}. This would be blocked in production.", ip_addr);
+            tracing::warn!(
+                "DEV MODE: Forwarding to private IP {}. This would be blocked in production.",
+                ip_addr
+            );
         }
 
         // Explicitly HTTP — no TLS to backend
@@ -454,7 +479,10 @@ async fn forward_to_backend_direct(
         Ok(resp_builder.body(Full::new(body))?)
     } else if let Ok(mut peer_id) = ip_str.parse::<libp2p::PeerId>() {
         // Transparently resolve HostRoutingRecord if this PeerId is a static infrastructure node
-        if let Ok(Some(record)) = network_client.resolve_host_routing_record(&peer_id.to_string()).await {
+        if let Ok(Some(record)) = network_client
+            .resolve_host_routing_record(&peer_id.to_string())
+            .await
+        {
             tracing::info!(
                 "Resolved HostRoutingRecord for static Host ID {}: dynamically routing to Ephemeral Peer ID {}",
                 peer_id, record.current_peer_id
@@ -462,7 +490,10 @@ async fn forward_to_backend_direct(
             if let Ok(dynamic_peer_id) = record.current_peer_id.parse::<libp2p::PeerId>() {
                 peer_id = dynamic_peer_id;
             } else {
-                tracing::warn!("HostRoutingRecord returned invalid PeerId: {}", record.current_peer_id);
+                tracing::warn!(
+                    "HostRoutingRecord returned invalid PeerId: {}",
+                    record.current_peer_id
+                );
             }
         } else {
             tracing::debug!("No dynamic route found for {}, routing directly.", peer_id);
@@ -471,7 +502,12 @@ async fn forward_to_backend_direct(
         // Forward to the libp2p PeerId via P2P network
 
         let mut headers = std::collections::HashMap::new();
-        let strip_req_headers = ["authorization", "cookie", "x-api-key", "proxy-authorization"];
+        let strip_req_headers = [
+            "authorization",
+            "cookie",
+            "x-api-key",
+            "proxy-authorization",
+        ];
         for (name, value) in req.headers() {
             let name_lower = name.as_str().to_lowercase();
             if !strip_req_headers.contains(&name_lower.as_str()) && name_lower != "host" {
@@ -521,9 +557,13 @@ async fn forward_to_backend_direct(
         let mut resp_builder = Response::builder().status(proxy_resp.status);
 
         let strip_resp_headers = [
-            "strict-transport-security", "public-key-pins",
-            "x-frame-options", "content-security-policy",
-            "x-content-type-options", "set-cookie", "location"
+            "strict-transport-security",
+            "public-key-pins",
+            "x-frame-options",
+            "content-security-policy",
+            "x-content-type-options",
+            "set-cookie",
+            "location",
         ];
         for (name, value) in proxy_resp.headers {
             if strip_resp_headers.contains(&name.to_lowercase().as_str()) {
@@ -564,11 +604,16 @@ pub async fn handle_incoming_proxy_requests(
             // Path traversal protection
             let safe_path = if req.path.contains("..") || !req.path.starts_with('/') {
                 tracing::warn!("Blocked malicious P2P proxy path: {}", req.path);
-                let _ = client_clone.send_proxy_response(channel, ProxyResponse {
-                    status: 400,
-                    headers: HashMap::new(),
-                    body: b"Bad Request: Invalid Path".to_vec(),
-                }).await;
+                let _ = client_clone
+                    .send_proxy_response(
+                        channel,
+                        ProxyResponse {
+                            status: 400,
+                            headers: HashMap::new(),
+                            body: b"Bad Request: Invalid Path".to_vec(),
+                        },
+                    )
+                    .await;
                 return;
             } else {
                 &req.path
@@ -576,12 +621,20 @@ pub async fn handle_incoming_proxy_requests(
 
             // Limit body size to 5MB to prevent OOM
             if req.body.len() > 5 * 1024 * 1024 {
-                tracing::warn!("Blocked oversized P2P proxy request ({} bytes)", req.body.len());
-                let _ = client_clone.send_proxy_response(channel, ProxyResponse {
-                    status: 413,
-                    headers: HashMap::new(),
-                    body: b"Payload Too Large".to_vec(),
-                }).await;
+                tracing::warn!(
+                    "Blocked oversized P2P proxy request ({} bytes)",
+                    req.body.len()
+                );
+                let _ = client_clone
+                    .send_proxy_response(
+                        channel,
+                        ProxyResponse {
+                            status: 413,
+                            headers: HashMap::new(),
+                            body: b"Payload Too Large".to_vec(),
+                        },
+                    )
+                    .await;
                 return;
             }
 
@@ -591,11 +644,16 @@ pub async fn handle_incoming_proxy_requests(
                 Ok(m) => m,
                 Err(_) => {
                     tracing::warn!("Blocked invalid HTTP method: {}", req.method);
-                    let _ = client_clone.send_proxy_response(channel, ProxyResponse {
-                        status: 400,
-                        headers: HashMap::new(),
-                        body: b"Bad Request: Invalid Method".to_vec(),
-                    }).await;
+                    let _ = client_clone
+                        .send_proxy_response(
+                            channel,
+                            ProxyResponse {
+                                status: 400,
+                                headers: HashMap::new(),
+                                body: b"Bad Request: Invalid Method".to_vec(),
+                            },
+                        )
+                        .await;
                     return;
                 }
             };
@@ -603,7 +661,9 @@ pub async fn handle_incoming_proxy_requests(
             let mut builder = reqwest_client.request(method, &url);
 
             for (k, v) in req.headers {
-                if k.to_lowercase() == "host" { continue; } // Never forward remote Host header
+                if k.to_lowercase() == "host" {
+                    continue;
+                } // Never forward remote Host header
                 builder = builder.header(k, v);
             }
             builder = builder.header("Host", format!("127.0.0.1:{}", local_port));

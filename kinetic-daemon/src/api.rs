@@ -32,6 +32,7 @@ pub struct ApiState {
     pub vdf_tasks: Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
     pub mempool: Arc<Mutex<kinetic_core::mempool::Mempool>>,
     pub auth_token: String,
+    pub vdf_semaphore: Arc<tokio::sync::Semaphore>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -204,6 +205,7 @@ pub async fn start_server(
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
         mempool,
         auth_token: token,
+        vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
     };
 
     // Load persisted mempool state
@@ -221,17 +223,21 @@ pub async fn start_server(
 
     let app = app(state);
 
-    // Case 198: Try binding to IPv4 loopback, fallback to IPv6 loopback
-    let listener = match tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await {
-        Ok(l) => l,
-        Err(e) => {
-            tracing::warn!(
-                "Failed to bind API to 127.0.0.1, trying IPv6 loopback [::1] (Case 198): {}",
-                e
-            );
-            tokio::net::TcpListener::bind(format!("[::1]:{}", port)).await?
+    let mut listener = None;
+    for _ in 0..10 {
+        if let Ok(l) = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await {
+            listener = Some(l);
+            break;
+        } else if let Ok(l) = tokio::net::TcpListener::bind(format!("[::1]:{}", port)).await {
+            tracing::warn!("Failed to bind API to 127.0.0.1, successfully bound to IPv6 loopback [::1] (Case 198)");
+            listener = Some(l);
+            break;
         }
-    };
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+    let listener = listener.ok_or_else(|| {
+        anyhow::anyhow!("Failed to bind API to 127.0.0.1 or [::1] on port {}", port)
+    })?;
 
     let local_addr = listener.local_addr()?;
     tracing::info!("Starting API server on http://{}", local_addr);
@@ -293,6 +299,14 @@ fn start_vdf_worker(state: ApiState) {
                     actual_iterations
                 );
 
+                let permit = match state.vdf_semaphore.acquire().await {
+                    Ok(p) => p,
+                    Err(_) => {
+                        tracing::error!("VDF Semaphore closed. Worker exiting.");
+                        return;
+                    }
+                };
+
                 let proof = match tokio::task::spawn_blocking(move || {
                     use kinetic_core::traits::VdfEngine;
                     vdf_engine.evaluate(&challenge_clone, actual_iterations)
@@ -309,6 +323,8 @@ fn start_vdf_worker(state: ApiState) {
                         continue;
                     }
                 };
+
+                drop(permit);
 
                 tracing::info!(
                     "VDF Worker successfully computed proof for challenge {}",
@@ -345,7 +361,11 @@ async fn auth_middleware(
     match auth_header {
         Some(header) if header == format!("Bearer {}", expected_token) => Ok(next.run(req).await),
         _ => {
-            tracing::warn!("Rejecting unauthorized API request.");
+            tracing::warn!(
+                "Rejecting unauthorized API request. Expected token length: {}, Header: {:?}",
+                expected_token.len(),
+                auth_header
+            );
             Err(StatusCode::UNAUTHORIZED)
         }
     }
@@ -384,8 +404,7 @@ async fn handle_publish(
     // than RESQUARING_EPOCH_ROUNDS. Fetch the current beacon round, falling back to the
     // sled-cached value so offline-first nodes aren’t broken.
     let current_round: u64 = {
-        let drand_client =
-            kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+        let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
         match drand_client.fetch_latest().await {
             Ok(pulse) => pulse.round,
             Err(_) => {
@@ -402,7 +421,10 @@ async fn handle_publish(
                     .get(b"kinetic_last_drand_round")
                     .ok()
                     .flatten()
-                    .and_then(|b| b.get(..8).map(|s| u64::from_be_bytes(s.try_into().unwrap())))
+                    .and_then(|b| {
+                        b.get(..8)
+                            .map(|s| u64::from_be_bytes(s.try_into().unwrap_or([0; 8])))
+                    })
                     .unwrap_or(0)
             }
         }
@@ -517,7 +539,7 @@ async fn handle_publish(
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap()),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
             ))
         }
     }
@@ -612,7 +634,7 @@ async fn handle_commit(
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap()),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
             ))
         }
     }
@@ -790,7 +812,7 @@ async fn handle_resolve_name(
                 kinetic_core::ApiError::from(kinetic_core::error::ResolutionError::Offline);
             Err((
                 StatusCode::SERVICE_UNAVAILABLE,
-                Json(serde_json::to_value(api_err).unwrap()),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
             ))
         }
         Err(e) => {
@@ -802,7 +824,7 @@ async fn handle_resolve_name(
             );
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap()),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
             ))
         }
     }
@@ -981,7 +1003,7 @@ async fn handle_vdf_register(
         };
         let pubkey = keypair.verifying_key().to_bytes();
         let mut salt = [0u8; 32];
-        getrandom::fill(&mut salt).expect("Failed to generate random salt");
+        getrandom::fill(&mut salt).unwrap_or_default();
         let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
 
         use sha2::Digest;
@@ -1044,6 +1066,13 @@ async fn handle_vdf_register(
         let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
         let challenge_clone = challenge.clone();
 
+        let permit_res = state.vdf_semaphore.clone().acquire_owned().await;
+        if permit_res.is_err() {
+            update_task_error(&tasks_clone, &task_id_clone, "VDF Semaphore closed".into());
+            return;
+        }
+        let permit = permit_res.unwrap();
+
         // Spawn blocking to not starve tokio executor
         let proof = match tokio::task::spawn_blocking(move || {
             use kinetic_core::traits::VdfEngine;
@@ -1065,6 +1094,8 @@ async fn handle_vdf_register(
                 return;
             }
         };
+
+        drop(permit);
 
         update_task_status(&tasks_clone, &task_id_clone, "Publishing Registration", 90);
 
@@ -1101,6 +1132,9 @@ async fn handle_vdf_register(
             },
             pubkey: pubkey.to_vec(),
             signature: vec![],
+            previous_proof: None,
+            miner_pubkey: None,
+            points_spent: None,
         };
 
         use ed25519_dalek::Signer;
@@ -1206,7 +1240,7 @@ async fn handle_vdf_status(
     };
 
     match task {
-        Some(t) => Json(serde_json::to_value(t).unwrap()),
+        Some(t) => Json(serde_json::to_value(t).unwrap_or_default()),
         None => Json(serde_json::json!({"error": "Task not found"})),
     }
 }
@@ -1379,7 +1413,7 @@ async fn process_ws_delegation(mut socket: WebSocket, state: ApiState) {
                             serde_json::to_string(
                                 &serde_json::json!({ "error": "Name too short" }),
                             )
-                            .unwrap()
+                            .unwrap_or_default()
                             .into(),
                         ))
                         .await;
@@ -1401,7 +1435,7 @@ async fn process_ws_delegation(mut socket: WebSocket, state: ApiState) {
                     let _ = socket
                         .send(Message::Text(
                             serde_json::to_string(&serde_json::json!({ "status": "queued" }))
-                                .unwrap()
+                                .unwrap_or_default()
                                 .into(),
                         ))
                         .await;
@@ -1409,7 +1443,7 @@ async fn process_ws_delegation(mut socket: WebSocket, state: ApiState) {
                     let _ = socket
                         .send(Message::Text(
                             serde_json::to_string(&serde_json::json!({ "error": "Mempool full" }))
-                                .unwrap()
+                                .unwrap_or_default()
                                 .into(),
                         ))
                         .await;

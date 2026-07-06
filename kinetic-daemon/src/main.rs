@@ -1,11 +1,38 @@
+//! # kinetic-daemon
+//!
+//! The primary user-facing Kinetic daemon binary (`kinetic-daemon`).
+//!
+//! The daemon is the central coordinator of a Kinetic network participant's
+//! local stack. It manages the full lifecycle of domain name registration,
+//! renewal, and resolution, and exposes an authenticated HTTP API that the
+//! `kinetic-cli` and `kinetic-ui` interact with.
+//!
+//! ## Responsibilities
+//!
+//! - **P2P networking**: Runs a full Kademlia DHT node for publishing and
+//!   resolving `.kin` DNS records.
+//! - **VDF engine**: Drives the Chia VDF to produce time-lock proofs for
+//!   domain registration and ownership transfers.
+//! - **DNS resolver**: Embeds `kinetic-dns` to answer system-level DNS queries
+//!   for `.kin` domains on the loopback interface.
+//! - **HTTP API**: Authenticated REST API on port 16002 for CLI and UI clients.
+//! - **Service manager**: Can install, start, stop, and uninstall itself as a
+//!   system service (systemd on Linux, launchd on macOS, SCM on Windows).
+//!
+//! ## Authentication
+//!
+//! A random API token is written to `~/.config/kinetic/api.token` on first
+//! run. All mutating API calls must include this token in the
+//! `X-Kinetic-Token` header.
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use tracing::{info, warn, Level};
-use tracing_subscriber::FmtSubscriber;
 use service_manager::{
     ServiceInstallCtx, ServiceLabel, ServiceManager, ServiceStartCtx, ServiceStopCtx,
     ServiceUninstallCtx,
 };
+use tracing::{info, warn, Level};
+use tracing_subscriber::FmtSubscriber;
 
 use ed25519_dalek::Signer;
 use kinetic_core::config::KineticConfig;
@@ -14,21 +41,28 @@ use kinetic_core::types::{load_or_create_keypair, Heartbeat};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
 use kinetic_vdf::ChiaVdfEngine;
+use std::env;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use std::env;
 use tokio::sync::watch;
 
 mod api;
 mod api_tests;
 mod ca;
+mod ca_tests;
 mod nostr;
+mod nostr_tests;
 mod pac;
 mod proxy;
+mod proxy_tests;
 
 #[derive(Parser)]
-#[command(name = "kinetic-daemon", version = "0.1.0", author = "Kinetic Protocol")]
+#[command(
+    name = "kinetic-daemon",
+    version = "0.1.0",
+    author = "Kinetic Protocol"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -50,13 +84,27 @@ enum Commands {
 
 fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
     if cfg!(target_os = "linux") {
-        let status = std::process::Command::new("sudo").arg("cp").arg(cert_path).arg("/usr/local/share/ca-certificates/kinetic.crt").status()?;
+        let status = std::process::Command::new("sudo")
+            .arg("cp")
+            .arg(cert_path)
+            .arg("/usr/local/share/ca-certificates/kinetic.crt")
+            .status()?;
         if status.success() {
-            std::process::Command::new("sudo").arg("update-ca-certificates").status()?;
+            std::process::Command::new("sudo")
+                .arg("update-ca-certificates")
+                .status()?;
         }
     } else if cfg!(target_os = "macos") {
         std::process::Command::new("sudo")
-            .args(["security", "add-trusted-cert", "-d", "-r", "trustRoot", "-k", "/Library/Keychains/System.keychain"])
+            .args([
+                "security",
+                "add-trusted-cert",
+                "-d",
+                "-r",
+                "trustRoot",
+                "-k",
+                "/Library/Keychains/System.keychain",
+            ])
             .arg(cert_path)
             .status()?;
     } else if cfg!(target_os = "windows") {
@@ -80,7 +128,10 @@ fn install_service() -> Result<()> {
 
     println!("Trusting root CA...");
     if let Err(e) = trust_ca(&cert_path) {
-        println!("Warning: Could not automatically trust CA. Please trust it manually. Error: {}", e);
+        println!(
+            "Warning: Could not automatically trust CA. Please trust it manually. Error: {}",
+            e
+        );
         println!("  To enable HTTPS for .kin domains, install it manually:");
         println!("  {}", cert_path.display());
     } else {
@@ -89,12 +140,15 @@ fn install_service() -> Result<()> {
 
     println!("Installing Kinetic Daemon service...");
     let label: ServiceLabel = "com.kinetic.daemon".parse()?;
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect native service manager");
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["start".parse().unwrap()],
+        args: vec!["start"
+            .parse()
+            .map_err(|_| anyhow::anyhow!("Failed to parse start"))?],
         contents: None,
         username: None,
         working_directory: None,
@@ -109,7 +163,8 @@ fn install_service() -> Result<()> {
 
 fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.daemon".parse()?;
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect native service manager");
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
@@ -117,7 +172,8 @@ fn uninstall_service() -> Result<()> {
 
 fn start_background_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.daemon".parse()?;
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect native service manager");
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -125,7 +181,8 @@ fn start_background_service() -> Result<()> {
 
 fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.daemon".parse()?;
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect native service manager");
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -137,7 +194,7 @@ async fn run_daemon() -> Result<()> {
     if config.daemon.backend_port == config.daemon.api_port
         || config.daemon.backend_port == config.daemon.proxy_port
         || config.daemon.backend_port == config.daemon.dns_port
-        || config.daemon.backend_port == config.network.p2p_port
+        || config.daemon.backend_port == config.network.daemon_port
     {
         tracing::error!(
             "FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
@@ -150,7 +207,7 @@ async fn run_daemon() -> Result<()> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 
     info!("Starting Kinetic Daemon...");
 
@@ -199,7 +256,7 @@ async fn run_daemon() -> Result<()> {
     };
     let network_config = NetworkConfig {
         mode,
-        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.p2p_port),
+        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.daemon_port),
         bootstrap_nodes: config.network.bootstrap_nodes.clone(),
         seed_domains: config.network.seed_domains.clone(),
         enable_mdns: config.network.enable_mdns,
@@ -207,15 +264,121 @@ async fn run_daemon() -> Result<()> {
         external_address: config.network.external_address.clone(),
     };
 
+    let base_config_dir = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("kinetic");
+    std::fs::create_dir_all(&base_config_dir)?;
+
+    let gov_state_path = std::sync::Arc::new(base_config_dir.join("governance_state.bin"));
+    {
+        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Poison error: {}", e))?;
+        *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
+    }
+
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
+    let (gossip_tx, mut gossip_rx) = tokio::sync::mpsc::channel(100);
+    let mut current_local_key = local_key;
     let (network_client, network_loop) = NetworkEventLoop::new(
-        network_config,
-        local_key,
+        network_config.clone(),
+        current_local_key.clone(),
         storage.clone(),
-        drand_pulse_rx,
-        Some(incoming_tx),
+        drand_pulse_rx.clone(),
+        Some(incoming_tx.clone()),
+        Some(gossip_tx.clone()),
     )?;
     info!("P2P Network architecture wired");
+
+    let mut network_loop_handle = tokio::spawn(async move {
+        network_loop.run().await;
+    });
+
+    let hc_client = network_client.clone();
+    let hc_drand_rx = drand_pulse_rx.clone();
+    let hc_config = network_config.clone();
+    let hc_storage = storage.clone();
+    let hc_inc_tx = incoming_tx.clone();
+    let hc_gossip_tx = gossip_tx.clone();
+    tokio::spawn(async move {
+        let mut rx = hc_drand_rx.clone();
+        loop {
+            if rx.changed().await.is_err() {
+                break;
+            }
+            let pulse = *rx.borrow();
+            if pulse == 0 {
+                continue;
+            }
+            let peer_id = libp2p::PeerId::from_public_key(&current_local_key.public());
+            if !kinetic_network::pow::is_valid_sybil_pow(
+                &peer_id,
+                pulse,
+                kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
+            ) {
+                tracing::info!("PoW epoch expired. Remining identity seamlessly...");
+                current_local_key = kinetic_network::pow::mine_sybil_keypair(
+                    pulse,
+                    kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
+                );
+
+                network_loop_handle.abort();
+
+                if let Ok((new_client, new_loop)) = NetworkEventLoop::new(
+                    hc_config.clone(),
+                    current_local_key.clone(),
+                    hc_storage.clone(),
+                    hc_drand_rx.clone(),
+                    Some(hc_inc_tx.clone()),
+                    Some(hc_gossip_tx.clone()),
+                ) {
+                    hc_client.update_backend(new_client.get_sender(), new_client.stream_control());
+                    network_loop_handle = tokio::spawn(async move {
+                        new_loop.run().await;
+                    });
+                    tracing::info!("Successfully hot-swapped P2P backend with new PoW identity");
+                }
+            }
+        }
+    });
+
+    let gossip_gov_path = gov_state_path.clone();
+    tokio::spawn(async move {
+        while let Some((topic, payload)) = gossip_rx.recv().await {
+            if topic == "kinetic_governance" {
+                if let Ok(signed_msg) = serde_json::from_slice::<
+                    kinetic_core::governance::SignedGovernanceMessage,
+                >(&payload)
+                {
+                    let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                    else {
+                        continue;
+                    };
+                    match kinetic_core::governance::process_governance_message(
+                        &mut state,
+                        &signed_msg,
+                    ) {
+                        Ok(Some(effect)) => {
+                            tracing::info!(
+                                "Governance state updated via gossip. Effect: {:?}",
+                                effect
+                            );
+                            let _ = state.save_to_disk(&gossip_gov_path);
+                        }
+                        Ok(None) => {
+                            tracing::info!(
+                                "Governance state updated via gossip. No immediate effect."
+                            );
+                            let _ = state.save_to_disk(&gossip_gov_path);
+                        }
+                        Err(e) => {
+                            tracing::debug!("Governance gossip message rejected: {:?}", e);
+                        }
+                    }
+                }
+            }
+        }
+    });
 
     let base_config_dir = dirs::config_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -223,9 +386,7 @@ async fn run_daemon() -> Result<()> {
     std::fs::create_dir_all(&base_config_dir)?;
 
     let root_ca = match ca::load_or_create_root_ca(&base_config_dir) {
-        Ok((root_ca, _is_new)) => {
-            std::sync::Arc::new(root_ca)
-        }
+        Ok((root_ca, _is_new)) => std::sync::Arc::new(root_ca),
         Err(e) => {
             tracing::error!("Failed to initialize Root CA: {}", e);
             return Err(anyhow::anyhow!("CA Init Failed: {}", e));
@@ -259,7 +420,10 @@ async fn run_daemon() -> Result<()> {
         .await;
     });
 
-    let mempool = Arc::new(std::sync::Mutex::new(kinetic_core::mempool::Mempool::new(1000, std::time::Duration::from_secs(3600))));
+    let mempool = Arc::new(std::sync::Mutex::new(kinetic_core::mempool::Mempool::new(
+        1000,
+        std::time::Duration::from_secs(3600),
+    )));
     let api_future = api::start_server(
         network_client.clone(),
         storage.clone(),
@@ -420,8 +584,13 @@ async fn run_daemon() -> Result<()> {
     let mempool_nostr = mempool.clone();
     let storage_nostr = storage.clone();
     tokio::spawn(async move {
-        if let Err(e) =
-            nostr::start_nostr_listener(daemon_keypair_nostr, mempool_nostr, storage_nostr).await
+        if let Err(e) = nostr::start_nostr_listener(
+            daemon_keypair_nostr,
+            mempool_nostr,
+            storage_nostr,
+            config.daemon.network_mode == "PublicMiner",
+        )
+        .await
         {
             tracing::error!("Nostr Listener error: {}", e);
         }
@@ -439,9 +608,6 @@ async fn run_daemon() -> Result<()> {
     }
 
     tokio::select! {
-        _ = network_loop.run() => {
-            info!("P2P Network loop exited");
-        },
         res = api_future => {
             tracing::error!("API Server exited unexpectedly: {:?}", res);
         },
@@ -457,7 +623,11 @@ async fn run_daemon() -> Result<()> {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .ok();
+
     let cli = Cli::parse();
 
     match &cli.command {
