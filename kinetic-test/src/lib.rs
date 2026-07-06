@@ -29,7 +29,7 @@ mod tests {
         let (_pulse_tx, pulse_rx) = watch::channel(1000);
 
         let (client, event_loop) =
-            NetworkEventLoop::new(config, keypair, storage, pulse_rx, None).unwrap();
+            NetworkEventLoop::new(config, keypair, storage, pulse_rx, None, None).unwrap();
 
         let handle = tokio::spawn(async move {
             event_loop.run().await;
@@ -87,6 +87,55 @@ mod tests {
             assert_eq!(res_b, payload);
         } else {
             println!("Node B failed to resolve (likely Kademlia routing table not fully sync'd in 3s) but A succeeded.");
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_dht_resolve_not_found() {
+        let key_a = Keypair::generate_ed25519();
+        let key_b = Keypair::generate_ed25519();
+        let peer_a = key_a.public().to_peer_id();
+
+        let (_client_a, _handle_a) = setup_node(10012, key_a, vec![]).await;
+
+        let boot_addr = format!("/ip4/127.0.0.1/tcp/10012/p2p/{}", peer_a);
+        let (client_b, _handle_b) = setup_node(10013, key_b, vec![boot_addr]).await;
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let name = "nonexistent.kin";
+        let res = client_b.resolve_redundant_payload(name).await;
+
+        assert!(res.is_err());
+        match res.unwrap_err() {
+            kinetic_core::error::ResolutionError::NotFound { .. } => {
+                // Success
+            }
+            e => panic!("Expected NotFound, got: {:?}", e),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_dht_invalid_payload() {
+        let key_a = Keypair::generate_ed25519();
+        let (client_a, _handle_a) = setup_node(10011, key_a, vec![]).await;
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let name = "invalid_payload.kin";
+        let invalid_payload = b"not a json object or valid reveal".to_vec();
+        let res = client_a
+            .publish_redundant_payload(name, invalid_payload.clone())
+            .await;
+
+        assert!(res.is_err());
+        // Since it's rejected by the local Kademlia store (UnknownRecordType)
+        // and remote nodes won't store it, it fails with AllFailed.
+        match res.unwrap_err() {
+            kinetic_core::error::PublishError::AllFailed { .. } => {
+                // Success
+            }
+            e => panic!("Expected AllFailed, got {:?}", e),
         }
     }
 }
