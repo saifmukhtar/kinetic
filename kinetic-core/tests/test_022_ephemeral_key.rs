@@ -35,7 +35,9 @@ fn test_ephemeral_key_wiping_fallback() {
     );
 
     // Clean up
-    let fallback_path = std::env::current_dir().unwrap().join(".kinetic/identity.kin");
+    let fallback_path = std::env::current_dir()
+        .unwrap()
+        .join(".kinetic/identity.key");
     if fallback_path.exists() {
         std::fs::remove_file(&fallback_path).unwrap();
     }

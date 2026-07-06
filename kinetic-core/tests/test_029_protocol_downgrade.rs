@@ -4,7 +4,7 @@ use kinetic_core::types::{Reveal, VdfProof};
 fn test_protocol_downgrade_prevention() {
     let reveal_v1 = Reveal {
         protocol_version: 1,
-        name: "test.kin".to_string(),
+        name: format!("{}{}", "test", kinetic_core::types::DOT_TLD),
         payload: vec![1, 2, 3],
         salt: [0u8; 32],
         drand_pulse: 100,
@@ -15,6 +15,9 @@ fn test_protocol_downgrade_prevention() {
         },
         pubkey: vec![7, 8, 9],
         signature: vec![],
+        previous_proof: None,
+        miner_pubkey: None,
+        points_spent: None,
     };
 
     let bytes_v1 = reveal_v1.signable_bytes();

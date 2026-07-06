@@ -4,7 +4,7 @@ use kinetic_core::types::{Reveal, VdfProof};
 fn test_subdomain_hijack_validation() {
     let invalid_reveal = Reveal {
         protocol_version: 2,
-        name: "blog.saif.kin".to_string(), // Subdomain!
+        name: format!("{}{}", "blog.saif", kinetic_core::types::DOT_TLD), // Subdomain!
         payload: vec![],
         salt: [0; 32],
         drand_pulse: 1000,
@@ -15,6 +15,9 @@ fn test_subdomain_hijack_validation() {
         },
         pubkey: vec![],
         signature: vec![],
+        previous_proof: None,
+        miner_pubkey: None,
+        points_spent: None,
     };
 
     assert!(
@@ -24,7 +27,7 @@ fn test_subdomain_hijack_validation() {
 
     let valid_reveal = Reveal {
         protocol_version: 2,
-        name: "saif.kin".to_string(), // Apex domain!
+        name: format!("{}{}", "saif", kinetic_core::types::DOT_TLD), // Apex domain!
         payload: vec![],
         salt: [0; 32],
         drand_pulse: 1000,
@@ -35,6 +38,9 @@ fn test_subdomain_hijack_validation() {
         },
         pubkey: vec![],
         signature: vec![],
+        previous_proof: None,
+        miner_pubkey: None,
+        points_spent: None,
     };
 
     assert!(
