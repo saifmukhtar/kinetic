@@ -45,6 +45,9 @@ fn test_010_xor_eclipse() {
         signature: vec![],
         protocol_version: 1,
         payload: vec![],
+        previous_proof: None,
+        miner_pubkey: None,
+        points_spent: None,
     };
     real_reveal.signature = keypair
         .sign(&real_reveal.signable_bytes())
