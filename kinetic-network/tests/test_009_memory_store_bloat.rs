@@ -32,6 +32,9 @@ fn test_009_memory_store_bloat() {
                 signature: vec![],
                 protocol_version: 2,
                 payload: vec![],
+                previous_proof: None,
+                miner_pubkey: None,
+                points_spent: None,
             },
         );
     }

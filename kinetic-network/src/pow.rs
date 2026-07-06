@@ -1,9 +1,11 @@
+use argon2::{Algorithm, Argon2, Params, Version};
 use libp2p::{identity::Keypair, PeerId};
-use sha2::{Digest, Sha256};
 use tracing::info;
 
+/// The number of drand pulses in a single PoW epoch (e.g., 1440 for 12 hours at 30s per pulse).
 pub const EPOCH_PULSES: u64 = 1440; // 12 hours at 30s per pulse
-pub const DEFAULT_DIFFICULTY_BITS: u32 = 20;
+/// The default difficulty level (number of leading zero bits) for PoW mining.
+pub const DEFAULT_DIFFICULTY_BITS: u32 = 8;
 
 /// Computes the leading zero bits of a given byte slice.
 fn leading_zeros(hash: &[u8]) -> u32 {
@@ -17,6 +19,18 @@ fn leading_zeros(hash: &[u8]) -> u32 {
         }
     }
     zeros
+}
+
+/// Computes the Argon2id hash for the given peer bytes and epoch.
+fn compute_pow_hash(peer_bytes: &[u8], epoch: u64) -> [u8; 32] {
+    // 16MB memory, 1 iteration, 1 parallelism
+    let params = Params::new(16384, 1, 1, None).unwrap();
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut output = [0u8; 32];
+
+    // Argon2 requires a salt of at least 8 bytes, and epoch.to_be_bytes() is 8 bytes.
+    let _ = argon2.hash_password_into(peer_bytes, &epoch.to_be_bytes(), &mut output);
+    output
 }
 
 /// Computes a peer-specific epoch to stagger identity churn across the network.
@@ -47,19 +61,15 @@ pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32)
     let current_epoch = get_staggered_epoch(peer_id, current_pulse);
 
     // Check current epoch
-    let mut hasher = Sha256::new();
-    hasher.update(&peer_bytes);
-    hasher.update(current_epoch.to_be_bytes());
-    if leading_zeros(&hasher.finalize()) >= difficulty {
+    let hash = compute_pow_hash(&peer_bytes, current_epoch);
+    if leading_zeros(&hash) >= difficulty {
         return true;
     }
 
     // Check previous epoch (allows 12-hour overlap so nodes don't drop exactly at the boundary)
     if current_epoch > 0 {
-        let mut hasher = Sha256::new();
-        hasher.update(&peer_bytes);
-        hasher.update((current_epoch - 1).to_be_bytes());
-        if leading_zeros(&hasher.finalize()) >= difficulty {
+        let hash = compute_pow_hash(&peer_bytes, current_epoch - 1);
+        if leading_zeros(&hash) >= difficulty {
             return true;
         }
     }
@@ -72,6 +82,12 @@ pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
     if current_pulse == 0 && !kinetic_core::config::is_dev_mode() {
         panic!("Cannot generate PoW against pulse 0 (drand uninitialized)");
     }
+
+    if kinetic_core::config::is_dev_mode() {
+        info!("Dev mode active: Skipping S/Kademlia identity PoW mining.");
+        return Keypair::generate_ed25519();
+    }
+
     let mut attempts: u64 = 0;
 
     info!(
@@ -86,12 +102,10 @@ pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
         let peer_bytes = peer_id.to_bytes();
         let current_epoch = get_staggered_epoch(&peer_id, current_pulse);
 
-        let mut hasher = Sha256::new();
-        hasher.update(&peer_bytes);
-        hasher.update(current_epoch.to_be_bytes());
+        let hash = compute_pow_hash(&peer_bytes, current_epoch);
 
         attempts += 1;
-        if leading_zeros(&hasher.finalize()) >= difficulty {
+        if leading_zeros(&hash) >= difficulty {
             info!(
                 "Mined S/Kademlia identity {} in {} attempts ({:?})",
                 peer_id,
