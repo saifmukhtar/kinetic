@@ -1,6 +1,38 @@
+//! # kinetic-kid
+//!
+//! Kinetic Identity Documents (KIDs) — the self-sovereign identity layer.
+//!
+//! A KID is a decentralised identifier (DID) anchored to the Kinetic `.kin`
+//! naming network. This crate defines how identities are created, signed,
+//! verified, and extended with capability manifests.
+//!
+//! ## Core concepts
+//!
+//! - **[`KineticDid`]** — A validated `did:kin:<hex>` string. The hex suffix
+//!   is the SHA-256 hash of the controller's primary public key.
+//! - **[`KidDocument`]** — The identity document that binds a DID to one or
+//!   more [`ControllerKey`]s. It is signed with Ed25519 and stamped with a
+//!   Proof-of-Work nonce (target: [`KID_POW_TARGET`] leading zero bits) to
+//!   rate-limit identity creation on-chain.
+//! - **[`CapabilityManifest`]** — An optional extension signed by the
+//!   controller that lists services (websites, APIs, etc.) associated with
+//!   the identity.
+//!
+//! ## Serialisation
+//!
+//! All documents are canonicalised using **JCS** (JSON Canonicalisation Scheme,
+//! RFC 8785) before signing so that the byte representation is deterministic
+//! across platforms.
+
+#![deny(missing_docs)]
+
+/// DID parsing and validation for the `did:kin:` scheme.
 pub mod did;
+/// KID document types: [`KidDocument`], [`ControllerKey`], and [`ManifestPointer`].
 pub mod document;
+/// [`KidError`]: the unified error type for kinetic-kid operations.
 pub mod error;
+/// Capability manifest types: [`CapabilityManifest`] and [`ServiceEntry`].
 pub mod manifest;
 
 pub use did::KineticDid;
@@ -8,9 +40,12 @@ pub use document::{ControllerKey, KidDocument, ManifestPointer};
 pub use error::KidError;
 pub use manifest::{CapabilityManifest, ServiceEntry};
 
+/// The required number of leading zero bits in the SHA-256 PoW hash for a
+/// valid [`KidDocument`] or [`CapabilityManifest`].
 pub const KID_POW_TARGET: u32 = 20;
 
-/// Helper function to validate if a SHA-256 hash meets the required PoW target (leading zero bits)
+/// Returns `true` if the given SHA-256 `hash` satisfies `target_bits` leading
+/// zero bits, which is the Proof-of-Work requirement for KID documents.
 pub fn validate_pow(hash: &[u8; 32], target_bits: u32) -> bool {
     let target_bytes = (target_bits / 8) as usize;
     let remainder_bits = target_bits % 8;
@@ -66,12 +101,11 @@ mod tests {
         };
 
         let jcs_str = doc.canonicalize().unwrap();
-        // Check that optional fields like manifest and signature are stripped when None
+        // Optional fields are stripped when None
         assert!(!jcs_str.contains("manifest"));
         assert!(!jcs_str.contains("signature"));
 
-        // Ensure lexicographical ordering by checking exact output
-        // controller_keys, created_at, kid, pow_nonce, revocation_keys, type
+        // Fields must be in lexicographical order per JCS
         let expected = r#"{"controller_keys":[],"created_at":1000,"kid":"did:kin:test","pow_nonce":0,"type":"kinetic.kid.v1"}"#;
         assert_eq!(jcs_str, expected);
     }
@@ -111,10 +145,9 @@ mod tests {
         let signed_doc = doc.sign(&keypair).unwrap();
         assert!(signed_doc.signature.is_some());
 
-        // Verify should succeed
         assert!(signed_doc.verify().is_ok());
 
-        // Modify content to invalidate signature
+        // Tampering with any field must invalidate the signature
         let mut corrupted_doc = signed_doc.clone();
         corrupted_doc.created_at = 9999999999;
         assert!(corrupted_doc.verify().is_err());
@@ -171,10 +204,9 @@ mod tests {
         manifest.mine_pow();
         let signed_manifest = manifest.sign(&keypair).unwrap();
 
-        // Valid verify
         assert!(signed_manifest.verify(&doc).is_ok());
 
-        // Try to verify with a different keypair document
+        // A manifest signed by a different key must be rejected
         let bad_keypair = generate_keypair();
         let bad_doc = KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
