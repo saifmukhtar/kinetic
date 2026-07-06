@@ -2,7 +2,10 @@
 //! This is the ONLY error type that crosses HTTP boundaries.
 //! Internal Rust errors are converted to ApiError at the API layer.
 
-use crate::error::{PublishError, RegistrationError, ResolutionError};
+use crate::error::{
+    GovernanceError, NetworkClientError, PublishError, RegistrationError, ResolutionError,
+    StorageError, UpdaterError, VdfError,
+};
 use serde::{Deserialize, Serialize};
 
 /// RFC 7807 Problem Details for HTTP APIs, with Kinetic extensions.
@@ -32,6 +35,7 @@ pub struct ApiError {
 }
 
 impl ApiError {
+    /// Returns the HTTP status code associated with this error.
     pub fn http_status(&self) -> u16 {
         self.status
     }
@@ -110,6 +114,145 @@ impl From<RegistrationError> for ApiError {
             code: e.code().to_string(),
             retryable: e.is_retryable(),
             details: e.details(),
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<GovernanceError> for ApiError {
+    fn from(e: GovernanceError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            GovernanceError::MissingRootKey | GovernanceError::MissingGuardKey => {
+                (500, "Configuration Error")
+            }
+            GovernanceError::KeyLengthMismatch | GovernanceError::CouncilSizeMismatch => {
+                (400, "Bad Request")
+            }
+            GovernanceError::StaleProposal
+            | GovernanceError::TimelockNotExpired
+            | GovernanceError::OtaTimelockNotExpired
+            | GovernanceError::NotPendingOrVetoed => (409, "Conflict"),
+            GovernanceError::InvalidGuardSignature | GovernanceError::InsufficientSignatures => {
+                (401, "Unauthorized")
+            }
+            GovernanceError::EmergencyResetVetoed
+            | GovernanceError::EmergencyResetRequiresRoot
+            | GovernanceError::EmergencyResetRequiresGuard
+            | GovernanceError::RotateRequiresGuard
+            | GovernanceError::EmptyCouncil => (403, "Forbidden"),
+            GovernanceError::UnhandledThresholdMath => (501, "Not Implemented"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<UpdaterError> for ApiError {
+    fn from(e: UpdaterError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            UpdaterError::NoMirrorsProvided | UpdaterError::HashMismatch(..) => {
+                (400, "Bad Request")
+            }
+            UpdaterError::HttpError(_)
+            | UpdaterError::NetworkError(_)
+            | UpdaterError::ReqwestError(_) => (502, "Bad Gateway"),
+            UpdaterError::IoError(_)
+            | UpdaterError::SpawnFailed(_)
+            | UpdaterError::SelfReplaceError(_) => (500, "Internal Server Error"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<NetworkClientError> for ApiError {
+    fn from(e: NetworkClientError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            NetworkClientError::Timeout | NetworkClientError::StreamDropped => {
+                (504, "Gateway Timeout")
+            }
+            NetworkClientError::Offline | NetworkClientError::RoutingTableEmpty => {
+                (503, "Service Unavailable")
+            }
+            NetworkClientError::ChannelClosed
+            | NetworkClientError::StoreError(_)
+            | NetworkClientError::Other(_) => (500, "Internal Server Error"),
+            NetworkClientError::UnsupportedProtocol => (501, "Not Implemented"),
+            NetworkClientError::GossipSubError(_) => (502, "Bad Gateway"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<StorageError> for ApiError {
+    fn from(e: StorageError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            StorageError::DatabaseLocked => (423, "Locked"),
+            StorageError::Corruption(_) => (500, "Storage Corruption"),
+            StorageError::OperationFailed(_) => (500, "Storage Operation Failed"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<VdfError> for ApiError {
+    fn from(e: VdfError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            VdfError::LockFileError(_) | VdfError::LockAcquireError(_) => {
+                (503, "Service Unavailable")
+            }
+            VdfError::DiscriminantError | VdfError::ProofGenerationError => {
+                (500, "VDF Computation Error")
+            }
+            VdfError::UnsupportedPlatform => (501, "Not Implemented"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
             request_id: current_request_id(),
         }
     }

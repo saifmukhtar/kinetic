@@ -1,5 +1,8 @@
+/// Parameters for the network's consensus mechanisms.
 pub struct ConsensusParams {
+    /// Number of rounds a name must be inactive before the steal difficulty decays.
     pub steal_target_rounds: u64,
+    /// Number of rounds it takes for hardware speed to theoretically double.
     pub hardware_drift_rounds: u64,
 }
 
@@ -74,6 +77,8 @@ impl ConsensusParams {
         67824, 67824, 9255, 1300, 207, 48, 21, 13, 10, 8, 7, 6, 6, 5, 5, 5, 5, 5, 5, 5,
     ];
 
+    /// Calculates the base hardware iteration requirement for a given round, 
+    /// doubling every `hardware_drift_rounds`.
     pub fn calculate_hardware_anchor(&self, current_round: u64) -> u64 {
         // Base starting point for 0 drift (22-bit iterations)
         let genesis_base: u64 = 4_194_304;

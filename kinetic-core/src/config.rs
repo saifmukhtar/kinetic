@@ -2,21 +2,64 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+/// Well-known port constants for all Kinetic binaries.
+///
+/// Centralising port assignments here prevents accidental conflicts
+/// between the daemon, node, and host binaries.
+pub mod ports {
+    /// P2P listen port for `kinetic-daemon`.
+    pub const P2P_DAEMON: u16 = 6070;
+    /// P2P listen port for `kinetic-node`.
+    pub const P2P_NODE: u16 = 6071;
+    /// P2P listen port for `kinetic-host`.
+    pub const P2P_HOST: u16 = 6072;
+
+    /// HTTP API port for `kinetic-daemon`.
+    pub const API_DAEMON: u16 = 16002;
+    /// HTTP health-check API port for `kinetic-node`.
+    pub const API_NODE: u16 = 16003;
+    /// HTTP health-check API port for `kinetic-host`.
+    pub const API_HOST: u16 = 16004;
+
+    /// Local `.kin` reverse-proxy port.
+    pub const PROXY: u16 = 5463;
+    /// DNS resolver port (system default).
+    pub const DNS: u16 = 53;
+    /// Local backend HTTP port for the proxy.
+    pub const BACKEND: u16 = 80;
+}
+
+/// Top-level configuration for any Kinetic binary.
+///
+/// Loaded from `~/.config/kinetic/config.toml` (or the path set by
+/// `KINETIC_CONFIG_PATH`). If the file does not exist, a default config is
+/// written and used.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KineticConfig {
+    /// Daemon-level settings: ports, storage path, and network mode.
     pub daemon: DaemonConfig,
+    /// P2P networking settings: ports, bootstrap nodes, and mDNS.
     pub network: P2pConfig,
 }
 
+/// Daemon-specific configuration: API ports, storage, and operating mode.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonConfig {
+    /// Port for the daemon's authenticated HTTP API (default: [`ports::API_DAEMON`]).
+    #[serde(default = "default_api_port")]
     pub api_port: u16,
+    /// Port for the built-in DNS resolver (default: [`ports::DNS`]).
+    #[serde(default = "default_dns_port")]
     pub dns_port: u16,
+    /// Port for the built-in reverse proxy (default: [`ports::PROXY`]).
     #[serde(default = "default_proxy_port")]
     pub proxy_port: u16,
+    /// Port for the local backend HTTP server (default: [`ports::BACKEND`]).
     #[serde(default = "default_backend_port")]
     pub backend_port: u16,
+    /// Directory where the embedded Sled database is stored.
     pub storage_dir: PathBuf,
+    /// Network operating mode: `"FullNode"` or `"LightClient"`.
     #[serde(default = "default_network_mode")]
     pub network_mode: String,
 }
@@ -25,24 +68,57 @@ fn default_network_mode() -> String {
     "FullNode".to_string()
 }
 
+fn default_api_port() -> u16 {
+    ports::API_DAEMON
+}
+
+fn default_dns_port() -> u16 {
+    ports::DNS
+}
+
 fn default_proxy_port() -> u16 {
-    5463
+    ports::PROXY
 }
 
 fn default_backend_port() -> u16 {
-    80
+    ports::BACKEND
 }
 
+/// P2P networking configuration shared across all Kinetic binaries.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2pConfig {
-    pub p2p_port: u16,
+    /// P2P listen port for the daemon (default: [`ports::P2P_DAEMON`]).
+    #[serde(default = "default_p2p_daemon")]
+    pub daemon_port: u16,
+    /// P2P listen port for the node (default: [`ports::P2P_NODE`]).
+    #[serde(default = "default_p2p_node")]
+    pub node_port: u16,
+    /// P2P listen port for the host (default: [`ports::P2P_HOST`]).
+    #[serde(default = "default_p2p_host")]
+    pub host_port: u16,
+    /// Multiaddr strings for the initial bootstrap peers.
     pub bootstrap_nodes: Vec<String>,
+    /// `.kin` domain names used to discover additional bootstrap peers via DNS.
     #[serde(default)]
     pub seed_domains: Vec<String>,
+    /// Whether to enable mDNS peer discovery on the local network.
     #[serde(default)]
     pub enable_mdns: bool,
+    /// Optional externally reachable multiaddr (e.g. for nodes behind NAT).
     #[serde(default)]
     pub external_address: Option<String>,
+}
+
+fn default_p2p_daemon() -> u16 {
+    ports::P2P_DAEMON
+}
+
+fn default_p2p_node() -> u16 {
+    ports::P2P_NODE
+}
+
+fn default_p2p_host() -> u16 {
+    ports::P2P_HOST
 }
 
 impl Default for KineticConfig {
@@ -54,15 +130,17 @@ impl Default for KineticConfig {
 
         Self {
             daemon: DaemonConfig {
-                api_port: 16002,
-                dns_port: 53,
-                proxy_port: 5463,
-                backend_port: 80,
+                api_port: ports::API_DAEMON,
+                dns_port: ports::DNS,
+                proxy_port: ports::PROXY,
+                backend_port: ports::BACKEND,
                 storage_dir,
                 network_mode: "FullNode".to_string(),
             },
             network: P2pConfig {
-                p2p_port: 6070,
+                daemon_port: ports::P2P_DAEMON,
+                node_port: ports::P2P_NODE,
+                host_port: ports::P2P_HOST,
                 bootstrap_nodes: vec![
                     "/ip4/44.219.188.204/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs".to_string(),
                     "/ip4/44.219.155.172/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D".to_string(),
@@ -79,6 +157,8 @@ impl Default for KineticConfig {
 }
 
 impl KineticConfig {
+    /// Loads config from disk, falling back to defaults and writing them if
+    /// the file is missing or unparseable.
     pub fn load() -> Self {
         let config_path = std::env::var("KINETIC_CONFIG_PATH")
             .map(PathBuf::from)
@@ -112,6 +192,8 @@ impl KineticConfig {
         config
     }
 
+    /// Serialises and writes the config back to the same path it was loaded
+    /// from.
     pub fn save(&self) -> Result<(), std::io::Error> {
         let config_path = std::env::var("KINETIC_CONFIG_PATH")
             .map(PathBuf::from)
@@ -135,7 +217,7 @@ impl KineticConfig {
 /// A globally secure check for Dev Mode.
 /// It mathematically guarantees that Dev Mode cannot be activated in release builds.
 pub fn is_dev_mode() -> bool {
-    cfg!(debug_assertions) && std::env::var("KINETIC_DEV_MODE").is_ok()
+    cfg!(feature = "simulation")
 }
 
 /// Returns the path to the directory where local zone JSON files are stored.
@@ -143,6 +225,9 @@ pub fn get_zones_dir() -> PathBuf {
     get_base_dir().join("zones")
 }
 
+/// Returns the platform-appropriate base directory for Kinetic data files.
+///
+/// Can be overridden with the `KINETIC_DATA_DIR` environment variable.
 pub fn get_base_dir() -> PathBuf {
     if let Ok(path) = std::env::var("KINETIC_DATA_DIR") {
         return PathBuf::from(path);
@@ -168,10 +253,7 @@ pub fn get_base_dir() -> PathBuf {
 
 /// Returns the path to the API secret token used for local CLI authentication.
 pub fn get_api_token_path() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("kinetic")
-        .join("api.token")
+    get_base_dir().join("api.token")
 }
 
 #[cfg(test)]
@@ -181,8 +263,8 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = KineticConfig::default();
-        assert_eq!(config.daemon.api_port, 16002);
-        assert_eq!(config.network.p2p_port, 6070);
+        assert_eq!(config.daemon.api_port, ports::API_DAEMON);
+        assert_eq!(config.network.daemon_port, ports::P2P_DAEMON);
         assert!(config.network.enable_mdns);
     }
 }
