@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+simulation = ["kinetic-core/simulation"]
+
 [dependencies]
 kinetic-core = { version = "0.1.0", path = "../kinetic-core" }
 hickory-server = "0.24"
@@ -22,3 +25,5 @@ tracing-subscriber.workspace = true
 clap = { version = "4.5", features = ["derive"] }
 service-manager = "0.11"
 dirs = "5.0"
+[dev-dependencies]
+axum = "0.7"

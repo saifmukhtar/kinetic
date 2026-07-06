@@ -1,3 +1,25 @@
+//! # kinetic-dns
+//!
+//! DNS resolution layer for the Kinetic `.kin` naming network.
+//!
+//! This crate implements a custom DNS request handler ([`KineticDnsHandler`])
+//! using the [hickory-dns](https://crates.io/crates/hickory-server) library.
+//! It intercepts DNS queries for `.kin` domains, resolves them against the
+//! Kinetic daemon's HTTP API (which in turn queries the Kademlia DHT), and
+//! proxies all other queries to Cloudflare 1.1.1.1 via DNS-over-HTTPS.
+//!
+//! ## Caching
+//!
+//! Resolved records are cached in-process using
+//! [moka](https://crates.io/crates/moka) with asymmetric TTLs:
+//!
+//! - **Positive hits** (domain found): cached for 5 minutes.
+//! - **Negative hits** (NXDOMAIN): cached for 30 seconds.
+//!
+//! Cache stampede protection is provided natively by moka's `try_get_with`.
+//! The [`KineticDnsHandler::invalidate_cache`] method allows the daemon to
+//! proactively evict a domain after a successful local update.
+
 use hickory_proto::rr::{Name, RData, Record};
 use hickory_resolver::{
     config::{ResolverConfig, ResolverOpts},
@@ -67,13 +89,15 @@ pub struct KineticDnsHandler {
 
 impl KineticDnsHandler {
     pub fn new(api_url: String) -> Self {
-        // Use Cloudflare 1.1.1.1 DoH (DNS-over-HTTPS) for encrypted upstream proxy resolution
+        // Use Cloudflare 1.1.1.1 DoH for encrypted upstream resolution of non-.kin domains.
         let resolver =
             TokioAsyncResolver::tokio(ResolverConfig::cloudflare_https(), ResolverOpts::default());
 
-        // Initialize moka cache for caching DHT resolves and preventing request stampedes
         let cache = Cache::builder().expire_after(KineticExpiry).build();
-        let http_client = reqwest::Client::new();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
 
         Self {
             api_url,
@@ -113,34 +137,41 @@ impl RequestHandler for KineticDnsHandler {
             clean_name.pop();
         }
 
-        if clean_name.ends_with(".kin") {
+        if clean_name.ends_with(kinetic_core::types::DOT_TLD) {
             let domain_name = kinetic_core::types::normalize_name(&clean_name);
             let apex_domain = kinetic_core::types::extract_apex_domain(&domain_name);
 
             let api_url_clone = self.api_url.clone();
             let http_client_clone = self.http_client.clone();
-
-            // `try_get_with` provides cache stampede protection natively!
             let apex_domain_clone = apex_domain.clone();
+
             let cache_result = self
                 .cache
                 .try_get_with(apex_domain.clone(), async move {
-                    // If it's a cache miss, we hit the API.
-                    info!("Cache miss for apex: {}. Hitting daemon API...", apex_domain_clone);
-                    
-                    let url = format!("{}/api/v1/resolve/{}", api_url_clone, apex_domain_clone);
+                    // Cache miss: hit the daemon API to resolve from the DHT.
+                    info!(
+                        "Cache miss for apex: {}. Hitting daemon API...",
+                        apex_domain_clone
+                    );
+
+                    let url = format!("{}/api/resolve/{}", api_url_clone, apex_domain_clone);
                     match http_client_clone.get(&url).send().await {
                         Ok(resp) => {
                             if resp.status().is_success() {
                                 if let Ok(payload) = resp.bytes().await {
                                     Ok::<_, Arc<anyhow::Error>>(Some(payload.to_vec()))
                                 } else {
-                                    Err(Arc::new(anyhow::anyhow!("Failed to read API response body")))
+                                    Err(Arc::new(anyhow::anyhow!(
+                                        "Failed to read API response body"
+                                    )))
                                 }
                             } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
                                 Ok(None)
                             } else {
-                                Err(Arc::new(anyhow::anyhow!("API returned status: {}", resp.status())))
+                                Err(Arc::new(anyhow::anyhow!(
+                                    "API returned status: {}",
+                                    resp.status()
+                                )))
                             }
                         }
                         Err(e) => Err(Arc::new(anyhow::anyhow!("API request failed: {}", e))),
@@ -152,7 +183,6 @@ impl RequestHandler for KineticDnsHandler {
                 Ok(Some(payload_bytes)) => {
                     info!("Successfully resolved .kin from Cache/DHT");
 
-                    // Robustly handle parsing errors to prevent crashes on bad DHT data
                     match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload_bytes) {
                         Ok(reveal) => {
                             match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
@@ -296,7 +326,7 @@ impl RequestHandler for KineticDnsHandler {
                 }
             }
 
-            // If we fall through here, it means we didn't find any valid records or payload was malformed. NXDOMAIN.
+            // No matching records found after a successful resolution — return NXDOMAIN.
             let response =
                 builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
             let _ = response_handle.send_response(response).await;
@@ -346,3 +376,6 @@ impl RequestHandler for KineticDnsHandler {
         header.into()
     }
 }
+
+#[cfg(test)]
+mod tests;
