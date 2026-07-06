@@ -40,6 +40,7 @@ export default function Dashboard() {
               return d;
             }));
           } catch (e) {
+            console.error(e);
             setDomains(prev => prev.map(d => d.name === name ? { ...d, status: 'hibernating', expires_in: 'Failed to verify' } : d));
           }
         }

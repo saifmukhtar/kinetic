@@ -118,6 +118,7 @@ export default function DomainView() {
         alert('DNS records saved and published to the network!');
       }
     } catch (e) {
+      console.error(e);
       alert('Failed to save records. Check daemon connection.');
     }
     setIsSaving(false);

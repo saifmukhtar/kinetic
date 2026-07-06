@@ -12,6 +12,11 @@ export default function Settings() {
     fetch('/api/config')
       .then(r => r.json())
       .then(data => {
+        if (data.error) {
+          console.warn('Config fetch error:', data.error);
+          setConfig({}); // Allow rendering the form
+          return;
+        }
         setConfig(data);
         if (data.mode) setNetworkMode(data.mode);
         if (data.token && !localStorage.getItem('kinetic_auth_token')) {
@@ -34,6 +39,7 @@ export default function Settings() {
       const data = await res.json();
       alert(data.message || 'Settings saved!');
     } catch (e) {
+      console.error(e);
       alert('Error saving config');
     }
     setIsSaving(false);
