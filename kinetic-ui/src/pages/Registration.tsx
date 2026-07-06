@@ -32,6 +32,7 @@ export default function Registration() {
         pollStatus(data.task_id);
       }
     } catch (e) {
+      console.error(e);
       setStatusMessage('Error starting registration');
       setIsRegistering(false);
     }
