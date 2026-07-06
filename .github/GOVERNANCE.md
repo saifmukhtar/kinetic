@@ -1,31 +1,63 @@
 # Kinetic Project Governance
 
-This document describes the governance model for the Kinetic Protocol, detailing how decisions are made, how maintainers are appointed, and how releases are managed. As the project matures from a single-author system into a broader open-source standard, this governance model ensures that Kinetic remains decentralized, mathematically rigorous, and secure.
+This document describes the governance model for the Kinetic Protocol. It details how decisions are made, how the network is secured via cryptographic rules, and how leadership roles are structured. 
 
-## 1. Decision Making (Consensus Model)
+Unlike many open-source projects where governance is purely social, Kinetic's governance is **cryptographically enforced on-chain** through the "Bicameral Rule Book." This ensures that the network remains decentralized, mathematically rigorous, and secure.
 
-Kinetic uses a **Consensus Model** for major architectural decisions, protocol upgrades, and IETF draft modifications.
+## 1. Project Overview & Mission
 
-- **Routine Changes:** Minor bug fixes, documentation updates, and standard refactoring can be merged by any core maintainer.
-- **Architectural Changes:** For significant changes (e.g., modifying the VDF parameters, altering the Kademlia DHT routing logic, or changing the payload size limits), decisions are made by a **vote among the core group of maintainers**.
-- **The RFC Process:** Significant changes must be proposed via an RFC (Request for Comments) issue on GitHub. The core team will review the proposal, and consensus must be reached before the change is implemented and merged.
+Kinetic is built on the philosophy of statelessness, decentralization, and extreme technical rigor. We value objective engineering and cryptographic security above all else. 
 
-## 2. Project Roles
+The governance structure is designed to:
+1. Provide rapid, decisive leadership during the protocol's infancy (Phase 1).
+2. Automatically transition to a fully decentralized, trustless council model (Phase 2).
+3. Ensure that no malicious updates can easily compromise the network.
 
-### Core Maintainers
-Core maintainers have write access to the repository, merge privileges for Pull Requests, and voting rights on architectural changes.
+## 2. Project Roles and Responsibilities
 
-### Adding New Maintainers (Meritocracy)
-Maintainership is granted through a strict **merit-based appointment** process. Contributors are invited to become maintainers by the Lead Maintainer (Saif Mukhtar) or the existing core team after demonstrating:
-- Sustained, high-quality code contributions over a period of 3-6 months.
-- Active participation in code reviews for other contributors' PRs.
-- Constructive participation in protocol discussions (e.g., GitHub Issues, IETF draft discussions).
-- A deep understanding of the cryptographic and P2P networking principles underlying Kinetic.
+### The Founder (Saif Mukhtar)
+During Phase 1 (the first 12 months after genesis), the Founder holds two critical cryptographic keys:
+- **The Root Key:** Acts as a benevolent dictator key capable of bypassing standard voting thresholds for rapid iteration and emergency fixes.
+- **The Guard Key (Veto Key):** A protective key that can instantly veto any proposed malicious updates and trigger a 30-day emergency timelock. 
 
-## 3. Release Process
+### The Council (Multisig Core Maintainers)
+The Council is a dynamic group of up to `N` core maintainers whose public keys are registered on the network.
+- They have voting rights on architectural changes and protocol upgrades (Over-The-Air updates).
+- A **69% supermajority** is required for the Council to ratify a binary OTA update.
+- If an update is ratified, it enters a **24-hour timelock** before nodes apply it, allowing the Guard Key to veto if necessary.
 
-While architectural decisions are made by consensus, the logistics of releasing the software are currently centralized to ensure cryptographic supply-chain security.
+### Contributors and Users
+- **Users:** Community members who engage via issues, discussions, or running standard non-validating nodes.
+- **Contributors:** Individuals who submit code, documentation, or reviews. They can propose non-consensus changes via Pull Requests.
 
-- **Schedule & Tagging:** The Lead Maintainer (Saif Mukhtar) is responsible for determining the release schedule, evaluating stability, and cutting release tags.
-- **Publishing:** Only the Lead Maintainer has the authorization to publish official `kinetic-core`, `kinetic-vdf`, `kinetic-daemon`, and `kinetic-cli` crates to `crates.io`.
-- **Binaries:** Official compiled binaries for macOS, Linux, and Windows are signed and attached to GitHub Releases by the Lead Maintainer.
+## 3. The Path to Leadership (Meritocracy)
+
+Maintainership and Council membership are granted through a strict **merit-based appointment** process. To be nominated to the On-Chain Council, a community member must:
+1. Demonstrate **sustained technical contributions** (3-6 months) to the core protocol.
+2. Run a **stable network node** (Daemon or Infrastructure Node).
+3. Be formally **nominated by existing Council members**.
+
+Once nominated, the addition of the new member's public key must be ratified by a 69% supermajority vote of the existing Council via a `SignedGovernanceMessage`.
+
+## 4. Decision-Making Process (The Bicameral Rule Book)
+
+### Routine Changes
+Minor bug fixes, documentation updates, and standard refactoring can be merged by any core maintainer without triggering an on-chain network upgrade.
+
+### Architectural Changes & OTA Updates
+Significant changes (e.g., modifying VDF parameters, altering the DHT routing logic) require an official network update.
+1. **Proposal:** A new binary is compiled, hashed, and proposed to the network alongside mirrors for downloading.
+2. **Ratification:** The Council must achieve a 69% supermajority by signing the proposal.
+3. **Timelock:** Once ratified, the update enters a 24-hour timelock.
+4. **Execution:** If not vetoed by the Guard Key, the network automatically downloads, verifies the hash, and hot-swaps the running binary via `self_replace`.
+
+### Phase 1 vs Phase 2
+- **Phase 1 (Incubation):** For the first 12 months, the Founder (Saif Mukhtar) can use the Root Key to bypass the Council for emergency fixes.
+- **Phase 2 (Decentralization):** After 12 months, if there are at least 7 active Council members, the network **auto-locks**. The Root Key loses its bypass authority, and the network becomes permanently decentralized, governed entirely by the Council.
+
+## 5. Conflict Resolution & Emergencies
+
+- **Guard Veto:** If a malicious update is ratified by a compromised Council, the Guard Key can veto the update.
+- **Emergency Reset:** If the network is catastrophically compromised, the Founder can issue an Emergency Reset to rotate keys, which triggers a strict 30-day timelock before taking effect. 
+
+For interpersonal conflicts or Code of Conduct violations, refer to the `CODE_OF_CONDUCT.md`.
