@@ -6,26 +6,44 @@ use crate::did::KineticDid;
 use crate::document::KidDocument;
 use crate::error::KidError;
 
+/// A single service endpoint published in a [`CapabilityManifest`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServiceEntry {
+    /// A local fragment ID for this service (e.g. `"#website"`).
     pub id: String,
     #[serde(rename = "type")]
-    pub service_type: String, // e.g., "website", "api"
-    pub protocol: String, // e.g., "https", "grpc"
+    /// The service category (e.g. `"website"`, `"api"`).
+    pub service_type: String,
+    /// The transport protocol (e.g. `"https"`, `"grpc"`).
+    pub protocol: String,
+    /// The fully-qualified endpoint URI.
     pub endpoint: String,
 }
 
+/// A versioned list of service endpoints associated with a KID document.
+///
+/// A `CapabilityManifest` is signed separately from the [`KidDocument`] and
+/// can be updated independently, allowing service endpoints to change without
+/// creating a new DID. It must be signed by one of the controller keys listed
+/// in the corresponding KID document.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CapabilityManifest {
     #[serde(rename = "type")]
-    pub doc_type: String, // Expected to be "kinetic.manifest.v1"
+    /// Schema type tag; always `"kinetic.manifest.v1"` for v1 manifests.
+    pub doc_type: String,
+    /// The `did:kin:<hash>` identifier that this manifest belongs to.
     pub kid: KineticDid,
+    /// Monotonically increasing version number; resolvers prefer higher versions.
     pub version: u64,
+    /// Unix timestamp (seconds) from which this manifest is considered valid.
     pub valid_from: u64,
+    /// PoW nonce satisfying the 20-bit difficulty target.
     pub pow_nonce: u64,
+    /// Ordered list of service endpoints this DID owner is advertising.
     pub services: Vec<ServiceEntry>,
+    /// Base64url-encoded Ed25519 signature over the JCS-canonical manifest (excluding this field).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub signature: Option<String>, // Base64url encoded
+    pub signature: Option<String>,
 }
 
 impl CapabilityManifest {
@@ -60,7 +78,9 @@ impl CapabilityManifest {
         pow_hasher.update(msg_bytes);
         let mut pow_hash = [0u8; 32];
         pow_hash.copy_from_slice(&pow_hasher.finalize());
-        if !crate::validate_pow(&pow_hash, crate::KID_POW_TARGET) {
+        if !cfg!(feature = "simulation")
+            && !crate::validate_pow(&pow_hash, crate::KID_POW_TARGET)
+        {
             return Err(KidError::CanonicalizationError(
                 "Invalid Proof of Work".to_string(),
             ));
@@ -69,11 +89,11 @@ impl CapabilityManifest {
         for key in &kid_document.controller_keys {
             if key.key_type == "Ed25519" {
                 if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
-                    if let Ok(public_key) =
-                        VerifyingKey::from_bytes(pk_bytes.as_slice().try_into().unwrap())
-                    {
-                        if public_key.verify(msg_bytes, &signature).is_ok() {
-                            return Ok(());
+                    if let Ok(pk_array) = pk_bytes.as_slice().try_into() {
+                        if let Ok(public_key) = VerifyingKey::from_bytes(pk_array) {
+                            if public_key.verify(msg_bytes, &signature).is_ok() {
+                                return Ok(());
+                            }
                         }
                     }
                 }
@@ -94,6 +114,10 @@ impl CapabilityManifest {
 
     /// Mines a valid pow_nonce for this manifest. Should be called BEFORE sign().
     pub fn mine_pow(&mut self) {
+        if cfg!(feature = "simulation") {
+            self.pow_nonce = 0;
+            return;
+        }
         use sha2::{Digest, Sha256};
         let mut nonce = 0u64;
         loop {
@@ -113,6 +137,9 @@ impl CapabilityManifest {
 
     /// Verifies the Proof of Work (PoW) independently.
     pub fn verify_pow(&self) -> bool {
+        if cfg!(feature = "simulation") {
+            return true;
+        }
         use sha2::{Digest, Sha256};
         if let Ok(msg_str) = self.canonicalize() {
             let mut hasher = Sha256::new();

@@ -5,36 +5,56 @@ use serde::{Deserialize, Serialize};
 use crate::did::KineticDid;
 use crate::error::KidError;
 
+/// A verification key listed as a controller of a [`KidDocument`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ControllerKey {
+    /// A fragment URI identifying this key within the DID document (e.g. `did:kin:…#key-0`).
     pub id: String,
     #[serde(rename = "type")]
-    pub key_type: String, // Expected to be "Ed25519"
-    pub public_key: String, // Base64url encoded
+    /// The key algorithm; always `"Ed25519"` in v1.
+    pub key_type: String,
+    /// The Base64url-encoded raw public key bytes.
+    pub public_key: String,
 }
 
+/// A pointer from a [`KidDocument`] to a published [`CapabilityManifest`](crate::manifest::CapabilityManifest).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ManifestPointer {
+    /// Optional SHA-256 hash of the manifest for integrity verification.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hash: Option<String>,
+    /// Zero or more retrieval URLs for the manifest (e.g. HTTPS, IPFS).
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub locations: Vec<String>,
 }
 
+/// A Kinetic Identity Document (KID) — the W3C DID-compatible root of identity.
+///
+/// Identifies a Kinetic user and binds their Ed25519 public keys to a
+/// `did:kin:<hash>` decentralized identifier. The document is signed with the
+/// controller key and includes a Proof-of-Work nonce to prevent spam.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct KidDocument {
     #[serde(rename = "type")]
-    pub doc_type: String, // Expected to be "kinetic.kid.v1"
+    /// Schema type tag; always `"kinetic.kid.v1"` for v1 documents.
+    pub doc_type: String,
+    /// The `did:kin:<hash>` identifier for this document.
     pub kid: KineticDid,
+    /// Unix timestamp (seconds) when this document was created.
     pub created_at: u64,
+    /// PoW nonce satisfying the 20-bit difficulty target over the JCS-canonical document.
     pub pow_nonce: u64,
+    /// Ordered list of Ed25519 verification keys that control this DID.
     pub controller_keys: Vec<ControllerKey>,
+    /// Optional pointer to a [`CapabilityManifest`](crate::manifest::CapabilityManifest).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manifest: Option<ManifestPointer>,
+    /// Base64url-encoded public keys authorised to revoke this document.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub revocation_keys: Vec<String>,
+    /// Base64url-encoded Ed25519 signature over the JCS-canonical document (excluding this field).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub signature: Option<String>, // Base64url encoded
+    pub signature: Option<String>,
 }
 
 impl KidDocument {
@@ -67,7 +87,9 @@ impl KidDocument {
         pow_hasher.update(msg_bytes);
         let mut pow_hash = [0u8; 32];
         pow_hash.copy_from_slice(&pow_hasher.finalize());
-        if !crate::validate_pow(&pow_hash, crate::KID_POW_TARGET) {
+        if !cfg!(feature = "simulation")
+            && !crate::validate_pow(&pow_hash, crate::KID_POW_TARGET)
+        {
             return Err(KidError::CanonicalizationError(
                 "Invalid Proof of Work".to_string(),
             ));
@@ -78,26 +100,26 @@ impl KidDocument {
         for key in &self.controller_keys {
             if key.key_type == "Ed25519" {
                 if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
-                    if let Ok(public_key) =
-                        VerifyingKey::from_bytes(pk_bytes.as_slice().try_into().unwrap())
-                    {
-                        use sha2::{Digest, Sha256};
-                        let mut hasher = Sha256::new();
-                        hasher.update(pk_bytes.as_slice());
-                        let hash = hasher.finalize();
-                        let mut hex_hash = String::new();
-                        for byte in hash {
-                            use std::fmt::Write;
-                            let _ = write!(&mut hex_hash, "{:02x}", byte);
-                        }
+                    if let Ok(pk_array) = pk_bytes.as_slice().try_into() {
+                        if let Ok(public_key) = VerifyingKey::from_bytes(pk_array) {
+                            use sha2::{Digest, Sha256};
+                            let mut hasher = Sha256::new();
+                            hasher.update(pk_bytes.as_slice());
+                            let hash = hasher.finalize();
+                            let mut hex_hash = String::new();
+                            for byte in hash {
+                                use std::fmt::Write;
+                                let _ = write!(&mut hex_hash, "{:02x}", byte);
+                            }
 
-                        // Ensure that the key signing the document actually matches the DID hash!
-                        if hex_hash != method_specific_id {
-                            continue;
-                        }
+                            // Ensure that the key signing the document actually matches the DID hash!
+                            if hex_hash != method_specific_id {
+                                continue;
+                            }
 
-                        if public_key.verify(msg_bytes, &signature).is_ok() {
-                            return Ok(());
+                            if public_key.verify(msg_bytes, &signature).is_ok() {
+                                return Ok(());
+                            }
                         }
                     }
                 }
@@ -118,6 +140,10 @@ impl KidDocument {
 
     /// Mines a valid pow_nonce for this document. Should be called BEFORE sign().
     pub fn mine_pow(&mut self) {
+        if cfg!(feature = "simulation") {
+            self.pow_nonce = 0;
+            return;
+        }
         use sha2::{Digest, Sha256};
         let mut nonce = 0u64;
         loop {
