@@ -1,23 +1,27 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use hickory_server::ServerFuture;
-use tokio::net::UdpSocket;
-use tracing::{info, warn, Level};
-use tracing_subscriber::FmtSubscriber;
-use std::env;
 use service_manager::{
     ServiceInstallCtx, ServiceLabel, ServiceManager, ServiceStartCtx, ServiceStopCtx,
     ServiceUninstallCtx,
 };
+use std::env;
+use tokio::net::UdpSocket;
+use tracing::{info, warn, Level};
+use tracing_subscriber::FmtSubscriber;
 
 use kinetic_dns::KineticDnsHandler;
 
 #[derive(Parser)]
-#[command(name = "kinetic-dns-server", version = "0.1.0", author = "Kinetic Protocol")]
+#[command(
+    name = "kinetic-dns-server",
+    version = "0.1.0",
+    author = "Kinetic Protocol"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
-    
+
     #[arg(long, default_value = "http://127.0.0.1:16000")]
     api_url: String,
 
@@ -42,12 +46,13 @@ enum Commands {
 fn install_service() -> Result<()> {
     println!("Installing Kinetic DNS Server service...");
     let label: ServiceLabel = "com.kinetic.dnsserver".parse()?;
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect native service manager");
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["start".parse().unwrap()],
+        args: vec!["start".into()],
         contents: None,
         username: None,
         working_directory: None,
@@ -62,7 +67,8 @@ fn install_service() -> Result<()> {
 
 fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.dnsserver".parse()?;
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect native service manager");
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
@@ -70,7 +76,8 @@ fn uninstall_service() -> Result<()> {
 
 fn start_background_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.dnsserver".parse()?;
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect native service manager");
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -78,7 +85,8 @@ fn start_background_service() -> Result<()> {
 
 fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.dnsserver".parse()?;
-    let manager = <dyn ServiceManager>::native().expect("Failed to detect native service manager");
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -110,10 +118,7 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
                 server.register_socket(ipv6_socket);
             }
 
-            info!(
-                "DNS proxy ready on {}:{} (and [::1])",
-                bind_ip, dns_port
-            );
+            info!("DNS proxy ready on {}:{} (and [::1])", bind_ip, dns_port);
 
             if let Err(e) = server.block_until_done().await {
                 tracing::error!("DNS Server error: {:?}", e);
@@ -135,7 +140,9 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
                 Ok(socket) => {
                     server.register_socket(socket);
 
-                    if let Ok(ipv6_socket) = UdpSocket::bind(format!("[::1]:{}", fallback_port)).await {
+                    if let Ok(ipv6_socket) =
+                        UdpSocket::bind(format!("[::1]:{}", fallback_port)).await
+                    {
                         server.register_socket(ipv6_socket);
                     }
 
