@@ -12,7 +12,7 @@
 </div>
 
 <div align="center">
-  <video src="https://github.com/saifmukhtar/kinetic/raw/main/kinetic-demo.mp4" controls="controls" muted="muted" style="max-width: 100%; border-radius: 8px;"></video>
+  <img src="./kinetic-demo.gif" alt="Kinetic Simulation Demo" style="max-width: 100%; border-radius: 8px;" />
   <br/>
   <i>Watch the 50-node Kinetic Network live simulation in action</i>
 </div>
