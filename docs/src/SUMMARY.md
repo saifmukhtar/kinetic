@@ -12,6 +12,7 @@
 - [Chapter 10: Future Horizons (DNSSEC, TLS, and Web3 Integration)](./future_horizons.md)
 - [Chapter 11: Getting Started (Installation & Quickstart)](./getting_started.md)
 - [Chapter 12: Vdf Calibration](./vdf-calibration.md)
+- [Chapter 13: Kinetic Simulation Sandbox](./kinetic_sim.md)
 
 ---
 
@@ -20,6 +21,7 @@
 - [Appendix III: Adversarial Analysis (Red-Team Audit)](./adversarial_analysis.md)
 - [Appendix IV: Kinetic Protocol Specification v2](./protocol_specification.md)
 - [Appendix V: Edge Case & UX Report](./edge_case_report.md)
+- [Appendix VI: Error Handbook](./error_handbook.md)
 
 ---
 

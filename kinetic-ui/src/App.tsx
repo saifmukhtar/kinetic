@@ -18,7 +18,7 @@ function App() {
         {/* Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-logo">
-            <Globe className="logo-icon" size={28} color="var(--accent-blue)" />
+            <img src="/favicon.svg" alt="Kinetic Logo" className="logo-icon" style={{ width: 32, height: 32 }} />
             Kinetic
           </div>
           

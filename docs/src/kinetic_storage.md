@@ -19,3 +19,6 @@ When `kinetic-storage` attempts to initialize the `sled` database, it explicitly
 3.  **Reinitialization**: It creates a fresh, empty database directory in the original location and attempts to boot again.
 
 This ensures that the Kinetic daemon can self-heal from unrecoverable storage corruption without requiring manual user intervention. While local un-published state may be lost in this scenario, the daemon will successfully restart, allowing it to re-sync with the DHT and resume operations.
+
+### Edge Case Resiliency Tests
+The storage engine is fortified by the `test_009_edge_cases.rs` suite. This testing framework specifically subjects the `sled` wrapper to intense concurrent read/write stress, sudden corruption simulations, and bloated payload injections to guarantee that the local state behaves predictably under extreme duress.

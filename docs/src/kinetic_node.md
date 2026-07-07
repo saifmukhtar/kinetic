@@ -16,3 +16,9 @@ Additionally, because it operates in cloud environments where multicast traffic 
 
 ### 3. Health-Check API
 To integrate seamlessly with cloud orchestration tools like Kubernetes or Docker Swarm, `kinetic-node` exposes a lightweight Health-check API. It binds a minimal server to port **16003** and responds to `/health` requests. This allows load balancers and container managers to verify that the node is active and participating in the DHT.
+
+### 4. Decoupled Architecture
+The node architecture has been heavily refactored for clarity and modularity. Key operational components are strictly isolated:
+- `api.rs`: Manages the lightweight REST health endpoints.
+- `gossip.rs`: Handles the Kademlia DHT routing and background broadcasting.
+- `identity.rs`: Encapsulates static keypair generation and peer ID hashing, preventing cross-contamination of concerns.

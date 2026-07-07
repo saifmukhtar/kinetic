@@ -33,19 +33,7 @@
   gap: 12px;
 }
 
-.brand-logo {
-  width: 38px;
-  height: 38px;
-  background: var(--indigo);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  color: white;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(79,70,229,0.35);
-}
+
 
 .brand-name {
   font-size: 16px;
