@@ -26,6 +26,12 @@ pub mod proxy;
 
 use anyhow::Result;
 use axum::{routing::get, Router};
+use clap::{Parser, Subcommand};
+use service_manager::{
+    ServiceInstallCtx, ServiceLabel, ServiceManager, ServiceStartCtx, ServiceStopCtx,
+    ServiceUninstallCtx,
+};
+use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -38,8 +44,104 @@ use kinetic_core::drand::{DrandClient, DrandPulse};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
 
+#[derive(Parser)]
+#[command(name = "kinetic-host", version, about = "Kinetic Infrastructure Host")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Install the host as a system service
+    Install,
+    /// Uninstall the host system service
+    Uninstall,
+    /// Start the host (foreground)
+    Start,
+    /// Start the host service (background)
+    StartService,
+    /// Stop the host service (background)
+    StopService,
+}
+
+fn install_service() -> Result<()> {
+    println!("Installing Kinetic Host service...");
+    let label: ServiceLabel = "com.kinetic.host".parse()?;
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+    let current_exe = env::current_exe()?;
+    manager.install(ServiceInstallCtx {
+        label: label.clone(),
+        program: current_exe.clone(),
+        args: vec!["start"
+            .parse()
+            .map_err(|_| anyhow::anyhow!("Failed to parse start"))?],
+        contents: None,
+        username: None,
+        working_directory: None,
+        environment: None,
+        autostart: true,
+        restart_policy: service_manager::RestartPolicy::default(),
+    })?;
+
+    println!("Service installed successfully. Run 'kinetic-host start-service' to begin.");
+    Ok(())
+}
+
+fn uninstall_service() -> Result<()> {
+    let label: ServiceLabel = "com.kinetic.host".parse()?;
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+    manager.uninstall(ServiceUninstallCtx { label })?;
+    println!("Service uninstalled.");
+    Ok(())
+}
+
+fn start_background_service() -> Result<()> {
+    let label: ServiceLabel = "com.kinetic.host".parse()?;
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+    manager.start(ServiceStartCtx { label })?;
+    println!("Service started.");
+    Ok(())
+}
+
+fn stop_background_service() -> Result<()> {
+    let label: ServiceLabel = "com.kinetic.host".parse()?;
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+    manager.stop(ServiceStopCtx { label })?;
+    println!("Service stopped.");
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Some(Commands::Install) => {
+            install_service()?;
+        }
+        Some(Commands::Uninstall) => {
+            uninstall_service()?;
+        }
+        Some(Commands::StartService) => {
+            start_background_service()?;
+        }
+        Some(Commands::StopService) => {
+            stop_background_service()?;
+        }
+        Some(Commands::Start) | None => {
+            run_host().await?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn run_host() -> Result<()> {
     let config = KineticConfig::load();
 
     // 1. Initialize structured tracing
