@@ -5,9 +5,9 @@ use sha2::{Digest, Sha256};
 use std::env;
 use std::io::Write;
 use std::process::Command;
-use web_time::Duration;
 use tempfile::NamedTempFile;
 use tracing::{error, info, warn};
+use web_time::Duration;
 
 /// Downloads and atomically replaces the running binary from one of the given
 /// `mirrors`, verifying the download against `expected_hash` (SHA-256).

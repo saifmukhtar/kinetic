@@ -18,7 +18,8 @@ impl Default for ConsensusParams {
 impl ConsensusParams {
     /// The hardcoded public key allowed to claim Genesis names.
     pub const GENESIS_PUBKEY: Option<[u8; 32]> = Some([
-        80, 211, 223, 74, 91, 155, 132, 168, 78, 209, 214, 167, 237, 160, 157, 186, 48, 9, 140, 185, 74, 172, 136, 188, 246, 164, 147, 64, 96, 11, 197, 62
+        80, 211, 223, 74, 91, 155, 132, 168, 78, 209, 214, 167, 237, 160, 157, 186, 48, 9, 140,
+        185, 74, 172, 136, 188, 246, 164, 147, 64, 96, 11, 197, 62,
     ]);
 
     /// The exact list of names the Genesis Key is allowed to claim.
@@ -77,7 +78,7 @@ impl ConsensusParams {
         67824, 67824, 9255, 1300, 207, 48, 21, 13, 10, 8, 7, 6, 6, 5, 5, 5, 5, 5, 5, 5,
     ];
 
-    /// Calculates the base hardware iteration requirement for a given round, 
+    /// Calculates the base hardware iteration requirement for a given round,
     /// doubling every `hardware_drift_rounds`.
     pub fn calculate_hardware_anchor(&self, current_round: u64) -> u64 {
         // Base starting point for 0 drift (22-bit iterations)
@@ -186,12 +187,12 @@ mod tests {
         assert_eq!(iters_later, 10000);
 
         // Finding 11: After GENESIS_EXPIRY_PULSE, genesis key gets no exemption.
-        let iters_expired = params.required_iterations(
-            "saif.kin",
-            ConsensusParams::GENESIS_EXPIRY_PULSE + 1,
-            &pk,
+        let iters_expired =
+            params.required_iterations("saif.kin", ConsensusParams::GENESIS_EXPIRY_PULSE + 1, &pk);
+        assert!(
+            iters_expired > 10000,
+            "Genesis key must compute full VDF after expiry"
         );
-        assert!(iters_expired > 10000, "Genesis key must compute full VDF after expiry");
 
         // Wrong key — must compute full VDF even for allowlisted names.
         let wrong_pk = [0u8; 32];

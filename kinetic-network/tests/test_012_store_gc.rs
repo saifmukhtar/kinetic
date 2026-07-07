@@ -32,12 +32,10 @@ async fn test_store_provider_records() {
         addresses: vec![],
     };
 
-    assert!(store.add_provider(provider.clone()).is_ok());
+    assert!(store.add_provider(provider.clone()).is_err()); // Providers are disabled
 
-    // Providers are stored
     let providers = store.providers(&key);
-    assert_eq!(providers.len(), 1);
-    assert_eq!(providers[0].provider, provider.provider);
+    assert_eq!(providers.len(), 0);
 }
 
 #[tokio::test]
@@ -55,7 +53,7 @@ async fn test_store_remove_provider() {
         addresses: vec![],
     };
 
-    assert!(store.add_provider(provider.clone()).is_ok());
+    assert!(store.add_provider(provider.clone()).is_err());
     store.remove_provider(&key, &peer);
 
     let providers = store.providers(&key);
@@ -77,10 +75,8 @@ async fn test_store_provided_records() {
         addresses: vec![],
     };
 
-    assert!(store.add_provider(provider.clone()).is_ok());
+    assert!(store.add_provider(provider.clone()).is_err());
 
-    // We should be able to iterate over provided records
     let provided: Vec<_> = store.provided().collect();
-    assert_eq!(provided.len(), 1);
-    assert_eq!(provided[0].provider, peer);
+    assert_eq!(provided.len(), 0);
 }

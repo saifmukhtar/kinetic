@@ -51,6 +51,7 @@ pub mod traits;
 /// Shared wire-format types for P2P messages, DNS zones, and domain records.
 pub mod types;
 #[cfg(not(target_arch = "wasm32"))]
+/// Self-updater module for Kinetic node binaries.
 pub mod updater;
 
 #[cfg(not(target_arch = "wasm32"))]

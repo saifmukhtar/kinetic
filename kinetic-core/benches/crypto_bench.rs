@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use ed25519_dalek::{Signer, SigningKey, Verifier};
-use getrandom::fill;
+use getrandom::getrandom;
 use std::hint::black_box;
 
 fn bench_ed25519(c: &mut Criterion) {
     let mut bytes = [0u8; 32];
-    fill(&mut bytes).unwrap();
+    getrandom(&mut bytes).unwrap();
     let signing_key = SigningKey::from_bytes(&bytes);
     let verifying_key = signing_key.verifying_key();
     let message: &[u8] = b"This is a dummy heartbeat payload for benchmarking";

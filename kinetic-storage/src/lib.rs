@@ -132,7 +132,10 @@ mod wasm {
         /// Mock scan_prefix for Wasm
         #[allow(clippy::type_complexity)]
         pub fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
-            let db = self.db.read().map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            let db = self
+                .db
+                .read()
+                .map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
             let mut results = Vec::new();
             for (k, v) in db.range(prefix.to_vec()..) {
                 if k.starts_with(prefix) {
@@ -147,18 +150,27 @@ mod wasm {
 
     impl StorageEngine for SledStorage {
         fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
-            let mut db = self.db.write().map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            let mut db = self
+                .db
+                .write()
+                .map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
             db.insert(key.to_vec(), value.to_vec());
             Ok(())
         }
 
         fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
-            let db = self.db.read().map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            let db = self
+                .db
+                .read()
+                .map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
             Ok(db.get(key).cloned())
         }
 
         fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
-            let mut db = self.db.write().map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            let mut db = self
+                .db
+                .write()
+                .map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
             db.remove(key);
             Ok(())
         }

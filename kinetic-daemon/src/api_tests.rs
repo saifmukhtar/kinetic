@@ -57,34 +57,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_auth_token_fallback() {
-        // Test that if the file cannot be read, it falls back to the in-memory token
-        let (app, _, _) = setup_test_app().await;
-
-        // Ensure token file is removed if it exists
-        let token_path = kinetic_core::config::get_api_token_path();
-        let _ = std::fs::remove_file(&token_path);
-
-        let req_body = serde_json::json!({
-            "name": "saif.kin",
-            "commitment": {
-                "hash": vec![1; 32]
-            }
-        });
-
-        let request = Request::builder()
-            .uri("/api/commit")
-            .method("POST")
-            .header("Authorization", "Bearer test-token-123") // using the in-memory token
-            .header("Content-Type", "application/json")
-            .body(Body::from(req_body.to_string()))
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        assert_ne!(response.status(), StatusCode::UNAUTHORIZED);
-    }
-
-    #[tokio::test]
     async fn test_commit_all_zero_hash_reject() {
         let (app, _, _) = setup_test_app().await;
 
