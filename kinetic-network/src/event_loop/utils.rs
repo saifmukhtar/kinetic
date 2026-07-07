@@ -15,6 +15,28 @@ pub(crate) struct PendingQuorum {
     pub(crate) match_count: usize,
 }
 
+pub(crate) fn run_blocking<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    #[cfg(target_arch = "wasm32")]
+    return f();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    return tokio::task::block_in_place(f);
+}
+
+pub(crate) fn spawn<F>(future: F)
+where
+    F: std::future::Future<Output = ()> + Send + 'static,
+{
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_futures::spawn_local(future);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    tokio::spawn(future);
+}
+
 pub(crate) fn is_routable_multiaddr(addr: &libp2p::Multiaddr) -> bool {
     if kinetic_core::config::is_dev_mode() {
         return true;
@@ -74,8 +96,8 @@ impl super::core::NetworkEventLoop {
         unique_payloads.sort();
         unique_payloads.dedup();
 
-        // Use block_in_place to prevent event loop starvation during VDF verifications
-        tokio::task::block_in_place(|| {
+        // Use run_blocking to prevent event loop starvation during VDF verifications
+        crate::event_loop::utils::run_blocking(|| {
             // Check if this is a KidDocument query by parsing the first payload
             let is_kid = unique_payloads
                 .iter()

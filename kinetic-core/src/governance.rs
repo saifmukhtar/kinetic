@@ -49,8 +49,8 @@ lazy_static! {
     /// The global singleton holding the current node's view of the governance state.
     pub static ref GLOBAL_GOVERNANCE_STATE: Mutex<GovernanceState> =
         Mutex::new(GovernanceState::new(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
+            web_time::SystemTime::now()
+                .duration_since(web_time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs()
         ));
@@ -282,8 +282,8 @@ impl GovernanceState {
         }
         // Fallback to fresh state
         Self::new(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
+            web_time::SystemTime::now()
+                .duration_since(web_time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
         )
@@ -647,8 +647,8 @@ pub fn process_governance_message(
     msg: &SignedGovernanceMessage,
 ) -> Result<Option<GovernanceEffect>, crate::error::GovernanceError> {
     let msg_to_update = state.merge_signatures(msg);
-    let current_time_sec = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
+    let current_time_sec = web_time::SystemTime::now()
+        .duration_since(web_time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
 
@@ -688,8 +688,8 @@ mod tests {
     #[test]
     fn test_phase1_root_key_bypass() {
         let root_sk = get_root_sk();
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        let current_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
         let mut state = GovernanceState::new(current_time);
@@ -717,8 +717,8 @@ mod tests {
 
     #[test]
     fn test_council_supermajority_ratification() {
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        let current_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
         let mut state = GovernanceState::new(current_time);
@@ -787,8 +787,8 @@ mod tests {
     #[test]
     fn test_guard_key_veto() {
         let guard_sk = get_guard_sk();
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        let current_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
         let mut state = GovernanceState::new(current_time);

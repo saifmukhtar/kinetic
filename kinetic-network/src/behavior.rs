@@ -20,11 +20,13 @@ pub struct KineticBehavior {
     /// Request-response protocol for domain proxies.
     pub proxy: libp2p::request_response::cbor::Behaviour<ProxyRequest, ProxyResponse>,
     /// Stream protocol for passing raw traffic.
+    #[cfg(not(target_arch = "wasm32"))]
     pub stream: libp2p_stream::Behaviour,
     /// Kademlia DHT for robust decentralized key-value storage.
     pub kademlia: kad::Behaviour<KineticRecordStore>,
     /// PubSub implementation for fast propagation of events.
     pub gossipsub: gossipsub::Behaviour,
     /// Optional mDNS discovery for local networks.
+    #[cfg(not(target_arch = "wasm32"))]
     pub mdns: libp2p::swarm::behaviour::toggle::Toggle<libp2p::mdns::tokio::Behaviour>,
 }

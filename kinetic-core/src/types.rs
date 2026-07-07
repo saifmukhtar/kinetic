@@ -397,6 +397,7 @@ pub fn derive_heartbeat_keys(name: &str) -> Vec<[u8; 32]> {
 /// `KINETIC_KEY_PATH`). If the file is missing, a new key is generated and
 /// written atomically. If the file is found but has the wrong length, an error
 /// is returned to prevent silent key corruption.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::error::KineticError> {
     use directories::ProjectDirs;
     use std::fs;
@@ -445,6 +446,12 @@ pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::erro
     fs::rename(tmp_path, &key_path)?;
 
     Ok(signing_key)
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Stub implementation for loading or creating a keypair in Wasm
+pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::error::KineticError> {
+    Err(crate::error::KineticError::Internal("Key generation via filesystem is not supported in Wasm. Provide a key manually.".to_string()))
 }
 
 #[cfg(test)]

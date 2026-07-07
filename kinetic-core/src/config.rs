@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 use std::path::PathBuf;
 
@@ -123,10 +124,14 @@ fn default_p2p_host() -> u16 {
 
 impl Default for KineticConfig {
     fn default() -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
         let storage_dir = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join("kinetic")
             .join("db");
+
+        #[cfg(target_arch = "wasm32")]
+        let storage_dir = PathBuf::from("/kinetic-db");
 
         Self {
             daemon: DaemonConfig {
@@ -159,6 +164,7 @@ impl Default for KineticConfig {
 impl KineticConfig {
     /// Loads config from disk, falling back to defaults and writing them if
     /// the file is missing or unparseable.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load() -> Self {
         let config_path = std::env::var("KINETIC_CONFIG_PATH")
             .map(PathBuf::from)
@@ -192,8 +198,15 @@ impl KineticConfig {
         config
     }
 
+    #[cfg(target_arch = "wasm32")]
+    /// Stub implementation for loading configuration in Wasm
+    pub fn load() -> Self {
+        Self::default()
+    }
+
     /// Serialises and writes the config back to the same path it was loaded
     /// from.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn save(&self) -> Result<(), std::io::Error> {
         let config_path = std::env::var("KINETIC_CONFIG_PATH")
             .map(PathBuf::from)
@@ -211,6 +224,12 @@ impl KineticConfig {
         let toml_str = toml::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         fs::write(&config_path, toml_str)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    /// Stub implementation for saving configuration in Wasm
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        Ok(())
     }
 }
 
@@ -243,11 +262,16 @@ pub fn get_base_dir() -> PathBuf {
         return PathBuf::from("/Library/Application Support/Kinetic");
     }
 
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    #[cfg(all(not(any(target_os = "windows", target_os = "macos")), not(target_arch = "wasm32")))]
     {
         dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join("kinetic")
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        PathBuf::from("/kinetic")
     }
 }
 

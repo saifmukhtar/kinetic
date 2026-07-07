@@ -259,7 +259,7 @@ impl super::core::NetworkEventLoop {
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
                 if is_bootstrap {
                     self.bootstrap_connection_time
-                        .insert(peer_id, std::time::Instant::now());
+                        .insert(peer_id, web_time::Instant::now());
                 }
 
                 if self.current_drand_pulse == 0 && !is_bootstrap {
@@ -399,9 +399,9 @@ impl super::core::NetworkEventLoop {
                             let entry = self.commitment_miss_counts.entry(source).or_insert(0);
                             *entry += 1;
                         } else {
-                            let now = std::time::Instant::now();
+                            let now = web_time::Instant::now();
                             let entry = self.bad_vdf_counts.entry(source).or_insert((0, now));
-                            if now.duration_since(entry.1) > std::time::Duration::from_secs(60) {
+                            if now.duration_since(entry.1) > web_time::Duration::from_secs(60) {
                                 *entry = (1, now);
                             } else {
                                 entry.0 += 1;
@@ -411,8 +411,8 @@ impl super::core::NetworkEventLoop {
                                 tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
                                 let _ = self.swarm.disconnect_peer_id(source);
                                 self.banned_peers.insert(source);
-                                let expire_time = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
+                                let expire_time = web_time::SystemTime::now()
+                                    .duration_since(web_time::UNIX_EPOCH)
                                     .unwrap()
                                     .as_secs()
                                     + 86400;
@@ -439,7 +439,7 @@ impl super::core::NetworkEventLoop {
                         } => {
                             if let Some(tx) = &self.incoming_proxy_tx {
                                 let tx_clone = tx.clone();
-                                tokio::spawn(async move {
+                                crate::event_loop::utils::spawn(async move {
                                     let _ = tx_clone.send((request, channel)).await;
                                 });
                             }
@@ -502,7 +502,7 @@ impl super::core::NetworkEventLoop {
 
                 if !pow_valid && is_bootstrap {
                     if let Some(conn_time) = self.bootstrap_connection_time.get(&peer_id) {
-                        if conn_time.elapsed() > std::time::Duration::from_secs(24 * 3600) {
+                        if conn_time.elapsed() > web_time::Duration::from_secs(24 * 3600) {
                             tracing::warn!("Bootstrap peer {} failed to provide valid PoW after 24 hours. Disconnecting.", peer_id);
                             let _ = self.swarm.disconnect_peer_id(peer_id);
                             return;
@@ -534,6 +534,7 @@ impl super::core::NetworkEventLoop {
                 }
                 let _ = self.swarm.behaviour_mut().kademlia.bootstrap();
             }
+            #[cfg(not(target_arch = "wasm32"))]
             SwarmEvent::Behaviour(KineticBehaviorEvent::Mdns(libp2p::mdns::Event::Discovered(
                 list,
             ))) => {
