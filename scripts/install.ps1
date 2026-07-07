@@ -146,3 +146,5 @@ if ($InstallDns) {
 }
 
 Write-Host "`n=== Kinetic installed successfully! ===" -ForegroundColor Green
+Write-Host "Documentation & Guide: " -ForegroundColor Cyan -NoNewline; Write-Host "https://kinetic.saifmukhtar.dev"
+Write-Host "Local Dashboard:       " -ForegroundColor Cyan -NoNewline; Write-Host "http://localhost:16002`n"
