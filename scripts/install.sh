@@ -34,13 +34,13 @@ select_menu() {
         done
         read -rsn1 key
         if [[ $key == $'\e' ]]; then
-            read -rsn2 key
+            read -rsn2 -t 0.1 key
             if [[ $key == "[A" ]]; then # Up arrow
-                ((cur--))
-                ((cur < 0)) && cur=$((count-1))
+                ((cur--)) || true
+                if (( cur < 0 )); then cur=$((count-1)); fi
             elif [[ $key == "[B" ]]; then # Down arrow
-                ((cur++))
-                ((cur >= count)) && cur=0
+                ((cur++)) || true
+                if (( cur >= count )); then cur=0; fi
             fi
         elif [[ $key == "" ]]; then # Enter key
             break
