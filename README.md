@@ -1,4 +1,6 @@
-# ⚡ The Kinetic Protocol
+<div align="center">
+  <img src="https://raw.githubusercontent.com/saifmukhtar/kinetic/main/kinetic-logo.svg" alt="Kinetic Logo" width="250"/>
+  <h1>⚡ The Kinetic Protocol</h1>
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Documentation](https://img.shields.io/badge/docs-mdBook-green.svg)](https://kinetic.saifmukhtar.dev)
@@ -7,10 +9,11 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink.svg)](https://github.com/sponsors/saifmukhtar)
 
 *A stateless, Sybil-resistant naming system secured purely by math and time.*
+</div>
+
+https://github.com/saifmukhtar/kinetic/raw/main/kinetic-demo.mp4
 
 <div align="center">
-  <video src="./kinetic-demo.mp4" controls="controls" muted="muted" style="max-width: 100%; border-radius: 8px;"></video>
-  <br/>
   <i>Watch the 50-node Kinetic Network live simulation in action</i>
 </div>
 
