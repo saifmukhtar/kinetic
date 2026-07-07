@@ -26,7 +26,7 @@ impl super::core::NetworkEventLoop {
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
         info!("Initializing Kinetic P2P Swarm on {}", config.listen_addr);
 
-        #[cfg(not(target_os = "android"))]
+        #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
         let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
             .with_tokio()
             .with_tcp(
@@ -36,7 +36,7 @@ impl super::core::NetworkEventLoop {
             )?
             .with_dns()?;
 
-        #[cfg(target_os = "android")]
+        #[cfg(all(target_os = "android", not(target_arch = "wasm32")))]
         let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
             .with_tokio()
             .with_tcp(
@@ -45,11 +45,25 @@ impl super::core::NetworkEventLoop {
                 libp2p::yamux::Config::default,
             )?;
 
+        #[cfg(target_arch = "wasm32")]
+        let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
+            .with_wasm_bindgen()
+            .with_other_transport(|key| {
+                use libp2p::core::Transport;
+                libp2p::websocket_websys::Transport::default()
+                    .upgrade(libp2p::core::upgrade::Version::V1Lazy)
+                    .authenticate(libp2p::noise::Config::new(key).unwrap())
+                    .multiplex(libp2p::yamux::Config::default())
+                    .map(|(peer, muxer), _| (peer, libp2p::core::muxing::StreamMuxerBox::new(muxer)))
+            })
+            .expect("Valid websocket websys transport");
+
+        #[cfg(not(target_arch = "wasm32"))]
         let (control_tx, control_rx) = std::sync::mpsc::channel();
         let storage_clone = storage.clone();
         let mode = config.mode.clone();
         let initial_drand_pulse = config.initial_drand_pulse;
-        let enable_mdns = config.enable_mdns;
+        let _enable_mdns = config.enable_mdns;
 
         let mut swarm = builder
             .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
@@ -70,8 +84,8 @@ impl super::core::NetworkEventLoop {
                     // LightClient mesh params: mesh_n_low < mesh_n < mesh_n_high (strict)
                     // gossipsub panics with MeshParametersInvalid if this invariant is violated.
                     libp2p::gossipsub::ConfigBuilder::default()
-                        .heartbeat_interval(std::time::Duration::from_secs(10)) // Less frequent heartbeats (save battery)
-                        .prune_backoff(std::time::Duration::from_secs(60))
+                        .heartbeat_interval(web_time::Duration::from_secs(10)) // Less frequent heartbeats (save battery)
+                        .prune_backoff(web_time::Duration::from_secs(60))
                         .mesh_n(2) // target mesh degree
                         .mesh_n_low(1) // must be < mesh_n
                         .mesh_n_high(4) // must be > mesh_n
@@ -109,10 +123,13 @@ impl super::core::NetworkEventLoop {
                         libp2p::request_response::Config::default(),
                     );
 
+                #[cfg(not(target_arch = "wasm32"))]
                 let stream = libp2p_stream::Behaviour::new();
+                #[cfg(not(target_arch = "wasm32"))]
                 let _ = control_tx.send(stream.new_control());
 
-                let mdns = if enable_mdns {
+                #[cfg(not(target_arch = "wasm32"))]
+                let mdns = if _enable_mdns {
                     libp2p::swarm::behaviour::toggle::Toggle::from(Some(
                         libp2p::mdns::tokio::Behaviour::new(
                             libp2p::mdns::Config::default(),
@@ -130,19 +147,21 @@ impl super::core::NetworkEventLoop {
                     identify,
                     ping,
                     proxy,
+                    #[cfg(not(target_arch = "wasm32"))]
                     stream,
                     kademlia,
                     gossipsub,
+                    #[cfg(not(target_arch = "wasm32"))]
                     mdns,
                 }
             })
             .unwrap()
             .with_swarm_config(|c| {
                 if config.mode == NetworkMode::LightClient {
-                    c.with_idle_connection_timeout(std::time::Duration::from_secs(60))
+                    c.with_idle_connection_timeout(web_time::Duration::from_secs(60))
                 // Aggressive power saving for mobile
                 } else {
-                    c.with_idle_connection_timeout(std::time::Duration::from_secs(30 * 24 * 3600))
+                    c.with_idle_connection_timeout(web_time::Duration::from_secs(30 * 24 * 3600))
                 }
             })
             .build();
@@ -199,6 +218,7 @@ impl super::core::NetworkEventLoop {
             );
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
         for domain in &config.seed_domains {
             let host_port = format!("{}:6070", domain);
             if let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(&host_port) {
@@ -220,8 +240,14 @@ impl super::core::NetworkEventLoop {
         }
 
         let (tx, rx) = mpsc::channel(32);
-        let stream_control = control_rx.recv().unwrap();
-        let client = NetworkClient::new(tx, stream_control);
+        #[cfg(not(target_arch = "wasm32"))]
+        let stream_control = control_rx.recv().unwrap_or_else(|_| {
+            panic!("Stream control not sent (unless wasm32)")
+        });
+        #[cfg(not(target_arch = "wasm32"))]
+        let client = NetworkClient::new(tx.clone(), stream_control);
+        #[cfg(target_arch = "wasm32")]
+        let client = NetworkClient::new(tx.clone());
 
         let event_loop = Self {
             swarm,
@@ -237,7 +263,7 @@ impl super::core::NetworkEventLoop {
             drand_pulse_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers,
-            startup_time: std::time::Instant::now(),
+            startup_time: web_time::Instant::now(),
             banned_peers: {
                 let mut peers = std::collections::HashSet::new();
                 if let Ok(iter) = storage.scan_prefix(b"kinetic_banned_peer:") {
@@ -248,8 +274,8 @@ impl super::core::NetworkEventLoop {
                             if val_bytes.len() == 8 {
                                 let expire =
                                     u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
-                                let now = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
+                                let now = web_time::SystemTime::now()
+                                    .duration_since(web_time::UNIX_EPOCH)
                                     .unwrap()
                                     .as_secs();
                                 if expire > now {

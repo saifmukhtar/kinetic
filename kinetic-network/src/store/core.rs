@@ -28,7 +28,7 @@ pub struct KineticRecordStore {
     /// The points balance available to each public key.
     pub points_by_pubkey: HashMap<Vec<u8>, u64>,
     /// History of timestamps for accepted reveals used for rate limiting.
-    pub accepted_reveals_timestamps: std::collections::VecDeque<std::time::Instant>,
+    pub accepted_reveals_timestamps: std::collections::VecDeque<web_time::Instant>,
     /// The current observed Drand pulse round.
     pub current_drand_round: u64,
 }

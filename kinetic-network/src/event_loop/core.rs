@@ -28,15 +28,15 @@ pub struct NetworkEventLoop {
         )>,
     >,
     pub(crate) gossip_tx: Option<tokio::sync::mpsc::Sender<(String, Vec<u8>)>>,
-    pub(crate) bad_vdf_counts: HashMap<PeerId, (u32, std::time::Instant)>,
+    pub(crate) bad_vdf_counts: HashMap<PeerId, (u32, web_time::Instant)>,
     pub(crate) current_drand_pulse: u64,
     pub(crate) drand_pulse_rx: watch::Receiver<u64>,
     pub(crate) bootstrap_nodes: Vec<String>,
     pub(crate) bootstrap_peers: std::collections::HashSet<libp2p::PeerId>,
-    pub(crate) startup_time: std::time::Instant,
+    pub(crate) startup_time: web_time::Instant,
     pub(crate) banned_peers: std::collections::HashSet<libp2p::PeerId>,
     pub(crate) commitment_miss_counts: HashMap<PeerId, u32>,
-    pub(crate) bootstrap_connection_time: HashMap<PeerId, std::time::Instant>,
+    pub(crate) bootstrap_connection_time: HashMap<PeerId, web_time::Instant>,
 }
 
 impl NetworkEventLoop {
@@ -44,19 +44,18 @@ impl NetworkEventLoop {
     pub async fn run(mut self) {
         info!("Starting Kinetic P2P event loop");
 
-        let mut prune_interval = tokio::time::interval(tokio::time::Duration::from_secs(3600));
-        prune_interval.tick().await; // skip first tick
-
-        let mut redial_interval = tokio::time::interval(tokio::time::Duration::from_secs(15));
-        redial_interval.tick().await; // skip first tick
+        let mut prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(3600));
+        let mut redial_delay = futures_timer::Delay::new(web_time::Duration::from_secs(15));
 
         loop {
             tokio::select! {
-                _ = prune_interval.tick() => {
+                _ = &mut prune_delay => {
+                    prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(3600));
                     tracing::info!("Running periodic Sled pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                 }
-                _ = redial_interval.tick() => {
+                _ = &mut redial_delay => {
+                    redial_delay = futures_timer::Delay::new(web_time::Duration::from_secs(15));
                     let info = self.swarm.network_info();
                     let num_peers = info.num_peers();
                     if num_peers == 0 {

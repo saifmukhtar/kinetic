@@ -1,110 +1,172 @@
 //! # kinetic-storage
 //!
 //! Persistent key-value storage for the Kinetic daemon, backed by
-//! [`sled`](https://docs.rs/sled) — a pure-Rust embedded database.
-//!
-//! This crate implements the [`StorageEngine`] trait from `kinetic-core`,
-//! providing the daemon with durable storage for DHT routing tables, private
-//! keys, and in-progress VDF states so that the daemon can survive a reboot
-//! without losing state.
-//!
-//! ## Error handling
-//!
-//! On startup, if the database is detected as locked by another process,
-//! [`SledStorage::new`] immediately returns [`StorageError::DatabaseLocked`]
-//! rather than attempting recovery. If the database appears corrupted, it is
-//! automatically renamed to `<path>.corrupt.bak` and a fresh database is
-//! created in its place.
+//! [`sled`](https://docs.rs/sled) — a pure-Rust embedded database on native,
+//! and an in-memory BTreeMap on Wasm.
 
 #![deny(missing_docs)]
 
 use kinetic_core::error::StorageError;
 use kinetic_core::traits::StorageEngine;
-use sled::Db;
 use std::path::Path;
 
-/// A pure-Rust embedded Key-Value store using `sled`.
-/// This acts as the persistent cache for the Kademlia DHT routing tables,
-/// saved private keys, and in-progress VDF states so the daemon can survive a reboot.
-pub struct SledStorage {
-    db: Db,
-}
+#[cfg(not(target_arch = "wasm32"))]
+pub use native::*;
+#[cfg(target_arch = "wasm32")]
+pub use wasm::*;
 
-impl SledStorage {
-    /// Opens or creates the Sled database at the specified directory path.
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
-        let path = path.as_ref();
-        match sled::open(path) {
-            Ok(db) => Ok(Self { db }),
-            Err(e) => {
-                let err_str = e.to_string().to_lowercase();
+#[cfg(not(target_arch = "wasm32"))]
+mod native {
+    use super::*;
+    use sled::Db;
 
-                // Locked database: another daemon process is already running. Do not recover.
-                if err_str.contains("lock")
-                    || err_str.contains("resource temporarily unavailable")
-                    || err_str.contains("in use")
-                    || err_str.contains("would block")
-                {
-                    return Err(StorageError::DatabaseLocked);
-                }
+    /// A pure-Rust embedded Key-Value store using `sled`.
+    pub struct SledStorage {
+        db: Db,
+    }
 
-                // Corrupted database: rename to .bak and open a fresh one.
-                let mut bak_path = path.to_path_buf().into_os_string();
-                bak_path.push(".corrupt.bak");
-
-                let _ = std::fs::remove_dir_all(&bak_path);
-                if std::fs::rename(path, &bak_path).is_ok() {
-                    if let Ok(db) = sled::open(path) {
-                        return Ok(Self { db });
+    impl SledStorage {
+        /// Opens or creates the Sled database at the specified directory path.
+        pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
+            let path = path.as_ref();
+            match sled::open(path) {
+                Ok(db) => Ok(Self { db }),
+                Err(e) => {
+                    let err_str = e.to_string().to_lowercase();
+                    if err_str.contains("lock")
+                        || err_str.contains("resource temporarily unavailable")
+                        || err_str.contains("in use")
+                        || err_str.contains("would block")
+                    {
+                        return Err(StorageError::DatabaseLocked);
                     }
-                }
 
-                Err(StorageError::OperationFailed(e.to_string()))
+                    let mut bak_path = path.to_path_buf().into_os_string();
+                    bak_path.push(".corrupt.bak");
+
+                    let _ = std::fs::remove_dir_all(&bak_path);
+                    if std::fs::rename(path, &bak_path).is_ok() {
+                        if let Ok(db) = sled::open(path) {
+                            return Ok(Self { db });
+                        }
+                    }
+
+                    Err(StorageError::OperationFailed(e.to_string()))
+                }
             }
         }
+
+        /// Opens an in-memory temporary database.
+        pub fn new_temp() -> Result<Self, StorageError> {
+            let db = sled::Config::new()
+                .temporary(true)
+                .open()
+                .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
+            Ok(Self { db })
+        }
+
+        /// Iterate over all key-value pairs whose key starts with `prefix`.
+        #[allow(clippy::type_complexity)]
+        pub fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+            let iter = self.db.scan_prefix(prefix);
+            let mut results = Vec::new();
+            for item in iter {
+                let (k, v) = item.map_err(|e| StorageError::OperationFailed(e.to_string()))?;
+                results.push((k.to_vec(), v.to_vec()));
+            }
+            Ok(results)
+        }
     }
 
-    /// Iterate over all key-value pairs whose key starts with `prefix`.
-    /// Returns an owned iterator of (key_bytes, value_bytes) pairs.
-    #[allow(clippy::type_complexity)]
-    pub fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
-        let iter = self.db.scan_prefix(prefix);
-        let mut results = Vec::new();
-        for item in iter {
-            let (k, v) = item.map_err(|e| StorageError::OperationFailed(e.to_string()))?;
-            results.push((k.to_vec(), v.to_vec()));
+    impl StorageEngine for SledStorage {
+        fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
+            self.db
+                .insert(key, value)
+                .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
+            Ok(())
         }
-        Ok(results)
+
+        fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
+            let res = self
+                .db
+                .get(key)
+                .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
+            Ok(res.map(|ivec| ivec.to_vec()))
+        }
+
+        fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
+            self.db
+                .remove(key)
+                .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
+            Ok(())
+        }
     }
 }
 
-impl StorageEngine for SledStorage {
-    fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
-        self.db
-            .insert(key, value)
-            .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
-        // Flush is intentionally omitted: sled persists asynchronously to avoid
-        // blocking Tokio worker threads on every write.
-        Ok(())
+#[cfg(target_arch = "wasm32")]
+mod wasm {
+    use super::*;
+    use std::collections::BTreeMap;
+    use std::sync::RwLock;
+
+    /// An in-memory Key-Value store for Wasm.
+    pub struct SledStorage {
+        db: RwLock<BTreeMap<Vec<u8>, Vec<u8>>>,
     }
 
-    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
-        let res = self
-            .db
-            .get(key)
-            .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
-        Ok(res.map(|ivec| ivec.to_vec()))
+    impl SledStorage {
+        /// Mock new for Wasm
+        pub fn new<P: AsRef<Path>>(_path: P) -> Result<Self, StorageError> {
+            Ok(Self {
+                db: RwLock::new(BTreeMap::new()),
+            })
+        }
+
+        /// Mock new_temp for Wasm
+        pub fn new_temp() -> Result<Self, StorageError> {
+            Ok(Self {
+                db: RwLock::new(BTreeMap::new()),
+            })
+        }
+
+        /// Mock scan_prefix for Wasm
+        #[allow(clippy::type_complexity)]
+        pub fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+            let db = self.db.read().map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            let mut results = Vec::new();
+            for (k, v) in db.range(prefix.to_vec()..) {
+                if k.starts_with(prefix) {
+                    results.push((k.clone(), v.clone()));
+                } else {
+                    break;
+                }
+            }
+            Ok(results)
+        }
     }
 
-    fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
-        self.db
-            .remove(key)
-            .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
-        Ok(())
+    impl StorageEngine for SledStorage {
+        fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
+            let mut db = self.db.write().map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            db.insert(key.to_vec(), value.to_vec());
+            Ok(())
+        }
+
+        fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
+            let db = self.db.read().map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            Ok(db.get(key).cloned())
+        }
+
+        fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
+            let mut db = self.db.write().map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            db.remove(key);
+            Ok(())
+        }
     }
 }
 
 #[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
 mod tests {
     use super::*;
     use tempfile::tempdir;

@@ -36,6 +36,7 @@ impl ChiaVdfEngine {
     }
 
     /// Returns the default class group identity element used by chiavdf.
+    #[allow(dead_code)]
     fn default_element() -> [u8; 100] {
         let mut default_el = [0; 100];
         default_el[0] = 0x08;
@@ -49,7 +50,7 @@ impl Default for ChiaVdfEngine {
     }
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 impl VdfEngine for ChiaVdfEngine {
     fn evaluate(&self, challenge: &Commitment, iterations: u64) -> Result<VdfProof, VdfError> {
         // Acquire an exclusive system-wide lock to prevent concurrent VDF
@@ -114,6 +115,23 @@ impl VdfEngine for ChiaVdfEngine {
         _iterations: u64,
     ) -> Result<bool, VdfError> {
         Err(VdfError::UnsupportedPlatform)
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl VdfEngine for ChiaVdfEngine {
+    fn evaluate(&self, _challenge: &Commitment, _iterations: u64) -> Result<VdfProof, VdfError> {
+        Err(VdfError::UnsupportedPlatform)
+    }
+
+    fn verify(
+        &self,
+        _challenge: &Commitment,
+        _proof: &VdfProof,
+        _iterations: u64,
+    ) -> Result<bool, VdfError> {
+        // Stubbed out for WebAssembly Light Node (assume true)
+        Ok(true)
     }
 }
 

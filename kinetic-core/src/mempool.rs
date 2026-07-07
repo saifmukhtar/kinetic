@@ -1,7 +1,7 @@
 use crate::types::VdfJobRequest;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
-use std::time::{Duration, SystemTime};
+use web_time::{Duration, SystemTime};
 
 /// An item residing in the mempool priority queue.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

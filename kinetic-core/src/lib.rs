@@ -29,6 +29,7 @@
 #![deny(missing_docs)]
 
 /// HTTP API error types compatible with axum and tower response extractors.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod api_error;
 /// Config file loading, default values, and port constants for all Kinetic binaries.
 pub mod config;
@@ -43,14 +44,16 @@ pub mod governance;
 /// Pending-reveal mempool for in-progress domain registrations.
 pub mod mempool;
 /// Idempotency key helpers for deduplicating daemon API requests.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod request_id;
 /// Core trait definitions: [`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine).
 pub mod traits;
 /// Shared wire-format types for P2P messages, DNS zones, and domain records.
 pub mod types;
-/// OTA self-update logic: hash-verified binary replacement via `self_replace`.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod updater;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub use api_error::ApiError;
 
 pub use error::{

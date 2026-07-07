@@ -1,7 +1,7 @@
 use crate::traits::StorageEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::time::Duration;
+use web_time::Duration;
 use thiserror::Error;
 use tracing::warn;
 
@@ -168,14 +168,20 @@ impl DrandClient {
                     return Ok(resp.json::<DrandPulse>().await?);
                 }
                 Ok(_resp) if attempt < max_attempts - 1 => {
+                    #[cfg(not(target_arch = "wasm32"))]
                     tokio::time::sleep(delay).await;
+                    #[cfg(target_arch = "wasm32")]
+                    let _ = delay; // TODO: Sleep in wasm
                     delay *= 2;
                 }
                 Ok(resp) => {
                     return Err(DrandError::HttpError(resp.status().as_u16()));
                 }
                 Err(_) if attempt < max_attempts - 1 => {
+                    #[cfg(not(target_arch = "wasm32"))]
                     tokio::time::sleep(delay).await;
+                    #[cfg(target_arch = "wasm32")]
+                    let _ = delay; // TODO: Sleep in wasm
                     delay *= 2; // exponential backoff
                 }
                 Err(e) => return Err(DrandError::Network(e.to_string())),
@@ -218,7 +224,7 @@ impl DrandClient {
         }
 
         // Offline Fallback for Quicknet
-        if let Ok(now) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        if let Ok(now) = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH) {
             if now.as_secs() > QUICKNET_GENESIS_TIME {
                 let estimated_round = (now.as_secs() - QUICKNET_GENESIS_TIME) / QUICKNET_PERIOD;
                 tracing::warn!(

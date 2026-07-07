@@ -94,7 +94,7 @@ pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
         "Mining epoch-bound S/Kademlia identity (difficulty: {} bits)...",
         difficulty
     );
-    let start = std::time::Instant::now();
+    let start = web_time::Instant::now();
 
     loop {
         let keypair = Keypair::generate_ed25519();

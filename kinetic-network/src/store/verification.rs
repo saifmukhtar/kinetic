@@ -9,8 +9,8 @@ pub(crate) fn verify_host_routing_record(
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
     // Enforce timestamp freshness — reject records older than 10 minutes.
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
+    let now = web_time::SystemTime::now()
+        .duration_since(web_time::UNIX_EPOCH)
         .map_err(|_| KineticStoreError::InvalidHostRouteSignature)?
         .as_secs();
     if now.saturating_sub(record.timestamp) > 600 {

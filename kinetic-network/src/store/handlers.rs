@@ -143,10 +143,10 @@ impl KineticRecordStore {
             );
         }
 
-        let now = std::time::Instant::now();
+        let now = web_time::Instant::now();
         self.accepted_reveals_timestamps.push_back(now);
         while let Some(t) = self.accepted_reveals_timestamps.front() {
-            if now.duration_since(*t) > std::time::Duration::from_secs(3600) {
+            if now.duration_since(*t) > web_time::Duration::from_secs(3600) {
                 self.accepted_reveals_timestamps.pop_front();
             } else {
                 break;

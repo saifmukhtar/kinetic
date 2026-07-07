@@ -7,11 +7,12 @@ use tokio::sync::{mpsc, oneshot};
 #[derive(Clone)]
 pub struct NetworkClient {
     sender: std::sync::Arc<std::sync::RwLock<mpsc::Sender<Command>>>,
+    #[cfg(not(target_arch = "wasm32"))]
     stream_control: std::sync::Arc<std::sync::RwLock<Option<libp2p_stream::Control>>>,
 }
 
 impl NetworkClient {
-    /// Creates a new network client handle.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(sender: mpsc::Sender<Command>, stream_control: libp2p_stream::Control) -> Self {
         Self {
             sender: std::sync::Arc::new(std::sync::RwLock::new(sender)),
@@ -19,15 +20,25 @@ impl NetworkClient {
         }
     }
 
+    /// Create a new NetworkClient for WASM without stream control
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(sender: mpsc::Sender<Command>) -> Self {
+        Self {
+            sender: std::sync::Arc::new(std::sync::RwLock::new(sender)),
+        }
+    }
+
     /// Creates a mock network client for testing.
     pub fn new_mock(sender: mpsc::Sender<Command>) -> Self {
         Self {
             sender: std::sync::Arc::new(std::sync::RwLock::new(sender)),
+            #[cfg(not(target_arch = "wasm32"))]
             stream_control: std::sync::Arc::new(std::sync::RwLock::new(None)),
         }
     }
 
     /// Hot-swaps the underlying channel sender, used during network resets.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn update_backend(
         &self,
         sender: mpsc::Sender<Command>,
@@ -41,12 +52,24 @@ impl NetworkClient {
         }
     }
 
+    /// Update the backend sender for WASM
+    #[cfg(target_arch = "wasm32")]
+    pub fn update_backend(
+        &self,
+        sender: mpsc::Sender<Command>,
+    ) {
+        if let Ok(mut s) = self.sender.write() {
+            *s = sender;
+        }
+    }
+
     /// Gets a cloned copy of the command sender.
     pub fn get_sender(&self) -> mpsc::Sender<Command> {
         self.sender.read().unwrap().clone()
     }
 
     /// Gets a cloned copy of the stream control handle, if available.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn stream_control(&self) -> Option<libp2p_stream::Control> {
         if let Ok(guard) = self.stream_control.read() {
             guard.clone()
