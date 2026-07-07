@@ -1,7 +1,7 @@
 # ⚡ The Kinetic Protocol
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Documentation](https://img.shields.io/badge/docs-mdBook-green.svg)](https://saifmukhtar.github.io/kinetic/)
+[![Documentation](https://img.shields.io/badge/docs-mdBook-green.svg)](https://kinetic.saifmukhtar.dev)
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-orange.svg)](https://www.rust-lang.org)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Mobile-lightgrey.svg)]()
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink.svg)](https://github.com/sponsors/saifmukhtar)
@@ -44,7 +44,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/saifmukhtar/kinetic/ma
 ### 🖥️ The Kinetic Web UI
 The installation automatically includes the **Kinetic UI**, an embedded React interface that lets you monitor the network, manage your domains, and track P2P activity. Recent updates include a comprehensive real-time dashboard, detailed domain view management, and an advanced settings panel. Once the daemon is running, simply navigate to:
 
-👉 **[http://127.0.0.1:16001](http://127.0.0.1:16001)**
+👉 **[http://localhost:16002](http://localhost:16002)**
 
 ---
 
@@ -143,11 +143,11 @@ The Kinetic protocol is composed of several specialized Rust crates and external
 
 ## 📖 Official Documentation
 Everything you need to know about Kinetic, the VDF math, and how to build on the network is available at the official docs:
-**[https://saifmukhtar.github.io/kinetic/](https://saifmukhtar.github.io/kinetic/)**
+**[https://kinetic.saifmukhtar.dev](https://kinetic.saifmukhtar.dev)**
 
-- **[Kinetic Protocol Specification v2](https://saifmukhtar.github.io/kinetic/protocol_specification.html)**: State machines, payload schemas, and empirical algorithms.
-- **[The Kinetic Architecture (Network Layer)](https://saifmukhtar.github.io/kinetic/network_architecture.html)**: The math behind the stateless routing protocol.
-- **[Kinetic Adversarial Analysis](https://saifmukhtar.github.io/kinetic/adversarial_analysis.html)**: Red-team audit of the cryptographic resilience.
+- **[Kinetic Protocol Specification v2](https://kinetic.saifmukhtar.dev/protocol_specification.html)**: State machines, payload schemas, and empirical algorithms.
+- **[The Kinetic Architecture (Network Layer)](https://kinetic.saifmukhtar.dev/network_architecture.html)**: The math behind the stateless routing protocol.
+- **[Kinetic Adversarial Analysis](https://kinetic.saifmukhtar.dev/adversarial_analysis.html)**: Red-team audit of the cryptographic resilience.
 
 ---
 
