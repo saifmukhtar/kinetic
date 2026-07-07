@@ -25,6 +25,10 @@ jobs:
             cli_asset: kinetic-cli-linux
             node_artifact: kinetic-node
             node_asset: kinetic-node-linux
+            host_artifact: kinetic-host
+            host_asset: kinetic-host-linux
+            keygen_artifact: kinetic-keygen
+            keygen_asset: kinetic-keygen-linux
           - os: macos-latest
             artifact_name: kinetic-daemon
             asset_name: kinetic-daemon-macos
@@ -32,6 +36,10 @@ jobs:
             cli_asset: kinetic-cli-macos
             node_artifact: kinetic-node
             node_asset: kinetic-node-macos
+            host_artifact: kinetic-host
+            host_asset: kinetic-host-macos
+            keygen_artifact: kinetic-keygen
+            keygen_asset: kinetic-keygen-macos
           - os: windows-latest
             artifact_name: kinetic-daemon.exe
             asset_name: kinetic-daemon-windows.exe
@@ -39,6 +47,10 @@ jobs:
             cli_asset: kinetic-cli-windows.exe
             node_artifact: kinetic-node.exe
             node_asset: kinetic-node-windows.exe
+            host_artifact: kinetic-host.exe
+            host_asset: kinetic-host-windows.exe
+            keygen_artifact: kinetic-keygen.exe
+            keygen_asset: kinetic-keygen-windows.exe
 
     steps:
     - uses: actions/checkout@v4
@@ -82,12 +94,20 @@ jobs:
     - name: Build Kinetic Node (Release)
       run: cargo build --release -p kinetic-node
 
+    - name: Build Kinetic Host (Release)
+      run: cargo build --release -p kinetic-host
+
+    - name: Build Kinetic Keygen (Release)
+      run: cargo build --release -p kinetic-keygen
+
     - name: Rename Binaries for Release
       shell: bash
       run: |
         cp target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
         cp target/release/${{ matrix.cli_artifact }} target/release/${{ matrix.cli_asset }}
         cp target/release/${{ matrix.node_artifact }} target/release/${{ matrix.node_asset }}
+        cp target/release/${{ matrix.host_artifact }} target/release/${{ matrix.host_asset }}
+        cp target/release/${{ matrix.keygen_artifact }} target/release/${{ matrix.keygen_asset }}
 
     - name: Upload Binary to Release
       uses: softprops/action-gh-release@v1
@@ -96,5 +116,7 @@ jobs:
           target/release/${{ matrix.asset_name }}
           target/release/${{ matrix.cli_asset }}
           target/release/${{ matrix.node_asset }}
+          target/release/${{ matrix.host_asset }}
+          target/release/${{ matrix.keygen_asset }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
