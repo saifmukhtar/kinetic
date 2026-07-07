@@ -33,12 +33,12 @@ You can install the compiled Kinetic Daemon and integrate it into your system DN
 
 **macOS & Linux:**
 ```bash
-curl -sL https://raw.githubusercontent.com/saifmukhtar/kinetic/main/scripts/install.sh | bash
+curl -sL https://kinetic.saifmukhtar.dev/install.sh | bash
 ```
 
 **Windows (PowerShell as Admin):**
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/saifmukhtar/kinetic/main/scripts/install.ps1" -OutFile "install.ps1"; .\install.ps1
+Invoke-WebRequest -Uri "https://kinetic.saifmukhtar.dev/install.ps1" -OutFile "install.ps1"; .\install.ps1
 ```
 
 ### 🖥️ The Kinetic Web UI
