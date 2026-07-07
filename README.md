@@ -11,9 +11,9 @@
 *A stateless, Sybil-resistant naming system secured purely by math and time.*
 </div>
 
-https://github.com/saifmukhtar/kinetic/raw/main/kinetic-demo.mp4
-
 <div align="center">
+  <video src="https://github.com/saifmukhtar/kinetic/raw/main/kinetic-demo.mp4" controls="controls" muted="muted" style="max-width: 100%; border-radius: 8px;"></video>
+  <br/>
   <i>Watch the 50-node Kinetic Network live simulation in action</i>
 </div>
 
