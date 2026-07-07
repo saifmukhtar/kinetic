@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
-import { Globe, Settings, Plus, Activity, Home, ShieldAlert } from 'lucide-react';
+import { Settings, Plus, Activity, Home, ShieldAlert } from 'lucide-react';
 import './index.css';
 
 // Pages
