@@ -1,9 +1,22 @@
 name: Continuous Integration
 
 on:
-  workflow_dispatch:
-  release:
-    types: [created]
+  push:
+    branches: [ "main" ]
+    paths:
+      - '**/*.rs'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - 'kinetic-ui/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - '**/*.rs'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - 'kinetic-ui/**'
+      - '.github/workflows/ci.yml'
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,6 +35,9 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y libgmp-dev clang libclang-dev
 
@@ -29,11 +45,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: 'npm'
+          cache-dependency-path: 'kinetic-ui/package-lock.json'
 
       - name: Build Kinetic UI
         run: |
           cd kinetic-ui
-          npm install
+          npm ci
           npm run build
 
       - name: Check Formatting
