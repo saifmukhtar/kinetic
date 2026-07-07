@@ -36,6 +36,11 @@ jobs:
           ./generate_sitemap.sh
         working-directory: ./docs
         
+      - name: Copy Install Scripts
+        run: |
+          cp scripts/install.sh docs/book/install.sh
+          cp scripts/install.ps1 docs/book/install.ps1
+        
       - name: Setup Pages
         uses: actions/configure-pages@v4
         
