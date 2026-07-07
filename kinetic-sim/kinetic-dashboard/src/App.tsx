@@ -335,7 +335,7 @@ export default function App() {
 
       <header className="topbar">
         <div className="topbar-brand">
-          <div className="brand-logo">⬡</div>
+          <img src="/favicon.svg" alt="Kinetic Logo" className="brand-logo-img" style={{ width: '38px', height: '38px' }} />
           <div className="brand-text">
             <div className="brand-name">Kinetic Network</div>
             <div className="brand-sub">Decentralized DNS — Live Simulation</div>

@@ -109,3 +109,27 @@ When Alice includes \\(B_{t_1}\\) in her commitment, she proves to the entire Ki
 Because the Kademlia DHT nodes do not need to trust each other's system clocks, they rely entirely on the Drand sequence number. Time, in the Kinetic protocol, is not measured in seconds; it is measured in Drand pulses and VDF iterations. 
 
 This creates a perfectly synchronized, highly hostile environment for attackers, secured entirely by the laws of cryptography.
+
+---
+
+## 5. Offline Governance Key Generation (`kinetic-keygen`)
+
+While end-users rely on the daemon to manage their keys, the Kinetic network's global root-of-trust operates differently. The top-level governance structure is secured by deterministic, offline-generated Ed25519 keypairs.
+
+To eliminate any risk of compromised network authority, we introduced the `kinetic-keygen` crate. This utility is executed on a physically air-gapped machine.
+
+### 5.1 Deterministic Derivation from BIP-39
+
+Instead of creating disparate, floating keypairs, `kinetic-keygen` generates 32 bytes of true OS-level cryptographic entropy and encodes it as a 24-word BIP-39 English mnemonic seed phrase. 
+
+Using this single master seed, the network deterministically derives all operational keys via PBKDF2-HMAC-SHA512 (with 2048 iterations).
+
+### 5.2 Unique Purpose Strings
+
+To ensure mathematical independence between keys—despite them originating from the same seed—each governance role is derived using a unique "purpose string" as the PBKDF2 salt:
+
+- `ROOT_KEY_v1`: Derives the supreme network root key.
+- `GUARD_KEY_v1`: Derives the emergency threshold circuit-breaker key.
+- `MEMBER_KEY_v1_{N}`: Derives the keys for individual council members.
+
+This design guarantees that an attacker who somehow compromises a `MEMBER_KEY` has mathematically zero ability to reverse-engineer the master seed or derive the `ROOT_KEY`, preserving the absolute integrity of the namespace root.

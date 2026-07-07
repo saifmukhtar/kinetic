@@ -20,7 +20,7 @@ If you are a lone developer, registering a `.kin` domain is completely **free an
 
 ### ✨ Key Features
 - **Zero Blockchains, Zero Fees:** No gas, no tokens, no renewal fees. Ever.
-- **VDF Proof-of-Time:** Secures names against front-running and theft using Chia's repeated squarings ($x^{2^T}$) anchored to the global `drand` beacon.
+- **VDF Proof-of-Time:** Secures names against front-running and theft using Chia's repeated squarings ($x^{2^T}$) anchored to the global `drand` beacon, rigorously hardened against concurrency and edge-case exploits.
 - **Immunological DHT:** A highly adversarial, 64KB-limited Kademlia DHT that natively rejects poisoned records and resolves conflicts via XOR tie-breaking.
 - **Split-DNS Magic:** Seamlessly intercepts `.kin` domains at the OS loopback level without breaking your standard internet traffic.
 - **Mobile Delegation:** Smartphones securely hold your keys while delegating the heavy math to your Desktop via Nostr (NIP-04).
@@ -42,7 +42,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/saifmukhtar/kinetic/ma
 ```
 
 ### 🖥️ The Kinetic Web UI
-The installation automatically includes the **Kinetic UI**, an embedded React interface that lets you monitor the network, manage your domains, and track P2P activity. Once the daemon is running, simply navigate to:
+The installation automatically includes the **Kinetic UI**, an embedded React interface that lets you monitor the network, manage your domains, and track P2P activity. Recent updates include a comprehensive real-time dashboard, detailed domain view management, and an advanced settings panel. Once the daemon is running, simply navigate to:
 
 👉 **[http://127.0.0.1:16001](http://127.0.0.1:16001)**
 
@@ -75,6 +75,14 @@ Push your finished proof and DNS records to the global network:
 kinetic-cli publish myname.kin
 ```
 Your name is instantly live globally! Any device running Kinetic can now visit `http://myname.kin`.
+
+---
+
+## 🧪 Testing & Modular Architecture
+
+Kinetic employs a highly decoupled, modular architecture backed by comprehensive inline and integration testing. Rather than monolithic event loops, every crate (`kinetic-network`, `kinetic-daemon`, `kinetic-node`) separates core logic, handlers, and cryptographic verification into distinct boundaries. 
+
+The protocol is heavily guarded by extensive edge-case testing suites (e.g., `api_tests.rs`, `proxy_tests.rs`, `test_014_edge_cases.rs`), cross-crate `e2e` scripts, and deterministic storage fuzzing, ensuring the cryptographic layers remain completely impervious to malformed Kademlia payloads and hostile environments.
 
 ---
 
@@ -128,6 +136,7 @@ A core pillar of Kinetic v2 is the **Kinetic Identity Architecture (KID)**. Rath
 ### Internal Crate Architecture
 The Kinetic protocol is composed of several specialized Rust crates and external repositories:
 *   **`kinetic-node`**: A headless infrastructure node optimized for cloud environments. It uses static keys to bypass Sybil PoW, runs purely in FullNode mode with disabled mDNS, and serves a Health-check API (`/health`) on port 16003.
+*   **`kinetic-keygen`**: A deterministic offline key generator for Kinetic governance. Derived from BIP-39 mnemonic seeds via PBKDF2 to establish mathematical independence for `ROOT` and `GUARD` keys.
 *   **`kinetic-kid`**: The core implementation of the Kinetic Identity Document architecture, handling cryptographic verification of service manifests and DID operations.
 *   **`kinetic-storage`**: A robust wrapper around the `sled` embedded database, handling critical high-performance local state, including advanced auto-recovery logic (`.corrupt.bak` renaming) to survive crashes.
 *   **`kinetic-client`**: The official cross-platform mobile application built in Flutter. It interfaces securely with the Rust core via FFI (`kinetic-ffi`) using dynamic Axum proxies for WebView interception. (Hosted in a separate repository: [saifmukhtar/kinetic-client](https://github.com/saifmukhtar/kinetic-client)).
