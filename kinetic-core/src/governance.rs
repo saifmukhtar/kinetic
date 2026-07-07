@@ -771,9 +771,7 @@ mod tests {
             signatures: vec![],
         };
         for item in council.iter().take(5) {
-            msg_full
-                .signatures
-                .push(sign_action(&msg_full, &item.0));
+            msg_full.signatures.push(sign_action(&msg_full, &item.0));
         }
 
         let action_hash = GovernanceState::hash_action(&msg_full);

@@ -13,6 +13,7 @@ pub struct NetworkClient {
 
 impl NetworkClient {
     #[cfg(not(target_arch = "wasm32"))]
+    /// Creates a new `Client` instance.
     pub fn new(sender: mpsc::Sender<Command>, stream_control: libp2p_stream::Control) -> Self {
         Self {
             sender: std::sync::Arc::new(std::sync::RwLock::new(sender)),
@@ -54,10 +55,7 @@ impl NetworkClient {
 
     /// Update the backend sender for WASM
     #[cfg(target_arch = "wasm32")]
-    pub fn update_backend(
-        &self,
-        sender: mpsc::Sender<Command>,
-    ) {
+    pub fn update_backend(&self, sender: mpsc::Sender<Command>) {
         if let Ok(mut s) = self.sender.write() {
             *s = sender;
         }

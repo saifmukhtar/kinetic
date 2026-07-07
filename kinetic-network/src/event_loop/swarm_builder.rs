@@ -54,7 +54,9 @@ impl super::core::NetworkEventLoop {
                     .upgrade(libp2p::core::upgrade::Version::V1Lazy)
                     .authenticate(libp2p::noise::Config::new(key).unwrap())
                     .multiplex(libp2p::yamux::Config::default())
-                    .map(|(peer, muxer), _| (peer, libp2p::core::muxing::StreamMuxerBox::new(muxer)))
+                    .map(|(peer, muxer), _| {
+                        (peer, libp2p::core::muxing::StreamMuxerBox::new(muxer))
+                    })
             })
             .expect("Valid websocket websys transport");
 
@@ -241,9 +243,9 @@ impl super::core::NetworkEventLoop {
 
         let (tx, rx) = mpsc::channel(32);
         #[cfg(not(target_arch = "wasm32"))]
-        let stream_control = control_rx.recv().unwrap_or_else(|_| {
-            panic!("Stream control not sent (unless wasm32)")
-        });
+        let stream_control = control_rx
+            .recv()
+            .unwrap_or_else(|_| panic!("Stream control not sent (unless wasm32)"));
         #[cfg(not(target_arch = "wasm32"))]
         let client = NetworkClient::new(tx.clone(), stream_control);
         #[cfg(target_arch = "wasm32")]

@@ -433,7 +433,7 @@ pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::erro
     }
 
     let mut bytes = [0u8; 32];
-    if getrandom::fill(&mut bytes).is_err() {
+    if getrandom::getrandom(&mut bytes).is_err() {
         return Err(crate::error::KineticError::CryptoError(
             "Random generation failed".to_string(),
         ));
@@ -451,7 +451,10 @@ pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::erro
 #[cfg(target_arch = "wasm32")]
 /// Stub implementation for loading or creating a keypair in Wasm
 pub fn load_or_create_keypair() -> Result<ed25519_dalek::SigningKey, crate::error::KineticError> {
-    Err(crate::error::KineticError::Internal("Key generation via filesystem is not supported in Wasm. Provide a key manually.".to_string()))
+    Err(crate::error::KineticError::Internal(
+        "Key generation via filesystem is not supported in Wasm. Provide a key manually."
+            .to_string(),
+    ))
 }
 
 #[cfg(test)]

@@ -262,7 +262,10 @@ pub fn get_base_dir() -> PathBuf {
         return PathBuf::from("/Library/Application Support/Kinetic");
     }
 
-    #[cfg(all(not(any(target_os = "windows", target_os = "macos")), not(target_arch = "wasm32")))]
+    #[cfg(all(
+        not(any(target_os = "windows", target_os = "macos")),
+        not(target_arch = "wasm32")
+    ))]
     {
         dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))

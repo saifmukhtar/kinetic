@@ -1,9 +1,9 @@
 use crate::traits::StorageEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use web_time::Duration;
 use thiserror::Error;
 use tracing::warn;
+use web_time::Duration;
 
 /// The set of drand Quicknet HTTP endpoints tried in order.
 ///

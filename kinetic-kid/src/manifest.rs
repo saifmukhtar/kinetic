@@ -78,9 +78,7 @@ impl CapabilityManifest {
         pow_hasher.update(msg_bytes);
         let mut pow_hash = [0u8; 32];
         pow_hash.copy_from_slice(&pow_hasher.finalize());
-        if !cfg!(feature = "simulation")
-            && !crate::validate_pow(&pow_hash, crate::KID_POW_TARGET)
-        {
+        if !cfg!(feature = "simulation") && !crate::validate_pow(&pow_hash, crate::KID_POW_TARGET) {
             return Err(KidError::CanonicalizationError(
                 "Invalid Proof of Work".to_string(),
             ));

@@ -104,8 +104,9 @@ async fn test_client_hot_swap() {
     });
 
     let res = tokio::time::timeout(tokio::time::Duration::from_millis(50), rx.recv()).await;
-    assert!(
-        res.is_err(),
-        "Original rx should not receive messages after hot swap"
-    );
+    match res {
+        Err(_) => {} // Timeout, meaning no message was received (expected if tx was not dropped)
+        Ok(None) => {} // Channel closed (expected because tx was replaced and dropped)
+        Ok(Some(_)) => panic!("Original rx should not receive messages after hot swap"),
+    }
 }
