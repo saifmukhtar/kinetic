@@ -29,6 +29,8 @@ jobs:
             host_asset: kinetic-host-linux
             keygen_artifact: kinetic-keygen
             keygen_asset: kinetic-keygen-linux
+            dns_artifact: kinetic-dns-server
+            dns_asset: kinetic-dns-server-linux
           - os: macos-latest
             artifact_name: kinetic-daemon
             asset_name: kinetic-daemon-macos
@@ -40,6 +42,8 @@ jobs:
             host_asset: kinetic-host-macos
             keygen_artifact: kinetic-keygen
             keygen_asset: kinetic-keygen-macos
+            dns_artifact: kinetic-dns-server
+            dns_asset: kinetic-dns-server-macos
           - os: windows-latest
             artifact_name: kinetic-daemon.exe
             asset_name: kinetic-daemon-windows.exe
@@ -51,6 +55,8 @@ jobs:
             host_asset: kinetic-host-windows.exe
             keygen_artifact: kinetic-keygen.exe
             keygen_asset: kinetic-keygen-windows.exe
+            dns_artifact: kinetic-dns-server.exe
+            dns_asset: kinetic-dns-server-windows.exe
 
     steps:
     - uses: actions/checkout@v4
@@ -77,7 +83,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 24
 
     - name: Build Kinetic UI
       run: |
@@ -100,6 +106,9 @@ jobs:
     - name: Build Kinetic Keygen (Release)
       run: cargo build --release -p kinetic-keygen
 
+    - name: Build Kinetic DNS Server (Release)
+      run: cargo build --release -p kinetic-dns --bin kinetic-dns-server
+
     - name: Rename Binaries for Release
       shell: bash
       run: |
@@ -108,6 +117,7 @@ jobs:
         cp target/release/${{ matrix.node_artifact }} target/release/${{ matrix.node_asset }}
         cp target/release/${{ matrix.host_artifact }} target/release/${{ matrix.host_asset }}
         cp target/release/${{ matrix.keygen_artifact }} target/release/${{ matrix.keygen_asset }}
+        cp target/release/${{ matrix.dns_artifact }} target/release/${{ matrix.dns_asset }}
 
     - name: Upload Binary to Release
       uses: softprops/action-gh-release@v1
@@ -118,5 +128,6 @@ jobs:
           target/release/${{ matrix.node_asset }}
           target/release/${{ matrix.host_asset }}
           target/release/${{ matrix.keygen_asset }}
+          target/release/${{ matrix.dns_asset }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
