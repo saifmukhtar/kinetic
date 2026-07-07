@@ -19,12 +19,9 @@ jobs:
           submodules: recursive
 
       - name: Install minimal stable with clippy and rustfmt
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
           components: rustfmt, clippy
-          override: true
 
       - name: Check Formatting
         run: cargo fmt --all -- --check
