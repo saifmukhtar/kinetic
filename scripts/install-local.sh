@@ -1,103 +1,102 @@
 #!/bin/bash
 set -e
 
-echo "======================================================"
-echo "    Kinetic Protocol Local Source Installer"
-echo "======================================================"
-echo "This script compiles Kinetic directly from source using Cargo."
-echo "Ensure you have the Rust toolchain installed (rustup)."
-echo ""
+# Hide cursor
+tput civis
+trap "tput cnorm" EXIT
+
+# Colors
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+# Helper for arrow key menu
+select_menu() {
+    local prompt="$1" outvar="$2"
+    shift 2
+    local options=("$@") cur=0 count=${#options[@]}
+    
+    echo -e "${CYAN}======================================================${NC}"
+    echo -e "${CYAN}    Kinetic Protocol Local Source Installer${NC}"
+    echo -e "${CYAN}======================================================${NC}"
+    echo "This script compiles Kinetic directly from source using Cargo."
+    echo ""
+    echo -e "$prompt"
+    
+    while true; do
+        for ((i=0; i<count; i++)); do
+            if [ $i -eq $cur ]; then
+                echo -e "  ${GREEN}❯ \e[7m${options[$i]}\e[27m${NC}"
+            else
+                echo -e "    ${options[$i]}"
+            fi
+        done
+        read -rsn1 key
+        if [[ $key == $'\e' ]]; then
+            read -rsn2 key
+            if [[ $key == "[A" ]]; then # Up arrow
+                ((cur--))
+                ((cur < 0)) && cur=$((count-1))
+            elif [[ $key == "[B" ]]; then # Down arrow
+                ((cur++))
+                ((cur >= count)) && cur=0
+            fi
+        elif [[ $key == "" ]]; then # Enter key
+            break
+        fi
+        echo -en "\e[${count}A"
+    done
+    
+    eval $outvar="'$cur'"
+    echo ""
+}
 
 if ! command -v cargo &> /dev/null; then
-    echo "Error: cargo could not be found. Please install Rust via https://rustup.rs"
+    tput cnorm
+    echo -e "${RED}Error: cargo could not be found. Please install Rust via https://rustup.rs${NC}"
     exit 1
 fi
 
-echo "======================================================"
-echo "      Select Installation Profile"
-echo "======================================================"
-echo "1) Standard User  (Daemon + CLI)"
-echo "2) Power User     (Daemon + CLI + DNS Server)"
-echo "3) Node Operator  (Node + CLI)"
-echo "4) Host Operator  (Host + CLI)"
-echo "5) Advanced       (Custom Selection)"
-echo "6) Exit"
-echo "======================================================"
-read -p "Profile Selection [1-6]: " PROFILE_CHOICE
+OPTIONS=(
+    "Standard User   (Daemon + CLI)"
+    "Power User      (Daemon + CLI + DNS Server)"
+    "Node Operator   (Node + CLI)"
+    "Host Operator   (Host + CLI)"
+    "Exit"
+)
+select_menu "Select Installation Profile:" PROFILE "${OPTIONS[@]}"
 
 BINS_TO_BUILD=("kinetic-cli")
-INSTALL_DNS_INTEGRATION=false
+INSTALL_DNS=false
 
-case "$PROFILE_CHOICE" in
-    1)
-        BINS_TO_BUILD+=("kinetic-daemon")
-        ;;
-    2)
-        BINS_TO_BUILD+=("kinetic-daemon" "kinetic-dns-server")
-        INSTALL_DNS_INTEGRATION=true
-        ;;
-    3)
-        BINS_TO_BUILD+=("kinetic-node")
-        ;;
-    4)
-        BINS_TO_BUILD+=("kinetic-host")
-        ;;
-    5)
-        echo ""
-        echo "Advanced Selection (CLI is always installed):"
-        read -p "Install Daemon? (y/N): " ADV_DAEMON
-        read -p "Install Node? (y/N): " ADV_NODE
-        read -p "Install Host? (y/N): " ADV_HOST
-        read -p "Install Keygen? (y/N): " ADV_KEYGEN
-        read -p "Install DNS Server? (y/N): " ADV_DNS
-
-        [[ "$ADV_DAEMON" =~ ^[Yy]$ ]] && BINS_TO_BUILD+=("kinetic-daemon")
-        [[ "$ADV_NODE" =~ ^[Yy]$ ]] && BINS_TO_BUILD+=("kinetic-node")
-        [[ "$ADV_HOST" =~ ^[Yy]$ ]] && BINS_TO_BUILD+=("kinetic-host")
-        [[ "$ADV_KEYGEN" =~ ^[Yy]$ ]] && BINS_TO_BUILD+=("kinetic-keygen")
-        if [[ "$ADV_DNS" =~ ^[Yy]$ ]]; then
-            BINS_TO_BUILD+=("kinetic-dns-server")
-            read -p "Enable OS-level DNS Integration? (y/N): " ADV_DNS_INT
-            [[ "$ADV_DNS_INT" =~ ^[Yy]$ ]] && INSTALL_DNS_INTEGRATION=true
-        fi
-        ;;
-    6)
-        echo "Exiting."
-        exit 0
-        ;;
-    *)
-        echo "Invalid choice. Exiting."
-        exit 1
-        ;;
+case $PROFILE in
+    0) BINS_TO_BUILD+=("kinetic-daemon") ;;
+    1) BINS_TO_BUILD+=("kinetic-daemon" "kinetic-dns-server"); INSTALL_DNS=true ;;
+    2) BINS_TO_BUILD+=("kinetic-node") ;;
+    3) BINS_TO_BUILD+=("kinetic-host") ;;
+    4) tput cnorm; exit 0 ;;
 esac
 
-echo ""
-echo "Building the following binaries: ${BINS_TO_BUILD[*]}"
+tput cnorm
+echo -e "${YELLOW}Building: ${BINS_TO_BUILD[*]}${NC}"
 echo ""
 
-# Build args
 CARGO_ARGS=()
 for bin in "${BINS_TO_BUILD[@]}"; do
     CARGO_ARGS+=("-p" "$bin")
 done
 
-# Navigate to repo root
 cd "$(dirname "$0")/.."
-
-echo "Running: cargo build --release ${CARGO_ARGS[*]}"
 cargo build --release "${CARGO_ARGS[@]}"
 
-echo ""
-echo "Compilation successful. Installing to /usr/local/bin..."
-
+echo -e "\n${GREEN}Compilation successful. Installing to /usr/local/bin...${NC}"
 sudo -v
 
 for bin in "${BINS_TO_BUILD[@]}"; do
     sudo cp "target/release/$bin" "/usr/local/bin/$bin"
-    
-    # If it's a long running service, install and start it using the native command
-    if [[ "$bin" != "kinetic-cli" && "$bin" != "kinetic-keygen" ]]; then
-        echo "Installing system service for $bin..."
+    if [[ "$bin" != "kinetic-cli" ]]; then
         sudo "/usr/local/bin/$bin" stop-service 2>/dev/null || true
         sudo "/usr/local/bin/$bin" uninstall 2>/dev/null || true
         sudo "/usr/local/bin/$bin" install
@@ -106,27 +105,22 @@ for bin in "${BINS_TO_BUILD[@]}"; do
 done
 
 OS="$(uname -s)"
-if [ "$INSTALL_DNS_INTEGRATION" = true ]; then
-    if [ "$OS" = "Linux" ]; then
-        if systemctl is-active --quiet systemd-resolved; then
-            echo "Configuring systemd-resolved OS DNS integration..."
-            sudo mkdir -p /etc/systemd/resolved.conf.d/
-            cat << EOF | sudo tee /etc/systemd/resolved.conf.d/kinetic.conf > /dev/null
+if [ "$INSTALL_DNS" = true ]; then
+    if [ "$OS" = "Linux" ] && systemctl is-active --quiet systemd-resolved; then
+        sudo mkdir -p /etc/systemd/resolved.conf.d/
+        cat << 'RES' | sudo tee /etc/systemd/resolved.conf.d/kinetic.conf > /dev/null
 [Resolve]
 DNS=127.0.0.2
 Domains=~kin
-EOF
-            sudo systemctl restart systemd-resolved
-        fi
+RES
+        sudo systemctl restart systemd-resolved
     elif [ "$OS" = "Darwin" ]; then
-        echo "Configuring macOS Split-DNS via /etc/resolver..."
         sudo mkdir -p /etc/resolver
-        cat << EOF | sudo tee /etc/resolver/kin > /dev/null
+        cat << 'RES' | sudo tee /etc/resolver/kin > /dev/null
 nameserver 127.0.0.1
 port 53
-EOF
+RES
     fi
 fi
 
-echo ""
-echo "=== Kinetic is successfully built and installed from source! ==="
+echo -e "\n${GREEN}=== Kinetic successfully built and installed! ===${NC}"
