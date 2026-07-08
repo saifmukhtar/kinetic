@@ -12,6 +12,7 @@ use tokio::time::{sleep, Duration};
 
 use std::collections::VecDeque;
 use std::fs;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
 pub async fn start_nostr_listener(
@@ -47,6 +48,7 @@ pub async fn start_nostr_listener(
         fs::create_dir_all(&nostr_dir)?;
         if let Ok(metadata) = fs::metadata(&nostr_dir) {
             let mut perms = metadata.permissions();
+            #[cfg(unix)]
             perms.set_mode(0o700); // Only owner can rwx
             let _ = fs::set_permissions(&nostr_dir, perms);
         }
@@ -57,6 +59,7 @@ pub async fn start_nostr_listener(
         fs::write(&private_key_path, nsec_str)?;
         if let Ok(metadata) = fs::metadata(&private_key_path) {
             let mut perms = metadata.permissions();
+            #[cfg(unix)]
             perms.set_mode(0o600); // Only owner can rw
             let _ = fs::set_permissions(&private_key_path, perms);
         }
@@ -64,6 +67,7 @@ pub async fn start_nostr_listener(
         fs::write(&public_key_path, npub_str)?;
         if let Ok(metadata) = fs::metadata(&public_key_path) {
             let mut perms = metadata.permissions();
+            #[cfg(unix)]
             perms.set_mode(0o644); // Owner rw, others r
             let _ = fs::set_permissions(&public_key_path, perms);
         }
