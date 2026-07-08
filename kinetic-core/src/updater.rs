@@ -129,12 +129,28 @@ pub async fn perform_ota_update(
 
     let args: Vec<String> = env::args().skip(1).collect();
 
-    info!("Baton Pass: Atomically replacing process image via exec()...");
-    use std::os::unix::process::CommandExt;
-    let err = Command::new(current_exe).args(&args).exec();
+    #[cfg(unix)]
+    {
+        info!("Baton Pass: Atomically replacing process image via exec()...");
+        use std::os::unix::process::CommandExt;
+        let err = Command::new(current_exe).args(&args).exec();
+        error!("CRITICAL: self_replace succeeded but exec failed: {}", err);
+        Err(crate::error::UpdaterError::SpawnFailed(err.to_string()))
+    }
 
-    error!("CRITICAL: self_replace succeeded but exec failed: {}", err);
-    Err(crate::error::UpdaterError::SpawnFailed(err.to_string()))
+    #[cfg(not(unix))]
+    {
+        info!("Baton Pass: Spawning new process and exiting...");
+        match Command::new(current_exe).args(&args).spawn() {
+            Ok(_) => {
+                std::process::exit(0);
+            }
+            Err(err) => {
+                error!("CRITICAL: self_replace succeeded but spawn failed: {}", err);
+                Err(crate::error::UpdaterError::SpawnFailed(err.to_string()))
+            }
+        }
+    }
 }
 
 #[cfg(test)]
