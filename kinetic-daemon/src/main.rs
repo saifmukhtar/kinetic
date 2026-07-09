@@ -222,7 +222,7 @@ async fn run_daemon() -> Result<()> {
     let _vdf_engine = ChiaVdfEngine::new();
     info!("VDF Engine initialized");
 
-    let daemon_keypair = load_or_create_keypair()?;
+    let daemon_keypair = load_or_create_keypair("identity.key")?;
     info!(
         "Daemon identity loaded: {:?}",
         hex::encode(daemon_keypair.verifying_key().as_bytes())

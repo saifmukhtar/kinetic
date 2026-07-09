@@ -21,7 +21,7 @@ fn test_002_silent_identity_wipe() {
     // and return Ok().
     // Under the NEW logic (fixed), this should return an Err() so the user knows it's corrupted.
 
-    let result = kinetic_core::types::load_or_create_keypair();
+    let result = kinetic_core::types::load_or_create_keypair("identity.key");
 
     // Check if the file was silently overwritten
     let file_size_after = fs::metadata(&id_file).unwrap().len();
