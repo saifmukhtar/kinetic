@@ -13,7 +13,7 @@
 //!   epoch-bound PoW keypair (via S/Kademlia) that is automatically rotated
 //!   each drand beacon epoch, providing Sybil resistance.
 //! - **Static host identity**: A separate, long-lived Ed25519 keypair
-//!   (`static_network_key.bin`) uniquely identifies this host across epochs.
+//!   (`host.key`) uniquely identifies this host across epochs.
 //!   It is used to sign [`HostRoutingRecord`](kinetic_core::types::HostRoutingRecord)s
 //!   that are published to the DHT so clients can always locate the current
 //!   ephemeral peer ID.
@@ -181,7 +181,7 @@ async fn run_host() -> Result<()> {
     let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
 
     // 4. Load Static Network Identity (The Permanent Host Key)
-    let key_path = kinetic_core::config::get_base_dir().join("static_network_key.bin");
+    let key_path = kinetic_core::config::get_base_dir().join("host.key");
     if let Some(parent) = key_path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }

@@ -990,7 +990,7 @@ async fn handle_vdf_register(
 
         // Step 2: Commitment
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
-        let keypair = match kinetic_core::types::load_or_create_keypair() {
+        let keypair = match kinetic_core::types::load_or_create_keypair("identity.key") {
             Ok(k) => k,
             Err(e) => {
                 update_task_error(
@@ -1506,7 +1506,7 @@ async fn handle_publish_zone(
     };
 
     // 3. Load the daemon keypair and re-sign with the updated payload
-    let keypair = match kinetic_core::types::load_or_create_keypair() {
+    let keypair = match kinetic_core::types::load_or_create_keypair("identity.key") {
         Ok(k) => k,
         Err(_) => {
             return Err((

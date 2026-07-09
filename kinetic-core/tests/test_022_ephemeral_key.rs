@@ -26,7 +26,7 @@ fn test_ephemeral_key_wiping_fallback() {
     }
 
     // Create the key
-    let _ = kinetic_core::types::load_or_create_keypair();
+    let _ = kinetic_core::types::load_or_create_keypair("identity.key");
 
     // Assert it did NOT create the key in /tmp/
     assert!(

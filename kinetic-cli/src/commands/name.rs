@@ -63,7 +63,7 @@ pub async fn update_zone_logic(
         );
         return Ok(());
     }
-    let keypair = load_or_create_keypair()?;
+    let keypair = load_or_create_keypair("identity.key")?;
 
     // Check for local reveal file first for massive UX improvement
     let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
@@ -181,7 +181,7 @@ pub async fn handle_name_command(
                 hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
 
             // Construct commitment: H(name || salt || drand_randomness || pubkey)
-            let keypair = load_or_create_keypair()?;
+            let keypair = load_or_create_keypair("identity.key")?;
             let pubkey = keypair.verifying_key().to_bytes();
 
             let mut hasher = sha2::Sha256::new();
@@ -476,7 +476,7 @@ pub async fn handle_name_command(
                 ));
             };
 
-            let keypair = load_or_create_keypair()?;
+            let keypair = load_or_create_keypair("identity.key")?;
             let pubkey = keypair.verifying_key().to_bytes();
 
             if old_reveal.pubkey != pubkey {
@@ -634,7 +634,7 @@ pub async fn handle_name_command(
             let drand_client = kinetic_core::drand::DrandClient::new(None);
             let drand_data = drand_client.fetch_latest().await?;
 
-            let keypair = load_or_create_keypair()?;
+            let keypair = load_or_create_keypair("identity.key")?;
 
             let mut tokens = Vec::new();
             for i in 1..=rounds {

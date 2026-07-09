@@ -173,7 +173,7 @@ async fn run_node() -> Result<()> {
     let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
 
     // 4. Load Static Network Identity
-    let key_path = kinetic_core::config::get_base_dir().join("static_network_key.bin");
+    let key_path = kinetic_core::config::get_base_dir().join("node.key");
     let local_key = identity::load_or_generate_key(&key_path);
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
