@@ -21,11 +21,11 @@ mod tests {
             let mut records = HashMap::new();
             records.insert(
                 "@".to_string(),
-                vec![DnsRecord::A("192.168.1.100".to_string())],
+                vec![DnsRecord::A("192.168.1.100".parse().unwrap())],
             );
             records.insert(
                 "www".to_string(),
-                vec![DnsRecord::A("192.168.1.101".to_string())],
+                vec![DnsRecord::A("192.168.1.101".parse().unwrap())],
             );
 
             let zone = DnsZone { records };

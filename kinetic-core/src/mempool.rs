@@ -131,6 +131,13 @@ impl Mempool {
         });
     }
 
+    /// Returns a list of all items currently in the mempool, sorted by priority.
+    pub fn get_items(&self) -> Vec<MempoolItem> {
+        // Since BTreeSet's iterator goes from smallest to largest,
+        // we reverse it so the highest priority items are first in the list.
+        self.queue.iter().rev().cloned().collect()
+    }
+
     /// Serializes the mempool state to bytes for persistence.
     pub fn dump(&self) -> Vec<u8> {
         let items: Vec<MempoolItem> = self.queue.iter().cloned().collect();

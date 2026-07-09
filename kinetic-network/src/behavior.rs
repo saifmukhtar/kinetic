@@ -26,6 +26,14 @@ pub struct KineticBehavior {
     pub kademlia: kad::Behaviour<KineticRecordStore>,
     /// PubSub implementation for fast propagation of events.
     pub gossipsub: gossipsub::Behaviour,
+    /// AutoNAT protocol to discover external IP address and NAT status.
+    pub autonat: libp2p::autonat::Behaviour,
+    /// UPnP port forwarding via IGD.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub upnp: libp2p::swarm::behaviour::toggle::Toggle<libp2p::upnp::tokio::Behaviour>,
+    /// Optional Relay Server for public nodes.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub relay_server: libp2p::swarm::behaviour::toggle::Toggle<libp2p::relay::Behaviour>,
     /// Optional mDNS discovery for local networks.
     #[cfg(not(target_arch = "wasm32"))]
     pub mdns: libp2p::swarm::behaviour::toggle::Toggle<libp2p::mdns::tokio::Behaviour>,

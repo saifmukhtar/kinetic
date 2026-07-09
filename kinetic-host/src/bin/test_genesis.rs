@@ -1,8 +1,8 @@
 use kinetic_core::consensus_math::ConsensusParams;
-use kinetic_core::types::load_or_create_keypair;
+use kinetic_core::types::load_keypair;
 
 fn main() {
-    let keypair = load_or_create_keypair("host.key").unwrap();
+    let keypair = load_keypair("host.key").unwrap();
     let pubkey = keypair.verifying_key().to_bytes();
 
     let params = ConsensusParams::default();

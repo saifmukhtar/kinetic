@@ -212,6 +212,7 @@ impl super::core::NetworkEventLoop {
                     "status": status,
                     "connected_peers": peers,
                     "listen_addrs": self.swarm.listeners().map(|a| a.to_string()).collect::<Vec<_>>(),
+                    "nat_status": self.nat_status,
                 })));
             }
             Command::SubscribeGossip { topic, responder } => {
@@ -484,6 +485,35 @@ impl super::core::NetworkEventLoop {
                 }
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(_)) => {}
+            SwarmEvent::Behaviour(KineticBehaviorEvent::Autonat(
+                libp2p::autonat::Event::StatusChanged { old, new },
+            )) => {
+                tracing::info!("AutoNAT status changed from {:?} to {:?}", old, new);
+                if let libp2p::autonat::NatStatus::Public(address) = new {
+                    tracing::info!("Node is PUBLIC. We are fully reachable at {}", address);
+                    // Add external address to Kademlia to ensure we are visible
+                    self.swarm.add_external_address(address);
+                    self.nat_status = "Public".to_string();
+                } else if matches!(new, libp2p::autonat::NatStatus::Private) {
+                    tracing::info!("Node is PRIVATE (Behind NAT). Relay & UPnP fallback active.");
+                    self.nat_status = "Relayed (Private)".to_string();
+                }
+            }
+            SwarmEvent::Behaviour(KineticBehaviorEvent::Autonat(_)) => {}
+            #[cfg(not(target_arch = "wasm32"))]
+            SwarmEvent::Behaviour(KineticBehaviorEvent::Upnp(event)) => {
+                tracing::info!("UPnP Event: {:?}", event);
+            }
+            SwarmEvent::Behaviour(KineticBehaviorEvent::Dcutr(event)) => {
+                tracing::info!("DCUtR Event: {:?}", event);
+            }
+            SwarmEvent::Behaviour(KineticBehaviorEvent::RelayClient(event)) => {
+                tracing::debug!("RelayClient Event: {:?}", event);
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            SwarmEvent::Behaviour(KineticBehaviorEvent::RelayServer(event)) => {
+                tracing::debug!("RelayServer Event: {:?}", event);
+            }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Identify(
                 libp2p::identify::Event::Received { peer_id, info },
             )) => {

@@ -58,6 +58,9 @@ pub struct DaemonConfig {
     /// Port for the local backend HTTP server (default: [`ports::BACKEND`]).
     #[serde(default = "default_backend_port")]
     pub backend_port: u16,
+    /// Whether to start the built-in DNS resolver (default: false).
+    #[serde(default)]
+    pub enable_dns: bool,
     /// Directory where the embedded Sled database is stored.
     pub storage_dir: PathBuf,
     /// Network operating mode: `"FullNode"` or `"LightClient"`.
@@ -139,6 +142,7 @@ impl Default for KineticConfig {
                 dns_port: ports::DNS,
                 proxy_port: ports::PROXY,
                 backend_port: ports::BACKEND,
+                enable_dns: false,
                 storage_dir,
                 network_mode: "FullNode".to_string(),
             },
