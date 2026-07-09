@@ -47,7 +47,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let request = Request::builder()
-            .uri("/api/commit")
+            .uri("/commit")
             .method("POST")
             .body(Body::empty())
             .unwrap();
@@ -68,7 +68,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/api/commit")
+            .uri("/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -94,7 +94,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/api/commit")
+            .uri("/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -130,7 +130,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/api/publish")
+            .uri("/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -167,7 +167,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/api/publish")
+            .uri("/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -210,7 +210,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/api/publish")
+            .uri("/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -270,7 +270,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/api/resolve/example.kin")
+            .uri("/resolve/example.kin")
             .method("GET")
             .body(Body::empty())
             .unwrap();
@@ -287,7 +287,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let request = Request::builder()
-            .uri("/api/zone/example.kin/publish")
+            .uri("/zone/example.kin/publish")
             .method("POST")
             .body(Body::empty())
             .unwrap();
@@ -308,7 +308,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/api/delegation")
+            .uri("/delegation")
             .method("POST")
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
@@ -330,14 +330,14 @@ mod tests {
         let req_body_str = req_body.to_string();
 
         let request1 = Request::builder()
-            .uri("/api/vdf/register")
+            .uri("/vdf/register")
             .method("POST")
             .header("Content-Type", "application/json")
             .body(Body::from(req_body_str.clone()))
             .unwrap();
 
         let request2 = Request::builder()
-            .uri("/api/vdf/register")
+            .uri("/vdf/register")
             .method("POST")
             .header("Content-Type", "application/json")
             .body(Body::from(req_body_str.clone()))
@@ -367,7 +367,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/api/publish-kid")
+            .uri("/publish-kid")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
