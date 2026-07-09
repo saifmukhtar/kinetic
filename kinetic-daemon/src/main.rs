@@ -5,7 +5,7 @@
 //! The daemon is the central coordinator of a Kinetic network participant's
 //! local stack. It manages the full lifecycle of domain name registration,
 //! renewal, and resolution, and exposes an authenticated HTTP API that the
-//! `kinetic-cli` and `kinetic-ui` interact with.
+//! `kinetic-cli` and desktop app interact with.
 //!
 //! ## Responsibilities
 //!
@@ -37,7 +37,7 @@ use tracing_subscriber::FmtSubscriber;
 use ed25519_dalek::Signer;
 use kinetic_core::config::KineticConfig;
 use kinetic_core::traits::StorageEngine;
-use kinetic_core::types::{load_or_create_keypair, Heartbeat};
+use kinetic_core::types::{load_keypair, Heartbeat};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
 use kinetic_vdf::ChiaVdfEngine;
@@ -222,7 +222,8 @@ async fn run_daemon() -> Result<()> {
     let _vdf_engine = ChiaVdfEngine::new();
     info!("VDF Engine initialized");
 
-    let daemon_keypair = load_or_create_keypair("identity.key")?;
+    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let daemon_keypair = load_keypair(&identity_path.to_string_lossy())?;
     info!(
         "Daemon identity loaded: {:?}",
         hex::encode(daemon_keypair.verifying_key().as_bytes())
@@ -436,18 +437,21 @@ async fn run_daemon() -> Result<()> {
     let republish_network = network_client.clone();
     let republish_storage = storage.clone();
     tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(15)).await;
-        let owned_key = b"kinetic_owned_names";
-        if let Ok(Some(bytes)) = republish_storage.get(owned_key) {
-            if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
-                for name in names {
-                    let reveal_key = format!("kinetic_reveal:{}", name);
-                    if let Ok(Some(reveal_bytes)) = republish_storage.get(reveal_key.as_bytes()) {
-                        let rn = republish_network.clone();
-                        let n = name.clone();
-                        tokio::spawn(async move {
-                            let _ = rn.publish_redundant_payload(&n, reveal_bytes).await;
-                        });
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(43200)); // 12 hours
+        loop {
+            interval.tick().await;
+            let owned_key = b"kinetic_owned_names";
+            if let Ok(Some(bytes)) = republish_storage.get(owned_key) {
+                if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
+                    for name in names {
+                        let reveal_key = format!("kinetic_reveal:{}", name);
+                        if let Ok(Some(reveal_bytes)) = republish_storage.get(reveal_key.as_bytes()) {
+                            let rn = republish_network.clone();
+                            let n = name.clone();
+                            tokio::spawn(async move {
+                                let _ = rn.publish_redundant_payload(&n, reveal_bytes).await;
+                            });
+                        }
                     }
                 }
             }
@@ -605,6 +609,30 @@ async fn run_daemon() -> Result<()> {
     let pac_manager = pac::PacManager::new(&base_config_dir);
     if let Err(e) = pac_manager.install("http://127.0.0.1:16001/proxy.pac") {
         tracing::error!("Failed to install OS proxy configuration: {}", e);
+    }
+
+    if config.daemon.enable_dns {
+        let api_url = format!("http://127.0.0.1:{}", config.daemon.api_port);
+        let dns_handler = kinetic_dns::KineticDnsHandler::new(api_url);
+        let mut server = hickory_server::ServerFuture::new(dns_handler);
+
+        let udp_socket =
+            tokio::net::UdpSocket::bind(format!("0.0.0.0:{}", config.daemon.dns_port)).await?;
+        server.register_socket(udp_socket);
+
+        let tcp_listener =
+            tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.daemon.dns_port)).await?;
+        server.register_listener(tcp_listener, std::time::Duration::from_secs(5));
+
+        tokio::spawn(async move {
+            info!(
+                "Built-in DNS Server starting on port {}",
+                config.daemon.dns_port
+            );
+            if let Err(e) = server.block_until_done().await {
+                tracing::error!("DNS Server error: {}", e);
+            }
+        });
     }
 
     tokio::select! {

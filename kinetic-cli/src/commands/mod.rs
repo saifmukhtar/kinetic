@@ -1,5 +1,6 @@
 pub mod identity;
 pub mod name;
+pub mod seed;
 pub mod service;
 
 use clap::Subcommand;
@@ -16,6 +17,11 @@ pub enum Commands {
     Identity {
         #[command(subcommand)]
         cmd: identity::IdentityCommands,
+    },
+    /// Generate and backup the master node seed phrase
+    Seed {
+        #[command(subcommand)]
+        cmd: seed::SeedCommands,
     },
     /// Manage the Kinetic Daemon (P2P node + local proxy for name owners)
     Daemon {

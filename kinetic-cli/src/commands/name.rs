@@ -3,7 +3,7 @@ use clap::Subcommand;
 use ed25519_dalek::Signer;
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::traits::VdfEngine;
-use kinetic_core::types::{load_or_create_keypair, Commitment, Reveal};
+use kinetic_core::types::{load_keypair, Commitment, Reveal};
 use reqwest::Client;
 use serde_json::json;
 use sha2::Digest;
@@ -63,7 +63,8 @@ pub async fn update_zone_logic(
         );
         return Ok(());
     }
-    let keypair = load_or_create_keypair("identity.key")?;
+    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let keypair = load_keypair(&identity_path.to_string_lossy())?;
 
     // Check for local reveal file first for massive UX improvement
     let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
@@ -181,7 +182,8 @@ pub async fn handle_name_command(
                 hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
 
             // Construct commitment: H(name || salt || drand_randomness || pubkey)
-            let keypair = load_or_create_keypair("identity.key")?;
+            let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+            let keypair = load_keypair(&identity_path.to_string_lossy())?;
             let pubkey = keypair.verifying_key().to_bytes();
 
             let mut hasher = sha2::Sha256::new();
@@ -476,7 +478,8 @@ pub async fn handle_name_command(
                 ));
             };
 
-            let keypair = load_or_create_keypair("identity.key")?;
+            let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+            let keypair = load_keypair(&identity_path.to_string_lossy())?;
             let pubkey = keypair.verifying_key().to_bytes();
 
             if old_reveal.pubkey != pubkey {
@@ -634,7 +637,8 @@ pub async fn handle_name_command(
             let drand_client = kinetic_core::drand::DrandClient::new(None);
             let drand_data = drand_client.fetch_latest().await?;
 
-            let keypair = load_or_create_keypair("identity.key")?;
+            let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+            let keypair = load_keypair(&identity_path.to_string_lossy())?;
 
             let mut tokens = Vec::new();
             for i in 1..=rounds {

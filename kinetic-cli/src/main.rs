@@ -47,6 +47,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Identity { cmd } => {
             commands::identity::handle_identity_command(cmd, &config, &client).await?;
         }
+        Commands::Seed { cmd } => {
+            commands::seed::handle_seed_command(cmd).await?;
+        }
         Commands::Daemon { cmd } => {
             handle_service_command("kinetic-daemon", cmd, false).await?;
         }
