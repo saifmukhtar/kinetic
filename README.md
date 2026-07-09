@@ -13,13 +13,36 @@
 
 Kinetic is an experimental decentralized naming protocol written in Rust.
 
-It explores using Verifiable Delay Functions (VDFs) instead of recurring registration fees to make name registration expensive for attackers but inexpensive for ordinary users.
+It explores using Verifiable Delay Functions (VDFs) to make registering names computationally expensive instead of financially expensive.
 
 The project is under active development and should currently be considered experimental.
 
 ## Why does it exist?
 
 While building [Antimatter](https://github.com/saifmukhtar/antimatter), I realized that even though the core was fully decentralized, the application still depended on standard domains for initial peer-to-peer connections. That made me start thinking whether naming could work differently—without relying on centralized registrars or tying identity to expensive blockchain tokens. Kinetic is the result of exploring that question.
+
+<div align="center">
+  <img src="./kinetic-demo.gif" alt="Kinetic Simulation Demo" style="max-width: 100%; border-radius: 8px;" />
+  <br/>
+  <i>Watch the 50-node Kinetic Network live simulation in action</i>
+</div>
+
+## Current Status
+
+Kinetic is an experimental project under active development.
+
+Current capabilities include:
+- Register names
+- Resolve .kin domains
+- Native daemon
+- Browser extension
+- Mobile client
+- Local simulation
+
+Things that are still evolving:
+- Economic model
+- Distributed content hosting
+- Native desktop application
 
 ## 🚀 Quick Start
 
@@ -34,17 +57,6 @@ curl -sL https://kinetic.saifmukhtar.dev/install.sh | bash
 ```powershell
 Invoke-WebRequest -Uri "https://kinetic.saifmukhtar.dev/install.ps1" -OutFile "install.ps1"; .\install.ps1
 ```
-
-### 🖥️ The Kinetic Web UI
-The installation automatically includes the **Kinetic UI**, an embedded React interface that lets you monitor the network, manage your domains, and track P2P activity. Once the daemon is running, simply navigate to:
-
-👉 **[http://localhost:16002](http://localhost:16002)**
-
-<div align="center">
-  <img src="./kinetic-demo.gif" alt="Kinetic Simulation Demo" style="max-width: 100%; border-radius: 8px;" />
-  <br/>
-  <i>Watch the 50-node Kinetic Network live simulation in action</i>
-</div>
 
 ## 🏗️ Architecture
 
@@ -84,7 +96,7 @@ The Kinetic protocol is composed of specialized Rust crates:
 
 ## ✨ Features
 
-- **Zero Blockchains, Zero Fees:** No gas, no tokens, no renewal fees.
+- **No blockchain required:** No gas, no tokens, no renewal fees.
 - **VDF Proof-of-Time:** Secures names against front-running and theft using Chia's repeated squarings ($x^{2^T}$) anchored to the global `drand` beacon.
 - **Kademlia DHT:** A 64KB-limited Kademlia DHT that natively rejects poisoned records and resolves conflicts via XOR tie-breaking.
 - **Split-DNS:** Seamlessly intercepts `.kin` domains at the OS loopback level without breaking standard internet traffic.
