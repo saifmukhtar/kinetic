@@ -168,25 +168,8 @@ impl KineticRecordStore {
         let mut expired_names = Vec::new();
 
         for (name, reveal) in &self.reveals_by_name {
-            // --- Genesis Infinity Lock ---
-            if let Some(genesis_pk) = kinetic_core::consensus_math::ConsensusParams::GENESIS_PUBKEY
-            {
-                let normalized_name = kinetic_core::types::normalize_name(name);
-                let label_without_tld = normalized_name
-                    .strip_suffix(kinetic_core::types::DOT_TLD)
-                    .unwrap_or(&normalized_name);
-                if kinetic_core::consensus_math::ConsensusParams::GENESIS_ALLOWLIST
-                    .contains(&label_without_tld)
-                    && reveal.pubkey.as_slice() == genesis_pk
-                {
-                    tracing::debug!(
-                        "Genesis Infinity Lock active for {}. Bypassing pruning.",
-                        name
-                    );
-                    continue;
-                }
-            }
-            // -----------------------------
+            // Genesis Infinity Lock has been removed by the Founder.
+            // All domains, including Genesis names, are subject to thermodynamic pruning.
 
             let age = current_round.saturating_sub(reveal.drand_pulse);
             if age > max_age_rounds {

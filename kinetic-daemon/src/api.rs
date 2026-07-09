@@ -11,7 +11,7 @@ use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Reveal;
 use kinetic_network::NetworkClient;
 use kinetic_storage::SledStorage;
-use rust_embed::RustEmbed;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -46,51 +46,7 @@ pub struct PublishResponse {
     pub message: String,
 }
 
-#[derive(RustEmbed)]
-#[folder = "../kinetic-ui/dist"]
-struct WebAssets;
 
-async fn static_handler(uri: Uri) -> impl IntoResponse {
-    let mut path = uri.path().trim_start_matches('/');
-    if path.is_empty() {
-        path = "index.html";
-    }
-
-    match WebAssets::get(path) {
-        Some(content) => {
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            let cache_control = if path == "index.html" {
-                "no-cache, no-store, must-revalidate"
-            } else {
-                "public, max-age=31536000, immutable"
-            };
-            (
-                [
-                    (header::CONTENT_TYPE, mime.as_ref()),
-                    (header::CACHE_CONTROL, cache_control),
-                ],
-                content.data,
-            )
-                .into_response()
-        }
-        None => {
-            // Fallback to index.html for SPA router
-            if let Some(content) = WebAssets::get("index.html") {
-                let mime = mime_guess::from_path("index.html").first_or_octet_stream();
-                (
-                    [
-                        (header::CONTENT_TYPE, mime.as_ref()),
-                        (header::CACHE_CONTROL, "no-cache, no-store, must-revalidate"),
-                    ],
-                    content.data,
-                )
-                    .into_response()
-            } else {
-                (StatusCode::NOT_FOUND, "404 Not Found").into_response()
-            }
-        }
-    }
-}
 
 pub fn app(state: ApiState) -> Router {
     use tower_http::cors::{Any, CorsLayer};
@@ -106,35 +62,26 @@ pub fn app(state: ApiState) -> Router {
         .route("/publish", post(handle_publish))
         .route("/publish-kid", post(handle_publish_kid))
         .route("/publish-manifest", post(handle_publish_manifest))
+        .route("/config", axum::routing::get(handle_config))
+        .route("/config", axum::routing::post(handle_set_config))
+        .route("/vdf/status/{task_id}", axum::routing::get(handle_vdf_status))
+        .route("/vdf/status/{task_id}", axum::routing::delete(handle_vdf_status_delete))
+        .route("/owned-names", axum::routing::get(handle_owned_names))
+        .route("/zone/{name}", axum::routing::post(handle_post_zone))
+        .route("/zone/{name}/publish", axum::routing::post(handle_publish_zone))
+        .route("/vdf/register", axum::routing::post(handle_vdf_register))
+        .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
+        .route("/delegation", axum::routing::post(handle_delegation))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
         ));
 
     let public_api_routes = Router::new()
-        .route("/config", axum::routing::get(handle_config))
-        .route("/config", axum::routing::post(handle_set_config))
-        .route(
-            "/vdf/status/{task_id}",
-            axum::routing::get(handle_vdf_status),
-        )
-        .route(
-            "/vdf/status/{task_id}",
-            axum::routing::delete(handle_vdf_status_delete),
-        )
         .route("/network-status", axum::routing::get(handle_network_status))
-        .route("/owned-names", axum::routing::get(handle_owned_names))
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
-        .route("/zone/{name}", axum::routing::post(handle_post_zone))
-        .route(
-            "/zone/{name}/publish",
-            axum::routing::post(handle_publish_zone),
-        )
-        .route("/vdf/register", axum::routing::post(handle_vdf_register))
-        .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
-        .route("/delegation", axum::routing::post(handle_delegation))
         .route(
             "/delegation/status/{challenge_hex}",
             axum::routing::get(handle_delegation_status),
@@ -147,7 +94,6 @@ pub fn app(state: ApiState) -> Router {
         .nest("/api", public_api_routes.clone().merge(auth_routes.clone()))
         .merge(public_api_routes)
         .merge(auth_routes)
-        .fallback(get(static_handler))
         .layer(cors)
         .with_state(state)
 }

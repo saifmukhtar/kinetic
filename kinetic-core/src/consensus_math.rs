@@ -23,9 +23,7 @@ impl ConsensusParams {
     ]);
 
     /// The exact list of names the Genesis Key is allowed to claim.
-    pub const GENESIS_ALLOWLIST: [&'static str; 39] = [
-        "saif",
-        "saifmukhtar",
+    pub const GENESIS_ALLOWLIST: [&'static str; 37] = [
         "admin",
         "kinetic",
         "root",
@@ -175,12 +173,12 @@ mod tests {
 
         // Genesis key gets 10,000 iterations for allowlisted names before expiry.
         let iters_at_launch =
-            params.required_iterations("saif.kin", ConsensusParams::GENESIS_START_PULSE, &pk);
+            params.required_iterations("admin.kin", ConsensusParams::GENESIS_START_PULSE, &pk);
         assert_eq!(iters_at_launch, 10000);
 
         // Still 10000 well within the expiry window.
         let iters_later = params.required_iterations(
-            "saif.kin",
+            "admin.kin",
             ConsensusParams::GENESIS_START_PULSE + 1_000_000,
             &pk,
         );
@@ -188,7 +186,7 @@ mod tests {
 
         // Finding 11: After GENESIS_EXPIRY_PULSE, genesis key gets no exemption.
         let iters_expired =
-            params.required_iterations("saif.kin", ConsensusParams::GENESIS_EXPIRY_PULSE + 1, &pk);
+            params.required_iterations("admin.kin", ConsensusParams::GENESIS_EXPIRY_PULSE + 1, &pk);
         assert!(
             iters_expired > 10000,
             "Genesis key must compute full VDF after expiry"

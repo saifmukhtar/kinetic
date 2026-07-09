@@ -71,7 +71,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Install the daemon as a system service and setup CA
-    Install,
+    Install {
+        #[arg(long)]
+        user: Option<String>,
+        #[arg(long)]
+        config_dir: Option<String>,
+    },
     /// Uninstall the daemon system service
     Uninstall,
     /// Start the daemon (foreground)
@@ -84,6 +89,12 @@ enum Commands {
 
 fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
     if cfg!(target_os = "linux") {
+        std::process::Command::new("sudo")
+            .arg("mkdir")
+            .arg("-p")
+            .arg("/usr/local/share/ca-certificates")
+            .status()?;
+            
         let status = std::process::Command::new("sudo")
             .arg("cp")
             .arg(cert_path)
@@ -116,10 +127,14 @@ fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-fn install_service() -> Result<()> {
-    let base_config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic");
+fn install_service(user: Option<String>, config_dir_opt: Option<String>) -> Result<()> {
+    let base_config_dir = if let Some(dir) = config_dir_opt {
+        std::path::PathBuf::from(dir)
+    } else {
+        dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("kinetic")
+    };
     std::fs::create_dir_all(&base_config_dir)?;
 
     println!("Generating root CA...");
@@ -150,7 +165,7 @@ fn install_service() -> Result<()> {
             .parse()
             .map_err(|_| anyhow::anyhow!("Failed to parse start"))?],
         contents: None,
-        username: None,
+        username: user,
         working_directory: None,
         environment: None,
         autostart: true,
@@ -205,11 +220,11 @@ async fn run_daemon() -> Result<()> {
     }
 
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 
-    info!("Starting Kinetic Daemon...");
+    info!("Starting Kinetic Daemon (PID: {})...", std::process::id());
 
     let storage_path = config
         .daemon
@@ -659,8 +674,8 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Some(Commands::Install) => {
-            install_service()?;
+        Some(Commands::Install { user, config_dir }) => {
+            install_service(user.clone(), config_dir.clone())?;
         }
         Some(Commands::Uninstall) => {
             uninstall_service()?;
