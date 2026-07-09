@@ -237,8 +237,4 @@ fi
 
 echo -e "\n${GREEN}=== Kinetic successfully built and installed! ===${NC}"
 echo -e "${CYAN}Documentation & Guide:${NC} https://kinetic.saifmukhtar.dev"
-if [[ " ${BINS_TO_BUILD[*]} " =~ " kinetic-daemon " ]]; then
-    echo -e "${CYAN}Local Dashboard:${NC}       http://localhost:16002\n"
-else
-    echo ""
-fi
+echo ""
