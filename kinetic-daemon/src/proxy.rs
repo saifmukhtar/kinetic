@@ -349,11 +349,11 @@ async fn forward_to_backend_direct(
         tracing::info!("Proxy considering record: {:?}", record);
         match record {
             kinetic_core::types::DnsRecord::A(ip) => {
-                target_str = ip.clone();
+                target_str = ip.to_string();
                 break;
             }
             kinetic_core::types::DnsRecord::AAAA(ip) => {
-                target_str = ip.clone();
+                target_str = ip.to_string();
                 break;
             }
             kinetic_core::types::DnsRecord::TXT(_) => {
@@ -376,29 +376,28 @@ async fn forward_to_backend_direct(
     let ip_str = target_str;
 
     // Validate it is actually a routable IP or PeerId
-    let is_ip_or_socket =
-        if let Ok(_ip) = ip_str.parse::<std::net::IpAddr>() {
-            // Double check it wasn't a TXT/PeerId record that just happens to be a valid IP
-            records
-                .iter()
-                .find(|r| match r {
-                    kinetic_core::types::DnsRecord::A(s)
-                    | kinetic_core::types::DnsRecord::AAAA(s) => s == &ip_str,
-                    _ => false,
-                })
-                .is_some()
-        } else if let Ok(_sa) = ip_str.parse::<std::net::SocketAddr>() {
-            records
-                .iter()
-                .find(|r| match r {
-                    kinetic_core::types::DnsRecord::A(s)
-                    | kinetic_core::types::DnsRecord::AAAA(s) => s == &ip_str,
-                    _ => false,
-                })
-                .is_some()
-        } else {
-            false
-        };
+    let is_ip_or_socket = if let Ok(_ip) = ip_str.parse::<std::net::IpAddr>() {
+        // Double check it wasn't a TXT/PeerId record that just happens to be a valid IP
+        records
+            .iter()
+            .find(|r| match r {
+                kinetic_core::types::DnsRecord::A(s) => s.to_string() == ip_str,
+                kinetic_core::types::DnsRecord::AAAA(s) => s.to_string() == ip_str,
+                _ => false,
+            })
+            .is_some()
+    } else if let Ok(_sa) = ip_str.parse::<std::net::SocketAddr>() {
+        records
+            .iter()
+            .find(|r| match r {
+                kinetic_core::types::DnsRecord::A(s) => s.to_string() == ip_str,
+                kinetic_core::types::DnsRecord::AAAA(s) => s.to_string() == ip_str,
+                _ => false,
+            })
+            .is_some()
+    } else {
+        false
+    };
 
     if is_ip_or_socket {
         // Prevent SSRF: Do not proxy to loopback, private, or multicast networks!
