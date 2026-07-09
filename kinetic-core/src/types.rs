@@ -391,14 +391,12 @@ pub fn derive_heartbeat_keys(name: &str) -> Vec<[u8; 32]> {
     keys
 }
 
-/// Loads or generates the daemon's persistent Ed25519 signing key.
+/// Loads the daemon's persistent Ed25519 signing key.
 ///
 /// The key is stored at `~/.config/kinetic/identity.key` (or the path set by
-/// `KINETIC_KEY_PATH`). If the file is missing, a new key is generated and
-/// written atomically. If the file is found but has the wrong length, an error
-/// is returned to prevent silent key corruption.
+/// `KINETIC_KEY_PATH`). If the file is missing, an error is returned.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn load_or_create_keypair(
+pub fn load_keypair(
     filename: &str,
 ) -> Result<ed25519_dalek::SigningKey, crate::error::KineticError> {
     use directories::ProjectDirs;
@@ -417,10 +415,6 @@ pub fn load_or_create_keypair(
                 })
         });
 
-    if let Some(parent) = key_path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-
     if key_path.exists() {
         let bytes = fs::read(&key_path)?;
         if bytes.len() == 32 {
@@ -428,19 +422,54 @@ pub fn load_or_create_keypair(
             array.copy_from_slice(&bytes);
             return Ok(ed25519_dalek::SigningKey::from_bytes(&array));
         } else {
-            return Err(crate::error::KineticError::CryptoError(
+            return Err(crate::error::KineticError::IdentityError(
                 format!("Identity file is corrupted! Expected 32 bytes, found {}. Please restore from a backup or manually delete the file to generate a new identity.", bytes.len())
             ));
         }
     }
 
-    let mut bytes = [0u8; 32];
-    if getrandom::getrandom(&mut bytes).is_err() {
-        return Err(crate::error::KineticError::CryptoError(
-            "Random generation failed".to_string(),
-        ));
+    Err(crate::error::KineticError::IdentityError("Identity file not found. Please run 'kinetic-cli seed init' or use the Desktop app to create one.".to_string()))
+}
+
+/// Derives an Ed25519 key from a BIP-39 mnemonic using PBKDF2-HMAC-SHA512
+/// and securely saves it to the node's identity file.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn save_keypair_from_mnemonic(
+    filename: &str,
+    phrase: &str,
+) -> Result<ed25519_dalek::SigningKey, crate::error::KineticError> {
+    use bip39::{Language, Mnemonic};
+    use directories::ProjectDirs;
+    use pbkdf2::pbkdf2_hmac;
+    use sha2::Sha512;
+    use std::fs;
+    use std::path::PathBuf;
+
+    let mnemonic = Mnemonic::parse_in(Language::English, phrase).map_err(|e| {
+        crate::error::KineticError::IdentityError(format!("Invalid seed phrase: {}", e))
+    })?;
+
+    let seed = mnemonic.to_seed("");
+    let mut derived = [0u8; 32];
+    pbkdf2_hmac::<Sha512>(&seed, b"KINETIC_NODE_KEY_v1", 2048, &mut derived);
+
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived);
+
+    let key_path = std::env::var("KINETIC_KEY_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            ProjectDirs::from("com", "kinetic", "kinetic")
+                .map(|d| d.config_dir().join(filename))
+                .unwrap_or_else(|| {
+                    std::env::current_dir()
+                        .unwrap_or_else(|_| PathBuf::from("."))
+                        .join(format!(".kinetic/{}", filename))
+                })
+        });
+
+    if let Some(parent) = key_path.parent() {
+        let _ = fs::create_dir_all(parent);
     }
-    let signing_key = ed25519_dalek::SigningKey::from_bytes(&bytes);
 
     // Atomic write to prevent file corruption during generation
     let tmp_path = key_path.with_extension("tmp");
@@ -450,16 +479,7 @@ pub fn load_or_create_keypair(
     Ok(signing_key)
 }
 
-#[cfg(target_arch = "wasm32")]
-/// Stub implementation for loading or creating a keypair in Wasm
-pub fn load_or_create_keypair(
-    _filename: &str,
-) -> Result<ed25519_dalek::SigningKey, crate::error::KineticError> {
-    Err(crate::error::KineticError::Internal(
-        "Key generation via filesystem is not supported in Wasm. Provide a key manually."
-            .to_string(),
-    ))
-}
+
 
 #[cfg(test)]
 mod tests {
@@ -571,9 +591,9 @@ pub struct DnsZone {
 #[serde(tag = "type", content = "value")]
 pub enum DnsRecord {
     /// An IPv4 address record.
-    A(String),
+    A(std::net::Ipv4Addr),
     /// An IPv6 address record.
-    AAAA(String),
+    AAAA(std::net::Ipv6Addr),
     /// A canonical name alias.
     CNAME(String),
     /// A text record.
@@ -644,7 +664,107 @@ impl DnsZone {
             }
         }
 
-        serde_json::from_slice::<DnsZone>(payload).map_err(crate::error::KineticError::ParseError)
+        let mut zone = serde_json::from_slice::<DnsZone>(payload)
+            .map_err(crate::error::KineticError::ParseError)?;
+
+        // Lowercase all labels
+        let mut lower_records = std::collections::HashMap::new();
+        for (k, v) in zone.records.drain() {
+            lower_records.insert(k.to_lowercase(), v);
+        }
+        zone.records = lower_records;
+
+        zone.validate()?;
+        Ok(zone)
+    }
+
+    /// Validates the DnsZone strictly.
+    pub fn validate(&self) -> Result<(), crate::error::KineticError> {
+        let mut total_records = 0;
+
+        for (label, records) in &self.records {
+            total_records += records.len();
+            if total_records > 50 {
+                return Err(crate::error::KineticError::DnsValidationError(
+                    "Maximum of 50 DNS records allowed per zone to prevent network bloat"
+                        .to_string(),
+                ));
+            }
+            // Label validation
+            if label.is_empty() || label.len() > 63 {
+                return Err(crate::error::KineticError::DnsValidationError(format!(
+                    "Invalid label length: {}",
+                    label
+                )));
+            }
+            if label != "@" && label != "*" {
+                if label.starts_with('-') || label.ends_with('-') {
+                    return Err(crate::error::KineticError::DnsValidationError(format!(
+                        "Label cannot start or end with a hyphen: {}",
+                        label
+                    )));
+                }
+                for c in label.chars() {
+                    if !c.is_ascii_alphanumeric() && c != '-' && c != '_' {
+                        return Err(crate::error::KineticError::DnsValidationError(format!(
+                            "Invalid character in label: {}",
+                            label
+                        )));
+                    }
+                }
+            }
+
+            // CNAME uniqueness validation
+            let has_cname = records.iter().any(|r| matches!(r, DnsRecord::CNAME(_)));
+            if has_cname && records.len() > 1 {
+                return Err(crate::error::KineticError::DnsValidationError(format!(
+                    "CNAME record for '{}' must be the only record",
+                    label
+                )));
+            }
+
+            for record in records {
+                match record {
+                    DnsRecord::A(_) | DnsRecord::AAAA(_) => {
+                        // Inherently validated by serde parsing into std::net::IpAddr
+                    }
+                    DnsRecord::TXT(txt) => {
+                        if txt.len() > 255 {
+                            return Err(crate::error::KineticError::DnsValidationError(format!(
+                                "TXT record too long for label {}",
+                                label
+                            )));
+                        }
+                    }
+                    DnsRecord::CNAME(cname) => {
+                        if cname.is_empty() || cname.len() > 253 {
+                            return Err(crate::error::KineticError::DnsValidationError(format!(
+                                "CNAME target length invalid for label {}",
+                                label
+                            )));
+                        }
+                    }
+                    DnsRecord::PeerId(peer_id_str) => {
+                        use std::str::FromStr;
+                        if libp2p_identity::PeerId::from_str(peer_id_str).is_err() {
+                            return Err(crate::error::KineticError::DnsValidationError(format!(
+                                "Invalid PeerId string: {}",
+                                peer_id_str
+                            )));
+                        }
+                    }
+                    DnsRecord::KID(kid_str) => {
+                        if !kid_str.starts_with("did:kinetic:") {
+                            return Err(crate::error::KineticError::DnsValidationError(format!(
+                                "Invalid KID string (missing prefix): {}",
+                                kid_str
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -654,12 +774,12 @@ mod zone_tests {
 
     #[test]
     fn test_parse_payload() {
-        let json = r#"{"records": {"@": [{"type": "PeerId", "value": "12D3K"}]}}"#;
+        let json = r#"{"records": {"@": [{"type": "PeerId", "value": "12D3KooWNvSVhMTBqYq5AStb2H8s1uA5PpH8Zt9vEHQo6bC8vJ2K"}]}}"#;
         let zone = DnsZone::parse_payload(json.as_bytes()).unwrap();
         if let Some(records) = zone.records.get("@") {
             assert_eq!(records.len(), 1);
             if let DnsRecord::PeerId(ref pid) = records[0] {
-                assert_eq!(pid, "12D3K");
+                assert_eq!(pid, "12D3KooWNvSVhMTBqYq5AStb2H8s1uA5PpH8Zt9vEHQo6bC8vJ2K");
             } else {
                 panic!("Expected PeerId");
             }

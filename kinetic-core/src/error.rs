@@ -59,6 +59,14 @@ pub enum KineticError {
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
+    /// A DNS Zone payload failed static validation checks.
+    #[error("DNS Validation error: {0}")]
+    DnsValidationError(String),
+
+    /// Missing or corrupted node identity.
+    #[error("Identity error: {0}")]
+    IdentityError(String),
+
     /// A cryptographic operation (hashing, signing, key derivation) failed.
     #[error("Cryptographic operation failed: {0}")]
     CryptoError(String),
