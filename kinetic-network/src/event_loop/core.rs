@@ -37,6 +37,7 @@ pub struct NetworkEventLoop {
     pub(crate) banned_peers: std::collections::HashSet<libp2p::PeerId>,
     pub(crate) commitment_miss_counts: HashMap<PeerId, u32>,
     pub(crate) bootstrap_connection_time: HashMap<PeerId, web_time::Instant>,
+    pub(crate) nat_status: String,
 }
 
 impl NetworkEventLoop {

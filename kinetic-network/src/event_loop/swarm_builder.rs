@@ -143,6 +143,43 @@ impl super::core::NetworkEventLoop {
                     libp2p::swarm::behaviour::toggle::Toggle::from(None)
                 };
 
+                let autonat = libp2p::autonat::Behaviour::new(
+                    peer_id,
+                    libp2p::autonat::Config {
+                        boot_delay: std::time::Duration::from_secs(15),
+                        retry_interval: std::time::Duration::from_secs(90),
+                        refresh_interval: std::time::Duration::from_secs(3600),
+                        ..Default::default()
+                    },
+                );
+
+                #[cfg(not(target_arch = "wasm32"))]
+                let upnp = libp2p::swarm::behaviour::toggle::Toggle::from(Some(
+                    libp2p::upnp::tokio::Behaviour::default(),
+                ));
+
+                #[cfg(not(target_arch = "wasm32"))]
+                let relay_server = if mode == NetworkMode::FullNode {
+                    libp2p::swarm::behaviour::toggle::Toggle::from(Some(
+                        libp2p::relay::Behaviour::new(
+                            peer_id,
+                            libp2p::relay::Config {
+                                max_circuits: 16,
+                                max_circuits_per_peer: 4,
+                                circuit_src_rate_limiters: vec![],
+                                max_circuit_duration: std::time::Duration::from_secs(2 * 60),
+                                max_circuit_bytes: 1024 * 1024 * 4,
+                                reservation_rate_limiters: vec![],
+                                max_reservations: 128,
+                                max_reservations_per_peer: 4,
+                                reservation_duration: std::time::Duration::from_secs(60 * 60),
+                            },
+                        ),
+                    ))
+                } else {
+                    libp2p::swarm::behaviour::toggle::Toggle::from(None)
+                };
+
                 KineticBehavior {
                     relay_client,
                     dcutr,
@@ -153,6 +190,11 @@ impl super::core::NetworkEventLoop {
                     stream,
                     kademlia,
                     gossipsub,
+                    autonat,
+                    #[cfg(not(target_arch = "wasm32"))]
+                    upnp,
+                    #[cfg(not(target_arch = "wasm32"))]
+                    relay_server,
                     #[cfg(not(target_arch = "wasm32"))]
                     mdns,
                 }
@@ -291,6 +333,7 @@ impl super::core::NetworkEventLoop {
             },
             commitment_miss_counts: HashMap::new(),
             bootstrap_connection_time: HashMap::new(),
+            nat_status: "Unknown".to_string(),
         };
 
         Ok((client, event_loop))

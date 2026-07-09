@@ -50,7 +50,9 @@ async fn start_mock_daemon() -> String {
                     };
                     zone.records.insert(
                         "@".to_string(),
-                        vec![kinetic_core::types::DnsRecord::A("1.2.3.4".to_string())],
+                        vec![kinetic_core::types::DnsRecord::A(
+                            "1.2.3.4".parse().unwrap(),
+                        )],
                     );
                     let payload = serde_json::to_vec(&zone).unwrap();
                     let reveal = kinetic_core::types::Reveal {

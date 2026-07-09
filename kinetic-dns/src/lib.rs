@@ -233,29 +233,21 @@ impl RequestHandler for KineticDnsHandler {
                                                     if q_type
                                                         == hickory_proto::rr::RecordType::A =>
                                                 {
-                                                    if let Ok(ipv4) =
-                                                        std::net::Ipv4Addr::from_str(ip)
-                                                    {
-                                                        response_records.push(Record::from_rdata(
-                                                            name.clone(),
-                                                            60,
-                                                            RData::A(ipv4.into()),
-                                                        ));
-                                                    }
+                                                    response_records.push(Record::from_rdata(
+                                                        name.clone(),
+                                                        60,
+                                                        RData::A((*ip).into()),
+                                                    ));
                                                 }
                                                 kinetic_core::types::DnsRecord::AAAA(ip)
                                                     if q_type
                                                         == hickory_proto::rr::RecordType::AAAA =>
                                                 {
-                                                    if let Ok(ipv6) =
-                                                        std::net::Ipv6Addr::from_str(ip)
-                                                    {
-                                                        response_records.push(Record::from_rdata(
-                                                            name.clone(),
-                                                            60,
-                                                            RData::AAAA(ipv6.into()),
-                                                        ));
-                                                    }
+                                                    response_records.push(Record::from_rdata(
+                                                        name.clone(),
+                                                        60,
+                                                        RData::AAAA((*ip).into()),
+                                                    ));
                                                 }
                                                 kinetic_core::types::DnsRecord::CNAME(target)
                                                     if q_type
