@@ -19,11 +19,10 @@ fn test_013_kid_hijack() {
     }
     let victim_did = format!("did:kin:{}", hex_hash);
 
-    let mut doc = KidDocument {
+    let doc = KidDocument {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: KineticDid::new(&victim_did).unwrap(),
         created_at: 1000,
-        pow_nonce: 0,
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
             key_type: "Ed25519".to_string(),
@@ -33,7 +32,6 @@ fn test_013_kid_hijack() {
         revocation_keys: vec![],
         signature: None,
     };
-    doc.mine_pow();
     let victim_doc = doc.sign(&victim_key).unwrap();
     assert!(victim_doc.verify().is_ok());
 
@@ -41,11 +39,10 @@ fn test_013_kid_hijack() {
     let attacker_key = SigningKey::generate(&mut OsRng);
     let attacker_pub_b64 = b64_url.encode(attacker_key.verifying_key().to_bytes());
 
-    let mut forged_doc = KidDocument {
+    let forged_doc = KidDocument {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: KineticDid::new(&victim_did).unwrap(), // Claiming victim's DID!
         created_at: 2000,
-        pow_nonce: 0,
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
             key_type: "Ed25519".to_string(),
@@ -55,8 +52,6 @@ fn test_013_kid_hijack() {
         revocation_keys: vec![],
         signature: None,
     };
-    forged_doc.mine_pow();
-
     let signed_forgery = forged_doc.sign(&attacker_key).unwrap();
 
     // THIS MUST FAIL, because verify() now checks that the

@@ -40,32 +40,6 @@ pub use document::{ControllerKey, KidDocument, ManifestPointer};
 pub use error::KidError;
 pub use manifest::{CapabilityManifest, ServiceEntry};
 
-/// The required number of leading zero bits in the SHA-256 PoW hash for a
-/// valid [`KidDocument`] or [`CapabilityManifest`].
-pub const KID_POW_TARGET: u32 = 20;
-
-/// Returns `true` if the given SHA-256 `hash` satisfies `target_bits` leading
-/// zero bits, which is the Proof-of-Work requirement for KID documents.
-pub fn validate_pow(hash: &[u8; 32], target_bits: u32) -> bool {
-    let target_bytes = (target_bits / 8) as usize;
-    let remainder_bits = target_bits % 8;
-
-    for &byte in hash.iter().take(target_bytes) {
-        if byte != 0 {
-            return false;
-        }
-    }
-
-    if remainder_bits > 0 {
-        let mask = 0xFF << (8 - remainder_bits);
-        if (hash[target_bytes] & mask) != 0 {
-            return false;
-        }
-    }
-
-    true
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -93,7 +67,6 @@ mod tests {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
             created_at: 1000,
-            pow_nonce: 0,
             controller_keys: vec![],
             manifest: None,
             revocation_keys: vec![],
@@ -106,7 +79,7 @@ mod tests {
         assert!(!jcs_str.contains("signature"));
 
         // Fields must be in lexicographical order per JCS
-        let expected = r#"{"controller_keys":[],"created_at":1000,"kid":"did:kin:test","pow_nonce":0,"type":"kinetic.kid.v1"}"#;
+        let expected = r#"{"controller_keys":[],"created_at":1000,"kid":"did:kin:test","type":"kinetic.kid.v1"}"#;
         assert_eq!(jcs_str, expected);
     }
 
@@ -126,11 +99,10 @@ mod tests {
         }
 
         let did = KineticDid::new(&format!("did:kin:{}", hex_hash)).unwrap();
-        let mut doc = KidDocument {
+        let doc = KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
             created_at: 1234567890,
-            pow_nonce: 0,
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#primary", hex_hash),
                 key_type: "Ed25519".to_string(),
@@ -141,7 +113,6 @@ mod tests {
             signature: None,
         };
 
-        doc.mine_pow();
         let signed_doc = doc.sign(&keypair).unwrap();
         assert!(signed_doc.signature.is_some());
 
@@ -170,11 +141,10 @@ mod tests {
 
         let did = KineticDid::new(&format!("did:kin:{}", hex_hash)).unwrap();
 
-        let mut doc = KidDocument {
+        let doc = KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
             created_at: 1000,
-            pow_nonce: 0,
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#primary", hex_hash),
                 key_type: "Ed25519".to_string(),
@@ -185,12 +155,11 @@ mod tests {
             signature: None,
         };
 
-        let mut manifest = CapabilityManifest {
+        let manifest = CapabilityManifest {
             doc_type: "kinetic.manifest.v1".to_string(),
             kid: did,
             version: 1,
             valid_from: 1000,
-            pow_nonce: 0,
             services: vec![ServiceEntry {
                 id: "web".to_string(),
                 service_type: "website".to_string(),
@@ -200,8 +169,6 @@ mod tests {
             signature: None,
         };
 
-        doc.mine_pow();
-        manifest.mine_pow();
         let signed_manifest = manifest.sign(&keypair).unwrap();
 
         assert!(signed_manifest.verify(&doc).is_ok());
@@ -212,7 +179,6 @@ mod tests {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: KineticDid::new("did:kin:test2").unwrap(),
             created_at: 1000,
-            pow_nonce: 0,
             controller_keys: vec![ControllerKey {
                 id: "did:kin:test2#bad".to_string(),
                 key_type: "Ed25519".to_string(),

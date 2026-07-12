@@ -42,8 +42,6 @@ pub struct KidDocument {
     pub kid: KineticDid,
     /// Unix timestamp (seconds) when this document was created.
     pub created_at: u64,
-    /// PoW nonce satisfying the 20-bit difficulty target over the JCS-canonical document.
-    pub pow_nonce: u64,
     /// Ordered list of Ed25519 verification keys that control this DID.
     pub controller_keys: Vec<ControllerKey>,
     /// Optional pointer to a [`CapabilityManifest`](crate::manifest::CapabilityManifest).
@@ -81,17 +79,6 @@ impl KidDocument {
 
         let msg_str = self.canonicalize()?;
         let msg_bytes = msg_str.as_bytes();
-
-        use sha2::{Digest, Sha256};
-        let mut pow_hasher = Sha256::new();
-        pow_hasher.update(msg_bytes);
-        let mut pow_hash = [0u8; 32];
-        pow_hash.copy_from_slice(&pow_hasher.finalize());
-        if !cfg!(feature = "simulation") && !crate::validate_pow(&pow_hash, crate::KID_POW_TARGET) {
-            return Err(KidError::CanonicalizationError(
-                "Invalid Proof of Work".to_string(),
-            ));
-        }
 
         let method_specific_id = self.kid.as_str().trim_start_matches("did:kin:");
 
@@ -134,28 +121,5 @@ impl KidDocument {
         let signature = keypair.sign(msg_str.as_bytes());
         self.signature = Some(b64_url.encode(signature.to_bytes()));
         Ok(self)
-    }
-
-    /// Mines a valid pow_nonce for this document. Should be called BEFORE sign().
-    pub fn mine_pow(&mut self) {
-        if cfg!(feature = "simulation") {
-            self.pow_nonce = 0;
-            return;
-        }
-        use sha2::{Digest, Sha256};
-        let mut nonce = 0u64;
-        loop {
-            self.pow_nonce = nonce;
-            if let Ok(msg_str) = self.canonicalize() {
-                let mut hasher = Sha256::new();
-                hasher.update(msg_str.as_bytes());
-                let mut hash = [0u8; 32];
-                hash.copy_from_slice(&hasher.finalize());
-                if crate::validate_pow(&hash, crate::KID_POW_TARGET) {
-                    break;
-                }
-            }
-            nonce += 1;
-        }
     }
 }
