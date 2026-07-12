@@ -208,7 +208,7 @@ async fn run_node() -> Result<()> {
 
     let (incoming_tx, _incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, mut gossip_rx) = tokio::sync::mpsc::channel(100);
-    let (_network_client, network_loop) = NetworkEventLoop::new(
+    let (network_client, network_loop) = NetworkEventLoop::new(
         network_config,
         local_key,
         storage.clone(),
@@ -216,6 +216,11 @@ async fn run_node() -> Result<()> {
         Some(incoming_tx),
         Some(gossip_tx),
     )?;
+
+    // Subscribe to Quicknet Pulse Gossip
+    let _ = network_client
+        .subscribe_gossip("drand_pulse_quicknet")
+        .await;
     tokio::spawn(async move {
         network_loop.run().await;
         tracing::warn!("Network loop exited");
@@ -223,23 +228,73 @@ async fn run_node() -> Result<()> {
     info!("P2P Network architecture wired");
 
     let gossip_gov_path = gov_state_path.clone();
+    let drand_client_gossip = drand_client.clone();
+    let drand_pulse_tx_gossip = drand_pulse_tx.clone();
     tokio::spawn(async move {
         while let Some((topic, payload)) = gossip_rx.recv().await {
             if topic == "kinetic_governance" {
                 gossip::handle_kinetic_governance_gossip(&payload, gossip_gov_path.clone());
+            } else if topic == "drand_pulse_quicknet" {
+                if let Ok(pulse) = serde_json::from_slice::<DrandPulse>(&payload) {
+                    if pulse.verify() {
+                        if let Ok(latest) = drand_client_gossip.load_cached_pulse() {
+                            if (pulse.round > latest.round || latest.is_unavailable)
+                                && drand_client_gossip.cache_pulse(&pulse).is_ok()
+                            {
+                                let _ = drand_pulse_tx_gossip.send(pulse.round);
+                            }
+                        }
+                    }
+                }
             }
         }
     });
 
     // 6. Start Drand Heartbeat
     let hb_drand = drand_client.clone();
+    let hb_network = network_client.clone();
+    let p2p_only = config.drand.p2p_only;
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        // Quicknet produces a block every 3 seconds.
+        let mut interval = tokio::time::interval(Duration::from_secs(3));
         loop {
             interval.tick().await;
-            if let Ok(pulse) = hb_drand.fetch_latest().await {
-                if !pulse.is_unavailable && !pulse.is_from_cache {
-                    let _ = drand_pulse_tx.send(pulse.round);
+
+            let mut should_fetch_http = !p2p_only;
+
+            if p2p_only {
+                if let Ok(latest) = hb_drand.load_cached_pulse() {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs();
+                    let expected_round = now.saturating_sub(1691584200) / 3;
+
+                    if expected_round > latest.round + 5 {
+                        tracing::warn!(
+                            "P2P Drand fallback triggered! We are behind by {} rounds.",
+                            expected_round.saturating_sub(latest.round)
+                        );
+                        should_fetch_http = true;
+                    }
+                } else {
+                    should_fetch_http = true;
+                }
+            }
+
+            if should_fetch_http {
+                if let Ok(pulse) = hb_drand.fetch_latest().await {
+                    if !pulse.is_unavailable && !pulse.is_from_cache {
+                        let _ = drand_pulse_tx.send(pulse.round);
+                        // Broadcast to P2P network if we are fetching HTTP
+                        if !p2p_only {
+                            if let Ok(payload) = serde_json::to_vec(&pulse) {
+                                let _ = hb_network
+                                    .broadcast_gossip("drand_pulse_quicknet", payload)
+                                    .await;
+                            }
+                        }
+                    }
                 }
             }
         }

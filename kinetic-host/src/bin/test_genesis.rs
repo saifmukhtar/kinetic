@@ -7,15 +7,10 @@ fn main() {
 
     let params = ConsensusParams::default();
     let iters = params.required_iterations(
-        &format!("{}{}", "test", kinetic_core::types::DOT_TLD),
-        30070835,
-        &pubkey,
+        "test.kin",
+        0,
     );
 
     println!("Public Key: {:?}", pubkey);
-    println!(
-        "Matches genesis? {}",
-        pubkey == ConsensusParams::GENESIS_PUBKEY.unwrap()
-    );
     println!("Iterations for test.kin: {}", iters);
 }

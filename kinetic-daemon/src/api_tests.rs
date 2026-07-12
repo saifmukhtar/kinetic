@@ -6,7 +6,6 @@ mod tests {
         http::{Request, StatusCode},
     };
     use http_body_util::BodyExt;
-    use kinetic_core::mempool::Mempool;
     use kinetic_core::traits::StorageEngine;
     use kinetic_network::client::{Command, NetworkClient};
     use kinetic_storage::SledStorage;
@@ -34,7 +33,6 @@ mod tests {
             storage: storage.clone(),
             auth_token: "test-token-123".to_string(),
             vdf_tasks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-            mempool: Arc::new(Mutex::new(Mempool::new(100, Duration::from_secs(3600)))),
             vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
         };
 

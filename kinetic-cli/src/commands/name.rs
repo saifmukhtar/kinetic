@@ -220,7 +220,7 @@ pub async fn handle_name_command(
             info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
 
             let required_iterations = kinetic_core::consensus_math::ConsensusParams::default()
-                .required_iterations(&fqdn, drand_data.round, &pubkey);
+                .required_iterations(&fqdn, drand_data.round);
             let actual_iterations = std::cmp::max(iterations, required_iterations);
 
             if actual_iterations >= 10_000_000 {
@@ -332,21 +332,19 @@ pub async fn handle_name_command(
                     public_key: pk_b64,
                 };
 
-                let mut doc = kinetic_kid::document::KidDocument {
+                let doc = kinetic_kid::document::KidDocument {
                     doc_type: "kinetic.kid.v1".to_string(),
                     kid: did.clone(),
                     created_at: std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs(),
-                    pow_nonce: 0,
                     controller_keys: vec![controller_key],
                     manifest: None,
                     revocation_keys: vec![],
                     signature: None,
                 };
 
-                doc.mine_pow();
                 let signed_doc = doc.sign(&kid_keypair).unwrap();
 
                 // Save to file
@@ -354,7 +352,7 @@ pub async fn handle_name_command(
                 std::fs::write(&base_kid_path, doc_json).unwrap();
 
                 // Also save the private key for the user
-                let key_path = kid_dir.join(format!("{}.key.bin", base_name));
+                let key_path = kid_dir.join(format!("{}.key.kin", base_name));
                 std::fs::write(&key_path, kid_keypair.to_bytes()).unwrap();
 
                 info!(
@@ -532,7 +530,7 @@ pub async fn handle_name_command(
 
             let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
             let base_iterations =
-                consensus_math.required_iterations(&fqdn, drand_data.round, &pubkey);
+                consensus_math.required_iterations(&fqdn, drand_data.round);
 
             // 80% discount
             let discounted_iterations = std::cmp::max(1, base_iterations / 5);

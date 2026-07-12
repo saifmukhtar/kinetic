@@ -47,9 +47,9 @@ pub enum KineticStoreError {
     /// KID document signature failed verification.
     #[error("KID document signature is invalid")]
     InvalidKidSignature,
-    /// The PoW on the manifest is invalid.
-    #[error("manifest proof-of-work is invalid")]
-    InvalidManifestPoW,
+    /// The signature on the manifest is invalid.
+    #[error("manifest signature is invalid")]
+    InvalidManifestSignature,
     /// Record payload didn't match any known prefix.
     #[error("unknown record type prefix")]
     UnknownRecordType,
@@ -80,7 +80,7 @@ impl KineticStoreError {
             | Self::MalformedSignature
             | Self::VdfEngineError(_)
             | Self::InvalidKidSignature
-            | Self::InvalidManifestPoW
+            | Self::InvalidManifestSignature
             | Self::InvalidDrandHex
             | Self::StaleHeartbeat
             | Self::InvalidHostRouteSignature => Severity::Error,

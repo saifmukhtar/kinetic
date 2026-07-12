@@ -16,6 +16,9 @@ pub enum IdentityCommands {
         kid: String,
         #[arg(long, default_value = "manifest.json")]
         manifest: String,
+        /// The domain name that owns this KID (e.g. saif.kin)
+        #[arg(long)]
+        name: String,
     },
     /// Resolve a did:kin from the network
     Resolve { did: String },
@@ -42,7 +45,7 @@ pub async fn handle_identity_command(
 
             let kid_did = kinetic_kid::did::KineticDid::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
-            let mut doc = kinetic_kid::document::KidDocument {
+            let doc = kinetic_kid::document::KidDocument {
                 doc_type: "kinetic.kid.v1".to_string(),
                 kid: kid_did,
                 created_at: std::time::SystemTime::now()
@@ -57,23 +60,42 @@ pub async fn handle_identity_command(
                 manifest: None,
                 revocation_keys: vec![],
                 signature: None,
-                pow_nonce: 0,
             };
 
-            doc.mine_pow();
             let signed_doc = doc.sign(&keypair).expect("Failed to sign KID");
             let json_data = serde_json::to_string_pretty(&signed_doc)?;
 
             std::fs::write(&output, json_data)?;
             info!("Successfully generated KID and wrote to {}", output);
         }
-        IdentityCommands::Publish { kid, manifest } => {
+        IdentityCommands::Publish {
+            kid,
+            manifest,
+            name,
+        } => {
+            // Load identity keypair to sign the AuthorizedKid
+            let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+            let keypair = kinetic_core::types::load_keypair(&identity_path.to_string_lossy())?;
+            use ed25519_dalek::Signer;
+
             if std::path::Path::new(&kid).exists() {
                 let data = std::fs::read_to_string(&kid)?;
                 let doc: kinetic_kid::document::KidDocument = serde_json::from_str(&data)?;
+
+                let mut auth_kid = kinetic_core::types::AuthorizedKid {
+                    name: name.clone(),
+                    kid_doc: doc,
+                    owner_signature: vec![],
+                };
+                let signable = auth_kid.signable_bytes();
+                auth_kid.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
+
                 let daemon_url = format!("http://127.0.0.1:{}/publish-kid", config.daemon.api_port);
-                info!("Publishing KID {} to local daemon...", doc.kid.as_str());
-                let response = client.post(daemon_url).json(&doc).send().await;
+                info!(
+                    "Publishing AuthorizedKID {} to local daemon...",
+                    auth_kid.kid_doc.kid.as_str()
+                );
+                let response = client.post(daemon_url).json(&auth_kid).send().await;
                 match response {
                     Ok(res) if res.status().is_success() => {
                         info!("Success! KID successfully routed to DHT.")
@@ -88,15 +110,24 @@ pub async fn handle_identity_command(
             if std::path::Path::new(&manifest).exists() {
                 let data = std::fs::read_to_string(&manifest)?;
                 let doc: kinetic_kid::manifest::CapabilityManifest = serde_json::from_str(&data)?;
+
+                let mut auth_manifest = kinetic_core::types::AuthorizedManifest {
+                    name: name.clone(),
+                    manifest: doc,
+                    owner_signature: vec![],
+                };
+                let signable = auth_manifest.signable_bytes();
+                auth_manifest.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
+
                 let daemon_url = format!(
                     "http://127.0.0.1:{}/publish-manifest",
                     config.daemon.api_port
                 );
                 info!(
-                    "Publishing Capability Manifest for KID {}...",
-                    doc.kid.as_str()
+                    "Publishing Authorized Capability Manifest for KID {}...",
+                    auth_manifest.manifest.kid.as_str()
                 );
-                let response = client.post(daemon_url).json(&doc).send().await;
+                let response = client.post(daemon_url).json(&auth_manifest).send().await;
                 match response {
                     Ok(res) if res.status().is_success() => {
                         info!("Success! Manifest routed to DHT.")
@@ -237,6 +268,7 @@ mod tests {
         let cmd3 = IdentityCommands::Publish {
             kid: "nonexistent.json".to_string(),
             manifest: "nonexistent.json".to_string(),
+            name: "test.kin".to_string(),
         };
         let res3 = handle_identity_command(cmd3, &config, &client).await;
         assert!(res3.is_ok()); // Logs skipping

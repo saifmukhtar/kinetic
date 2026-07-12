@@ -184,6 +184,10 @@ impl KineticRecordStore {
                 .unwrap_or(reveal.drand_pulse);
             let hb_age = current_round.saturating_sub(last_hb);
 
+            if !kinetic_core::types::infrastructure::requires_heartbeat(name) {
+                continue; // Category 2 names are permanently exempt from thermodynamic pruning
+            }
+
             let mut exemption_rounds = 0;
             if let Some(&(hib_round, hib_iters)) = self.hibernations_by_name.get(name) {
                 let hib_age = current_round.saturating_sub(hib_round);
@@ -293,7 +297,7 @@ impl KineticRecordStore {
 
         let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
         let base_required_iterations =
-            consensus_math.required_iterations(&reveal.name, reveal.drand_pulse, &reveal.pubkey);
+            consensus_math.required_iterations(&reveal.name, reveal.drand_pulse);
 
         let mut required_iterations = if let Some(prev) = &reveal.previous_proof {
             // Verify previous proof
@@ -313,7 +317,7 @@ impl KineticRecordStore {
             );
 
             let prev_req =
-                consensus_math.required_iterations(&reveal.name, prev.drand_pulse, &reveal.pubkey);
+                consensus_math.required_iterations(&reveal.name, prev.drand_pulse);
             let is_not_too_old = self.current_drand_round.saturating_sub(prev.drand_pulse)
                 <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
 
@@ -448,37 +452,80 @@ impl kad::store::RecordStore for KineticRecordStore {
                 heartbeat.name
             );
             self.handle_heartbeat(&heartbeat)?;
-        } else if let Ok(kid_doc) = serde_json::from_slice::<kinetic_kid::KidDocument>(&r.value) {
-            if kid_doc.verify().is_ok() {
-                tracing::info!(
-                    "KineticRecordStore::put accepted valid KID Document for {}",
-                    kid_doc.kid.as_str()
-                );
-            } else {
-                let err = KineticStoreError::InvalidKidSignature;
-                tracing::warn!(
-                    error_code = "KIN-STORE-017",
-                    severity = ?err.severity(),
-                    "Rejecting KID Document: {}", err
-                );
-                return Err(err.into());
-            }
-        } else if let Ok(manifest) =
-            serde_json::from_slice::<kinetic_kid::CapabilityManifest>(&r.value)
+        } else if let Ok(auth_kid) =
+            serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&r.value)
         {
-            if manifest.verify_pow() {
-                tracing::info!(
-                    "KineticRecordStore::put accepted Capability Manifest for {} (PoW valid)",
-                    manifest.kid.as_str()
-                );
+            if let Some(reveal) = self.reveals_by_name.get(&auth_kid.name) {
+                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
+                {
+                    use ed25519_dalek::Verifier;
+                    if let Ok(sig) = ed25519_dalek::Signature::from_slice(&auth_kid.owner_signature)
+                    {
+                        if pubkey.verify(&auth_kid.signable_bytes(), &sig).is_ok()
+                            && auth_kid.kid_doc.verify().is_ok()
+                        {
+                            tracing::info!(
+                                "KineticRecordStore::put accepted AuthorizedKid for {}",
+                                auth_kid.kid_doc.kid.as_str()
+                            );
+                        } else {
+                            let err = KineticStoreError::InvalidKidSignature;
+                            tracing::warn!(
+                                error_code = "KIN-STORE-017",
+                                severity = ?err.severity(),
+                                "Rejecting AuthorizedKid: invalid signature or invalid document"
+                            );
+                            return Err(err.into());
+                        }
+                    } else {
+                        return Err(KineticStoreError::InvalidKidSignature.into());
+                    }
+                } else {
+                    return Err(KineticStoreError::InvalidKidSignature.into());
+                }
             } else {
-                let err = KineticStoreError::InvalidManifestPoW;
                 tracing::warn!(
-                    error_code = "KIN-STORE-018",
-                    severity = ?err.severity(),
-                    "Rejecting Capability Manifest: {}", err
+                    "Rejecting AuthorizedKid: No active reveal found for name {}",
+                    auth_kid.name
                 );
-                return Err(err.into());
+                return Err(KineticStoreError::InvalidKidSignature.into());
+            }
+        } else if let Ok(auth_manifest) =
+            serde_json::from_slice::<kinetic_core::types::AuthorizedManifest>(&r.value)
+        {
+            if let Some(reveal) = self.reveals_by_name.get(&auth_manifest.name) {
+                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
+                {
+                    use ed25519_dalek::Verifier;
+                    if let Ok(sig) =
+                        ed25519_dalek::Signature::from_slice(&auth_manifest.owner_signature)
+                    {
+                        if pubkey.verify(&auth_manifest.signable_bytes(), &sig).is_ok() {
+                            tracing::info!(
+                                "KineticRecordStore::put accepted AuthorizedManifest for {}",
+                                auth_manifest.manifest.kid.as_str()
+                            );
+                        } else {
+                            let err = KineticStoreError::InvalidManifestSignature;
+                            tracing::warn!(
+                                error_code = "KIN-STORE-018",
+                                severity = ?err.severity(),
+                                "Rejecting AuthorizedManifest: invalid signature"
+                            );
+                            return Err(err.into());
+                        }
+                    } else {
+                        return Err(KineticStoreError::InvalidManifestSignature.into());
+                    }
+                } else {
+                    return Err(KineticStoreError::InvalidManifestSignature.into());
+                }
+            } else {
+                tracing::warn!(
+                    "Rejecting AuthorizedManifest: No active reveal found for name {}",
+                    auth_manifest.name
+                );
+                return Err(KineticStoreError::InvalidManifestSignature.into());
             }
         } else if let Ok(host_route) =
             serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&r.value)

@@ -66,7 +66,6 @@ impl KineticRecordStore {
                 let base_diff = consensus_math.required_iterations(
                     &reveal.name,
                     reveal.drand_pulse,
-                    &reveal.pubkey,
                 );
                 let steal_threshold = consensus_math.steal_difficulty(base_diff, hb_age);
 

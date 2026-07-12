@@ -141,6 +141,58 @@ impl RequestHandler for KineticDnsHandler {
             let domain_name = kinetic_core::types::normalize_name(&clean_name);
             let apex_domain = kinetic_core::types::extract_apex_domain(&domain_name);
 
+            // Intercept Category 1 PUBLIC_NAMES
+            let parts: Vec<&str> = apex_domain.split('.').collect();
+            if !parts.is_empty() && kinetic_core::types::PUBLIC_NAMES.contains(&parts[0]) {
+                if parts[0] == "localhost" {
+                    let mut response_records = Vec::new();
+                    let name = Name::from_str(&query_name).unwrap_or_else(|_| Name::root());
+                    
+                    if query.query_type() == hickory_proto::rr::RecordType::A {
+                        response_records.push(Record::from_rdata(
+                            name.clone(),
+                            3600,
+                            RData::A(std::net::Ipv4Addr::new(127, 0, 0, 1).into()),
+                        ));
+                    } else if query.query_type() == hickory_proto::rr::RecordType::AAAA {
+                        response_records.push(Record::from_rdata(
+                            name.clone(),
+                            3600,
+                            RData::AAAA(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1).into()),
+                        ));
+                    }
+
+                    if !response_records.is_empty() {
+                        let response = builder.build(
+                            header,
+                            response_records.iter(),
+                            std::iter::empty(),
+                            std::iter::empty(),
+                            std::iter::empty(),
+                        );
+                        let _ = response_handle.send_response(response).await;
+                        return header.into();
+                    } else {
+                        // Empty NOERROR response for unsupported query types on localhost
+                        let response = builder.build(
+                            header,
+                            std::iter::empty(),
+                            std::iter::empty(),
+                            std::iter::empty(),
+                            std::iter::empty(),
+                        );
+                        let _ = response_handle.send_response(response).await;
+                        return header.into();
+                    }
+                } else {
+                    // For all other PUBLIC_NAMES, instantly return NXDOMAIN (Not Found)
+                    let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
+                    let _ = response_handle.send_response(response).await;
+                    header.set_response_code(hickory_proto::op::ResponseCode::NXDomain);
+                    return header.into();
+                }
+            }
+
             let api_url_clone = self.api_url.clone();
             let http_client_clone = self.http_client.clone();
             let apex_domain_clone = apex_domain.clone();
