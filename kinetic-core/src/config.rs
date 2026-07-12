@@ -107,6 +107,13 @@ pub struct DaemonConfig {
     /// Network operating mode: `"FullNode"` or `"LightClient"`.
     #[serde(default = "default_network_mode")]
     pub network_mode: String,
+    /// Whether the node should automatically download and install OTA updates.
+    #[serde(default = "default_auto_update")]
+    pub auto_update: bool,
+}
+
+fn default_auto_update() -> bool {
+    true
 }
 
 fn default_network_mode() -> String {
@@ -186,6 +193,7 @@ impl Default for KineticConfig {
                 enable_dns: false,
                 storage_dir,
                 network_mode: "FullNode".to_string(),
+                auto_update: true,
             },
             network: P2pConfig {
                 daemon_port: ports::P2P_DAEMON,
