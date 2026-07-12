@@ -85,7 +85,7 @@ mod tests {
             state.last_signature_timestamps.insert(*pk, current_time);
         }
 
-        state.is_locked = true;
+        state.mode = crate::governance::types::GovernanceMode::Council;
         state.lock_timestamp_sec = Some(current_time - 100);
 
         let action = GovernanceAction::UpdateBinary {
@@ -133,6 +133,7 @@ mod tests {
             .unwrap()
             .as_secs();
         let mut state = GovernanceState::new(current_time);
+        state.mode = crate::governance::types::GovernanceMode::Council;
 
         let action_hash = [3u8; 32];
         state

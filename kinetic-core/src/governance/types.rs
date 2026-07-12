@@ -33,6 +33,12 @@ pub enum GovernanceEffect {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum GovernanceMode {
+    Founder,
+    Council,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SignedGovernanceMessage {
     pub action: GovernanceAction,
@@ -44,7 +50,7 @@ pub struct SignedGovernanceMessage {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GovernanceState {
     pub genesis_timestamp_sec: u64,
-    pub is_locked: bool,
+    pub mode: GovernanceMode,
     pub lock_timestamp_sec: Option<u64>,
     pub active_council: Vec<VerifyingKey>,
     pub last_signature_timestamps: HashMap<VerifyingKey, u64>,
