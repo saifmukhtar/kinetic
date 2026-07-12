@@ -67,7 +67,9 @@ pub fn verify_action(
         GovernanceAction::AppointMember { .. } | GovernanceAction::UpdateBinary { .. } => {
             (msg.council_size_at_proposal as usize * 69) / 100 + 1
         }
-        GovernanceAction::SelfAppointCouncilMember { .. } => {
+        GovernanceAction::SelfAppointCouncilMember { .. }
+        | GovernanceAction::GrantPremiumName { .. }
+        | GovernanceAction::RevokePremiumName { .. } => {
             (msg.council_size_at_proposal as usize * 90) / 100 + 1
         }
         GovernanceAction::RemoveCouncilMember { .. } => {

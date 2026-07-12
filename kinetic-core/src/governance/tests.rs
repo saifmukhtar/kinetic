@@ -157,4 +157,81 @@ mod tests {
         assert!(!state.pending_updates.contains_key(&action_hash));
         assert!(state.vetoed_hashes.contains(&action_hash));
     }
+
+    #[test]
+    fn test_founder_premium_grants() {
+        let root_sk = get_root_sk();
+        let current_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let mut state = GovernanceState::new(current_time);
+        
+        let (_, target_pubkey) = generate_key(99);
+
+        // Test invalid length
+        let mut msg_invalid_len = SignedGovernanceMessage {
+            action: GovernanceAction::GrantPremiumName {
+                name: "ab".to_string(),
+                target_pubkey,
+            },
+            council_size_at_proposal: 7,
+            timestamp_sec: current_time,
+            signatures: vec![],
+        };
+        msg_invalid_len.signatures.push(sign_action(&msg_invalid_len, &root_sk));
+        
+        let err = process_governance_message(&mut state, &msg_invalid_len).unwrap_err();
+        assert!(matches!(err, crate::error::GovernanceError::InvalidPremiumNameLength), "Got error: {:?}", err);
+
+        // Grant 5 valid names
+        for i in 0..5 {
+            let name = (b'a' + i) as char;
+            let mut msg = SignedGovernanceMessage {
+                action: GovernanceAction::GrantPremiumName {
+                    name: name.to_string(),
+                    target_pubkey,
+                },
+                council_size_at_proposal: 7,
+                timestamp_sec: current_time,
+                signatures: vec![],
+            };
+            msg.signatures.push(sign_action(&msg, &root_sk));
+            let effect = process_governance_message(&mut state, &msg).unwrap();
+            
+            if let Some(GovernanceEffect::PremiumNameGranted { name: granted_name, .. }) = effect {
+                assert_eq!(granted_name, name.to_string());
+            } else {
+                panic!("Expected PremiumNameGranted");
+            }
+        }
+        
+        // 6th attempt should fail
+        let mut msg_6 = SignedGovernanceMessage {
+            action: GovernanceAction::GrantPremiumName {
+                name: "f".to_string(),
+                target_pubkey,
+            },
+            council_size_at_proposal: 7,
+            timestamp_sec: current_time,
+            signatures: vec![],
+        };
+        msg_6.signatures.push(sign_action(&msg_6, &root_sk));
+        
+        let err2 = process_governance_message(&mut state, &msg_6).unwrap_err();
+        assert!(matches!(err2, crate::error::GovernanceError::FounderPremiumLimitReached));
+        
+        // Try revoke in founder mode
+        let mut msg_revoke = SignedGovernanceMessage {
+            action: GovernanceAction::RevokePremiumName {
+                name: "a".to_string(),
+            },
+            council_size_at_proposal: 7,
+            timestamp_sec: current_time,
+            signatures: vec![],
+        };
+        msg_revoke.signatures.push(sign_action(&msg_revoke, &root_sk));
+        let err3 = process_governance_message(&mut state, &msg_revoke).unwrap_err();
+        assert!(matches!(err3, crate::error::GovernanceError::RevokeRequiresCouncilMode));
+    }
 }

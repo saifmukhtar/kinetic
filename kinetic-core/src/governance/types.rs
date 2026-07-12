@@ -23,6 +23,13 @@ pub enum GovernanceAction {
         override_mode: bool,
     },
     ExecuteTimelock { target_hash: Hash256 },
+    GrantPremiumName {
+        name: String,
+        target_pubkey: VerifyingKey,
+    },
+    RevokePremiumName {
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,6 +37,13 @@ pub enum GovernanceEffect {
     TriggerOTA {
         hash: Hash256,
         mirrors: Vec<String>,
+    },
+    PremiumNameGranted {
+        name: String,
+        target_pubkey: VerifyingKey,
+    },
+    PremiumNameRevoked {
+        name: String,
     },
 }
 
@@ -58,6 +72,7 @@ pub struct GovernanceState {
     pub vetoed_hashes: HashSet<Hash256>,
     pub pending_updates: HashMap<Hash256, (u64, Vec<String>)>,
     pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
+    pub founder_premium_grants: u8,
 }
 
 impl SignedGovernanceMessage {
@@ -119,6 +134,19 @@ impl SignedGovernanceMessage {
             GovernanceAction::ExecuteTimelock { target_hash } => {
                 buf.push(0x09);
                 buf.extend_from_slice(target_hash);
+            }
+            GovernanceAction::GrantPremiumName { name, target_pubkey } => {
+                buf.push(0x0A);
+                let name_bytes = name.as_bytes();
+                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
+                buf.extend_from_slice(name_bytes);
+                buf.extend_from_slice(target_pubkey.as_bytes());
+            }
+            GovernanceAction::RevokePremiumName { name } => {
+                buf.push(0x0B);
+                let name_bytes = name.as_bytes();
+                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
+                buf.extend_from_slice(name_bytes);
             }
         }
 

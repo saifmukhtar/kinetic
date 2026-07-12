@@ -55,6 +55,15 @@ pub enum GovernanceError {
     /// The number of valid signatures does not meet the required threshold.
     #[error("Insufficient valid signatures")]
     InsufficientSignatures,
+    /// The founder has reached the strict 5-name limit for granting premium 1-letter names.
+    #[error("Founder has reached the maximum allowed limit for granting premium names")]
+    FounderPremiumLimitReached,
+    /// A premium name grant/revoke was attempted on a name that is not exactly 1 character long.
+    #[error("Premium name grants must be exactly 1 character long")]
+    InvalidPremiumNameLength,
+    /// Revoking a premium name is strictly reserved for the Council.
+    #[error("Revoking a premium name requires the network to be in Council mode")]
+    RevokeRequiresCouncilMode,
 }
 
 impl GovernanceError {
@@ -78,6 +87,9 @@ impl GovernanceError {
             Self::EmptyCouncil => "KIN-GOV-015",
             Self::InsufficientSignatures => "KIN-GOV-016",
             Self::EmergencyResetInPhase1 => "KIN-GOV-017",
+            Self::FounderPremiumLimitReached => "KIN-GOV-018",
+            Self::InvalidPremiumNameLength => "KIN-GOV-019",
+            Self::RevokeRequiresCouncilMode => "KIN-GOV-020",
         }
     }
 
@@ -104,7 +116,10 @@ impl GovernanceError {
             | Self::RotateRequiresGuard
             | Self::EmptyCouncil
             | Self::InsufficientSignatures
-            | Self::EmergencyResetInPhase1 => Severity::Warning,
+            | Self::EmergencyResetInPhase1
+            | Self::FounderPremiumLimitReached
+            | Self::InvalidPremiumNameLength
+            | Self::RevokeRequiresCouncilMode => Severity::Warning,
         }
     }
 

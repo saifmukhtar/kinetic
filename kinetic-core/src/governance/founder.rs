@@ -11,6 +11,9 @@ pub fn verify_action(
     if let GovernanceAction::EmergencyReset { .. } = &msg.action {
         return Err(GovernanceError::EmergencyResetInPhase1);
     }
+    if let GovernanceAction::RevokePremiumName { .. } = &msg.action {
+        return Err(GovernanceError::RevokeRequiresCouncilMode);
+    }
 
     let root_key = state.get_root_key()?;
     let guard_key_opt = state.get_guard_key()?;
@@ -25,6 +28,15 @@ pub fn verify_action(
         if let GovernanceAction::LockCouncil = &msg.action {
             if guard_key_opt.is_none() {
                 return Err(GovernanceError::MissingGuardKey);
+            }
+        }
+        if let GovernanceAction::GrantPremiumName { name, .. } = &msg.action {
+            let label = name.strip_suffix(".kin").unwrap_or(name);
+            if label.len() != 1 {
+                return Err(GovernanceError::InvalidPremiumNameLength);
+            }
+            if state.founder_premium_grants >= 5 {
+                return Err(GovernanceError::FounderPremiumLimitReached);
             }
         }
         return Ok(state.execute_action(msg, current_time_sec, true));
