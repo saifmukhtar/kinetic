@@ -39,7 +39,12 @@ pub fn verify_action(
                 return Err(GovernanceError::FounderPremiumLimitReached);
             }
         }
-        return Ok(state.execute_action(msg, current_time_sec, true));
+        let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
+            Some(3 * 24 * 60 * 60) // 3 days
+        } else {
+            None
+        };
+        return Ok(state.execute_action(msg, current_time_sec, wait_time));
     }
 
     // In Founder mode, only the Root key has authority to do things.

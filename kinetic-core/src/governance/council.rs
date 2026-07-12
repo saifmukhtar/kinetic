@@ -15,7 +15,7 @@ pub fn verify_action(
     if let GovernanceAction::VetoUpdate { .. } = &msg.action {
         if let Some(guard_key) = guard_key_opt {
             if msg.signatures.iter().any(|sig| guard_key.verify(&action_bytes, sig).is_ok()) {
-                return Ok(state.execute_action(msg, current_time_sec, true));
+                return Ok(state.execute_action(msg, current_time_sec, None));
             }
         }
         return Err(GovernanceError::InvalidGuardSignature);
@@ -46,7 +46,7 @@ pub fn verify_action(
             return Err(GovernanceError::EmergencyResetRequiresGuard);
         }
 
-        return Ok(state.execute_action(msg, current_time_sec, true));
+        return Ok(state.execute_action(msg, current_time_sec, None));
     }
 
     if let GovernanceAction::GrantPremiumName { name, .. } = &msg.action {
@@ -114,7 +114,12 @@ pub fn verify_action(
             state.last_signature_timestamps
                 .insert(signer, msg.timestamp_sec);
         }
-        Ok(state.execute_action(msg, current_time_sec, false))
+        let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
+            Some(crate::governance::logic::OTA_TIMELOCK_SECONDS)
+        } else {
+            None
+        };
+        Ok(state.execute_action(msg, current_time_sec, wait_time))
     } else {
         Err(GovernanceError::InsufficientSignatures)
     }
