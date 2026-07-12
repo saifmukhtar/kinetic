@@ -24,6 +24,7 @@ pub const MAX_AGE_SECONDS: u64 = 14 * 24 * 60 * 60;
 pub const TIMELOCK_SECONDS: u64 = 30 * 24 * 60 * 60;
 pub const ACTIVE_WINDOW_SECONDS: u64 = 30 * 24 * 60 * 60;
 pub const AUTO_LOCK_SECONDS: u64 = 365 * 24 * 60 * 60;
+pub const OTA_TIMELOCK_SECONDS: u64 = 48 * 60 * 60;
 
 pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
     if ROOT_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
@@ -142,7 +143,7 @@ impl GovernanceState {
                     return Err(GovernanceError::TimelockNotExpired);
                 }
             } else if let Some(&(broadcast_time, _)) = self.pending_updates.get(target_hash) {
-                if current_time_sec >= broadcast_time + 86400 {
+                if current_time_sec >= broadcast_time + OTA_TIMELOCK_SECONDS {
                     return Ok(self.execute_action(msg, current_time_sec, false));
                 } else {
                     return Err(GovernanceError::OtaTimelockNotExpired);
@@ -258,7 +259,7 @@ impl GovernanceState {
         let mut matured_hashes = Vec::new();
 
         for (hash, (broadcast_time, mirrors)) in &self.pending_updates {
-            if current_time_sec >= *broadcast_time + 86400 {
+            if current_time_sec >= *broadcast_time + OTA_TIMELOCK_SECONDS {
                 matured_hashes.push((*hash, mirrors.clone()));
             }
         }

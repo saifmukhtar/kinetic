@@ -19,8 +19,8 @@ pub enum GovernanceError {
     /// The mandatory delay after a council vote has not elapsed yet.
     #[error("Timelock has not expired yet")]
     TimelockNotExpired,
-    /// The mandatory 24-hour OTA update delay has not elapsed yet.
-    #[error("OTA Update Timelock (24h) has not expired yet")]
+    /// The mandatory 48-hour OTA update delay has not elapsed yet.
+    #[error("OTA Update Timelock (48h) has not expired yet")]
     OtaTimelockNotExpired,
     /// The target action hash is not in a pending-or-vetoed state.
     #[error("Target hash is not a pending timelock or was vetoed")]
@@ -138,7 +138,7 @@ impl GovernanceError {
             Self::MissingGuardKey => "The GUARD_PUBLIC_KEY_HEX environment variable is not set. This is a fatal configuration error.".to_string(),
             Self::StaleProposal => "The proposed governance action is too old and has been rejected to prevent replay attacks.".to_string(),
             Self::TimelockNotExpired => "The governance action is still in its mandatory waiting period and cannot be executed yet.".to_string(),
-            Self::OtaTimelockNotExpired => "The OTA update is still in its mandatory 24-hour waiting period.".to_string(),
+            Self::OtaTimelockNotExpired => "The OTA update is still in its mandatory 48-hour waiting period.".to_string(),
             Self::InsufficientSignatures => "The governance action does not have enough valid signatures to be executed.".to_string(),
             _ => self.to_string(),
         }
