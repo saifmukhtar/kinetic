@@ -1,5 +1,5 @@
 use std::collections::{HashSet, HashMap};
-use ed25519_dalek::{Verifier, VerifyingKey};
+use ed25519_dalek::VerifyingKey;
 use sha2::{Digest, Sha256};
 
 use crate::error::GovernanceError;
@@ -41,7 +41,7 @@ impl GovernanceState {
     pub fn new(genesis_timestamp_sec: u64) -> Self {
         Self {
             genesis_timestamp_sec,
-            is_locked: false,
+            mode: crate::governance::types::GovernanceMode::Founder,
             lock_timestamp_sec: None,
             active_council: Vec::new(),
             last_signature_timestamps: HashMap::new(),
@@ -154,12 +154,12 @@ impl GovernanceState {
         let actual_active_count = self.count_active_council(current_time_sec);
         let guard_key_opt = self.get_guard_key()?;
         
-        if !self.is_locked
+        if self.mode == crate::governance::types::GovernanceMode::Founder
             && current_time_sec >= self.genesis_timestamp_sec + AUTO_LOCK_SECONDS
             && actual_active_count >= MIN_ACTIVE_COUNCIL
             && guard_key_opt.is_some()
         {
-            self.is_locked = true;
+            self.mode = crate::governance::types::GovernanceMode::Council;
             self.lock_timestamp_sec = Some(self.genesis_timestamp_sec + AUTO_LOCK_SECONDS);
         }
 
@@ -168,129 +168,13 @@ impl GovernanceState {
             return Err(GovernanceError::CouncilSizeMismatch);
         }
 
-        let root_key = self.get_root_key()?;
-        let action_bytes = msg.to_canonical_bytes();
-
-        if let GovernanceAction::VetoUpdate { .. } = &msg.action {
-            if let Some(guard_key) = guard_key_opt {
-                if msg.signatures.iter().any(|sig| guard_key.verify(&action_bytes, sig).is_ok()) {
-                    return Ok(self.execute_action(msg, current_time_sec, true));
-                }
-            }
-            return Err(GovernanceError::InvalidGuardSignature);
-        }
-
-        let is_phase_1 = match self.lock_timestamp_sec {
-            Some(lock_time) => msg.timestamp_sec < lock_time,
-            None => !self.is_locked,
-        };
-
-        if is_phase_1
-            && msg
-                .signatures
-                .iter()
-                .any(|sig| root_key.verify(&action_bytes, sig).is_ok())
-        {
-            if let GovernanceAction::LockCouncil = &msg.action {
-                if guard_key_opt.is_none() {
-                    return Err(GovernanceError::MissingGuardKey);
-                }
-            }
-            return Ok(self.execute_action(msg, current_time_sec, true));
-        }
-
-        if let GovernanceAction::EmergencyReset { override_mode, .. } = &msg.action {
-            let action_hash = Self::hash_action(msg);
-            if self.vetoed_hashes.contains(&action_hash) {
-                return Err(GovernanceError::EmergencyResetVetoed);
-            }
-            let root_signed = msg
-                .signatures
-                .iter()
-                .any(|sig| root_key.verify(&action_bytes, sig).is_ok());
-            let guard_signed = if let Some(guard_key) = guard_key_opt {
-                msg.signatures.iter().any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
-            } else {
-                false
-            };
-
-            if !root_signed {
-                return Err(GovernanceError::EmergencyResetRequiresRoot);
-            }
-            if !*override_mode && !guard_signed {
-                if guard_key_opt.is_some() || !is_phase_1 {
-                    return Err(GovernanceError::EmergencyResetRequiresGuard);
-                }
-            }
-
-            return Ok(self.execute_action(msg, current_time_sec, true));
-        }
-
-        let mut counted_members = HashSet::new();
-        let mut valid_signers = HashSet::new();
-        for sig in &msg.signatures {
-            for (idx, member) in self.active_council.iter().enumerate() {
-                if !counted_members.contains(&idx) && member.verify(&action_bytes, sig).is_ok() {
-                    counted_members.insert(idx);
-                    valid_signers.insert(*member);
-                    break;
-                }
-            }
-        }
-
-        let valid_council_sigs = counted_members.len();
-
-        let required_signatures = match &msg.action {
-            GovernanceAction::AppointMember { .. } | GovernanceAction::UpdateBinary { .. } => {
-                (msg.council_size_at_proposal as usize * 69) / 100 + 1
-            }
-            GovernanceAction::SelfAppointCouncilMember { .. } => {
-                (msg.council_size_at_proposal as usize * 90) / 100 + 1
-            }
-            GovernanceAction::RemoveCouncilMember { .. } => {
-                let target_active = msg.council_size_at_proposal.saturating_sub(1) as usize;
-                (target_active * 90) / 100 + 1
-            }
-            GovernanceAction::RotateRootKey { .. } => {
-                let guard_signed = if let Some(guard_key) = guard_key_opt {
-                    msg.signatures.iter().any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
-                } else {
-                    false
-                };
-                if !guard_signed {
-                    if guard_key_opt.is_some() || !is_phase_1 {
-                        return Err(GovernanceError::RotateRequiresGuard);
-                    }
-                }
-                (msg.council_size_at_proposal as usize * 95) / 100 + 1
-            }
-            GovernanceAction::RotateGuardKey { .. } | GovernanceAction::LockCouncil => {
-                if let GovernanceAction::LockCouncil = &msg.action {
-                    if guard_key_opt.is_none() {
-                        return Err(GovernanceError::MissingGuardKey);
-                    }
-                }
-                (msg.council_size_at_proposal as usize * 95) / 100 + 1
-            }
-            _ => return Err(GovernanceError::UnhandledThresholdMath),
-        };
-
-        if self.active_council.is_empty() {
-            return Err(GovernanceError::EmptyCouncil);
-        }
-
-        if valid_council_sigs >= required_signatures {
-            for signer in valid_signers {
-                self.last_signature_timestamps
-                    .insert(signer, msg.timestamp_sec);
-            }
-            Ok(self.execute_action(msg, current_time_sec, false))
-        } else {
-            Err(GovernanceError::InsufficientSignatures)
+        match self.mode {
+            crate::governance::types::GovernanceMode::Founder => crate::governance::founder::verify_action(self, msg, current_time_sec),
+            crate::governance::types::GovernanceMode::Council => crate::governance::council::verify_action(self, msg, current_time_sec),
         }
     }
 
-    fn execute_action(
+    pub fn execute_action(
         &mut self,
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
@@ -309,8 +193,8 @@ impl GovernanceState {
                 self.last_signature_timestamps.remove(target_key);
             }
             GovernanceAction::LockCouncil => {
-                if !self.is_locked {
-                    self.is_locked = true;
+                if self.mode == crate::governance::types::GovernanceMode::Founder {
+                    self.mode = crate::governance::types::GovernanceMode::Council;
                     self.lock_timestamp_sec = Some(current_time_sec);
                 }
             }
@@ -335,6 +219,9 @@ impl GovernanceState {
                 if *override_mode {
                     let action_hash = Self::hash_action(msg);
                     self.pending_timelocks.insert(action_hash, current_time_sec);
+                } else {
+                    self.mode = crate::governance::types::GovernanceMode::Founder;
+                    self.active_council.clear();
                 }
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
