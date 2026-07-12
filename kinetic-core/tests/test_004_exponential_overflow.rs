@@ -3,7 +3,6 @@ use kinetic_core::consensus_math::ConsensusParams;
 #[test]
 fn test_004_exponential_overflow() {
     let params = ConsensusParams::default();
-    let pubkey = [0u8; 32];
 
     // Pass in u64::MAX to trigger extreme drift
     let extreme_round = u64::MAX;
@@ -13,7 +12,6 @@ fn test_004_exponential_overflow() {
     let iterations = params.required_iterations(
         &format!("{}{}", "test", kinetic_core::types::DOT_TLD),
         extreme_round,
-        &pubkey,
     );
 
     assert_eq!(

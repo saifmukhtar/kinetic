@@ -40,6 +40,9 @@ pub enum GovernanceError {
     /// An EmergencyReset (without override) was attempted without a valid Guard signature.
     #[error("EmergencyReset without override requires Guard signature")]
     EmergencyResetRequiresGuard,
+    /// An EmergencyReset was attempted during Phase 1 (bootstrapping), which is meaningless.
+    #[error("EmergencyReset is invalid during Phase 1 (unlocked state)")]
+    EmergencyResetInPhase1,
     /// A root-key rotation was attempted without a valid Guard co-signature.
     #[error("RotateRootKey requires Guard signature")]
     RotateRequiresGuard,
@@ -74,6 +77,7 @@ impl GovernanceError {
             Self::UnhandledThresholdMath => "KIN-GOV-014",
             Self::EmptyCouncil => "KIN-GOV-015",
             Self::InsufficientSignatures => "KIN-GOV-016",
+            Self::EmergencyResetInPhase1 => "KIN-GOV-017",
         }
     }
 
@@ -99,7 +103,8 @@ impl GovernanceError {
             | Self::EmergencyResetRequiresGuard
             | Self::RotateRequiresGuard
             | Self::EmptyCouncil
-            | Self::InsufficientSignatures => Severity::Warning,
+            | Self::InsufficientSignatures
+            | Self::EmergencyResetInPhase1 => Severity::Warning,
         }
     }
 

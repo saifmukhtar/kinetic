@@ -3,8 +3,8 @@
 //! Internal Rust errors are converted to ApiError at the API layer.
 
 use crate::error::{
-    GovernanceError, NetworkClientError, PublishError, RegistrationError, ResolutionError,
-    StorageError, UpdaterError, VdfError,
+    DrandError, GovernanceError, NetworkClientError, PublishError, RegistrationError,
+    ResolutionError, StorageError, UpdaterError, VdfError, DnsError, IdentityError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -138,6 +138,7 @@ impl From<GovernanceError> for ApiError {
             GovernanceError::EmergencyResetVetoed
             | GovernanceError::EmergencyResetRequiresRoot
             | GovernanceError::EmergencyResetRequiresGuard
+            | GovernanceError::EmergencyResetInPhase1
             | GovernanceError::RotateRequiresGuard
             | GovernanceError::EmptyCouncil => (403, "Forbidden"),
             GovernanceError::UnhandledThresholdMath => (501, "Not Implemented"),
@@ -243,6 +244,82 @@ impl From<VdfError> for ApiError {
                 (500, "VDF Computation Error")
             }
             VdfError::UnsupportedPlatform => (501, "Not Implemented"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<DrandError> for ApiError {
+    fn from(e: DrandError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            DrandError::AllEndpointsFailed | DrandError::Network(_) | DrandError::Reqwest(_) => {
+                (502, "Bad Gateway")
+            }
+            DrandError::HttpError(s) => (*s, "Upstream Error"),
+            DrandError::NoCachedPulse => (404, "Not Found"),
+            DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
+            DrandError::InvalidSignature => (422, "Cryptographic Verification Failed"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<DnsError> for ApiError {
+    fn from(e: DnsError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            DnsError::NestedTooDeeply
+            | DnsError::ParseError(_)
+            | DnsError::TooManyRecords
+            | DnsError::InvalidLabelLength(_)
+            | DnsError::InvalidLabelCharacters(_)
+            | DnsError::InvalidCnameConfiguration(_)
+            | DnsError::TxtRecordTooLong(_)
+            | DnsError::InvalidCnameTarget(_)
+            | DnsError::InvalidPeerId(_)
+            | DnsError::InvalidKid(_) => (400, "Bad Request"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<IdentityError> for ApiError {
+    fn from(e: IdentityError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            IdentityError::Io(_) | IdentityError::CorruptedIdentityFile(_) => {
+                (500, "Internal Server Error")
+            }
+            IdentityError::IdentityNotFound(_) => (404, "Not Found"),
+            IdentityError::InvalidSeedPhrase(_) => (400, "Bad Request"),
         };
         ApiError {
             error_type: e.error_type_uri(),

@@ -6,16 +6,16 @@ fn test_length_spam_penalty() {
     let params = ConsensusParams::default();
 
     // Normal 5 char name
-    let iters_5 = params.required_iterations("hello.kin", 5000000, &[0u8; 32]);
+    let iters_5 = params.required_iterations("hello.kin", 5000000);
     // Normal 15 char name
-    let iters_15 = params.required_iterations("thisisalongname.kin", 5000000, &[0u8; 32]);
+    let iters_15 = params.required_iterations("thisisalongname.kin", 5000000);
 
     // 25 char name (spam penalty triggers)
-    let iters_25 = params.required_iterations("thisisanextremelylongname.kin", 5000000, &[0u8; 32]);
+    let iters_25 = params.required_iterations("thisisanextremelylongname.kin", 5000000);
 
     // 63 char name (maximum valid apex label size, triggers spam penalty)
     let long_label = "a".repeat(63);
-    let iters_63 = params.required_iterations(&format!("{}.kin", long_label), 5000000, &[0u8; 32]);
+    let iters_63 = params.required_iterations(&format!("{}.kin", long_label), 5000000);
 
     assert!(
         iters_15 < iters_5,

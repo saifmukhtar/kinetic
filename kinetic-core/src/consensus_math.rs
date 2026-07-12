@@ -16,71 +16,19 @@ impl Default for ConsensusParams {
 }
 
 impl ConsensusParams {
-    /// The hardcoded public key allowed to claim Genesis names.
-    pub const GENESIS_PUBKEY: Option<[u8; 32]> = Some([
-        80, 211, 223, 74, 91, 155, 132, 168, 78, 209, 214, 167, 237, 160, 157, 186, 48, 9, 140,
-        185, 74, 172, 136, 188, 246, 164, 147, 64, 96, 11, 197, 62,
-    ]);
-
-    /// The exact list of names the Genesis Key is allowed to claim.
-    pub const GENESIS_ALLOWLIST: [&'static str; 37] = [
-        "admin",
-        "kinetic",
-        "root",
-        "genesis",
-        "test",
-        "system",
-        "network",
-        "example",
-        "kin",
-        "web",
-        "docs",
-        "blog",
-        "s",
-        "security",
-        "mail",
-        "seed",
-        "seed1",
-        "seed2",
-        "api",
-        "cdn",
-        "registry",
-        "id",
-        "identity",
-        "app",
-        "www",
-        "wallet",
-        "pay",
-        "code",
-        "git",
-        "status",
-        "dao",
-        "gov",
-        "foundation",
-        "localhost",
-        "local",
-        "support",
-        "help",
-    ];
-
-    /// The Drand pulse when the network launches.
-    pub const GENESIS_START_PULSE: u64 = 10_900_000; // Aligned with recent Quicknet rounds for launch
-
-    /// Finding 11: Genesis key expiry. After this pulse, the genesis key receives NO special
-    /// VDF exemption and must compete on equal terms. ~6 months at 3s/round (Quicknet).
-    /// 6 months = 180 days * 24h * 3600s / 3s = 5,184,000 rounds.
-    pub const GENESIS_EXPIRY_PULSE: u64 = Self::GENESIS_START_PULSE + 5_184_000;
-
     // Double Exponential Cliff: M(L) = 500000 * exp(-2.0 * L) + 250 * exp(-0.5 * L) + 5
     const MULTIPLIERS: [u64; 20] = [
         67824, 67824, 9255, 1300, 207, 48, 21, 13, 10, 8, 7, 6, 6, 5, 5, 5, 5, 5, 5, 5,
     ];
 
+    /// TODO(BENCHMARK): These values need to be updated with correct chiavdf benchmarks.
+    pub const TODO_BENCHMARK_BASE_ITERATIONS: u64 = 4_194_304;
+
     /// Calculates the base hardware iteration requirement for a given round,
     /// doubling every `hardware_drift_rounds`.
     pub fn calculate_hardware_anchor(&self, current_round: u64) -> u64 {
         // Base starting point for 0 drift (22-bit iterations)
-        let genesis_base: u64 = 4_194_304;
+        let genesis_base: u64 = Self::TODO_BENCHMARK_BASE_ITERATIONS;
 
         let mut drift_rounds = current_round;
         let max_rounds = 5 * self.hardware_drift_rounds; // Max 32x multiplier (2^5)
@@ -98,24 +46,8 @@ impl ConsensusParams {
     }
 
     /// Calculate required iterations for a name based on length and hardware anchor
-    pub fn required_iterations(&self, name: &str, current_round: u64, pubkey: &[u8]) -> u64 {
+    pub fn required_iterations(&self, name: &str, current_round: u64) -> u64 {
         let normalized_name = crate::types::normalize_name(name);
-
-        // --- Genesis Rules ---
-        if let Some(genesis_pk) = Self::GENESIS_PUBKEY {
-            // Strip the `.kin` to compare against GENESIS_ALLOWLIST
-            let label_without_tld = normalized_name
-                .strip_suffix(".kin")
-                .unwrap_or(&normalized_name);
-            if Self::GENESIS_ALLOWLIST.contains(&label_without_tld) {
-                // Finding 11: Genesis key privilege expires after GENESIS_EXPIRY_PULSE.
-                // After that round, it must compute the same VDF as everyone else.
-                if pubkey == genesis_pk && current_round < Self::GENESIS_EXPIRY_PULSE {
-                    return 10_000;
-                }
-            }
-        }
-        // ---------------------
 
         let label = normalized_name
             .strip_suffix(".kin")
@@ -166,51 +98,14 @@ impl ConsensusParams {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_genesis_override() {
-        let params = ConsensusParams::default();
-        let pk = ConsensusParams::GENESIS_PUBKEY.unwrap();
-
-        // Genesis key gets 10,000 iterations for allowlisted names before expiry.
-        let iters_at_launch =
-            params.required_iterations("admin.kin", ConsensusParams::GENESIS_START_PULSE, &pk);
-        assert_eq!(iters_at_launch, 10000);
-
-        // Still 10000 well within the expiry window.
-        let iters_later = params.required_iterations(
-            "admin.kin",
-            ConsensusParams::GENESIS_START_PULSE + 1_000_000,
-            &pk,
-        );
-        assert_eq!(iters_later, 10000);
-
-        // Finding 11: After GENESIS_EXPIRY_PULSE, genesis key gets no exemption.
-        let iters_expired =
-            params.required_iterations("admin.kin", ConsensusParams::GENESIS_EXPIRY_PULSE + 1, &pk);
-        assert!(
-            iters_expired > 10000,
-            "Genesis key must compute full VDF after expiry"
-        );
-
-        // Wrong key — must compute full VDF even for allowlisted names.
-        let wrong_pk = [0u8; 32];
-        let iters_wrong =
-            params.required_iterations("saif.kin", ConsensusParams::GENESIS_START_PULSE, &wrong_pk);
-        assert!(iters_wrong > 0);
-
-        // Name not in allowlist — genesis key gets no special treatment.
-        let iters_unlisted =
-            params.required_iterations("random.kin", ConsensusParams::GENESIS_START_PULSE, &pk);
-        assert!(iters_unlisted > 0);
-    }
 
     #[test]
     fn test_decay_length() {
         let params = ConsensusParams::default();
         let pk = [0u8; 32];
-        let a = params.required_iterations("a", 0, &pk);
-        let ab = params.required_iterations("ab", 0, &pk);
-        let abc = params.required_iterations("abc", 0, &pk);
+        let a = params.required_iterations("a", 0);
+        let ab = params.required_iterations("ab", 0);
+        let abc = params.required_iterations("abc", 0);
         assert!(a > ab);
         assert!(ab > abc);
     }
@@ -219,9 +114,9 @@ mod tests {
     fn test_hardware_drift() {
         let params = ConsensusParams::default();
         let pk = [0u8; 32];
-        let base = params.required_iterations("abcd", 0, &pk);
+        let base = params.required_iterations("abcd", 0);
         let drift_round = params.hardware_drift_rounds;
-        let drifted = params.required_iterations("abcd", drift_round, &pk);
+        let drifted = params.required_iterations("abcd", drift_round);
 
         // At exact hardware_drift_rounds, required iterations should be 2x the base
         assert_eq!(drifted, base * 2);

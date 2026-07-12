@@ -1,9 +1,12 @@
 use crate::traits::StorageEngine;
+use drand_verify::{G2PubkeyRfc, Pubkey};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use thiserror::Error;
 use tracing::warn;
 use web_time::Duration;
+
+#[cfg(not(target_arch = "wasm32"))]
+use hickory_resolver::config::*;
 
 /// The set of drand Quicknet HTTP endpoints tried in order.
 ///
@@ -20,36 +23,15 @@ pub const QUICKNET_GENESIS_TIME: u64 = 1692803367;
 /// Duration in seconds of each Quicknet round.
 pub const QUICKNET_PERIOD: u64 = 3;
 
+/// The League of Entropy public key for the Quicknet chain.
+pub const QUICKNET_PUBLIC_KEY: &str = "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a";
+
 const CACHE_KEY: &str = "drand_last_pulse";
 
-// Heartbeat staleness threshold — 24 hours in Drand rounds (30s each)
-const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 2880; // 24hr * 60min * 2 rounds/min
+// Heartbeat staleness threshold — 24 hours in Drand Quicknet rounds (3s each)
+const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 28800; // 24hr * 60min * 20 rounds/min
 
-/// Error type for drand beacon fetches and cache operations.
-#[derive(Error, Debug)]
-pub enum DrandError {
-    /// All configured endpoints returned errors or timed out.
-    #[error("All Drand endpoints failed")]
-    AllEndpointsFailed,
-    /// A network-level error (e.g. DNS failure, connection refused).
-    #[error("Network error: {0}")]
-    Network(String),
-    /// An endpoint returned a non-2xx HTTP status.
-    #[error("HTTP status error: {0}")]
-    HttpError(u16),
-    /// No pulse was found in the local cache (and the network is also unavailable).
-    #[error("No cached pulse found")]
-    NoCachedPulse,
-    /// JSON (de)serialization failed.
-    #[error("Serialization error: {0}")]
-    Serde(#[from] serde_json::Error),
-    /// A storage engine error occurred while reading or writing the cache.
-    #[error("Storage error: {0}")]
-    Storage(#[from] crate::error::StorageError),
-    /// An HTTP client error from the `reqwest` library.
-    #[error("Reqwest error: {0}")]
-    Reqwest(#[from] reqwest::Error),
-}
+use crate::error::DrandError;
 
 /// A single randomness beacon from the drand Quicknet chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +40,9 @@ pub struct DrandPulse {
     pub round: u64,
     /// The hex-encoded randomness output for this round.
     pub randomness: String,
+    /// The BLS signature from the League of Entropy.
+    #[serde(default)]
+    pub signature: String,
     /// `true` if this pulse was loaded from the local Sled cache rather than fetched live.
     #[serde(default)]
     pub is_from_cache: bool,
@@ -72,6 +57,7 @@ impl DrandPulse {
         Self {
             round: 0,
             randomness: String::new(),
+            signature: String::new(),
             is_from_cache: false,
             is_unavailable: true,
         }
@@ -95,8 +81,39 @@ impl DrandPulse {
             return true;
         }
         // Cached: only accept if not too stale
+        // Cached: only accept if not too stale
         let staleness = current_live_round.saturating_sub(self.round);
         staleness <= MAX_STALE_ROUNDS_FOR_HEARTBEAT
+    }
+
+    /// Cryptographically verifies the pulse against the League of Entropy's public key.
+    pub fn verify(&self) -> bool {
+        if self.is_unavailable {
+            return true;
+        }
+
+        if crate::config::is_dev_mode() {
+            // Dev mode uses mock_randomness without a valid signature.
+            return true;
+        }
+
+        let pubkey_bytes: [u8; 96] = match hex::decode(QUICKNET_PUBLIC_KEY).ok().and_then(|b| b.try_into().ok()) {
+            Some(b) => b,
+            None => return false,
+        };
+
+        let pk = match G2PubkeyRfc::from_fixed(pubkey_bytes) {
+            Ok(p) => p,
+            Err(_) => return false,
+        };
+
+        let sig_bytes = match hex::decode(&self.signature) {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
+
+        // Quicknet is unchained, so previous_signature is empty array
+        pk.verify(self.round, &[], &sig_bytes).unwrap_or(false)
     }
 }
 
@@ -107,6 +124,8 @@ impl DrandPulse {
 pub struct DrandClient {
     http: reqwest::Client,
     storage: Option<Arc<dyn StorageEngine>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    resolver: hickory_resolver::TokioAsyncResolver,
 }
 
 impl DrandClient {
@@ -117,6 +136,8 @@ impl DrandClient {
         Self {
             http: reqwest::Client::new(),
             storage,
+            #[cfg(not(target_arch = "wasm32"))]
+            resolver: hickory_resolver::TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default()),
         }
     }
 
@@ -127,12 +148,38 @@ impl DrandClient {
             return self.load_cached_pulse();
         }
 
+        let config = crate::config::KineticConfig::load();
+        let mut endpoints = config.drand.endpoints.clone();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            for domain in &config.drand.seed_domains {
+                if let Ok(txt_lookup) = self.resolver.txt_lookup(domain.as_str()).await {
+                    for txt in txt_lookup.iter() {
+                        let url_str = txt.to_string();
+                        let url_str = url_str.trim_matches('"').to_string();
+                        if url_str.starts_with("http") {
+                            endpoints.push(url_str);
+                        }
+                    }
+                }
+            }
+        }
+
         // Try each endpoint with exponential backoff
         let mut last_error = None;
 
-        for endpoint in DRAND_ENDPOINTS {
+        for endpoint in &endpoints {
             match self.fetch_with_backoff(endpoint).await {
                 Ok(mut pulse) => {
+                    if !pulse.verify() {
+                        warn!(
+                            "Drand endpoint {} returned a cryptographically invalid pulse!",
+                            endpoint
+                        );
+                        last_error = Some(DrandError::InvalidSignature);
+                        continue;
+                    }
                     pulse.is_from_cache = false;
                     pulse.is_unavailable = false;
                     // Cache on every successful fetch
@@ -190,7 +237,8 @@ impl DrandClient {
         Err(DrandError::AllEndpointsFailed)
     }
 
-    fn cache_pulse(&self, pulse: &DrandPulse) -> Result<(), DrandError> {
+    /// Caches a pulse to the local storage engine.
+    pub fn cache_pulse(&self, pulse: &DrandPulse) -> Result<(), DrandError> {
         if let Some(storage) = &self.storage {
             let bytes = serde_json::to_vec(pulse)?;
             storage.put(CACHE_KEY.as_bytes(), &bytes)?;
@@ -218,6 +266,7 @@ impl DrandClient {
             return Ok(DrandPulse {
                 round: 5000000,
                 randomness: "mock_randomness".to_string(),
+                signature: String::new(),
                 is_from_cache: true,
                 is_unavailable: false,
             });
@@ -234,6 +283,7 @@ impl DrandClient {
                 return Ok(DrandPulse {
                     round: estimated_round,
                     randomness: String::new(),
+                    signature: String::new(),
                     is_from_cache: true,
                     is_unavailable: false,
                 });
@@ -241,5 +291,46 @@ impl DrandClient {
         }
 
         Err(DrandError::NoCachedPulse)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_quicknet_pulse_verification() {
+        // Known valid pulse from Quicknet (Round 30290678)
+        let pulse = DrandPulse {
+            round: 30290678,
+            randomness: "bd5f53ad61578f2566860e3792d01513b817e34c7de92f4781aa76b53ddef0ea".to_string(),
+            signature: "ac8313d3ad1f95fe1b380ab6124aade0d4de5919fd60dc846746025ac9aa9d3c434b9dc94c0b75c4efd81aec9e2ef0b9".to_string(),
+            is_from_cache: false,
+            is_unavailable: false,
+        };
+
+        // Should cryptographically verify against QUICKNET_PUBLIC_KEY
+        assert!(
+            pulse.verify(),
+            "Valid Quicknet pulse failed BLS verification"
+        );
+    }
+
+    #[test]
+    fn test_invalid_quicknet_pulse_verification() {
+        // Corrupted pulse (tampered signature)
+        let pulse = DrandPulse {
+            round: 30290678,
+            randomness: "bd5f53ad61578f2566860e3792d01513b817e34c7de92f4781aa76b53ddef0ea".to_string(),
+            signature: "bc8313d3ad1f95fe1b380ab6124aade0d4de5919fd60dc846746025ac9aa9d3c434b9dc94c0b75c4efd81aec9e2ef0b9".to_string(), // flipped first char
+            is_from_cache: false,
+            is_unavailable: false,
+        };
+
+        // Should fail cryptographic verification
+        assert!(
+            !pulse.verify(),
+            "Invalid Quicknet pulse incorrectly passed BLS verification"
+        );
     }
 }
