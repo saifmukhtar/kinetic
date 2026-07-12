@@ -94,7 +94,7 @@ fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
             .arg("-p")
             .arg("/usr/local/share/ca-certificates")
             .status()?;
-            
+
         let status = std::process::Command::new("sudo")
             .arg("cp")
             .arg(cert_path)
@@ -304,6 +304,11 @@ async fn run_daemon() -> Result<()> {
         Some(incoming_tx.clone()),
         Some(gossip_tx.clone()),
     )?;
+
+    // Subscribe to Quicknet Pulse Gossip
+    let _ = network_client
+        .subscribe_gossip("drand_pulse_quicknet")
+        .await;
     info!("P2P Network architecture wired");
 
     let mut network_loop_handle = tokio::spawn(async move {
@@ -359,6 +364,8 @@ async fn run_daemon() -> Result<()> {
     });
 
     let gossip_gov_path = gov_state_path.clone();
+    let drand_client_gossip = drand_client.clone();
+    let drand_pulse_tx_gossip = drand_pulse_tx.clone();
     tokio::spawn(async move {
         while let Some((topic, payload)) = gossip_rx.recv().await {
             if topic == "kinetic_governance" {
@@ -389,6 +396,20 @@ async fn run_daemon() -> Result<()> {
                         }
                         Err(e) => {
                             tracing::debug!("Governance gossip message rejected: {:?}", e);
+                        }
+                    }
+                }
+            } else if topic == "drand_pulse_quicknet" {
+                if let Ok(pulse) =
+                    serde_json::from_slice::<kinetic_core::drand::DrandPulse>(&payload)
+                {
+                    if pulse.verify() {
+                        if let Ok(latest) = drand_client_gossip.load_cached_pulse() {
+                            if (pulse.round > latest.round || latest.is_unavailable)
+                                && drand_client_gossip.cache_pulse(&pulse).is_ok()
+                            {
+                                let _ = drand_pulse_tx_gossip.send(pulse.round);
+                            }
                         }
                     }
                 }
@@ -436,15 +457,10 @@ async fn run_daemon() -> Result<()> {
         .await;
     });
 
-    let mempool = Arc::new(std::sync::Mutex::new(kinetic_core::mempool::Mempool::new(
-        1000,
-        std::time::Duration::from_secs(3600),
-    )));
     let api_future = api::start_server(
         network_client.clone(),
         storage.clone(),
         config.daemon.api_port,
-        mempool.clone(),
     );
 
     info!("Kinetic Daemon architecture successfully bootstrapped. Spawning loops...");
@@ -460,7 +476,8 @@ async fn run_daemon() -> Result<()> {
                 if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
                     for name in names {
                         let reveal_key = format!("kinetic_reveal:{}", name);
-                        if let Ok(Some(reveal_bytes)) = republish_storage.get(reveal_key.as_bytes()) {
+                        if let Ok(Some(reveal_bytes)) = republish_storage.get(reveal_key.as_bytes())
+                        {
                             let rn = republish_network.clone();
                             let n = name.clone();
                             tokio::spawn(async move {
@@ -476,30 +493,83 @@ async fn run_daemon() -> Result<()> {
     let hb_storage = storage.clone();
     let hb_network = network_client.clone();
     let hb_drand = drand_client.clone();
+    let p2p_only = config.drand.p2p_only;
     let last_known_live_round = Arc::new(AtomicU64::new(initial_drand_pulse));
     let lklr = last_known_live_round.clone();
     let daemon_keypair_hb = daemon_keypair.clone();
+    let drand_pulse_tx_hb = drand_pulse_tx.clone();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        let mut interval = tokio::time::interval(Duration::from_secs(3));
+        let mut next_hb = tokio::time::Instant::now();
         loop {
             interval.tick().await;
-            let pulse = match hb_drand.fetch_latest().await {
-                Ok(p) => {
-                    if !p.is_from_cache {
-                        lklr.store(p.round, Ordering::Relaxed);
+
+            let mut should_fetch_http = !p2p_only;
+
+            if p2p_only {
+                if let Ok(latest) = hb_drand.load_cached_pulse() {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs();
+                    let expected_round = now.saturating_sub(1691584200) / 3;
+
+                    if expected_round > latest.round + 5 {
+                        tracing::warn!(
+                            "P2P Drand fallback triggered! We are behind by {} rounds.",
+                            expected_round.saturating_sub(latest.round)
+                        );
+                        should_fetch_http = true;
                     }
-                    let current_live = lklr.load(Ordering::Relaxed);
-                    if !p.is_usable_for_heartbeat(current_live) {
-                        continue;
+                } else {
+                    should_fetch_http = true;
+                }
+            }
+
+            let pulse = if should_fetch_http {
+                match hb_drand.fetch_latest().await {
+                    Ok(p) => {
+                        if !p.is_unavailable && !p.is_from_cache {
+                            let _ = drand_pulse_tx_hb.send(p.round);
+                            if !p2p_only {
+                                if let Ok(payload) = serde_json::to_vec(&p) {
+                                    let _ = hb_network
+                                        .broadcast_gossip("drand_pulse_quicknet", payload)
+                                        .await;
+                                }
+                            }
+                        }
+                        p
                     }
-                    p
+                    Err(_) => hb_drand
+                        .load_cached_pulse()
+                        .unwrap_or(kinetic_core::drand::DrandPulse::unavailable()),
                 }
-                Err(_) => {
-                    continue;
-                }
+            } else {
+                hb_drand
+                    .load_cached_pulse()
+                    .unwrap_or(kinetic_core::drand::DrandPulse::unavailable())
             };
 
-            let _ = drand_pulse_tx.send(pulse.round);
+            if pulse.is_unavailable {
+                continue;
+            }
+
+            if pulse.round > lklr.load(Ordering::Relaxed) {
+                lklr.store(pulse.round, Ordering::Relaxed);
+            }
+
+            let current_live = lklr.load(Ordering::Relaxed);
+            if !pulse.is_usable_for_heartbeat(current_live) {
+                continue;
+            }
+
+            // Only broadcast heartbeats to DHT every 30 seconds
+            if tokio::time::Instant::now() >= next_hb {
+                next_hb = tokio::time::Instant::now() + Duration::from_secs(30);
+            } else {
+                continue;
+            }
             let owned_key = b"kinetic_owned_names";
             if let Ok(Some(bytes)) = hb_storage.get(owned_key) {
                 if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
@@ -600,12 +670,10 @@ async fn run_daemon() -> Result<()> {
     });
 
     let daemon_keypair_nostr = daemon_keypair.clone();
-    let mempool_nostr = mempool.clone();
     let storage_nostr = storage.clone();
     tokio::spawn(async move {
         if let Err(e) = nostr::start_nostr_listener(
             daemon_keypair_nostr,
-            mempool_nostr,
             storage_nostr,
             config.daemon.network_mode == "PublicMiner",
         )

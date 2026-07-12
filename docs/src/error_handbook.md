@@ -126,3 +126,49 @@ Errors occurring during intense CPU math tasks and Class Group cryptography.
 | **KIN-VDF-003** | `500 Internal Server Error` | **Discriminant Error**: Failed to cryptographically map the network challenge to a valid prime discriminant. | Class group initialization error. |
 | **KIN-VDF-004** | `500 Internal Server Error` | **Proof Generation Error**: The chiavdf prover threw an internal error and failed. | Math panic inside C++ bindings. |
 | **KIN-VDF-005** | `501 Not Implemented` | **Unsupported Platform**: VDF operation is unsupported on this OS/Architecture. | chiavdf binary missing for architecture. |
+
+---
+
+## Drand Quicknet Errors (`KIN-DRA-*`)
+Errors occurring during Drand randomness beacon fetches and cache operations.
+
+| Error Code | HTTP Status | Meaning | Developer Detail |
+| :--- | :--- | :--- | :--- |
+| **KIN-DRA-001** | `502 Bad Gateway` | **All Endpoints Failed**: All configured Drand endpoints returned errors or timed out. | Could not reach any healthy nodes. |
+| **KIN-DRA-002** | `502 Bad Gateway` | **Network Error**: A network-level error occurred while fetching Drand pulse. | DNS failure or connection refused. |
+| **KIN-DRA-003** | `* Upstream Error` | **HTTP Status Error**: A Drand endpoint returned a non-2xx HTTP status. | The specific status is dynamic. |
+| **KIN-DRA-004** | `404 Not Found` | **No Cached Pulse**: No pulse was found in the local cache, and the network is unavailable. | Offline cache miss. |
+| **KIN-DRA-005** | `500 Internal Server Error` | **Serialization Error**: JSON (de)serialization of the Drand pulse failed. | Payload format changed or corrupted. |
+| **KIN-DRA-006** | `500 Internal Server Error` | **Storage Error**: A local storage engine error occurred while reading or writing the pulse cache. | Engine read/write failed. |
+| **KIN-DRA-007** | `502 Bad Gateway` | **Reqwest Error**: An HTTP client error occurred. | `reqwest` internal error. |
+| **KIN-DRA-008** | `422 Unprocessable Entity` | **Invalid Drand Signature**: The BLS threshold signature was mathematically invalid. | Possible tampering or corrupted beacon. |
+
+---
+
+## DNS Validation Errors (`KIN-DNS-*`)
+Errors occurring when parsing or validating `.kin` DNS zone files and records.
+
+| Error Code | HTTP Status | Meaning | Developer Detail |
+| :--- | :--- | :--- | :--- |
+| **KIN-DNS-001** | `400 Bad Request` | **Nested Too Deeply**: The JSON payload has too many nested structures. | JSON recursion depth exceeded 10. |
+| **KIN-DNS-002** | `400 Bad Request` | **Parse Error**: The payload is not valid JSON or does not match the DnsZone schema. | `serde_json` error. |
+| **KIN-DNS-003** | `400 Bad Request` | **Too Many Records**: The zone contains more than the maximum 50 allowed records. | Anti-bloat limit enforcement. |
+| **KIN-DNS-004** | `400 Bad Request` | **Invalid Label Length**: A label is empty or longer than 63 characters. | Follows DNS RFC limits. |
+| **KIN-DNS-005** | `400 Bad Request` | **Invalid Label Characters**: A label contains non-alphanumeric characters or starts/ends with a hyphen. | Follows DNS RFC limits. |
+| **KIN-DNS-006** | `400 Bad Request` | **Invalid CNAME Configuration**: A CNAME record was provided alongside other records for the same label. | RFC violation. |
+| **KIN-DNS-007** | `400 Bad Request` | **TXT Record Too Long**: A TXT record exceeds the maximum allowed length of 255 bytes. | Anti-bloat limit enforcement. |
+| **KIN-DNS-008** | `400 Bad Request` | **Invalid CNAME Target**: A CNAME target is empty or longer than 253 characters. | Follows DNS RFC limits. |
+| **KIN-DNS-009** | `400 Bad Request` | **Invalid PeerId**: The string could not be parsed into a valid libp2p PeerId. | Invalid base58 encoding. |
+| **KIN-DNS-010** | `400 Bad Request` | **Invalid KID**: The string does not start with the required `did:kin:` prefix. | DID syntax validation. |
+
+---
+
+## Identity & Seed Errors (`KIN-IDN-*`)
+Errors related to node identity keypairs and mnemonic seed phrases.
+
+| Error Code | HTTP Status | Meaning | Developer Detail |
+| :--- | :--- | :--- | :--- |
+| **KIN-IDN-001** | `500 Internal Server Error` | **I/O Error**: An OS-level error occurred reading or writing the identity file. | File permissions or disk issue. |
+| **KIN-IDN-002** | `500 Internal Server Error` | **Corrupted Identity File**: The loaded identity file does not contain exactly 32 bytes. | Truncated or modified key file. |
+| **KIN-IDN-003** | `404 Not Found` | **Identity Not Found**: The local identity file could not be found. | `kinetic-cli seed init` has not been run. |
+| **KIN-IDN-004** | `400 Bad Request` | **Invalid Seed Phrase**: The provided seed phrase is not a valid BIP-39 mnemonic. | Typo or invalid dictionary word. |

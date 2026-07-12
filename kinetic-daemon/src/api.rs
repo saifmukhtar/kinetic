@@ -1,6 +1,3 @@
-use axum::http::{header, Uri};
-use axum::response::IntoResponse;
-use axum::routing::get;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -30,7 +27,7 @@ pub struct ApiState {
     pub network: NetworkClient,
     pub storage: Arc<SledStorage>,
     pub vdf_tasks: Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
-    pub mempool: Arc<Mutex<kinetic_core::mempool::Mempool>>,
+    
     pub auth_token: String,
     pub vdf_semaphore: Arc<tokio::sync::Semaphore>,
 }
@@ -45,8 +42,6 @@ pub struct PublishResponse {
     pub status: String,
     pub message: String,
 }
-
-
 
 pub fn app(state: ApiState) -> Router {
     use tower_http::cors::{Any, CorsLayer};
@@ -64,14 +59,22 @@ pub fn app(state: ApiState) -> Router {
         .route("/publish-manifest", post(handle_publish_manifest))
         .route("/config", axum::routing::get(handle_config))
         .route("/config", axum::routing::post(handle_set_config))
-        .route("/vdf/status/{task_id}", axum::routing::get(handle_vdf_status))
-        .route("/vdf/status/{task_id}", axum::routing::delete(handle_vdf_status_delete))
+        .route(
+            "/vdf/status/{task_id}",
+            axum::routing::get(handle_vdf_status),
+        )
+        .route(
+            "/vdf/status/{task_id}",
+            axum::routing::delete(handle_vdf_status_delete),
+        )
         .route("/owned-names", axum::routing::get(handle_owned_names))
         .route("/zone/{name}", axum::routing::post(handle_post_zone))
-        .route("/zone/{name}/publish", axum::routing::post(handle_publish_zone))
+        .route(
+            "/zone/{name}/publish",
+            axum::routing::post(handle_publish_zone),
+        )
         .route("/vdf/register", axum::routing::post(handle_vdf_register))
         .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
-        .route("/delegation", axum::routing::post(handle_delegation))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
@@ -81,12 +84,7 @@ pub fn app(state: ApiState) -> Router {
         .route("/network-status", axum::routing::get(handle_network_status))
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
-        .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
-        .route(
-            "/delegation/status/{challenge_hex}",
-            axum::routing::get(handle_delegation_status),
-        )
-        .route("/ws/delegation", axum::routing::get(handle_ws_delegation));
+        .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid));
 
     // Expose all routes under /api (for the UI) and at bare paths (for the CLI).
     // auth_routes is defined with .layer() so the middleware is preserved in both cases.
@@ -130,8 +128,7 @@ fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<Stri
 pub async fn start_server(
     network: NetworkClient,
     storage: Arc<SledStorage>,
-    port: u16,
-    mempool: Arc<Mutex<kinetic_core::mempool::Mempool>>,
+    port: u16
 ) -> anyhow::Result<()> {
     let token_path = kinetic_core::config::get_api_token_path();
 
@@ -150,23 +147,12 @@ pub async fn start_server(
         network,
         storage,
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
-        mempool,
+        
         auth_token: token,
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
     };
 
-    // Load persisted mempool state
-    if let Ok(Some(data)) = state.storage.get(b"kinetic_mempool_persistence") {
-        state
-            .mempool
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .load(&data);
-        tracing::info!("Loaded persisted VDF requests into Mempool");
-    }
-
     // Start background VDF Mempool worker
-    start_vdf_worker(state.clone());
 
     let app = app(state);
 
@@ -197,94 +183,6 @@ pub async fn start_server(
     Ok(())
 }
 
-fn start_vdf_worker(state: ApiState) {
-    tokio::spawn(async move {
-        tracing::info!("Started background VDF Mempool Worker");
-        loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-
-            // Pop the highest priority delegation request
-            let request_opt = {
-                let mut mempool = state.mempool.lock().unwrap_or_else(|e| e.into_inner());
-                let req = mempool.pop();
-                if req.is_some() {
-                    let _ = state
-                        .storage
-                        .put(b"kinetic_mempool_persistence", &mempool.dump());
-                }
-                req
-            };
-
-            if let Some(req) = request_opt {
-                tracing::info!("VDF Worker processing privacy-preserving delegation request...");
-
-                // 1. Fetch Drand challenge to calculate required iterations based on hardware drift
-                let drand_client =
-                    kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
-                let drand_data = match drand_client.fetch_latest().await {
-                    Ok(d) => d,
-                    Err(e) => {
-                        tracing::error!("VDF Worker failed to fetch Drand: {}", e);
-                        continue;
-                    }
-                };
-
-                let challenge = kinetic_core::types::Commitment {
-                    hash: req.challenge_hash,
-                };
-                let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-                    .required_iterations_by_length(req.name_length as usize, drand_data.round);
-                let actual_iterations = required_iters;
-
-                let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
-                let challenge_clone = challenge.clone();
-                let challenge_hex = hex::encode(req.challenge_hash);
-
-                tracing::info!(
-                    "VDF Worker computing VDF for blind challenge {} (iters: {})...",
-                    challenge_hex,
-                    actual_iterations
-                );
-
-                let permit = match state.vdf_semaphore.acquire().await {
-                    Ok(p) => p,
-                    Err(_) => {
-                        tracing::error!("VDF Semaphore closed. Worker exiting.");
-                        return;
-                    }
-                };
-
-                let proof = match tokio::task::spawn_blocking(move || {
-                    use kinetic_core::traits::VdfEngine;
-                    vdf_engine.evaluate(&challenge_clone, actual_iterations)
-                })
-                .await
-                {
-                    Ok(Ok(p)) => p,
-                    Ok(Err(e)) => {
-                        tracing::error!(error_code = "KIN-VDF-002", error = ?e, "VDF engine returned error for challenge {}", challenge_hex);
-                        continue;
-                    }
-                    Err(e) => {
-                        tracing::error!(error_code = "KIN-VDF-002", error = ?e, "VDF worker task panicked for challenge {}", challenge_hex);
-                        continue;
-                    }
-                };
-
-                drop(permit);
-
-                tracing::info!(
-                    "VDF Worker successfully computed proof for challenge {}",
-                    challenge_hex
-                );
-
-                // 3. Save the proof locally so the Mobile app can poll and retrieve it
-                let proof_key = format!("kinetic_delegation_proof:{}", challenge_hex);
-                let _ = state.storage.put(proof_key.as_bytes(), &proof.proof_bytes);
-            }
-        }
-    });
-}
 
 async fn auth_middleware(
     State(state): State<ApiState>,
@@ -589,20 +487,58 @@ async fn handle_commit(
 
 async fn handle_publish_kid(
     State(state): State<ApiState>,
-    Json(kid): Json<kinetic_kid::KidDocument>,
+    Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
-    info!("Received API publish request for KID: {}", kid.kid.as_str());
+    info!(
+        "Received API publish request for KID: {}",
+        auth_kid.kid_doc.kid.as_str()
+    );
 
-    // 1. Verify the KID document mathematically
-    if let Err(e) = kid.verify() {
+    // 1. Verify the underlying KID document mathematically
+    if let Err(e) = auth_kid.kid_doc.verify() {
         return Err((
             StatusCode::BAD_REQUEST,
             format!("Invalid KID signature: {}", e),
         ));
     }
 
+    // 1b. Verify the wrapper signature against the registered name's Reveal locally.
+    // If it fails here, we reject early and don't spam the DHT.
+    let reveal_key = format!("kinetic_reveal:{}", auth_kid.name);
+    let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
+        Ok(Some(bytes)) => {
+            if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {
+                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
+                {
+                    use ed25519_dalek::Verifier;
+                    if let Ok(sig) = ed25519_dalek::Signature::from_slice(&auth_kid.owner_signature)
+                    {
+                        pubkey.verify(&auth_kid.signable_bytes(), &sig).is_ok()
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        _ => {
+            tracing::warn!("Could not find local reveal for name {} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.", auth_kid.name);
+            true // If we don't have it cached, we let the network decide.
+        }
+    };
+
+    if !is_authorized {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner.".to_string(),
+        ));
+    }
+
     // 2. Serialize and Publish to DHT
-    let payload_bytes = match serde_json::to_vec(&kid) {
+    let payload_bytes = match serde_json::to_vec(&auth_kid) {
         Ok(b) => b,
         Err(e) => {
             return Err((
@@ -611,7 +547,7 @@ async fn handle_publish_kid(
             ))
         }
     };
-    let fqdn = kid.kid.as_str().to_string(); // Use DID as the DHT key
+    let fqdn = auth_kid.kid_doc.kid.as_str().to_string(); // Use DID as the DHT key
 
     match state
         .network
@@ -622,7 +558,7 @@ async fn handle_publish_kid(
             info!("Successfully published KID {} to the DHT", fqdn);
             Ok(Json(PublishResponse {
                 status: "success".to_string(),
-                message: "KID accepted and routed to DHT".to_string(),
+                message: "AuthorizedKID accepted and routed to DHT".to_string(),
             }))
         }
         Err(e) => {
@@ -637,15 +573,51 @@ async fn handle_publish_kid(
 
 async fn handle_publish_manifest(
     State(state): State<ApiState>,
-    Json(manifest): Json<kinetic_kid::CapabilityManifest>,
+    Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
-    let did_str = manifest.kid.as_str();
+    let did_str = auth_manifest.manifest.kid.as_str();
     info!(
         "Received API publish request for Manifest of KID: {}",
         did_str
     );
 
+    // 1b. Verify the wrapper signature against the registered name's Reveal locally.
+    let reveal_key = format!("kinetic_reveal:{}", auth_manifest.name);
+    let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
+        Ok(Some(bytes)) => {
+            if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {
+                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
+                {
+                    use ed25519_dalek::Verifier;
+                    if let Ok(sig) =
+                        ed25519_dalek::Signature::from_slice(&auth_manifest.owner_signature)
+                    {
+                        pubkey.verify(&auth_manifest.signable_bytes(), &sig).is_ok()
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        _ => {
+            tracing::warn!("Could not find local reveal for name {} to verify AuthorizedManifest. Forwarding to DHT anyway.", auth_manifest.name);
+            true
+        }
+    };
+
+    if !is_authorized {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner.".to_string(),
+        ));
+    }
+
     // 1. Resolve the KID Document from DHT to verify against
+    // (Note: The DHT payload for a KID will now be an AuthorizedKid wrapper!)
     let kid_payload = match state.network.resolve_redundant_payload(did_str).await {
         Ok(p) => p,
         Err(e) => {
@@ -658,18 +630,25 @@ async fn handle_publish_manifest(
         }
     };
 
-    let kid_doc: kinetic_kid::KidDocument = match serde_json::from_slice(&kid_payload) {
-        Ok(doc) => doc,
-        Err(_) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Invalid KID payload on DHT".to_string(),
-            ))
-        }
-    };
+    let kid_doc: kinetic_kid::KidDocument =
+        match serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&kid_payload) {
+            Ok(auth_kid) => auth_kid.kid_doc,
+            Err(_) => {
+                // Fallback for older raw KidDocuments if any exist
+                match serde_json::from_slice::<kinetic_kid::KidDocument>(&kid_payload) {
+                    Ok(doc) => doc,
+                    Err(_) => {
+                        return Err((
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "Invalid KID payload on DHT".to_string(),
+                        ))
+                    }
+                }
+            }
+        };
 
     // 2. Verify the manifest against the registered KID
-    if let Err(e) = manifest.verify(&kid_doc) {
+    if let Err(e) = auth_manifest.manifest.verify(&kid_doc) {
         return Err((
             StatusCode::BAD_REQUEST,
             format!("Invalid Manifest signature: {}", e),
@@ -682,7 +661,7 @@ async fn handle_publish_manifest(
     hasher.update(format!("{}#manifest", did_str).as_bytes());
     let manifest_key = hex::encode(hasher.finalize());
 
-    let payload_bytes = match serde_json::to_vec(&manifest) {
+    let payload_bytes = match serde_json::to_vec(&auth_manifest) {
         Ok(b) => b,
         Err(e) => {
             return Err((
@@ -876,12 +855,6 @@ async fn handle_set_config(
 }
 
 #[derive(Deserialize)]
-pub struct NameRegisterRequest {
-    pub name: String,
-    pub iterations: Option<u64>,
-}
-
-#[derive(Deserialize)]
 pub struct NameRenewRequest {
     pub name: String,
     pub iterations: Option<u64>,
@@ -1020,7 +993,7 @@ async fn handle_vdf_register(
             40,
         );
         let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-            .required_iterations(&fqdn, drand_data.round, &pubkey);
+            .required_iterations(&fqdn, drand_data.round);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
         let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
@@ -1175,7 +1148,7 @@ pub async fn handle_vdf_renew(
     let mut tasks = state.vdf_tasks.lock().unwrap();
 
     // In ApiState there is no vdf_events yet, so we just check for conflicts by looking at the tasks map directly.
-    for (id, task) in tasks.iter() {
+    for (_id, task) in tasks.iter() {
         if task.status != "Complete" && task.status != "Failed" {
             // Since we can't easily check name if it's not in VdfTaskStatus, we skip conflict checks for now,
             // or we could inspect the current tasks, but we'll just allow it since the CLI does too.
@@ -1205,17 +1178,26 @@ pub async fn handle_vdf_renew(
         let old_reveal_bytes = match storage_clone.get(local_reveal_key.as_bytes()) {
             Ok(Some(b)) => b,
             _ => {
-                update_task_error(&tasks_clone, &task_id_clone, format!("Domain {} not found locally", fqdn));
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Domain {} not found locally", fqdn),
+                );
                 return;
             }
         };
-        let old_reveal: kinetic_core::types::Reveal = match serde_json::from_slice(&old_reveal_bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                update_task_error(&tasks_clone, &task_id_clone, format!("Failed to parse old reveal: {}", e));
-                return;
-            }
-        };
+        let old_reveal: kinetic_core::types::Reveal =
+            match serde_json::from_slice(&old_reveal_bytes) {
+                Ok(r) => r,
+                Err(e) => {
+                    update_task_error(
+                        &tasks_clone,
+                        &task_id_clone,
+                        format!("Failed to parse old reveal: {}", e),
+                    );
+                    return;
+                }
+            };
 
         // Step 2: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
@@ -1234,7 +1216,11 @@ pub async fn handle_vdf_renew(
         let keypair = match kinetic_core::types::load_keypair(&identity_path.to_string_lossy()) {
             Ok(k) => k,
             Err(e) => {
-                update_task_error(&tasks_clone, &task_id_clone, format!("Keypair error: {}", e));
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Keypair error: {}", e),
+                );
                 return;
             }
         };
@@ -1257,20 +1243,36 @@ pub async fn handle_vdf_renew(
         let commit_bytes = match serde_json::to_vec(&challenge) {
             Ok(b) => b,
             Err(e) => {
-                update_task_error(&tasks_clone, &task_id_clone, format!("Serialization failed in VDF task: {}", e));
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Serialization failed in VDF task: {}", e),
+                );
                 return;
             }
         };
-        if let Err(e) = network_clone.publish_redundant_payload(&fqdn, commit_bytes).await {
-            update_task_error(&tasks_clone, &task_id_clone, format!("DHT Commit Error: {}", e));
+        if let Err(e) = network_clone
+            .publish_redundant_payload(&fqdn, commit_bytes)
+            .await
+        {
+            update_task_error(
+                &tasks_clone,
+                &task_id_clone,
+                format!("DHT Commit Error: {}", e),
+            );
             return;
         }
 
         // Step 4: VDF Evaluation (Blocking)
-        update_task_status(&tasks_clone, &task_id_clone, "Computing Renewal VDF... (This may take a few minutes)", 40);
-        
+        update_task_status(
+            &tasks_clone,
+            &task_id_clone,
+            "Computing Renewal VDF... (This may take a few minutes)",
+            40,
+        );
+
         let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-            .required_iterations(&fqdn, drand_data.round, &pubkey);
+            .required_iterations(&fqdn, drand_data.round);
         // Renewals get an 80% discount
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);
@@ -1293,7 +1295,11 @@ pub async fn handle_vdf_renew(
         {
             Ok(Ok(p)) => p,
             Ok(Err(e)) => {
-                update_task_error(&tasks_clone, &task_id_clone, format!("VDF engine error: {}", e));
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("VDF engine error: {}", e),
+                );
                 return;
             }
             Err(e) => {
@@ -1340,12 +1346,23 @@ pub async fn handle_vdf_renew(
         let reveal_bytes = match serde_json::to_vec(&new_reveal) {
             Ok(b) => b,
             Err(e) => {
-                update_task_error(&tasks_clone, &task_id_clone, format!("Serialization failed in VDF task: {}", e));
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Serialization failed in VDF task: {}", e),
+                );
                 return;
             }
         };
-        if let Err(e) = network_clone.publish_redundant_payload(&fqdn, reveal_bytes.clone()).await {
-            update_task_error(&tasks_clone, &task_id_clone, format!("DHT Publish Error: {}", e));
+        if let Err(e) = network_clone
+            .publish_redundant_payload(&fqdn, reveal_bytes.clone())
+            .await
+        {
+            update_task_error(
+                &tasks_clone,
+                &task_id_clone,
+                format!("DHT Publish Error: {}", e),
+            );
             return;
         }
 
@@ -1459,152 +1476,6 @@ async fn handle_post_zone(
     }
 
     Ok(Json(serde_json::json!({ "success": true })))
-}
-
-async fn handle_delegation(
-    State(state): State<ApiState>,
-    Json(req): Json<kinetic_core::types::VdfJobRequest>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
-    tracing::info!(
-        "Received blind VDF Job Request from mobile for length: {}",
-        req.name_length
-    );
-
-    // Verify name length (must be >= 8 chars)
-    if req.name_length < 8 {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Delegated name must be at least 8 characters long".to_string(),
-        ));
-    }
-
-    // Verify Hashcash PoW over the blind challenge hash
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(req.challenge_hash);
-    hasher.update(req.hashcash_nonce.to_le_bytes());
-    let result = hasher.finalize();
-
-    // Require at least 20 leading zero bits
-    let valid_hashcash = result[0] == 0 && result[1] == 0 && (result[2] & 0xF0) == 0;
-    if !valid_hashcash {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Insufficient Hashcash PoW (requires 20 leading bits)".to_string(),
-        ));
-    }
-
-    // [Case 106] Prevent Replay Attacks: Check if VDF is already computed
-    let challenge_hex = hex::encode(req.challenge_hash);
-    let proof_key = format!("kinetic_delegation_proof:{}", challenge_hex);
-    if let Ok(Some(_)) = state.storage.get(proof_key.as_bytes()) {
-        return Err((
-            StatusCode::CONFLICT,
-            "Replay attack detected: VDF challenge already processed".to_string(),
-        ));
-    }
-
-    // Add to Mempool
-    let added = {
-        let mut mempool = state.mempool.lock().unwrap_or_else(|e| e.into_inner());
-        let res = mempool.add(req);
-        if res {
-            let _ = state
-                .storage
-                .put(b"kinetic_mempool_persistence", &mempool.dump());
-        }
-        res
-    };
-
-    if added {
-        Ok(Json(PublishResponse {
-            status: "success".to_string(),
-            message: "VDF Job request queued in Desktop Mempool".to_string(),
-        }))
-    } else {
-        Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            "Mempool full, hashcash PoW too low to replace".to_string(),
-        ))
-    }
-}
-
-async fn handle_delegation_status(
-    State(state): State<ApiState>,
-    Path(challenge_hex): Path<String>,
-) -> Json<serde_json::Value> {
-    let proof_key = format!("kinetic_delegation_proof:{}", challenge_hex);
-    if let Ok(Some(bytes)) = state.storage.get(proof_key.as_bytes()) {
-        Json(serde_json::json!({
-            "status": "completed",
-            "proof_bytes": hex::encode(&bytes)
-        }))
-    } else {
-        Json(serde_json::json!({
-            "status": "pending"
-        }))
-    }
-}
-
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-
-async fn handle_ws_delegation(
-    ws: WebSocketUpgrade,
-    State(state): State<ApiState>,
-) -> axum::response::Response {
-    ws.on_upgrade(move |socket| process_ws_delegation(socket, state))
-}
-
-async fn process_ws_delegation(mut socket: WebSocket, state: ApiState) {
-    while let Some(msg) = socket.recv().await {
-        if let Ok(Message::Text(text)) = msg {
-            if let Ok(req) = serde_json::from_str::<kinetic_core::types::VdfJobRequest>(&text) {
-                tracing::info!("Received WebSocket VDF Job Request");
-
-                if req.name_length < 8 {
-                    let _ = socket
-                        .send(Message::Text(
-                            serde_json::to_string(
-                                &serde_json::json!({ "error": "Name too short" }),
-                            )
-                            .unwrap_or_default()
-                            .into(),
-                        ))
-                        .await;
-                    continue;
-                }
-
-                let added = {
-                    let mut mempool = state.mempool.lock().unwrap_or_else(|e| e.into_inner());
-                    let res = mempool.add(req);
-                    if res {
-                        let _ = state
-                            .storage
-                            .put(b"kinetic_mempool_persistence", &mempool.dump());
-                    }
-                    res
-                };
-
-                if added {
-                    let _ = socket
-                        .send(Message::Text(
-                            serde_json::to_string(&serde_json::json!({ "status": "queued" }))
-                                .unwrap_or_default()
-                                .into(),
-                        ))
-                        .await;
-                } else {
-                    let _ = socket
-                        .send(Message::Text(
-                            serde_json::to_string(&serde_json::json!({ "error": "Mempool full" }))
-                                .unwrap_or_default()
-                                .into(),
-                        ))
-                        .await;
-                }
-            }
-        }
-    }
 }
 
 async fn handle_publish_zone(

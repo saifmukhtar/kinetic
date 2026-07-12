@@ -2,23 +2,23 @@
 //!
 //! Offline governance key generator for the Kinetic network (`kinetic-keygen`).
 //!
-//! This binary is used **offline** by the Kinetic council to deterministically
-//! derive the Ed25519 keypairs that govern the network. It must never be run on
+//! This binary is used **offline** by members of the Kinetic council to deterministically
+//! derive their Ed25519 keypair for governing the network. It must never be run on
 //! an internet-connected machine when generating production keys.
 //!
 //! ## Commands
 //!
 //! - **`generate`** — Creates 32 bytes of OS-level cryptographic entropy,
-//!   encodes it as a BIP-39 24-word English mnemonic, and derives all council
-//!   keys from it using PBKDF2-HMAC-SHA512 with 2048 iterations.
-//! - **`restore`** — Reproduces the exact same keypairs from an existing
+//!   encodes it as a BIP-39 24-word English mnemonic, and derives a single governance
+//!   key from it using PBKDF2-HMAC-SHA512 with 2048 iterations.
+//! - **`restore`** — Reproduces the exact same keypair from an existing
 //!   24-word mnemonic, allowing recovery after hardware failure.
 //!
-//! ## Key derivation
+//! ## Decentralization Note
 //!
-//! Each key role uses a unique purpose string as the PBKDF2 salt, ensuring
-//! that the `ROOT_KEY`, `GUARD_KEY`, and each `MEMBER_KEY_N` are
-//! cryptographically independent even though they share the same seed.
+//! Every council member must run this utility independently to generate their own
+//! 24-word seed phrase and derived key. No single entity should ever generate
+//! or hold the seeds for multiple governance keys.
 
 use anyhow::{Context, Result};
 use bip39::{Language, Mnemonic};
@@ -58,38 +58,21 @@ fn derive_key(seed: &[u8], purpose: &str) -> SigningKey {
 fn print_keys(mnemonic: &Mnemonic) {
     let seed = mnemonic.to_seed("");
 
-    let root_key = derive_key(&seed, "ROOT_KEY_v1");
-    let guard_key = derive_key(&seed, "GUARD_KEY_v1");
+    let key = derive_key(&seed, "KINETIC_GOVERNANCE_KEY_v1");
 
     println!("========================================================");
     println!("🚨 OFFLINE SEED PHRASE (STORE SECURELY - NEVER SHARE) 🚨");
     println!("========================================================");
     println!("{}", mnemonic);
     println!("========================================================");
-    println!("Update kinetic-core/src/governance.rs with these keys:");
-    println!();
+    println!("Share this Public Key to be added to the Kinetic Council:");
     println!(
-        "pub const ROOT_PUBLIC_KEY_HEX: &str = \"{}\";",
-        hex::encode(root_key.verifying_key().to_bytes())
+        "Public Key (Hex): {}",
+        hex::encode(key.verifying_key().to_bytes())
     );
-    println!(
-        "pub const GUARD_PUBLIC_KEY_HEX: &str = \"{}\";",
-        hex::encode(guard_key.verifying_key().to_bytes())
-    );
-    println!();
-    println!("--- Member Keys (For Phase 1 Initial Council) ---");
-    for i in 1..=3 {
-        let member_key = derive_key(&seed, &format!("MEMBER_KEY_v1_{}", i));
-        println!(
-            "Member {}: {}",
-            i,
-            hex::encode(member_key.verifying_key().to_bytes())
-        );
-        println!(
-            "  Secret (KEEP SAFE): {}",
-            hex::encode(member_key.to_bytes())
-        );
-    }
+    println!("========================================================");
+    println!("WARNING: Keep this Secret Key absolutely safe!");
+    println!("Secret Key (Hex): {}", hex::encode(key.to_bytes()));
     println!("========================================================");
 }
 
