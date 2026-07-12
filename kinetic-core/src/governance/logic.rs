@@ -168,6 +168,12 @@ impl GovernanceState {
             } else if year_passed && self.grace_period_start_sec.is_none() {
                 self.grace_period_start_sec = Some(current_time_sec);
             }
+
+            if let Some(start_sec) = self.grace_period_start_sec {
+                if current_time_sec >= start_sec + 30 * 24 * 60 * 60 {
+                    // TODO: add rules after 13 months
+                }
+            }
         }
 
         let effective_active_count = std::cmp::max(actual_active_count, MIN_ACTIVE_COUNCIL);
