@@ -41,6 +41,47 @@ pub struct KineticConfig {
     pub daemon: DaemonConfig,
     /// P2P networking settings: ports, bootstrap nodes, and mDNS.
     pub network: P2pConfig,
+    /// Drand randomness beacon settings: custom endpoints and DNS seed.
+    #[serde(default)]
+    pub drand: DrandConfig,
+}
+
+/// Drand networking configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DrandConfig {
+    /// Drand HTTP endpoints to query for Quicknet pulses.
+    #[serde(default = "default_drand_endpoints")]
+    pub endpoints: Vec<String>,
+    /// Domains to query via DNS TXT records for dynamic Drand endpoints.
+    #[serde(default = "default_drand_seed_domains")]
+    pub seed_domains: Vec<String>,
+    /// If true, the node will only listen to P2P gossipsub for Drand pulses
+    /// and will not query the internet via HTTP/DNS.
+    #[serde(default)]
+    pub p2p_only: bool,
+}
+
+fn default_drand_endpoints() -> Vec<String> {
+    vec![
+        "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".to_string(),
+        "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".to_string(),
+        "https://api2.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".to_string(),
+        "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".to_string(),
+    ]
+}
+
+fn default_drand_seed_domains() -> Vec<String> {
+    vec!["drand.saifmukhtar.dev".to_string()]
+}
+
+impl Default for DrandConfig {
+    fn default() -> Self {
+        Self {
+            endpoints: default_drand_endpoints(),
+            seed_domains: default_drand_seed_domains(),
+            p2p_only: false,
+        }
+    }
 }
 
 /// Daemon-specific configuration: API ports, storage, and operating mode.
@@ -161,6 +202,7 @@ impl Default for KineticConfig {
                 enable_mdns: true,
                 external_address: None,
             },
+            drand: DrandConfig::default(),
         }
     }
 }

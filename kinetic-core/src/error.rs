@@ -12,6 +12,12 @@ pub mod storage;
 pub mod updater;
 /// chiavdf Verifiable Delay Function error types.
 pub mod vdf;
+/// Drand Quicknet pulse acquisition and verification error types.
+pub mod drand;
+/// DNS Zone parsing and validation error types.
+pub mod dns;
+/// Node identity and seed phrase error types.
+pub mod identity;
 
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};
 pub use governance::GovernanceError;
@@ -19,6 +25,9 @@ pub use network::NetworkClientError;
 pub use storage::StorageError;
 pub use updater::UpdaterError;
 pub use vdf::{VdfError, VdfRejectReason};
+pub use drand::DrandError;
+pub use dns::DnsError;
+pub use identity::IdentityError;
 
 /// The top-level error type for core Kinetic protocol operations.
 #[derive(Error, Debug)]
@@ -51,21 +60,9 @@ pub enum KineticError {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// JSON serialization or deserialization failed.
-    #[error("Serialization/Deserialization error: {0}")]
-    ParseError(#[from] serde_json::Error),
-
     /// A configuration value was missing or invalid.
     #[error("Configuration error: {0}")]
     ConfigError(String),
-
-    /// A DNS Zone payload failed static validation checks.
-    #[error("DNS Validation error: {0}")]
-    DnsValidationError(String),
-
-    /// Missing or corrupted node identity.
-    #[error("Identity error: {0}")]
-    IdentityError(String),
 
     /// A cryptographic operation (hashing, signing, key derivation) failed.
     #[error("Cryptographic operation failed: {0}")]
