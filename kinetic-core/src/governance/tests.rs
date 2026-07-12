@@ -234,4 +234,74 @@ mod tests {
         let err3 = process_governance_message(&mut state, &msg_revoke).unwrap_err();
         assert!(matches!(err3, crate::error::GovernanceError::RevokeRequiresCouncilMode));
     }
+
+    #[test]
+    fn test_auto_lock_instant() {
+        let current_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let mut state = GovernanceState::new(current_time);
+        
+        // Add 7 members
+        for i in 0..7 {
+            let (_, pk) = generate_key(i);
+            state.active_council.push(pk);
+            state.last_signature_timestamps.insert(pk, current_time);
+        }
+
+        let root_sk = get_root_sk();
+        let mut msg = SignedGovernanceMessage {
+            action: GovernanceAction::UpdateBinary {
+                hash: [1u8; 32],
+                version_nonce: 1,
+                mirrors: vec![],
+            }, // just an action to trigger verify_action
+            council_size_at_proposal: 7,
+            timestamp_sec: current_time,
+            signatures: vec![],
+        };
+        msg.signatures.push(sign_action(&msg, &root_sk));
+
+        // verify_action should instantly transition to Council mode
+        let _ = state.verify_action(&msg, current_time);
+        
+        assert_eq!(state.mode, crate::governance::types::GovernanceMode::Council);
+        assert_eq!(state.lock_timestamp_sec, Some(current_time));
+        assert!(state.grace_period_start_sec.is_none());
+    }
+
+    #[test]
+    fn test_auto_lock_grace_period() {
+        let genesis_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let current_time = genesis_time + super::super::logic::AUTO_LOCK_SECONDS + 10;
+        let mut state = GovernanceState::new(genesis_time);
+        
+        // Less than 7 members
+        let (_, pk) = generate_key(1);
+        state.active_council.push(pk);
+        state.last_signature_timestamps.insert(pk, current_time);
+
+        let root_sk = get_root_sk();
+        let mut msg = SignedGovernanceMessage {
+            action: GovernanceAction::UpdateBinary {
+                hash: [0u8; 32],
+                version_nonce: 1,
+                mirrors: vec![],
+            },
+            council_size_at_proposal: 7,
+            timestamp_sec: current_time,
+            signatures: vec![],
+        };
+        msg.signatures.push(sign_action(&msg, &root_sk));
+
+        let _ = state.verify_action(&msg, current_time);
+        
+        // Should NOT be council mode yet, but grace period started
+        assert_eq!(state.mode, crate::governance::types::GovernanceMode::Founder);
+        assert_eq!(state.grace_period_start_sec, Some(current_time));
+    }
 }
