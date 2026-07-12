@@ -51,6 +51,7 @@ impl GovernanceState {
             pending_updates: HashMap::new(),
             partial_proposals: HashMap::new(),
             founder_premium_grants: 0,
+            grace_period_start_sec: None,
         }
     }
 
@@ -156,13 +157,17 @@ impl GovernanceState {
         let actual_active_count = self.count_active_council(current_time_sec);
         let guard_key_opt = self.get_guard_key()?;
         
-        if self.mode == crate::governance::types::GovernanceMode::Founder
-            && current_time_sec >= self.genesis_timestamp_sec + AUTO_LOCK_SECONDS
-            && actual_active_count >= MIN_ACTIVE_COUNCIL
-            && guard_key_opt.is_some()
-        {
-            self.mode = crate::governance::types::GovernanceMode::Council;
-            self.lock_timestamp_sec = Some(self.genesis_timestamp_sec + AUTO_LOCK_SECONDS);
+        if self.mode == crate::governance::types::GovernanceMode::Founder {
+            let instant_lock = actual_active_count >= MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
+            let year_passed = current_time_sec >= self.genesis_timestamp_sec + AUTO_LOCK_SECONDS;
+
+            if instant_lock {
+                self.mode = crate::governance::types::GovernanceMode::Council;
+                self.lock_timestamp_sec = Some(current_time_sec);
+                self.grace_period_start_sec = None; // clear grace period if it was active
+            } else if year_passed && self.grace_period_start_sec.is_none() {
+                self.grace_period_start_sec = Some(current_time_sec);
+            }
         }
 
         let effective_active_count = std::cmp::max(actual_active_count, MIN_ACTIVE_COUNCIL);

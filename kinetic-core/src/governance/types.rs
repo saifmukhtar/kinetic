@@ -73,6 +73,7 @@ pub struct GovernanceState {
     pub pending_updates: HashMap<Hash256, (u64, Vec<String>)>,
     pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
     pub founder_premium_grants: u8,
+    pub grace_period_start_sec: Option<u64>,
 }
 
 impl SignedGovernanceMessage {
