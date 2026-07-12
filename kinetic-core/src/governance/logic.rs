@@ -139,13 +139,13 @@ impl GovernanceState {
         if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
             if let Some(&broadcast_time) = self.pending_timelocks.get(target_hash) {
                 if current_time_sec >= broadcast_time + TIMELOCK_SECONDS {
-                    return Ok(self.execute_action(msg, current_time_sec, false));
+                    return Ok(self.execute_action(msg, current_time_sec, None));
                 } else {
                     return Err(GovernanceError::TimelockNotExpired);
                 }
-            } else if let Some(&(broadcast_time, _)) = self.pending_updates.get(target_hash) {
-                if current_time_sec >= broadcast_time + OTA_TIMELOCK_SECONDS {
-                    return Ok(self.execute_action(msg, current_time_sec, false));
+            } else if let Some(&(broadcast_time, wait_time, _)) = self.pending_updates.get(target_hash) {
+                if current_time_sec >= broadcast_time + wait_time {
+                    return Ok(self.execute_action(msg, current_time_sec, None));
                 } else {
                     return Err(GovernanceError::OtaTimelockNotExpired);
                 }
@@ -191,7 +191,7 @@ impl GovernanceState {
         &mut self,
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
-        is_instant: bool,
+        wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
         let mut effect = None;
         match &msg.action {
@@ -212,15 +212,15 @@ impl GovernanceState {
                 }
             }
             GovernanceAction::UpdateBinary { hash, mirrors, .. } => {
-                if is_instant {
+                if let Some(wait_sec) = wait_time {
+                    let action_hash = Self::hash_action(msg);
+                    self.pending_updates
+                        .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
+                } else {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         hash: *hash,
                         mirrors: mirrors.clone(),
                     });
-                } else {
-                    let action_hash = Self::hash_action(msg);
-                    self.pending_updates
-                        .insert(action_hash, (current_time_sec, mirrors.clone()));
                 }
             }
             GovernanceAction::VetoUpdate { target_hash } => {
@@ -239,7 +239,7 @@ impl GovernanceState {
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
                 self.pending_timelocks.remove(target_hash);
-                if let Some((_, mirrors)) = self.pending_updates.remove(target_hash) {
+                if let Some((_, _, mirrors)) = self.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         hash: *target_hash,
                         mirrors,
@@ -269,8 +269,8 @@ impl GovernanceState {
         let mut effects = Vec::new();
         let mut matured_hashes = Vec::new();
 
-        for (hash, (broadcast_time, mirrors)) in &self.pending_updates {
-            if current_time_sec >= *broadcast_time + OTA_TIMELOCK_SECONDS {
+        for (hash, (broadcast_time, wait_time, mirrors)) in &self.pending_updates {
+            if current_time_sec >= *broadcast_time + *wait_time {
                 matured_hashes.push((*hash, mirrors.clone()));
             }
         }

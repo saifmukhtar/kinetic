@@ -56,7 +56,11 @@ mod tests {
         msg.signatures.push(sig);
 
         let effect = process_governance_message(&mut state, &msg).unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::TriggerOTA { .. })));
+        assert!(effect.is_none());
+        assert_eq!(state.pending_updates.len(), 1);
+        let action_hash = GovernanceState::hash_action(&msg);
+        let (_, wait_time, _) = state.pending_updates.get(&action_hash).unwrap();
+        assert_eq!(*wait_time, 3 * 24 * 60 * 60); // 3 days wait
     }
 
     #[test]
@@ -138,7 +142,7 @@ mod tests {
         let action_hash = [3u8; 32];
         state
             .pending_updates
-            .insert(action_hash, (current_time, vec![]));
+            .insert(action_hash, (current_time, crate::governance::logic::OTA_TIMELOCK_SECONDS, vec![]));
 
         let veto_action = GovernanceAction::VetoUpdate {
             target_hash: action_hash,

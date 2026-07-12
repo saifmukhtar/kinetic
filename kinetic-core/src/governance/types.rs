@@ -70,7 +70,7 @@ pub struct GovernanceState {
     pub last_signature_timestamps: HashMap<VerifyingKey, u64>,
     pub pending_timelocks: HashMap<Hash256, u64>,
     pub vetoed_hashes: HashSet<Hash256>,
-    pub pending_updates: HashMap<Hash256, (u64, Vec<String>)>,
+    pub pending_updates: HashMap<Hash256, (u64, u64, Vec<String>)>,
     pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
     pub founder_premium_grants: u8,
     pub grace_period_start_sec: Option<u64>,
