@@ -49,6 +49,13 @@ pub fn verify_action(
         return Ok(state.execute_action(msg, current_time_sec, true));
     }
 
+    if let GovernanceAction::GrantPremiumName { name, .. } = &msg.action {
+        let label = name.strip_suffix(".kin").unwrap_or(name);
+        if label.len() != 1 {
+            return Err(GovernanceError::InvalidPremiumNameLength);
+        }
+    }
+
     let mut counted_members = HashSet::new();
     let mut valid_signers = HashSet::new();
     for sig in &msg.signatures {
