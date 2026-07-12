@@ -49,6 +49,7 @@ impl GovernanceState {
             vetoed_hashes: HashSet::new(),
             pending_updates: HashMap::new(),
             partial_proposals: HashMap::new(),
+            founder_premium_grants: 0,
         }
     }
 
@@ -232,6 +233,20 @@ impl GovernanceState {
                         mirrors,
                     });
                 }
+            }
+            GovernanceAction::GrantPremiumName { name, target_pubkey } => {
+                if self.mode == crate::governance::types::GovernanceMode::Founder {
+                    self.founder_premium_grants += 1;
+                }
+                effect = Some(GovernanceEffect::PremiumNameGranted {
+                    name: name.clone(),
+                    target_pubkey: *target_pubkey,
+                });
+            }
+            GovernanceAction::RevokePremiumName { name } => {
+                effect = Some(GovernanceEffect::PremiumNameRevoked {
+                    name: name.clone(),
+                });
             }
             GovernanceAction::RotateRootKey { .. } | GovernanceAction::RotateGuardKey { .. } => {}
         }
