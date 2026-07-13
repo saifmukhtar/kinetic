@@ -141,7 +141,6 @@ impl KineticRecordStore {
             let _ = self.storage.delete(key.as_bytes());
         }
 
-        let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
         let max_age_rounds = kinetic_core::types::RESQUARING_EPOCH_ROUNDS; // Finding 3: use shared constant
         let idle_timeout = (14 * 24 * 3600) / 30; // 14 days in 30s rounds
 
