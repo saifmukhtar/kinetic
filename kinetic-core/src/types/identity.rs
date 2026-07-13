@@ -9,12 +9,14 @@ pub struct AuthorizedKid {
 
 impl AuthorizedKid {
     pub fn signable_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
+        let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
+        let canon_bytes = canon_bytes.as_bytes();
+        let mut bytes = Vec::with_capacity(19 + 4 + self.name.len() + 4 + canon_bytes.len());
         bytes.extend_from_slice(b"kinetic-auth-kid-v1");
+        bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
-        if let Ok(canon) = self.kid_doc.canonicalize() {
-            bytes.extend_from_slice(canon.as_bytes());
-        }
+        bytes.extend_from_slice(&(canon_bytes.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(canon_bytes);
         bytes
     }
 }
@@ -28,12 +30,14 @@ pub struct AuthorizedManifest {
 
 impl AuthorizedManifest {
     pub fn signable_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
+        let canon_bytes = self.manifest.canonicalize().unwrap_or_default();
+        let canon_bytes = canon_bytes.as_bytes();
+        let mut bytes = Vec::with_capacity(24 + 4 + self.name.len() + 4 + canon_bytes.len());
         bytes.extend_from_slice(b"kinetic-auth-manifest-v1");
+        bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
-        if let Ok(canon) = self.manifest.canonicalize() {
-            bytes.extend_from_slice(canon.as_bytes());
-        }
+        bytes.extend_from_slice(&(canon_bytes.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(canon_bytes);
         bytes
     }
 }
