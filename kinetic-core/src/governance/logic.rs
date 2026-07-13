@@ -20,6 +20,7 @@ pub const GUARD_PUBLIC_KEY_HEX: &str =
     "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6";
 
 pub const MIN_ACTIVE_COUNCIL: usize = 7;
+pub const MAX_COUNCIL_SIZE: usize = 21;
 pub const MAX_AGE_SECONDS: u64 = 14 * 24 * 60 * 60;
 pub const TIMELOCK_SECONDS: u64 = 30 * 24 * 60 * 60;
 pub const ACTIVE_WINDOW_SECONDS: u64 = 30 * 24 * 60 * 60;
@@ -136,6 +137,12 @@ impl GovernanceState {
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
         if current_time_sec.saturating_sub(msg.timestamp_sec) > MAX_AGE_SECONDS {
             return Err(GovernanceError::StaleProposal);
+        }
+
+        if let GovernanceAction::AppointMember { .. } | GovernanceAction::SelfAppointCouncilMember { .. } = &msg.action {
+            if self.active_council.len() >= MAX_COUNCIL_SIZE {
+                return Err(GovernanceError::CouncilAtCapacity);
+            }
         }
 
         if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
