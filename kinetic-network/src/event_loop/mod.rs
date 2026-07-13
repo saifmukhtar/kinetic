@@ -1,7 +1,9 @@
 /// The core event loop definition.
 pub mod core;
-/// Network behavior handlers.
-pub mod handlers;
+/// Outbound command handlers.
+pub mod command_handler;
+/// Inbound swarm handlers.
+pub mod swarm_handler;
 /// Swarm initialization logic.
 pub mod swarm_builder;
 /// Event loop utilities.
