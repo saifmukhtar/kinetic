@@ -32,9 +32,7 @@ pub enum KineticStoreError {
     /// Signature bytes are malformed.
     #[error("signature bytes are malformed")]
     MalformedSignature,
-    /// The domain name is currently hibernating and cannot be updated.
-    #[error("name is currently hibernating")]
-    Hibernating,
+
     /// Lost the PoW XOR tie-break against an existing record.
     #[error("lost the XOR tie-break against an existing record")]
     TieBroken,
@@ -70,7 +68,7 @@ impl KineticStoreError {
         match self {
             Self::TieBroken
             | Self::InsufficientIterations
-            | Self::Hibernating
+
             | Self::VdfExpired { .. }
             | Self::RevealNotFound => Severity::Info,
             Self::PayloadTooLarge | Self::UnknownRecordType => Severity::Warning,

@@ -21,7 +21,7 @@ pub trait StorageEngine: Send + Sync {
     /// Stores a `value` under the given `key`, overwriting any existing entry.
     fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError>;
     /// Retrieves the value stored under `key`, or `None` if the key does not exist.
-    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError>;
+    fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError>;
     /// Removes the entry for `key`. A no-op if the key does not exist.
     fn delete(&self, key: &[u8]) -> Result<(), StorageError>;
 }

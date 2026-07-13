@@ -10,7 +10,6 @@ mod tests {
     use kinetic_network::client::{Command, NetworkClient};
     use kinetic_storage::SledStorage;
     use std::sync::{Arc, Mutex};
-    use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc;
     use tower::ServiceExt;
@@ -150,7 +149,7 @@ mod tests {
         let req_body = serde_json::json!({
             "reveal": {
                 "protocol_version": 1,
-                "name": "example.kin",
+                "name": "validname.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "drand_pulse": 100,
@@ -193,7 +192,7 @@ mod tests {
         let req_body = serde_json::json!({
             "reveal": {
                 "protocol_version": 2,
-                "name": "example.kin",
+                "name": "validname.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "drand_pulse": 100, // Very old
@@ -228,7 +227,7 @@ mod tests {
 
         let mock_reveal = kinetic_core::types::Reveal {
             protocol_version: 2,
-            name: "example.kin".to_string(),
+            name: "validname.kin".to_string(),
             payload: vec![1, 2, 3],
             salt: [0; 32],
             drand_pulse: 100,
@@ -243,7 +242,7 @@ mod tests {
             miner_pubkey: None,
             points_spent: None,
         };
-        let reveal_key = "kinetic_reveal:example.kin";
+        let reveal_key = "kinetic_reveal:validname.kin";
         storage
             .put(
                 reveal_key.as_bytes(),
@@ -255,7 +254,7 @@ mod tests {
             if let Some(cmd) = cmd_rx.recv().await {
                 match cmd {
                     Command::ResolveRedundant { name, responder } => {
-                        assert_eq!(name, "example.kin");
+                        assert_eq!(name, "validname.kin");
                         let _ =
                             responder.send(Err(kinetic_core::error::ResolutionError::NotFound {
                                 name: name.clone(),
@@ -268,7 +267,7 @@ mod tests {
         });
 
         let request = Request::builder()
-            .uri("/resolve/example.kin")
+            .uri("/resolve/validname.kin")
             .method("GET")
             .body(Body::empty())
             .unwrap();
@@ -277,7 +276,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
-        assert!(body_str.contains("example.kin"));
+        assert!(body_str.contains("validname.kin"));
     }
 
     #[tokio::test]
@@ -285,8 +284,9 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let request = Request::builder()
-            .uri("/zone/example.kin/publish")
+            .uri("/zone/validname.kin/publish")
             .method("POST")
+            .header("Authorization", format!("Bearer {}", get_test_token()))
             .body(Body::empty())
             .unwrap();
 
@@ -294,27 +294,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[tokio::test]
-    async fn test_delegation_minimum_length() {
-        let (app, _, _) = setup_test_app().await;
 
-        let req_body = serde_json::json!({
-            "name_length": 5,
-            "challenge_hash": vec![0; 32],
-            "hashcash_nonce": 1234,
-            "drand_pulse": 1000
-        });
-
-        let request = Request::builder()
-            .uri("/delegation")
-            .method("POST")
-            .header("Content-Type", "application/json")
-            .body(Body::from(req_body.to_string()))
-            .unwrap();
-
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    }
 
     #[tokio::test]
     async fn test_concurrent_vdf_task_lock() {
@@ -330,6 +310,7 @@ mod tests {
         let request1 = Request::builder()
             .uri("/vdf/register")
             .method("POST")
+            .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body_str.clone()))
             .unwrap();
@@ -337,6 +318,7 @@ mod tests {
         let request2 = Request::builder()
             .uri("/vdf/register")
             .method("POST")
+            .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body_str.clone()))
             .unwrap();

@@ -8,7 +8,7 @@ fn test_put_empty_key() {
     let dir = tempdir().unwrap();
     let storage = SledStorage::new(dir.path()).unwrap();
     storage.put(b"", b"value").unwrap();
-    assert_eq!(storage.get(b"").unwrap().unwrap(), b"value");
+    assert_eq!(storage.get(b"").unwrap().unwrap(), &b"value"[..]);
 }
 
 #[test]
@@ -16,7 +16,7 @@ fn test_put_empty_value() {
     let dir = tempdir().unwrap();
     let storage = SledStorage::new(dir.path()).unwrap();
     storage.put(b"key", b"").unwrap();
-    assert_eq!(storage.get(b"key").unwrap().unwrap(), b"");
+    assert_eq!(storage.get(b"key").unwrap().unwrap(), &b""[..]);
 }
 
 #[test]
@@ -73,7 +73,7 @@ fn test_overwrite_key() {
     let storage = SledStorage::new(dir.path()).unwrap();
     storage.put(b"key", b"val1").unwrap();
     storage.put(b"key", b"val2").unwrap();
-    assert_eq!(storage.get(b"key").unwrap().unwrap(), b"val2");
+    assert_eq!(storage.get(b"key").unwrap().unwrap(), &b"val2"[..]);
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn test_large_key() {
     let storage = SledStorage::new(dir.path()).unwrap();
     let large_key = vec![0x41; 2048]; // 2KB key
     storage.put(&large_key, b"val").unwrap();
-    assert_eq!(storage.get(&large_key).unwrap().unwrap(), b"val");
+    assert_eq!(storage.get(&large_key).unwrap().unwrap(), &b"val"[..]);
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn test_concurrency_reads_writes() {
             let key = format!("thread_key_{}", i);
             storage_clone.put(key.as_bytes(), b"val").unwrap();
             let val = storage_clone.get(key.as_bytes()).unwrap().unwrap();
-            assert_eq!(val, b"val");
+            assert_eq!(val, &b"val"[..]);
         }));
     }
 

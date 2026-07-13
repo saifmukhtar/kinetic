@@ -86,12 +86,12 @@ mod native {
             Ok(())
         }
 
-        fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
+        fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError> {
             let res = self
                 .db
                 .get(key)
                 .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
-            Ok(res.map(|ivec| ivec.to_vec()))
+            Ok(res.map(|ivec| bytes::Bytes::copy_from_slice(&ivec)))
         }
 
         fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
@@ -158,12 +158,12 @@ mod wasm {
             Ok(())
         }
 
-        fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
+        fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError> {
             let db = self
                 .db
                 .read()
                 .map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
-            Ok(db.get(key).cloned())
+            Ok(db.get(key).map(|v| bytes::Bytes::copy_from_slice(v)))
         }
 
         fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
@@ -194,7 +194,7 @@ mod tests {
         storage.put(key, val).unwrap();
 
         let res = storage.get(key).unwrap();
-        assert_eq!(res, Some(val.to_vec()));
+        assert_eq!(res, Some(bytes::Bytes::copy_from_slice(val)));
 
         storage.delete(key).unwrap();
         let res2 = storage.get(key).unwrap();

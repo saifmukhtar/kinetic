@@ -24,9 +24,9 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 - **Status:** 🟢 **Solved / Handled**. `load_or_create_keypair` now enforces a strict 32-byte check, returns a fatal `CryptoError` on corruption rather than overwriting, and uses atomic `tmp` file renaming during creation.
 
 ### 3. The "OOM Payload Bomb" Edge Case
-- **Location:** `kinetic-core/src/types.rs` (`Reveal` and `Hibernation` structs)
+- **Location:** `kinetic-core/src/types.rs` (`Reveal` struct)
 - **What happens if:** A malicious peer creates a `Reveal` struct where the `payload` vector is artificially inflated to 500 Megabytes, signs it, and publishes it to the Kademlia DHT.
-- **Status:** 🟢 **Solved / Handled**. A hard limit `MAX_PAYLOAD_SIZE = 65_536` (64KB) was introduced in `kinetic-core`. Both `Reveal` and `Hibernation` now have a `validate()` method that explicitly rejects inflated payloads and proofs before they consume significant resources.
+- **Status:** 🟢 **Solved / Handled**. A hard limit `MAX_PAYLOAD_SIZE = 65_536` (64KB) was introduced in `kinetic-core`. `Reveal` now has a `validate()` method that explicitly rejects inflated payloads and proofs before they consume significant resources.
 
 ### 4. The "Exponential Hardware Drift Overflow" Edge Case
 - **Location:** `kinetic-core/src/consensus_math.rs:47` & `:79`
@@ -79,7 +79,7 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 ### 12. The "Stale DNS Cache" Edge Case
 - **Location:** `kinetic-dns/src/lib.rs:16` (`KineticExpiry`)
 - **What happens if:** A user registers a name and then immediately publishes an update to their DNS zone via `kinetic update`. They try to ping their new domain.
-- **Status:** 🟢 **Solved / Fixed**. A cache invalidation method (`invalidate_cache`) has been added to `KineticDnsHandler`. The `api.rs` module in the daemon now automatically triggers this invalidation immediately after successfully pushing a payload (Zone, Hibernation, or regular Reveal) to the DHT, ensuring local clients always get real-time resolution for domains they just updated.
+- **Status:** 🟢 **Solved / Fixed**. A cache invalidation method (`invalidate_cache`) has been added to `KineticDnsHandler`. The `api.rs` module in the daemon now automatically triggers this invalidation immediately after successfully pushing a payload (Zone or regular Reveal) to the DHT, ensuring local clients always get real-time resolution for domains they just updated.
 
 ---
 
@@ -95,7 +95,7 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 ### 14. The "Blocking API Timeout" Edge Case
 - **Location:** `kinetic-daemon/src/api.rs:225` (`tokio::time::sleep(tokio::time::Duration::from_secs(10))`)
 - **What happens if:** A user runs `kinetic publish`. The API route sleeps for 10 seconds to check if 3/5 quorum was reached in the DHT.
-- **Status:** 🟢 **Solved / Fixed**. We refactored `handle_publish` and `handle_publish_hibernation` in `kinetic-daemon/src/api.rs` to spawn background `tokio::spawn` tasks for the 10-second DHT quorum verification. The HTTP API now responds immediately with a `202 Accepted`-style success (status: "success") after routing the payload to the network, eliminating client timeouts and false "failure" states caused by network lag.
+- **Status:** 🟢 **Solved / Fixed**. We refactored `handle_publish` in `kinetic-daemon/src/api.rs` to spawn background `tokio::spawn` tasks for the 10-second DHT quorum verification. The HTTP API now responds immediately with a `202 Accepted`-style success (status: "success") after routing the payload to the network, eliminating client timeouts and false "failure" states caused by network lag.
 
 ### 15. The "Token Overwrite Lockout" Edge Case
 - **Location:** `kinetic-daemon/src/api.rs:122` & `main.rs`
@@ -211,11 +211,6 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 - **Description:** The `store.rs` explicit explicitly mentions that the "App layer must verify" capability manifests. It accepts any validly signed manifest into `MemoryStore`.
 - **Remediation:** **Solved.** Addressed identically to the KID vulnerability; `CapabilityManifest` now requires a 20-bit Hashcash PoW prior to signature, making large-scale cache-eviction attacks impossible.
 
-### 35. The "Reboot Hibernation 500M Iteration Default" Edge Case
-- **Location:** `kinetic-network/src/store.rs:64`
-- **What happens if:** A node restarts. The code parses legacy 8-byte hibernation records from sled and defaults their iterations to `500,000,000`.
-- **Status:** 🟢 **Solved / Fixed**. Changed the fallback for legacy 8-byte hibernation records to assume `0` iterations instead of `500,000,000`. This ensures that backwards compatibility doesn't accidentally grant an insurmountable math exemption that locks the name hash forever.
-
 ### 36. The "Keepalive Dummy Query Amplification" Edge Case
 - **Location:** `kinetic-network/src/event_loop.rs:200`
 - **What happens if:** The network scales to 100,000 nodes. Every node runs a 30-second interval that executes `get_closest_peers(random_peer)` to keep AWS load balancers alive.
@@ -254,7 +249,7 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 ### 43. The "Sled Disk Exhaustion (No Pruning)" Edge Case
 - **Location:** `kinetic-network/src/store.rs:135`
 - **What happens if:** Over months, thousands of names expire, are stolen, or abandoned.
-- **Status:** 🟢 **Solved / Fixed**. We added a `prune()` method to `KineticRecordStore` that is invoked by `event_loop.rs` every hour. It scans the Sled database and deletes `Commitment` records older than 1,000,000 rounds (1 year) and `Reveal`/`Heartbeat`/`Hibernation` records that have been idle without a heartbeat for over 14 days (taking hibernation exemptions into account).
+- **Status:** 🟢 **Solved / Fixed**. We added a `prune()` method to `KineticRecordStore` that is invoked by `event_loop.rs` every hour. It scans the Sled database and deletes `Commitment` records older than 1,000,000 rounds (1 year) and `Reveal`/`Heartbeat` records that have been idle without a heartbeat for over 14 days.
 
 ### 44. The "Proxy Response Timeout Drop" Edge Case
 - **Location:** `kinetic-network/src/event_loop.rs:446`
@@ -333,11 +328,6 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 - **Location:** `kinetic-ui/src/pages/DomainView.tsx:77`
 - **What happens if:** A user updates their DNS records, clicks "Deploy & Publish", and sees the success alert.
 - **Status:** 🟢 **Solved / Fixed**. We updated the `DomainView.tsx` `handleSave` function to correctly parse the backend response. The `/api/zone/${name}` backend endpoint already handles publishing to the DHT automatically, but the UI now properly validates the response JSON for errors and updates the success alert to explicitly say "DNS records saved and published to the network!", eliminating the illusion of a local-only save trap.
-
-### 58. The "False Hibernation Status Mismatch" Edge Case
-- **Location:** `kinetic-ui/src/pages/Dashboard.tsx:21`
-- **What happens if:** A user's daemon has been offline for 10 days, and their domain has fallen into "Hibernating" state on the network.
-- **Status:** 🟢 **Solved / Fixed**. We updated `Dashboard.tsx` to verify domain network liveness via `/api/resolve` instead of blindly assuming "Active". It now properly displays "Hibernating" if the network fails to resolve the domain.
 
 ### 59. The "Cleartext API Token Exposure" Edge Case
 - **Location:** `kinetic-ui/src/pages/Settings.tsx:61`

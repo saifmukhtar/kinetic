@@ -56,10 +56,10 @@ pub async fn update_zone_logic(
     client: &Client,
     _display_val: String,
 ) -> anyhow::Result<()> {
-    if !kinetic_core::types::is_valid_apex_name(&fqdn) {
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         tracing::error!(
-            "Invalid domain name: '{}'. You must update an apex domain.",
-            fqdn
+            "Invalid domain name '{}': {}",
+            fqdn, e
         );
         return Ok(());
     }

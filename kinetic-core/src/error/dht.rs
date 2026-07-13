@@ -17,9 +17,7 @@ pub enum RecordRejectReason {
     /// The name is already owned by a different public key.
     #[error("name already owned by a different key")]
     AlreadyOwned,
-    /// The name is currently in the hibernation state.
-    #[error("name is in hibernation")]
-    Hibernating,
+
     /// The VDF iteration count is below the minimum required for this name and round.
     #[error("insufficient VDF iterations to claim ownership")]
     InsufficientIterations,

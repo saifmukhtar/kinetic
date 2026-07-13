@@ -2700,6 +2700,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "bip39",
+ "bytes",
  "criterion",
  "directories",
  "dirs 6.0.0",
@@ -2929,6 +2930,7 @@ name = "kinetic-storage"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "kinetic-core",
  "sled",
  "tempfile",
