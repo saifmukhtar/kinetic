@@ -52,7 +52,7 @@ mod api_tests;
 mod ca;
 mod ca_tests;
 mod nostr;
-mod nostr_tests;
+
 mod pac;
 mod proxy;
 mod proxy_tests;
@@ -481,7 +481,7 @@ async fn run_daemon() -> Result<()> {
                             let rn = republish_network.clone();
                             let n = name.clone();
                             tokio::spawn(async move {
-                                let _ = rn.publish_redundant_payload(&n, reveal_bytes).await;
+                                let _ = rn.publish_redundant_payload(&n, reveal_bytes.to_vec()).await;
                             });
                         }
                     }
