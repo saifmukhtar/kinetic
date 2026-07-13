@@ -55,7 +55,7 @@ mod tests {
         let sig = sign_action(&msg, &root_sk);
         msg.signatures.push(sig);
 
-        let effect = process_governance_message(&mut state, &msg).unwrap();
+        let effect = process_governance_message(&mut state, &msg, 10_000).unwrap();
         assert!(effect.is_none());
         assert_eq!(state.pending_updates.len(), 1);
         let action_hash = GovernanceState::hash_action(&msg);
@@ -106,7 +106,7 @@ mod tests {
         };
 
         msg1.signatures.push(sign_action(&msg1, &council[0].0));
-        let err = process_governance_message(&mut state, &msg1).unwrap_err();
+        let err = process_governance_message(&mut state, &msg1, 10_000).unwrap_err();
         assert!(matches!(
             err,
             crate::error::GovernanceError::InsufficientSignatures
@@ -124,7 +124,7 @@ mod tests {
 
         let action_hash = GovernanceState::hash_action(&msg_full);
 
-        let effect = process_governance_message(&mut state, &msg_full).unwrap();
+        let effect = process_governance_message(&mut state, &msg_full, 10_000).unwrap();
         assert!(effect.is_none());
         assert!(state.pending_updates.contains_key(&action_hash));
     }
@@ -155,7 +155,7 @@ mod tests {
         };
         veto_msg.signatures.push(sign_action(&veto_msg, &guard_sk));
 
-        let effect = process_governance_message(&mut state, &veto_msg).unwrap();
+        let effect = process_governance_message(&mut state, &veto_msg, 10_000).unwrap();
         assert!(effect.is_none());
 
         assert!(!state.pending_updates.contains_key(&action_hash));
@@ -185,7 +185,7 @@ mod tests {
         };
         msg_invalid_len.signatures.push(sign_action(&msg_invalid_len, &root_sk));
         
-        let err = process_governance_message(&mut state, &msg_invalid_len).unwrap_err();
+        let err = process_governance_message(&mut state, &msg_invalid_len, 10_000).unwrap_err();
         assert!(matches!(err, crate::error::GovernanceError::InvalidPremiumNameLength), "Got error: {:?}", err);
 
         // Grant 5 valid names
@@ -201,7 +201,7 @@ mod tests {
                 signatures: vec![],
             };
             msg.signatures.push(sign_action(&msg, &root_sk));
-            let effect = process_governance_message(&mut state, &msg).unwrap();
+            let effect = process_governance_message(&mut state, &msg, 10_000).unwrap();
             
             if let Some(GovernanceEffect::PremiumNameGranted { name: granted_name, .. }) = effect {
                 assert_eq!(granted_name, name.to_string());
@@ -222,7 +222,7 @@ mod tests {
         };
         msg_6.signatures.push(sign_action(&msg_6, &root_sk));
         
-        let err2 = process_governance_message(&mut state, &msg_6).unwrap_err();
+        let err2 = process_governance_message(&mut state, &msg_6, 10_000).unwrap_err();
         assert!(matches!(err2, crate::error::GovernanceError::FounderPremiumLimitReached));
         
         // Try revoke in founder mode
@@ -235,7 +235,7 @@ mod tests {
             signatures: vec![],
         };
         msg_revoke.signatures.push(sign_action(&msg_revoke, &root_sk));
-        let err3 = process_governance_message(&mut state, &msg_revoke).unwrap_err();
+        let err3 = process_governance_message(&mut state, &msg_revoke, 10_000).unwrap_err();
         assert!(matches!(err3, crate::error::GovernanceError::RevokeRequiresCouncilMode));
     }
 
@@ -268,7 +268,7 @@ mod tests {
         msg.signatures.push(sign_action(&msg, &root_sk));
 
         // verify_action should instantly transition to Council mode
-        let _ = state.verify_action(&msg, current_time);
+        let _ = state.verify_action(&msg, current_time, 10_000);
         
         assert_eq!(state.mode, crate::governance::types::GovernanceMode::Council);
         assert_eq!(state.lock_timestamp_sec, Some(current_time));
@@ -302,10 +302,40 @@ mod tests {
         };
         msg.signatures.push(sign_action(&msg, &root_sk));
 
-        let _ = state.verify_action(&msg, current_time);
+        let _ = state.verify_action(&msg, current_time, 10_000);
         
         // Should NOT be council mode yet, but grace period started
         assert_eq!(state.mode, crate::governance::types::GovernanceMode::Founder);
         assert_eq!(state.grace_period_start_sec, Some(current_time));
+    }
+
+    #[test]
+    fn test_auto_lock_grace_period_immature_network() {
+        let genesis_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let current_time = genesis_time + super::super::logic::AUTO_LOCK_SECONDS + 10;
+        let mut state = GovernanceState::new(genesis_time);
+        
+        let root_sk = get_root_sk();
+        let mut msg = SignedGovernanceMessage {
+            action: GovernanceAction::UpdateBinary {
+                hash: [0u8; 32],
+                version_nonce: 1,
+                mirrors: vec![],
+            },
+            council_size_at_proposal: 7,
+            timestamp_sec: current_time,
+            signatures: vec![],
+        };
+        msg.signatures.push(sign_action(&msg, &root_sk));
+
+        // Network only has 9,999 names, not mature enough
+        let _ = state.verify_action(&msg, current_time, 9_999);
+        
+        // Should NOT start the grace period
+        assert_eq!(state.mode, crate::governance::types::GovernanceMode::Founder);
+        assert!(state.grace_period_start_sec.is_none());
     }
 }

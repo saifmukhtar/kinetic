@@ -131,6 +131,7 @@ impl GovernanceState {
         &mut self,
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
+        total_registered_names: u32,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
         if current_time_sec.saturating_sub(msg.timestamp_sec) > MAX_AGE_SECONDS {
             return Err(GovernanceError::StaleProposal);
@@ -160,12 +161,13 @@ impl GovernanceState {
         if self.mode == crate::governance::types::GovernanceMode::Founder {
             let instant_lock = actual_active_count >= MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
             let year_passed = current_time_sec >= self.genesis_timestamp_sec + AUTO_LOCK_SECONDS;
+            let network_mature = total_registered_names >= 10_000;
 
             if instant_lock {
                 self.mode = crate::governance::types::GovernanceMode::Council;
                 self.lock_timestamp_sec = Some(current_time_sec);
                 self.grace_period_start_sec = None; // clear grace period if it was active
-            } else if year_passed && self.grace_period_start_sec.is_none() {
+            } else if year_passed && network_mature && self.grace_period_start_sec.is_none() {
                 self.grace_period_start_sec = Some(current_time_sec);
             }
 
@@ -287,6 +289,7 @@ impl GovernanceState {
 pub fn process_governance_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
+    total_registered_names: u32,
 ) -> Result<Option<GovernanceEffect>, crate::error::GovernanceError> {
     let msg_to_update = state.merge_signatures(msg);
     let current_time_sec = web_time::SystemTime::now()
@@ -294,5 +297,5 @@ pub fn process_governance_message(
         .unwrap()
         .as_secs();
 
-    state.verify_action(&msg_to_update, current_time_sec)
+    state.verify_action(&msg_to_update, current_time_sec, total_registered_names)
 }
