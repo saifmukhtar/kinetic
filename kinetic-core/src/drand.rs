@@ -124,6 +124,8 @@ impl DrandPulse {
 pub struct DrandClient {
     http: reqwest::Client,
     storage: Option<Arc<dyn StorageEngine>>,
+    endpoints: Vec<String>,
+    seed_domains: Vec<String>,
     #[cfg(not(target_arch = "wasm32"))]
     resolver: hickory_resolver::TokioAsyncResolver,
 }
@@ -133,9 +135,12 @@ impl DrandClient {
     ///
     /// Pass `Some(storage)` to enable caching of the last successfully fetched pulse.
     pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
+        let config = crate::config::KineticConfig::load();
         Self {
             http: reqwest::Client::new(),
             storage,
+            endpoints: config.drand.endpoints,
+            seed_domains: config.drand.seed_domains,
             #[cfg(not(target_arch = "wasm32"))]
             resolver: hickory_resolver::TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default()),
         }
@@ -148,12 +153,11 @@ impl DrandClient {
             return self.load_cached_pulse();
         }
 
-        let config = crate::config::KineticConfig::load();
-        let mut endpoints = config.drand.endpoints.clone();
+        let mut endpoints = self.endpoints.clone();
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            for domain in &config.drand.seed_domains {
+            for domain in &self.seed_domains {
                 if let Ok(txt_lookup) = self.resolver.txt_lookup(domain.as_str()).await {
                     for txt in txt_lookup.iter() {
                         let url_str = txt.to_string();
