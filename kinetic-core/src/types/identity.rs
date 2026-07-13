@@ -92,7 +92,7 @@ pub fn save_keypair_from_mnemonic(
 
     let seed = mnemonic.to_seed("");
     let mut derived = [0u8; 32];
-    pbkdf2_hmac::<Sha512>(&seed, b"KINETIC_NODE_KEY_v1", 2048, &mut derived);
+    pbkdf2_hmac::<Sha512>(&seed, b"duckU", 2048, &mut derived);
 
     let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived);
 
