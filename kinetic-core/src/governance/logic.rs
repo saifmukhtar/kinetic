@@ -26,7 +26,6 @@ pub const TIMELOCK_SECONDS: u64 = 30 * 24 * 60 * 60;
 pub const ACTIVE_WINDOW_SECONDS: u64 = 30 * 24 * 60 * 60;
 pub const AUTO_LOCK_SECONDS: u64 = 365 * 24 * 60 * 60;
 pub const OTA_TIMELOCK_SECONDS: u64 = 48 * 60 * 60;
-pub const MIN_ACTIVE_NAMES: u32 = 10_000;
 
 pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
     if ROOT_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
@@ -133,7 +132,6 @@ impl GovernanceState {
         &mut self,
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
-        active_names: u32,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
         if current_time_sec.saturating_sub(msg.timestamp_sec) > MAX_AGE_SECONDS {
             return Err(GovernanceError::StaleProposal);
@@ -169,19 +167,21 @@ impl GovernanceState {
         if self.mode == crate::governance::types::GovernanceMode::Founder {
             let instant_lock = actual_active_count >= MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
             let year_passed = current_time_sec >= self.genesis_timestamp_sec + AUTO_LOCK_SECONDS;
-            let network_mature = active_names >= MIN_ACTIVE_NAMES;
 
             if instant_lock {
                 self.mode = crate::governance::types::GovernanceMode::Council;
                 self.lock_timestamp_sec = Some(current_time_sec);
                 self.grace_period_start_sec = None; // clear grace period if it was active
-            } else if year_passed && network_mature && self.grace_period_start_sec.is_none() {
+            } else if year_passed && self.grace_period_start_sec.is_none() {
                 self.grace_period_start_sec = Some(current_time_sec);
             }
 
             if let Some(start_sec) = self.grace_period_start_sec {
                 if current_time_sec >= start_sec + 30 * 24 * 60 * 60 {
-                    // TODO: add rules after 13 months
+                    // 13-month fallback: forcefully strip founder of power
+                    self.mode = crate::governance::types::GovernanceMode::Council;
+                    self.lock_timestamp_sec = Some(current_time_sec);
+                    self.grace_period_start_sec = None;
                 }
             }
         }
@@ -221,14 +221,14 @@ impl GovernanceState {
                     self.lock_timestamp_sec = Some(current_time_sec);
                 }
             }
-            GovernanceAction::UpdateBinary { hash, mirrors, .. } => {
+            GovernanceAction::UpdateBinary { manifest_hash, mirrors, .. } => {
                 if let Some(wait_sec) = wait_time {
                     let action_hash = Self::hash_action(msg);
                     self.pending_updates
                         .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
                 } else {
                     effect = Some(GovernanceEffect::TriggerOTA {
-                        hash: *hash,
+                        manifest_hash: *manifest_hash,
                         mirrors: mirrors.clone(),
                     });
                 }
@@ -251,7 +251,7 @@ impl GovernanceState {
                 self.pending_timelocks.remove(target_hash);
                 if let Some((_, _, mirrors)) = self.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
-                        hash: *target_hash,
+                        manifest_hash: *target_hash,
                         mirrors,
                     });
                 }
@@ -287,7 +287,7 @@ impl GovernanceState {
 
         for (hash, mirrors) in matured_hashes {
             self.pending_updates.remove(&hash);
-            effects.push(GovernanceEffect::TriggerOTA { hash, mirrors });
+            effects.push(GovernanceEffect::TriggerOTA { manifest_hash: hash, mirrors });
         }
 
         effects
@@ -297,7 +297,6 @@ impl GovernanceState {
 pub fn process_governance_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
-    active_names: u32,
 ) -> Result<Option<GovernanceEffect>, crate::error::GovernanceError> {
     let msg_to_update = state.merge_signatures(msg);
     let current_time_sec = web_time::SystemTime::now()
@@ -305,5 +304,5 @@ pub fn process_governance_message(
         .unwrap()
         .as_secs();
 
-    state.verify_action(&msg_to_update, current_time_sec, active_names)
+    state.verify_action(&msg_to_update, current_time_sec)
 }
