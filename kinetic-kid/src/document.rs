@@ -72,10 +72,11 @@ impl KidDocument {
         let sig_b64 = self.signature.as_ref().ok_or(KidError::MissingSignature)?;
         let sig_bytes = b64_url.decode(sig_b64)?;
 
-        if sig_bytes.len() != 64 {
-            return Err(KidError::InvalidSignature);
-        }
-        let signature = Signature::from_bytes(sig_bytes.as_slice().try_into().unwrap());
+        let signature_array: &[u8; 64] = sig_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| KidError::InvalidSignature)?;
+        let signature = Signature::from_bytes(signature_array);
 
         let msg_str = self.canonicalize()?;
         let msg_bytes = msg_str.as_bytes();

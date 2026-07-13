@@ -249,6 +249,16 @@ impl GovernanceState {
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
                 self.pending_timelocks.remove(target_hash);
+                
+                if let Some(original) = self.partial_proposals.get(target_hash) {
+                    if let GovernanceAction::EmergencyReset { override_mode, .. } = &original.action {
+                        if *override_mode {
+                            self.mode = crate::governance::types::GovernanceMode::Founder;
+                            self.active_council.clear();
+                        }
+                    }
+                }
+                
                 if let Some((_, _, mirrors)) = self.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         manifest_hash: *target_hash,

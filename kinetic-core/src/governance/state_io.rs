@@ -22,16 +22,22 @@ impl GovernanceState {
     }
 
     pub fn load_from_disk(path: &std::path::Path) -> Self {
-        if let Ok(file) = std::fs::File::open(path) {
-            if let Ok(state) = bincode::deserialize_from(file) {
-                return state;
+        match std::fs::File::open(path) {
+            Ok(file) => {
+                match bincode::deserialize_from(file) {
+                    Ok(state) => state,
+                    Err(e) => panic!("CRITICAL: Governance state file is corrupted: {}. Refusing to start.", e),
+                }
             }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Self::new(
+                    web_time::SystemTime::now()
+                        .duration_since(web_time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs(),
+                )
+            }
+            Err(e) => panic!("CRITICAL: Failed to read Governance state file: {}", e),
         }
-        Self::new(
-            web_time::SystemTime::now()
-                .duration_since(web_time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        )
     }
 }

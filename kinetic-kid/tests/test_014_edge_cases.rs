@@ -96,7 +96,7 @@ fn test_doc_verify_unknown_key_type() {
 fn test_manifest_verify_kid_mismatch() {
     let (doc, _) = create_valid_doc_and_key();
     let mut other_doc = doc.clone();
-    other_doc.kid = KineticDid::new("did:kin:other123").unwrap();
+    other_doc.kid = KineticDid::new(&format!("did:kin:{}", "c".repeat(64))).unwrap();
 
     let manifest = CapabilityManifest {
         doc_type: "kinetic.manifest.v1".to_string(),

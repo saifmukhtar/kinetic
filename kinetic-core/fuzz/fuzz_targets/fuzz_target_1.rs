@@ -11,4 +11,6 @@ fuzz_target!(|data: &[u8]| {
     } else if let Ok(_commitment) = serde_json::from_slice::<Commitment>(data) {
         // Successfully parsed as Commitment
     }
+    
+    let _ = bincode::deserialize::<kinetic_core::governance::types::SignedGovernanceMessage>(data);
 });

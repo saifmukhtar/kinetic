@@ -9,6 +9,12 @@ pub enum KidError {
     /// The method-specific ID portion of the DID is not a valid hex-encoded hash.
     #[error("Invalid method-specific ID format")]
     InvalidDidFormat,
+    /// The method-specific ID is not exactly 64 characters long.
+    #[error("DID method-specific ID must be exactly 64 characters long")]
+    InvalidDidHexLength,
+    /// The method-specific ID contains invalid lowercase hexadecimal characters.
+    #[error("DID method-specific ID must contain only lowercase hexadecimal characters")]
+    InvalidDidHexCharacters,
     /// JSON deserialization failed.
     #[error("Failed to parse JSON: {0}")]
     JsonParseError(#[from] serde_json::Error),

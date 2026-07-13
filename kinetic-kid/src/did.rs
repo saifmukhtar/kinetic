@@ -20,6 +20,14 @@ impl KineticDid {
             return Err(KidError::InvalidDidFormat);
         }
 
+        if method_specific_id.len() != 64 {
+            return Err(KidError::InvalidDidHexLength);
+        }
+
+        if !method_specific_id.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()) {
+            return Err(KidError::InvalidDidHexCharacters);
+        }
+
         Ok(KineticDid {
             id: id_str.to_string(),
         })
@@ -55,5 +63,18 @@ impl<'de> Deserialize<'de> for KineticDid {
     {
         let s = String::deserialize(deserializer)?;
         KineticDid::new(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn doesnt_crash_did_parsing(s in "\\PC*") {
+            let _ = KineticDid::new(&s);
+        }
     }
 }

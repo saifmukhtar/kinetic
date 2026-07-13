@@ -11,9 +11,7 @@
 //! - **[`KineticDid`]** — A validated `did:kin:<hex>` string. The hex suffix
 //!   is the SHA-256 hash of the controller's primary public key.
 //! - **[`KidDocument`]** — The identity document that binds a DID to one or
-//!   more [`ControllerKey`]s. It is signed with Ed25519 and stamped with a
-//!   Proof-of-Work nonce (target: [`KID_POW_TARGET`] leading zero bits) to
-//!   rate-limit identity creation on-chain.
+//!   more [`ControllerKey`]s. It is signed with Ed25519.
 //! - **[`CapabilityManifest`]** — An optional extension signed by the
 //!   controller that lists services (websites, APIs, etc.) associated with
 //!   the identity.
@@ -54,14 +52,14 @@ mod tests {
 
     #[test]
     fn test_did_parsing() {
-        assert!(KineticDid::new("did:kin:12345").is_ok());
-        assert!(KineticDid::new("did:example:12345").is_err());
+        assert!(KineticDid::new(&format!("did:kin:{}", "0".repeat(64))).is_ok());
+        assert!(KineticDid::new(&format!("did:example:{}", "0".repeat(64))).is_err());
         assert!(KineticDid::new("did:kin:").is_err());
     }
 
     #[test]
     fn test_jcs_canonicalization() {
-        let did = KineticDid::new("did:kin:test").unwrap();
+        let did = KineticDid::new(&format!("did:kin:{}", "a".repeat(64))).unwrap();
 
         let doc = KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
@@ -79,7 +77,7 @@ mod tests {
         assert!(!jcs_str.contains("signature"));
 
         // Fields must be in lexicographical order per JCS
-        let expected = r#"{"controller_keys":[],"created_at":1000,"kid":"did:kin:test","type":"kinetic.kid.v1"}"#;
+        let expected = format!(r#"{{"controller_keys":[],"created_at":1000,"kid":"did:kin:{}","type":"kinetic.kid.v1"}}"#, "a".repeat(64));
         assert_eq!(jcs_str, expected);
     }
 
@@ -177,10 +175,10 @@ mod tests {
         let bad_keypair = generate_keypair();
         let bad_doc = KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
-            kid: KineticDid::new("did:kin:test2").unwrap(),
+            kid: KineticDid::new(&format!("did:kin:{}", "b".repeat(64))).unwrap(),
             created_at: 1000,
             controller_keys: vec![ControllerKey {
-                id: "did:kin:test2#bad".to_string(),
+                id: format!("did:kin:{}#bad", "b".repeat(64)),
                 key_type: "Ed25519".to_string(),
                 public_key: b64_url.encode(bad_keypair.verifying_key().to_bytes()),
             }],

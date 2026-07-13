@@ -179,3 +179,27 @@ mod names_tests {
         assert!(is_valid_apex_name("myname.kin").is_ok());
     }
 }
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn doesnt_crash_normalize_name(s in any::<String>()) {
+            let normalized = normalize_name(&s);
+            assert!(normalized.ends_with(DOT_TLD));
+        }
+
+        #[test]
+        fn doesnt_crash_extract_apex(s in any::<String>()) {
+            let _ = extract_apex_domain(&s);
+        }
+
+        #[test]
+        fn doesnt_crash_is_valid_apex(s in any::<String>()) {
+            let _ = is_valid_apex_name(&s);
+        }
+    }
+}
