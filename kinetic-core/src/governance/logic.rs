@@ -25,6 +25,7 @@ pub const TIMELOCK_SECONDS: u64 = 30 * 24 * 60 * 60;
 pub const ACTIVE_WINDOW_SECONDS: u64 = 30 * 24 * 60 * 60;
 pub const AUTO_LOCK_SECONDS: u64 = 365 * 24 * 60 * 60;
 pub const OTA_TIMELOCK_SECONDS: u64 = 48 * 60 * 60;
+pub const MIN_ACTIVE_NAMES: u32 = 10_000;
 
 pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
     if ROOT_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
@@ -161,7 +162,7 @@ impl GovernanceState {
         if self.mode == crate::governance::types::GovernanceMode::Founder {
             let instant_lock = actual_active_count >= MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
             let year_passed = current_time_sec >= self.genesis_timestamp_sec + AUTO_LOCK_SECONDS;
-            let network_mature = total_registered_names >= 10_000;
+            let network_mature = total_registered_names >= MIN_ACTIVE_NAMES;
 
             if instant_lock {
                 self.mode = crate::governance::types::GovernanceMode::Council;
