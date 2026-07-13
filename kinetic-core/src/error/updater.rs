@@ -30,6 +30,23 @@ pub enum UpdaterError {
     SpawnFailed(String),
 }
 
+impl PartialEq for UpdaterError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::NoMirrorsProvided, Self::NoMirrorsProvided) => true,
+            (Self::HttpError(a), Self::HttpError(b)) => a == b,
+            (Self::NetworkError(a), Self::NetworkError(b)) => a == b,
+            (Self::ReqwestError(a), Self::ReqwestError(b)) => a.to_string() == b.to_string(),
+            (Self::IoError(a), Self::IoError(b)) => a.kind() == b.kind(),
+            (Self::SelfReplaceError(a), Self::SelfReplaceError(b)) => a == b,
+            (Self::HashMismatch(a1, a2), Self::HashMismatch(b1, b2)) => a1 == b1 && a2 == b2,
+            (Self::SpawnFailed(a), Self::SpawnFailed(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+impl Eq for UpdaterError {}
+
 impl UpdaterError {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {

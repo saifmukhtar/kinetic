@@ -2,7 +2,7 @@ use super::Severity;
 use thiserror::Error;
 
 /// Errors originating from local storage
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum StorageError {
     /// The database file is locked by another instance of the kinetic daemon.
     #[error("Another instance of Kinetic daemon is already running (Database is locked).")]

@@ -30,6 +30,23 @@ pub enum DrandError {
     InvalidSignature,
 }
 
+impl PartialEq for DrandError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::AllEndpointsFailed, Self::AllEndpointsFailed) => true,
+            (Self::Network(a), Self::Network(b)) => a == b,
+            (Self::HttpError(a), Self::HttpError(b)) => a == b,
+            (Self::NoCachedPulse, Self::NoCachedPulse) => true,
+            (Self::Serde(a), Self::Serde(b)) => a.to_string() == b.to_string(),
+            (Self::Storage(a), Self::Storage(b)) => a == b,
+            (Self::Reqwest(a), Self::Reqwest(b)) => a.to_string() == b.to_string(),
+            (Self::InvalidSignature, Self::InvalidSignature) => true,
+            _ => false,
+        }
+    }
+}
+impl Eq for DrandError {}
+
 impl DrandError {
     /// Stable protocol error code.
     pub fn code(&self) -> &'static str {

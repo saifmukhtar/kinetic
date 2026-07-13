@@ -2,7 +2,7 @@ use super::Severity;
 use thiserror::Error;
 
 /// Errors originating from the Network Client (DHT, proxy, gossipsub)
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum NetworkClientError {
     /// A DHT query or stream operation exceeded its deadline.
     #[error("Request timed out")]

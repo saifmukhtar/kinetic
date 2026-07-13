@@ -2,7 +2,7 @@ use super::Severity;
 use thiserror::Error;
 
 /// Why a VDF proof was rejected.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum VdfRejectReason {
     /// The proof byte array was the wrong size or could not be parsed.
     #[error("proof bytes are malformed")]
@@ -19,7 +19,7 @@ pub enum VdfRejectReason {
 }
 
 /// Errors originating from the VDF engine
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum VdfError {
     /// The filesystem could not create the lock file needed to serialize VDF tasks.
     #[error("Failed to create VDF lock file: {0}")]
