@@ -74,7 +74,8 @@ impl super::core::NetworkEventLoop {
                 let store = KineticRecordStore::new(peer_id, storage_clone, initial_drand_pulse);
                 let mut kad_config = kad::Config::default();
                 kad_config
-                    .set_protocol_names(vec![libp2p::StreamProtocol::new("/kinetic/kad/2.0.0")]);
+                    .set_protocol_names(vec![libp2p::StreamProtocol::new("/kinetic/kad/2.0.0")])
+                    .set_max_packet_size(10 * 1024);
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 if mode == NetworkMode::LightClient {
                     kademlia.set_mode(Some(kad::Mode::Client));
@@ -94,12 +95,14 @@ impl super::core::NetworkEventLoop {
                         .mesh_outbound_min(1) // must be <= mesh_n_low and * 2 <= mesh_n
                         .gossip_lazy(1)
                         .validation_mode(libp2p::gossipsub::ValidationMode::Strict)
+                        .max_transmit_size(10 * 1024)
                         .build()
                         .expect("Valid gossipsub config")
                 } else {
                     // Case 184: Gossipsub CPU DoS Protection. Use Strict validation to quickly penalize invalid sigs
                     libp2p::gossipsub::ConfigBuilder::default()
                         .validation_mode(libp2p::gossipsub::ValidationMode::Strict)
+                        .max_transmit_size(10 * 1024)
                         .build()
                         .expect("Valid gossipsub config")
                 };
