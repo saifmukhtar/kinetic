@@ -233,8 +233,8 @@ impl KineticConfig {
             match toml::from_str(&config_str) {
                 Ok(config) => config,
                 Err(e) => {
-                    tracing::warn!("Failed to parse config.toml: {}. Using defaults.", e);
-                    Self::default()
+                    tracing::error!("Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.", e);
+                    std::process::exit(1);
                 }
             }
         } else {
@@ -272,7 +272,7 @@ impl KineticConfig {
             });
 
         if let Some(parent) = config_path.parent() {
-            let _ = fs::create_dir_all(parent);
+            fs::create_dir_all(parent)?;
         }
 
         let toml_str = toml::to_string_pretty(self)

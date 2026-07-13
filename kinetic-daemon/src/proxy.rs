@@ -100,6 +100,7 @@ pub async fn start_proxy_server(
     port: u16,
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
+    config: Arc<kinetic_core::config::KineticConfig>,
 ) -> anyhow::Result<()> {
     // Case 198: IPv6 Only Network Support
     let addr = format!("127.0.0.1:{}", port);
@@ -134,6 +135,7 @@ pub async fn start_proxy_server(
         let client_clone = client.clone();
         let ca_clone = Arc::clone(&root_ca);
         let cache_clone = Arc::clone(&leaf_cache);
+        let config_clone = Arc::clone(&config);
 
         tokio::task::spawn(async move {
             if let Err(err) = http1::Builder::new()
@@ -145,6 +147,7 @@ pub async fn start_proxy_server(
                             client_clone.clone(),
                             Arc::clone(&ca_clone),
                             Arc::clone(&cache_clone),
+                            Arc::clone(&config_clone),
                         )
                     }),
                 )
@@ -162,6 +165,7 @@ async fn handle_proxy_request(
     client: NetworkClient,
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
+    config: Arc<kinetic_core::config::KineticConfig>,
 ) -> Result<Response<Full<Bytes>>, std::convert::Infallible> {
     if req.method() == Method::CONNECT {
         let raw_host = req.uri().host().unwrap_or("").to_string();
@@ -190,6 +194,7 @@ async fn handle_proxy_request(
                         root_ca,
                         leaf_cache,
                         Arc::new(client),
+                        Arc::clone(&config),
                     )
                     .await
                     {
@@ -234,7 +239,7 @@ async fn handle_proxy_request(
     info!("Proxying plain HTTP request for {} -> {}", host_name, path);
 
     // Resolve PeerId/IP from DHT
-    match forward_to_backend_direct(req, &host_name, &client).await {
+    match forward_to_backend_direct(req, &host_name, &client, Arc::clone(&config)).await {
         Ok(resp) => Ok(resp),
         Err(e) => {
             warn!("Proxy request failed: {}", e);
@@ -253,6 +258,7 @@ async fn handle_connect(
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
     network_client: Arc<NetworkClient>,
+    config: Arc<kinetic_core::config::KineticConfig>,
 ) -> Result<(), ProxyError> {
     // 1. Get leaf cert for this domain (uses the full requested subdomain!)
     let server_config = {
@@ -270,8 +276,9 @@ async fn handle_connect(
     let service = service_fn(move |req: Request<Incoming>| {
         let nc = Arc::clone(&network_client);
         let d = apex_domain.clone();
+        let config_clone = Arc::clone(&config);
         async move {
-            match forward_to_backend_direct(req, &d, &nc).await {
+            match forward_to_backend_direct(req, &d, &nc, config_clone).await {
                 Ok(resp) => Ok::<_, std::convert::Infallible>(resp),
                 Err(e) => {
                     warn!("Forwarding error: {}", e);
@@ -298,6 +305,7 @@ async fn forward_to_backend_direct(
     req: Request<Incoming>,
     domain: &str,
     network_client: &NetworkClient,
+    config: Arc<kinetic_core::config::KineticConfig>,
 ) -> Result<Response<Full<Bytes>>, ProxyError> {
     let apex_domain = kinetic_core::types::extract_apex_domain(domain);
 
@@ -412,12 +420,11 @@ async fn forward_to_backend_direct(
         // Case 199: Prevent infinite proxy loops even in Dev Mode
         // This check must happen before the dev mode bypass to protect the daemon's internal ports.
         if ip_addr.is_loopback() || ip_addr.is_unspecified() {
-            let cfg = kinetic_core::config::KineticConfig::load();
-            if ip_str.contains(&format!(":{}", cfg.daemon.proxy_port))
-                || ip_str.contains(&format!(":{}", cfg.daemon.api_port))
-                || ip_str.contains(&format!(":{}", cfg.daemon.dns_port))
-                || ip_str.contains(&format!(":{}", cfg.daemon.backend_port))
-                || ip_str.contains(&format!(":{}", cfg.network.daemon_port))
+            if ip_str.contains(&format!(":{}", config.daemon.proxy_port))
+                || ip_str.contains(&format!(":{}", config.daemon.api_port))
+                || ip_str.contains(&format!(":{}", config.daemon.dns_port))
+                || ip_str.contains(&format!(":{}", config.daemon.backend_port))
+                || ip_str.contains(&format!(":{}", config.network.daemon_port))
                 || ip_str.contains(":16001")
             // PAC port
             {
