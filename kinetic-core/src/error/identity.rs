@@ -21,6 +21,20 @@ pub enum IdentityError {
     InvalidSeedPhrase(String),
 }
 
+impl PartialEq for IdentityError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Io(a), Self::Io(b)) => a.kind() == b.kind(),
+            (Self::CorruptedIdentityFile(a), Self::CorruptedIdentityFile(b)) => a == b,
+            (Self::IdentityNotFound(a), Self::IdentityNotFound(b)) => a == b,
+            (Self::InvalidSeedPhrase(a), Self::InvalidSeedPhrase(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for IdentityError {}
+
 impl IdentityError {
     /// Stable protocol error code.
     pub fn code(&self) -> &'static str {
