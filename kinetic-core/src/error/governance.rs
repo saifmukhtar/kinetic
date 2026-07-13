@@ -136,11 +136,24 @@ impl GovernanceError {
         match self {
             Self::MissingRootKey => "The ROOT_PUBLIC_KEY_HEX environment variable is not set. This is a fatal configuration error.".to_string(),
             Self::MissingGuardKey => "The GUARD_PUBLIC_KEY_HEX environment variable is not set. This is a fatal configuration error.".to_string(),
+            Self::KeyLengthMismatch => "The provided cryptographic key is invalid. It must be exactly 32 bytes long.".to_string(),
             Self::StaleProposal => "The proposed governance action is too old and has been rejected to prevent replay attacks.".to_string(),
             Self::TimelockNotExpired => "The governance action is still in its mandatory waiting period and cannot be executed yet.".to_string(),
-            Self::OtaTimelockNotExpired => "The OTA update is still in its mandatory 48-hour waiting period.".to_string(),
+            Self::OtaTimelockNotExpired => "The OTA software update is still in its mandatory 48-hour waiting period.".to_string(),
+            Self::NotPendingOrVetoed => "The target governance action is not currently pending in the queue, or it was already vetoed.".to_string(),
+            Self::CouncilSizeMismatch => "The proposed action was rejected because it claimed a lower total council size than what is actively recorded on the network.".to_string(),
+            Self::InvalidGuardSignature => "The Guard's signature provided for the veto is invalid or corrupted.".to_string(),
+            Self::EmergencyResetVetoed => "The Emergency Reset action was permanently vetoed by the Guard key.".to_string(),
+            Self::EmergencyResetRequiresRoot => "An Emergency Reset requires a valid signature from the Root key.".to_string(),
+            Self::EmergencyResetRequiresGuard => "An Emergency Reset without the override flag requires a valid signature from the Guard key.".to_string(),
+            Self::EmergencyResetInPhase1 => "An Emergency Reset cannot be performed because the network is still in Founder mode.".to_string(),
+            Self::RotateRequiresGuard => "Rotating the Root key requires a valid signature from the Guard key.".to_string(),
+            Self::UnhandledThresholdMath => "The governance action type is unrecognized and cannot be processed by the voting logic.".to_string(),
+            Self::EmptyCouncil => "The council is currently empty. Actions must be performed by the Root key.".to_string(),
             Self::InsufficientSignatures => "The governance action does not have enough valid signatures to be executed.".to_string(),
-            _ => self.to_string(),
+            Self::FounderPremiumLimitReached => "The Founder has reached the maximum lifetime limit of 5 premium name grants.".to_string(),
+            Self::InvalidPremiumNameLength => "Premium names governed by this action must be exactly 1 character long.".to_string(),
+            Self::RevokeRequiresCouncilMode => "Premium names cannot be revoked while the network is in Founder mode. This action requires the network to be governed by the Council.".to_string(),
         }
     }
 }
