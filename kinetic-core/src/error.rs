@@ -18,6 +18,8 @@ pub mod drand;
 pub mod dns;
 /// Node identity and seed phrase error types.
 pub mod identity;
+/// Domain names validation error types.
+pub mod names;
 
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};
 pub use governance::GovernanceError;
@@ -28,6 +30,7 @@ pub use vdf::{VdfError, VdfRejectReason};
 pub use drand::DrandError;
 pub use dns::DnsError;
 pub use identity::IdentityError;
+pub use names::NamesError;
 
 /// The top-level error type for core Kinetic protocol operations.
 #[derive(Error, Debug)]
@@ -35,6 +38,10 @@ pub enum KineticError {
     /// A VDF proof did not meet the required difficulty target.
     #[error("VDF proof verification failed")]
     InvalidVdfProof,
+
+    /// Domain name validation failed.
+    #[error("Invalid Domain Name: {0}")]
+    InvalidName(#[from] NamesError),
 
     /// An Ed25519 or similar signature failed to verify.
     #[error("Signature verification failed")]

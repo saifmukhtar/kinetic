@@ -35,63 +35,73 @@ pub const PUBLIC_NAMES: &[&str] = &[
     "null",
     "none",
     "zero",
+    "corp",
+    "lan",
+    "internal",
 ];
 
-pub fn is_valid_apex_name(name: &str) -> bool {
+pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     let norm = normalize_name(name);
 
     if norm.len() > 253 || norm.is_empty() {
-        return false;
+        return Err(crate::error::NamesError::NameTooLong);
     }
     for part in norm.split('.') {
         if part.len() > 63 || part.is_empty() {
-            return false;
+            return Err(crate::error::NamesError::LabelTooLong);
         }
 
         // DNS LDH Rule: Only lowercase letters, digits, and hyphens allowed.
         for c in part.chars() {
             if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-' {
-                return false;
+                return Err(crate::error::NamesError::InvalidCharacter);
             }
         }
 
         // Hyphens cannot be at the start or end of a label
         if part.starts_with('-') || part.ends_with('-') {
-            return false;
+            return Err(crate::error::NamesError::InvalidCharacter);
         }
     }
 
     let apex = extract_apex_domain(&norm);
     if norm != apex {
-        return false;
+        return Err(crate::error::NamesError::NotAnApexDomain);
     }
 
     // Ensure the registered label is not a Category 1 reserved public utility name.
     let parts: Vec<&str> = apex.split('.').collect();
     if !parts.is_empty() && PUBLIC_NAMES.contains(&parts[0]) {
-        return false;
+        return Err(crate::error::NamesError::ReservedName);
     }
 
     // Category 2: Infrastructure Names (Locked until Phase 2)
     if crate::types::infrastructure::is_infrastructure_name(&norm) {
-        return false;
+        return Err(crate::error::NamesError::InfrastructureName);
     }
 
-    true
+    Ok(())
 }
 
 pub fn extract_apex_domain(name: &str) -> String {
     let norm = normalize_name(name);
 
     for tld in KINETIC_TLDS {
-        if norm.ends_with(&format!(".{}", tld)) || norm == *tld {
-            let without_tld = norm.strip_suffix(&format!(".{}", tld)).unwrap_or(&norm);
-            if without_tld.is_empty() || without_tld == norm {
+        if norm.ends_with(tld) {
+            if norm.len() == tld.len() {
                 return norm;
             }
-            let parts: Vec<&str> = without_tld.split('.').collect();
-            let apex_label = parts.last().unwrap_or(&"");
-            return format!("{}.{}", apex_label, tld);
+            
+            let suffix_start = norm.len() - tld.len();
+            if norm.as_bytes()[suffix_start - 1] == b'.' {
+                let without_tld = &norm[0..suffix_start - 1];
+                if without_tld.is_empty() {
+                    return norm;
+                }
+                let parts: Vec<&str> = without_tld.split('.').collect();
+                let apex_label = parts.last().unwrap_or(&"");
+                return format!("{}.{}", apex_label, tld);
+            }
         }
     }
 
@@ -118,22 +128,22 @@ mod tests {
 
     #[test]
     fn test_is_valid_apex_name() {
-        assert!(is_valid_apex_name(&format!("{}{}", "saif", DOT_TLD)));
-        assert!(is_valid_apex_name("saif"));
-        assert!(is_valid_apex_name("saif-123"));
-        assert!(is_valid_apex_name("007"));
+        assert!(is_valid_apex_name(&format!("{}{}", "saif", DOT_TLD)).is_ok());
+        assert!(is_valid_apex_name("saif").is_ok());
+        assert!(is_valid_apex_name("saif-123").is_ok());
+        assert!(is_valid_apex_name("007").is_ok());
         
-        assert!(!is_valid_apex_name(&format!("{}{}", "blog.saif", DOT_TLD))); // Not an apex
-        assert!(!is_valid_apex_name("saif_123")); // Invalid char (_)
-        assert!(!is_valid_apex_name("saif!")); // Invalid char (!)
-        assert!(!is_valid_apex_name("-saif")); // Leading hyphen
-        assert!(!is_valid_apex_name("saif-")); // Trailing hyphen
+        assert!(is_valid_apex_name(&format!("{}{}", "blog.saif", DOT_TLD)).is_err()); // Not an apex
+        assert!(is_valid_apex_name("saif_123").is_err()); // Invalid char (_)
+        assert!(is_valid_apex_name("saif!").is_err()); // Invalid char (!)
+        assert!(is_valid_apex_name("-saif").is_err()); // Leading hyphen
+        assert!(is_valid_apex_name("saif-").is_err()); // Trailing hyphen
         
         // Test RFC Category 1 Reserved Names
-        assert!(!is_valid_apex_name("test.kin"));
-        assert!(!is_valid_apex_name("example"));
-        assert!(!is_valid_apex_name("localhost.co.uk.kin"));
-        assert!(!is_valid_apex_name("null.kin"));
+        assert!(is_valid_apex_name("test.kin").is_err());
+        assert!(is_valid_apex_name("example").is_err());
+        assert!(is_valid_apex_name("localhost.co.uk.kin").is_err());
+        assert!(is_valid_apex_name("null.kin").is_err());
     }
 
     #[test]
@@ -160,12 +170,12 @@ mod names_tests {
     #[test]
     fn test_lock_infrastructure_names() {
         // These should be rejected because they are locked Category 2
-        assert_eq!(is_valid_apex_name("docs.kin"), false);
-        assert_eq!(is_valid_apex_name("seed.kin"), false);
-        assert_eq!(is_valid_apex_name("subdomain.explorer.kin"), false);
+        assert!(is_valid_apex_name("docs.kin").is_err());
+        assert!(is_valid_apex_name("seed.kin").is_err());
+        assert!(is_valid_apex_name("subdomain.explorer.kin").is_err());
 
         // These should be accepted (Category 3/normal names)
-        assert_eq!(is_valid_apex_name("satoshi.kin"), true);
-        assert_eq!(is_valid_apex_name("myname.kin"), true);
+        assert!(is_valid_apex_name("satoshi.kin").is_ok());
+        assert!(is_valid_apex_name("myname.kin").is_ok());
     }
 }

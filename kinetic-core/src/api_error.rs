@@ -42,7 +42,7 @@ impl ApiError {
 }
 
 fn current_request_id() -> String {
-    crate::request_id::current()
+    crate::request_id::current().to_string()
 }
 
 impl From<ResolutionError> for ApiError {
