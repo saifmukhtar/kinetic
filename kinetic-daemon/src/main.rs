@@ -434,12 +434,14 @@ async fn run_daemon() -> Result<()> {
     let proxy_client = network_client.clone();
     let ca_clone = std::sync::Arc::clone(&root_ca);
     let cache_clone = std::sync::Arc::clone(&leaf_cache);
+    let config_arc = std::sync::Arc::new(config.clone());
     tokio::spawn(async move {
         if let Err(e) = proxy::start_proxy_server(
             proxy_client,
             config.daemon.proxy_port,
             ca_clone,
             cache_clone,
+            config_arc,
         )
         .await
         {
