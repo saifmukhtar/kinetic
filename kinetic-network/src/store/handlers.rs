@@ -25,7 +25,12 @@ impl KineticRecordStore {
             return Err(err.into());
         }
 
-        if !self.verify_reveal_internal(reveal) {
+        if !super::verification::verify_reveal(
+            reveal,
+            &self.commitments_by_hash,
+            &self.points_by_pubkey,
+            self.current_drand_round,
+        ) {
             let err = KineticStoreError::InvalidVdf;
             tracing::warn!(
                 error_code = "KIN-STORE-002",
