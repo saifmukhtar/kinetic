@@ -21,6 +21,7 @@ use web_time::Duration;
 ///
 /// Returns an error if all mirrors fail or produce an invalid hash.
 pub async fn perform_ota_update(
+    self_id: &str,
     manifest_hash: Hash256,
     mirrors: Vec<String>,
 ) -> Result<(), crate::error::UpdaterError> {
@@ -40,11 +41,6 @@ pub async fn perform_ota_update(
         hasher.finish()
     });
 
-    // Self-Identification
-    let pkg_name = env!("CARGO_PKG_NAME");
-    let os = std::env::consts::OS;
-    let arch = std::env::consts::ARCH;
-    let self_id = format!("{}-{}-{}", pkg_name, os, arch);
     info!("OTA update triggered. Self identity: {}", self_id);
 
     let mut temp_path = None;
@@ -100,7 +96,7 @@ pub async fn perform_ota_update(
             }
         };
 
-        let target_hash_hex = match manifest.get(&self_id) {
+        let target_hash_hex = match manifest.get(self_id) {
             Some(h) => h,
             None => {
                 info!("Self identity {} not found in manifest. Skipping update.", self_id);
@@ -246,7 +242,7 @@ mod tests {
     #[tokio::test]
     async fn test_perform_ota_no_mirrors() {
         let dummy_hash = [0u8; 32];
-        let res = perform_ota_update(dummy_hash, vec![]).await;
+        let res = perform_ota_update("test-id", dummy_hash, vec![]).await;
         assert!(matches!(
             res,
             Err(crate::error::UpdaterError::NoMirrorsProvided)
@@ -273,7 +269,7 @@ mod tests {
         // We provide a dummy hash that definitely won't match "BAD!"
         let dummy_hash = [1u8; 32];
 
-        let res = perform_ota_update(dummy_hash, vec![mirror_url]).await;
+        let res = perform_ota_update("test-id", dummy_hash, vec![mirror_url]).await;
 
         // It should try the mirror, get the file, hash it, fail verification, and exhaust all mirrors
         if let Err(crate::error::UpdaterError::NetworkError(msg)) = res {
