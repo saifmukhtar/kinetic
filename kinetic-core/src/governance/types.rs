@@ -7,7 +7,7 @@ pub type Hash256 = [u8; 32];
 pub enum GovernanceAction {
     AppointMember { key: VerifyingKey },
     UpdateBinary {
-        hash: Hash256,
+        manifest_hash: Hash256,
         version_nonce: u64,
         mirrors: Vec<String>,
     },
@@ -35,7 +35,7 @@ pub enum GovernanceAction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GovernanceEffect {
     TriggerOTA {
-        hash: Hash256,
+        manifest_hash: Hash256,
         mirrors: Vec<String>,
     },
     PremiumNameGranted {
@@ -85,12 +85,12 @@ impl SignedGovernanceMessage {
                 buf.extend_from_slice(key.as_bytes());
             }
             GovernanceAction::UpdateBinary {
-                hash,
+                manifest_hash,
                 version_nonce,
                 mirrors,
             } => {
                 buf.push(0x01);
-                buf.extend_from_slice(hash);
+                buf.extend_from_slice(manifest_hash);
                 buf.extend_from_slice(&version_nonce.to_be_bytes());
                 buf.extend_from_slice(&(mirrors.len() as u32).to_be_bytes());
                 for mirror in mirrors {

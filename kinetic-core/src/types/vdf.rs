@@ -76,12 +76,7 @@ impl Reveal {
             )));
         }
 
-        if !is_valid_apex_name(&self.name) {
-            return Err(crate::error::KineticError::Internal(format!(
-                "Invalid name '{}'. Only apex domains are allowed.",
-                self.name
-            )));
-        }
+        is_valid_apex_name(&self.name)?;
 
         if self.payload.len() > MAX_PAYLOAD_SIZE {
             return Err(crate::error::KineticError::Internal(format!(

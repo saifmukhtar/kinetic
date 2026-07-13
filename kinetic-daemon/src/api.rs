@@ -224,11 +224,11 @@ async fn handle_publish(
 
     // Normalize to canonical format
     let fqdn = kinetic_core::types::normalize_name(&req.reveal.name);
-    if !kinetic_core::types::is_valid_apex_name(&fqdn) {
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(
-                serde_json::json!({"error": "Invalid domain name. You can only register apex domains (e.g. 'saif.kin'). Subdomains are strictly routed dynamically at the DNS/Proxy level."}),
+                serde_json::json!({"error": format!("Invalid domain name: {}", e)}),
             ),
         ));
     }
@@ -398,11 +398,11 @@ async fn handle_commit(
 
     // Normalize to canonical format
     let fqdn = kinetic_core::types::normalize_name(&req.name);
-    if !kinetic_core::types::is_valid_apex_name(&fqdn) {
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(
-                serde_json::json!({"error": "Invalid domain name. You can only commit to apex domains (e.g. 'saif.kin')."}),
+                serde_json::json!({"error": format!("Invalid domain name: {}", e)}),
             ),
         ));
     }

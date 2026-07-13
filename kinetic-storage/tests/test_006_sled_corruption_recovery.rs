@@ -28,7 +28,7 @@ fn test_006_sled_corruption_recovery() {
     // Verify we can write to the fresh db
     storage.put(b"test_key", b"test_value").unwrap();
     let res = storage.get(b"test_key").unwrap();
-    assert_eq!(res.unwrap(), b"test_value");
+    assert_eq!(res.unwrap(), &b"test_value"[..]);
 
     // Verify the .bak directory was created
     let mut bak_path = db_path.clone().into_os_string();

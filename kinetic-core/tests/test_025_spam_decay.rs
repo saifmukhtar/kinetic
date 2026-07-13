@@ -36,13 +36,13 @@ fn test_length_spam_penalty() {
 
     // Max length validation
     assert!(
-        is_valid_apex_name(&format!("{}.kin", long_label)),
+        is_valid_apex_name(&format!("{}.kin", long_label)).is_ok(),
         "63 char label is valid"
     );
 
     let too_long = "a".repeat(64);
     assert!(
-        !is_valid_apex_name(&format!("{}.kin", too_long)),
+        is_valid_apex_name(&format!("{}.kin", too_long)).is_err(),
         "64 char label should be invalid"
     );
 }

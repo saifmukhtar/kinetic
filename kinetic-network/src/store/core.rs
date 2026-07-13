@@ -21,8 +21,7 @@ pub struct KineticRecordStore {
     pub reveals_by_name: LruCache<String, kinetic_core::types::Reveal>,
     /// The latest heartbeat pulse observed for each domain.
     pub last_heartbeats_by_name: HashMap<String, u64>,
-    /// The hibernation start round and requested duration for each domain.
-    pub hibernations_by_name: HashMap<String, (u64, u64)>, // (drand_round, iterations)
+
     /// Tracks domain registration commitments by their hash and Drand round.
     pub commitments_by_hash: HashMap<[u8; 32], u64>,
     /// The points balance available to each public key.
@@ -38,7 +37,7 @@ impl KineticRecordStore {
     pub fn new(local_peer_id: PeerId, storage: Arc<SledStorage>, initial_drand_round: u64) -> Self {
         let mut reveals_by_name = LruCache::new(NonZeroUsize::new(10_000).unwrap());
         let mut last_heartbeats_by_name = HashMap::new();
-        let mut hibernations_by_name = HashMap::new();
+
 
         // Restore state from sled
         if let Ok(iter) = storage.scan_prefix(KRS_REVEAL_PREFIX.as_bytes()) {
@@ -66,26 +65,7 @@ impl KineticRecordStore {
             }
         }
 
-        if let Ok(iter) = storage.scan_prefix(KRS_HIB_PREFIX.as_bytes()) {
-            for (key_bytes, val_bytes) in iter {
-                let key_str = String::from_utf8_lossy(&key_bytes).to_string();
-                let name = key_str.trim_start_matches(KRS_HIB_PREFIX).to_string();
-                if val_bytes.len() == 16 {
-                    let round = u64::from_be_bytes(val_bytes[0..8].try_into().unwrap_or([0u8; 8]));
-                    let iters = u64::from_be_bytes(val_bytes[8..16].try_into().unwrap_or([0u8; 8]));
-                    tracing::info!(
-                        "[KRS restore] Hibernation round {} (iters: {}) for {}",
-                        round,
-                        iters,
-                        name
-                    );
-                    hibernations_by_name.insert(name, (round, iters));
-                } else if val_bytes.len() == 8 {
-                    let round = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
-                    hibernations_by_name.insert(name, (round, 500_000_000));
-                }
-            }
-        }
+
 
         let mut commitments_by_hash = HashMap::new();
         if let Ok(iter) = storage.scan_prefix(KRS_COMMIT_PREFIX.as_bytes()) {
@@ -139,7 +119,7 @@ impl KineticRecordStore {
             storage,
             reveals_by_name,
             last_heartbeats_by_name,
-            hibernations_by_name,
+
             commitments_by_hash,
             points_by_pubkey,
             accepted_reveals_timestamps: std::collections::VecDeque::new(),
@@ -188,16 +168,9 @@ impl KineticRecordStore {
                 continue; // Category 2 names are permanently exempt from thermodynamic pruning
             }
 
-            let mut exemption_rounds = 0;
-            if let Some(&(hib_round, hib_iters)) = self.hibernations_by_name.get(name) {
-                let hib_age = current_round.saturating_sub(hib_round);
-                let granted_exemption = consensus_math.hibernation_exemption_rounds(hib_iters);
-                if hib_age < granted_exemption {
-                    exemption_rounds = granted_exemption - hib_age;
-                }
-            }
 
-            if hb_age > idle_timeout + exemption_rounds {
+
+            if hb_age > idle_timeout {
                 expired_names.push(name.clone());
             }
         }
@@ -206,7 +179,7 @@ impl KineticRecordStore {
             tracing::info!("Pruning expired/idle name: {}", name);
             self.reveals_by_name.pop(&name);
             self.last_heartbeats_by_name.remove(&name);
-            self.hibernations_by_name.remove(&name);
+
 
             let _ = self
                 .storage
@@ -214,9 +187,7 @@ impl KineticRecordStore {
             let _ = self
                 .storage
                 .delete(format!("{}{}", KRS_HB_PREFIX, name).as_bytes());
-            let _ = self
-                .storage
-                .delete(format!("{}{}", KRS_HIB_PREFIX, name).as_bytes());
+
 
             let keys = kinetic_core::types::derive_storage_keys(&name);
             for key_bytes in keys {
@@ -436,14 +407,7 @@ impl kad::store::RecordStore for KineticRecordStore {
         } else if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&r.value) {
             tracing::info!("KineticRecordStore::put parsed Reveal for {}", reveal.name);
             self.handle_reveal(&reveal)?;
-        } else if let Ok(hibernation) =
-            serde_json::from_slice::<kinetic_core::types::Hibernation>(&r.value)
-        {
-            tracing::info!(
-                "KineticRecordStore::put parsed Hibernation for {}",
-                hibernation.name
-            );
-            self.handle_hibernation(&hibernation)?;
+
         } else if let Ok(heartbeat) =
             serde_json::from_slice::<kinetic_core::types::Heartbeat>(&r.value)
         {

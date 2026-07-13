@@ -45,22 +45,7 @@ impl KineticRecordStore {
                     .copied()
                     .unwrap_or(reveal.drand_pulse);
 
-                if let Some(&(hib_round, hib_iters)) = self.hibernations_by_name.get(&reveal.name) {
-                    let hib_age = self.current_drand_round.saturating_sub(hib_round);
-                    let exemption_rounds = consensus_math.hibernation_exemption_rounds(hib_iters);
-                    if hib_age < exemption_rounds {
-                        let err = KineticStoreError::Hibernating;
-                        tracing::warn!(
-                            error_code = "KIN-STORE-003",
-                            name = %reveal.name,
-                            hib_age = hib_age,
-                            exemption_rounds = exemption_rounds,
-                            severity = ?err.severity(),
-                            "Rejecting Steal Reveal: {}", err
-                        );
-                        return Err(err.into());
-                    }
-                }
+
 
                 let hb_age = self.current_drand_round.saturating_sub(last_hb_round);
                 let base_diff = consensus_math.required_iterations(
@@ -166,121 +151,7 @@ impl KineticRecordStore {
         Ok(())
     }
 
-    pub(crate) fn handle_hibernation(
-        &mut self,
-        hibernation: &kinetic_core::types::Hibernation,
-    ) -> Result<(), kad::store::Error> {
-        let existing_reveal = match self.reveals_by_name.get(&hibernation.name) {
-            Some(r) => r,
-            None => {
-                let err = KineticStoreError::RevealNotFound;
-                tracing::warn!(
-                    error_code = "KIN-STORE-006",
-                    name = %hibernation.name,
-                    severity = ?err.severity(),
-                    "Rejecting Hibernation: {}", err
-                );
-                return Err(err.into());
-            }
-        };
 
-        let signable = hibernation.signable_bytes();
-        let pubkey = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice())
-            .map_err(|_| {
-                let err = KineticStoreError::InvalidPublicKey;
-                tracing::warn!(
-                    error_code = "KIN-STORE-007",
-                    name = %hibernation.name,
-                    severity = ?err.severity(),
-                    "Rejecting Hibernation: {}", err
-                );
-                kad::store::Error::ValueTooLarge
-            })?;
-        let sig = ed25519_dalek::Signature::from_slice(&hibernation.signature).map_err(|_| {
-            let err = KineticStoreError::MalformedSignature;
-            tracing::warn!(
-                error_code = "KIN-STORE-008",
-                name = %hibernation.name,
-                severity = ?err.severity(),
-                "Rejecting Hibernation: {}", err
-            );
-            kad::store::Error::ValueTooLarge
-        })?;
-
-        use ed25519_dalek::Verifier;
-        if pubkey.verify(&signable, &sig).is_err() {
-            let err = KineticStoreError::InvalidSignature;
-            tracing::warn!(
-                error_code = "KIN-STORE-009",
-                name = %hibernation.name,
-                severity = ?err.severity(),
-                "Rejecting Hibernation: {}", err
-            );
-            return Err(err.into());
-        }
-
-        use kinetic_core::traits::VdfEngine;
-        use kinetic_vdf::ChiaVdfEngine;
-        use sha2::{Digest as _, Sha256};
-
-        let challenge_bytes =
-            hex::decode(&hibernation.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
-        let mut hasher = Sha256::new();
-        hasher.update(hibernation.name.as_bytes());
-        hasher.update(hibernation.salt);
-        hasher.update(&challenge_bytes);
-        hasher.update(&existing_reveal.pubkey);
-        let mut hash = [0u8; 32];
-        hash.copy_from_slice(&hasher.finalize());
-        let challenge = kinetic_core::types::Commitment { hash };
-
-        let engine = ChiaVdfEngine::new();
-        match engine.verify(&challenge, &hibernation.vdf_proof, hibernation.iterations) {
-            Ok(true) => {
-                let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-                let exemption_rounds =
-                    consensus_math.hibernation_exemption_rounds(hibernation.iterations);
-                tracing::info!(
-                    "Accepted valid Hibernation VDF for {}. Exempt from heartbeats for {} rounds.",
-                    hibernation.name,
-                    exemption_rounds
-                );
-
-                let current_round = self.current_drand_round;
-                self.hibernations_by_name.insert(
-                    hibernation.name.clone(),
-                    (current_round, hibernation.iterations),
-                );
-                let hib_key = format!("{}{}", KRS_HIB_PREFIX, hibernation.name);
-                let mut val = Vec::new();
-                val.extend_from_slice(&current_round.to_be_bytes());
-                val.extend_from_slice(&hibernation.iterations.to_be_bytes());
-                let _ = self.storage.put(hib_key.as_bytes(), &val);
-                Ok(())
-            }
-            Ok(false) => {
-                let err = KineticStoreError::InvalidVdf;
-                tracing::warn!(
-                    error_code = "KIN-STORE-010",
-                    name = %hibernation.name,
-                    iterations = hibernation.iterations,
-                    severity = ?err.severity(),
-                    "Hibernation rejected: {}", err
-                );
-                Err(err.into())
-            }
-            Err(e) => {
-                let err = KineticStoreError::VdfEngineError(e.to_string());
-                tracing::warn!(
-                    error_code = "KIN-STORE-011",
-                    name = %hibernation.name,
-                    severity = ?err.severity(),
-                    "Hibernation rejected: {}", err
-                );
-                Err(err.into())
-            }
-        }
-    }
 
     pub(crate) fn handle_heartbeat(
         &mut self,

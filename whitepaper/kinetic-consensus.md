@@ -56,10 +56,6 @@ where $\Delta t$ is the idle time, $T_{\text{max}}$ is the initial massive VDF d
 
 To initiate a challenge, the attacker must prove the idle time using the DHT state (referencing the last known `drand` heartbeat). Even if the attacker computes a valid Challenge VDF, it merely opens the **Challenge Window**. The original owner can return at any moment during this window and reclaim the name instantly with a single standard heartbeat.
 
-### 4.2 Hibernation and Delegation
-* **Hibernation VDFs:** For planned long-term offline periods, users can burn a 48-hour sequential VDF to obtain a 1-year heartbeat exemption certificate, halting the grace-period clock.
-* **Watchtower Delegation:** Users can pre-generate a chain of signed heartbeat tokens and delegate them to decentralized nodes to broadcast on schedule, achieving trust-minimized uptime without continuous local computation.
-
 ## 5. Conclusion
 By linking unpredictable random beacons to sequential verifiable delay functions, the Kinetic Consensus layer achieves a zero-cost, Sybil-resistant registration pipeline that eliminates the need for monetary auctions and centralized governance.
 

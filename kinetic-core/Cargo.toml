@@ -29,6 +29,7 @@ bip39 = "2.2.2"
 pbkdf2 = "0.13.0"
 drand-verify = "0.6.2"
 kinetic-kid = { version = "0.1.0", path = "../kinetic-kid" }
+bytes = "1.6.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 directories = "6.0.0"

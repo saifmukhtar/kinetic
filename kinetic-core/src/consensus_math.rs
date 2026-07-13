@@ -74,10 +74,7 @@ impl ConsensusParams {
         base * multiplier
     }
 
-    /// Calculate how many drand rounds of exemption a given VDF proof yields
-    pub fn hibernation_exemption_rounds(&self, iterations: u64) -> u64 {
-        ((iterations as f64).sqrt() * 45.0) as u64
-    }
+
 
     /// Calculate the cost to steal a name based on how long it has been offline
     pub fn steal_difficulty(&self, base_iterations: u64, rounds_idle: u64) -> u64 {

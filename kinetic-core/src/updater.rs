@@ -21,7 +21,7 @@ use web_time::Duration;
 ///
 /// Returns an error if all mirrors fail or produce an invalid hash.
 pub async fn perform_ota_update(
-    expected_hash: Hash256,
+    manifest_hash: Hash256,
     mirrors: Vec<String>,
 ) -> Result<(), crate::error::UpdaterError> {
     if mirrors.is_empty() {
@@ -30,19 +30,106 @@ pub async fn perform_ota_update(
 
     let client = Client::builder().timeout(Duration::from_secs(60)).build()?;
 
+    // Load-balance across mirrors by shuffling them deterministically-random per node
+    let mut shuffled_mirrors = mirrors;
+    let random_state = std::collections::hash_map::RandomState::new();
+    shuffled_mirrors.sort_by_cached_key(|url| {
+        use std::hash::{BuildHasher, Hasher};
+        let mut hasher = random_state.build_hasher();
+        hasher.write(url.as_bytes());
+        hasher.finish()
+    });
+
+    // Self-Identification
+    let pkg_name = env!("CARGO_PKG_NAME");
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    let self_id = format!("{}-{}-{}", pkg_name, os, arch);
+    info!("OTA update triggered. Self identity: {}", self_id);
+
     let mut temp_path = None;
 
-    for mirror in mirrors {
+    for mirror in shuffled_mirrors {
         info!("Attempting OTA update from mirror: {}", mirror);
 
-        let response = match client.get(&mirror).send().await {
+        // 1. Download Manifest
+        let manifest_url = format!("{}/manifest.json", mirror);
+        let response = match client.get(&manifest_url).send().await {
             Ok(res) if res.status().is_success() => res,
             Ok(res) => {
-                warn!("Mirror {} returned status: {}", mirror, res.status());
+                warn!("Mirror {} returned status {} for manifest", mirror, res.status());
                 continue;
             }
             Err(e) => {
-                warn!("Mirror {} failed to connect: {}", mirror, e);
+                warn!("Mirror {} failed to connect for manifest: {}", mirror, e);
+                continue;
+            }
+        };
+
+        let manifest_bytes = match response.bytes().await {
+            Ok(b) => b,
+            Err(e) => {
+                warn!("Failed to read manifest bytes from mirror {}: {}", mirror, e);
+                continue;
+            }
+        };
+
+        // 2. Verify Manifest Hash
+        let mut hasher = Sha256::new();
+        hasher.update(&manifest_bytes);
+        let result_hash = hasher.finalize();
+        let mut result_hash_array = [0u8; 32];
+        result_hash_array.copy_from_slice(&result_hash);
+
+        if result_hash_array != manifest_hash {
+            warn!(
+                "Manifest hash verification failed for mirror: {}. Expected: {}, Got: {}",
+                mirror, hex::encode(manifest_hash), hex::encode(result_hash_array)
+            );
+            continue;
+        }
+
+        info!("Manifest hash verified for mirror: {}", mirror);
+
+        // 3. Parse Manifest and lookup target hash
+        let manifest: std::collections::HashMap<String, String> = match serde_json::from_slice(&manifest_bytes) {
+            Ok(m) => m,
+            Err(e) => {
+                warn!("Failed to parse JSON manifest from mirror {}: {}", mirror, e);
+                continue;
+            }
+        };
+
+        let target_hash_hex = match manifest.get(&self_id) {
+            Some(h) => h,
+            None => {
+                info!("Self identity {} not found in manifest. Skipping update.", self_id);
+                return Ok(()); // This binary is not targeted for update
+            }
+        };
+
+        let expected_binary_hash = match hex::decode(target_hash_hex) {
+            Ok(bytes) if bytes.len() == 32 => {
+                let mut arr = [0u8; 32];
+                arr.copy_from_slice(&bytes);
+                arr
+            }
+            _ => {
+                warn!("Invalid target hash hex in manifest for {}: {}", self_id, target_hash_hex);
+                continue;
+            }
+        };
+
+        // 4. Download Actual Binary
+        let binary_url = format!("{}/{}", mirror, self_id);
+        let response = match client.get(&binary_url).send().await {
+            Ok(res) if res.status().is_success() => res,
+            Ok(res) => {
+                warn!("Mirror {} returned status {} for binary", mirror, res.status());
+                continue;
+            }
+            Err(e) => {
+                warn!("Mirror {} failed to connect for binary: {}", mirror, e);
                 continue;
             }
         };
@@ -59,7 +146,6 @@ pub async fn perform_ota_update(
         let mut byte_stream = response.bytes_stream();
         let mut download_success = true;
 
-        // Stream bytes to prevent OOM on large binaries.
         while let Some(chunk_result) = byte_stream.next().await {
             match chunk_result {
                 Ok(chunk) => {
@@ -71,7 +157,7 @@ pub async fn perform_ota_update(
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to stream chunk from mirror {}: {}", mirror, e);
+                    warn!("Failed to stream binary chunk from mirror {}: {}", mirror, e);
                     download_success = false;
                     break;
                 }
@@ -82,21 +168,18 @@ pub async fn perform_ota_update(
             continue;
         }
 
-        // Verify the hash; convert to hex for readable logging.
         let result_hash = hasher.finalize();
         let mut result_hash_array = [0u8; 32];
         result_hash_array.copy_from_slice(&result_hash);
 
-        if result_hash_array == expected_hash {
-            info!("Hash verification successful for mirror: {}", mirror);
+        if result_hash_array == expected_binary_hash {
+            info!("Binary hash verification successful for mirror: {}", mirror);
             temp_path = Some(temp_file.into_temp_path());
             break;
         } else {
-            let expected_hex = hex::encode(expected_hash);
-            let got_hex = hex::encode(result_hash_array);
             warn!(
-                "Hash verification failed for mirror: {}. Expected: {}, Got: {}",
-                mirror, expected_hex, got_hex
+                "Binary hash verification failed for mirror: {}. Expected: {}, Got: {}",
+                mirror, hex::encode(expected_binary_hash), hex::encode(result_hash_array)
             );
         }
     }
@@ -105,7 +188,7 @@ pub async fn perform_ota_update(
         Some(path) => path,
         None => {
             return Err(crate::error::UpdaterError::NetworkError(
-                "All mirrors failed or provided invalid hashes.".to_string(),
+                "All mirrors failed, or provided invalid hashes/manifests.".to_string(),
             ));
         }
     };
@@ -194,7 +277,7 @@ mod tests {
 
         // It should try the mirror, get the file, hash it, fail verification, and exhaust all mirrors
         if let Err(crate::error::UpdaterError::NetworkError(msg)) = res {
-            assert!(msg.contains("failed or provided invalid hashes"));
+            assert!(msg.contains("failed, or provided invalid hashes/manifests."));
         } else {
             panic!(
                 "Expected NetworkError with invalid hash message, got: {:?}",
