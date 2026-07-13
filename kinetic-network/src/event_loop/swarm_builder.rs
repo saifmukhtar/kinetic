@@ -320,7 +320,7 @@ impl super::core::NetworkEventLoop {
                                     u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
                                 let now = web_time::SystemTime::now()
                                     .duration_since(web_time::UNIX_EPOCH)
-                                    .unwrap()
+                                    .unwrap_or_default()
                                     .as_secs();
                                 if expire > now {
                                     peers.insert(peer_id);

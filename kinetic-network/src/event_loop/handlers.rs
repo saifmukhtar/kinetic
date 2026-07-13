@@ -414,7 +414,7 @@ impl super::core::NetworkEventLoop {
                                 self.banned_peers.insert(source);
                                 let expire_time = web_time::SystemTime::now()
                                     .duration_since(web_time::UNIX_EPOCH)
-                                    .unwrap()
+                                    .unwrap_or_default()
                                     .as_secs()
                                     + 86400;
                                 let key = format!("kinetic_banned_peer:{}", source);
