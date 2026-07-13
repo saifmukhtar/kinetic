@@ -50,27 +50,7 @@ impl Hibernation {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DelegationRequest {
-    pub name: String,
-    pub payload: Vec<u8>,
-    pub delegated_to_pubkey: Vec<u8>,
-    pub mobile_pubkey: Vec<u8>,
-    pub signature: Vec<u8>,
-    pub hashcash_nonce: u64,
-}
 
-impl DelegationRequest {
-    pub fn signable_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"DELEGATION");
-        bytes.extend_from_slice(self.name.as_bytes());
-        bytes.extend_from_slice(&self.payload);
-        bytes.extend_from_slice(&self.delegated_to_pubkey);
-        bytes.extend_from_slice(&self.hashcash_nonce.to_le_bytes());
-        bytes
-    }
-}
 
 pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
     use sha2::{Digest, Sha256};
