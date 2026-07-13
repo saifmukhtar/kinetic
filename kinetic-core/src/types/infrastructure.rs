@@ -1,7 +1,9 @@
 /// Category 2: Kinetic Infrastructure Names
 /// These names represent critical network infrastructure (docs, bootstrap nodes, explorer).
-/// They are fully open to be mined via standard Proof-of-Work VDFs by anyone.
-/// However, because they are critical to the network's operation, they are exempt
+/// To prevent squatters from claiming critical network infrastructure, these names CANNOT be 
+/// mined by users. They are permanently locked and can only be allocated or reassigned by 
+/// the Kinetic Council via governance proposals.
+/// Because they are critical to the network's operation, they are exempt
 /// from heartbeat and thermodynamic pruning rules so they never accidentally expire.
 
 pub const INFRASTRUCTURE_NAMES: &[&str] = &[
@@ -9,10 +11,11 @@ pub const INFRASTRUCTURE_NAMES: &[&str] = &[
     "node",
     "docs",
     "dao",
-    "help",
-    "support",
     "explorer",
-    "home",
+    "status",
+    "api",
+    "blog",
+    "rpc",
 ];
 
 pub fn is_infrastructure_name(name: &str) -> bool {
