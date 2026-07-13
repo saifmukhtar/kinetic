@@ -38,13 +38,28 @@ pub struct PreviousProof {
 
 impl PreviousProof {
     pub fn proof_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
+        let capacity = 32 // salt
+            + 8 // drand_pulse
+            + 4 + self.drand_randomness.len()
+            + 8 // iterations
+            + 4 + self.vdf_proof.proof_bytes.len()
+            + 4 + self.signature.len();
+
+        let mut bytes = Vec::with_capacity(capacity);
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
+        
+        bytes.extend_from_slice(&(self.drand_randomness.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.drand_randomness.as_bytes());
+        
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
+        
+        bytes.extend_from_slice(&(self.vdf_proof.proof_bytes.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&self.vdf_proof.proof_bytes);
+        
+        bytes.extend_from_slice(&(self.signature.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&self.signature);
+        
         bytes
     }
 }
@@ -89,25 +104,79 @@ impl Reveal {
     }
 
     pub fn signable_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
+        let prev_proof_bytes = self.previous_proof.as_ref().map(|p| p.proof_bytes()).unwrap_or_default();
+        
+        // OPTIMIZATION: Calculate exact capacity to prevent multiple reallocations
+        let mut capacity = 1 // protocol_version
+            + 4 + self.name.len()
+            + 4 + self.payload.len()
+            + 32 // salt
+            + 8 // drand_pulse
+            + 4 + self.drand_randomness.len()
+            + 8 // iterations
+            + 4 + self.vdf_proof.proof_bytes.len()
+            + 4 + self.pubkey.len()
+            + 1; // previous_proof option flag
+
+        if self.previous_proof.is_some() {
+            capacity += 4 + prev_proof_bytes.len();
+        }
+        
+        capacity += 1; // miner_pubkey option flag
+        if let Some(miner_pk) = &self.miner_pubkey {
+            capacity += 4 + miner_pk.len();
+        }
+        
+        capacity += 1; // points_spent option flag
+        if self.points_spent.is_some() {
+            capacity += 8;
+        }
+
+        let mut bytes = Vec::with_capacity(capacity);
         bytes.push(self.protocol_version);
+        
+        // SECURITY: Length-prefix all variable-length fields (u32) to prevent canonicalization ambiguity attacks
+        bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
+        
+        bytes.extend_from_slice(&(self.payload.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&self.payload);
+        
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
+        
+        bytes.extend_from_slice(&(self.drand_randomness.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.drand_randomness.as_bytes());
+        
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
+        
+        bytes.extend_from_slice(&(self.vdf_proof.proof_bytes.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&self.vdf_proof.proof_bytes);
+        
+        bytes.extend_from_slice(&(self.pubkey.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&self.pubkey);
 
-        if let Some(prev) = &self.previous_proof {
-            bytes.extend_from_slice(&prev.proof_bytes());
+        if self.previous_proof.is_some() {
+            bytes.push(1);
+            bytes.extend_from_slice(&(prev_proof_bytes.len() as u32).to_be_bytes());
+            bytes.extend_from_slice(&prev_proof_bytes);
+        } else {
+            bytes.push(0);
         }
+
         if let Some(miner_pk) = &self.miner_pubkey {
+            bytes.push(1);
+            bytes.extend_from_slice(&(miner_pk.len() as u32).to_be_bytes());
             bytes.extend_from_slice(miner_pk);
+        } else {
+            bytes.push(0);
         }
+
         if let Some(points) = self.points_spent {
+            bytes.push(1);
             bytes.extend_from_slice(&points.to_be_bytes());
+        } else {
+            bytes.push(0);
         }
 
         bytes
