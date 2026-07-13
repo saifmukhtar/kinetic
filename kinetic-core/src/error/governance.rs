@@ -64,6 +64,9 @@ pub enum GovernanceError {
     /// Revoking a premium name is strictly reserved for the Council.
     #[error("Revoking a premium name requires the network to be in Council mode")]
     RevokeRequiresCouncilMode,
+    /// The council has reached its maximum physical size (21 members).
+    #[error("The council has reached its maximum capacity")]
+    CouncilAtCapacity,
 }
 
 impl GovernanceError {
@@ -90,6 +93,7 @@ impl GovernanceError {
             Self::FounderPremiumLimitReached => "KIN-GOV-018",
             Self::InvalidPremiumNameLength => "KIN-GOV-019",
             Self::RevokeRequiresCouncilMode => "KIN-GOV-020",
+            Self::CouncilAtCapacity => "KIN-GOV-021",
         }
     }
 
@@ -119,7 +123,8 @@ impl GovernanceError {
             | Self::EmergencyResetInPhase1
             | Self::FounderPremiumLimitReached
             | Self::InvalidPremiumNameLength
-            | Self::RevokeRequiresCouncilMode => Severity::Warning,
+            | Self::RevokeRequiresCouncilMode
+            | Self::CouncilAtCapacity => Severity::Warning,
         }
     }
 
@@ -154,6 +159,7 @@ impl GovernanceError {
             Self::FounderPremiumLimitReached => "The Founder has reached the maximum lifetime limit of 5 premium name grants.".to_string(),
             Self::InvalidPremiumNameLength => "Premium names governed by this action must be exactly 1 character long.".to_string(),
             Self::RevokeRequiresCouncilMode => "Premium names cannot be revoked while the network is in Founder mode. This action requires the network to be governed by the Council.".to_string(),
+            Self::CouncilAtCapacity => "The council has reached its maximum capacity of 21 members. No new members can be appointed.".to_string(),
         }
     }
 }

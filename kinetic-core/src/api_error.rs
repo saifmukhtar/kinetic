@@ -142,7 +142,8 @@ impl From<GovernanceError> for ApiError {
             | GovernanceError::FounderPremiumLimitReached
             | GovernanceError::RevokeRequiresCouncilMode
             | GovernanceError::RotateRequiresGuard
-            | GovernanceError::EmptyCouncil => (403, "Forbidden"),
+            | GovernanceError::EmptyCouncil
+            | GovernanceError::CouncilAtCapacity => (403, "Forbidden"),
             GovernanceError::InvalidPremiumNameLength => (400, "Bad Request"),
             GovernanceError::UnhandledThresholdMath => (501, "Not Implemented"),
         };
