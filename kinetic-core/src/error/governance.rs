@@ -2,7 +2,7 @@ use super::Severity;
 use thiserror::Error;
 
 /// Errors relating to Kinetic global governance actions.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum GovernanceError {
     /// The `ROOT_PUBLIC_KEY_HEX` environment variable is absent; no governance can proceed.
     #[error("ROOT_PUBLIC_KEY_HEX is not configured. This is a fatal error.")]
