@@ -118,3 +118,102 @@ pub fn save_keypair_from_mnemonic(
 
     Ok(signing_key)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_signable_bytes_kid() {
+        let valid_did = "did:kin:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let kid = kinetic_kid::did::KineticDid::new(valid_did).unwrap();
+        let doc = kinetic_kid::document::KidDocument {
+            doc_type: "kinetic.kid.v1".to_string(),
+            kid,
+            created_at: 0,
+            controller_keys: vec![],
+            manifest: None,
+            revocation_keys: vec![],
+            signature: None,
+        };
+        let auth_kid = AuthorizedKid {
+            name: "test.kin".to_string(),
+            kid_doc: doc,
+            owner_signature: vec![1, 2, 3],
+        };
+
+        let bytes = auth_kid.signable_bytes();
+        assert!(bytes.starts_with(b"kinetic-auth-kid-v1"));
+        assert!(bytes.windows(8).any(|w| w == b"test.kin"));
+    }
+
+    #[test]
+    fn test_signable_bytes_manifest() {
+        let valid_did = "did:kin:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let kid = kinetic_kid::did::KineticDid::new(valid_did).unwrap();
+        let manifest = kinetic_kid::manifest::CapabilityManifest {
+            doc_type: "kinetic.manifest.v1".to_string(),
+            kid,
+            version: 1,
+            valid_from: 0,
+            services: vec![],
+            signature: None,
+        };
+        let auth_manifest = AuthorizedManifest {
+            name: "test.kin".to_string(),
+            manifest,
+            owner_signature: vec![1, 2, 3],
+        };
+
+        let bytes = auth_manifest.signable_bytes();
+        assert!(bytes.starts_with(b"kinetic-auth-manifest-v1"));
+        assert!(bytes.windows(8).any(|w| w == b"test.kin"));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn test_identity_key_lifecycle() {
+        // Run all key lifecycle tests synchronously in one function 
+        // to avoid race conditions with KINETIC_KEY_PATH env var
+        let dir = tempdir().unwrap();
+        
+        // 1. Not Found
+        std::env::set_var("KINETIC_KEY_PATH", dir.path().join("missing.bin"));
+        let result = load_keypair("test.bin");
+        assert!(matches!(
+            result,
+            Err(crate::error::IdentityError::IdentityNotFound(_))
+        ));
+
+        // 2. Corrupted File
+        let corrupt_path = dir.path().join("corrupted.bin");
+        fs::write(&corrupt_path, b"too_short").unwrap();
+        std::env::set_var("KINETIC_KEY_PATH", &corrupt_path);
+        let result = load_keypair("test.bin");
+        assert!(matches!(
+            result,
+            Err(crate::error::IdentityError::CorruptedIdentityFile(_))
+        ));
+
+        // 3. Invalid Seed Phrase
+        let result = save_keypair_from_mnemonic("test.bin", "not a valid seed phrase");
+        assert!(matches!(
+            result,
+            Err(crate::error::IdentityError::InvalidSeedPhrase(_))
+        ));
+
+        // 4. Successful Save and Load
+        let valid_path = dir.path().join("valid_key.bin");
+        std::env::set_var("KINETIC_KEY_PATH", &valid_path);
+        let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        let saved_key = save_keypair_from_mnemonic("test.bin", phrase).unwrap();
+        let loaded_key = load_keypair("test.bin").unwrap();
+        assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());
+        
+        // Clean up env var
+        std::env::remove_var("KINETIC_KEY_PATH");
+    }
+}
