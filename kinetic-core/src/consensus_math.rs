@@ -78,16 +78,25 @@ impl ConsensusParams {
 
     /// Calculate the cost to steal a name based on how long it has been offline
     pub fn steal_difficulty(&self, base_iterations: u64, rounds_idle: u64) -> u64 {
-        let idle_plus = rounds_idle + 1;
-        let multiplier = if self.steal_target_rounds > idle_plus {
-            let target_sq = self.steal_target_rounds * self.steal_target_rounds;
+        let idle_plus = (rounds_idle + 1) as u128;
+        let target_rounds = self.steal_target_rounds as u128;
+        
+        let multiplier = if target_rounds > idle_plus {
+            let target_sq = target_rounds * target_rounds;
             let idle_sq = idle_plus * idle_plus;
             target_sq / idle_sq
         } else {
             1
         };
 
-        base_iterations * std::cmp::max(1, multiplier)
+        let difficulty = (base_iterations as u128) * std::cmp::max(1, multiplier);
+        
+        // Cap at u64::MAX to prevent wrapping to a low difficulty
+        if difficulty > (u64::MAX as u128) {
+            u64::MAX
+        } else {
+            difficulty as u64
+        }
     }
 }
 
