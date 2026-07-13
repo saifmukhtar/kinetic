@@ -15,7 +15,8 @@ pub struct Heartbeat {
 
 impl Heartbeat {
     pub fn signable_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
+        let mut bytes = Vec::with_capacity(4 + self.name.len() + 8);
+        bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&self.latest_drand_pulse.to_be_bytes());
         bytes

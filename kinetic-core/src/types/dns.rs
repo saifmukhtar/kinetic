@@ -27,8 +27,10 @@ pub struct HostRoutingRecord {
 
 impl HostRoutingRecord {
     pub fn signable_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
+        let mut bytes = Vec::with_capacity(4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8);
+        bytes.extend_from_slice(&(self.host_id.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.host_id.as_bytes());
+        bytes.extend_from_slice(&(self.current_peer_id.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.current_peer_id.as_bytes());
         bytes.extend_from_slice(&self.timestamp.to_be_bytes());
         bytes
