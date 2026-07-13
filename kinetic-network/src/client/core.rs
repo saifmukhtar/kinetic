@@ -63,7 +63,7 @@ impl NetworkClient {
 
     /// Gets a cloned copy of the command sender.
     pub fn get_sender(&self) -> mpsc::Sender<Command> {
-        self.sender.read().unwrap().clone()
+        self.sender.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Gets a cloned copy of the stream control handle, if available.
@@ -83,7 +83,7 @@ impl NetworkClient {
         request: ProxyRequest,
     ) -> std::result::Result<ProxyResponse, ProxyError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::SendProxyRequest {
                 peer,
@@ -101,7 +101,7 @@ impl NetworkClient {
         channel: libp2p::request_response::ResponseChannel<ProxyResponse>,
         response: ProxyResponse,
     ) -> std::result::Result<(), NetworkClientError> {
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::SendProxyResponse { channel, response })
             .await
@@ -122,7 +122,7 @@ impl NetworkClient {
             });
         }
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::PublishRedundant {
                 name: name.to_string(),
@@ -148,7 +148,7 @@ impl NetworkClient {
         payload_bytes: Vec<u8>,
     ) -> std::result::Result<(), PublishError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::PublishHeartbeat {
                 name: name.to_string(),
@@ -172,7 +172,7 @@ impl NetworkClient {
         name: &str,
     ) -> std::result::Result<Vec<u8>, ResolutionError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::ResolveRedundant {
                 name: name.to_string(),
@@ -196,7 +196,7 @@ impl NetworkClient {
         payload_bytes: Vec<u8>,
     ) -> std::result::Result<usize, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::VerifyQuorum {
                 name: name.to_string(),
@@ -213,7 +213,7 @@ impl NetworkClient {
         &self,
     ) -> std::result::Result<serde_json::Value, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::GetNetworkStatus { responder: tx })
             .await
@@ -224,7 +224,7 @@ impl NetworkClient {
     /// Initiates a bootstrap sequence to rejoin the network.
     pub async fn rebootstrap_network(&self) -> std::result::Result<(), NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::Bootstrap { responder: tx })
             .await
@@ -270,7 +270,7 @@ impl NetworkClient {
         topic: &str,
     ) -> std::result::Result<(), NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::SubscribeGossip {
                 topic: topic.to_string(),
@@ -288,7 +288,7 @@ impl NetworkClient {
         payload_bytes: Vec<u8>,
     ) -> std::result::Result<(), NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap().clone();
+        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::BroadcastGossip {
                 topic: topic.to_string(),
