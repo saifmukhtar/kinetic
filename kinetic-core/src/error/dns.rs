@@ -45,6 +45,26 @@ pub enum DnsError {
     InvalidKid(String),
 }
 
+impl PartialEq for DnsError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::NestedTooDeeply, Self::NestedTooDeeply) => true,
+            (Self::ParseError(a), Self::ParseError(b)) => a.to_string() == b.to_string(),
+            (Self::TooManyRecords, Self::TooManyRecords) => true,
+            (Self::InvalidLabelLength(a), Self::InvalidLabelLength(b)) => a == b,
+            (Self::InvalidLabelCharacters(a), Self::InvalidLabelCharacters(b)) => a == b,
+            (Self::InvalidCnameConfiguration(a), Self::InvalidCnameConfiguration(b)) => a == b,
+            (Self::TxtRecordTooLong(a), Self::TxtRecordTooLong(b)) => a == b,
+            (Self::InvalidCnameTarget(a), Self::InvalidCnameTarget(b)) => a == b,
+            (Self::InvalidPeerId(a), Self::InvalidPeerId(b)) => a == b,
+            (Self::InvalidKid(a), Self::InvalidKid(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for DnsError {}
+
 impl DnsError {
     /// Stable protocol error code.
     pub fn code(&self) -> &'static str {

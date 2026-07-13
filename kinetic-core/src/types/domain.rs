@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use super::names::normalize_name;
-use super::vdf::VdfProof;
+
 
 pub const M_REDUNDANCY: u8 = 32;
 

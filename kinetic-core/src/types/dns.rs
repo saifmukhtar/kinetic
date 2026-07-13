@@ -134,9 +134,10 @@ impl DnsZone {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::DnsError;
 
     #[test]
-    fn test_parse_payload() {
+    fn test_parse_payload_success() {
         let json = r#"{"records": {"@": [{"type": "PeerId", "value": "12D3KooWNvSVhMTBqYq5AStb2H8s1uA5PpH8Zt9vEHQo6bC8vJ2K"}]}}"#;
         let zone = DnsZone::parse_payload(json.as_bytes()).unwrap();
         if let Some(records) = zone.records.get("@") {
@@ -149,5 +150,83 @@ mod tests {
         } else {
             panic!("Expected @ record");
         }
+    }
+
+    #[test]
+    fn test_error_too_many_records() {
+        let mut zone = DnsZone::default();
+        let mut records = Vec::new();
+        for _ in 0..51 {
+            records.push(DnsRecord::TXT("test".to_string()));
+        }
+        zone.records.insert("@".to_string(), records);
+        
+        let result = zone.validate();
+        assert_eq!(result.unwrap_err(), DnsError::TooManyRecords);
+    }
+
+    #[test]
+    fn test_error_invalid_label_length() {
+        let mut zone = DnsZone::default();
+        let long_label = "a".repeat(64);
+        zone.records.insert(long_label.clone(), vec![DnsRecord::TXT("test".to_string())]);
+        
+        let result = zone.validate();
+        assert_eq!(result.unwrap_err(), DnsError::InvalidLabelLength(long_label));
+
+        let mut zone_empty = DnsZone::default();
+        zone_empty.records.insert("".to_string(), vec![DnsRecord::TXT("test".to_string())]);
+        assert_eq!(zone_empty.validate().unwrap_err(), DnsError::InvalidLabelLength("".to_string()));
+    }
+
+    #[test]
+    fn test_error_invalid_label_characters() {
+        let mut zone = DnsZone::default();
+        zone.records.insert("-starts-with-hyphen".to_string(), vec![DnsRecord::TXT("test".to_string())]);
+        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidLabelCharacters("-starts-with-hyphen".to_string()));
+
+        let mut zone2 = DnsZone::default();
+        zone2.records.insert("invalid!char".to_string(), vec![DnsRecord::TXT("test".to_string())]);
+        assert_eq!(zone2.validate().unwrap_err(), DnsError::InvalidLabelCharacters("invalid!char".to_string()));
+    }
+
+    #[test]
+    fn test_error_invalid_cname_configuration() {
+        let mut zone = DnsZone::default();
+        zone.records.insert("www".to_string(), vec![
+            DnsRecord::CNAME("target.kin".to_string()),
+            DnsRecord::TXT("other record".to_string()),
+        ]);
+        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidCnameConfiguration("www".to_string()));
+    }
+
+    #[test]
+    fn test_error_txt_record_too_long() {
+        let mut zone = DnsZone::default();
+        let long_txt = "a".repeat(256);
+        zone.records.insert("@".to_string(), vec![DnsRecord::TXT(long_txt)]);
+        assert_eq!(zone.validate().unwrap_err(), DnsError::TxtRecordTooLong("@".to_string()));
+    }
+
+    #[test]
+    fn test_error_invalid_cname_target() {
+        let mut zone = DnsZone::default();
+        let long_cname = "a".repeat(254);
+        zone.records.insert("@".to_string(), vec![DnsRecord::CNAME(long_cname)]);
+        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidCnameTarget("@".to_string()));
+    }
+
+    #[test]
+    fn test_error_invalid_peer_id() {
+        let mut zone = DnsZone::default();
+        zone.records.insert("@".to_string(), vec![DnsRecord::PeerId("not-a-peer-id".to_string())]);
+        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidPeerId("not-a-peer-id".to_string()));
+    }
+
+    #[test]
+    fn test_error_invalid_kid() {
+        let mut zone = DnsZone::default();
+        zone.records.insert("@".to_string(), vec![DnsRecord::KID("did:eth:123".to_string())]);
+        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidKid("did:eth:123".to_string()));
     }
 }
