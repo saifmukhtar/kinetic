@@ -133,17 +133,17 @@ mod tests {
         assert!(is_valid_apex_name("saif-123").is_ok());
         assert!(is_valid_apex_name("007").is_ok());
         
-        assert!(is_valid_apex_name(&format!("{}{}", "blog.saif", DOT_TLD)).is_err()); // Not an apex
-        assert!(is_valid_apex_name("saif_123").is_err()); // Invalid char (_)
-        assert!(is_valid_apex_name("saif!").is_err()); // Invalid char (!)
-        assert!(is_valid_apex_name("-saif").is_err()); // Leading hyphen
-        assert!(is_valid_apex_name("saif-").is_err()); // Trailing hyphen
+        assert_eq!(is_valid_apex_name(&format!("{}{}", "blog.saif", DOT_TLD)), Err(crate::error::NamesError::NotAnApexDomain));
+        assert_eq!(is_valid_apex_name("saif_123"), Err(crate::error::NamesError::InvalidCharacter));
+        assert_eq!(is_valid_apex_name("saif!"), Err(crate::error::NamesError::InvalidCharacter));
+        assert_eq!(is_valid_apex_name("-saif"), Err(crate::error::NamesError::InvalidCharacter));
+        assert_eq!(is_valid_apex_name("saif-"), Err(crate::error::NamesError::InvalidCharacter));
         
         // Test RFC Category 1 Reserved Names
-        assert!(is_valid_apex_name("test.kin").is_err());
-        assert!(is_valid_apex_name("example").is_err());
-        assert!(is_valid_apex_name("localhost.co.uk.kin").is_err());
-        assert!(is_valid_apex_name("null.kin").is_err());
+        assert_eq!(is_valid_apex_name("test.kin"), Err(crate::error::NamesError::ReservedName));
+        assert_eq!(is_valid_apex_name("example"), Err(crate::error::NamesError::ReservedName));
+        assert_eq!(is_valid_apex_name("localhost.co.uk.kin"), Err(crate::error::NamesError::ReservedName));
+        assert_eq!(is_valid_apex_name("null.kin"), Err(crate::error::NamesError::ReservedName));
     }
 
     #[test]
@@ -170,9 +170,9 @@ mod names_tests {
     #[test]
     fn test_lock_infrastructure_names() {
         // These should be rejected because they are locked Category 2
-        assert!(is_valid_apex_name("docs.kin").is_err());
-        assert!(is_valid_apex_name("seed.kin").is_err());
-        assert!(is_valid_apex_name("subdomain.explorer.kin").is_err());
+        assert_eq!(is_valid_apex_name("docs.kin"), Err(crate::error::NamesError::InfrastructureName));
+        assert_eq!(is_valid_apex_name("seed.kin"), Err(crate::error::NamesError::InfrastructureName));
+        assert_eq!(is_valid_apex_name("subdomain.explorer.kin"), Err(crate::error::NamesError::NotAnApexDomain));
 
         // These should be accepted (Category 3/normal names)
         assert!(is_valid_apex_name("satoshi.kin").is_ok());

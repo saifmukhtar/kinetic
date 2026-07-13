@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// Errors related to domain name validation.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum NamesError {
     /// The name exceeds the 253 character limit or is completely empty.
     #[error("Name is empty or exceeds the 253 character limit")]

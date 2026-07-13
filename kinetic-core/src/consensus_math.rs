@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn test_decay_length() {
         let params = ConsensusParams::default();
-        let pk = [0u8; 32];
+        let _pk = [0u8; 32];
         let a = params.required_iterations("a", 0);
         let ab = params.required_iterations("ab", 0);
         let abc = params.required_iterations("abc", 0);
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn test_hardware_drift() {
         let params = ConsensusParams::default();
-        let pk = [0u8; 32];
+        let _pk = [0u8; 32];
         let base = params.required_iterations("abcd", 0);
         let drift_round = params.hardware_drift_rounds;
         let drifted = params.required_iterations("abcd", drift_round);
