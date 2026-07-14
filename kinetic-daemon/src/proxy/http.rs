@@ -1,166 +1,5 @@
-use http_body_util::Full;
-use hyper::body::{Bytes, Incoming};
-use hyper::server::conn::http1;
-use hyper::service::service_fn;
-use hyper::{Method, Request, Response, StatusCode};
-use hyper_util::rt::TokioIo;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::net::TcpListener;
-use tokio::sync::Mutex;
-use tokio_rustls::TlsAcceptor;
-use tracing::{error, info, warn};
-
-use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
-
-pub(crate) fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
-    if ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() {
-        return true;
-    }
-    match ip {
-        std::net::IpAddr::V4(v4) => {
-            let octets = v4.octets();
-            // 10.0.0.0/8
-            if octets[0] == 10 {
-                return true;
-            }
-            // 100.64.0.0/10 (CGNAT / Cloud Metadata)
-            if octets[0] == 100 && (octets[1] & 0b1100_0000) == 64 {
-                return true;
-            }
-            // 172.16.0.0/12
-            if octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31 {
-                return true;
-            }
-            // 192.168.0.0/16
-            if octets[0] == 192 && octets[1] == 168 {
-                return true;
-            }
-            // 169.254.0.0/16 (Link-local)
-            if octets[0] == 169 && octets[1] == 254 {
-                return true;
-            }
-            // 192.0.2.0/24 (TEST-NET-1)
-            if octets[0] == 192 && octets[1] == 0 && octets[2] == 2 {
-                return true;
-            }
-            // 198.51.100.0/24 (TEST-NET-2)
-            if octets[0] == 198 && octets[1] == 51 && octets[2] == 100 {
-                return true;
-            }
-            // 203.0.113.0/24 (TEST-NET-3)
-            if octets[0] == 203 && octets[1] == 0 && octets[2] == 113 {
-                return true;
-            }
-            // 240.0.0.0/4 (Reserved)
-            if (octets[0] & 0b1111_0000) == 240 {
-                return true;
-            }
-            false
-        }
-        std::net::IpAddr::V6(v6) => {
-            let segments = v6.segments();
-            // fc00::/7 (Unique local)
-            if (segments[0] & 0xfe00) == 0xfc00 {
-                return true;
-            }
-            // fe80::/10 (Link-local)
-            if (segments[0] & 0xffc0) == 0xfe80 {
-                return true;
-            }
-            false
-        }
-    }
-}
-
-use crate::ca::{CaError, LeafCertCache, RootCa};
-
-#[derive(Debug, thiserror::Error)]
-pub enum ProxyError {
-    #[error("Name Not Found: {0}")]
-    NameNotFound(String),
-    #[error("Invalid Payload")]
-    InvalidPayload,
-    #[error("Hyper Error: {0}")]
-    Hyper(#[from] hyper::Error),
-    #[error("Reqwest Error: {0}")]
-    Reqwest(#[from] reqwest::Error),
-    #[error("IO Error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("CA Error: {0}")]
-    Ca(#[from] CaError),
-    #[error("HTTP Error: {0}")]
-    Http(#[from] hyper::http::Error),
-    #[error("Other Error: {0}")]
-    Other(String),
-}
-
-pub async fn start_proxy_server(
-    client: NetworkClient,
-    port: u16,
-    root_ca: Arc<RootCa>,
-    leaf_cache: Arc<Mutex<LeafCertCache>>,
-    config: Arc<kinetic_core::config::KineticConfig>,
-) -> anyhow::Result<()> {
-    // Case 198: IPv6 Only Network Support
-    let addr = format!("127.0.0.1:{}", port);
-    let mut listener = None;
-    for _ in 0..10 {
-        if let Ok(l) = TcpListener::bind(&addr).await {
-            listener = Some(l);
-            break;
-        } else if let Ok(l) = TcpListener::bind(format!("[::1]:{}", port)).await {
-            tracing::warn!("Failed to bind Proxy to 127.0.0.1, successfully bound to IPv6 loopback [::1] (Case 198)");
-            listener = Some(l);
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    }
-    let listener = listener.ok_or_else(|| {
-        anyhow::anyhow!(
-            "Failed to bind Proxy to 127.0.0.1 or [::1] on port {}",
-            port
-        )
-    })?;
-
-    let actual_addr = listener.local_addr()?;
-    info!(
-        "Local HTTP Proxy Server successfully bound and listening on http://{}",
-        actual_addr
-    );
-
-    loop {
-        let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
-        let client_clone = client.clone();
-        let ca_clone = Arc::clone(&root_ca);
-        let cache_clone = Arc::clone(&leaf_cache);
-        let config_clone = Arc::clone(&config);
-
-        tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new()
-                .serve_connection(
-                    io,
-                    service_fn(move |req| {
-                        handle_proxy_request(
-                            req,
-                            client_clone.clone(),
-                            Arc::clone(&ca_clone),
-                            Arc::clone(&cache_clone),
-                            Arc::clone(&config_clone),
-                        )
-                    }),
-                )
-                .with_upgrades()
-                .await
-            {
-                warn!("Error serving connection: {:?}", err);
-            }
-        });
-    }
-}
-
-async fn handle_proxy_request(
+use super::*;
+pub async fn handle_proxy_request(
     req: Request<Incoming>,
     client: NetworkClient,
     root_ca: Arc<RootCa>,
@@ -251,57 +90,7 @@ async fn handle_proxy_request(
     }
 }
 
-async fn handle_connect(
-    raw_host: String,
-    apex_domain: String,
-    upgraded: hyper::upgrade::Upgraded,
-    root_ca: Arc<RootCa>,
-    leaf_cache: Arc<Mutex<LeafCertCache>>,
-    network_client: Arc<NetworkClient>,
-    config: Arc<kinetic_core::config::KineticConfig>,
-) -> Result<(), ProxyError> {
-    // 1. Get leaf cert for this domain (uses the full requested subdomain!)
-    let server_config = {
-        let mut cache = leaf_cache.lock().await;
-        cache.get_or_create(&raw_host, &root_ca)?
-    }; // Lock released here — important
-
-    // 2. TLS handshake with browser
-    let acceptor = TlsAcceptor::from(server_config);
-    let tls_stream = acceptor.accept(TokioIo::new(upgraded)).await?;
-
-    // 3. Run a second HTTP service over the decrypted stream
-    let network_client = Arc::clone(&network_client);
-
-    let service = service_fn(move |req: Request<Incoming>| {
-        let nc = Arc::clone(&network_client);
-        let d = apex_domain.clone();
-        let config_clone = Arc::clone(&config);
-        async move {
-            match forward_to_backend_direct(req, &d, &nc, config_clone).await {
-                Ok(resp) => Ok::<_, std::convert::Infallible>(resp),
-                Err(e) => {
-                    warn!("Forwarding error: {}", e);
-                    Ok(Response::builder()
-                        .status(StatusCode::BAD_GATEWAY)
-                        .body(Full::new(Bytes::from(format!("Backend Error: {}", e))))
-                        .unwrap_or_else(|_| {
-                            Response::new(Full::new(Bytes::from("Internal Proxy Error")))
-                        }))
-                }
-            }
-        }
-    });
-
-    // hyper 1.x
-    http1::Builder::new()
-        .serve_connection(TokioIo::new(tls_stream), service)
-        .await?;
-
-    Ok(())
-}
-
-async fn forward_to_backend_direct(
+pub async fn forward_to_backend_direct(
     req: Request<Incoming>,
     domain: &str,
     network_client: &NetworkClient,
@@ -444,9 +233,14 @@ async fn forward_to_backend_direct(
         }
 
         // Explicitly HTTP — no TLS to backend
+        let formatted_host = if ip_addr.is_ipv6() {
+            format!("[{}]", ip_str)
+        } else {
+            ip_str.clone()
+        };
         let backend_url = format!(
             "http://{}{}",
-            ip_str,
+            formatted_host,
             req.uri()
                 .path_and_query()
                 .map(|p| p.as_str())
@@ -507,7 +301,7 @@ async fn forward_to_backend_direct(
 
         // Forward to the libp2p PeerId via P2P network
 
-        let mut headers = std::collections::HashMap::new();
+        let mut headers = Vec::new();
         let strip_req_headers = [
             "authorization",
             "cookie",
@@ -518,11 +312,11 @@ async fn forward_to_backend_direct(
             let name_lower = name.as_str().to_lowercase();
             if !strip_req_headers.contains(&name_lower.as_str()) && name_lower != "host" {
                 if let Ok(val_str) = value.to_str() {
-                    headers.insert(name.as_str().to_string(), val_str.to_string());
+                    headers.push((name_lower.into(), val_str.into()));
                 }
             }
         }
-        headers.insert("Host".to_string(), domain.to_string());
+        headers.push(("host".into(), domain.into()));
 
         let method = req.method().as_str().to_string();
         let path = req
@@ -546,10 +340,10 @@ async fn forward_to_backend_direct(
         }
 
         let proxy_req = kinetic_network::ProxyRequest {
-            method,
-            path,
+            method: method.into(),
+            path: path.into(),
             headers,
-            body: body_bytes,
+            body: bytes::Bytes::from(body_bytes),
         };
 
         let proxy_resp = network_client
@@ -565,17 +359,12 @@ async fn forward_to_backend_direct(
         let strip_resp_headers = [
             "strict-transport-security",
             "public-key-pins",
-            "x-frame-options",
-            "content-security-policy",
-            "x-content-type-options",
-            "set-cookie",
-            "location",
         ];
         for (name, value) in proxy_resp.headers {
             if strip_resp_headers.contains(&name.to_lowercase().as_str()) {
                 continue;
             }
-            resp_builder = resp_builder.header(&name, &value);
+            resp_builder = resp_builder.header(name.as_ref(), value.as_ref());
         }
 
         Ok(resp_builder.body(Full::new(bytes::Bytes::from(proxy_resp.body)))?)
@@ -588,124 +377,3 @@ async fn forward_to_backend_direct(
     }
 }
 
-pub async fn handle_incoming_proxy_requests(
-    client: NetworkClient,
-    mut rx: tokio::sync::mpsc::Receiver<(
-        ProxyRequest,
-        libp2p::request_response::ResponseChannel<ProxyResponse>,
-    )>,
-    local_port: u16,
-) {
-    let reqwest_client = reqwest::Client::new();
-    info!(
-        "Listening for incoming P2P Proxy requests, forwarding to 127.0.0.1:{}",
-        local_port
-    );
-
-    while let Some((req, channel)) = rx.recv().await {
-        let reqwest_client = reqwest_client.clone();
-        let client_clone = client.clone();
-
-        tokio::spawn(async move {
-            // Path traversal protection
-            let safe_path = if req.path.contains("..") || !req.path.starts_with('/') {
-                tracing::warn!("Blocked malicious P2P proxy path: {}", req.path);
-                let _ = client_clone
-                    .send_proxy_response(
-                        channel,
-                        ProxyResponse {
-                            status: 400,
-                            headers: HashMap::new(),
-                            body: b"Bad Request: Invalid Path".to_vec(),
-                        },
-                    )
-                    .await;
-                return;
-            } else {
-                &req.path
-            };
-
-            // Limit body size to 5MB to prevent OOM
-            if req.body.len() > 5 * 1024 * 1024 {
-                tracing::warn!(
-                    "Blocked oversized P2P proxy request ({} bytes)",
-                    req.body.len()
-                );
-                let _ = client_clone
-                    .send_proxy_response(
-                        channel,
-                        ProxyResponse {
-                            status: 413,
-                            headers: HashMap::new(),
-                            body: b"Payload Too Large".to_vec(),
-                        },
-                    )
-                    .await;
-                return;
-            }
-
-            let url = format!("http://127.0.0.1:{}{}", local_port, safe_path);
-
-            let method = match req.method.parse::<reqwest::Method>() {
-                Ok(m) => m,
-                Err(_) => {
-                    tracing::warn!("Blocked invalid HTTP method: {}", req.method);
-                    let _ = client_clone
-                        .send_proxy_response(
-                            channel,
-                            ProxyResponse {
-                                status: 400,
-                                headers: HashMap::new(),
-                                body: b"Bad Request: Invalid Method".to_vec(),
-                            },
-                        )
-                        .await;
-                    return;
-                }
-            };
-
-            let mut builder = reqwest_client.request(method, &url);
-
-            for (k, v) in req.headers {
-                if k.to_lowercase() == "host" {
-                    continue;
-                } // Never forward remote Host header
-                builder = builder.header(k, v);
-            }
-            builder = builder.header("Host", format!("127.0.0.1:{}", local_port));
-            builder = builder.body(req.body);
-
-            let proxy_res = match builder.send().await {
-                Ok(res) => {
-                    let status = res.status().as_u16();
-                    let mut res_headers = HashMap::new();
-                    for (k, v) in res.headers() {
-                        if let Ok(v_str) = v.to_str() {
-                            res_headers.insert(k.as_str().to_string(), v_str.to_string());
-                        }
-                    }
-                    let body = res.bytes().await.unwrap_or_default().to_vec();
-                    ProxyResponse {
-                        status,
-                        headers: res_headers,
-                        body,
-                    }
-                }
-                Err(e) => {
-                    warn!("Failed to forward request to local web server: {}", e);
-                    ProxyResponse {
-                        status: 502,
-                        headers: HashMap::new(),
-                        body: format!(
-                            "Bad Gateway: Local web server not responding on port {}\nError: {}",
-                            local_port, e
-                        )
-                        .into_bytes(),
-                    }
-                }
-            };
-
-            let _ = client_clone.send_proxy_response(channel, proxy_res).await;
-        });
-    }
-}
