@@ -11,10 +11,10 @@ async fn test_client_proxy_command() {
 
     let target_peer = PeerId::random();
     let proxy_req = ProxyRequest {
-        method: "GET".to_string(),
-        path: "/".to_string(),
-        headers: HashMap::new(),
-        body: vec![1, 2, 3],
+        method: "GET".into(),
+        path: "/".into(),
+        headers: Vec::new(),
+        body: bytes::Bytes::from(vec![1, 2, 3]),
     };
 
     tokio::spawn(async move {
@@ -25,7 +25,7 @@ async fn test_client_proxy_command() {
         match cmd {
             Command::SendProxyRequest { request, .. } => {
                 assert_eq!(request.body, vec![1, 2, 3]);
-                assert_eq!(request.method, "GET");
+                assert_eq!(request.method.as_ref(), "GET");
             }
             _ => panic!("Expected SendProxyRequest command"),
         }
@@ -46,7 +46,7 @@ async fn test_client_resolve_name() {
     if let Some(cmd) = rx.recv().await {
         match cmd {
             Command::ResolveRedundant { name, .. } => {
-                assert_eq!(name, "test.kid");
+                assert_eq!(&*name, "test.kid");
             }
             _ => panic!("Expected ResolveRedundant command"),
         }
@@ -69,7 +69,7 @@ async fn test_client_publish_name() {
     if let Some(cmd) = rx.recv().await {
         match cmd {
             Command::PublishRedundant { name, payload, .. } => {
-                assert_eq!(name, "test.kid");
+                assert_eq!(&*name, "test.kid");
                 assert_eq!(payload, vec![1, 2, 3]);
             }
             _ => panic!("Expected PublishRedundant command"),
@@ -90,10 +90,10 @@ async fn test_client_hot_swap() {
 
     let target_peer = PeerId::random();
     let proxy_req = ProxyRequest {
-        method: "GET".to_string(),
-        path: "/".to_string(),
-        headers: HashMap::new(),
-        body: vec![1, 2, 3],
+        method: "GET".into(),
+        path: "/".into(),
+        headers: Vec::new(),
+        body: bytes::Bytes::from(vec![1, 2, 3]),
     };
 
     let client_clone = client.clone();

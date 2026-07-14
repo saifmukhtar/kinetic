@@ -13,13 +13,13 @@ pub(crate) fn verify_host_routing_record(
         .duration_since(web_time::UNIX_EPOCH)
         .map_err(|_| KineticStoreError::InvalidHostRouteSignature)?
         .as_secs();
-    if now.saturating_sub(record.timestamp) > 600 {
-        tracing::warn!(
-            "HostRoutingRecord for {} is stale ({} seconds old)",
-            record.host_id,
+    if now.saturating_sub(record.timestamp) > kinetic_core::config::HOST_ROUTE_MAX_AGE_SECS {
+        let err = KineticStoreError::InvalidHostRouteSignature;
+        err.log_warning("KIN-STORE-023", &record.host_id, &format!(
+            "HostRoutingRecord is stale ({} seconds old)",
             now.saturating_sub(record.timestamp)
-        );
-        return Err(KineticStoreError::InvalidHostRouteSignature);
+        ));
+        return Err(err);
     }
 
     // Parse the host_id as a libp2p PeerId and extract its public key.
@@ -55,12 +55,22 @@ pub(crate) fn verify_host_routing_record(
         .map_err(|_| KineticStoreError::InvalidHostRouteSignature)
 }
 
+#[inline]
+fn get_u64_from_sled(storage: &std::sync::Arc<kinetic_storage::SledStorage>, key: &[u8]) -> Option<u64> {
+    use kinetic_core::traits::StorageEngine;
+    match storage.get(key) {
+        Ok(Some(bytes)) if bytes.len() == 8 => {
+            Some(u64::from_be_bytes(bytes[..8].try_into().unwrap_or([0u8; 8])))
+        }
+        _ => None,
+    }
+}
+
 pub(crate) fn verify_reveal(
     reveal: &kinetic_core::types::Reveal,
-    commitments_by_hash: &std::collections::HashMap<[u8; 32], u64>,
-    points_by_pubkey: &std::collections::HashMap<Vec<u8>, u64>,
+    storage: &std::sync::Arc<kinetic_storage::SledStorage>,
     current_drand_round: u64,
-) -> bool {
+) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
     use kinetic_core::traits::VdfEngine;
     use kinetic_core::types::Commitment;
@@ -70,16 +80,25 @@ pub(crate) fn verify_reveal(
     let signable = reveal.signable_bytes();
     let pubkey = match VerifyingKey::try_from(reveal.pubkey.as_slice()) {
         Ok(k) => k,
-        Err(_) => return false,
+        Err(_) => {
+            let err = KineticStoreError::InvalidPublicKey;
+            err.log_warning("KIN-STORE-024", &reveal.name, "Rejecting Kademlia Reveal: Invalid Ed25519 PublicKey");
+            return Err(err);
+        }
     };
     let signature = match Signature::from_slice(&reveal.signature) {
         Ok(s) => s,
-        Err(_) => return false,
+        Err(_) => {
+            let err = KineticStoreError::MalformedSignature;
+            err.log_warning("KIN-STORE-025", &reveal.name, "Rejecting Kademlia Reveal: Malformed Ed25519 Signature");
+            return Err(err);
+        }
     };
 
     if pubkey.verify(&signable, &signature).is_err() {
-        tracing::warn!("Rejecting Kademlia Reveal: Invalid Ed25519 Signature");
-        return false;
+        let err = KineticStoreError::InvalidSignature;
+        err.log_warning("KIN-STORE-026", &reveal.name, "Rejecting Kademlia Reveal: Invalid Ed25519 Signature");
+        return Err(err);
     }
 
     let engine = ChiaVdfEngine::new();
@@ -96,13 +115,17 @@ pub(crate) fn verify_reveal(
 
     let dev_mode = kinetic_core::config::is_dev_mode();
 
-    if let Some(&commit_round) = commitments_by_hash.get(&hash) {
+    let mut commit_key = Vec::with_capacity(crate::store::constants::KRS_COMMIT_PREFIX.len() + 32);
+    commit_key.extend_from_slice(crate::store::constants::KRS_COMMIT_PREFIX);
+    commit_key.extend_from_slice(&hash);
+
+    let commit_round = get_u64_from_sled(storage, &commit_key);
+
+    if let Some(commit_round) = commit_round {
         if !dev_mode && current_drand_round.saturating_sub(commit_round) < 10 {
-            tracing::warn!(
-                "Rejecting Reveal for {}: Commitment is too recent (age < 10 rounds)",
-                reveal.name
-            );
-            return false;
+            let err = KineticStoreError::StaleReveal;
+            err.log_warning("KIN-STORE-027", &reveal.name, "Rejecting Reveal: Commitment is too recent (age < 10 rounds)");
+            return Err(err);
         }
         tracing::info!(
             "Commitment matched for Reveal of {} (committed around round {})",
@@ -110,11 +133,9 @@ pub(crate) fn verify_reveal(
             commit_round
         );
     } else if !dev_mode {
-        tracing::warn!(
-            "Rejecting Reveal for {}: No prior Commitment found in DHT!",
-            reveal.name
-        );
-        return false;
+        let err = KineticStoreError::MissingCommitment;
+        err.log_warning("KIN-STORE-028", &reveal.name, "Rejecting Reveal: No prior Commitment found in DHT!");
+        return Err(err);
     } else {
         tracing::info!(
             "Dev mode: Bypassing commitment presence check for {}",
@@ -167,18 +188,17 @@ pub(crate) fn verify_reveal(
 
     if let Some(spent) = reveal.points_spent {
         if spent > 0 {
-            let balance = points_by_pubkey
-                .get(&reveal.pubkey)
-                .copied()
-                .unwrap_or(0);
+            let mut balance_key = Vec::with_capacity(crate::store::constants::KRS_POINTS_PREFIX.len() + reveal.pubkey.len());
+            balance_key.extend_from_slice(crate::store::constants::KRS_POINTS_PREFIX);
+            balance_key.extend_from_slice(&reveal.pubkey);
+            let balance = get_u64_from_sled(storage, &balance_key).unwrap_or(0);
             if balance < spent {
-                tracing::warn!(
-                    "Rejecting Reveal for {}: Insufficient points (spent {}, balance {})",
-                    reveal.name,
-                    spent,
-                    balance
-                );
-                return false;
+                let err = KineticStoreError::InsufficientPoints;
+                err.log_warning("KIN-STORE-029", &reveal.name, &format!(
+                    "Rejecting Reveal: Insufficient points (spent {}, balance {})",
+                    spent, balance
+                ));
+                return Err(err);
             }
             required_iterations = required_iterations.saturating_sub(spent);
             tracing::info!(
@@ -195,23 +215,24 @@ pub(crate) fn verify_reveal(
             "Dev mode: Bypassing VDF proof verification for {}",
             reveal.name
         );
-        return true;
+        return Ok(());
     }
 
     if reveal.iterations < required_iterations {
-        tracing::warn!(
+        let err = KineticStoreError::InsufficientIterations;
+        err.log_warning("KIN-STORE-030", &reveal.name, &format!(
             "Rejecting Reveal: Insufficient VDF iterations. Provided {}, Required {}",
-            reveal.iterations,
-            required_iterations
-        );
-        return false;
+            reveal.iterations, required_iterations
+        ));
+        return Err(err);
     }
 
     match engine.verify(&challenge, &reveal.vdf_proof, reveal.iterations) {
-        Ok(true) => true,
+        Ok(true) => Ok(()),
         _ => {
-            tracing::warn!("Rejecting Kademlia Reveal: Invalid VDF Proof");
-            false
+            let err = KineticStoreError::InvalidVdf;
+            err.log_warning("KIN-STORE-031", &reveal.name, "Rejecting Kademlia Reveal: Invalid VDF Proof");
+            Err(err)
         }
     }
 }
@@ -221,11 +242,9 @@ pub(crate) fn verify_authorized_kid(
     active_reveal: Option<&kinetic_core::types::Reveal>,
 ) -> Result<(), KineticStoreError> {
     let reveal = active_reveal.ok_or_else(|| {
-        tracing::warn!(
-            "Rejecting AuthorizedKid: No active reveal found for name {}",
-            auth_kid.name
-        );
-        KineticStoreError::InvalidKidSignature
+        let err = KineticStoreError::InvalidKidSignature;
+        err.log_warning("KIN-STORE-032", &auth_kid.name, "Rejecting AuthorizedKid: No active reveal found");
+        err
     })?;
 
     let pubkey = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
@@ -245,11 +264,7 @@ pub(crate) fn verify_authorized_kid(
         Ok(())
     } else {
         let err = KineticStoreError::InvalidKidSignature;
-        tracing::warn!(
-            error_code = "KIN-STORE-017",
-            severity = ?err.severity(),
-            "Rejecting AuthorizedKid: invalid signature or invalid document"
-        );
+        err.log_warning("KIN-STORE-017", &auth_kid.name, "Rejecting AuthorizedKid: invalid signature or invalid document");
         Err(err)
     }
 }
@@ -259,11 +274,9 @@ pub(crate) fn verify_authorized_manifest(
     active_reveal: Option<&kinetic_core::types::Reveal>,
 ) -> Result<(), KineticStoreError> {
     let reveal = active_reveal.ok_or_else(|| {
-        tracing::warn!(
-            "Rejecting AuthorizedManifest: No active reveal found for name {}",
-            auth_manifest.name
-        );
-        KineticStoreError::InvalidManifestSignature
+        let err = KineticStoreError::InvalidManifestSignature;
+        err.log_warning("KIN-STORE-033", &auth_manifest.name, "Rejecting AuthorizedManifest: No active reveal found");
+        err
     })?;
 
     let pubkey = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
@@ -281,11 +294,7 @@ pub(crate) fn verify_authorized_manifest(
         Ok(())
     } else {
         let err = KineticStoreError::InvalidManifestSignature;
-        tracing::warn!(
-            error_code = "KIN-STORE-018",
-            severity = ?err.severity(),
-            "Rejecting AuthorizedManifest: invalid signature"
-        );
+        err.log_warning("KIN-STORE-018", &auth_manifest.name, "Rejecting AuthorizedManifest: invalid signature");
         Err(err)
     }
 }
