@@ -102,12 +102,15 @@ pub(crate) fn verify_reveal(
     }
 
     let engine = ChiaVdfEngine::new();
-    let challenge_bytes =
-        hex::decode(&reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
+    let drand_rand = hex::decode(&reveal.drand_randomness).map_err(|_| {
+        let err = KineticStoreError::InvalidDrandHex;
+        err.log_warning("KIN-STORE-028", &reveal.name, "Rejecting Kademlia Reveal: Invalid Drand Randomness Hex");
+        err
+    })?;
     let mut hasher = Sha256::new();
     hasher.update(reveal.name.as_bytes());
     hasher.update(reveal.salt);
-    hasher.update(&challenge_bytes);
+    hasher.update(&drand_rand);
     hasher.update(&reveal.pubkey);
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&hasher.finalize());
@@ -152,8 +155,12 @@ pub(crate) fn verify_reveal(
         let mut prev_hasher = Sha256::new();
         prev_hasher.update(reveal.name.as_bytes());
         prev_hasher.update(prev.salt);
-        prev_hasher
-            .update(hex::decode(&prev.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]));
+        let prev_drand_rand = hex::decode(&prev.drand_randomness).map_err(|_| {
+            let err = KineticStoreError::InvalidDrandHex;
+            err.log_warning("KIN-STORE-028", &reveal.name, "Rejecting Kademlia Reveal: Previous record has invalid Drand hex");
+            err
+        })?;
+        prev_hasher.update(prev_drand_rand);
         prev_hasher.update(&reveal.pubkey);
         let mut prev_hash = [0u8; 32];
         prev_hash.copy_from_slice(&prev_hasher.finalize());
@@ -229,9 +236,14 @@ pub(crate) fn verify_reveal(
 
     match engine.verify(&challenge, &reveal.vdf_proof, reveal.iterations) {
         Ok(true) => Ok(()),
-        _ => {
+        Ok(false) => {
             let err = KineticStoreError::InvalidVdf;
             err.log_warning("KIN-STORE-031", &reveal.name, "Rejecting Kademlia Reveal: Invalid VDF Proof");
+            Err(err)
+        }
+        Err(e) => {
+            let err = KineticStoreError::VdfEngineError(e.to_string());
+            err.log_warning("KIN-STORE-031", &reveal.name, "Rejecting Kademlia Reveal: VDF Engine Failure");
             Err(err)
         }
     }
