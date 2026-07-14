@@ -10,14 +10,17 @@ async fn main() -> Result<()> {
     let keypair = libp2p::identity::Keypair::generate_ed25519();
     let config = NetworkConfig {
         mode: NetworkMode::FullNode,
-        listen_addr: "/ip4/0.0.0.0/tcp/0".to_string(),
+        listen_addr: "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
         bootstrap_nodes: kinetic_core::config::KineticConfig::default()
             .network
-            .bootstrap_nodes,
+            .bootstrap_nodes.iter().filter_map(|s| s.parse().ok()).collect(),
         seed_domains: vec![],
         enable_mdns: false,
         initial_drand_pulse: 30069417,
         external_address: None,
+            max_reveals_per_hour: 100,
+            lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+            disable_pow: false,
     };
 
     let storage =
