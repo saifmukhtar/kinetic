@@ -240,7 +240,6 @@ mod tests {
             signature: vec![2; 64],
             previous_proof: None,
             miner_pubkey: None,
-            points_spent: None,
         };
         let reveal_key = "kinetic_reveal:validname.kin";
         storage
@@ -254,10 +253,10 @@ mod tests {
             if let Some(cmd) = cmd_rx.recv().await {
                 match cmd {
                     Command::ResolveRedundant { name, responder } => {
-                        assert_eq!(name, "validname.kin");
+                        assert_eq!(&*name, "validname.kin");
                         let _ =
                             responder.send(Err(kinetic_core::error::ResolutionError::NotFound {
-                                name: name.clone(),
+                                name: name.to_string(),
                                 peers_queried: 3,
                             }));
                     }
