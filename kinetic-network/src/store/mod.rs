@@ -1,11 +1,15 @@
 /// Store constants.
-pub mod constants;
+pub(crate) mod constants;
 /// The core store implementation.
 pub mod core;
-/// Store query handlers.
-pub mod handlers;
+pub(crate) mod handlers;
 /// Store validation logic.
-pub mod verification;
+pub(crate) mod verification;
 
-pub use self::constants::*;
+#[cfg(test)]
+mod handlers_tests;
+
+#[cfg(test)]
+mod verification_tests;
+
 pub use self::core::KineticRecordStore;
