@@ -60,6 +60,18 @@ pub enum KineticStoreError {
     /// Finding 13: HostRoutingRecord failed signature verification or timestamp check.
     #[error("HostRoutingRecord signature verification failed or record is stale")]
     InvalidHostRouteSignature,
+    /// The node is rate-limiting reveal ingestion
+    #[error("rate limit exceeded for reveal submission")]
+    RateLimited,
+    /// Reveal commitment is too recent
+    #[error("reveal commitment is too recent")]
+    StaleReveal,
+    /// Missing prior commitment in DHT
+    #[error("no prior commitment found in DHT")]
+    MissingCommitment,
+    /// Insufficient points to spend on reveal
+    #[error("insufficient points to spend on reveal")]
+    InsufficientPoints,
 }
 
 impl KineticStoreError {
@@ -71,7 +83,7 @@ impl KineticStoreError {
 
             | Self::VdfExpired { .. }
             | Self::RevealNotFound => Severity::Info,
-            Self::PayloadTooLarge | Self::UnknownRecordType => Severity::Warning,
+            Self::PayloadTooLarge | Self::UnknownRecordType | Self::RateLimited => Severity::Warning,
             Self::InvalidVdf
             | Self::InvalidSignature
             | Self::InvalidPublicKey
@@ -81,7 +93,35 @@ impl KineticStoreError {
             | Self::InvalidManifestSignature
             | Self::InvalidDrandHex
             | Self::StaleHeartbeat
-            | Self::InvalidHostRouteSignature => Severity::Error,
+            | Self::InvalidHostRouteSignature
+            | Self::StaleReveal
+            | Self::MissingCommitment
+            | Self::InsufficientPoints => Severity::Error,
+        }
+    }
+
+    /// Logs the error utilizing its severity level with contextual fields
+    pub fn log_warning(&self, error_code: &str, name: &str, extra_context: &str) {
+        let severity = self.severity();
+        match severity {
+            Severity::Info => tracing::info!(
+                error_code = error_code,
+                name = name,
+                severity = ?severity,
+                "{} {}", extra_context, self
+            ),
+            Severity::Warning => tracing::warn!(
+                error_code = error_code,
+                name = name,
+                severity = ?severity,
+                "{} {}", extra_context, self
+            ),
+            _ => tracing::error!(
+                error_code = error_code,
+                name = name,
+                severity = ?severity,
+                "{} {}", extra_context, self
+            ),
         }
     }
 }
