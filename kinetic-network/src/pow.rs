@@ -22,26 +22,24 @@ fn leading_zeros(hash: &[u8]) -> u32 {
 }
 
 /// Computes the Argon2id hash for the given peer bytes and epoch.
-fn compute_pow_hash(peer_bytes: &[u8], epoch: u64) -> [u8; 32] {
-    // 16MB memory, 1 iteration, 1 parallelism
-    let params = Params::new(16384, 1, 1, None).unwrap();
-    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+fn compute_pow_hash(argon2: &Argon2, peer_bytes: &[u8], epoch: u64) -> [u8; 32] {
     let mut output = [0u8; 32];
-
     // Argon2 requires a salt of at least 8 bytes, and epoch.to_be_bytes() is 8 bytes.
-    let _ = argon2.hash_password_into(peer_bytes, &epoch.to_be_bytes(), &mut output);
+    argon2
+        .hash_password_into(peer_bytes, &epoch.to_be_bytes(), &mut output)
+        .expect("Argon2 memory allocation failed during PoW hash");
     output
 }
 
 /// Computes a peer-specific epoch to stagger identity churn across the network.
-fn get_staggered_epoch(peer_id: &PeerId, pulse: u64) -> u64 {
-    let bytes = peer_id.to_bytes();
+fn get_staggered_epoch(peer_bytes: &[u8], pulse: u64) -> u64 {
     let mut offset_bytes = [0u8; 8];
-    let len = bytes.len();
+    let len = peer_bytes.len();
     if len >= 8 {
-        offset_bytes.copy_from_slice(&bytes[len - 8..len]);
+        offset_bytes.copy_from_slice(&peer_bytes[len - 8..len]);
     } else {
-        offset_bytes[..len].copy_from_slice(&bytes[..len]);
+        // Right-align the bytes to prevent massive value shifts on short inputs
+        offset_bytes[8 - len..].copy_from_slice(peer_bytes);
     }
     let offset = u64::from_be_bytes(offset_bytes) % EPOCH_PULSES;
     (pulse + offset) / EPOCH_PULSES
@@ -58,17 +56,21 @@ pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32)
     }
 
     let peer_bytes = peer_id.to_bytes();
-    let current_epoch = get_staggered_epoch(peer_id, current_pulse);
+    let current_epoch = get_staggered_epoch(&peer_bytes, current_pulse);
+
+    // 16MB memory, 1 iteration, 1 parallelism
+    let params = Params::new(16384, 1, 1, None).expect("Valid static Argon2 params");
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     // Check current epoch
-    let hash = compute_pow_hash(&peer_bytes, current_epoch);
+    let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch);
     if leading_zeros(&hash) >= difficulty {
         return true;
     }
 
     // Check previous epoch (allows 12-hour overlap so nodes don't drop exactly at the boundary)
     if current_epoch > 0 {
-        let hash = compute_pow_hash(&peer_bytes, current_epoch - 1);
+        let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch - 1);
         if leading_zeros(&hash) >= difficulty {
             return true;
         }
@@ -78,6 +80,8 @@ pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32)
 }
 
 /// Grinds an Ed25519 keypair whose PeerId satisfies the PoW for the current epoch.
+/// WARNING: This is a blocking, CPU-bound operation. If calling from an async context,
+/// ensure it is wrapped in `tokio::task::spawn_blocking` to prevent executor starvation.
 pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
     if current_pulse == 0 && !kinetic_core::config::is_dev_mode() {
         panic!("Cannot generate PoW against pulse 0 (drand uninitialized)");
@@ -94,15 +98,20 @@ pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
         "Mining epoch-bound S/Kademlia identity (difficulty: {} bits)...",
         difficulty
     );
+    
+    // 16MB memory, 1 iteration, 1 parallelism
+    let params = Params::new(16384, 1, 1, None).expect("Valid static Argon2 params");
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    
     let start = web_time::Instant::now();
 
     loop {
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let peer_bytes = peer_id.to_bytes();
-        let current_epoch = get_staggered_epoch(&peer_id, current_pulse);
+        let current_epoch = get_staggered_epoch(&peer_bytes, current_pulse);
 
-        let hash = compute_pow_hash(&peer_bytes, current_epoch);
+        let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch);
 
         attempts += 1;
         if leading_zeros(&hash) >= difficulty {
