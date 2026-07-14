@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+/// Host routing records max age (10 minutes)
+pub const HOST_ROUTE_MAX_AGE_SECS: u64 = 600;
+
 /// Well-known port constants for all Kinetic binaries.
 ///
 /// Centralising port assignments here prevents accidental conflicts
