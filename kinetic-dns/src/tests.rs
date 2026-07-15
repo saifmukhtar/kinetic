@@ -69,7 +69,6 @@ async fn start_mock_daemon() -> String {
                         pubkey: vec![],
                         signature: vec![],
                         miner_pubkey: None,
-                        points_spent: None,
                         previous_proof: None,
                     };
                     (StatusCode::OK, serde_json::to_vec(&reveal).unwrap()).into_response()
@@ -90,7 +89,6 @@ async fn start_mock_daemon() -> String {
                         pubkey: vec![],
                         signature: vec![],
                         miner_pubkey: None,
-                        points_spent: None,
                         previous_proof: None,
                     };
                     (StatusCode::OK, serde_json::to_vec(&reveal).unwrap()).into_response()
@@ -321,4 +319,37 @@ async fn test_cache_invalidation() {
 
     // Invalidate again
     handler.invalidate_cache("test1.kin").await;
+}
+
+#[cfg(test)]
+mod fuzzing {
+    use super::*;
+    use proptest::prelude::*;
+    use kinetic_core::types::{DnsZone, Reveal};
+
+    proptest! {
+        #[test]
+        fn doesnt_crash_on_random_payload_parsing(
+            raw_payload in any::<Vec<u8>>()
+        ) {
+            // Fuzz the JSON parser with pure random bytes
+            let _ = serde_json::from_slice::<Reveal>(&raw_payload);
+        }
+
+        #[test]
+        fn doesnt_crash_on_random_reveal_strings(
+            random_string in ".*"
+        ) {
+            // Pass random utf-8 strings into our DnsZone payload parser
+            let _ = DnsZone::parse_payload(random_string.as_bytes());
+        }
+        
+        #[test]
+        fn doesnt_crash_on_random_domain_normalization(
+            domain in ".*"
+        ) {
+            let normalized = kinetic_core::types::normalize_name(&domain);
+            let _apex = kinetic_core::types::extract_apex_domain(&normalized);
+        }
+    }
 }

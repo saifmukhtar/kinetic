@@ -1,0 +1,256 @@
+use hickory_proto::rr::{Name, RData, Record};
+use hickory_server::authority::MessageResponseBuilder;
+use hickory_server::server::{Request, ResponseHandler, ResponseInfo};
+use moka::future::Cache;
+use std::str::FromStr;
+use std::sync::Arc;
+use tracing::{error, info, warn};
+
+pub async fn resolve_kinetic<R: ResponseHandler>(
+    request: &Request,
+    mut response_handle: R,
+    query_name: &str,
+    mut header: hickory_proto::op::Header,
+    builder: MessageResponseBuilder<'_>,
+    domain_name: &str,
+    apex_domain: &str,
+    cache: &Cache<String, Option<Vec<u8>>>,
+    api_url: &str,
+    http_client: &reqwest::Client,
+) -> ResponseInfo {
+    let query = request.query();
+    
+    // Intercept Category 1 PUBLIC_NAMES
+    let parts: Vec<&str> = apex_domain.split('.').collect();
+    if !parts.is_empty() && kinetic_core::types::PUBLIC_NAMES.contains(&parts[0]) {
+        if parts[0] == "localhost" {
+            let mut response_records = Vec::new();
+            let name = Name::from_str(query_name).unwrap_or_else(|_| Name::root());
+            
+            if query.query_type() == hickory_proto::rr::RecordType::A {
+                response_records.push(Record::from_rdata(
+                    name.clone(),
+                    3600,
+                    RData::A(std::net::Ipv4Addr::new(127, 0, 0, 1).into()),
+                ));
+            } else if query.query_type() == hickory_proto::rr::RecordType::AAAA {
+                response_records.push(Record::from_rdata(
+                    name.clone(),
+                    3600,
+                    RData::AAAA(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1).into()),
+                ));
+            }
+
+            if !response_records.is_empty() {
+                let response = builder.build(
+                    header,
+                    response_records.iter(),
+                    std::iter::empty(),
+                    std::iter::empty(),
+                    std::iter::empty(),
+                );
+                let _ = response_handle.send_response(response).await;
+                return header.into();
+            } else {
+                // Empty NOERROR response for unsupported query types on localhost
+                let response = builder.build(
+                    header,
+                    std::iter::empty(),
+                    std::iter::empty(),
+                    std::iter::empty(),
+                    std::iter::empty(),
+                );
+                let _ = response_handle.send_response(response).await;
+                return header.into();
+            }
+        } else {
+            // For all other PUBLIC_NAMES, instantly return NXDOMAIN (Not Found)
+            let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
+            let _ = response_handle.send_response(response).await;
+            header.set_response_code(hickory_proto::op::ResponseCode::NXDomain);
+            return header.into();
+        }
+    }
+
+    let api_url_clone = api_url.to_string();
+    let http_client_clone = http_client.clone();
+    let apex_domain_clone = apex_domain.to_string();
+
+    let cache_result = cache
+        .try_get_with(apex_domain.to_string(), async move {
+            info!(
+                "Cache miss for apex: {}. Hitting daemon API...",
+                apex_domain_clone
+            );
+
+            let url = format!("{}/api/resolve/{}", api_url_clone, apex_domain_clone);
+            match http_client_clone.get(&url).send().await {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        if let Ok(payload) = resp.bytes().await {
+                            Ok::<_, Arc<anyhow::Error>>(Some(payload.to_vec()))
+                        } else {
+                            Err(Arc::new(anyhow::anyhow!(
+                                "Failed to read API response body"
+                            )))
+                        }
+                    } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
+                        Ok(None)
+                    } else {
+                        Err(Arc::new(anyhow::anyhow!(
+                            "API returned status: {}",
+                            resp.status()
+                        )))
+                    }
+                }
+                Err(e) => Err(Arc::new(anyhow::anyhow!("API request failed: {}", e))),
+            }
+        })
+        .await;
+
+    match cache_result {
+        Ok(Some(payload_bytes)) => {
+            info!("Successfully resolved .kin from Cache/DHT");
+
+            match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload_bytes) {
+                Ok(reveal) => {
+                    match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
+                        Ok(zone) => {
+                            let subdomain = if domain_name == apex_domain {
+                                "@".to_string()
+                            } else {
+                                let mut sub = domain_name
+                                    .trim_end_matches(&format!(".{}", apex_domain))
+                                    .to_string();
+                                if sub.ends_with('.') {
+                                    sub.pop();
+                                }
+                                if sub.is_empty() {
+                                    "@".to_string()
+                                } else {
+                                    sub
+                                }
+                            };
+
+                            if let Some(records) = zone
+                                .records
+                                .get(&subdomain)
+                                .or_else(|| zone.records.get("*"))
+                            {
+                                let name = match Name::from_str(query_name) {
+                                    Ok(n) => n,
+                                    Err(e) => {
+                                        error!("Invalid query name format: {}", e);
+                                        let response = builder.error_msg(
+                                            request.header(),
+                                            hickory_proto::op::ResponseCode::FormErr,
+                                        );
+                                        let _ =
+                                            response_handle.send_response(response).await;
+                                        header.set_response_code(
+                                            hickory_proto::op::ResponseCode::FormErr,
+                                        );
+                                        return header.into();
+                                    }
+                                };
+                                let q_type = query.query_type();
+                                let mut response_records = Vec::new();
+
+                                for record in records {
+                                    match record {
+                                        kinetic_core::types::DnsRecord::A(ip)
+                                            if q_type
+                                                == hickory_proto::rr::RecordType::A =>
+                                        {
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::A((*ip).into()),
+                                            ));
+                                        }
+                                        kinetic_core::types::DnsRecord::AAAA(ip)
+                                            if q_type
+                                                == hickory_proto::rr::RecordType::AAAA =>
+                                        {
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::AAAA((*ip).into()),
+                                            ));
+                                        }
+                                        kinetic_core::types::DnsRecord::CNAME(target)
+                                            if q_type
+                                                == hickory_proto::rr::RecordType::CNAME =>
+                                        {
+                                            if let Ok(cname) = Name::from_str(target) {
+                                                response_records.push(Record::from_rdata(
+                                                    name.clone(),
+                                                    60,
+                                                    RData::CNAME(
+                                                        hickory_proto::rr::rdata::CNAME(
+                                                            cname,
+                                                        ),
+                                                    ),
+                                                ));
+                                            }
+                                        }
+                                        kinetic_core::types::DnsRecord::TXT(txt)
+                                            if q_type
+                                                == hickory_proto::rr::RecordType::TXT =>
+                                        {
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::TXT(
+                                                    hickory_proto::rr::rdata::TXT::new(
+                                                        vec![txt.clone()],
+                                                    ),
+                                                ),
+                                            ));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+
+                                if !response_records.is_empty() {
+                                    header.set_response_code(
+                                        hickory_proto::op::ResponseCode::NoError,
+                                    );
+                                    let response = builder.build(
+                                        header,
+                                        response_records.iter(),
+                                        std::iter::empty(),
+                                        std::iter::empty(),
+                                        std::iter::empty(),
+                                    );
+                                    let _ = response_handle.send_response(response).await;
+                                    return header.into();
+                                }
+                            } else {
+                                warn!("No records found for subdomain: {}", subdomain);
+                            }
+                        }
+                        Err(e) => warn!("Payload was not a valid DnsZone: {}", e),
+                    }
+                }
+                Err(e) => warn!("Payload was not a valid Reveal tuple: {}", e),
+            }
+        }
+        Ok(None) => warn!("No payload found for .kin query (NXDOMAIN cached)"),
+        Err(e) => {
+            error!("Error resolving .kin query via DHT/Cache: {:?}", e);
+            let response = builder
+                .error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
+            let _ = response_handle.send_response(response).await;
+            header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
+            return header.into();
+        }
+    }
+
+    // No matching records found after a successful resolution — return NXDOMAIN.
+    let response =
+        builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
+    let _ = response_handle.send_response(response).await;
+    header.set_response_code(hickory_proto::op::ResponseCode::NXDomain);
+    header.into()
+}

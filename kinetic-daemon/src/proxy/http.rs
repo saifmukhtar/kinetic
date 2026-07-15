@@ -10,7 +10,7 @@ pub async fn handle_proxy_request(
         let raw_host = req.uri().host().unwrap_or("").to_string();
         let domain_name = kinetic_core::types::normalize_name(&raw_host);
 
-        if !domain_name.ends_with(kinetic_core::types::DOT_TLD) {
+        if !domain_name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
             // Reject non-.kin CONNECT — we are not a general proxy
             return Ok(Response::builder()
                 .status(StatusCode::FORBIDDEN)
@@ -66,7 +66,7 @@ pub async fn handle_proxy_request(
         .to_string();
 
     let host_name = kinetic_core::types::normalize_name(&host);
-    if !host_name.ends_with(kinetic_core::types::DOT_TLD) {
+    if !host_name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
             .body(Full::new(Bytes::from(

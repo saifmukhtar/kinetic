@@ -47,13 +47,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
 
-mod api;
-mod ca;
-mod nostr;
-
-mod services;
-mod pac;
-mod proxy;
+use kinetic_daemon::{api, ca, pac, proxy, services};
 
 #[derive(Parser)]
 #[command(
@@ -315,9 +309,9 @@ async fn run_daemon() -> Result<()> {
         network_loop.run().await;
     });
 
-    crate::services::network::start_pow_miner_loop(network_client.clone(), drand_pulse_rx.clone(), network_config.clone(), storage.clone(), incoming_tx.clone(), gossip_tx.clone(), network_loop_handle, current_local_key);
+    kinetic_daemon::services::network::start_pow_miner_loop(network_client.clone(), drand_pulse_rx.clone(), network_config.clone(), storage.clone(), incoming_tx.clone(), gossip_tx.clone(), network_loop_handle, current_local_key);
 
-    crate::services::gossip::start_gossip_processor(gossip_rx, gov_state_path.clone(), drand_client.clone(), drand_pulse_tx.clone());
+    kinetic_daemon::services::gossip::start_gossip_processor(gossip_rx, gov_state_path.clone(), drand_client.clone(), drand_pulse_tx.clone());
 
     let base_config_dir = dirs::config_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -369,23 +363,9 @@ async fn run_daemon() -> Result<()> {
 
     info!("Kinetic Daemon architecture successfully bootstrapped. Spawning loops...");
 
-    crate::services::network::start_republisher(network_client.clone(), storage.clone());
+    kinetic_daemon::services::network::start_republisher(network_client.clone(), storage.clone());
 
-    crate::services::heartbeat::start_heartbeat_loop(storage.clone(), network_client.clone(), drand_client.clone(), config.drand.p2p_only, initial_drand_pulse, daemon_keypair.clone(), drand_pulse_tx.clone());
-
-    let daemon_keypair_nostr = daemon_keypair.clone();
-    let storage_nostr = storage.clone();
-    tokio::spawn(async move {
-        if let Err(e) = nostr::start_nostr_listener(
-            daemon_keypair_nostr,
-            storage_nostr,
-            config.daemon.network_mode == "PublicMiner",
-        )
-        .await
-        {
-            tracing::error!("Nostr Listener error: {}", e);
-        }
-    });
+    kinetic_daemon::services::heartbeat::start_heartbeat_loop(storage.clone(), network_client.clone(), drand_client.clone(), config.drand.p2p_only, initial_drand_pulse, daemon_keypair.clone(), drand_pulse_tx.clone());
 
     tokio::spawn(async move {
         if let Err(e) = pac::start_pac_server(16001, config.daemon.proxy_port).await {

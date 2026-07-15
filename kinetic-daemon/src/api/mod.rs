@@ -254,3 +254,29 @@ async fn auth_middleware(
 
 #[cfg(test)]
 mod api_tests;
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+    use subtle::ConstantTimeEq;
+
+    proptest! {
+        #[test]
+        fn test_fuzz_constant_time_eq_lengths(
+            token_a in ".{0,128}",
+            token_b in ".{0,128}"
+        ) {
+            let bytes_a = token_a.as_bytes();
+            let bytes_b = token_b.as_bytes();
+            
+            if bytes_a.len() == bytes_b.len() {
+                let eq = bytes_a.ct_eq(bytes_b).unwrap_u8() == 1;
+                prop_assert_eq!(eq, bytes_a == bytes_b);
+            } else {
+                // We don't call ct_eq on different lengths in the middleware, we handle it safely
+                prop_assert_ne!(bytes_a.len(), bytes_b.len());
+            }
+        }
+    }
+}

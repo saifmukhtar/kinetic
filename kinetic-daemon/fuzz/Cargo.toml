@@ -1,0 +1,32 @@
+[package]
+name = "kinetic-daemon-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+reqwest = "0.13.4"
+subtle = "2.6.1"
+
+[dependencies.kinetic-daemon]
+path = ".."
+
+[[bin]]
+name = "proxy_url_parser"
+path = "fuzz_targets/proxy_url_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "api_auth_token"
+path = "fuzz_targets/api_auth_token.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

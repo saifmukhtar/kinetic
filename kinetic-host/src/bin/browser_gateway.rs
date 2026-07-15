@@ -41,17 +41,17 @@ async fn handle_request(
         .unwrap_or("/")
         .to_string();
 
-    let mut headers = std::collections::HashMap::new();
+    let mut headers = Vec::new();
     for (k, v) in req.headers() {
         if let Ok(v_str) = v.to_str() {
-            headers.insert(k.as_str().to_string(), v_str.to_string());
+            headers.push((k.as_str().into(), v_str.into()));
         }
     }
     // Force Host header for virtual hosting test
-    headers.insert(
-        "Host".to_string(),
-        format!("{}{}", "saif", kinetic_core::types::DOT_TLD),
-    );
+    headers.push((
+        "Host".into(),
+        format!("{}{}", "saif", kinetic_core::constants::TLD_SUFFIX).into(),
+    ));
 
     use http_body_util::BodyExt;
     let body_bytes = req
@@ -62,10 +62,10 @@ async fn handle_request(
         .unwrap_or_default();
 
     let proxy_req = ProxyRequest {
-        method,
-        path,
+        method: method.into(),
+        path: path.into(),
         headers,
-        body: body_bytes,
+        body: bytes::Bytes::from(body_bytes),
     };
 
     match state
@@ -76,7 +76,7 @@ async fn handle_request(
         Ok(proxy_res) => {
             let mut builder = Response::builder().status(proxy_res.status);
             for (k, v) in proxy_res.headers {
-                builder = builder.header(k, v);
+                builder = builder.header(k.as_ref(), v.as_ref());
             }
             builder
                 .body(Body::from(proxy_res.body))
@@ -100,15 +100,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = NetworkConfig {
         mode: NetworkMode::LightClient,
-        listen_addr: "/ip4/0.0.0.0/tcp/0".to_string(),
+        listen_addr: "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
         bootstrap_nodes: vec![
-            "/ip4/127.0.0.1/tcp/6071/p2p/12D3KooWHQaKKkjWdHnnhK78CQkLVQRB9GYoLMAttTbJtdgyizWS"
-                .to_string(),
+            "/ip4/127.0.0.1/tcp/6071/p2p/12D3KooWHQaKKkjWdHnnhK78CQkLVQRB9GYw2yKqH3xZtHhJpQjS"
+                .parse()
+                .unwrap(),
         ],
         seed_domains: vec![],
         enable_mdns: false,
         initial_drand_pulse: 0,
         external_address: None,
+        max_reveals_per_hour: 100,
+        lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+        disable_pow: false,
     };
 
     let (incoming_tx, _) = tokio::sync::mpsc::channel(32);
