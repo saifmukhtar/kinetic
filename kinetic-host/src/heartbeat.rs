@@ -1,6 +1,5 @@
 use kinetic_core::drand::DrandClient;
 use kinetic_network::{NetworkClient, NetworkConfig, NetworkEventLoop};
-use kinetic_storage::SledStorage;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::sync::watch;
@@ -52,6 +51,7 @@ pub async fn start_dynamic_routing_publisher(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn start_drand_heartbeat(
     hb_drand: Arc<DrandClient>,
     drand_pulse_tx: watch::Sender<u64>,
@@ -61,12 +61,13 @@ pub async fn start_drand_heartbeat(
     hc_client: NetworkClient,
     hc_drand_rx: watch::Receiver<u64>,
     hc_config: NetworkConfig,
-    hc_storage: Arc<SledStorage>,
+    hc_storage: Arc<dyn kinetic_core::traits::StorageEngine>,
     hc_inc_tx: tokio::sync::mpsc::Sender<(
         kinetic_network::ProxyRequest,
         libp2p::request_response::ResponseChannel<kinetic_network::ProxyResponse>,
     )>,
     hc_gossip_tx: tokio::sync::mpsc::Sender<(String, Vec<u8>)>,
+    hc_vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(3));
     loop {
@@ -89,8 +90,12 @@ pub async fn start_drand_heartbeat(
                             pulse.round,
                             kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
                         )
-                    }).await.unwrap_or_else(|_| {
-                        tracing::error!("PoW mining task panicked, falling back to random identity");
+                    })
+                    .await
+                    .unwrap_or_else(|_| {
+                        tracing::error!(
+                            "PoW mining task panicked, falling back to random identity"
+                        );
                         libp2p::identity::Keypair::generate_ed25519()
                     });
                     hb_local_peer_id = libp2p::PeerId::from_public_key(&current_local_key.public());
@@ -109,6 +114,7 @@ pub async fn start_drand_heartbeat(
                         hc_drand_rx.clone(),
                         Some(hc_inc_tx.clone()),
                         Some(hc_gossip_tx.clone()),
+                        hc_vdf_engine.clone(),
                     ) {
                         hc_client
                             .update_backend(new_client.get_sender(), new_client.stream_control());

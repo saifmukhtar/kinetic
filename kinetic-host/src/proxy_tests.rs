@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod tests {
     use crate::proxy::forward_request;
-    use kinetic_network::ProxyRequest;
     use axum::extract::{Query, Request};
     use axum::{
         routing::{delete, get, head, options, patch, post, put},
         Router,
     };
+    use kinetic_network::ProxyRequest;
 
     use axum::body::Bytes;
     use axum::http::StatusCode;
@@ -118,7 +118,10 @@ mod tests {
         };
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 500);
-        assert_eq!(String::from_utf8(res.body.to_vec()).unwrap(), "Server Error");
+        assert_eq!(
+            String::from_utf8(res.body.to_vec()).unwrap(),
+            "Server Error"
+        );
     }
 
     // 5
@@ -126,8 +129,7 @@ mod tests {
     async fn test_forward_request_with_headers() {
         let port = start_mock_backend().await;
         let client = reqwest::Client::new();
-        let mut headers = Vec::new();
-        headers.push(("x-custom-header".into(), "custom-value".into()));
+        let headers = vec![("x-custom-header".into(), "custom-value".into())];
         let req = ProxyRequest {
             path: "/headers".into(),
             method: "GET".into(),
@@ -136,7 +138,15 @@ mod tests {
         };
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 200);
-        assert_eq!(res.headers.iter().find(|(k, _)| k.as_ref() == "x-custom-header").unwrap().1.as_ref(), "custom-value");
+        assert_eq!(
+            res.headers
+                .iter()
+                .find(|(k, _)| k.as_ref() == "x-custom-header")
+                .unwrap()
+                .1
+                .as_ref(),
+            "custom-value"
+        );
     }
 
     // 6
@@ -183,7 +193,9 @@ mod tests {
         // Port 1 is usually not running a web server
         let res = forward_request(&client, req, 1, "127.0.0.1").await;
         assert_eq!(res.status, 502);
-        assert!(String::from_utf8(res.body.to_vec()).unwrap().contains("Bad Gateway"));
+        assert!(String::from_utf8(res.body.to_vec())
+            .unwrap()
+            .contains("Bad Gateway"));
     }
 
     // 9
@@ -264,7 +276,10 @@ mod tests {
         };
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 200);
-        assert_eq!(String::from_utf8(res.body.to_vec()).unwrap(), "Hello, DELETE!");
+        assert_eq!(
+            String::from_utf8(res.body.to_vec()).unwrap(),
+            "Hello, DELETE!"
+        );
     }
 
     // 14
@@ -280,7 +295,10 @@ mod tests {
         };
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 200);
-        assert_eq!(String::from_utf8(res.body.to_vec()).unwrap(), "Hello, PATCH!");
+        assert_eq!(
+            String::from_utf8(res.body.to_vec()).unwrap(),
+            "Hello, PATCH!"
+        );
     }
 
     // 15
@@ -312,7 +330,10 @@ mod tests {
         };
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 200);
-        assert_eq!(String::from_utf8(res.body.to_vec()).unwrap(), "Hello, OPTIONS!");
+        assert_eq!(
+            String::from_utf8(res.body.to_vec()).unwrap(),
+            "Hello, OPTIONS!"
+        );
     }
 
     // 17
@@ -323,8 +344,7 @@ mod tests {
         // so we just test that inserting a single header is correctly passed and parsed.
         let port = start_mock_backend().await;
         let client = reqwest::Client::new();
-        let mut headers = Vec::new();
-        headers.push(("accept".into(), "application/json".into()));
+        let headers = vec![("accept".into(), "application/json".into())];
         let req = ProxyRequest {
             path: "/headers".into(),
             method: "GET".into(),
@@ -333,7 +353,15 @@ mod tests {
         };
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 200);
-        assert_eq!(res.headers.iter().find(|(k, _)| k.as_ref() == "accept").unwrap().1.as_ref(), "application/json");
+        assert_eq!(
+            res.headers
+                .iter()
+                .find(|(k, _)| k.as_ref() == "accept")
+                .unwrap()
+                .1
+                .as_ref(),
+            "application/json"
+        );
     }
 
     // 18
@@ -383,7 +411,13 @@ mod tests {
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 200);
         // Axum will append a content-type and content-length
-        assert!(res.headers.iter().any(|(k, _)| k.as_ref() == "content-type"));
-        assert!(res.headers.iter().any(|(k, _)| k.as_ref() == "content-length"));
+        assert!(res
+            .headers
+            .iter()
+            .any(|(k, _)| k.as_ref() == "content-type"));
+        assert!(res
+            .headers
+            .iter()
+            .any(|(k, _)| k.as_ref() == "content-length"));
     }
 }

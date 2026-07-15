@@ -133,7 +133,9 @@ async fn run_host() -> Result<()> {
             initial_drand_pulse,
             kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
         )
-    }).await.map_err(|e| anyhow::anyhow!("PoW mining task failed: {}", e))?;
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("PoW mining task failed: {}", e))?;
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     info!(
         "Infrastructure Node ephemeral PoW Identity: {}",
@@ -191,6 +193,9 @@ async fn run_host() -> Result<()> {
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, gossip_rx) = tokio::sync::mpsc::channel(100);
 
+    let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
+        Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config.clone(),
         local_key.clone(),
@@ -198,6 +203,7 @@ async fn run_host() -> Result<()> {
         drand_pulse_rx.clone(),
         Some(incoming_tx.clone()),
         Some(gossip_tx.clone()),
+        vdf_engine.clone(),
     )?;
 
     let network_loop_handle = Arc::new(tokio::sync::Mutex::new(tokio::spawn(async move {
@@ -250,6 +256,7 @@ async fn run_host() -> Result<()> {
         storage.clone(),
         incoming_tx.clone(),
         gossip_tx.clone(),
+        vdf_engine.clone(),
     ));
 
     // 7. Start Health-check API

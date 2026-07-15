@@ -5,6 +5,14 @@ use service_manager::{
 };
 use std::env;
 
+/// Installs the Kinetic Host as a native system service.
+///
+/// Configures the service to autostart on boot using the system's native
+/// service manager (e.g., systemd, launchd).
+///
+/// # Errors
+/// Returns an error if the native service manager cannot be detected, the
+/// executable path cannot be resolved, or the service installation fails.
 pub fn install_service() -> Result<()> {
     println!("Installing Kinetic Host service...");
     let label: ServiceLabel = "com.kinetic.host".parse()?;
@@ -29,6 +37,13 @@ pub fn install_service() -> Result<()> {
     Ok(())
 }
 
+/// Uninstalls the Kinetic Host system service.
+///
+/// Removes the service configuration from the system's native service manager.
+///
+/// # Errors
+/// Returns an error if the native service manager cannot be detected or if
+/// the uninstallation fails.
 pub fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.host".parse()?;
     let manager = <dyn ServiceManager>::native()
@@ -38,6 +53,13 @@ pub fn uninstall_service() -> Result<()> {
     Ok(())
 }
 
+/// Starts the installed Kinetic Host system service.
+///
+/// Instructs the native service manager to start the background process.
+///
+/// # Errors
+/// Returns an error if the native service manager cannot be detected or if
+/// the service fails to start.
 pub fn start_background_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.host".parse()?;
     let manager = <dyn ServiceManager>::native()
@@ -47,6 +69,13 @@ pub fn start_background_service() -> Result<()> {
     Ok(())
 }
 
+/// Stops the currently running Kinetic Host system service.
+///
+/// Instructs the native service manager to stop the background process.
+///
+/// # Errors
+/// Returns an error if the native service manager cannot be detected or if
+/// the service fails to stop.
 pub fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = "com.kinetic.host".parse()?;
     let manager = <dyn ServiceManager>::native()
