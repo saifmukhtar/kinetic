@@ -1,6 +1,6 @@
-//! # kinetic-cli
+//! # kinetic
 //!
-//! The command-line interface for the Kinetic daemon (`kinetic-cli`).
+//! The command-line interface for the Kinetic daemon (`kinetic`).
 //!
 //! This binary provides an ergonomic terminal interface for interacting with a
 //! locally running `kinetic-daemon`. It authenticates all requests using the
@@ -22,7 +22,7 @@ use kinetic_core::config::KineticConfig;
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser)]
-#[command(name = "kinetic-cli")]
+#[command(name = "kinetic")]
 #[command(about = "CLI for the Kinetic Decentralized DNS Network", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
             handle_service_command("kinetic-node", cmd, false).await?;
         }
         Commands::Dns { cmd } => {
-            handle_service_command("kinetic-dns-server", cmd, true).await?;
+            handle_service_command("kinetic-dns", cmd, true).await?;
         }
     }
 

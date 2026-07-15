@@ -118,7 +118,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
             "kinetic-daemon" => "manage .kin domain names and run the local P2P proxy",
             "kinetic-host" => "host a website or service reachable at a .kin name (VPS / homelab)",
             "kinetic-node" => "run a full DHT node and contribute to the Kinetic network",
-            "kinetic-dns-server" => "enable system-wide .kin DNS resolution (e.g. for curl)",
+            "kinetic-dns" => "enable system-wide .kin DNS resolution (e.g. for curl)",
             _ => "use this Kinetic component",
         };
 
