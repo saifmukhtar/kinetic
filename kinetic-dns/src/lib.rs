@@ -25,9 +25,9 @@ pub mod handler;
 pub mod kinetic_records;
 pub mod upstream;
 
-use std::sync::{Arc, RwLock};
 use hickory_resolver::TokioAsyncResolver;
 use moka::future::Cache;
+use std::sync::{Arc, RwLock};
 use tracing::info;
 
 /// The custom DNS handler that intercepts `.kin` queries and routes them to the DHT.
@@ -41,15 +41,21 @@ pub struct KineticDnsHandler {
 }
 
 impl KineticDnsHandler {
+    /// Creates a new `KineticDnsHandler` with the specified API URL.
+    ///
+    /// This initializes the upstream DNS resolver, internal caches, and background tasks for config reloading.
     pub fn new(api_url: String) -> Self {
         let resolver = Arc::new(RwLock::new(upstream::create_resolver()));
         let cache = cache::create_cache();
-        
+
         let http_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_else(|e| {
-                tracing::warn!("Failed to build custom reqwest client ({}). Falling back to default", e);
+                tracing::warn!(
+                    "Failed to build custom reqwest client ({}). Falling back to default",
+                    e
+                );
                 reqwest::Client::new()
             });
 

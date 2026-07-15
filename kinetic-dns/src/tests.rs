@@ -323,9 +323,9 @@ async fn test_cache_invalidation() {
 
 #[cfg(test)]
 mod fuzzing {
-    use super::*;
-    use proptest::prelude::*;
+
     use kinetic_core::types::{DnsZone, Reveal};
+    use proptest::prelude::*;
 
     proptest! {
         #[test]
@@ -343,7 +343,7 @@ mod fuzzing {
             // Pass random utf-8 strings into our DnsZone payload parser
             let _ = DnsZone::parse_payload(random_string.as_bytes());
         }
-        
+
         #[test]
         fn doesnt_crash_on_random_domain_normalization(
             domain in ".*"

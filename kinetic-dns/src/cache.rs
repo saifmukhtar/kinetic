@@ -2,6 +2,8 @@ use moka::future::Cache;
 use moka::Expiry;
 use std::time::{Duration, Instant};
 
+/// Custom cache expiry logic for DNS records.
+/// Assigns asymmetric TTLs: 5 minutes for positive hits, 30 seconds for negative hits.
 pub struct KineticExpiry;
 
 impl Expiry<String, Option<Vec<u8>>> for KineticExpiry {
@@ -44,6 +46,7 @@ impl Expiry<String, Option<Vec<u8>>> for KineticExpiry {
     }
 }
 
+/// Creates a new Moka cache for DNS resolution results.
 pub fn create_cache() -> Cache<String, Option<Vec<u8>>> {
     Cache::builder().expire_after(KineticExpiry).build()
 }

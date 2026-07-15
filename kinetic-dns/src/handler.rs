@@ -1,9 +1,9 @@
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 
-use crate::KineticDnsHandler;
 use crate::kinetic_records::resolve_kinetic;
 use crate::upstream::resolve_upstream;
+use crate::KineticDnsHandler;
 
 #[async_trait::async_trait]
 impl RequestHandler for KineticDnsHandler {
@@ -42,7 +42,10 @@ impl RequestHandler for KineticDnsHandler {
             .await
         } else {
             let upstream_resolver = {
-                self.resolver.read().unwrap_or_else(|poisoned| poisoned.into_inner()).clone()
+                self.resolver
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .clone()
             };
             resolve_upstream(
                 &upstream_resolver,
