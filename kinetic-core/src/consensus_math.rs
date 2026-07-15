@@ -2,47 +2,21 @@
 pub struct ConsensusParams {
     /// Number of rounds a name must be inactive before the steal difficulty decays.
     pub steal_target_rounds: u64,
-    /// Number of rounds it takes for hardware speed to theoretically double.
-    pub hardware_drift_rounds: u64,
 }
 
 impl Default for ConsensusParams {
     fn default() -> Self {
         Self {
-            steal_target_rounds: 21_024_000, // Exactly 2 years of 3s rounds (Quicknet)
-            hardware_drift_rounds: 21_024_000, // 2 years at 3s/round (Quicknet)
+            steal_target_rounds: crate::constants::STEAL_TARGET_ROUNDS,
         }
     }
 }
 
 impl ConsensusParams {
-    // Double Exponential Cliff: M(L) = 500000 * exp(-2.0 * L) + 250 * exp(-0.5 * L) + 5
-    const MULTIPLIERS: [u64; 20] = [
-        67824, 67824, 9255, 1300, 207, 48, 21, 13, 10, 8, 7, 6, 6, 5, 5, 5, 5, 5, 5, 5,
-    ];
-
-    /// TODO(BENCHMARK): These values need to be updated with correct chiavdf benchmarks.
-    pub const TODO_BENCHMARK_BASE_ITERATIONS: u64 = 4_194_304;
-
     /// Calculates the base hardware iteration requirement for a given round,
     /// doubling every `hardware_drift_rounds`.
-    pub fn calculate_hardware_anchor(&self, current_round: u64) -> u64 {
-        // Base starting point for 0 drift (22-bit iterations)
-        let genesis_base: u64 = Self::TODO_BENCHMARK_BASE_ITERATIONS;
-
-        let mut drift_rounds = current_round;
-        let max_rounds = 5 * self.hardware_drift_rounds; // Max 32x multiplier (2^5)
-        if drift_rounds > max_rounds {
-            drift_rounds = max_rounds;
-        }
-
-        let full_doublings = drift_rounds / self.hardware_drift_rounds;
-        let remainder = drift_rounds % self.hardware_drift_rounds;
-
-        let base = genesis_base << full_doublings;
-        // Deterministic integer linear interpolation for partial hardware drift
-        let extra = (base * remainder) / self.hardware_drift_rounds;
-        base + extra
+    pub fn calculate_hardware_anchor(&self, _current_round: u64) -> u64 {
+        crate::constants::BENCHMARK_BASE_ITERATIONS
     }
 
     /// Calculate required iterations for a name based on length and hardware anchor
@@ -52,26 +26,58 @@ impl ConsensusParams {
         let label = normalized_name
             .strip_suffix(crate::constants::TLD_SUFFIX)
             .unwrap_or(&normalized_name);
-        self.required_iterations_by_length(label.len(), current_round)
+        self.required_iterations_by_label(label, current_round)
     }
 
-    /// Calculate required iterations given just the length (used by blind VDF prover)
-    pub fn required_iterations_by_length(&self, len: usize, current_round: u64) -> u64 {
+    /// Calculate required iterations for a specific label
+    pub fn required_iterations_by_label(&self, label: &str, current_round: u64) -> u64 {
         if crate::config::is_dev_mode() {
             return 1000;
         }
 
+        let len = label.len();
         let base = self.calculate_hardware_anchor(current_round);
 
-        // Multiplier based on the Double Exponential Cliff
-        let multiplier = if len < 20 {
-            Self::MULTIPLIERS[len]
-        } else {
-            // Flat tail: anything 20 or longer gets the lowest multiplier (pinned at 5)
-            5
-        };
-
-        base * multiplier
+        // "Squatter Cliff" curve (1x = 30 minutes)
+        match len {
+            0 | 1 => base * 1_753_200, // 100 years (Reserved/Impossible)
+            2 => base * 7_200,         // 5 months
+            3 => base * 4_320,         // 3 months
+            4 => base * 720,           // 15 days
+            5 => base * 48,            // 1 day
+            6 => base * 24,            // 12 hours
+            7 => base * 5,             // 2.5 hours
+            8..=10 => base * 4,        // 2 hours
+            11..=17 => base * 3,       // 1.5 hours
+            18..=20 => base * 2,       // 1 hour
+            21..=62 => base * 1,       // 30 minutes (Baseline)
+            63 => {
+                use sha2::{Sha256, Digest};
+                let mut hasher = Sha256::new();
+                hasher.update(label.as_bytes());
+                hasher.update(&current_round.to_be_bytes());
+                let result = hasher.finalize();
+                let hex_string = hex::encode(result);
+                
+                let digits: String = hex_string.chars().filter(|c| c.is_ascii_digit()).collect();
+                let first_two = if digits.len() >= 2 { &digits[0..2] } else { "99" };
+                let num: u8 = first_two.parse().unwrap_or(99);
+                
+                match num {
+                    63 => (base * 63) / 1800,        // 63 Seconds (Jackpot!)
+                    0..=10 => (base * 63) / 30,      // 63 Minutes
+                    11..=20 => base * 126,           // 63 Hours
+                    21..=30 => base * 3024,          // 63 Days
+                    31..=40 => base * 21168,         // 63 Weeks
+                    41..=50 => base * 92043,         // 63 Months
+                    51..=62 | 64..=70 => base * 1_104_516, // 63 Years
+                    71..=80 => base * 11_045_160,    // 63 Decades
+                    81..=90 => base * 110_451_600,   // 63 Centuries
+                    _ => base * 1_104_516_000,       // 63 Millennia
+                }
+            },
+            _ => base * 1,             // Fallback
+        }
     }
 
     /// Calculate the cost to steal a name based on how long it has been offline
@@ -113,17 +119,7 @@ mod tests {
         assert!(ab > abc);
     }
 
-    #[test]
-    fn test_hardware_drift() {
-        let params = ConsensusParams::default();
-        let _pk = [0u8; 32];
-        let base = params.required_iterations("abcd", 0);
-        let drift_round = params.hardware_drift_rounds;
-        let drifted = params.required_iterations("abcd", drift_round);
-
-        // At exact hardware_drift_rounds, required iterations should be 2x the base
-        assert_eq!(drifted, base * 2);
-    }
+    // Hardware drift is managed manually via network updates.
 
     #[test]
     fn test_steal_difficulty() {
