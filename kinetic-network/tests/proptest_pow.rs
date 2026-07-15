@@ -1,6 +1,6 @@
-use proptest::prelude::*;
 use kinetic_network::pow::is_valid_sybil_pow;
 use libp2p::PeerId;
+use proptest::prelude::*;
 
 fn generate_random_peer_id() -> PeerId {
     let keypair = libp2p::identity::ed25519::Keypair::generate();
@@ -18,7 +18,7 @@ proptest! {
         difficulty in 0..=32u32
     ) {
         // Just verify it doesn't panic.
-        // PeerId generation isn't natively fuzzed via proptest simply, 
+        // PeerId generation isn't natively fuzzed via proptest simply,
         // but we can generate a random one or use a dummy buffer for hashing.
         let peer_id = generate_random_peer_id();
         let _ = is_valid_sybil_pow(&peer_id, drand_pulse, difficulty);

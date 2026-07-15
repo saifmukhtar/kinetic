@@ -16,12 +16,11 @@ pub(crate) struct PendingQuorum {
 }
 
 pub(crate) struct PendingPut {
-    pub(crate) responder: oneshot::Sender<std::result::Result<(), kinetic_core::error::PublishError>>,
+    pub(crate) responder:
+        oneshot::Sender<std::result::Result<(), kinetic_core::error::PublishError>>,
     pub(crate) expected_responses: usize,
     pub(crate) success_count: usize,
 }
-
-
 
 pub(crate) fn spawn<F>(future: F)
 where

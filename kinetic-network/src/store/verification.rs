@@ -15,10 +15,14 @@ pub(crate) fn verify_host_routing_record(
         .as_secs();
     if now.saturating_sub(record.timestamp) > kinetic_core::config::HOST_ROUTE_MAX_AGE_SECS {
         let err = KineticStoreError::InvalidHostRouteSignature;
-        err.log_warning("KIN-STORE-023", &record.host_id, &format!(
-            "HostRoutingRecord is stale ({} seconds old)",
-            now.saturating_sub(record.timestamp)
-        ));
+        err.log_warning(
+            "KIN-STORE-023",
+            &record.host_id,
+            &format!(
+                "HostRoutingRecord is stale ({} seconds old)",
+                now.saturating_sub(record.timestamp)
+            ),
+        );
         return Err(err);
     }
 
@@ -56,25 +60,26 @@ pub(crate) fn verify_host_routing_record(
 }
 
 #[inline]
-fn get_u64_from_sled(storage: &std::sync::Arc<kinetic_storage::SledStorage>, key: &[u8]) -> Option<u64> {
-    use kinetic_core::traits::StorageEngine;
+fn get_u64_from_sled(
+    storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
+    key: &[u8],
+) -> Option<u64> {
     match storage.get(key) {
-        Ok(Some(bytes)) if bytes.len() == 8 => {
-            Some(u64::from_be_bytes(bytes[..8].try_into().unwrap_or([0u8; 8])))
-        }
+        Ok(Some(bytes)) if bytes.len() == 8 => Some(u64::from_be_bytes(
+            bytes[..8].try_into().unwrap_or([0u8; 8]),
+        )),
         _ => None,
     }
 }
 
 pub(crate) fn verify_reveal(
     reveal: &kinetic_core::types::Reveal,
-    storage: &std::sync::Arc<kinetic_storage::SledStorage>,
+    storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
     current_drand_round: u64,
+    engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-    use kinetic_core::traits::VdfEngine;
     use kinetic_core::types::Commitment;
-    use kinetic_vdf::ChiaVdfEngine;
     use sha2::{Digest, Sha256};
 
     let signable = reveal.signable_bytes();
@@ -82,7 +87,11 @@ pub(crate) fn verify_reveal(
         Ok(k) => k,
         Err(_) => {
             let err = KineticStoreError::InvalidPublicKey;
-            err.log_warning("KIN-STORE-024", &reveal.name, "Rejecting Kademlia Reveal: Invalid Ed25519 PublicKey");
+            err.log_warning(
+                "KIN-STORE-024",
+                &reveal.name,
+                "Rejecting Kademlia Reveal: Invalid Ed25519 PublicKey",
+            );
             return Err(err);
         }
     };
@@ -90,21 +99,32 @@ pub(crate) fn verify_reveal(
         Ok(s) => s,
         Err(_) => {
             let err = KineticStoreError::MalformedSignature;
-            err.log_warning("KIN-STORE-025", &reveal.name, "Rejecting Kademlia Reveal: Malformed Ed25519 Signature");
+            err.log_warning(
+                "KIN-STORE-025",
+                &reveal.name,
+                "Rejecting Kademlia Reveal: Malformed Ed25519 Signature",
+            );
             return Err(err);
         }
     };
 
     if pubkey.verify(&signable, &signature).is_err() {
         let err = KineticStoreError::InvalidSignature;
-        err.log_warning("KIN-STORE-026", &reveal.name, "Rejecting Kademlia Reveal: Invalid Ed25519 Signature");
+        err.log_warning(
+            "KIN-STORE-026",
+            &reveal.name,
+            "Rejecting Kademlia Reveal: Invalid Ed25519 Signature",
+        );
         return Err(err);
     }
 
-    let engine = ChiaVdfEngine::new();
     let drand_rand = hex::decode(&reveal.drand_randomness).map_err(|_| {
         let err = KineticStoreError::InvalidDrandHex;
-        err.log_warning("KIN-STORE-028", &reveal.name, "Rejecting Kademlia Reveal: Invalid Drand Randomness Hex");
+        err.log_warning(
+            "KIN-STORE-028",
+            &reveal.name,
+            "Rejecting Kademlia Reveal: Invalid Drand Randomness Hex",
+        );
         err
     })?;
     let mut hasher = Sha256::new();
@@ -127,7 +147,11 @@ pub(crate) fn verify_reveal(
     if let Some(commit_round) = commit_round {
         if !dev_mode && current_drand_round.saturating_sub(commit_round) < 10 {
             let err = KineticStoreError::StaleReveal;
-            err.log_warning("KIN-STORE-027", &reveal.name, "Rejecting Reveal: Commitment is too recent (age < 10 rounds)");
+            err.log_warning(
+                "KIN-STORE-027",
+                &reveal.name,
+                "Rejecting Reveal: Commitment is too recent (age < 10 rounds)",
+            );
             return Err(err);
         }
         tracing::info!(
@@ -137,7 +161,11 @@ pub(crate) fn verify_reveal(
         );
     } else if !dev_mode {
         let err = KineticStoreError::MissingCommitment;
-        err.log_warning("KIN-STORE-028", &reveal.name, "Rejecting Reveal: No prior Commitment found in DHT!");
+        err.log_warning(
+            "KIN-STORE-028",
+            &reveal.name,
+            "Rejecting Reveal: No prior Commitment found in DHT!",
+        );
         return Err(err);
     } else {
         tracing::info!(
@@ -157,7 +185,11 @@ pub(crate) fn verify_reveal(
         prev_hasher.update(prev.salt);
         let prev_drand_rand = hex::decode(&prev.drand_randomness).map_err(|_| {
             let err = KineticStoreError::InvalidDrandHex;
-            err.log_warning("KIN-STORE-028", &reveal.name, "Rejecting Kademlia Reveal: Previous record has invalid Drand hex");
+            err.log_warning(
+                "KIN-STORE-028",
+                &reveal.name,
+                "Rejecting Kademlia Reveal: Previous record has invalid Drand hex",
+            );
             err
         })?;
         prev_hasher.update(prev_drand_rand);
@@ -171,8 +203,7 @@ pub(crate) fn verify_reveal(
             Ok(true)
         );
 
-        let prev_req =
-            consensus_math.required_iterations(&reveal.name, prev.drand_pulse);
+        let prev_req = consensus_math.required_iterations(&reveal.name, prev.drand_pulse);
         let is_not_too_old = current_drand_round.saturating_sub(prev.drand_pulse)
             <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
 
@@ -203,10 +234,14 @@ pub(crate) fn verify_reveal(
 
     if reveal.iterations < required_iterations {
         let err = KineticStoreError::InsufficientIterations;
-        err.log_warning("KIN-STORE-030", &reveal.name, &format!(
-            "Rejecting Reveal: Insufficient VDF iterations. Provided {}, Required {}",
-            reveal.iterations, required_iterations
-        ));
+        err.log_warning(
+            "KIN-STORE-030",
+            &reveal.name,
+            &format!(
+                "Rejecting Reveal: Insufficient VDF iterations. Provided {}, Required {}",
+                reveal.iterations, required_iterations
+            ),
+        );
         return Err(err);
     }
 
@@ -214,12 +249,20 @@ pub(crate) fn verify_reveal(
         Ok(true) => Ok(()),
         Ok(false) => {
             let err = KineticStoreError::InvalidVdf;
-            err.log_warning("KIN-STORE-031", &reveal.name, "Rejecting Kademlia Reveal: Invalid VDF Proof");
+            err.log_warning(
+                "KIN-STORE-031",
+                &reveal.name,
+                "Rejecting Kademlia Reveal: Invalid VDF Proof",
+            );
             Err(err)
         }
         Err(e) => {
             let err = KineticStoreError::VdfEngineError(e.to_string());
-            err.log_warning("KIN-STORE-031", &reveal.name, "Rejecting Kademlia Reveal: VDF Engine Failure");
+            err.log_warning(
+                "KIN-STORE-031",
+                &reveal.name,
+                "Rejecting Kademlia Reveal: VDF Engine Failure",
+            );
             Err(err)
         }
     }
@@ -231,7 +274,11 @@ pub(crate) fn verify_authorized_kid(
 ) -> Result<(), KineticStoreError> {
     let reveal = active_reveal.ok_or_else(|| {
         let err = KineticStoreError::InvalidKidSignature;
-        err.log_warning("KIN-STORE-032", &auth_kid.name, "Rejecting AuthorizedKid: No active reveal found");
+        err.log_warning(
+            "KIN-STORE-032",
+            &auth_kid.name,
+            "Rejecting AuthorizedKid: No active reveal found",
+        );
         err
     })?;
 
@@ -242,8 +289,7 @@ pub(crate) fn verify_authorized_kid(
     let sig = ed25519_dalek::Signature::from_slice(&auth_kid.owner_signature)
         .map_err(|_| KineticStoreError::InvalidKidSignature)?;
 
-    if pubkey.verify(&auth_kid.signable_bytes(), &sig).is_ok()
-        && auth_kid.kid_doc.verify().is_ok()
+    if pubkey.verify(&auth_kid.signable_bytes(), &sig).is_ok() && auth_kid.kid_doc.verify().is_ok()
     {
         tracing::info!(
             "KineticRecordStore::put accepted AuthorizedKid for {}",
@@ -252,7 +298,11 @@ pub(crate) fn verify_authorized_kid(
         Ok(())
     } else {
         let err = KineticStoreError::InvalidKidSignature;
-        err.log_warning("KIN-STORE-017", &auth_kid.name, "Rejecting AuthorizedKid: invalid signature or invalid document");
+        err.log_warning(
+            "KIN-STORE-017",
+            &auth_kid.name,
+            "Rejecting AuthorizedKid: invalid signature or invalid document",
+        );
         Err(err)
     }
 }
@@ -263,7 +313,11 @@ pub(crate) fn verify_authorized_manifest(
 ) -> Result<(), KineticStoreError> {
     let reveal = active_reveal.ok_or_else(|| {
         let err = KineticStoreError::InvalidManifestSignature;
-        err.log_warning("KIN-STORE-033", &auth_manifest.name, "Rejecting AuthorizedManifest: No active reveal found");
+        err.log_warning(
+            "KIN-STORE-033",
+            &auth_manifest.name,
+            "Rejecting AuthorizedManifest: No active reveal found",
+        );
         err
     })?;
 
@@ -282,7 +336,11 @@ pub(crate) fn verify_authorized_manifest(
         Ok(())
     } else {
         let err = KineticStoreError::InvalidManifestSignature;
-        err.log_warning("KIN-STORE-018", &auth_manifest.name, "Rejecting AuthorizedManifest: invalid signature");
+        err.log_warning(
+            "KIN-STORE-018",
+            &auth_manifest.name,
+            "Rejecting AuthorizedManifest: invalid signature",
+        );
         Err(err)
     }
 }

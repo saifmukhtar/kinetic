@@ -95,6 +95,11 @@ pub(crate) mod serde_bytes_wrapper {
     use bytes::Bytes;
     use serde::{Deserializer, Serializer};
 
+    /// Serializes a `Bytes` instance efficiently.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying `serde_bytes::serialize` fails.
     pub fn serialize<S>(bytes: &Bytes, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -102,6 +107,11 @@ pub(crate) mod serde_bytes_wrapper {
         serde_bytes::serialize(bytes.as_ref(), serializer)
     }
 
+    /// Deserializes a `Bytes` instance efficiently.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying `serde_bytes::deserialize` fails.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Bytes, D::Error>
     where
         D: Deserializer<'de>,

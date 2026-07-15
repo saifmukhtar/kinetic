@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::store::verification::verify_host_routing_record;
     use crate::error::KineticStoreError;
+    use crate::store::verification::verify_host_routing_record;
     use kinetic_core::types::HostRoutingRecord;
     use libp2p::identity::Keypair;
     use libp2p::PeerId;
@@ -12,7 +12,9 @@ mod tests {
         let stale_timestamp = web_time::SystemTime::now()
             .duration_since(web_time::UNIX_EPOCH)
             .unwrap()
-            .as_secs() - kinetic_core::config::HOST_ROUTE_MAX_AGE_SECS - 10;
+            .as_secs()
+            - kinetic_core::config::HOST_ROUTE_MAX_AGE_SECS
+            - 10;
 
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
@@ -23,7 +25,10 @@ mod tests {
 
         // Even with a bad signature, it should fail on freshness first
         let res = verify_host_routing_record(&record);
-        assert!(matches!(res.unwrap_err(), KineticStoreError::InvalidHostRouteSignature));
+        assert!(matches!(
+            res.unwrap_err(),
+            KineticStoreError::InvalidHostRouteSignature
+        ));
     }
 
     #[test]
@@ -47,6 +52,9 @@ mod tests {
 
         let res = verify_host_routing_record(&record);
         // Should safely return InvalidPublicKey instead of panicking
-        assert!(matches!(res.unwrap_err(), KineticStoreError::InvalidPublicKey));
+        assert!(matches!(
+            res.unwrap_err(),
+            KineticStoreError::InvalidPublicKey
+        ));
     }
 }

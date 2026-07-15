@@ -77,10 +77,11 @@ impl KineticStoreError {
         match self {
             Self::TieBroken
             | Self::InsufficientIterations
-
             | Self::VdfExpired { .. }
             | Self::RevealNotFound => Severity::Info,
-            Self::PayloadTooLarge | Self::UnknownRecordType | Self::RateLimited => Severity::Warning,
+            Self::PayloadTooLarge | Self::UnknownRecordType | Self::RateLimited => {
+                Severity::Warning
+            }
             Self::InvalidVdf
             | Self::InvalidSignature
             | Self::InvalidPublicKey

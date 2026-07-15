@@ -12,7 +12,16 @@ fn test_009_memory_store_bloat() {
     let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
     let peer_id = PeerId::from(Keypair::generate_ed25519().public());
 
-    let mut store = KineticRecordStore::new(peer_id, storage, 0, std::num::NonZeroUsize::new(100).unwrap(), 100);
+    let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+        std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let mut store = KineticRecordStore::new(
+        peer_id,
+        storage,
+        0,
+        std::num::NonZeroUsize::new(100).unwrap(),
+        100,
+        vdf_engine,
+    );
 
     // Insert 15,000 reveals.
     for i in 0..15_000 {

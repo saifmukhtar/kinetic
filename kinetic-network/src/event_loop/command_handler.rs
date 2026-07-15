@@ -1,8 +1,8 @@
 use crate::client::Command;
 
 use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};
-use libp2p::kad::store::RecordStore;
 use libp2p::kad;
+use libp2p::kad::store::RecordStore;
 
 impl super::core::NetworkEventLoop {
     fn enqueue_dht_puts(
@@ -17,19 +17,33 @@ impl super::core::NetworkEventLoop {
         for key_bytes in &keys {
             let record_key = kad::RecordKey::new(key_bytes);
             let record = kad::Record::new(record_key, payload.clone());
-            
-            // Validate locally first. If local store rejects it (e.g. invalid signature), 
+
+            // Validate locally first. If local store rejects it (e.g. invalid signature),
             // the network will too, so don't even bother publishing.
-            if let Err(e) = self.swarm.behaviour_mut().kademlia.store_mut().put(record.clone()) {
+            if let Err(e) = self
+                .swarm
+                .behaviour_mut()
+                .kademlia
+                .store_mut()
+                .put(record.clone())
+            {
                 tracing::debug!("Local store put failed: {:?}", e);
                 _validation_failures += 1;
                 continue;
             }
-            
+
             // Queue outbound network request
-            match self.swarm.behaviour_mut().kademlia.put_record(record, kad::Quorum::One) {
+            match self
+                .swarm
+                .behaviour_mut()
+                .kademlia
+                .put_record(record, kad::Quorum::One)
+            {
                 Ok(query_id) => {
-                    self.query_id_to_name.insert(query_id, crate::event_loop::core::QueryType::Put(name.clone()));
+                    self.query_id_to_name.insert(
+                        query_id,
+                        crate::event_loop::core::QueryType::Put(name.clone()),
+                    );
                     expected += 1;
                 }
                 Err(e) => {
@@ -63,7 +77,8 @@ impl super::core::NetworkEventLoop {
         for key_bytes in keys {
             let record_key = kad::RecordKey::new(&key_bytes);
             let query_id = self.swarm.behaviour_mut().kademlia.get_record(record_key);
-            self.query_id_to_name.insert(query_id, query_type_ctor(name.clone()));
+            self.query_id_to_name
+                .insert(query_id, query_type_ctor(name.clone()));
             expected += 1;
         }
         expected
@@ -104,13 +119,18 @@ impl super::core::NetworkEventLoop {
                         name = %name_clean,
                         "Resolution failed: node is offline (0 peers)"
                     );
-                    
+
                     // Fallback to local store as a last resort since we're offline
                     let keys = kinetic_core::types::derive_storage_keys(&name);
                     for key_bytes in &keys {
                         let k = kad::RecordKey::new(key_bytes);
-                        if let Some(record) = self.swarm.behaviour_mut().kademlia.store_mut().get(&k) {
-                            tracing::info!("Resolved {} locally from own store (offline fallback)", name);
+                        if let Some(record) =
+                            self.swarm.behaviour_mut().kademlia.store_mut().get(&k)
+                        {
+                            tracing::info!(
+                                "Resolved {} locally from own store (offline fallback)",
+                                name
+                            );
                             let _ = responder.send(Ok(record.value.clone()));
                             return;
                         }
@@ -121,7 +141,11 @@ impl super::core::NetworkEventLoop {
                 }
 
                 let keys = kinetic_core::types::derive_storage_keys(&name);
-                let expected = self.dispatch_dht_queries(name.clone(), keys, crate::event_loop::core::QueryType::Get);
+                let expected = self.dispatch_dht_queries(
+                    name.clone(),
+                    keys,
+                    crate::event_loop::core::QueryType::Get,
+                );
 
                 self.pending_gets.insert(
                     name.clone(),
@@ -146,7 +170,11 @@ impl super::core::NetworkEventLoop {
                 }
 
                 let keys = kinetic_core::types::derive_storage_keys(&name);
-                let expected = self.dispatch_dht_queries(name.clone(), keys, crate::event_loop::core::QueryType::Quorum);
+                let expected = self.dispatch_dht_queries(
+                    name.clone(),
+                    keys,
+                    crate::event_loop::core::QueryType::Quorum,
+                );
 
                 self.pending_quorums.insert(
                     name.clone(),
