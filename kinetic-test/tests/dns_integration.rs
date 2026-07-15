@@ -46,7 +46,6 @@ mod tests {
                 signature: vec![],
                 previous_proof: None,
                 miner_pubkey: None,
-                points_spent: None,
             };
             Ok(Json(reveal))
         } else {

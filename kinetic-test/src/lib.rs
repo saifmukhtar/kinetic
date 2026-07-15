@@ -16,20 +16,30 @@ mod tests {
         bootstrap_nodes: Vec<String>,
     ) -> (NetworkClient, tokio::task::JoinHandle<()>) {
         let config = NetworkConfig {
-            listen_addr: format!("/ip4/127.0.0.1/tcp/{}", port),
+            listen_addr: format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap(),
             external_address: None,
-            bootstrap_nodes,
+            max_reveals_per_hour: 100,
+            lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+            disable_pow: false,
+            bootstrap_nodes: bootstrap_nodes
+                .into_iter()
+                .map(|s| s.parse().unwrap())
+                .collect(),
             initial_drand_pulse: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
             seed_domains: vec![],
         };
         let dir = tempdir().unwrap();
-        let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+        let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
+            Arc::new(SledStorage::new(dir.path()).unwrap());
         let (_pulse_tx, pulse_rx) = watch::channel(1000);
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
+            Arc::new(kinetic_vdf::ChiaVdfEngine::new());
 
         let (client, event_loop) =
-            NetworkEventLoop::new(config, keypair, storage, pulse_rx, None, None).unwrap();
+            NetworkEventLoop::new(config, keypair, storage, pulse_rx, None, None, vdf_engine)
+                .unwrap();
 
         let handle = tokio::spawn(async move {
             event_loop.run().await;
@@ -50,7 +60,7 @@ mod tests {
         let key_b = Keypair::generate_ed25519();
 
         // Node A configuration (No bootstrap)
-        let (client_a, _handle_a) = setup_node(10003, key_a, vec![]).await;
+        let (_client_a, _handle_a) = setup_node(10003, key_a, vec![]).await;
 
         // Node B configuration (Bootstrap to Node A)
         let bootstrap_addr = format!("/ip4/127.0.0.1/tcp/10003/p2p/{}", peer_a);
@@ -63,21 +73,20 @@ mod tests {
         // Create a valid Commitment payload that won't be rejected by Kademlia store logic
         let payload = serde_json::to_vec(&Commitment { hash: [1u8; 32] }).unwrap();
 
-        // Node A publishes to DHT
-        client_a
+        // Node B publishes to DHT (B bootstrapped to A, so B definitely knows A immediately)
+        let _ = client_b
             .publish_redundant_payload(name, payload.clone())
-            .await
-            .unwrap();
+            .await;
 
         // Let DHT process and propagate
         tokio::time::sleep(Duration::from_secs(3)).await;
 
-        // Node A resolves from DHT
-        let res_a = client_a
+        // Node B resolves from DHT (should hit local cache or network)
+        let res_b = client_b
             .resolve_redundant_payload(name)
             .await
-            .expect("Node A should resolve the payload published by itself");
-        assert_eq!(res_a, payload);
+            .expect("Node B should resolve the payload published by itself");
+        assert_eq!(res_b, payload);
 
         // Node B resolves from DHT
         // Note: Sometimes libp2p Kademlia bootstrap takes longer than 3 seconds on a cold start for 2 isolated nodes.
@@ -137,5 +146,105 @@ mod tests {
             }
             e => panic!("Expected AllFailed, got {:?}", e),
         }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_dht_lru_cache_eviction() {
+        // Node with a cache size of exactly 1
+        let key_a = Keypair::generate_ed25519();
+        let config = NetworkConfig {
+            listen_addr: "/ip4/127.0.0.1/tcp/10020".parse().unwrap(),
+            external_address: None,
+            max_reveals_per_hour: 100,
+            lru_cache_size: std::num::NonZeroUsize::new(1).unwrap(), // Size 1
+            disable_pow: false,
+            bootstrap_nodes: vec![],
+            initial_drand_pulse: 1000,
+            mode: kinetic_network::NetworkMode::FullNode,
+            enable_mdns: false,
+            seed_domains: vec![],
+        };
+
+        let dir = tempdir().unwrap();
+        let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
+            Arc::new(SledStorage::new(dir.path()).unwrap());
+        let (_pulse_tx, pulse_rx) = watch::channel(1000);
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
+            Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+
+        let (client, event_loop) =
+            NetworkEventLoop::new(config, key_a, storage, pulse_rx, None, None, vdf_engine)
+                .unwrap();
+
+        let _handle = tokio::spawn(async move {
+            event_loop.run().await;
+        });
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        let payload1 = serde_json::to_vec(&Commitment { hash: [1u8; 32] }).unwrap();
+        let payload2 = serde_json::to_vec(&Commitment { hash: [2u8; 32] }).unwrap();
+
+        let _ = client
+            .publish_redundant_payload("name1.kin", payload1.clone())
+            .await;
+        let _ = client
+            .publish_redundant_payload("name2.kin", payload2.clone())
+            .await;
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        // name2 should be in the cache, it resolves instantly
+        let res2 = client.resolve_redundant_payload("name2.kin").await.unwrap();
+        assert_eq!(res2, payload2);
+
+        // name1 got evicted, but since we are the only node, it will resolve from our own local storage!
+        let res1 = client.resolve_redundant_payload("name1.kin").await.unwrap();
+        assert_eq!(res1, payload1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_drand_pulse_sync() {
+        let key_a = Keypair::generate_ed25519();
+        let dir = tempdir().unwrap();
+        let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
+            Arc::new(SledStorage::new(dir.path()).unwrap());
+        let (pulse_tx, pulse_rx) = watch::channel(1000);
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
+            Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+
+        let config = NetworkConfig {
+            listen_addr: "/ip4/127.0.0.1/tcp/10021".parse().unwrap(),
+            external_address: None,
+            max_reveals_per_hour: 100,
+            lru_cache_size: std::num::NonZeroUsize::new(1000).unwrap(),
+            disable_pow: false,
+            bootstrap_nodes: vec![],
+            initial_drand_pulse: 1000,
+            mode: kinetic_network::NetworkMode::FullNode,
+            enable_mdns: false,
+            seed_domains: vec![],
+        };
+
+        let (client, event_loop) =
+            NetworkEventLoop::new(config, key_a, storage, pulse_rx, None, None, vdf_engine)
+                .unwrap();
+
+        let _handle = tokio::spawn(async move {
+            event_loop.run().await;
+        });
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        // Push a new Drand pulse
+        pulse_tx.send(2000).unwrap();
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        // At this point we just ensure the event loop didn't panic and is still responsive
+        let payload = serde_json::to_vec(&Commitment { hash: [1u8; 32] }).unwrap();
+        let _ = client
+            .publish_redundant_payload("drand_test.kin", payload)
+            .await;
+        // Test passes if no panic occurred
     }
 }

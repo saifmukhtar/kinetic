@@ -17,6 +17,8 @@ kinetic-dns = { path = "../kinetic-dns" }
 hickory-client = "0.24"
 hickory-server = "0.24"
 hickory-proto = "0.24"
+bytes = "1.12.1"
+reqwest = "0.13.4"
 [dev-dependencies]
 serde_json = "1.0.150"
 tempfile = "3.27.0"
