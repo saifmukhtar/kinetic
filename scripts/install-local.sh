@@ -163,7 +163,7 @@ MENU_DESCRIPTIONS=(
 )
 select_menu "Select Installation Profile:" PROFILE
 
-BINS_TO_BUILD=("kinetic-cli")
+BINS_TO_BUILD=("kinetic")
 INSTALL_DNS=false
 
 case $PROFILE in
@@ -208,7 +208,7 @@ sudo -v
 
 for bin in "${BINS_TO_BUILD[@]}"; do
     sudo cp "target/release/$bin" "/usr/local/bin/$bin"
-    if [[ "$bin" != "kinetic-cli" ]]; then
+    if [[ "$bin" != "kinetic" ]]; then
         sudo "/usr/local/bin/$bin" stop-service 2>/dev/null || true
         sudo "/usr/local/bin/$bin" uninstall 2>/dev/null || true
         sudo "/usr/local/bin/$bin" install
