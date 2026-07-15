@@ -77,7 +77,10 @@ mod tests {
         assert!(!jcs_str.contains("signature"));
 
         // Fields must be in lexicographical order per JCS
-        let expected = format!(r#"{{"controller_keys":[],"created_at":1000,"kid":"did:kin:{}","type":"kinetic.kid.v1"}}"#, "a".repeat(64));
+        let expected = format!(
+            r#"{{"controller_keys":[],"created_at":1000,"kid":"did:kin:{}","type":"kinetic.kid.v1"}}"#,
+            "a".repeat(64)
+        );
         assert_eq!(jcs_str, expected);
     }
 
