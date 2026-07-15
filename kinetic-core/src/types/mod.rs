@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+pub mod clock;
 pub mod dns;
 pub mod domain;
 pub mod identity;
@@ -7,6 +8,7 @@ pub mod infrastructure;
 pub mod names;
 pub mod vdf;
 
+pub use clock::*;
 pub use dns::*;
 pub use domain::*;
 pub use identity::*;
