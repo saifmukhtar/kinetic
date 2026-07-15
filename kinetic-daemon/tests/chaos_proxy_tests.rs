@@ -1,10 +1,10 @@
+use bytes::Bytes;
+use http_body_util::Full;
 use hyper::body::Incoming;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use std::convert::Infallible;
-use turmoil::{Builder, net::TcpListener, net::TcpStream};
-use http_body_util::{BodyExt, Full};
-use bytes::Bytes;
+use turmoil::{net::TcpListener, net::TcpStream, Builder};
 
 async fn hello_world(_req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
     Ok(Response::new(Full::new(Bytes::from("Hello from backend"))))
@@ -15,21 +15,19 @@ fn test_chaos_proxy_disconnect_handling() {
     let mut sim = Builder::new().build();
 
     // Spawn Backend Server
-    sim.host("backend", || {
-        async {
-            let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
-            loop {
-                let (stream, _) = listener.accept().await.unwrap();
-                let io = TokioIo::new(stream);
-                tokio::spawn(async move {
-                    if let Err(err) = hyper::server::conn::http1::Builder::new()
-                        .serve_connection(io, hyper::service::service_fn(hello_world))
-                        .await
-                    {
-                        eprintln!("Error serving connection: {:?}", err);
-                    }
-                });
-            }
+    sim.host("backend", || async {
+        let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            let io = TokioIo::new(stream);
+            tokio::spawn(async move {
+                if let Err(err) = hyper::server::conn::http1::Builder::new()
+                    .serve_connection(io, hyper::service::service_fn(hello_world))
+                    .await
+                {
+                    eprintln!("Error serving connection: {:?}", err);
+                }
+            });
         }
     });
 
@@ -61,7 +59,10 @@ fn test_chaos_proxy_disconnect_handling() {
         // 3. Attempt a new connection while partitioned, verify it fails
         let res2 = TcpStream::connect("backend:8080").await;
         // Should error out immediately because connection is partitioned
-        assert!(res2.is_err(), "Request should fail due to network partition");
+        assert!(
+            res2.is_err(),
+            "Request should fail due to network partition"
+        );
 
         Ok(())
     });

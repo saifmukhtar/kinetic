@@ -112,7 +112,8 @@ pub async fn handle_incoming_proxy_requests(
                             "Bad Gateway: Local web server not responding on port {}\nError: {}",
                             local_port, e
                         )
-                        .into_bytes().into(),
+                        .into_bytes()
+                        .into(),
                     }
                 }
             };

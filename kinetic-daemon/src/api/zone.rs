@@ -1,13 +1,15 @@
 use super::*;
-use axum::{extract::{Path, State}, Json, http::StatusCode};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use tracing::{error, info, warn};
-use kinetic_core::types::{Reveal, Commitment, CommitRequest};
-use kinetic_core::traits::StorageEngine;
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
 
-
+/// Handles API requests to retrieve a local zone file for a given name.
+///
+/// # Errors
+///
+/// Returns an error if the zone file does not exist or has an invalid format.
 pub async fn handle_get_zone(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
@@ -32,6 +34,11 @@ pub async fn handle_get_zone(
     ))
 }
 
+/// Handles API requests to save changes to a local zone file without broadcasting to the network.
+///
+/// # Errors
+///
+/// Returns an error if serialization fails or if the daemon lacks filesystem write permissions.
 pub async fn handle_post_zone(
     Path(name): Path<String>,
     Json(zone): Json<kinetic_core::types::DnsZone>,
@@ -59,6 +66,12 @@ pub async fn handle_post_zone(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
+/// Handles API requests to cryptographically sign a local zone file and publish the updated Reveal to the DHT.
+///
+/// # Errors
+///
+/// Returns an error if the zone file or the local registration record is missing/corrupted,
+/// if the daemon identity key cannot be loaded, or if the DHT publish operation fails.
 pub async fn handle_publish_zone(
     State(state): State<ApiState>,
     Path(name): Path<String>,

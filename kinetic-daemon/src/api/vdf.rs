@@ -1,24 +1,34 @@
 use super::*;
-use axum::{extract::{Path, State}, Json, http::StatusCode};
-use serde::{Deserialize, Serialize};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
+
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{error, info, warn};
-use kinetic_core::types::{Reveal, Commitment, CommitRequest};
-use kinetic_core::traits::StorageEngine;
 
+/// Payload for renewing a registered Kinetic name via VDF.
 #[derive(Deserialize)]
 pub struct NameRenewRequest {
     pub name: String,
     pub iterations: Option<u64>,
 }
 
+/// Payload for registering a new Kinetic name via VDF.
 #[derive(Deserialize)]
 pub struct VdfRegisterRequest {
     name: String,
     iterations: Option<u64>,
 }
 
+/// Handles API requests to initiate a background VDF registration task.
+/// Ensures that only one VDF task is actively running.
+///
+/// # Errors
+///
+/// Returns an error if a VDF task is already running.
 pub async fn handle_vdf_register(
     State(state): State<ApiState>,
     Json(req): Json<VdfRegisterRequest>,
@@ -292,6 +302,11 @@ pub async fn handle_vdf_register(
     })))
 }
 
+/// Handles API requests to renew a Kinetic name via a new VDF proof, leveraging an existing reveal.
+///
+/// # Errors
+///
+/// Returns an error if there are issues finding the previous reveal or scheduling the VDF task.
 pub async fn handle_vdf_renew(
     State(state): State<ApiState>,
     Json(req): Json<NameRenewRequest>,
@@ -543,7 +558,11 @@ pub(crate) fn update_task_status(
     }
 }
 
-pub(crate) fn update_task_error(tasks: &Arc<Mutex<HashMap<String, VdfTaskStatus>>>, id: &str, err: String) {
+pub(crate) fn update_task_error(
+    tasks: &Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
+    id: &str,
+    err: String,
+) {
     if let Ok(mut map) = tasks.lock() {
         if let Some(task) = map.get_mut(id) {
             task.error = Some(err);
@@ -552,6 +571,7 @@ pub(crate) fn update_task_error(tasks: &Arc<Mutex<HashMap<String, VdfTaskStatus>
     }
 }
 
+/// Retrieves the current progress and status of a VDF task by ID.
 pub async fn handle_vdf_status(
     Path(task_id): Path<String>,
     State(state): State<ApiState>,
@@ -567,6 +587,7 @@ pub async fn handle_vdf_status(
     }
 }
 
+/// Deletes a VDF task's status record from memory. Useful to clear completed or failed tasks.
 pub async fn handle_vdf_status_delete(
     Path(task_id): Path<String>,
     State(state): State<ApiState>,

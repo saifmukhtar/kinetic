@@ -5,12 +5,12 @@ use rcgen::{
 use rustls::ServerConfig;
 use std::collections::HashMap;
 #[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 use time::{Duration, OffsetDateTime};
 
+/// Defines errors that can occur during Certificate Authority (CA) operations.
 #[derive(Debug, thiserror::Error)]
 pub enum CaError {
     #[error("IO Error: {0}")]
@@ -21,12 +21,19 @@ pub enum CaError {
     Rustls(#[from] rustls::Error),
 }
 
+/// Represents a root Certificate Authority (CA) containing the certificate and key pair.
 pub struct RootCa {
     pub cert_pem: String,
     pub key_pair: KeyPair,
     pub cert: Certificate,
 }
 
+/// Loads an existing root CA from the given configuration directory or creates a new one if it doesn't exist.
+///
+/// # Errors
+///
+/// Returns a `CaError` if there are IO issues reading/writing the certificate files, or if there is an error
+/// generating the root CA certificates.
 pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaError> {
     let cert_path = config_dir.join("ca_cert.pem");
     let key_path = config_dir.join("ca_key.pem");
@@ -95,11 +102,11 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         let key_pem = key_pair.serialize_pem();
 
         std::fs::write(&cert_path, &cert_pem)?;
-        
+
         #[cfg(unix)]
         {
-            use std::os::unix::fs::OpenOptionsExt;
             use std::io::Write;
+            use std::os::unix::fs::OpenOptionsExt;
             let mut f = std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -138,6 +145,11 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
     result
 }
 
+/// Generates a leaf certificate for a specific domain, signed by the given root CA.
+///
+/// # Errors
+///
+/// Returns a `CaError` if there are issues generating the certificate, serializing it, or building the `ServerConfig`.
 pub fn generate_leaf_cert(domain: &str, root_ca: &RootCa) -> Result<ServerConfig, CaError> {
     let mut params = CertificateParams::new(vec![domain.to_string()])?;
     let mut dn = DistinguishedName::new();
@@ -177,12 +189,20 @@ pub fn generate_leaf_cert(domain: &str, root_ca: &RootCa) -> Result<ServerConfig
     Ok(server_config)
 }
 
+/// A cache for leaf certificates to avoid frequent generation and reduce overhead.
 pub struct LeafCertCache {
     pub(crate) entries: HashMap<String, (Arc<ServerConfig>, Instant)>,
     pub(crate) max_entries: usize,
 }
 
+impl Default for LeafCertCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LeafCertCache {
+    /// Creates a new `LeafCertCache` with a default maximum capacity.
     pub fn new() -> Self {
         Self {
             entries: HashMap::new(),
@@ -190,6 +210,11 @@ impl LeafCertCache {
         }
     }
 
+    /// Retrieves a cached server configuration for the domain, or creates a new one if missing or expired.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CaError` if generating a new leaf certificate fails.
     pub fn get_or_create(
         &mut self,
         domain: &str,
@@ -312,10 +337,10 @@ mod proptests {
             rustls::crypto::ring::default_provider().install_default().ok();
             let dir = tempdir().unwrap();
             let (root_ca, _) = load_or_create_root_ca(dir.path()).unwrap();
-            
+
             // Should either succeed or safely return an Rcgen error, but NEVER panic
             let result = generate_leaf_cert(&domain, &root_ca);
-            
+
             match result {
                 Ok(_) => prop_assert!(true),
                 Err(CaError::Rcgen(_)) => prop_assert!(true), // Invalid DNS chars hit rcgen parsing error safely

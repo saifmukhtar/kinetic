@@ -13,21 +13,25 @@ async fn main() -> Result<()> {
         listen_addr: "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
         bootstrap_nodes: kinetic_core::config::KineticConfig::default()
             .network
-            .bootstrap_nodes.iter().filter_map(|s| s.parse().ok()).collect(),
+            .bootstrap_nodes
+            .iter()
+            .filter_map(|s| s.parse().ok())
+            .collect(),
         seed_domains: vec![],
         enable_mdns: false,
         initial_drand_pulse: 30069417,
         external_address: None,
-            max_reveals_per_hour: 100,
-            lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
-            disable_pow: false,
+        max_reveals_per_hour: 100,
+        lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+        disable_pow: false,
     };
 
     let storage =
         std::sync::Arc::new(kinetic_storage::SledStorage::new("/tmp/test_resolve_db").unwrap());
     let (_tx, rx) = watch::channel(0);
+    let vdf_engine = std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
     let (client, event_loop) =
-        NetworkEventLoop::new(config, keypair, storage, rx, None, None).unwrap();
+        NetworkEventLoop::new(config, keypair, storage, rx, None, None, vdf_engine).unwrap();
 
     tokio::spawn(async move {
         event_loop.run().await;

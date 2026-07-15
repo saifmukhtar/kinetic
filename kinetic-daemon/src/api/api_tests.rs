@@ -293,8 +293,6 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-
-
     #[tokio::test]
     async fn test_concurrent_vdf_task_lock() {
         let (app, _, _) = setup_test_app().await;

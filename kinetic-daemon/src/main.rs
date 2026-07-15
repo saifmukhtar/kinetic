@@ -34,20 +34,16 @@ use service_manager::{
 use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use ed25519_dalek::Signer;
 use kinetic_core::config::KineticConfig;
-use kinetic_core::traits::StorageEngine;
-use kinetic_core::types::{load_keypair, Heartbeat};
+use kinetic_core::types::load_keypair;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
 use kinetic_vdf::ChiaVdfEngine;
 use std::env;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::watch;
 
-use kinetic_daemon::{api, ca, pac, proxy, services};
+use kinetic_daemon::{api, ca, pac, proxy};
 
 #[derive(Parser)]
 #[command(
@@ -226,7 +222,7 @@ async fn run_daemon() -> Result<()> {
     let storage = Arc::new(SledStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
-    let _vdf_engine = ChiaVdfEngine::new();
+    let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(ChiaVdfEngine::new());
     info!("VDF Engine initialized");
 
     let daemon_keypair = load_keypair("identity.key")?;
@@ -263,12 +259,29 @@ async fn run_daemon() -> Result<()> {
     };
     let network_config = NetworkConfig {
         mode,
-        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.daemon_port).parse().unwrap(),
-        bootstrap_nodes: config.network.bootstrap_nodes.iter().filter_map(|s| s.parse().ok()).collect(),
-        seed_domains: config.network.seed_domains.clone().into_iter().map(Into::into).collect(),
+        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.daemon_port)
+            .parse()
+            .unwrap(),
+        bootstrap_nodes: config
+            .network
+            .bootstrap_nodes
+            .iter()
+            .filter_map(|s| s.parse().ok())
+            .collect(),
+        seed_domains: config
+            .network
+            .seed_domains
+            .clone()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         enable_mdns: config.network.enable_mdns,
         initial_drand_pulse,
-        external_address: config.network.external_address.as_ref().and_then(|a| a.parse().ok()),
+        external_address: config
+            .network
+            .external_address
+            .as_ref()
+            .and_then(|a| a.parse().ok()),
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
         disable_pow: false,
@@ -288,8 +301,8 @@ async fn run_daemon() -> Result<()> {
     }
 
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
-    let (gossip_tx, mut gossip_rx) = tokio::sync::mpsc::channel(100);
-    let mut current_local_key = local_key;
+    let (gossip_tx, gossip_rx) = tokio::sync::mpsc::channel(100);
+    let current_local_key = local_key;
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config.clone(),
         current_local_key.clone(),
@@ -297,6 +310,7 @@ async fn run_daemon() -> Result<()> {
         drand_pulse_rx.clone(),
         Some(incoming_tx.clone()),
         Some(gossip_tx.clone()),
+        vdf_engine.clone(),
     )?;
 
     // Subscribe to Quicknet Pulse Gossip
@@ -305,13 +319,28 @@ async fn run_daemon() -> Result<()> {
         .await;
     info!("P2P Network architecture wired");
 
-    let mut network_loop_handle = tokio::spawn(async move {
+    let network_loop_handle = tokio::spawn(async move {
         network_loop.run().await;
     });
 
-    kinetic_daemon::services::network::start_pow_miner_loop(network_client.clone(), drand_pulse_rx.clone(), network_config.clone(), storage.clone(), incoming_tx.clone(), gossip_tx.clone(), network_loop_handle, current_local_key);
+    kinetic_daemon::services::network::start_pow_miner_loop(
+        network_client.clone(),
+        drand_pulse_rx.clone(),
+        network_config.clone(),
+        storage.clone(),
+        incoming_tx.clone(),
+        gossip_tx.clone(),
+        network_loop_handle,
+        current_local_key,
+        vdf_engine.clone(),
+    );
 
-    kinetic_daemon::services::gossip::start_gossip_processor(gossip_rx, gov_state_path.clone(), drand_client.clone(), drand_pulse_tx.clone());
+    kinetic_daemon::services::gossip::start_gossip_processor(
+        gossip_rx,
+        gov_state_path.clone(),
+        drand_client.clone(),
+        drand_pulse_tx.clone(),
+    );
 
     let base_config_dir = dirs::config_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -365,7 +394,15 @@ async fn run_daemon() -> Result<()> {
 
     kinetic_daemon::services::network::start_republisher(network_client.clone(), storage.clone());
 
-    kinetic_daemon::services::heartbeat::start_heartbeat_loop(storage.clone(), network_client.clone(), drand_client.clone(), config.drand.p2p_only, initial_drand_pulse, daemon_keypair.clone(), drand_pulse_tx.clone());
+    kinetic_daemon::services::heartbeat::start_heartbeat_loop(
+        storage.clone(),
+        network_client.clone(),
+        drand_client.clone(),
+        config.drand.p2p_only,
+        initial_drand_pulse,
+        daemon_keypair.clone(),
+        drand_pulse_tx.clone(),
+    );
 
     tokio::spawn(async move {
         if let Err(e) = pac::start_pac_server(16001, config.daemon.proxy_port).await {
