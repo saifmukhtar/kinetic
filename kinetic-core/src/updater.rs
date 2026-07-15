@@ -53,7 +53,11 @@ pub async fn perform_ota_update(
         let response = match client.get(&manifest_url).send().await {
             Ok(res) if res.status().is_success() => res,
             Ok(res) => {
-                warn!("Mirror {} returned status {} for manifest", mirror, res.status());
+                warn!(
+                    "Mirror {} returned status {} for manifest",
+                    mirror,
+                    res.status()
+                );
                 continue;
             }
             Err(e) => {
@@ -65,7 +69,10 @@ pub async fn perform_ota_update(
         let manifest_bytes = match response.bytes().await {
             Ok(b) => b,
             Err(e) => {
-                warn!("Failed to read manifest bytes from mirror {}: {}", mirror, e);
+                warn!(
+                    "Failed to read manifest bytes from mirror {}: {}",
+                    mirror, e
+                );
                 continue;
             }
         };
@@ -80,7 +87,9 @@ pub async fn perform_ota_update(
         if result_hash_array != manifest_hash {
             warn!(
                 "Manifest hash verification failed for mirror: {}. Expected: {}, Got: {}",
-                mirror, hex::encode(manifest_hash), hex::encode(result_hash_array)
+                mirror,
+                hex::encode(manifest_hash),
+                hex::encode(result_hash_array)
             );
             continue;
         }
@@ -88,18 +97,25 @@ pub async fn perform_ota_update(
         info!("Manifest hash verified for mirror: {}", mirror);
 
         // 3. Parse Manifest and lookup target hash
-        let manifest: std::collections::HashMap<String, String> = match serde_json::from_slice(&manifest_bytes) {
-            Ok(m) => m,
-            Err(e) => {
-                warn!("Failed to parse JSON manifest from mirror {}: {}", mirror, e);
-                continue;
-            }
-        };
+        let manifest: std::collections::HashMap<String, String> =
+            match serde_json::from_slice(&manifest_bytes) {
+                Ok(m) => m,
+                Err(e) => {
+                    warn!(
+                        "Failed to parse JSON manifest from mirror {}: {}",
+                        mirror, e
+                    );
+                    continue;
+                }
+            };
 
         let target_hash_hex = match manifest.get(self_id) {
             Some(h) => h,
             None => {
-                info!("Self identity {} not found in manifest. Skipping update.", self_id);
+                info!(
+                    "Self identity {} not found in manifest. Skipping update.",
+                    self_id
+                );
                 return Ok(()); // This binary is not targeted for update
             }
         };
@@ -111,7 +127,10 @@ pub async fn perform_ota_update(
                 arr
             }
             _ => {
-                warn!("Invalid target hash hex in manifest for {}: {}", self_id, target_hash_hex);
+                warn!(
+                    "Invalid target hash hex in manifest for {}: {}",
+                    self_id, target_hash_hex
+                );
                 continue;
             }
         };
@@ -121,7 +140,11 @@ pub async fn perform_ota_update(
         let response = match client.get(&binary_url).send().await {
             Ok(res) if res.status().is_success() => res,
             Ok(res) => {
-                warn!("Mirror {} returned status {} for binary", mirror, res.status());
+                warn!(
+                    "Mirror {} returned status {} for binary",
+                    mirror,
+                    res.status()
+                );
                 continue;
             }
             Err(e) => {
@@ -153,7 +176,10 @@ pub async fn perform_ota_update(
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to stream binary chunk from mirror {}: {}", mirror, e);
+                    warn!(
+                        "Failed to stream binary chunk from mirror {}: {}",
+                        mirror, e
+                    );
                     download_success = false;
                     break;
                 }
@@ -175,7 +201,9 @@ pub async fn perform_ota_update(
         } else {
             warn!(
                 "Binary hash verification failed for mirror: {}. Expected: {}, Got: {}",
-                mirror, hex::encode(expected_binary_hash), hex::encode(result_hash_array)
+                mirror,
+                hex::encode(expected_binary_hash),
+                hex::encode(result_hash_array)
             );
         }
     }

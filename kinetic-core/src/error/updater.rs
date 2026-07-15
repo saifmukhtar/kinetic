@@ -64,7 +64,7 @@ impl UpdaterError {
 
     /// RFC 7807 type URI for this error.
     pub fn error_type_uri(&self) -> String {
-        format!("https://kinetic.dev/errors/{}", self.code())
+        format!("{}/errors/{}", crate::constants::DOCS_URL, self.code())
     }
 
     /// Severity level for logging and monitoring.

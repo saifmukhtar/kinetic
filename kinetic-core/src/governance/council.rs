@@ -1,8 +1,8 @@
-use std::collections::HashSet;
 use ed25519_dalek::Verifier;
+use std::collections::HashSet;
 
-use crate::error::GovernanceError;
 use super::types::{GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage};
+use crate::error::GovernanceError;
 
 pub fn verify_action(
     state: &mut GovernanceState,
@@ -14,7 +14,11 @@ pub fn verify_action(
 
     if let GovernanceAction::VetoUpdate { .. } = &msg.action {
         if let Some(guard_key) = guard_key_opt {
-            if msg.signatures.iter().any(|sig| guard_key.verify(&action_bytes, sig).is_ok()) {
+            if msg
+                .signatures
+                .iter()
+                .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
+            {
                 return Ok(state.execute_action(msg, current_time_sec, None));
             }
         }
@@ -26,15 +30,17 @@ pub fn verify_action(
         if state.vetoed_hashes.contains(&action_hash) {
             return Err(GovernanceError::EmergencyResetVetoed);
         }
-        
+
         let root_key = state.get_root_key()?;
         let root_signed = msg
             .signatures
             .iter()
             .any(|sig| root_key.verify(&action_bytes, sig).is_ok());
-            
+
         let guard_signed = if let Some(guard_key) = guard_key_opt {
-            msg.signatures.iter().any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
+            msg.signatures
+                .iter()
+                .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
         } else {
             false
         };
@@ -49,8 +55,12 @@ pub fn verify_action(
         return Ok(state.execute_action(msg, current_time_sec, None));
     }
 
-    if let GovernanceAction::GrantPremiumName { name, .. } | GovernanceAction::RevokePremiumName { name } = &msg.action {
-        let label = name.strip_suffix(crate::constants::TLD_SUFFIX).unwrap_or(name);
+    if let GovernanceAction::GrantPremiumName { name, .. }
+    | GovernanceAction::RevokePremiumName { name } = &msg.action
+    {
+        let label = name
+            .strip_suffix(crate::constants::TLD_SUFFIX)
+            .unwrap_or(name);
         if label.len() != 1 {
             return Err(GovernanceError::InvalidPremiumNameLength);
         }
@@ -85,7 +95,9 @@ pub fn verify_action(
         }
         GovernanceAction::RotateRootKey { .. } => {
             let guard_signed = if let Some(guard_key) = guard_key_opt {
-                msg.signatures.iter().any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
+                msg.signatures
+                    .iter()
+                    .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
             } else {
                 false
             };
@@ -111,7 +123,8 @@ pub fn verify_action(
 
     if valid_council_sigs >= required_signatures {
         for signer in valid_signers {
-            state.last_signature_timestamps
+            state
+                .last_signature_timestamps
                 .insert(signer, msg.timestamp_sec);
         }
         let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {

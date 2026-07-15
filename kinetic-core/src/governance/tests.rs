@@ -1,10 +1,11 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
+    use super::super::logic::process_governance_message;
     use super::super::types::{
         GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
     };
-    use super::super::logic::{process_governance_message};
-    use ed25519_dalek::{Signer, SigningKey, Signature, VerifyingKey};
+    use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 
     fn get_root_sk() -> SigningKey {
         let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
@@ -140,9 +141,14 @@ mod tests {
         state.mode = crate::governance::types::GovernanceMode::Council;
 
         let action_hash = [3u8; 32];
-        state
-            .pending_updates
-            .insert(action_hash, (current_time, crate::governance::logic::OTA_TIMELOCK_SECONDS, vec![]));
+        state.pending_updates.insert(
+            action_hash,
+            (
+                current_time,
+                crate::governance::logic::OTA_TIMELOCK_SECONDS,
+                vec![],
+            ),
+        );
 
         let veto_action = GovernanceAction::VetoUpdate {
             target_hash: action_hash,
@@ -170,7 +176,7 @@ mod tests {
             .unwrap()
             .as_secs();
         let mut state = GovernanceState::new(current_time);
-        
+
         let (_, target_pubkey) = generate_key(99);
 
         // Test invalid length
@@ -183,10 +189,16 @@ mod tests {
             timestamp_sec: current_time,
             signatures: vec![],
         };
-        msg_invalid_len.signatures.push(sign_action(&msg_invalid_len, &root_sk));
-        
+        msg_invalid_len
+            .signatures
+            .push(sign_action(&msg_invalid_len, &root_sk));
+
         let err = process_governance_message(&mut state, &msg_invalid_len).unwrap_err();
-        assert!(matches!(err, crate::error::GovernanceError::InvalidPremiumNameLength), "Got error: {:?}", err);
+        assert!(
+            matches!(err, crate::error::GovernanceError::InvalidPremiumNameLength),
+            "Got error: {:?}",
+            err
+        );
 
         // Grant 5 valid names
         for i in 0..5 {
@@ -202,14 +214,17 @@ mod tests {
             };
             msg.signatures.push(sign_action(&msg, &root_sk));
             let effect = process_governance_message(&mut state, &msg).unwrap();
-            
-            if let Some(GovernanceEffect::PremiumNameGranted { name: granted_name, .. }) = effect {
+
+            if let Some(GovernanceEffect::PremiumNameGranted {
+                name: granted_name, ..
+            }) = effect
+            {
                 assert_eq!(granted_name, name.to_string());
             } else {
                 panic!("Expected PremiumNameGranted");
             }
         }
-        
+
         // 6th attempt should fail
         let mut msg_6 = SignedGovernanceMessage {
             action: GovernanceAction::GrantPremiumName {
@@ -221,10 +236,13 @@ mod tests {
             signatures: vec![],
         };
         msg_6.signatures.push(sign_action(&msg_6, &root_sk));
-        
+
         let err2 = process_governance_message(&mut state, &msg_6).unwrap_err();
-        assert!(matches!(err2, crate::error::GovernanceError::FounderPremiumLimitReached));
-        
+        assert!(matches!(
+            err2,
+            crate::error::GovernanceError::FounderPremiumLimitReached
+        ));
+
         // Try revoke in founder mode
         let mut msg_revoke = SignedGovernanceMessage {
             action: GovernanceAction::RevokePremiumName {
@@ -234,9 +252,14 @@ mod tests {
             timestamp_sec: current_time,
             signatures: vec![],
         };
-        msg_revoke.signatures.push(sign_action(&msg_revoke, &root_sk));
+        msg_revoke
+            .signatures
+            .push(sign_action(&msg_revoke, &root_sk));
         let err3 = process_governance_message(&mut state, &msg_revoke).unwrap_err();
-        assert!(matches!(err3, crate::error::GovernanceError::RevokeRequiresCouncilMode));
+        assert!(matches!(
+            err3,
+            crate::error::GovernanceError::RevokeRequiresCouncilMode
+        ));
     }
 
     #[test]
@@ -246,7 +269,7 @@ mod tests {
             .unwrap()
             .as_secs();
         let mut state = GovernanceState::new(current_time);
-        
+
         // Add 7 members
         for i in 0..7 {
             let (_, pk) = generate_key(i);
@@ -269,8 +292,11 @@ mod tests {
 
         // verify_action should instantly transition to Council mode
         let _ = state.verify_action(&msg, current_time);
-        
-        assert_eq!(state.mode, crate::governance::types::GovernanceMode::Council);
+
+        assert_eq!(
+            state.mode,
+            crate::governance::types::GovernanceMode::Council
+        );
         assert_eq!(state.lock_timestamp_sec, Some(current_time));
         assert!(state.grace_period_start_sec.is_none());
     }
@@ -283,7 +309,7 @@ mod tests {
             .as_secs();
         let current_time = genesis_time + super::super::logic::AUTO_LOCK_SECONDS + 10;
         let mut state = GovernanceState::new(genesis_time);
-        
+
         // Less than 7 members
         let (_, pk) = generate_key(1);
         state.active_council.push(pk);
@@ -303,9 +329,12 @@ mod tests {
         msg.signatures.push(sign_action(&msg, &root_sk));
 
         let _ = state.verify_action(&msg, current_time);
-        
+
         // Should NOT be council mode yet, but grace period started
-        assert_eq!(state.mode, crate::governance::types::GovernanceMode::Founder);
+        assert_eq!(
+            state.mode,
+            crate::governance::types::GovernanceMode::Founder
+        );
         assert_eq!(state.grace_period_start_sec, Some(current_time));
     }
 
@@ -316,7 +345,7 @@ mod tests {
             .unwrap()
             .as_secs();
         let mut state = GovernanceState::new(genesis_time);
-        
+
         // At exactly 1 year + 10 seconds, the grace period should start
         let year_time = genesis_time + super::super::logic::AUTO_LOCK_SECONDS + 10;
         let root_sk = get_root_sk();
@@ -329,25 +358,33 @@ mod tests {
         msg.signatures.push(sign_action(&msg, &root_sk));
 
         let _ = state.verify_action(&msg, year_time);
-        
+
         // Should NOT be council mode yet, but grace period started
-        assert_eq!(state.mode, crate::governance::types::GovernanceMode::Founder);
+        assert_eq!(
+            state.mode,
+            crate::governance::types::GovernanceMode::Founder
+        );
         assert_eq!(state.grace_period_start_sec, Some(year_time));
-        
+
         // At 13 months, it should automatically flip to council mode
         let thirteen_months = year_time + (30 * 24 * 60 * 60);
-        
+
         let mut fallback_msg = SignedGovernanceMessage {
             action: GovernanceAction::LockCouncil,
             council_size_at_proposal: 0,
             timestamp_sec: thirteen_months,
             signatures: vec![],
         };
-        fallback_msg.signatures.push(sign_action(&fallback_msg, &root_sk));
-        
+        fallback_msg
+            .signatures
+            .push(sign_action(&fallback_msg, &root_sk));
+
         let _ = state.verify_action(&fallback_msg, thirteen_months);
-        
-        assert_eq!(state.mode, crate::governance::types::GovernanceMode::Council);
+
+        assert_eq!(
+            state.mode,
+            crate::governance::types::GovernanceMode::Council
+        );
         assert!(state.grace_period_start_sec.is_none());
         assert_eq!(state.lock_timestamp_sec, Some(thirteen_months));
     }

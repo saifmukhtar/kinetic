@@ -3,26 +3,41 @@ use std::collections::{HashMap, HashSet};
 
 pub type Hash256 = [u8; 32];
 
+/// Enumerates the possible actions that can be taken by the governance system.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum GovernanceAction {
-    AppointMember { key: VerifyingKey },
+    AppointMember {
+        key: VerifyingKey,
+    },
     UpdateBinary {
         manifest_hash: Hash256,
         version_nonce: u64,
         mirrors: Vec<String>,
     },
     LockCouncil,
-    VetoUpdate { target_hash: Hash256 },
-    RotateRootKey { new_key: VerifyingKey },
-    RotateGuardKey { new_key: VerifyingKey },
-    SelfAppointCouncilMember { candidate_key: VerifyingKey },
-    RemoveCouncilMember { target_key: VerifyingKey },
+    VetoUpdate {
+        target_hash: Hash256,
+    },
+    RotateRootKey {
+        new_key: VerifyingKey,
+    },
+    RotateGuardKey {
+        new_key: VerifyingKey,
+    },
+    SelfAppointCouncilMember {
+        candidate_key: VerifyingKey,
+    },
+    RemoveCouncilMember {
+        target_key: VerifyingKey,
+    },
     EmergencyReset {
         new_root: VerifyingKey,
         new_guard: VerifyingKey,
         override_mode: bool,
     },
-    ExecuteTimelock { target_hash: Hash256 },
+    ExecuteTimelock {
+        target_hash: Hash256,
+    },
     GrantPremiumName {
         name: String,
         target_pubkey: VerifyingKey,
@@ -32,6 +47,7 @@ pub enum GovernanceAction {
     },
 }
 
+/// Represents the side effects or outcomes of executing a governance action.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GovernanceEffect {
     TriggerOTA {
@@ -47,12 +63,14 @@ pub enum GovernanceEffect {
     },
 }
 
+/// Indicates the current phase or mode of the governance system (e.g., Founder phase vs Council phase).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GovernanceMode {
     Founder,
     Council,
 }
 
+/// Represents a governance message that has been signed by one or more authorized keys.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SignedGovernanceMessage {
     pub action: GovernanceAction,
@@ -61,6 +79,7 @@ pub struct SignedGovernanceMessage {
     pub signatures: Vec<Signature>,
 }
 
+/// Maintains the current state of the governance system, including active council members and pending actions.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GovernanceState {
     pub genesis_timestamp_sec: u64,
@@ -77,6 +96,7 @@ pub struct GovernanceState {
 }
 
 impl SignedGovernanceMessage {
+    /// Serializes the governance message into a canonical byte vector for hashing and signature verification.
     pub fn to_canonical_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
@@ -136,7 +156,10 @@ impl SignedGovernanceMessage {
                 buf.push(0x09);
                 buf.extend_from_slice(target_hash);
             }
-            GovernanceAction::GrantPremiumName { name, target_pubkey } => {
+            GovernanceAction::GrantPremiumName {
+                name,
+                target_pubkey,
+            } => {
                 buf.push(0x0A);
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());

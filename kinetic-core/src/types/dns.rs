@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+/// Represents a DNS zone containing various records.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DnsZone {
     #[serde(default)]
     pub records: std::collections::HashMap<String, Vec<DnsRecord>>,
 }
 
+/// Enumerates the supported DNS record types and their values.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "value")]
 pub enum DnsRecord {
@@ -17,6 +19,7 @@ pub enum DnsRecord {
     KID(String),
 }
 
+/// Represents a host routing record that maps a host ID to a peer ID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostRoutingRecord {
     pub host_id: String,
@@ -26,8 +29,10 @@ pub struct HostRoutingRecord {
 }
 
 impl HostRoutingRecord {
+    /// Serializes the routing record into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8);
+        let mut bytes =
+            Vec::with_capacity(4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8);
         bytes.extend_from_slice(&(self.host_id.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.host_id.as_bytes());
         bytes.extend_from_slice(&(self.current_peer_id.len() as u32).to_be_bytes());
@@ -38,6 +43,11 @@ impl HostRoutingRecord {
 }
 
 impl DnsZone {
+    /// Parses a raw payload into a `DnsZone` and validates it.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `DnsError` if the payload is deeply nested, fails JSON deserialization, or fails DNS record validation.
     pub fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError> {
         let mut depth = 0;
         let mut in_string = false;
@@ -75,6 +85,11 @@ impl DnsZone {
         Ok(zone)
     }
 
+    /// Validates the DNS zone records for structural correctness and constraints.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `DnsError` if there are too many records, invalid labels, invalid CNAME configurations, or improperly formatted records.
     pub fn validate(&self) -> Result<(), crate::error::DnsError> {
         let mut total_records = 0;
 
@@ -88,18 +103,24 @@ impl DnsZone {
             }
             if label != "@" && label != "*" {
                 if label.starts_with('-') || label.ends_with('-') {
-                    return Err(crate::error::DnsError::InvalidLabelCharacters(label.clone()));
+                    return Err(crate::error::DnsError::InvalidLabelCharacters(
+                        label.clone(),
+                    ));
                 }
                 for c in label.chars() {
                     if !c.is_ascii_alphanumeric() && c != '-' && c != '_' {
-                        return Err(crate::error::DnsError::InvalidLabelCharacters(label.clone()));
+                        return Err(crate::error::DnsError::InvalidLabelCharacters(
+                            label.clone(),
+                        ));
                     }
                 }
             }
 
             let has_cname = records.iter().any(|r| matches!(r, DnsRecord::CNAME(_)));
             if has_cname && records.len() > 1 {
-                return Err(crate::error::DnsError::InvalidCnameConfiguration(label.clone()));
+                return Err(crate::error::DnsError::InvalidCnameConfiguration(
+                    label.clone(),
+                ));
             }
 
             for record in records {
@@ -163,7 +184,7 @@ mod tests {
             records.push(DnsRecord::TXT("test".to_string()));
         }
         zone.records.insert("@".to_string(), records);
-        
+
         let result = zone.validate();
         assert_eq!(result.unwrap_err(), DnsError::TooManyRecords);
     }
@@ -172,64 +193,111 @@ mod tests {
     fn test_error_invalid_label_length() {
         let mut zone = DnsZone::default();
         let long_label = "a".repeat(64);
-        zone.records.insert(long_label.clone(), vec![DnsRecord::TXT("test".to_string())]);
-        
+        zone.records
+            .insert(long_label.clone(), vec![DnsRecord::TXT("test".to_string())]);
+
         let result = zone.validate();
-        assert_eq!(result.unwrap_err(), DnsError::InvalidLabelLength(long_label));
+        assert_eq!(
+            result.unwrap_err(),
+            DnsError::InvalidLabelLength(long_label)
+        );
 
         let mut zone_empty = DnsZone::default();
-        zone_empty.records.insert("".to_string(), vec![DnsRecord::TXT("test".to_string())]);
-        assert_eq!(zone_empty.validate().unwrap_err(), DnsError::InvalidLabelLength("".to_string()));
+        zone_empty
+            .records
+            .insert("".to_string(), vec![DnsRecord::TXT("test".to_string())]);
+        assert_eq!(
+            zone_empty.validate().unwrap_err(),
+            DnsError::InvalidLabelLength("".to_string())
+        );
     }
 
     #[test]
     fn test_error_invalid_label_characters() {
         let mut zone = DnsZone::default();
-        zone.records.insert("-starts-with-hyphen".to_string(), vec![DnsRecord::TXT("test".to_string())]);
-        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidLabelCharacters("-starts-with-hyphen".to_string()));
+        zone.records.insert(
+            "-starts-with-hyphen".to_string(),
+            vec![DnsRecord::TXT("test".to_string())],
+        );
+        assert_eq!(
+            zone.validate().unwrap_err(),
+            DnsError::InvalidLabelCharacters("-starts-with-hyphen".to_string())
+        );
 
         let mut zone2 = DnsZone::default();
-        zone2.records.insert("invalid!char".to_string(), vec![DnsRecord::TXT("test".to_string())]);
-        assert_eq!(zone2.validate().unwrap_err(), DnsError::InvalidLabelCharacters("invalid!char".to_string()));
+        zone2.records.insert(
+            "invalid!char".to_string(),
+            vec![DnsRecord::TXT("test".to_string())],
+        );
+        assert_eq!(
+            zone2.validate().unwrap_err(),
+            DnsError::InvalidLabelCharacters("invalid!char".to_string())
+        );
     }
 
     #[test]
     fn test_error_invalid_cname_configuration() {
         let mut zone = DnsZone::default();
-        zone.records.insert("www".to_string(), vec![
-            DnsRecord::CNAME("target.kin".to_string()),
-            DnsRecord::TXT("other record".to_string()),
-        ]);
-        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidCnameConfiguration("www".to_string()));
+        zone.records.insert(
+            "www".to_string(),
+            vec![
+                DnsRecord::CNAME("target.kin".to_string()),
+                DnsRecord::TXT("other record".to_string()),
+            ],
+        );
+        assert_eq!(
+            zone.validate().unwrap_err(),
+            DnsError::InvalidCnameConfiguration("www".to_string())
+        );
     }
 
     #[test]
     fn test_error_txt_record_too_long() {
         let mut zone = DnsZone::default();
         let long_txt = "a".repeat(256);
-        zone.records.insert("@".to_string(), vec![DnsRecord::TXT(long_txt)]);
-        assert_eq!(zone.validate().unwrap_err(), DnsError::TxtRecordTooLong("@".to_string()));
+        zone.records
+            .insert("@".to_string(), vec![DnsRecord::TXT(long_txt)]);
+        assert_eq!(
+            zone.validate().unwrap_err(),
+            DnsError::TxtRecordTooLong("@".to_string())
+        );
     }
 
     #[test]
     fn test_error_invalid_cname_target() {
         let mut zone = DnsZone::default();
         let long_cname = "a".repeat(254);
-        zone.records.insert("@".to_string(), vec![DnsRecord::CNAME(long_cname)]);
-        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidCnameTarget("@".to_string()));
+        zone.records
+            .insert("@".to_string(), vec![DnsRecord::CNAME(long_cname)]);
+        assert_eq!(
+            zone.validate().unwrap_err(),
+            DnsError::InvalidCnameTarget("@".to_string())
+        );
     }
 
     #[test]
     fn test_error_invalid_peer_id() {
         let mut zone = DnsZone::default();
-        zone.records.insert("@".to_string(), vec![DnsRecord::PeerId("not-a-peer-id".to_string())]);
-        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidPeerId("not-a-peer-id".to_string()));
+        zone.records.insert(
+            "@".to_string(),
+            vec![DnsRecord::PeerId("not-a-peer-id".to_string())],
+        );
+        assert_eq!(
+            zone.validate().unwrap_err(),
+            DnsError::InvalidPeerId("not-a-peer-id".to_string())
+        );
     }
 
     #[test]
     fn test_error_invalid_kid() {
         let mut zone = DnsZone::default();
-        zone.records.insert("@".to_string(), vec![DnsRecord::KID("did:eth:123".to_string())]);
-        assert_eq!(zone.validate().unwrap_err(), DnsError::InvalidKid("did:eth:123".to_string()));
+        zone.records.insert(
+            "@".to_string(),
+            vec![DnsRecord::KID("did:eth:123".to_string())],
+        );
+        assert_eq!(
+            zone.validate().unwrap_err(),
+            DnsError::InvalidKid("did:eth:123".to_string())
+        );
     }
 }
