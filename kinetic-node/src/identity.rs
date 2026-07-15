@@ -1,6 +1,10 @@
 use libp2p::identity::Keypair;
 use std::path::Path;
 
+/// Loads a static infrastructure identity from disk, or generates a new one if it does not exist.
+/// 
+/// This ensures that the node maintains a consistent Peer ID across restarts. If the existing
+/// key is corrupted or cannot be read, a new Ed25519 keypair is generated and saved to the specified path.
 pub fn load_or_generate_key(key_path: &Path) -> Keypair {
     if let Some(parent) = key_path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -161,5 +165,27 @@ mod tests {
 
         assert_eq!(bytes1, bytes2);
         assert!(!bytes1.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod fuzzing {
+    use super::*;
+    use proptest::prelude::*;
+    use tempfile::tempdir;
+
+    proptest! {
+        #[test]
+        fn doesnt_crash_on_corrupted_identity_files(
+            file_content in any::<Vec<u8>>()
+        ) {
+            let dir = tempdir().unwrap();
+            let key_path = dir.path().join("fuzz_key.bin");
+            let _ = std::fs::write(&key_path, &file_content);
+
+            // This function must gracefully ignore the garbage and mint a new identity
+            let key = load_or_generate_key(&key_path);
+            assert!(!key.public().to_peer_id().to_string().is_empty());
+        }
     }
 }
