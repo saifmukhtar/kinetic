@@ -1,7 +1,7 @@
 use super::names::is_valid_apex_name;
 use serde::{Deserialize, Serialize};
 
-pub const RESQUARING_EPOCH_ROUNDS: u64 = 1_051_200;
+pub const RESQUARING_EPOCH_ROUNDS: u64 = 5_256_000; // ~6 months (182.5 days) at 3s/round
 pub const MAX_PAYLOAD_SIZE: usize = 65_536;
 
 /// Represents a cryptographic commitment to a value.
