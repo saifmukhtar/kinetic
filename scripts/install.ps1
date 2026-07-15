@@ -136,7 +136,7 @@ $InstallDir = "$env:ProgramFiles\Kinetic"
 
 # 2. Check for existing installation
 $ExistingBins = @()
-$PossibleBins = @("kinetic-daemon", "kinetic-node", "kinetic-host", "kinetic-dns-server", "kinetic-cli", "kinetic-keygen")
+$PossibleBins = @("kinetic-daemon", "kinetic-node", "kinetic-host", "kinetic-dns", "kinetic-cli", "kinetic-keygen")
 
 if (Test-Path $InstallDir) {
     foreach ($bin in $PossibleBins) {
@@ -206,12 +206,12 @@ $InstallDns = $false
 
 switch ($Profile) {
     0 { $BinsToInstall += "kinetic-daemon" }
-    1 { $BinsToInstall += "kinetic-daemon", "kinetic-dns-server"; $InstallDns = $true }
+    1 { $BinsToInstall += "kinetic-daemon", "kinetic-dns"; $InstallDns = $true }
     2 { $BinsToInstall += "kinetic-node" }
     3 { $BinsToInstall += "kinetic-host" }
     4 { 
         Clear-Host
-        $CustomOpts = @("kinetic-daemon", "kinetic-dns-server", "kinetic-node", "kinetic-host")
+        $CustomOpts = @("kinetic-daemon", "kinetic-dns", "kinetic-node", "kinetic-host")
         $CustomDescs = @(
             "Runs the VDF and P2P client for .kin resolution.",
             "System-wide DNS server for local OS integration.",
@@ -221,7 +221,7 @@ switch ($Profile) {
         $Selected = Show-MultiMenu -Prompt "Select components to install (Space to toggle, Enter to confirm):" -Options $CustomOpts -Descriptions $CustomDescs
         foreach ($opt in $Selected) {
             if ($opt -eq 0) { $BinsToInstall += "kinetic-daemon" }
-            if ($opt -eq 1) { $BinsToInstall += "kinetic-dns-server"; $InstallDns = $true }
+            if ($opt -eq 1) { $BinsToInstall += "kinetic-dns"; $InstallDns = $true }
             if ($opt -eq 2) { $BinsToInstall += "kinetic-node" }
             if ($opt -eq 3) { $BinsToInstall += "kinetic-host" }
         }

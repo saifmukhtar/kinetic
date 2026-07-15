@@ -168,12 +168,12 @@ INSTALL_DNS=false
 
 case $PROFILE in
     0) BINS_TO_BUILD+=("kinetic-daemon") ;;
-    1) BINS_TO_BUILD+=("kinetic-daemon" "kinetic-dns-server"); INSTALL_DNS=true ;;
+    1) BINS_TO_BUILD+=("kinetic-daemon" "kinetic-dns"); INSTALL_DNS=true ;;
     2) BINS_TO_BUILD+=("kinetic-node") ;;
     3) BINS_TO_BUILD+=("kinetic-host") ;;
     4) 
         clear
-        MENU_OPTIONS=("kinetic-daemon" "kinetic-dns-server" "kinetic-node" "kinetic-host")
+        MENU_OPTIONS=("kinetic-daemon" "kinetic-dns" "kinetic-node" "kinetic-host")
         MENU_DESCRIPTIONS=(
             "Runs the VDF and P2P client for .kin resolution."
             "System-wide DNS server for local OS integration."
@@ -183,7 +183,7 @@ case $PROFILE in
         select_multi_menu "Select components to install (Space to toggle, Enter to confirm):" CUSTOM_OPTS
         for opt in $CUSTOM_OPTS; do
             if [ "$opt" -eq 0 ]; then BINS_TO_BUILD+=("kinetic-daemon"); fi
-            if [ "$opt" -eq 1 ]; then BINS_TO_BUILD+=("kinetic-dns-server"); INSTALL_DNS=true; fi
+            if [ "$opt" -eq 1 ]; then BINS_TO_BUILD+=("kinetic-dns"); INSTALL_DNS=true; fi
             if [ "$opt" -eq 2 ]; then BINS_TO_BUILD+=("kinetic-node"); fi
             if [ "$opt" -eq 3 ]; then BINS_TO_BUILD+=("kinetic-host"); fi
         done
