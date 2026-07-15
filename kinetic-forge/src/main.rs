@@ -1,17 +1,35 @@
 use anyhow::{Context, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input};
-use regex::Regex;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+
+#[derive(Serialize, Deserialize)]
+struct NetworkConfig {
+    tld: String,
+    tld_suffix: String,
+    did_prefix: String,
+    base_domain: String,
+    network_id: String,
+    benchmark_base_iterations: u64,
+    steal_target_rounds: u64,
+    drand_genesis_time: u64,
+    drand_period: u64,
+    kinetic_genesis_drand_round: u64,
+    drand_public_key: String,
+    drand_http_endpoints: Vec<String>,
+    docs_url: String,
+    bootstrap_nodes: Vec<String>,
+}
 
 fn main() -> Result<()> {
     println!("========================================");
     println!("      KINETIC NETWORK FORGE 🚀");
     println!("========================================");
     println!("Welcome to the Kinetic Forge! Let's scaffold your isolated private network.");
-    println!("This wizard will rewrite your core constants and compile custom binaries.");
+    println!("This wizard will configure your custom network parameters and compile custom binaries.");
     println!();
 
     let network_name: String = Input::with_theme(&ColorfulTheme::default())
@@ -86,14 +104,14 @@ fn main() -> Result<()> {
 
     println!();
     if !Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Ready to inject these constants into the source code and compile?")
+        .with_prompt("Ready to update network.json and compile?")
         .interact()?
     {
         println!("Aborting forge process. No changes made.");
         return Ok(());
     }
 
-    println!("Patching kinetic-core/src/constants.rs...");
+    println!("Updating network.json...");
     patch_constants(
         &tld,
         &tld_suffix,
@@ -108,7 +126,7 @@ fn main() -> Result<()> {
         &bootstrap_nodes,
     )?;
 
-    println!("✅ Source code patched successfully.");
+    println!("✅ network.json updated successfully.");
     println!("Compiling the customized Kinetic network binaries (this may take a few minutes)...");
 
     let mut child = Command::new("cargo")
@@ -156,114 +174,45 @@ fn patch_constants(
     docs_url: &str,
     bootstrap_nodes: &[String],
 ) -> Result<()> {
-    // Navigate to kinetic-core/src/constants.rs
-    // Assuming kinetic-forge is run from the workspace root
-    let path = PathBuf::from("kinetic-core/src/constants.rs");
+    let path = PathBuf::from("network.json");
 
-    let content = fs::read_to_string(&path)
-        .context("Failed to read kinetic-core/src/constants.rs. Are you running this from the workspace root?")?;
+    let mut config: NetworkConfig = if path.exists() {
+        let content = fs::read_to_string(&path)
+            .context("Failed to read network.json. Are you running this from the workspace root?")?;
+        serde_json::from_str(&content).context("Failed to parse existing network.json")?
+    } else {
+        NetworkConfig {
+            tld: String::new(),
+            tld_suffix: String::new(),
+            did_prefix: String::new(),
+            base_domain: String::new(),
+            network_id: String::new(),
+            benchmark_base_iterations: 238819830,
+            steal_target_rounds: 7884000,
+            drand_genesis_time: 0,
+            drand_period: 0,
+            kinetic_genesis_drand_round: 0,
+            drand_public_key: String::new(),
+            drand_http_endpoints: vec![],
+            docs_url: String::new(),
+            bootstrap_nodes: vec![],
+        }
+    };
 
-    let mut new_content = content.clone();
+    config.tld = tld.to_string();
+    config.tld_suffix = tld_suffix.to_string();
+    config.did_prefix = did_prefix.to_string();
+    config.base_domain = base_domain.to_string();
+    config.network_id = network_id.to_string();
+    config.drand_genesis_time = drand_genesis;
+    config.drand_period = drand_period;
+    config.drand_public_key = drand_pubkey.to_string();
+    config.drand_http_endpoints = vec![drand_http.to_string()];
+    config.docs_url = docs_url.to_string();
+    config.bootstrap_nodes = bootstrap_nodes.to_vec();
 
-    // Regex replacement for TLD
-    let re_tld = Regex::new(r#"pub const TLD: &str = "[^"]*";"#)?;
-    new_content = re_tld
-        .replace(&new_content, format!(r#"pub const TLD: &str = "{}";"#, tld))
-        .into_owned();
-
-    // Regex replacement for TLD_SUFFIX
-    let re_tld_suffix = Regex::new(r#"pub const TLD_SUFFIX: &str = "[^"]*";"#)?;
-    new_content = re_tld_suffix
-        .replace(
-            &new_content,
-            format!(r#"pub const TLD_SUFFIX: &str = "{}";"#, tld_suffix),
-        )
-        .into_owned();
-
-    // Regex replacement for DID_PREFIX
-    let re_did_prefix = Regex::new(r#"pub const DID_PREFIX: &str = "[^"]*";"#)?;
-    new_content = re_did_prefix
-        .replace(
-            &new_content,
-            format!(r#"pub const DID_PREFIX: &str = "{}";"#, did_prefix),
-        )
-        .into_owned();
-
-    // Regex replacement for BASE_DOMAIN
-    let re_base_domain = Regex::new(r#"pub const BASE_DOMAIN: &str = "[^"]*";"#)?;
-    new_content = re_base_domain
-        .replace(
-            &new_content,
-            format!(r#"pub const BASE_DOMAIN: &str = "{}";"#, base_domain),
-        )
-        .into_owned();
-
-    // Regex replacement for NETWORK_ID
-    let re_network_id = Regex::new(r#"pub const NETWORK_ID: &str = "[^"]*";"#)?;
-    new_content = re_network_id
-        .replace(
-            &new_content,
-            format!(r#"pub const NETWORK_ID: &str = "{}";"#, network_id),
-        )
-        .into_owned();
-
-    // Regex replacements for Drand
-    let re_drand_genesis = Regex::new(r#"pub const DRAND_GENESIS_TIME: u64 = \d+;"#)?;
-    new_content = re_drand_genesis
-        .replace(
-            &new_content,
-            format!(r#"pub const DRAND_GENESIS_TIME: u64 = {};"#, drand_genesis),
-        )
-        .into_owned();
-
-    let re_drand_period = Regex::new(r#"pub const DRAND_PERIOD: u64 = \d+;"#)?;
-    new_content = re_drand_period
-        .replace(
-            &new_content,
-            format!(r#"pub const DRAND_PERIOD: u64 = {};"#, drand_period),
-        )
-        .into_owned();
-
-    let re_drand_pubkey = Regex::new(r#"pub const DRAND_PUBLIC_KEY: &str = "[^"]*";"#)?;
-    new_content = re_drand_pubkey
-        .replace(
-            &new_content,
-            format!(r#"pub const DRAND_PUBLIC_KEY: &str = "{}";"#, drand_pubkey),
-        )
-        .into_owned();
-
-    // Replaces the entire DRAND_HTTP_ENDPOINTS array block
-    let re_drand_endpoints =
-        Regex::new(r#"(?s)pub const DRAND_HTTP_ENDPOINTS: &\[&str\] = &\[.*?\];"#)?;
-    new_content = re_drand_endpoints
-        .replace(
-            &new_content,
-            format!(
-                r#"pub const DRAND_HTTP_ENDPOINTS: &[&str] = &["{}"];"#,
-                drand_http
-            ),
-        )
-        .into_owned();
-
-    let re_docs_url = Regex::new(r#"pub const DOCS_URL: &str = "[^"]*";"#)?;
-    new_content = re_docs_url
-        .replace(
-            &new_content,
-            format!(r#"pub const DOCS_URL: &str = "{}";"#, docs_url),
-        )
-        .into_owned();
-
-    let re_bootstrap = Regex::new(r#"(?s)pub const BOOTSTRAP_NODES: &\[&str\] = &\[.*?\];"#)?;
-    let mut bootstrap_str = String::from("pub const BOOTSTRAP_NODES: &[&str] = &[\n");
-    for node in bootstrap_nodes {
-        bootstrap_str.push_str(&format!("    \"{}\",\n", node));
-    }
-    bootstrap_str.push_str("];");
-    new_content = re_bootstrap
-        .replace(&new_content, &bootstrap_str)
-        .into_owned();
-
-    fs::write(&path, new_content).context("Failed to write updated constants.rs")?;
+    let new_content = serde_json::to_string_pretty(&config).context("Failed to serialize network config")?;
+    fs::write(&path, new_content).context("Failed to write updated network.json")?;
 
     Ok(())
 }
