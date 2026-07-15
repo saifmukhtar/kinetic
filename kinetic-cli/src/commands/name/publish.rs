@@ -2,12 +2,20 @@ use crate::utils::{parse_and_format_api_error, save_zone_file};
 use ed25519_dalek::Signer;
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::types::{load_keypair, Commitment, Reveal};
-use sha2::Digest;
 use reqwest::Client;
 use serde_json::json;
+use sha2::Digest;
 use std::time::Duration;
 use tracing::{info, warn};
 
+/// Updates the routing zone data for a registered domain.
+///
+/// This involves checking for a local reveal file (or fetching it from the DHT),
+/// signing the new payload, and propagating the updated record to the network.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if the domain name is invalid, keys cannot be loaded,
+/// the existing record cannot be found, or the DHT publish fails.
 pub async fn update_zone_logic(
     fqdn: String,
     zone: kinetic_core::types::DnsZone,
@@ -16,10 +24,7 @@ pub async fn update_zone_logic(
     _display_val: String,
 ) -> anyhow::Result<()> {
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
-        tracing::error!(
-            "Invalid domain name '{}': {}",
-            fqdn, e
-        );
+        tracing::error!("Invalid domain name '{}': {}", fqdn, e);
         return Ok(());
     }
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
@@ -106,24 +111,30 @@ pub async fn update_zone_logic(
     Ok(())
 }
 
+/// Handles publishing local zone configuration to the network.
+///
+/// Reads the corresponding `zone.json` file for the given domain name
+/// and calls `update_zone_logic` to submit it to the local daemon.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if the zone file does not exist, cannot be read
+/// or parsed, or if the update process fails.
 pub async fn handle(name: String, config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
-            let fqdn = kinetic_core::types::normalize_name(&name);
-            let mut zone_file = get_zones_dir();
-            zone_file.push(format!("{}.json", fqdn));
+    let fqdn = kinetic_core::types::normalize_name(&name);
+    let mut zone_file = get_zones_dir();
+    zone_file.push(format!("{}.json", fqdn));
 
-            if !zone_file.exists() {
-                return Err(anyhow::anyhow!(
-                    "No zone file found at {}. Please create it or run 'register' first.",
-                    zone_file.display()
-                ));
-            }
+    if !zone_file.exists() {
+        return Err(anyhow::anyhow!(
+            "No zone file found at {}. Please create it or run 'register' first.",
+            zone_file.display()
+        ));
+    }
 
-            let file_contents = std::fs::read_to_string(&zone_file)?;
-            let zone: kinetic_core::types::DnsZone =
-                serde_json::from_str(&file_contents).map_err(|e| {
-                    anyhow::anyhow!("Invalid DnsZone JSON in {}: {}", zone_file.display(), e)
-                })?;
+    let file_contents = std::fs::read_to_string(&zone_file)?;
+    let zone: kinetic_core::types::DnsZone = serde_json::from_str(&file_contents)
+        .map_err(|e| anyhow::anyhow!("Invalid DnsZone JSON in {}: {}", zone_file.display(), e))?;
 
-            update_zone_logic(fqdn, zone, config, client, "ZonePublish".to_string()).await?;
+    update_zone_logic(fqdn, zone, config, client, "ZonePublish".to_string()).await?;
     Ok(())
 }

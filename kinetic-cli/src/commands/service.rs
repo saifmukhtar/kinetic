@@ -19,6 +19,14 @@ pub enum ServiceCommands {
     Logs,
 }
 
+/// Handles service lifecycle commands for external Kinetic binaries.
+///
+/// Dispatches the user's requested command (e.g., `Install`, `Start`, `Stop`) to the
+/// specified external binary. Supports privilege escalation if `needs_sudo` is true.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if the binary is not found on the `PATH`, or if the
+/// external process fails to execute or exits with an error status.
 pub async fn handle_service_command(
     binary: &str,
     cmd: ServiceCommands,

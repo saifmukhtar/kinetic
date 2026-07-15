@@ -1,77 +1,105 @@
 use kinetic_core::config::{get_zones_dir, KineticConfig};
+use kinetic_core::types::Reveal;
 use reqwest::Client;
 use tracing::{info, warn};
-use kinetic_core::types::Reveal;
 
+/// Lists all `.kin` names owned by the local node.
+///
+/// Queries the local daemon for owned names. If the daemon is unavailable,
+/// falls back to reading the local zones directory.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if network or file system operations fail unexpectedly.
 pub async fn handle_list(config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
-            let daemon_url = format!("http://127.0.0.1:{}/owned-names", config.daemon.api_port);
-            let response = client.get(&daemon_url).send().await;
-            match response {
-                Ok(res) if res.status().is_success() => {
-                    let names: Vec<String> = res.json().await.unwrap_or_default();
-                    info!("Names managed by local daemon:");
-                    for name in names {
-                        info!("- {}", name);
-                    }
-                }
-                _ => {
-                    warn!("Daemon unreachable or returned error. Falling back to local storage...");
-                    let zones_dir = get_zones_dir();
-                    if let Ok(entries) = std::fs::read_dir(&zones_dir) {
-                        info!("Local names found in {}:", zones_dir.display());
-                        for entry in entries.flatten() {
-                            if let Some(name) = entry.file_name().to_str() {
-                                if name.ends_with(".json") && !name.ends_with(".reveal.json") {
-                                    info!("- {}", name.trim_end_matches(".json"));
-                                }
-                            }
+    let daemon_url = format!("http://127.0.0.1:{}/owned-names", config.daemon.api_port);
+    let response = client.get(&daemon_url).send().await;
+    match response {
+        Ok(res) if res.status().is_success() => {
+            let names: Vec<String> = res.json().await.unwrap_or_default();
+            info!("Names managed by local daemon:");
+            for name in names {
+                info!("- {}", name);
+            }
+        }
+        _ => {
+            warn!("Daemon unreachable or returned error. Falling back to local storage...");
+            let zones_dir = get_zones_dir();
+            if let Ok(entries) = std::fs::read_dir(&zones_dir) {
+                info!("Local names found in {}:", zones_dir.display());
+                for entry in entries.flatten() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if name.ends_with(".json") && !name.ends_with(".reveal.json") {
+                            info!("- {}", name.trim_end_matches(".json"));
                         }
-                    } else {
-                        info!("No local names found.");
                     }
                 }
+            } else {
+                info!("No local names found.");
             }
+        }
+    }
     Ok(())
 }
 
-pub async fn handle_info(name: String, config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
-            let fqdn = kinetic_core::types::normalize_name(&name);
+/// Retrieves information about a specific `.kin` name.
+///
+/// Attempts to resolve the name from the network. If unavailable, falls back
+/// to local storage to provide details like Drand pulse and VDF iterations.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if local data parsing fails or network requests error out.
+pub async fn handle_info(
+    name: String,
+    config: &KineticConfig,
+    client: &Client,
+) -> anyhow::Result<()> {
+    let fqdn = kinetic_core::types::normalize_name(&name);
 
-            let daemon_url = format!(
-                "http://127.0.0.1:{}/resolve/{}",
-                config.daemon.api_port, fqdn
-            );
-            let resolve_res = client.get(&daemon_url).send().await;
+    let daemon_url = format!(
+        "http://127.0.0.1:{}/resolve/{}",
+        config.daemon.api_port, fqdn
+    );
+    let resolve_res = client.get(&daemon_url).send().await;
 
-            let mut resolved_from_network = false;
-            match resolve_res {
-                Ok(res) if res.status().is_success() => {
-                    info!("Info for {} (Resolved from network):", fqdn);
-                    let text = res.text().await.unwrap_or_default();
-                    info!("{}", text);
-                    resolved_from_network = true;
-                }
-                _ => {
-                    warn!("Daemon unreachable or name not found on DHT. Falling back to local storage...");
-                }
-            }
+    let mut resolved_from_network = false;
+    match resolve_res {
+        Ok(res) if res.status().is_success() => {
+            info!("Info for {} (Resolved from network):", fqdn);
+            let text = res.text().await.unwrap_or_default();
+            info!("{}", text);
+            resolved_from_network = true;
+        }
+        _ => {
+            warn!("Daemon unreachable or name not found on DHT. Falling back to local storage...");
+        }
+    }
 
-            if !resolved_from_network {
-                let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
-                if reveal_path.exists() {
-                    let content = std::fs::read_to_string(&reveal_path)?;
-                    let reveal: Reveal = serde_json::from_str(&content)?;
-                    info!("Info for {} (Local):", fqdn);
-                    info!("  Created at Drand pulse: {}", reveal.drand_pulse);
-                    info!("  VDF Iterations: {}", reveal.iterations);
-                    info!("  Status: Local reveal file exists, but network resolution failed.");
-                } else {
-                    info!("No local info found for {}.", fqdn);
-                }
-            }
+    if !resolved_from_network {
+        let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
+        if reveal_path.exists() {
+            let content = std::fs::read_to_string(&reveal_path)?;
+            let reveal: Reveal = serde_json::from_str(&content)?;
+            info!("Info for {} (Local):", fqdn);
+            info!("  Created at Drand pulse: {}", reveal.drand_pulse);
+            info!("  VDF Iterations: {}", reveal.iterations);
+            info!("  Status: Local reveal file exists, but network resolution failed.");
+        } else {
+            info!("No local info found for {}.", fqdn);
+        }
+    }
     Ok(())
 }
-pub async fn handle_resolve(name: String, config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
+/// Resolves a `.kin` name directly from the network.
+///
+/// Fetches the latest published reveal and routing information from the local daemon.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if the daemon is unreachable or the resolution fails.
+pub async fn handle_resolve(
+    name: String,
+    config: &KineticConfig,
+    client: &Client,
+) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
     info!("Resolving {} via local daemon...", fqdn);
     let daemon_url = format!(

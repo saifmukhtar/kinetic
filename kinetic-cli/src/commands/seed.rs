@@ -5,6 +5,7 @@ use kinetic_core::config::get_base_dir;
 use kinetic_core::types::save_keypair_from_mnemonic;
 use tracing::{info, warn};
 
+/// Available subcommands for managing node seed phrases.
 #[derive(Subcommand)]
 pub enum SeedCommands {
     /// Generate a new master seed phrase and derive the node identity
@@ -16,12 +17,20 @@ pub enum SeedCommands {
     },
 }
 
+/// Dispatches seed-related CLI subcommands.
+///
+/// Handles initialization of new seed phrases and restoration of identities from existing phrases.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if entropy generation fails, the mnemonic cannot be created/parsed,
+/// or writing the resulting identity to disk fails.
 pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
     let identity_path = get_base_dir().join("identity.key");
     match cmd {
         SeedCommands::Init => {
             let mut entropy = [0u8; 32];
-            fill(&mut entropy).map_err(|e| anyhow::anyhow!("Failed to generate random entropy: {}", e))?;
+            fill(&mut entropy)
+                .map_err(|e| anyhow::anyhow!("Failed to generate random entropy: {}", e))?;
             let mnemonic = Mnemonic::from_entropy_in(Language::English, &entropy)
                 .map_err(|e| anyhow::anyhow!("Failed to generate mnemonic: {}", e))?;
             let phrase = mnemonic.to_string();

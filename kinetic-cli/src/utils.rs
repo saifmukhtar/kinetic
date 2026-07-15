@@ -2,6 +2,11 @@ use kinetic_core::config::get_zones_dir;
 use reqwest::Client;
 use std::time::Duration;
 
+/// Parses and formats an API error from an HTTP response.
+///
+/// This function attempts to deserialize the response body into an `ApiError`.
+/// If successful, it constructs a user-friendly error string; otherwise, it falls
+/// back to a generic HTTP error string including the status and raw body.
 pub fn parse_and_format_api_error(
     context: &str,
     status: reqwest::StatusCode,
@@ -14,6 +19,12 @@ pub fn parse_and_format_api_error(
     }
 }
 
+/// Saves a DNS zone to a file on disk.
+///
+/// This creates a JSON file in the configured zones directory using the given FQDN as the filename.
+///
+/// # Errors
+/// Returns an `std::io::Error` if the directory cannot be created or the file cannot be written.
 pub fn save_zone_file(
     fqdn: &str,
     zone: &kinetic_core::types::DnsZone,
@@ -25,6 +36,11 @@ pub fn save_zone_file(
     std::fs::write(path, json_str)
 }
 
+/// Retrieves the API authentication token from the configured token path.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if the token file cannot be read, which likely indicates
+/// the kinetic-daemon is not running or properly initialized.
 pub fn get_api_token() -> anyhow::Result<String> {
     let path = kinetic_core::config::get_api_token_path();
     std::fs::read_to_string(&path).map_err(|e| {
@@ -36,6 +52,13 @@ pub fn get_api_token() -> anyhow::Result<String> {
     })
 }
 
+/// Builds an HTTP `reqwest::Client` with the default authorization headers.
+///
+/// Automatically retrieves the API token and configures it in the headers.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if the token cannot be retrieved, or if the client
+/// builder fails to initialize.
 pub fn build_client(timeout_secs: u64) -> anyhow::Result<Client> {
     let token = get_api_token()?;
     let mut headers = reqwest::header::HeaderMap::new();
