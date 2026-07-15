@@ -3,6 +3,7 @@ name = "kinetic-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+build = "build.rs"
 
 [features]
 simulation = []
@@ -57,3 +58,7 @@ harness = false
 [[bin]]
 name = "bin_test"
 path = "src/bin_test.rs"
+
+[build-dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"

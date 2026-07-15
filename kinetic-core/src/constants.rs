@@ -5,45 +5,5 @@
 //! and create an incompatible variant, developers should change these values here
 //! before recompiling.
 
-/// The default Top Level Domain (TLD) for the Kinetic network.
-pub const TLD: &str = "kin";
+include!(concat!(env!("OUT_DIR"), "/network_constants.rs"));
 
-/// The suffix format for Kinetic names, including the preceding dot.
-pub const TLD_SUFFIX: &str = ".kin";
-
-/// The prefix used for Decentralized Identifiers (DIDs) on the Kinetic network.
-pub const DID_PREFIX: &str = "did:kin:";
-
-/// The base domain for network infrastructure (e.g. seeds, drand).
-pub const BASE_DOMAIN: &str = "saifmukhtar.dev";
-
-/// The unique Network ID used to isolate P2P protocols (Kademlia, Gossipsub) and local mDNS discovery.
-/// Must be changed when creating an isolated fork.
-pub const NETWORK_ID: &str = "kinetic";
-
-/// Unix timestamp of the Drand chain's genesis.
-pub const DRAND_GENESIS_TIME: u64 = 1692803367;
-
-/// Duration in seconds of each Drand round.
-pub const DRAND_PERIOD: u64 = 3;
-
-/// The League of Entropy public key for the Quicknet chain (or custom beacon).
-pub const DRAND_PUBLIC_KEY: &str = "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a";
-
-/// The set of Drand HTTP endpoints tried in order.
-pub const DRAND_HTTP_ENDPOINTS: &[&str] = &[
-    "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://api2.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-];
-
-/// The URL for documentation and error lookups.
-pub const DOCS_URL: &str = "https://kinetic.saifmukhtar.dev";
-
-/// The default P2P bootstrap nodes for joining the Kinetic DHT.
-pub const BOOTSTRAP_NODES: &[&str] = &[
-    "/ip4/44.219.188.204/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs",
-    "/ip4/44.219.155.172/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D",
-    "/ip4/100.60.156.241/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc",
-];
