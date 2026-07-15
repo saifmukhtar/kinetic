@@ -56,8 +56,19 @@ impl VdfEngine for ChiaVdfEngine {
         // Acquire an exclusive system-wide lock to prevent concurrent VDF
         // evaluations from starving all CPU cores simultaneously.
         use fs2::FileExt;
-        let lock_path = std::env::temp_dir().join("kinetic_vdf.lock");
-        let lock_file = std::fs::File::create(&lock_path)
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let lock_dir = dirs::runtime_dir().ok_or_else(|| {
+            VdfError::LockFileError("Could not find secure runtime directory".to_string())
+        })?;
+        let lock_path = lock_dir.join("kinetic_vdf.lock");
+
+        let lock_file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(&lock_path)
             .map_err(|e| VdfError::LockFileError(e.to_string()))?;
 
         lock_file
@@ -83,7 +94,16 @@ impl VdfEngine for ChiaVdfEngine {
         proof: &VdfProof,
         iterations: u64,
     ) -> Result<bool, VdfError> {
+        if proof.proof_bytes.len() > 10_240 {
+            // 10 KB sanity check
+            return Err(VdfError::InvalidProof);
+        }
+
         let mut disc = [0u8; 128];
+        // Note: Asymmetric Discriminant Derivation
+        // `chiavdf::prove` takes the raw challenge hash and derives the 1024-bit
+        // discriminant internally. However, `verify_n_wesolowski` expects the
+        // derived discriminant to be passed in. Both must derive it identically.
         if !chiavdf::create_discriminant(&challenge.hash, &mut disc) {
             return Err(VdfError::DiscriminantError);
         }
@@ -95,7 +115,7 @@ impl VdfEngine for ChiaVdfEngine {
             &default_el,
             &proof.proof_bytes,
             iterations,
-            0, // Recursion limit
+            0, // Recursion limit: 0 because we do not use segmented proofs (our proofs are small).
         );
 
         Ok(is_valid)
@@ -160,5 +180,84 @@ mod tests {
             .verify(&challenge, &invalid_proof, iterations)
             .unwrap();
         assert!(!is_invalid);
+    }
+
+    #[test]
+    fn test_concurrent_evaluate() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let engine = Arc::new(ChiaVdfEngine::new());
+        let handles: Vec<_> = (0..4)
+            .map(|i| {
+                let e = engine.clone();
+                thread::spawn(move || {
+                    let challenge = Commitment {
+                        hash: [i as u8; 32],
+                    };
+                    // Small iteration count, but run concurrently to test lock logic and C++ safety
+                    e.evaluate(&challenge, 500).unwrap()
+                })
+            })
+            .collect();
+
+        for h in handles {
+            let proof = h.join().unwrap();
+            assert!(!proof.proof_bytes.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_max_proof_size_is_sufficient() {
+        let engine = ChiaVdfEngine::new();
+        let challenge = Commitment { hash: [0u8; 32] };
+
+        // Test different iteration lengths
+        for iterations in [100, 1000, 10_000, 100_000] {
+            let proof = engine.evaluate(&challenge, iterations).unwrap();
+            assert!(
+                proof.proof_bytes.len() <= 10_240,
+                "Proof size {} exceeds MAX_PROOF_SIZE at {} iterations",
+                proof.proof_bytes.len(),
+                iterations
+            );
+        }
+    }
+
+    #[test]
+    fn test_edge_cases() {
+        let engine = ChiaVdfEngine::new();
+        let challenge = Commitment { hash: [2u8; 32] };
+        let proof = engine.evaluate(&challenge, 1000).unwrap();
+
+        // 1. Mismatched iterations
+        let is_valid = engine.verify(&challenge, &proof, 2000).unwrap();
+        assert!(!is_valid, "Should reject mismatched iterations");
+
+        // 2. Zero iterations - chiavdf might return false or panic. Our engine shouldn't panic.
+        let is_valid_zero = engine.verify(&challenge, &proof, 0).unwrap();
+        assert!(!is_valid_zero, "Should reject 0 iterations");
+    }
+
+    #[test]
+    fn test_discriminant_consistency_across_versions() {
+        // Ensures discriminant derivation logic hasn't silently changed inside chiavdf
+        let challenge = Commitment { hash: [42u8; 32] };
+        let mut disc_verify = [0u8; 128];
+
+        let success = chiavdf::create_discriminant(&challenge.hash, &mut disc_verify);
+        assert!(success, "Discriminant creation failed");
+
+        // This is the expected discriminant for hash [42u8; 32]
+        // If a version bump changes this, it will fail backwards compatibility.
+        let expected_prefix = [
+            237, 89, 165, 1, 5, 76, 207, 152, 207, 134, 182, 117, 254, 184, 124, 248,
+        ];
+
+        assert_eq!(
+            &disc_verify[0..16],
+            &expected_prefix[..],
+            "Discriminant derivation logic changed! This breaks backwards compatibility."
+        );
     }
 }
