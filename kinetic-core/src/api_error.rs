@@ -3,8 +3,8 @@
 //! Internal Rust errors are converted to ApiError at the API layer.
 
 use crate::error::{
-    DrandError, GovernanceError, NetworkClientError, PublishError, RegistrationError,
-    ResolutionError, StorageError, UpdaterError, VdfError, DnsError, IdentityError,
+    DnsError, DrandError, GovernanceError, IdentityError, NetworkClientError, PublishError,
+    RegistrationError, ResolutionError, StorageError, UpdaterError, VdfError,
 };
 use serde::{Deserialize, Serialize};
 

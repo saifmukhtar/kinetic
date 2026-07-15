@@ -107,7 +107,7 @@ impl ResolutionError {
 
     /// RFC 7807 type URI for this error.
     pub fn error_type_uri(&self) -> String {
-        format!("https://kinetic.dev/errors/{}", self.code())
+        format!("{}/errors/{}", crate::constants::DOCS_URL, self.code())
     }
 
     /// Whether the client should offer a retry action.
@@ -222,7 +222,7 @@ impl PublishError {
 
     /// RFC 7807 type URI for this error.
     pub fn error_type_uri(&self) -> String {
-        format!("https://kinetic.dev/errors/{}", self.code())
+        format!("{}/errors/{}", crate::constants::DOCS_URL, self.code())
     }
 
     /// Whether the client should offer a retry action.
@@ -328,7 +328,7 @@ impl RegistrationError {
 
     /// RFC 7807 type URI for this error.
     pub fn error_type_uri(&self) -> String {
-        format!("https://kinetic.dev/errors/{}", self.code())
+        format!("{}/errors/{}", crate::constants::DOCS_URL, self.code())
     }
 
     /// Whether the client should offer a retry action.
@@ -377,11 +377,51 @@ impl PartialEq for ResolutionError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Offline, Self::Offline) => true,
-            (Self::NotFound { name: a_n, peers_queried: a_p }, Self::NotFound { name: b_n, peers_queried: b_p }) => a_n == b_n && a_p == b_p,
-            (Self::VdfVerificationFailed { name: a_n, count: a_c }, Self::VdfVerificationFailed { name: b_n, count: b_c }) => a_n == b_n && a_c == b_c,
-            (Self::Expired { name: a_n, age: a_a }, Self::Expired { name: b_n, age: b_a }) => a_n == b_n && a_a == b_a,
-            (Self::Timeout { name: a_n, elapsed_ms: a_e, peers_queried: a_p }, Self::Timeout { name: b_n, elapsed_ms: b_e, peers_queried: b_p }) => a_n == b_n && a_e == b_e && a_p == b_p,
-            (Self::Internal { message: a_m, .. }, Self::Internal { message: b_m, .. }) => a_m == b_m,
+            (
+                Self::NotFound {
+                    name: a_n,
+                    peers_queried: a_p,
+                },
+                Self::NotFound {
+                    name: b_n,
+                    peers_queried: b_p,
+                },
+            ) => a_n == b_n && a_p == b_p,
+            (
+                Self::VdfVerificationFailed {
+                    name: a_n,
+                    count: a_c,
+                },
+                Self::VdfVerificationFailed {
+                    name: b_n,
+                    count: b_c,
+                },
+            ) => a_n == b_n && a_c == b_c,
+            (
+                Self::Expired {
+                    name: a_n,
+                    age: a_a,
+                },
+                Self::Expired {
+                    name: b_n,
+                    age: b_a,
+                },
+            ) => a_n == b_n && a_a == b_a,
+            (
+                Self::Timeout {
+                    name: a_n,
+                    elapsed_ms: a_e,
+                    peers_queried: a_p,
+                },
+                Self::Timeout {
+                    name: b_n,
+                    elapsed_ms: b_e,
+                    peers_queried: b_p,
+                },
+            ) => a_n == b_n && a_e == b_e && a_p == b_p,
+            (Self::Internal { message: a_m, .. }, Self::Internal { message: b_m, .. }) => {
+                a_m == b_m
+            }
             _ => false,
         }
     }
@@ -395,7 +435,9 @@ impl PartialEq for PublishError {
             (Self::InvalidProof(a), Self::InvalidProof(b)) => a == b,
             (Self::AlreadyOwned { name: a_n }, Self::AlreadyOwned { name: b_n }) => a_n == b_n,
             (Self::AllFailed { count: a_c }, Self::AllFailed { count: b_c }) => a_c == b_c,
-            (Self::Internal { message: a_m, .. }, Self::Internal { message: b_m, .. }) => a_m == b_m,
+            (Self::Internal { message: a_m, .. }, Self::Internal { message: b_m, .. }) => {
+                a_m == b_m
+            }
             _ => false,
         }
     }
@@ -409,9 +451,15 @@ impl PartialEq for RegistrationError {
             (Self::VdfFailed(a), Self::VdfFailed(b)) => a == b,
             (Self::CommitmentMismatch, Self::CommitmentMismatch) => true,
             (Self::AlreadyOwned { name: a_n }, Self::AlreadyOwned { name: b_n }) => a_n == b_n,
-            (Self::AlreadyInProgress { name: a_n }, Self::AlreadyInProgress { name: b_n }) => a_n == b_n,
-            (Self::NetworkRejected { reason: a_r }, Self::NetworkRejected { reason: b_r }) => a_r == b_r,
-            (Self::Internal { message: a_m, .. }, Self::Internal { message: b_m, .. }) => a_m == b_m,
+            (Self::AlreadyInProgress { name: a_n }, Self::AlreadyInProgress { name: b_n }) => {
+                a_n == b_n
+            }
+            (Self::NetworkRejected { reason: a_r }, Self::NetworkRejected { reason: b_r }) => {
+                a_r == b_r
+            }
+            (Self::Internal { message: a_m, .. }, Self::Internal { message: b_m, .. }) => {
+                a_m == b_m
+            }
             _ => false,
         }
     }

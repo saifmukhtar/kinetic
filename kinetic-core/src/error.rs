@@ -2,8 +2,16 @@ use thiserror::Error;
 
 /// DHT record rejection and resolution/publish/registration error types.
 pub mod dht;
+/// DNS Zone parsing and validation error types.
+pub mod dns;
+/// Drand Quicknet pulse acquisition and verification error types.
+pub mod drand;
 /// Council governance and parameter-update error types.
 pub mod governance;
+/// Node identity and seed phrase error types.
+pub mod identity;
+/// Domain names validation error types.
+pub mod names;
 /// libp2p network client error types.
 pub mod network;
 /// Sled storage engine error types.
@@ -12,25 +20,17 @@ pub mod storage;
 pub mod updater;
 /// chiavdf Verifiable Delay Function error types.
 pub mod vdf;
-/// Drand Quicknet pulse acquisition and verification error types.
-pub mod drand;
-/// DNS Zone parsing and validation error types.
-pub mod dns;
-/// Node identity and seed phrase error types.
-pub mod identity;
-/// Domain names validation error types.
-pub mod names;
 
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};
+pub use dns::DnsError;
+pub use drand::DrandError;
 pub use governance::GovernanceError;
+pub use identity::IdentityError;
+pub use names::NamesError;
 pub use network::NetworkClientError;
 pub use storage::StorageError;
 pub use updater::UpdaterError;
 pub use vdf::{VdfError, VdfRejectReason};
-pub use drand::DrandError;
-pub use dns::DnsError;
-pub use identity::IdentityError;
-pub use names::NamesError;
 
 /// The top-level error type for core Kinetic protocol operations.
 #[derive(Error, Debug)]

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+/// Represents an authorized Key Identifier (KID) associated with a domain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedKid {
     pub name: String,
@@ -8,6 +9,7 @@ pub struct AuthorizedKid {
 }
 
 impl AuthorizedKid {
+    /// Serializes the KID document into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
@@ -21,6 +23,7 @@ impl AuthorizedKid {
     }
 }
 
+/// Represents an authorized capability manifest bound to a domain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedManifest {
     pub name: String,
@@ -29,6 +32,7 @@ pub struct AuthorizedManifest {
 }
 
 impl AuthorizedManifest {
+    /// Serializes the manifest into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let canon_bytes = self.manifest.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
@@ -42,6 +46,11 @@ impl AuthorizedManifest {
     }
 }
 
+/// Loads an Ed25519 signing keypair from the specified file.
+///
+/// # Errors
+///
+/// Returns an `IdentityError` if the file is not found or is corrupted (e.g., incorrect length).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_keypair(
     filename: &str,
@@ -78,6 +87,11 @@ pub fn load_keypair(
     Err(crate::error::IdentityError::IdentityNotFound("Identity file not found. Please run 'kinetic-cli seed init' or use the Desktop app to create one.".to_string()))
 }
 
+/// Derives and saves an Ed25519 signing keypair from a mnemonic seed phrase.
+///
+/// # Errors
+///
+/// Returns an `IdentityError` if the seed phrase is invalid or if there is an error writing to disk.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_keypair_from_mnemonic(
     filename: &str,
@@ -90,9 +104,8 @@ pub fn save_keypair_from_mnemonic(
     use std::fs;
     use std::path::PathBuf;
 
-    let mnemonic = Mnemonic::parse_in(Language::English, phrase).map_err(|e| {
-        crate::error::IdentityError::InvalidSeedPhrase(format!("{}", e))
-    })?;
+    let mnemonic = Mnemonic::parse_in(Language::English, phrase)
+        .map_err(|e| crate::error::IdentityError::InvalidSeedPhrase(format!("{}", e)))?;
 
     let seed = mnemonic.to_seed("");
     let mut derived = [0u8; 32];
@@ -127,12 +140,15 @@ pub fn save_keypair_from_mnemonic(
 mod tests {
     use super::*;
     use std::fs;
+
     use tempfile::tempdir;
-    use std::str::FromStr;
 
     #[test]
     fn test_signable_bytes_kid() {
-        let valid_did = format!("{}0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", crate::constants::DID_PREFIX);
+        let valid_did = format!(
+            "{}0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            crate::constants::DID_PREFIX
+        );
         let kid = kinetic_kid::did::KineticDid::new(&valid_did).unwrap();
         let doc = kinetic_kid::document::KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
@@ -180,10 +196,10 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn test_identity_key_lifecycle() {
-        // Run all key lifecycle tests synchronously in one function 
+        // Run all key lifecycle tests synchronously in one function
         // to avoid race conditions with KINETIC_KEY_PATH env var
         let dir = tempdir().unwrap();
-        
+
         // 1. Not Found
         std::env::set_var("KINETIC_KEY_PATH", dir.path().join("missing.bin"));
         let result = load_keypair("test.bin");
@@ -216,7 +232,7 @@ mod tests {
         let saved_key = save_keypair_from_mnemonic("test.bin", phrase).unwrap();
         let loaded_key = load_keypair("test.bin").unwrap();
         assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());
-        
+
         // Clean up env var
         std::env::remove_var("KINETIC_KEY_PATH");
     }

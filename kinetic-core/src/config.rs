@@ -72,7 +72,7 @@ fn default_drand_endpoints() -> Vec<String> {
 }
 
 fn default_drand_seed_domains() -> Vec<String> {
-    vec![crate::constants::DRAND_DOMAIN.to_string()]
+    vec![format!("drand.{}", crate::constants::BASE_DOMAIN)]
 }
 
 impl Default for DrandConfig {
@@ -200,14 +200,11 @@ impl Default for KineticConfig {
                 daemon_port: ports::P2P_DAEMON,
                 node_port: ports::P2P_NODE,
                 host_port: ports::P2P_HOST,
-                bootstrap_nodes: vec![
-                    "/ip4/44.219.188.204/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs".to_string(),
-                    "/ip4/44.219.155.172/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D".to_string(),
-                    "/ip4/100.60.156.241/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc".to_string(),
-                ],
-                seed_domains: vec![
-                    crate::constants::SEED_DOMAIN.to_string(),
-                ],
+                bootstrap_nodes: crate::constants::BOOTSTRAP_NODES
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                seed_domains: vec![format!("seed.{}", crate::constants::BASE_DOMAIN)],
                 enable_mdns: true,
                 external_address: None,
             },

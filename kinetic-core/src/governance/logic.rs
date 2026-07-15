@@ -1,11 +1,11 @@
-use std::collections::{HashSet, HashMap};
 use ed25519_dalek::VerifyingKey;
 use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet};
 
-use crate::error::GovernanceError;
 use super::types::{
     GovernanceAction, GovernanceEffect, GovernanceState, Hash256, SignedGovernanceMessage,
 };
+use crate::error::GovernanceError;
 
 #[cfg(not(test))]
 pub const ROOT_PUBLIC_KEY_HEX: &str = "REPLACE_ME_OFFLINE_GENERATED_ED25519_ROOT";
@@ -27,6 +27,11 @@ pub const ACTIVE_WINDOW_SECONDS: u64 = 30 * 24 * 60 * 60;
 pub const AUTO_LOCK_SECONDS: u64 = 365 * 24 * 60 * 60;
 pub const OTA_TIMELOCK_SECONDS: u64 = 48 * 60 * 60;
 
+/// Validates that the static cryptographic keys required for governance have been correctly initialized.
+///
+/// # Errors
+///
+/// Returns a `GovernanceError` if keys are missing, still set to placeholders, or have incorrect lengths.
 pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
     if ROOT_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
         return Err(GovernanceError::MissingRootKey);
@@ -40,6 +45,7 @@ pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
 }
 
 impl GovernanceState {
+    /// Initializes a new governance state starting in the Founder phase.
     pub fn new(genesis_timestamp_sec: u64) -> Self {
         Self {
             genesis_timestamp_sec,
@@ -56,6 +62,7 @@ impl GovernanceState {
         }
     }
 
+    /// Computes the SHA-256 hash of a signed governance message based on its canonical byte representation.
     pub fn hash_action(msg: &SignedGovernanceMessage) -> Hash256 {
         let mut hasher = Sha256::new();
         hasher.update(msg.to_canonical_bytes());
@@ -65,6 +72,8 @@ impl GovernanceState {
         array
     }
 
+    /// Merges signatures from an incoming message into the existing state's partial proposal for the same action.
+    /// Returns the updated message containing the combined signatures.
     pub fn merge_signatures(
         &mut self,
         incoming_msg: &SignedGovernanceMessage,
@@ -93,6 +102,7 @@ impl GovernanceState {
         msg_to_update
     }
 
+    /// Counts the number of active council members within the recent active window.
     pub fn count_active_council(&self, current_time_sec: u64) -> usize {
         self.active_council
             .iter()
@@ -106,6 +116,11 @@ impl GovernanceState {
             .count()
     }
 
+    /// Retrieves the static root verifying key.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `GovernanceError` if the key is missing, invalid, or has the wrong length.
     pub fn get_root_key(&self) -> Result<VerifyingKey, GovernanceError> {
         let bytes =
             hex::decode(ROOT_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MissingRootKey)?;
@@ -115,6 +130,11 @@ impl GovernanceState {
         VerifyingKey::try_from(bytes.as_slice()).map_err(|_| GovernanceError::KeyLengthMismatch)
     }
 
+    /// Retrieves the static guard verifying key, if configured.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `GovernanceError` if the key format is invalid.
     pub fn get_guard_key(&self) -> Result<Option<VerifyingKey>, GovernanceError> {
         if GUARD_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
             return Ok(None);
@@ -124,10 +144,16 @@ impl GovernanceState {
         if bytes.len() != 32 {
             return Err(GovernanceError::KeyLengthMismatch);
         }
-        let key = VerifyingKey::try_from(bytes.as_slice()).map_err(|_| GovernanceError::KeyLengthMismatch)?;
+        let key = VerifyingKey::try_from(bytes.as_slice())
+            .map_err(|_| GovernanceError::KeyLengthMismatch)?;
         Ok(Some(key))
     }
 
+    /// Verifies whether a signed governance message meets the quorum and validity rules to be executed.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `GovernanceError` if the message is stale, signatures are insufficient, timelocks are not met, or other invariants are violated.
     pub fn verify_action(
         &mut self,
         msg: &SignedGovernanceMessage,
@@ -137,7 +163,9 @@ impl GovernanceState {
             return Err(GovernanceError::StaleProposal);
         }
 
-        if let GovernanceAction::AppointMember { .. } | GovernanceAction::SelfAppointCouncilMember { .. } = &msg.action {
+        if let GovernanceAction::AppointMember { .. }
+        | GovernanceAction::SelfAppointCouncilMember { .. } = &msg.action
+        {
             if self.active_council.len() >= MAX_COUNCIL_SIZE {
                 return Err(GovernanceError::CouncilAtCapacity);
             }
@@ -150,7 +178,9 @@ impl GovernanceState {
                 } else {
                     return Err(GovernanceError::TimelockNotExpired);
                 }
-            } else if let Some(&(broadcast_time, wait_time, _)) = self.pending_updates.get(target_hash) {
+            } else if let Some(&(broadcast_time, wait_time, _)) =
+                self.pending_updates.get(target_hash)
+            {
                 if current_time_sec >= broadcast_time + wait_time {
                     return Ok(self.execute_action(msg, current_time_sec, None));
                 } else {
@@ -163,7 +193,7 @@ impl GovernanceState {
 
         let actual_active_count = self.count_active_council(current_time_sec);
         let guard_key_opt = self.get_guard_key()?;
-        
+
         if self.mode == crate::governance::types::GovernanceMode::Founder {
             let instant_lock = actual_active_count >= MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
             let year_passed = current_time_sec >= self.genesis_timestamp_sec + AUTO_LOCK_SECONDS;
@@ -192,11 +222,16 @@ impl GovernanceState {
         }
 
         match self.mode {
-            crate::governance::types::GovernanceMode::Founder => crate::governance::founder::verify_action(self, msg, current_time_sec),
-            crate::governance::types::GovernanceMode::Council => crate::governance::council::verify_action(self, msg, current_time_sec),
+            crate::governance::types::GovernanceMode::Founder => {
+                crate::governance::founder::verify_action(self, msg, current_time_sec)
+            }
+            crate::governance::types::GovernanceMode::Council => {
+                crate::governance::council::verify_action(self, msg, current_time_sec)
+            }
         }
     }
 
+    /// Executes a verified governance action, applying its state changes and returning any resulting effects.
     pub fn execute_action(
         &mut self,
         msg: &SignedGovernanceMessage,
@@ -221,7 +256,11 @@ impl GovernanceState {
                     self.lock_timestamp_sec = Some(current_time_sec);
                 }
             }
-            GovernanceAction::UpdateBinary { manifest_hash, mirrors, .. } => {
+            GovernanceAction::UpdateBinary {
+                manifest_hash,
+                mirrors,
+                ..
+            } => {
                 if let Some(wait_sec) = wait_time {
                     let action_hash = Self::hash_action(msg);
                     self.pending_updates
@@ -249,16 +288,17 @@ impl GovernanceState {
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
                 self.pending_timelocks.remove(target_hash);
-                
+
                 if let Some(original) = self.partial_proposals.get(target_hash) {
-                    if let GovernanceAction::EmergencyReset { override_mode, .. } = &original.action {
+                    if let GovernanceAction::EmergencyReset { override_mode, .. } = &original.action
+                    {
                         if *override_mode {
                             self.mode = crate::governance::types::GovernanceMode::Founder;
                             self.active_council.clear();
                         }
                     }
                 }
-                
+
                 if let Some((_, _, mirrors)) = self.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         manifest_hash: *target_hash,
@@ -266,7 +306,10 @@ impl GovernanceState {
                     });
                 }
             }
-            GovernanceAction::GrantPremiumName { name, target_pubkey } => {
+            GovernanceAction::GrantPremiumName {
+                name,
+                target_pubkey,
+            } => {
                 if self.mode == crate::governance::types::GovernanceMode::Founder {
                     self.founder_premium_grants += 1;
                 }
@@ -276,15 +319,14 @@ impl GovernanceState {
                 });
             }
             GovernanceAction::RevokePremiumName { name } => {
-                effect = Some(GovernanceEffect::PremiumNameRevoked {
-                    name: name.clone(),
-                });
+                effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
             }
             GovernanceAction::RotateRootKey { .. } | GovernanceAction::RotateGuardKey { .. } => {}
         }
         effect
     }
 
+    /// Checks for any matured timelocked actions (like OTAs) and returns their corresponding effects.
     pub fn check_timelocks(&mut self, current_time_sec: u64) -> Vec<GovernanceEffect> {
         let mut effects = Vec::new();
         let mut matured_hashes = Vec::new();
@@ -297,13 +339,21 @@ impl GovernanceState {
 
         for (hash, mirrors) in matured_hashes {
             self.pending_updates.remove(&hash);
-            effects.push(GovernanceEffect::TriggerOTA { manifest_hash: hash, mirrors });
+            effects.push(GovernanceEffect::TriggerOTA {
+                manifest_hash: hash,
+                mirrors,
+            });
         }
 
         effects
     }
 }
 
+/// Processes an incoming governance message, merging its signatures and executing the action if quorum is met.
+///
+/// # Errors
+///
+/// Returns a `GovernanceError` if the action fails verification or execution rules.
 pub fn process_governance_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,

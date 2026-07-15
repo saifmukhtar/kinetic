@@ -56,14 +56,16 @@ impl VdfError {
 
     /// RFC 7807 type URI for this error.
     pub fn error_type_uri(&self) -> String {
-        format!("https://kinetic.dev/errors/{}", self.code())
+        format!("{}/errors/{}", crate::constants::DOCS_URL, self.code())
     }
 
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
         match self {
             Self::LockFileError(_) | Self::LockAcquireError(_) => Severity::Error,
-            Self::DiscriminantError | Self::ProofGenerationError | Self::InvalidProof => Severity::Error,
+            Self::DiscriminantError | Self::ProofGenerationError | Self::InvalidProof => {
+                Severity::Error
+            }
             Self::UnsupportedPlatform => Severity::Critical,
         }
     }

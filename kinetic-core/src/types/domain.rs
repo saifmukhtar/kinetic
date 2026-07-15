@@ -1,10 +1,9 @@
-use serde::{Deserialize, Serialize};
 use super::names::normalize_name;
-
+use serde::{Deserialize, Serialize};
 
 pub const M_REDUNDANCY: u8 = 32;
 
-
+/// Represents a heartbeat indicating that a domain is actively maintained.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Heartbeat {
@@ -14,6 +13,7 @@ pub struct Heartbeat {
 }
 
 impl Heartbeat {
+    /// Serializes the heartbeat data into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(4 + self.name.len() + 8);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
@@ -23,6 +23,8 @@ impl Heartbeat {
     }
 }
 
+/// Derives a set of storage keys from a given domain name.
+/// Returns a vector of 32-byte arrays representing the keys.
 pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
     use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);
@@ -42,6 +44,8 @@ pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
     keys
 }
 
+/// Derives a set of heartbeat keys from a given domain name.
+/// Returns a vector of 32-byte arrays representing the keys.
 pub fn derive_heartbeat_keys(name: &str) -> Vec<[u8; 32]> {
     use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);

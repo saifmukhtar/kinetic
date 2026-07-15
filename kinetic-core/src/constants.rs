@@ -14,11 +14,8 @@ pub const TLD_SUFFIX: &str = ".kin";
 /// The prefix used for Decentralized Identifiers (DIDs) on the Kinetic network.
 pub const DID_PREFIX: &str = "did:kin:";
 
-/// The default DNS seed domain for discovering P2P bootstrap nodes.
-pub const SEED_DOMAIN: &str = "seed.saifmukhtar.dev";
-
-/// The default domain for discovering Drand randomness beacon endpoints via DNS TXT records.
-pub const DRAND_DOMAIN: &str = "drand.saifmukhtar.dev";
+/// The base domain for network infrastructure (e.g. seeds, drand).
+pub const BASE_DOMAIN: &str = "saifmukhtar.dev";
 
 /// The unique Network ID used to isolate P2P protocols (Kademlia, Gossipsub) and local mDNS discovery.
 /// Must be changed when creating an isolated fork.
@@ -39,4 +36,14 @@ pub const DRAND_HTTP_ENDPOINTS: &[&str] = &[
     "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
     "https://api2.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
     "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
+];
+
+/// The URL for documentation and error lookups.
+pub const DOCS_URL: &str = "https://kinetic.saifmukhtar.dev";
+
+/// The default P2P bootstrap nodes for joining the Kinetic DHT.
+pub const BOOTSTRAP_NODES: &[&str] = &[
+    "/ip4/44.219.188.204/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs",
+    "/ip4/44.219.155.172/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D",
+    "/ip4/100.60.156.241/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc",
 ];

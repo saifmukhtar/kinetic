@@ -79,7 +79,10 @@ impl DrandPulse {
             return true;
         }
 
-        let pubkey_bytes: [u8; 96] = match hex::decode(crate::constants::DRAND_PUBLIC_KEY).ok().and_then(|b| b.try_into().ok()) {
+        let pubkey_bytes: [u8; 96] = match hex::decode(crate::constants::DRAND_PUBLIC_KEY)
+            .ok()
+            .and_then(|b| b.try_into().ok())
+        {
             Some(b) => b,
             None => return false,
         };
@@ -101,7 +104,7 @@ impl DrandPulse {
 
 /// HTTP client for the drand Quicknet randomness beacon.
 ///
-/// Fetches the latest pulse from [`DRAND_ENDPOINTS`] with exponential backoff
+/// Fetches the latest pulse from `DRAND_ENDPOINTS` with exponential backoff
 /// and falls back to a locally cached pulse when the network is unavailable.
 pub struct DrandClient {
     http: reqwest::Client,
@@ -124,7 +127,10 @@ impl DrandClient {
             endpoints: config.drand.endpoints,
             seed_domains: config.drand.seed_domains,
             #[cfg(not(target_arch = "wasm32"))]
-            resolver: hickory_resolver::TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default()),
+            resolver: hickory_resolver::TokioAsyncResolver::tokio(
+                ResolverConfig::default(),
+                ResolverOpts::default(),
+            ),
         }
     }
 
@@ -261,7 +267,8 @@ impl DrandClient {
         // Offline Fallback for Quicknet
         if let Ok(now) = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH) {
             if now.as_secs() > crate::constants::DRAND_GENESIS_TIME {
-                let estimated_round = (now.as_secs() - crate::constants::DRAND_GENESIS_TIME) / crate::constants::DRAND_PERIOD;
+                let estimated_round = (now.as_secs() - crate::constants::DRAND_GENESIS_TIME)
+                    / crate::constants::DRAND_PERIOD;
                 tracing::warn!(
                     "No drand cache found. Using offline estimated round: {}",
                     estimated_round

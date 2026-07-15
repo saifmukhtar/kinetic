@@ -1,7 +1,7 @@
 use ed25519_dalek::Verifier;
 
-use crate::error::GovernanceError;
 use super::types::{GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage};
+use crate::error::GovernanceError;
 
 pub fn verify_action(
     state: &mut GovernanceState,
@@ -31,7 +31,9 @@ pub fn verify_action(
             }
         }
         if let GovernanceAction::GrantPremiumName { name, .. } = &msg.action {
-            let label = name.strip_suffix(crate::constants::TLD_SUFFIX).unwrap_or(name);
+            let label = name
+                .strip_suffix(crate::constants::TLD_SUFFIX)
+                .unwrap_or(name);
             if label.len() != 1 {
                 return Err(GovernanceError::InvalidPremiumNameLength);
             }

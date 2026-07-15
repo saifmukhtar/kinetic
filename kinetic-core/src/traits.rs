@@ -24,4 +24,8 @@ pub trait StorageEngine: Send + Sync {
     fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError>;
     /// Removes the entry for `key`. A no-op if the key does not exist.
     fn delete(&self, key: &[u8]) -> Result<(), StorageError>;
+
+    /// Iterate over all key-value pairs whose key starts with `prefix`.
+    #[allow(clippy::type_complexity)]
+    fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
 }
