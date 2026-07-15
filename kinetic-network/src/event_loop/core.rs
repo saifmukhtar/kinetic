@@ -1,7 +1,7 @@
 use libp2p::{kad, PeerId, Swarm};
+use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::info;
-use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::behavior::KineticBehavior;
 use crate::client::Command;
@@ -59,7 +59,7 @@ impl NetworkEventLoop {
         for domain in &self.seed_domains {
             let host_port = format!("{}:6070", domain);
             if let Ok(mut addrs) = tokio::net::lookup_host(host_port).await {
-                while let Some(addr) = addrs.next() {
+                for addr in addrs.by_ref() {
                     let ip = addr.ip();
                     let multiaddr = libp2p::Multiaddr::empty()
                         .with(match ip {
@@ -76,10 +76,20 @@ impl NetworkEventLoop {
             }
         }
 
-        let initial_prune_jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 60) as u64;
-        let mut prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(3600 + initial_prune_jitter));
-        let initial_redial_jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 5) as u64;
-        let mut redial_delay = futures_timer::Delay::new(web_time::Duration::from_secs(15 + initial_redial_jitter));
+        let initial_prune_jitter = (web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            % 60) as u64;
+        let mut prune_delay =
+            futures_timer::Delay::new(web_time::Duration::from_secs(3600 + initial_prune_jitter));
+        let initial_redial_jitter = (web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            % 5) as u64;
+        let mut redial_delay =
+            futures_timer::Delay::new(web_time::Duration::from_secs(15 + initial_redial_jitter));
 
         loop {
             tokio::select! {

@@ -1,10 +1,10 @@
-use proptest::prelude::*;
+use kinetic_core::types::vdf::{PreviousProof, Reveal, VdfProof};
 use kinetic_network::store::core::KineticRecordStore;
 use kinetic_storage::SledStorage;
-use kinetic_core::types::vdf::{Reveal, VdfProof, PreviousProof};
 use libp2p::{kad, PeerId};
-use std::sync::Arc;
+use proptest::prelude::*;
 use std::num::NonZeroUsize;
+use std::sync::Arc;
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
@@ -19,13 +19,15 @@ proptest! {
         let public = keypair.public();
         let identity = libp2p::identity::PublicKey::from(public);
         let peer_id = PeerId::from(identity);
-        
+
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
             sled_storage,
             0,
             NonZeroUsize::new(100).unwrap(),
-            100
+            100,
+            vdf_engine,
         );
 
         let key = kad::RecordKey::new(&[0u8; 32]);
@@ -70,13 +72,15 @@ proptest! {
         let public = keypair.public();
         let identity = libp2p::identity::PublicKey::from(public);
         let peer_id = PeerId::from(identity);
-        
+
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
             sled_storage,
             0,
             NonZeroUsize::new(100).unwrap(),
-            100
+            100,
+            vdf_engine,
         );
         store.current_drand_round = drand_pulse.saturating_add(100);
 
@@ -84,7 +88,7 @@ proptest! {
         let key = kad::RecordKey::new(&[0u8; 32]);
         let record = kad::Record::new(key, payload);
 
-        // We expect an error (e.g., InvalidSignature, InvalidVdf), 
+        // We expect an error (e.g., InvalidSignature, InvalidVdf),
         // but it should successfully compute iteration boundaries without underflowing.
         let _ = store.put_record(record);
     }

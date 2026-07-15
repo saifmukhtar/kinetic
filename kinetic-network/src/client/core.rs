@@ -5,7 +5,6 @@ use tokio::sync::{mpsc, oneshot};
 
 /// The primary handle used to interact with the background network event loop.
 
-
 #[derive(Clone)]
 pub struct NetworkClient {
     sender: std::sync::Arc<std::sync::RwLock<mpsc::Sender<Command>>>,
@@ -65,7 +64,10 @@ impl NetworkClient {
 
     /// Gets a cloned copy of the command sender.
     pub fn get_sender(&self) -> mpsc::Sender<Command> {
-        self.sender.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Gets a cloned copy of the stream control handle, if available.
@@ -79,13 +81,21 @@ impl NetworkClient {
     }
 
     /// Sends a proxy request to a remote peer and awaits the response.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ProxyError` if the channel is closed or the request times out.
     pub async fn send_proxy_request(
         &self,
         peer: libp2p::PeerId,
         request: ProxyRequest,
     ) -> std::result::Result<ProxyResponse, ProxyError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::SendProxyRequest {
                 peer,
@@ -98,20 +108,35 @@ impl NetworkClient {
     }
 
     /// Sends a response back to an incoming proxy request.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NetworkClientError` if the response channel cannot be sent to.
     pub async fn send_proxy_response(
         &self,
         channel: libp2p::request_response::ResponseChannel<ProxyResponse>,
         response: ProxyResponse,
     ) -> std::result::Result<(), NetworkClientError> {
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
-            .send(Command::SendProxyResponse { channel, response: Box::new(response) })
+            .send(Command::SendProxyResponse {
+                channel,
+                response: Box::new(response),
+            })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         Ok(())
     }
 
     /// Publishes a payload redundantly to the DHT.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `PublishError` if the payload exceeds size limits or the network channel fails.
     pub async fn publish_redundant_payload(
         &self,
         name: &str,
@@ -124,7 +149,11 @@ impl NetworkClient {
             });
         }
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::PublishRedundant {
                 name: name.to_string().into(),
@@ -144,13 +173,21 @@ impl NetworkClient {
 
     /// Publish a heartbeat liveness signal to the dedicated heartbeat keyspace.
     /// This must NOT be used for Reveals or other resolution data.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `PublishError` if the network channel is closed or communication fails.
     pub async fn publish_heartbeat(
         &self,
         name: &str,
         payload_bytes: Vec<u8>,
     ) -> std::result::Result<(), PublishError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::PublishHeartbeat {
                 name: name.to_string().into(),
@@ -169,12 +206,20 @@ impl NetworkClient {
     }
 
     /// Resolves a payload redundantly from the DHT.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ResolutionError` if the item is not found or the channel is closed.
     pub async fn resolve_redundant_payload(
         &self,
         name: &str,
     ) -> std::result::Result<Vec<u8>, ResolutionError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::ResolveRedundant {
                 name: name.to_string().into(),
@@ -192,13 +237,21 @@ impl NetworkClient {
     }
 
     /// Verifies that a published record has reached a quorum of nodes.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NetworkClientError` if the network channel is closed.
     pub async fn verify_quorum(
         &self,
         name: &str,
         payload_bytes: Vec<u8>,
     ) -> std::result::Result<usize, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::VerifyQuorum {
                 name: name.to_string().into(),
@@ -211,11 +264,19 @@ impl NetworkClient {
     }
 
     /// Retrieves diagnostic JSON status of the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NetworkClientError` if the network channel is closed.
     pub async fn get_network_status(
         &self,
     ) -> std::result::Result<serde_json::Value, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::GetNetworkStatus { responder: tx })
             .await
@@ -224,9 +285,17 @@ impl NetworkClient {
     }
 
     /// Initiates a bootstrap sequence to rejoin the network.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NetworkClientError` if the network channel is closed.
     pub async fn rebootstrap_network(&self) -> std::result::Result<(), NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::Bootstrap { responder: tx })
             .await
@@ -235,6 +304,10 @@ impl NetworkClient {
     }
 
     /// Publishes a host routing record to the DHT.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NetworkClientError` if serialization fails or publishing the payload fails.
     pub async fn publish_host_routing_record(
         &self,
         record: kinetic_core::types::HostRoutingRecord,
@@ -249,6 +322,10 @@ impl NetworkClient {
     }
 
     /// Resolves a host routing record from the DHT.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NetworkClientError` if resolution fails for reasons other than not found, or deserialization fails.
     pub async fn resolve_host_routing_record(
         &self,
         host_id: &str,
@@ -267,12 +344,20 @@ impl NetworkClient {
     }
 
     /// Subscribes to a Gossipsub topic.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NetworkClientError` if the network channel is closed.
     pub async fn subscribe_gossip(
         &self,
         topic: &str,
     ) -> std::result::Result<(), NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::SubscribeGossip {
                 topic: topic.to_string().into(),
@@ -284,13 +369,21 @@ impl NetworkClient {
     }
 
     /// Broadcasts a payload to a Gossipsub topic.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NetworkClientError` if the network channel is closed.
     pub async fn broadcast_gossip(
         &self,
         topic: &str,
         payload_bytes: Vec<u8>,
     ) -> std::result::Result<(), NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         sender_clone
             .send(Command::BroadcastGossip {
                 topic: topic.to_string().into(),

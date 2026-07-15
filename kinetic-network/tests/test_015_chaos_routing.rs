@@ -1,10 +1,10 @@
 use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
 use kinetic_network::NetworkEventLoop;
 use kinetic_storage::SledStorage;
-use libp2p::{identity, PeerId, Multiaddr};
+use libp2p::{identity, Multiaddr, PeerId};
 use std::sync::Arc;
-use tempfile::tempdir;
 use std::time::Duration;
+use tempfile::tempdir;
 use tokio::task::JoinHandle;
 
 async fn spawn_test_node(
@@ -32,8 +32,11 @@ async fn spawn_test_node(
 
     let dir = tempdir().unwrap();
     let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
-    
-    let (client, event_loop) = NetworkEventLoop::new_test_node(config, keypair, storage).unwrap();
+
+    let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+        std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let (client, event_loop) =
+        NetworkEventLoop::new_test_node(config, keypair, storage, vdf_engine).unwrap();
 
     let handle = tokio::spawn(async move {
         event_loop.run().await;
@@ -50,12 +53,18 @@ async fn spawn_test_node(
 #[tokio::test]
 async fn test_chaos_routing_partition() {
     let _ = tracing_subscriber::fmt::try_init();
-    
+
     let (client1, _peer1, addr1, _handle1) = spawn_test_node(10010, vec![]).await;
     let (_client2, _peer2, addr2, handle2) = spawn_test_node(10020, vec![addr1.clone()]).await;
-    let (_client3, _peer3, addr3, handle3) = spawn_test_node(10030, vec![addr1.clone(), addr2.clone()]).await;
-    let (_client4, _peer4, addr4, _handle4) = spawn_test_node(10040, vec![addr1.clone(), addr2.clone(), addr3.clone()]).await;
-    let (client5, _peer5, _addr5, _handle5) = spawn_test_node(10050, vec![addr1.clone(), addr2.clone(), addr3.clone(), addr4.clone()]).await;
+    let (_client3, _peer3, addr3, handle3) =
+        spawn_test_node(10030, vec![addr1.clone(), addr2.clone()]).await;
+    let (_client4, _peer4, addr4, _handle4) =
+        spawn_test_node(10040, vec![addr1.clone(), addr2.clone(), addr3.clone()]).await;
+    let (client5, _peer5, _addr5, _handle5) = spawn_test_node(
+        10050,
+        vec![addr1.clone(), addr2.clone(), addr3.clone(), addr4.clone()],
+    )
+    .await;
 
     // Allow mesh to fully connect and Kademlia routing tables to populate
     tokio::time::sleep(Duration::from_millis(2000)).await;
@@ -66,12 +75,16 @@ async fn test_chaos_routing_partition() {
         "name": "chaos_key_test",
         "node_id": "node_5_chaos",
         "timestamp": 123456789
-    })).unwrap();
-    
+    }))
+    .unwrap();
+
     println!("Publishing payload from Node 5...");
     let mut publish_success = false;
     for _ in 0..10 {
-        match client5.publish_redundant_payload(test_key, test_payload.clone()).await {
+        match client5
+            .publish_redundant_payload(test_key, test_payload.clone())
+            .await
+        {
             Ok(_) => {
                 publish_success = true;
                 break;
@@ -107,7 +120,7 @@ async fn test_chaos_routing_partition() {
         }
         tokio::time::sleep(Duration::from_millis(1000)).await;
     }
-    
+
     assert!(!resolved.is_empty(), "Failed to resolve despite chaos");
     assert_eq!(resolved, test_payload);
 }

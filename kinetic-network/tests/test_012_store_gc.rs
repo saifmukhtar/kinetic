@@ -9,7 +9,16 @@ use tempfile::tempdir;
 async fn test_store_garbage_collection() {
     let dir = tempdir().unwrap();
     let storage = SledStorage::new(dir.path()).unwrap();
-    let store = KineticRecordStore::new(PeerId::random(), std::sync::Arc::new(storage), 0, std::num::NonZeroUsize::new(100).unwrap(), 100);
+    let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+        std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let store = KineticRecordStore::new(
+        PeerId::random(),
+        std::sync::Arc::new(storage),
+        0,
+        std::num::NonZeroUsize::new(100).unwrap(),
+        100,
+        vdf_engine,
+    );
 
     // In this test, we would ideally verify that expired records are cleared.
     // We can just verify the instantiation and that it can handle empty state for now.
@@ -22,7 +31,16 @@ async fn test_store_garbage_collection() {
 async fn test_store_provider_records() {
     let dir = tempdir().unwrap();
     let storage = SledStorage::new(dir.path()).unwrap();
-    let mut store = KineticRecordStore::new(PeerId::random(), std::sync::Arc::new(storage), 0, std::num::NonZeroUsize::new(100).unwrap(), 100);
+    let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+        std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let mut store = KineticRecordStore::new(
+        PeerId::random(),
+        std::sync::Arc::new(storage),
+        0,
+        std::num::NonZeroUsize::new(100).unwrap(),
+        100,
+        vdf_engine,
+    );
 
     let key = RecordKey::new(&"test_provider");
     let provider = libp2p::kad::ProviderRecord {
@@ -42,7 +60,16 @@ async fn test_store_provider_records() {
 async fn test_store_remove_provider() {
     let dir = tempdir().unwrap();
     let storage = SledStorage::new(dir.path()).unwrap();
-    let mut store = KineticRecordStore::new(PeerId::random(), std::sync::Arc::new(storage), 0, std::num::NonZeroUsize::new(100).unwrap(), 100);
+    let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+        std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let mut store = KineticRecordStore::new(
+        PeerId::random(),
+        std::sync::Arc::new(storage),
+        0,
+        std::num::NonZeroUsize::new(100).unwrap(),
+        100,
+        vdf_engine,
+    );
 
     let key = RecordKey::new(&"test_provider_remove");
     let peer = PeerId::random();
@@ -64,7 +91,16 @@ async fn test_store_remove_provider() {
 async fn test_store_provided_records() {
     let dir = tempdir().unwrap();
     let storage = SledStorage::new(dir.path()).unwrap();
-    let mut store = KineticRecordStore::new(PeerId::random(), std::sync::Arc::new(storage), 0, std::num::NonZeroUsize::new(100).unwrap(), 100);
+    let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+        std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let mut store = KineticRecordStore::new(
+        PeerId::random(),
+        std::sync::Arc::new(storage),
+        0,
+        std::num::NonZeroUsize::new(100).unwrap(),
+        100,
+        vdf_engine,
+    );
 
     let key = RecordKey::new(&"test_provided");
     let peer = PeerId::random();

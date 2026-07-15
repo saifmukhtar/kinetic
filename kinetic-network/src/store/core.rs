@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use kinetic_core::traits::StorageEngine;
-use kinetic_storage::SledStorage;
 use libp2p::kad::store::RecordStore;
-
 
 use crate::error::KineticStoreError;
 use lru::LruCache;
@@ -16,7 +14,9 @@ use crate::store::constants::*;
 pub struct KineticRecordStore {
     inner: kad::store::MemoryStore,
     /// Persistent storage backend.
-    pub storage: Arc<SledStorage>,
+    pub storage: Arc<dyn StorageEngine>,
+    /// VDF Engine used for proof validation.
+    pub vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     /// Cache of verified domain reveals.
     pub reveals_by_name: LruCache<String, kinetic_core::types::Reveal>,
     /// The latest heartbeat pulse observed for each domain.
@@ -32,7 +32,14 @@ pub struct KineticRecordStore {
 
 impl KineticRecordStore {
     /// Creates a new `KineticRecordStore` instance and restores existing state from sled storage.
-    pub fn new(local_peer_id: PeerId, storage: Arc<SledStorage>, initial_drand_round: u64, lru_cache_size: NonZeroUsize, max_reveals_per_hour: usize) -> Self {
+    pub fn new(
+        local_peer_id: PeerId,
+        storage: Arc<dyn StorageEngine>,
+        initial_drand_round: u64,
+        lru_cache_size: NonZeroUsize,
+        max_reveals_per_hour: usize,
+        vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
+    ) -> Self {
         let mut reveals_by_name = LruCache::new(lru_cache_size);
         let mut last_heartbeats_by_name = HashMap::new();
 
@@ -40,7 +47,9 @@ impl KineticRecordStore {
         if let Ok(iter) = storage.scan_prefix(KRS_REVEAL_PREFIX) {
             for (key_bytes, val_bytes) in iter {
                 let prefix_len = KRS_REVEAL_PREFIX.len();
-                if key_bytes.len() <= prefix_len { continue; }
+                if key_bytes.len() <= prefix_len {
+                    continue;
+                }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if let Ok(reveal) =
                     serde_json::from_slice::<kinetic_core::types::Reveal>(&val_bytes)
@@ -54,7 +63,9 @@ impl KineticRecordStore {
         if let Ok(iter) = storage.scan_prefix(KRS_HB_PREFIX) {
             for (key_bytes, val_bytes) in iter {
                 let prefix_len = KRS_HB_PREFIX.len();
-                if key_bytes.len() <= prefix_len { continue; }
+                if key_bytes.len() <= prefix_len {
+                    continue;
+                }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if val_bytes.len() == 8 {
                     let round = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
@@ -80,6 +91,7 @@ impl KineticRecordStore {
         Self {
             inner,
             storage,
+            vdf_engine,
             reveals_by_name,
             last_heartbeats_by_name,
             accepted_reveals_timestamps: std::collections::VecDeque::new(),
@@ -173,7 +185,6 @@ impl KineticRecordStore {
     }
 }
 
-
 impl KineticRecordStore {
     /// Attempts to put a record, returning a typed KineticStoreError on failure.
     pub fn put_record(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
@@ -192,7 +203,9 @@ impl KineticRecordStore {
 
         if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&r.value) {
             if parsed.get("hash").is_some() && parsed.get("vdf_proof").is_none() {
-                if let Ok(commitment) = serde_json::from_value::<kinetic_core::types::Commitment>(parsed) {
+                if let Ok(commitment) =
+                    serde_json::from_value::<kinetic_core::types::Commitment>(parsed)
+                {
                     tracing::info!("KineticRecordStore::put parsed Commitment");
                     let mut key = Vec::with_capacity(KRS_COMMIT_PREFIX.len() + 32);
                     key.extend_from_slice(KRS_COMMIT_PREFIX);
@@ -200,7 +213,10 @@ impl KineticRecordStore {
                     let _ = self
                         .storage
                         .put(&key, &self.current_drand_round.to_be_bytes());
-                    return self.inner.put(r).map_err(|_| KineticStoreError::PayloadTooLarge);
+                    return self
+                        .inner
+                        .put(r)
+                        .map_err(|_| KineticStoreError::PayloadTooLarge);
                 }
             } else if parsed.get("vdf_proof").is_some() {
                 if let Ok(reveal) = serde_json::from_value::<kinetic_core::types::Reveal>(parsed) {
@@ -208,26 +224,33 @@ impl KineticRecordStore {
                     self.handle_reveal(&reveal)?;
                 }
             } else if parsed.get("node_id").is_some() {
-                if let Ok(heartbeat) = serde_json::from_value::<kinetic_core::types::Heartbeat>(parsed) {
-                    tracing::info!("KineticRecordStore::put parsed Heartbeat for {}", heartbeat.name);
+                if let Ok(heartbeat) =
+                    serde_json::from_value::<kinetic_core::types::Heartbeat>(parsed)
+                {
+                    tracing::info!(
+                        "KineticRecordStore::put parsed Heartbeat for {}",
+                        heartbeat.name
+                    );
                     self.handle_heartbeat(&heartbeat)?;
                 }
             } else if parsed.get("delegation_signature").is_some() {
-                if let Ok(auth_kid) = serde_json::from_value::<kinetic_core::types::AuthorizedKid>(parsed) {
+                if let Ok(auth_kid) =
+                    serde_json::from_value::<kinetic_core::types::AuthorizedKid>(parsed)
+                {
                     let active_reveal = self.reveals_by_name.get(&auth_kid.name);
-                    if let Err(e) = super::verification::verify_authorized_kid(&auth_kid, active_reveal) {
-                        return Err(e);
-                    }
+                    super::verification::verify_authorized_kid(&auth_kid, active_reveal)?;
                 }
             } else if parsed.get("manifest").is_some() {
-                if let Ok(auth_manifest) = serde_json::from_value::<kinetic_core::types::AuthorizedManifest>(parsed) {
+                if let Ok(auth_manifest) =
+                    serde_json::from_value::<kinetic_core::types::AuthorizedManifest>(parsed)
+                {
                     let active_reveal = self.reveals_by_name.get(&auth_manifest.name);
-                    if let Err(e) = super::verification::verify_authorized_manifest(&auth_manifest, active_reveal) {
-                        return Err(e);
-                    }
+                    super::verification::verify_authorized_manifest(&auth_manifest, active_reveal)?;
                 }
             } else if parsed.get("host_id").is_some() {
-                if let Ok(host_route) = serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed) {
+                if let Ok(host_route) =
+                    serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed)
+                {
                     match crate::store::verification::verify_host_routing_record(&host_route) {
                         Ok(()) => {
                             tracing::info!("KineticRecordStore::put accepted verified HostRoutingRecord for {}", host_route.host_id);
@@ -261,7 +284,9 @@ impl KineticRecordStore {
         sled_key.extend_from_slice(b"kad_record:");
         sled_key.extend_from_slice(r.key.as_ref());
         let _ = self.storage.put(&sled_key, &r.value);
-        self.inner.put(r).map_err(|_| KineticStoreError::PayloadTooLarge)
+        self.inner
+            .put(r)
+            .map_err(|_| KineticStoreError::PayloadTooLarge)
     }
 }
 
@@ -319,6 +344,7 @@ impl kad::store::RecordStore for KineticRecordStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kinetic_storage::SledStorage;
     use libp2p::identity::Keypair;
     use tempfile::tempdir;
 
@@ -329,7 +355,16 @@ mod tests {
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
 
-        let mut store = KineticRecordStore::new(peer_id, sled_storage, 0, NonZeroUsize::new(100).unwrap(), 100);
+        let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+            std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        let mut store = KineticRecordStore::new(
+            peer_id,
+            sled_storage,
+            0,
+            NonZeroUsize::new(100).unwrap(),
+            100,
+            vdf_engine,
+        );
 
         let record = kad::Record::new(
             kad::RecordKey::new(&b"garbage".to_vec()),

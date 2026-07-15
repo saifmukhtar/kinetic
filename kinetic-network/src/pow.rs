@@ -98,11 +98,11 @@ pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
         "Mining epoch-bound S/Kademlia identity (difficulty: {} bits)...",
         difficulty
     );
-    
+
     // 16MB memory, 1 iteration, 1 parallelism
     let params = Params::new(16384, 1, 1, None).expect("Valid static Argon2 params");
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    
+
     let start = web_time::Instant::now();
 
     loop {

@@ -1,7 +1,7 @@
 use crate::client::types::{ProxyError, ProxyRequest, ProxyResponse};
 use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};
-use tokio::sync::oneshot;
 use std::sync::Arc;
+use tokio::sync::oneshot;
 
 /// Represents commands sent from the client task to the network event loop.
 #[derive(Debug)]

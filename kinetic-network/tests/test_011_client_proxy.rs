@@ -1,7 +1,6 @@
 use kinetic_network::client::types::ProxyRequest;
 use kinetic_network::client::{Command, NetworkClient};
 use libp2p::PeerId;
-use std::collections::HashMap;
 use tokio::sync::mpsc;
 
 #[tokio::test]

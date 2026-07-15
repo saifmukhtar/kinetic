@@ -6,14 +6,13 @@ use tracing::info;
 use crate::behavior::KineticBehavior;
 use crate::client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, ProxyResponse};
 use crate::store::KineticRecordStore;
-use kinetic_storage::SledStorage;
 
 impl super::core::NetworkEventLoop {
     /// Initializes a new P2P Swarm and returns the client handle and the event loop.
     pub fn new(
         config: NetworkConfig,
         local_key: libp2p::identity::Keypair,
-        storage: Arc<SledStorage>,
+        storage: Arc<dyn kinetic_core::traits::StorageEngine>,
         drand_pulse_rx: watch::Receiver<u64>,
         incoming_proxy_tx: Option<
             mpsc::Sender<(
@@ -22,6 +21,7 @@ impl super::core::NetworkEventLoop {
             )>,
         >,
         gossip_tx: Option<tokio::sync::mpsc::Sender<(String, Vec<u8>)>>,
+        vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
         info!("Initializing Kinetic P2P Swarm on {}", config.listen_addr);
 
@@ -66,15 +66,27 @@ impl super::core::NetworkEventLoop {
         let enable_mdns = config.enable_mdns;
         let lru_cache_size = config.lru_cache_size;
         let max_reveals_per_hour = config.max_reveals_per_hour;
+        let vdf_engine_clone = vdf_engine.clone();
 
         let mut swarm = builder
             .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
             .with_behaviour(move |key, relay_client| {
                 let peer_id = key.public().to_peer_id();
-                let store = KineticRecordStore::new(peer_id, storage_clone, initial_drand_pulse, lru_cache_size, max_reveals_per_hour);
+                let store = KineticRecordStore::new(
+                    peer_id,
+                    storage_clone,
+                    initial_drand_pulse,
+                    lru_cache_size,
+                    max_reveals_per_hour,
+                    vdf_engine_clone.clone(),
+                );
                 let mut kad_config = kad::Config::default();
                 kad_config
-                    .set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(format!("/{}/kad/2.0.0", kinetic_core::constants::NETWORK_ID)).unwrap()])
+                    .set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(format!(
+                        "/{}/kad/2.0.0",
+                        kinetic_core::constants::NETWORK_ID
+                    ))
+                    .unwrap()])
                     .set_max_packet_size(10 * 1024);
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 if mode == NetworkMode::LightClient {
@@ -122,7 +134,11 @@ impl super::core::NetworkEventLoop {
                 let proxy =
                     libp2p::request_response::cbor::Behaviour::<ProxyRequest, ProxyResponse>::new(
                         [(
-                            libp2p::StreamProtocol::try_from_owned(format!("/{}/proxy/1.0.0", kinetic_core::constants::NETWORK_ID)).unwrap(),
+                            libp2p::StreamProtocol::try_from_owned(format!(
+                                "/{}/proxy/1.0.0",
+                                kinetic_core::constants::NETWORK_ID
+                            ))
+                            .unwrap(),
                             libp2p::request_response::ProtocolSupport::Full,
                         )],
                         libp2p::request_response::Config::default(),
@@ -283,7 +299,9 @@ impl super::core::NetworkEventLoop {
                             if let Ok(peer_id_str) = std::str::from_utf8(&key_bytes[20..]) {
                                 if let Ok(peer_id) = peer_id_str.parse::<libp2p::PeerId>() {
                                     if val_bytes.len() == 8 {
-                                        let expire = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
+                                        let expire = u64::from_be_bytes(
+                                            val_bytes[..8].try_into().unwrap_or([0; 8]),
+                                        );
                                         let now = web_time::SystemTime::now()
                                             .duration_since(web_time::UNIX_EPOCH)
                                             .unwrap_or_default()
@@ -312,7 +330,8 @@ impl super::core::NetworkEventLoop {
     pub fn new_test_node(
         config: NetworkConfig,
         local_key: libp2p::identity::Keypair,
-        storage: Arc<SledStorage>,
+        storage: Arc<dyn kinetic_core::traits::StorageEngine>,
+        vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
         let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
             .with_tokio()
@@ -323,23 +342,38 @@ impl super::core::NetworkEventLoop {
             )?;
 
         let storage_clone = storage.clone();
-        
+        let vdf_engine_clone = vdf_engine.clone();
+
         let mut swarm = builder
             .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
             .with_behaviour(move |key, relay_client| {
                 let peer_id = key.public().to_peer_id();
-                let store = KineticRecordStore::new(peer_id, storage_clone, 0, std::num::NonZeroUsize::new(100).unwrap(), 100);
+                let store = KineticRecordStore::new(
+                    peer_id,
+                    storage_clone,
+                    0,
+                    std::num::NonZeroUsize::new(100).unwrap(),
+                    100,
+                    vdf_engine_clone.clone(),
+                );
                 let mut kad_config = kad::Config::default();
-                kad_config.set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(format!("/{}/kad/2.0.0", kinetic_core::constants::NETWORK_ID)).unwrap()]);
+                kad_config.set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(
+                    format!("/{}/kad/2.0.0", kinetic_core::constants::NETWORK_ID),
+                )
+                .unwrap()]);
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 kademlia.set_mode(Some(kad::Mode::Server));
 
                 let gossipsub = libp2p::gossipsub::Behaviour::new(
                     libp2p::gossipsub::MessageAuthenticity::Signed(key.clone()),
                     libp2p::gossipsub::ConfigBuilder::default().build().unwrap(),
-                ).unwrap();
+                )
+                .unwrap();
 
-                let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(format!("/{}/1.0.0", kinetic_core::constants::NETWORK_ID), key.public()));
+                let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(
+                    format!("/{}/1.0.0", kinetic_core::constants::NETWORK_ID),
+                    key.public(),
+                ));
                 let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::new());
 
                 KineticBehavior {
@@ -347,7 +381,17 @@ impl super::core::NetworkEventLoop {
                     dcutr: libp2p::dcutr::Behaviour::new(peer_id),
                     identify,
                     ping,
-                    proxy: libp2p::request_response::cbor::Behaviour::new([(libp2p::StreamProtocol::try_from_owned(format!("/{}/proxy/1.0.0", kinetic_core::constants::NETWORK_ID)).unwrap(), libp2p::request_response::ProtocolSupport::Full)], Default::default()),
+                    proxy: libp2p::request_response::cbor::Behaviour::new(
+                        [(
+                            libp2p::StreamProtocol::try_from_owned(format!(
+                                "/{}/proxy/1.0.0",
+                                kinetic_core::constants::NETWORK_ID
+                            ))
+                            .unwrap(),
+                            libp2p::request_response::ProtocolSupport::Full,
+                        )],
+                        Default::default(),
+                    ),
                     stream: libp2p_stream::Behaviour::new(),
                     kademlia,
                     gossipsub,
@@ -362,7 +406,7 @@ impl super::core::NetworkEventLoop {
 
         let (tx, rx) = mpsc::channel(32);
         let client = NetworkClient::new(tx.clone(), libp2p_stream::Behaviour::new().new_control());
-        
+
         let (_, drand_pulse_rx) = watch::channel(0);
 
         if !config.listen_addr.is_empty() {
@@ -373,7 +417,10 @@ impl super::core::NetworkEventLoop {
         for addr in &config.bootstrap_nodes {
             if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.iter().last() {
                 bootstrap_peers.insert(peer_id);
-                swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
+                swarm
+                    .behaviour_mut()
+                    .kademlia
+                    .add_address(&peer_id, addr.clone());
             }
             let _ = swarm.dial(addr.clone());
         }
