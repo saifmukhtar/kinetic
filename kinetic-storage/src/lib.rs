@@ -27,6 +27,9 @@ mod native {
 
     impl SledStorage {
         /// Opens or creates the Sled database at the specified directory path.
+        ///
+        /// # Errors
+        /// Returns a `StorageError` if the database cannot be opened, is locked by another process, or encounters corruption.
         pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
             let path = path.as_ref();
             match sled::open(path) {
@@ -57,6 +60,9 @@ mod native {
         }
 
         /// Opens an in-memory temporary database.
+        ///
+        /// # Errors
+        /// Returns a `StorageError` if the temporary database cannot be created or opened.
         pub fn new_temp() -> Result<Self, StorageError> {
             let db = sled::Config::new()
                 .temporary(true)
@@ -64,10 +70,10 @@ mod native {
                 .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
             Ok(Self { db })
         }
+    }
 
-        /// Iterate over all key-value pairs whose key starts with `prefix`.
-        #[allow(clippy::type_complexity)]
-        pub fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+    impl StorageEngine for SledStorage {
+        fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
             let iter = self.db.scan_prefix(prefix);
             let mut results = Vec::new();
             for item in iter {
@@ -76,9 +82,7 @@ mod native {
             }
             Ok(results)
         }
-    }
 
-    impl StorageEngine for SledStorage {
         fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
             self.db
                 .insert(key, value)
@@ -116,6 +120,9 @@ mod wasm {
 
     impl SledStorage {
         /// Mock new for Wasm
+        ///
+        /// # Errors
+        /// Returns a `StorageError` if initialization fails (currently always succeeds).
         pub fn new<P: AsRef<Path>>(_path: P) -> Result<Self, StorageError> {
             Ok(Self {
                 db: RwLock::new(BTreeMap::new()),
@@ -123,15 +130,18 @@ mod wasm {
         }
 
         /// Mock new_temp for Wasm
+        ///
+        /// # Errors
+        /// Returns a `StorageError` if initialization fails (currently always succeeds).
         pub fn new_temp() -> Result<Self, StorageError> {
             Ok(Self {
                 db: RwLock::new(BTreeMap::new()),
             })
         }
+    }
 
-        /// Mock scan_prefix for Wasm
-        #[allow(clippy::type_complexity)]
-        pub fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+    impl StorageEngine for SledStorage {
+        fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
             let db = self
                 .db
                 .read()
@@ -146,9 +156,7 @@ mod wasm {
             }
             Ok(results)
         }
-    }
 
-    impl StorageEngine for SledStorage {
         fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
             let mut db = self
                 .db
