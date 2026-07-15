@@ -1,13 +1,19 @@
 use super::*;
-use axum::{extract::{Path, State}, Json, http::StatusCode};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use tracing::{error, info, warn};
-use kinetic_core::types::{Reveal, Commitment, CommitRequest};
-use kinetic_core::traits::StorageEngine;
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
 
+use tracing::info;
 
+/// Handles API requests to resolve a Kinetic name.
+/// Searches the DHT and falls back to a local daemon backup if the name cannot be found on the network.
+///
+/// # Errors
+///
+/// Returns a tuple containing a `StatusCode` and an error JSON payload if the name is not found
+/// or if resolution fails due to network offline states or data corruption.
 pub async fn handle_resolve_name(
     State(state): State<ApiState>,
     Path(name): Path<String>,
@@ -72,6 +78,11 @@ pub async fn handle_resolve_name(
     }
 }
 
+/// Handles API requests to resolve a Kinetic Identifier (KID) and its associated manifest.
+///
+/// # Errors
+///
+/// Returns an error if the KID cannot be found in the DHT, or if the retrieved payload is invalid.
 pub async fn handle_resolve_kid(
     State(state): State<ApiState>,
     Path(did): Path<String>,
@@ -91,18 +102,19 @@ pub async fn handle_resolve_kid(
         }
     };
 
-    let kid_doc: kinetic_kid::KidDocument = match serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&kid_payload) {
-        Ok(auth) => auth.kid_doc,
-        Err(_) => {
-            // Fallback for older raw documents
-            serde_json::from_slice(&kid_payload).map_err(|_| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Invalid KID data".to_string(),
-                )
-            })?
-        }
-    };
+    let kid_doc: kinetic_kid::KidDocument =
+        match serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&kid_payload) {
+            Ok(auth) => auth.kid_doc,
+            Err(_) => {
+                // Fallback for older raw documents
+                serde_json::from_slice(&kid_payload).map_err(|_| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Invalid KID data".to_string(),
+                    )
+                })?
+            }
+        };
 
     // Try to resolve Manifest
     use sha2::{Digest, Sha256};
@@ -115,10 +127,13 @@ pub async fn handle_resolve_kid(
     });
 
     if let Ok(man_payload) = state.network.resolve_redundant_payload(&manifest_key).await {
-        let manifest_opt = match serde_json::from_slice::<kinetic_core::types::AuthorizedManifest>(&man_payload) {
-            Ok(auth) => Some(auth.manifest),
-            Err(_) => serde_json::from_slice::<kinetic_kid::CapabilityManifest>(&man_payload).ok(),
-        };
+        let manifest_opt =
+            match serde_json::from_slice::<kinetic_core::types::AuthorizedManifest>(&man_payload) {
+                Ok(auth) => Some(auth.manifest),
+                Err(_) => {
+                    serde_json::from_slice::<kinetic_kid::CapabilityManifest>(&man_payload).ok()
+                }
+            };
 
         if let Some(manifest) = manifest_opt {
             if let Ok(val) = serde_json::to_value(manifest) {

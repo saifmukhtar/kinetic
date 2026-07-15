@@ -1,30 +1,23 @@
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    routing::post,
-    Json, Router,
-};
+use axum::{extract::State, http::StatusCode, routing::post, Router};
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Reveal;
 use kinetic_network::NetworkClient;
-use kinetic_storage::SledStorage;
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{error, info};
 
+pub mod config;
 pub mod publish;
 pub mod resolve;
-pub mod config;
 pub mod vdf;
 pub mod zone;
 
+use config::*;
 use publish::*;
 use resolve::*;
-use config::*;
 use vdf::*;
 use zone::*;
+/// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
     pub status: String,
@@ -33,27 +26,31 @@ pub struct VdfTaskStatus {
     pub error: Option<String>,
 }
 
+/// Holds the global state for the API server, including network, storage, and authentication.
 #[derive(Clone)]
 pub struct ApiState {
     pub network: NetworkClient,
-    pub storage: Arc<SledStorage>,
+    pub storage: Arc<dyn StorageEngine>,
     pub vdf_tasks: Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
-    
+
     pub auth_token: String,
     pub vdf_semaphore: Arc<tokio::sync::Semaphore>,
 }
 
+/// Payload for publishing a direct reveal configuration.
 #[derive(Deserialize, Debug)]
 pub struct PublishRequest {
     pub reveal: Reveal,
 }
 
+/// Response format for a publish action.
 #[derive(Serialize)]
 pub struct PublishResponse {
     pub status: String,
     pub message: String,
 }
 
+/// Constructs the axum `Router` for the API, registering public and authenticated routes.
 pub fn app(state: ApiState) -> Router {
     use tower_http::cors::{Any, CorsLayer};
 
@@ -141,10 +138,15 @@ fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<Stri
     Ok(token)
 }
 
+/// Starts the HTTP API server on the specified port.
+///
+/// # Errors
+///
+/// Returns an error if the server fails to bind to the port or if token generation fails.
 pub async fn start_server(
     network: NetworkClient,
-    storage: Arc<SledStorage>,
-    port: u16
+    storage: Arc<dyn StorageEngine>,
+    port: u16,
 ) -> anyhow::Result<()> {
     let token_path = kinetic_core::config::get_api_token_path();
 
@@ -163,7 +165,7 @@ pub async fn start_server(
         network,
         storage,
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
-        
+
         auth_token: token,
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
     };
@@ -199,7 +201,6 @@ pub async fn start_server(
     Ok(())
 }
 
-
 async fn auth_middleware(
     State(state): State<ApiState>,
     req: axum::extract::Request,
@@ -226,7 +227,7 @@ async fn auth_middleware(
             use subtle::ConstantTimeEq;
             let header_bytes = header.as_bytes();
             let expected_bytes = expected_header.as_bytes();
-            
+
             // Note: ct_eq requires equal lengths. If lengths differ, we must fail gracefully.
             let is_valid = if header_bytes.len() == expected_bytes.len() {
                 header_bytes.ct_eq(expected_bytes).unwrap_u8() == 1
@@ -244,7 +245,7 @@ async fn auth_middleware(
                 );
                 Err(StatusCode::UNAUTHORIZED)
             }
-        },
+        }
         None => {
             tracing::warn!("Rejecting API request: Missing Authorization header");
             Err(StatusCode::UNAUTHORIZED)
@@ -257,7 +258,7 @@ mod api_tests;
 
 #[cfg(test)]
 mod proptests {
-    use super::*;
+
     use proptest::prelude::*;
     use subtle::ConstantTimeEq;
 
@@ -269,7 +270,7 @@ mod proptests {
         ) {
             let bytes_a = token_a.as_bytes();
             let bytes_b = token_b.as_bytes();
-            
+
             if bytes_a.len() == bytes_b.len() {
                 let eq = bytes_a.ct_eq(bytes_b).unwrap_u8() == 1;
                 prop_assert_eq!(eq, bytes_a == bytes_b);

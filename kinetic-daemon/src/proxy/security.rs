@@ -1,5 +1,3 @@
-use super::*;
-
 pub(crate) fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
     if ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() {
         return true;

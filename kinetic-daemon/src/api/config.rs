@@ -1,13 +1,7 @@
 use super::*;
-use axum::{extract::{Path, State}, Json, http::StatusCode};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use tracing::{error, info, warn};
-use kinetic_core::types::{Reveal, Commitment, CommitRequest};
-use kinetic_core::traits::StorageEngine;
+use axum::{extract::State, Json};
 
-
+/// Handles requests to retrieve the current daemon configuration.
 pub async fn handle_config(State(state): State<ApiState>) -> Json<serde_json::Value> {
     let config = kinetic_core::config::KineticConfig::load();
     Json(serde_json::json!({
@@ -16,6 +10,7 @@ pub async fn handle_config(State(state): State<ApiState>) -> Json<serde_json::Va
     }))
 }
 
+/// Handles requests to retrieve a list of names owned by this node.
 pub async fn handle_owned_names(State(state): State<ApiState>) -> Json<Vec<String>> {
     let owned_key = b"kinetic_owned_names";
     let owned_names: Vec<String> = match state.storage.get(owned_key) {
@@ -31,6 +26,7 @@ pub async fn handle_owned_names(State(state): State<ApiState>) -> Json<Vec<Strin
     Json(owned_names)
 }
 
+/// Handles requests to retrieve the current network status (peer count, DHT size, uptime).
 pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_json::Value> {
     match state.network.get_network_status().await {
         Ok(status) => Json(status),
@@ -43,6 +39,7 @@ pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_
     }
 }
 
+/// Handles requests to update the daemon configuration, such as changing the network mode.
 pub async fn handle_set_config(
     State(_state): State<ApiState>,
     Json(payload): Json<serde_json::Value>,
@@ -56,4 +53,3 @@ pub async fn handle_set_config(
         serde_json::json!({"status": "ok", "message": "Configuration saved. Restart daemon to apply."}),
     )
 }
-

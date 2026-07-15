@@ -208,19 +208,18 @@ pub async fn forward_to_backend_direct(
 
         // Case 199: Prevent infinite proxy loops even in Dev Mode
         // This check must happen before the dev mode bypass to protect the daemon's internal ports.
-        if ip_addr.is_loopback() || ip_addr.is_unspecified() {
-            if ip_str.contains(&format!(":{}", config.daemon.proxy_port))
+        if (ip_addr.is_loopback() || ip_addr.is_unspecified())
+            && (ip_str.contains(&format!(":{}", config.daemon.proxy_port))
                 || ip_str.contains(&format!(":{}", config.daemon.api_port))
                 || ip_str.contains(&format!(":{}", config.daemon.dns_port))
                 || ip_str.contains(&format!(":{}", config.daemon.backend_port))
                 || ip_str.contains(&format!(":{}", config.network.daemon_port))
-                || ip_str.contains(":16001")
-            // PAC port
-            {
-                return Err(ProxyError::Other(
-                    "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
-                ));
-            }
+                || ip_str.contains(":16001"))
+        // PAC port
+        {
+            return Err(ProxyError::Other(
+                "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
+            ));
         }
 
         if is_ssrf_risk(ip_addr) && !kinetic_core::config::is_dev_mode() {
@@ -356,10 +355,7 @@ pub async fn forward_to_backend_direct(
 
         let mut resp_builder = Response::builder().status(proxy_resp.status);
 
-        let strip_resp_headers = [
-            "strict-transport-security",
-            "public-key-pins",
-        ];
+        let strip_resp_headers = ["strict-transport-security", "public-key-pins"];
         for (name, value) in proxy_resp.headers {
             if strip_resp_headers.contains(&name.to_lowercase().as_str()) {
                 continue;
@@ -367,7 +363,7 @@ pub async fn forward_to_backend_direct(
             resp_builder = resp_builder.header(name.as_ref(), value.as_ref());
         }
 
-        Ok(resp_builder.body(Full::new(bytes::Bytes::from(proxy_resp.body)))?)
+        Ok(resp_builder.body(Full::new(proxy_resp.body))?)
     } else {
         warn!(
             "Payload for {} is neither an IP address, SocketAddr, nor PeerId (got {:?})",
@@ -376,4 +372,3 @@ pub async fn forward_to_backend_direct(
         Err(ProxyError::InvalidPayload)
     }
 }
-

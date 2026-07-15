@@ -1,6 +1,7 @@
 use super::super::*;
 use std::process::Command;
 
+/// Proxy configurator implementation for KDE/Plasma desktop environments using `kwriteconfig5`.
 pub struct KdeConfigurator;
 
 impl ProxyConfigurator for KdeConfigurator {
@@ -169,6 +170,7 @@ impl ProxyConfigurator for KdeConfigurator {
     }
 }
 
+/// Proxy configurator implementation for GNOME-based desktop environments using `gsettings`.
 pub struct GnomeConfigurator;
 
 impl ProxyConfigurator for GnomeConfigurator {
@@ -227,6 +229,8 @@ impl ProxyConfigurator for GnomeConfigurator {
     }
 }
 
+/// Detects the current Linux desktop environment via `XDG_CURRENT_DESKTOP`
+/// and returns the appropriate proxy configurator implementation.
 pub fn detect_linux_configurator() -> Box<dyn ProxyConfigurator> {
     let desktop = std::env::var("XDG_CURRENT_DESKTOP")
         .unwrap_or_default()

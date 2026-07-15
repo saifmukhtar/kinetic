@@ -1,13 +1,14 @@
 use super::*;
-use axum::{extract::{Path, State}, Json, http::StatusCode};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use tracing::{error, info, warn};
-use kinetic_core::types::{Reveal, Commitment, CommitRequest};
-use kinetic_core::traits::StorageEngine;
+use axum::{extract::State, http::StatusCode, Json};
 
+use tracing::{error, info};
 
+/// Handles API requests to publish a `Reveal` to the DHT.
+///
+/// # Errors
+///
+/// Returns a tuple containing a `StatusCode` and an error JSON payload if the domain name is invalid,
+/// the `Reveal` validation fails, or if publishing to the DHT fails.
 pub async fn handle_publish(
     State(state): State<ApiState>,
     Json(req): Json<PublishRequest>,
@@ -19,9 +20,7 @@ pub async fn handle_publish(
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(
-                serde_json::json!({"error": format!("Invalid domain name: {}", e)}),
-            ),
+            Json(serde_json::json!({"error": format!("Invalid domain name: {}", e)})),
         ));
     }
     // Ensure the Reveal internally matches the normalized name exactly
@@ -177,6 +176,12 @@ pub async fn handle_publish(
     }
 }
 
+/// Handles API requests to commit a name registration hash to the DHT.
+///
+/// # Errors
+///
+/// Returns an error if the domain name is invalid, the commitment hash is all-zeros,
+/// serialization fails, or DHT publishing fails.
 pub async fn handle_commit(
     State(state): State<ApiState>,
     Json(req): Json<kinetic_core::types::CommitRequest>,
@@ -188,9 +193,7 @@ pub async fn handle_commit(
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(
-                serde_json::json!({"error": format!("Invalid domain name: {}", e)}),
-            ),
+            Json(serde_json::json!({"error": format!("Invalid domain name: {}", e)})),
         ));
     }
 
@@ -272,6 +275,11 @@ pub async fn handle_commit(
     }
 }
 
+/// Handles API requests to publish an `AuthorizedKid` (Kinetic Identifier) to the DHT.
+///
+/// # Errors
+///
+/// Returns an error if the KID signature is invalid, the owner authorization fails, or publishing fails.
 pub async fn handle_publish_kid(
     State(state): State<ApiState>,
     Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
@@ -358,6 +366,12 @@ pub async fn handle_publish_kid(
     }
 }
 
+/// Handles API requests to publish an `AuthorizedManifest` to the DHT.
+///
+/// # Errors
+///
+/// Returns an error if the local owner signature check fails, the corresponding KID Document
+/// cannot be resolved or verified, or if publishing to the DHT fails.
 pub async fn handle_publish_manifest(
     State(state): State<ApiState>,
     Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,

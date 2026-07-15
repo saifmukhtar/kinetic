@@ -1,3 +1,3 @@
-pub mod network;
 pub mod gossip;
 pub mod heartbeat;
+pub mod network;

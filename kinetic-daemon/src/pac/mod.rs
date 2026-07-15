@@ -8,6 +8,7 @@ use tracing::{error, info, warn};
 pub mod os;
 
 pub use os::*;
+/// Errors that can occur when configuring the operating system proxy settings.
 #[derive(Debug, thiserror::Error)]
 pub enum ProxyConfigError {
     #[error("IO Error: {0}")]
@@ -18,12 +19,15 @@ pub enum ProxyConfigError {
     Command(String),
 }
 
+/// Represents the saved state of the OS proxy settings prior to modification,
+/// used to cleanly restore settings on shutdown.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SavedState {
     pub previous_pac_url: Option<String>,
     pub proxy_type: Option<String>,
 }
 
+/// Defines the interface for an OS-specific proxy configuration manager.
 pub trait ProxyConfigurator: Send + Sync {
     fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError>;
     fn uninstall(&self) -> Result<(), ProxyConfigError>;
@@ -31,6 +35,8 @@ pub trait ProxyConfigurator: Send + Sync {
     fn restore_state(&self, state: &SavedState) -> Result<(), ProxyConfigError>;
 }
 
+/// A fallback configurator used when the current OS or desktop environment is unsupported.
+/// Logs instructions for manual proxy setup instead of altering system settings.
 pub struct FallbackConfigurator;
 
 impl ProxyConfigurator for FallbackConfigurator {
@@ -59,6 +65,8 @@ impl ProxyConfigurator for FallbackConfigurator {
     }
 }
 
+/// Detects and returns the appropriate `ProxyConfigurator` for the current operating system
+/// and desktop environment.
 pub fn detect_configurator() -> Box<dyn ProxyConfigurator> {
     match std::env::consts::OS {
         "linux" => detect_linux_configurator(),
@@ -81,12 +89,15 @@ pub fn detect_configurator() -> Box<dyn ProxyConfigurator> {
     }
 }
 
+/// Manages the installation and uninstallation of the Proxy Auto-Configuration (PAC) file
+/// into the system settings, ensuring clean recovery across restarts.
 pub struct PacManager {
     configurator: Box<dyn ProxyConfigurator>,
     lock_path: PathBuf,
 }
 
 impl PacManager {
+    /// Creates a new `PacManager`, initializing the OS configurator and defining the lockfile path.
     pub fn new(config_dir: &std::path::Path) -> Self {
         Self {
             configurator: detect_configurator(),
@@ -94,6 +105,12 @@ impl PacManager {
         }
     }
 
+    /// Installs the PAC URL into the system proxy settings.
+    /// Safely saves the previous state to a lockfile for recovery.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ProxyConfigError` if saving the state or installing the PAC URL fails.
     pub fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError> {
         // Handle unclean shutdown recovery
         if self.lock_path.exists() {
@@ -124,6 +141,11 @@ impl PacManager {
         Ok(())
     }
 
+    /// Restores the system proxy settings to their state prior to installation, using the lockfile.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ProxyConfigError` if uninstallation or restoration commands fail.
     pub fn uninstall(&self) -> Result<(), ProxyConfigError> {
         if self.lock_path.exists() {
             match File::open(&self.lock_path).map(serde_json::from_reader::<_, SavedState>) {
@@ -144,6 +166,11 @@ impl PacManager {
     }
 }
 
+/// Starts a local HTTP server to host the `proxy.pac` file.
+///
+/// # Errors
+///
+/// Returns an error if the server fails to bind to the specified port.
 pub async fn start_pac_server(port: u16, proxy_port: u16) -> anyhow::Result<()> {
     let pac_script = format!(
         r#"

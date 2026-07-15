@@ -1,13 +1,12 @@
-
-use kinetic_core::types::Heartbeat;
-use kinetic_core::traits::StorageEngine;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
 use ed25519_dalek::Signer;
+use kinetic_core::traits::StorageEngine;
+use kinetic_core::types::Heartbeat;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
 
 pub fn start_heartbeat_loop(
-    hb_storage: Arc<kinetic_storage::SledStorage>,
+    hb_storage: Arc<dyn StorageEngine>,
     hb_network: kinetic_network::NetworkClient,
     hb_drand: Arc<kinetic_core::drand::DrandClient>,
     p2p_only: bool,
@@ -31,7 +30,8 @@ pub fn start_heartbeat_loop(
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                    let expected_round = now.saturating_sub(kinetic_core::drand::QUICKNET_GENESIS_TIME) / 3;
+                    let expected_round = (now - kinetic_core::constants::DRAND_GENESIS_TIME)
+                        / kinetic_core::constants::DRAND_PERIOD;
 
                     if expected_round > latest.round + 5 {
                         tracing::warn!(
@@ -103,7 +103,7 @@ pub fn start_heartbeat_loop(
 
                         let name_clone = name.clone();
                         let hb_network_clone = hb_network.clone();
-                        let pulse_round = pulse.round;
+                        let _pulse_round = pulse.round;
 
                         tokio::spawn(async move {
                             if let Ok(payload) = serde_json::to_vec(&heartbeat) {

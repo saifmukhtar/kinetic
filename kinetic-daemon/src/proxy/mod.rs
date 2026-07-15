@@ -4,25 +4,24 @@ use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tokio_rustls::TlsAcceptor;
 use tracing::{error, info, warn};
 
-use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
 use crate::ca::{CaError, LeafCertCache, RootCa};
+use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
 
-pub mod security;
 pub mod http;
-pub mod tunnel;
 pub mod p2p;
+pub mod security;
+pub mod tunnel;
 
-pub use security::*;
 pub use http::*;
-pub use tunnel::*;
 pub use p2p::*;
+use security::*;
+pub use tunnel::*;
 #[derive(Debug, thiserror::Error)]
 pub enum ProxyError {
     #[error("Name Not Found: {0}")]

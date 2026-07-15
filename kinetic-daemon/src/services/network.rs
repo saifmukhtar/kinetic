@@ -1,14 +1,19 @@
 use kinetic_core::traits::StorageEngine;
 
+#[allow(clippy::too_many_arguments)]
 pub fn start_pow_miner_loop(
     hc_client: kinetic_network::NetworkClient,
     hc_drand_rx: tokio::sync::watch::Receiver<u64>,
     hc_config: kinetic_network::NetworkConfig,
-    hc_storage: std::sync::Arc<kinetic_storage::SledStorage>,
-    hc_inc_tx: tokio::sync::mpsc::Sender<(kinetic_network::ProxyRequest, libp2p::request_response::ResponseChannel<kinetic_network::ProxyResponse>)>,
+    hc_storage: std::sync::Arc<dyn StorageEngine>,
+    hc_inc_tx: tokio::sync::mpsc::Sender<(
+        kinetic_network::ProxyRequest,
+        libp2p::request_response::ResponseChannel<kinetic_network::ProxyResponse>,
+    )>,
     hc_gossip_tx: tokio::sync::mpsc::Sender<(String, Vec<u8>)>,
     mut network_loop_handle: tokio::task::JoinHandle<()>,
     mut current_local_key: libp2p::identity::Keypair,
+    hc_vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut rx = hc_drand_rx.clone();
@@ -47,6 +52,7 @@ pub fn start_pow_miner_loop(
                         hc_drand_rx.clone(),
                         Some(hc_inc_tx.clone()),
                         Some(hc_gossip_tx.clone()),
+                        hc_vdf_engine.clone(),
                     ) {
                         Ok(res) => break res,
                         Err(e) => {
@@ -55,7 +61,10 @@ pub fn start_pow_miner_loop(
                                 tracing::error!("FATAL: Failed to hot-swap P2P backend: {}", e);
                                 return; // Abort miner task
                             }
-                            tracing::warn!("Port in use during hot-swap, retrying... ({}/10)", retries);
+                            tracing::warn!(
+                                "Port in use during hot-swap, retrying... ({}/10)",
+                                retries
+                            );
                             backoff *= 2;
                         }
                     }
@@ -71,10 +80,9 @@ pub fn start_pow_miner_loop(
     })
 }
 
-
 pub fn start_republisher(
     republish_network: kinetic_network::NetworkClient,
-    republish_storage: std::sync::Arc<kinetic_storage::SledStorage>,
+    republish_storage: std::sync::Arc<dyn StorageEngine>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(43200)); // 12 hours
@@ -89,9 +97,11 @@ pub fn start_republisher(
                         {
                             let rn = republish_network.clone();
                             let n = name.clone();
-                            
+
                             tokio::spawn(async move {
-                                let _ = rn.publish_redundant_payload(&n, reveal_bytes.to_vec()).await;
+                                let _ = rn
+                                    .publish_redundant_payload(&n, reveal_bytes.to_vec())
+                                    .await;
                             });
                         }
                     }
