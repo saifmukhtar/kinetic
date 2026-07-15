@@ -9,7 +9,7 @@ fn test_003_oom_payload_bomb() {
 
     let reveal = Reveal {
         protocol_version: 1,
-        name: format!("{}{}", "malicious", kinetic_core::types::DOT_TLD),
+        name: format!("{}{}", "malicious", kinetic_core::constants::TLD_SUFFIX),
         payload: oversized_payload,
         salt: [0u8; 32],
         drand_pulse: 100,
@@ -22,7 +22,6 @@ fn test_003_oom_payload_bomb() {
         signature: vec![],
         previous_proof: None,
         miner_pubkey: None,
-        points_spent: None,
     };
 
     // 2. Validate the struct. Under OLD logic, it would lack this method or it would pass.

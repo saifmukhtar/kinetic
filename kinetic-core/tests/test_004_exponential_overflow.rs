@@ -10,7 +10,7 @@ fn test_004_exponential_overflow() {
     // Under OLD logic, this might panic, return 0, or act unpredictably depending on Rust version
     // Under NEW logic, this should gracefully saturate at u64::MAX
     let iterations = params.required_iterations(
-        &format!("{}{}", "test", kinetic_core::types::DOT_TLD),
+        &format!("{}{}", "test", kinetic_core::constants::TLD_SUFFIX),
         extreme_round,
     );
 

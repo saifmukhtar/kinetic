@@ -47,6 +47,36 @@ fn main() -> Result<()> {
     println!("✅ DID Prefix: {}", did_prefix);
     println!();
 
+    let use_public_drand = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Do you want to use the public Quicknet Drand beacon (Recommended)?")
+        .default(true)
+        .interact()?;
+
+    let (drand_pubkey, drand_genesis, drand_period, drand_http) = if !use_public_drand {
+        println!("\n--- Custom Private Drand Configuration ---");
+        let pk: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Drand Public Key (Hex)")
+            .interact_text()?;
+        let genesis: u64 = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Drand Genesis Time (Unix Timestamp)")
+            .interact_text()?;
+        let period: u64 = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Drand Round Period (Seconds)")
+            .interact_text()?;
+        let endpoint: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Drand HTTP Endpoint (e.g. http://my-drand.internal)")
+            .interact_text()?;
+        (pk, genesis, period, endpoint)
+    } else {
+        (
+            "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a".to_string(),
+            1692803367,
+            3,
+            "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".to_string()
+        )
+    };
+
+    println!();
     if !Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Ready to inject these constants into the source code and compile?")
         .interact()?
@@ -56,7 +86,10 @@ fn main() -> Result<()> {
     }
 
     println!("Patching kinetic-core/src/constants.rs...");
-    patch_constants(&tld, &tld_suffix, &did_prefix, &seed_domain, &drand_domain, &network_id_str)?;
+    patch_constants(
+        &tld, &tld_suffix, &did_prefix, &seed_domain, &drand_domain, &network_id_str,
+        &drand_pubkey, drand_genesis, drand_period, &drand_http
+    )?;
     
     println!("✅ Source code patched successfully.");
     println!("Compiling the customized Kinetic network binaries (this may take a few minutes)...");
@@ -90,6 +123,10 @@ fn patch_constants(
     seed_domain: &str,
     drand_domain: &str,
     network_id: &str,
+    drand_pubkey: &str,
+    drand_genesis: u64,
+    drand_period: u64,
+    drand_http: &str,
 ) -> Result<()> {
     // Navigate to kinetic-core/src/constants.rs
     // Assuming kinetic-forge is run from the workspace root
@@ -123,6 +160,20 @@ fn patch_constants(
     // Regex replacement for NETWORK_ID
     let re_network_id = Regex::new(r#"pub const NETWORK_ID: &str = "[^"]*";"#)?;
     new_content = re_network_id.replace(&new_content, format!(r#"pub const NETWORK_ID: &str = "{}";"#, network_id)).into_owned();
+
+    // Regex replacements for Drand
+    let re_drand_genesis = Regex::new(r#"pub const DRAND_GENESIS_TIME: u64 = \d+;"#)?;
+    new_content = re_drand_genesis.replace(&new_content, format!(r#"pub const DRAND_GENESIS_TIME: u64 = {};"#, drand_genesis)).into_owned();
+
+    let re_drand_period = Regex::new(r#"pub const DRAND_PERIOD: u64 = \d+;"#)?;
+    new_content = re_drand_period.replace(&new_content, format!(r#"pub const DRAND_PERIOD: u64 = {};"#, drand_period)).into_owned();
+
+    let re_drand_pubkey = Regex::new(r#"pub const DRAND_PUBLIC_KEY: &str = "[^"]*";"#)?;
+    new_content = re_drand_pubkey.replace(&new_content, format!(r#"pub const DRAND_PUBLIC_KEY: &str = "{}";"#, drand_pubkey)).into_owned();
+
+    // Replaces the entire DRAND_HTTP_ENDPOINTS array block
+    let re_drand_endpoints = Regex::new(r#"(?s)pub const DRAND_HTTP_ENDPOINTS: &\[&str\] = &\[.*?\];"#)?;
+    new_content = re_drand_endpoints.replace(&new_content, format!(r#"pub const DRAND_HTTP_ENDPOINTS: &[&str] = &["{}"];"#, drand_http)).into_owned();
 
     fs::write(&path, new_content).context("Failed to write updated constants.rs")?;
 
