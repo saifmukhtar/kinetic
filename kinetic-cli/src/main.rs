@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 
     let cli = Cli::parse();
     let config = KineticConfig::load();
@@ -65,4 +65,17 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        // clap's built-in debug_assert checks for conflicting arguments,
+        // missing required args in definition, and structural bugs.
+        Cli::command().debug_assert();
+    }
 }

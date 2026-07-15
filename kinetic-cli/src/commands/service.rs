@@ -24,8 +24,7 @@ pub async fn handle_service_command(
     cmd: ServiceCommands,
     needs_sudo: bool,
 ) -> anyhow::Result<()> {
-    delegate_service(binary, &cmd, needs_sudo);
-    Ok(())
+    delegate_service(binary, &cmd, needs_sudo)
 }
 
 /// Delegate a lifecycle subcommand to an external Kinetic binary.
@@ -33,7 +32,7 @@ pub async fn handle_service_command(
 /// * `binary`    — name of the binary (e.g. `"kinetic-daemon"`), searched on `$PATH`
 /// * `cmd`       — which lifecycle operation was requested
 /// * `needs_sudo` — when `true` (DNS), prepend `sudo` on Unix and print a notice
-fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) {
+fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> anyhow::Result<()> {
     match cmd {
         ServiceCommands::Status => {
             if cfg!(target_os = "linux") {
@@ -48,7 +47,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) {
                         eprintln!("{} is NOT running.", binary);
                     }
                 } else {
-                    eprintln!("Failed to check status with systemctl.");
+                    anyhow::bail!("Failed to check status with systemctl.");
                 }
             } else if cfg!(target_os = "macos") {
                 let status = std::process::Command::new("launchctl")
@@ -62,12 +61,12 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) {
                         eprintln!("{} is NOT running.", binary);
                     }
                 } else {
-                    eprintln!("Failed to check status with launchctl.");
+                    anyhow::bail!("Failed to check status with launchctl.");
                 }
             } else {
                 eprintln!("Status check is not supported on this OS.");
             }
-            return;
+            return Ok(());
         }
         ServiceCommands::Logs => {
             if cfg!(target_os = "linux") {
@@ -77,14 +76,14 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) {
                     .arg("-f")
                     .status();
                 if status.is_err() {
-                    eprintln!("Failed to tail logs with journalctl.");
+                    anyhow::bail!("Failed to tail logs with journalctl.");
                 }
             } else if cfg!(target_os = "macos") {
                 eprintln!("To view logs on macOS, check /tmp/{}.err or /tmp/{}.out (or appropriate log directory).", binary, binary);
             } else {
                 eprintln!("Logs are not supported on this OS.");
             }
-            return;
+            return Ok(());
         }
         _ => {}
     }
@@ -122,7 +121,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) {
         eprintln!("  Install it and make sure it is available on your PATH,");
         eprintln!("  then re-run this command.");
         eprintln!();
-        std::process::exit(1);
+        anyhow::bail!("{} not found on PATH.", binary);
     }
 
     // DNS requires root — warn the user before asking for their password.
@@ -144,14 +143,8 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) {
     };
 
     match status {
-        Ok(s) if s.success() => {}
-        Ok(s) => {
-            eprintln!("'{}' exited with status: {}", binary, s);
-            std::process::exit(s.code().unwrap_or(1));
-        }
-        Err(e) => {
-            eprintln!("Failed to run '{}': {}", binary, e);
-            std::process::exit(1);
-        }
+        Ok(s) if s.success() => Ok(()),
+        Ok(s) => anyhow::bail!("'{}' exited with status: {}", binary, s),
+        Err(e) => anyhow::bail!("Failed to run '{}': {}", binary, e),
     }
 }
