@@ -6,10 +6,11 @@ members = [
     "kinetic-storage",
     "kinetic-dns",
     "kinetic-daemon", "kinetic-cli", "kinetic-test", "kinetic-kid", "kinetic-node",
-    "kinetic-host", "kinetic-keygen", "kinetic-wasm",
+    "kinetic-host", "kinetic-keygen", "kinetic-wasm", "kinetic-forge",
 ]
 exclude = [
     "kinetic-core/fuzz",
+    "kinetic-daemon/fuzz",
     "axum_test",
 ]
 resolver = "2"

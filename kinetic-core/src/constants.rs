@@ -19,3 +19,7 @@ pub const SEED_DOMAIN: &str = "seed.saifmukhtar.dev";
 
 /// The default domain for discovering Drand randomness beacon endpoints via DNS TXT records.
 pub const DRAND_DOMAIN: &str = "drand.saifmukhtar.dev";
+
+/// The unique Network ID used to isolate P2P protocols (Kademlia, Gossipsub) and local mDNS discovery.
+/// Must be changed when creating an isolated fork.
+pub const NETWORK_ID: &str = "kinetic";
