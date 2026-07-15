@@ -4,6 +4,10 @@ use kinetic_core::governance::{
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// Handles incoming governance gossip messages over the P2P network.
+/// 
+/// Parses the signed governance message and applies it to the global governance state if valid.
+/// Any resulting updates to the governance state are then persisted to disk.
 pub fn handle_kinetic_governance_gossip(payload: &[u8], gossip_gov_path: Arc<PathBuf>) {
     if let Ok(signed_msg) = serde_json::from_slice::<SignedGovernanceMessage>(payload) {
         let mut state = GLOBAL_GOVERNANCE_STATE
@@ -114,5 +118,24 @@ mod tests {
 
         // Should not panic when `state.save_to_disk` returns an Err
         handle_kinetic_governance_gossip(&payload, path);
+    }
+}
+
+#[cfg(test)]
+mod fuzzing {
+    use super::*;
+    use proptest::prelude::*;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    proptest! {
+        #[test]
+        fn doesnt_crash_on_random_gossip_bytes(
+            raw_payload in any::<Vec<u8>>()
+        ) {
+            let dir = tempdir().unwrap();
+            let path = Arc::new(dir.path().join("gov.bin"));
+            handle_kinetic_governance_gossip(&raw_payload, path);
+        }
     }
 }

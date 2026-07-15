@@ -68,9 +68,7 @@ fn install_service() -> Result<()> {
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["start"
-            .parse()
-            .map_err(|_| anyhow::anyhow!("Failed to parse start"))?],
+        args: vec!["start".into()],
         contents: None,
         username: None,
         working_directory: None,
@@ -147,11 +145,12 @@ async fn run_node() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
+    let default_storage = kinetic_core::config::get_base_dir().join("node_db");
     let storage_path = config
         .daemon
         .storage_dir
         .to_str()
-        .unwrap_or("/tmp/kinetic_db");
+        .unwrap_or(default_storage.to_str().unwrap_or("/tmp/kinetic_db"));
     let storage = Arc::new(SledStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
@@ -185,12 +184,32 @@ async fn run_node() -> Result<()> {
     // 5. Initialize P2P Network
     let network_config = NetworkConfig {
         mode: NetworkMode::FullNode,
-        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port),
-        bootstrap_nodes: config.network.bootstrap_nodes.clone(),
-        seed_domains: config.network.seed_domains.clone(),
+        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port)
+            .parse()
+            .map_err(|e| anyhow::anyhow!("Failed to parse listen_addr: {}", e))?,
+        bootstrap_nodes: config
+            .network
+            .bootstrap_nodes
+            .iter()
+            .filter_map(|s| s.parse().ok())
+            .collect(),
+        seed_domains: config
+            .network
+            .seed_domains
+            .clone()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         enable_mdns: false,
         initial_drand_pulse,
-        external_address: config.network.external_address.clone(),
+        external_address: config
+            .network
+            .external_address
+            .as_ref()
+            .and_then(|a| a.parse().ok()),
+        max_reveals_per_hour: 100,
+        lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+        disable_pow: false,
     };
 
     let base_config_dir = dirs::config_dir()
@@ -208,6 +227,8 @@ async fn run_node() -> Result<()> {
 
     let (incoming_tx, _incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, mut gossip_rx) = tokio::sync::mpsc::channel(100);
+    let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
+        Arc::new(kinetic_vdf::ChiaVdfEngine::new());
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config,
         local_key,
@@ -215,6 +236,7 @@ async fn run_node() -> Result<()> {
         drand_pulse_rx,
         Some(incoming_tx),
         Some(gossip_tx),
+        vdf_engine.clone(),
     )?;
 
     // Subscribe to Quicknet Pulse Gossip
@@ -268,12 +290,13 @@ async fn run_node() -> Result<()> {
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                    let expected_round = now.saturating_sub(1691584200) / 3;
+                    let estimated_round = (now - kinetic_core::constants::DRAND_GENESIS_TIME)
+                        / kinetic_core::constants::DRAND_PERIOD;
 
-                    if expected_round > latest.round + 5 {
+                    if estimated_round > latest.round + 5 {
                         tracing::warn!(
                             "P2P Drand fallback triggered! We are behind by {} rounds.",
-                            expected_round.saturating_sub(latest.round)
+                            estimated_round.saturating_sub(latest.round)
                         );
                         should_fetch_http = true;
                     }
