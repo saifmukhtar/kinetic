@@ -19,7 +19,8 @@ fn test_005_cpu_starvation_race() {
     thread::sleep(Duration::from_millis(50));
 
     // The main thread tries to acquire the lock non-blocking
-    let lock_path = std::env::temp_dir().join("kinetic_vdf.lock");
+    let lock_dir = dirs::runtime_dir().expect("Could not find secure runtime directory for test");
+    let lock_path = lock_dir.join("kinetic_vdf.lock");
     // Ensure the file exists
     let lock_file = File::create(&lock_path).unwrap();
 
