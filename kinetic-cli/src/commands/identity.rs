@@ -3,6 +3,7 @@ use kinetic_core::config::KineticConfig;
 use reqwest::Client;
 use tracing::{info, warn};
 
+/// Available subcommands for identity operations.
 #[derive(Subcommand)]
 pub enum IdentityCommands {
     /// Create a new Kinetic Identity Document (KID) keypair and JSON file
@@ -24,6 +25,14 @@ pub enum IdentityCommands {
     Resolve { did: String },
 }
 
+/// Dispatches identity-related CLI subcommands.
+///
+/// Handles operations such as creating Kinetic Identity Documents, publishing them
+/// to the network via the local daemon, and resolving identities from the network.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if key generation fails, file reading/writing fails,
+/// or network requests are unsuccessful.
 pub async fn handle_identity_command(
     cmd: IdentityCommands,
     config: &KineticConfig,
@@ -41,7 +50,11 @@ pub async fn handle_identity_command(
             let mut hasher = sha2::Sha256::new();
             use sha2::Digest;
             hasher.update(keypair.verifying_key().to_bytes());
-            let did_str = format!("{}{}", kinetic_core::constants::DID_PREFIX, hex::encode(hasher.finalize()));
+            let did_str = format!(
+                "{}{}",
+                kinetic_core::constants::DID_PREFIX,
+                hex::encode(hasher.finalize())
+            );
 
             let kid_did = kinetic_kid::did::KineticDid::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
@@ -62,7 +75,9 @@ pub async fn handle_identity_command(
                 signature: None,
             };
 
-            let signed_doc = doc.sign(&keypair).map_err(|e| anyhow::anyhow!("Failed to sign KID: {}", e))?;
+            let signed_doc = doc
+                .sign(&keypair)
+                .map_err(|e| anyhow::anyhow!("Failed to sign KID: {}", e))?;
             let json_data = serde_json::to_string_pretty(&signed_doc)?;
 
             std::fs::write(&output, json_data)?;
@@ -194,7 +209,10 @@ mod tests {
         let doc: kinetic_kid::document::KidDocument = serde_json::from_str(&data).unwrap();
 
         assert_eq!(doc.doc_type, "kinetic.kid.v1");
-        assert!(doc.kid.as_str().starts_with(kinetic_core::constants::DID_PREFIX));
+        assert!(doc
+            .kid
+            .as_str()
+            .starts_with(kinetic_core::constants::DID_PREFIX));
         assert!(!doc.controller_keys.is_empty());
         assert!(doc.signature.is_some());
 
