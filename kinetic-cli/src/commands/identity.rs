@@ -41,7 +41,7 @@ pub async fn handle_identity_command(
             let mut hasher = sha2::Sha256::new();
             use sha2::Digest;
             hasher.update(keypair.verifying_key().to_bytes());
-            let did_str = format!("did:kin:{}", hex::encode(hasher.finalize()));
+            let did_str = format!("{}{}", kinetic_core::constants::DID_PREFIX, hex::encode(hasher.finalize()));
 
             let kid_did = kinetic_kid::did::KineticDid::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
@@ -50,7 +50,7 @@ pub async fn handle_identity_command(
                 kid: kid_did,
                 created_at: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .expect("Time went backwards")
+                    .unwrap_or_default()
                     .as_secs(),
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: format!("{}#primary", did_str),
@@ -62,7 +62,7 @@ pub async fn handle_identity_command(
                 signature: None,
             };
 
-            let signed_doc = doc.sign(&keypair).expect("Failed to sign KID");
+            let signed_doc = doc.sign(&keypair).map_err(|e| anyhow::anyhow!("Failed to sign KID: {}", e))?;
             let json_data = serde_json::to_string_pretty(&signed_doc)?;
 
             std::fs::write(&output, json_data)?;
@@ -194,7 +194,7 @@ mod tests {
         let doc: kinetic_kid::document::KidDocument = serde_json::from_str(&data).unwrap();
 
         assert_eq!(doc.doc_type, "kinetic.kid.v1");
-        assert!(doc.kid.as_str().starts_with("did:kin:"));
+        assert!(doc.kid.as_str().starts_with(kinetic_core::constants::DID_PREFIX));
         assert!(!doc.controller_keys.is_empty());
         assert!(doc.signature.is_some());
 
@@ -224,7 +224,7 @@ mod tests {
                 "/resolve-kid/{did}",
                 get(
                     |axum::extract::Path(did): axum::extract::Path<String>| async move {
-                        if did == "did:kin:valid" {
+                        if did == format!("{}valid", kinetic_core::constants::DID_PREFIX) {
                             axum::response::Response::builder()
                                 .status(200)
                                 .body(axum::body::Body::from("valid data"))
@@ -252,14 +252,14 @@ mod tests {
 
         // 1. Resolve valid DID
         let cmd = IdentityCommands::Resolve {
-            did: "did:kin:valid".to_string(),
+            did: format!("{}valid", kinetic_core::constants::DID_PREFIX),
         };
         let res = handle_identity_command(cmd, &config, &client).await;
         assert!(res.is_ok());
 
         // 2. Resolve invalid DID
         let cmd2 = IdentityCommands::Resolve {
-            did: "did:kin:invalid".to_string(),
+            did: format!("{}invalid", kinetic_core::constants::DID_PREFIX),
         };
         let res2 = handle_identity_command(cmd2, &config, &client).await;
         assert!(res2.is_ok()); // Logs error but does not fail the process
@@ -268,7 +268,7 @@ mod tests {
         let cmd3 = IdentityCommands::Publish {
             kid: "nonexistent.json".to_string(),
             manifest: "nonexistent.json".to_string(),
-            name: "test.kin".to_string(),
+            name: format!("test{}", kinetic_core::constants::TLD_SUFFIX),
         };
         let res3 = handle_identity_command(cmd3, &config, &client).await;
         assert!(res3.is_ok()); // Logs skipping

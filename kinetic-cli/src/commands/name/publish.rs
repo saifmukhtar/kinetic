@@ -1,0 +1,129 @@
+use crate::utils::{parse_and_format_api_error, save_zone_file};
+use ed25519_dalek::Signer;
+use kinetic_core::config::{get_zones_dir, KineticConfig};
+use kinetic_core::types::{load_keypair, Commitment, Reveal};
+use sha2::Digest;
+use reqwest::Client;
+use serde_json::json;
+use std::time::Duration;
+use tracing::{info, warn};
+
+pub async fn update_zone_logic(
+    fqdn: String,
+    zone: kinetic_core::types::DnsZone,
+    config: &KineticConfig,
+    client: &Client,
+    _display_val: String,
+) -> anyhow::Result<()> {
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
+        tracing::error!(
+            "Invalid domain name '{}': {}",
+            fqdn, e
+        );
+        return Ok(());
+    }
+    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let keypair = load_keypair(&identity_path.to_string_lossy())?;
+
+    // Check for local reveal file first for massive UX improvement
+    let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
+    let mut existing_reveal: Reveal = if reveal_path.exists() {
+        let content = std::fs::read_to_string(&reveal_path)?;
+        serde_json::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("Local reveal file corrupted: {}", e))?
+    } else {
+        let resolve_url = format!(
+            "http://127.0.0.1:{}/resolve/{}",
+            config.daemon.api_port, fqdn
+        );
+        let resolve_res = client.get(&resolve_url).send().await?;
+        if !resolve_res.status().is_success() {
+            let status = resolve_res.status();
+            let text = resolve_res.text().await.unwrap_or_default();
+            let msg = parse_and_format_api_error(
+                "Failed to resolve existing name from DHT",
+                status,
+                &text,
+            );
+            return Err(anyhow::anyhow!("No local reveal file found, and {}", msg));
+        }
+        resolve_res.json().await?
+    };
+
+    let challenge_bytes =
+        hex::decode(&existing_reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(existing_reveal.name.as_bytes());
+    hasher.update(existing_reveal.salt);
+    hasher.update(&challenge_bytes);
+    hasher.update(&existing_reveal.pubkey);
+    let mut hash = [0u8; 32];
+    hash.copy_from_slice(&hasher.finalize());
+    let commit_res = client
+        .post(format!(
+            "http://127.0.0.1:{}/commit",
+            config.daemon.api_port
+        ))
+        .json(&kinetic_core::types::CommitRequest {
+            name: fqdn.clone(),
+            commitment: Commitment { hash },
+        })
+        .send()
+        .await?;
+    if !commit_res.status().is_success() {
+        let status = commit_res.status();
+        let text = commit_res.text().await.unwrap_or_default();
+        return Err(anyhow::anyhow!(
+            "{}",
+            parse_and_format_api_error("Commit failed", status, &text)
+        ));
+    }
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    existing_reveal.payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
+    let signable = existing_reveal.signable_bytes();
+    existing_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
+    let response = client
+        .post(format!(
+            "http://127.0.0.1:{}/publish",
+            config.daemon.api_port
+        ))
+        .json(&json!({"reveal": existing_reveal}))
+        .send()
+        .await?;
+    if response.status().is_success() {
+        info!("Success! {} updated.", fqdn);
+        let _ = save_zone_file(&fqdn, &zone);
+        let reveal_str = serde_json::to_string_pretty(&existing_reveal)?;
+        let _ = std::fs::write(&reveal_path, reveal_str);
+    } else {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        warn!(
+            "Daemon returned an error updating zone: {}",
+            parse_and_format_api_error("Publish zone error", status, &text)
+        );
+    }
+    Ok(())
+}
+
+pub async fn handle(name: String, config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
+            let fqdn = kinetic_core::types::normalize_name(&name);
+            let mut zone_file = get_zones_dir();
+            zone_file.push(format!("{}.json", fqdn));
+
+            if !zone_file.exists() {
+                return Err(anyhow::anyhow!(
+                    "No zone file found at {}. Please create it or run 'register' first.",
+                    zone_file.display()
+                ));
+            }
+
+            let file_contents = std::fs::read_to_string(&zone_file)?;
+            let zone: kinetic_core::types::DnsZone =
+                serde_json::from_str(&file_contents).map_err(|e| {
+                    anyhow::anyhow!("Invalid DnsZone JSON in {}: {}", zone_file.display(), e)
+                })?;
+
+            update_zone_logic(fqdn, zone, config, client, "ZonePublish".to_string()).await?;
+    Ok(())
+}

@@ -21,9 +21,9 @@ pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
     match cmd {
         SeedCommands::Init => {
             let mut entropy = [0u8; 32];
-            fill(&mut entropy).expect("Failed to generate random entropy");
+            fill(&mut entropy).map_err(|e| anyhow::anyhow!("Failed to generate random entropy: {}", e))?;
             let mnemonic = Mnemonic::from_entropy_in(Language::English, &entropy)
-                .expect("Failed to generate mnemonic");
+                .map_err(|e| anyhow::anyhow!("Failed to generate mnemonic: {}", e))?;
             let phrase = mnemonic.to_string();
 
             println!("========================================================");
