@@ -6,6 +6,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
+/// Resolves a `.kin` domain by querying the daemon API and checking the local cache.
+/// Returns standard DNS records (A, AAAA, CNAME, TXT) converted from the Kinetic DHT `DnsZone`.
+#[allow(clippy::too_many_arguments)]
 pub async fn resolve_kinetic<R: ResponseHandler>(
     request: &Request,
     mut response_handle: R,
@@ -19,14 +22,14 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
     http_client: &reqwest::Client,
 ) -> ResponseInfo {
     let query = request.query();
-    
+
     // Intercept Category 1 PUBLIC_NAMES
     let parts: Vec<&str> = apex_domain.split('.').collect();
     if !parts.is_empty() && kinetic_core::types::PUBLIC_NAMES.contains(&parts[0]) {
         if parts[0] == "localhost" {
             let mut response_records = Vec::new();
             let name = Name::from_str(query_name).unwrap_or_else(|_| Name::root());
-            
+
             if query.query_type() == hickory_proto::rr::RecordType::A {
                 response_records.push(Record::from_rdata(
                     name.clone(),
@@ -65,7 +68,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
             }
         } else {
             // For all other PUBLIC_NAMES, instantly return NXDOMAIN (Not Found)
-            let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
+            let response =
+                builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
             let _ = response_handle.send_response(response).await;
             header.set_response_code(hickory_proto::op::ResponseCode::NXDomain);
             return header.into();
@@ -113,134 +117,121 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
             info!("Successfully resolved .kin from Cache/DHT");
 
             match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload_bytes) {
-                Ok(reveal) => {
-                    match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
-                        Ok(zone) => {
-                            let subdomain = if domain_name == apex_domain {
+                Ok(reveal) => match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
+                    Ok(zone) => {
+                        let subdomain = if domain_name == apex_domain {
+                            "@".to_string()
+                        } else {
+                            let mut sub = domain_name
+                                .trim_end_matches(&format!(".{}", apex_domain))
+                                .to_string();
+                            if sub.ends_with('.') {
+                                sub.pop();
+                            }
+                            if sub.is_empty() {
                                 "@".to_string()
                             } else {
-                                let mut sub = domain_name
-                                    .trim_end_matches(&format!(".{}", apex_domain))
-                                    .to_string();
-                                if sub.ends_with('.') {
-                                    sub.pop();
-                                }
-                                if sub.is_empty() {
-                                    "@".to_string()
-                                } else {
-                                    sub
-                                }
-                            };
+                                sub
+                            }
+                        };
 
-                            if let Some(records) = zone
-                                .records
-                                .get(&subdomain)
-                                .or_else(|| zone.records.get("*"))
-                            {
-                                let name = match Name::from_str(query_name) {
-                                    Ok(n) => n,
-                                    Err(e) => {
-                                        error!("Invalid query name format: {}", e);
-                                        let response = builder.error_msg(
-                                            request.header(),
-                                            hickory_proto::op::ResponseCode::FormErr,
-                                        );
-                                        let _ =
-                                            response_handle.send_response(response).await;
-                                        header.set_response_code(
-                                            hickory_proto::op::ResponseCode::FormErr,
-                                        );
-                                        return header.into();
-                                    }
-                                };
-                                let q_type = query.query_type();
-                                let mut response_records = Vec::new();
-
-                                for record in records {
-                                    match record {
-                                        kinetic_core::types::DnsRecord::A(ip)
-                                            if q_type
-                                                == hickory_proto::rr::RecordType::A =>
-                                        {
-                                            response_records.push(Record::from_rdata(
-                                                name.clone(),
-                                                60,
-                                                RData::A((*ip).into()),
-                                            ));
-                                        }
-                                        kinetic_core::types::DnsRecord::AAAA(ip)
-                                            if q_type
-                                                == hickory_proto::rr::RecordType::AAAA =>
-                                        {
-                                            response_records.push(Record::from_rdata(
-                                                name.clone(),
-                                                60,
-                                                RData::AAAA((*ip).into()),
-                                            ));
-                                        }
-                                        kinetic_core::types::DnsRecord::CNAME(target)
-                                            if q_type
-                                                == hickory_proto::rr::RecordType::CNAME =>
-                                        {
-                                            if let Ok(cname) = Name::from_str(target) {
-                                                response_records.push(Record::from_rdata(
-                                                    name.clone(),
-                                                    60,
-                                                    RData::CNAME(
-                                                        hickory_proto::rr::rdata::CNAME(
-                                                            cname,
-                                                        ),
-                                                    ),
-                                                ));
-                                            }
-                                        }
-                                        kinetic_core::types::DnsRecord::TXT(txt)
-                                            if q_type
-                                                == hickory_proto::rr::RecordType::TXT =>
-                                        {
-                                            response_records.push(Record::from_rdata(
-                                                name.clone(),
-                                                60,
-                                                RData::TXT(
-                                                    hickory_proto::rr::rdata::TXT::new(
-                                                        vec![txt.clone()],
-                                                    ),
-                                                ),
-                                            ));
-                                        }
-                                        _ => {}
-                                    }
-                                }
-
-                                if !response_records.is_empty() {
-                                    header.set_response_code(
-                                        hickory_proto::op::ResponseCode::NoError,
-                                    );
-                                    let response = builder.build(
-                                        header,
-                                        response_records.iter(),
-                                        std::iter::empty(),
-                                        std::iter::empty(),
-                                        std::iter::empty(),
+                        if let Some(records) = zone
+                            .records
+                            .get(&subdomain)
+                            .or_else(|| zone.records.get("*"))
+                        {
+                            let name = match Name::from_str(query_name) {
+                                Ok(n) => n,
+                                Err(e) => {
+                                    error!("Invalid query name format: {}", e);
+                                    let response = builder.error_msg(
+                                        request.header(),
+                                        hickory_proto::op::ResponseCode::FormErr,
                                     );
                                     let _ = response_handle.send_response(response).await;
+                                    header.set_response_code(
+                                        hickory_proto::op::ResponseCode::FormErr,
+                                    );
                                     return header.into();
                                 }
-                            } else {
-                                warn!("No records found for subdomain: {}", subdomain);
+                            };
+                            let q_type = query.query_type();
+                            let mut response_records = Vec::new();
+
+                            for record in records {
+                                match record {
+                                    kinetic_core::types::DnsRecord::A(ip)
+                                        if q_type == hickory_proto::rr::RecordType::A =>
+                                    {
+                                        response_records.push(Record::from_rdata(
+                                            name.clone(),
+                                            60,
+                                            RData::A((*ip).into()),
+                                        ));
+                                    }
+                                    kinetic_core::types::DnsRecord::AAAA(ip)
+                                        if q_type == hickory_proto::rr::RecordType::AAAA =>
+                                    {
+                                        response_records.push(Record::from_rdata(
+                                            name.clone(),
+                                            60,
+                                            RData::AAAA((*ip).into()),
+                                        ));
+                                    }
+                                    kinetic_core::types::DnsRecord::CNAME(target)
+                                        if q_type == hickory_proto::rr::RecordType::CNAME =>
+                                    {
+                                        if let Ok(cname) = Name::from_str(target) {
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::CNAME(hickory_proto::rr::rdata::CNAME(
+                                                    cname,
+                                                )),
+                                            ));
+                                        }
+                                    }
+                                    kinetic_core::types::DnsRecord::TXT(txt)
+                                        if q_type == hickory_proto::rr::RecordType::TXT =>
+                                    {
+                                        response_records.push(Record::from_rdata(
+                                            name.clone(),
+                                            60,
+                                            RData::TXT(hickory_proto::rr::rdata::TXT::new(vec![
+                                                txt.clone(),
+                                            ])),
+                                        ));
+                                    }
+                                    _ => {}
+                                }
                             }
+
+                            if !response_records.is_empty() {
+                                header.set_response_code(hickory_proto::op::ResponseCode::NoError);
+                                let response = builder.build(
+                                    header,
+                                    response_records.iter(),
+                                    std::iter::empty(),
+                                    std::iter::empty(),
+                                    std::iter::empty(),
+                                );
+                                let _ = response_handle.send_response(response).await;
+                                return header.into();
+                            }
+                        } else {
+                            warn!("No records found for subdomain: {}", subdomain);
                         }
-                        Err(e) => warn!("Payload was not a valid DnsZone: {}", e),
                     }
-                }
+                    Err(e) => warn!("Payload was not a valid DnsZone: {}", e),
+                },
                 Err(e) => warn!("Payload was not a valid Reveal tuple: {}", e),
             }
         }
         Ok(None) => warn!("No payload found for .kin query (NXDOMAIN cached)"),
         Err(e) => {
             error!("Error resolving .kin query via DHT/Cache: {:?}", e);
-            let response = builder
-                .error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
+            let response =
+                builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
             let _ = response_handle.send_response(response).await;
             header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
             return header.into();
@@ -248,8 +239,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
     }
 
     // No matching records found after a successful resolution — return NXDOMAIN.
-    let response =
-        builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
+    let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
     let _ = response_handle.send_response(response).await;
     header.set_response_code(hickory_proto::op::ResponseCode::NXDomain);
     header.into()
