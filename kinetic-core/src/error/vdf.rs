@@ -36,6 +36,9 @@ pub enum VdfError {
     /// The current architecture or OS is not supported by the embedded chiavdf library.
     #[error("VDF operation is unsupported on this platform")]
     UnsupportedPlatform,
+    /// The proof exceeds acceptable bounds or is malformed before parsing.
+    #[error("VDF proof is structurally invalid or too large")]
+    InvalidProof,
 }
 
 impl VdfError {
@@ -47,6 +50,7 @@ impl VdfError {
             Self::DiscriminantError => "KIN-VDF-003",
             Self::ProofGenerationError => "KIN-VDF-004",
             Self::UnsupportedPlatform => "KIN-VDF-005",
+            Self::InvalidProof => "KIN-VDF-006",
         }
     }
 
@@ -59,7 +63,7 @@ impl VdfError {
     pub fn severity(&self) -> Severity {
         match self {
             Self::LockFileError(_) | Self::LockAcquireError(_) => Severity::Error,
-            Self::DiscriminantError | Self::ProofGenerationError => Severity::Error,
+            Self::DiscriminantError | Self::ProofGenerationError | Self::InvalidProof => Severity::Error,
             Self::UnsupportedPlatform => Severity::Critical,
         }
     }

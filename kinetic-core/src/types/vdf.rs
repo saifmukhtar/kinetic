@@ -79,7 +79,6 @@ pub struct Reveal {
     pub signature: Vec<u8>,
     pub previous_proof: Option<PreviousProof>,
     pub miner_pubkey: Option<Vec<u8>>,
-    pub points_spent: Option<u64>,
 }
 
 impl Reveal {
@@ -126,11 +125,6 @@ impl Reveal {
         if let Some(miner_pk) = &self.miner_pubkey {
             capacity += 4 + miner_pk.len();
         }
-        
-        capacity += 1; // points_spent option flag
-        if self.points_spent.is_some() {
-            capacity += 8;
-        }
 
         let mut bytes = Vec::with_capacity(capacity);
         bytes.push(self.protocol_version);
@@ -172,13 +166,6 @@ impl Reveal {
             bytes.push(0);
         }
 
-        if let Some(points) = self.points_spent {
-            bytes.push(1);
-            bytes.extend_from_slice(&points.to_be_bytes());
-        } else {
-            bytes.push(0);
-        }
-
         bytes
     }
 }
@@ -211,7 +198,6 @@ mod tests {
             signature: vec![],
             previous_proof: None,
             miner_pubkey: None,
-            points_spent: None,
         };
         let bytes = reveal.signable_bytes();
         assert_eq!(bytes[0], 2);

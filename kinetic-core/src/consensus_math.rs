@@ -50,7 +50,7 @@ impl ConsensusParams {
         let normalized_name = crate::types::normalize_name(name);
 
         let label = normalized_name
-            .strip_suffix(".kin")
+            .strip_suffix(crate::constants::TLD_SUFFIX)
             .unwrap_or(&normalized_name);
         self.required_iterations_by_length(label.len(), current_round)
     }

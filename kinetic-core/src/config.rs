@@ -74,7 +74,7 @@ fn default_drand_endpoints() -> Vec<String> {
 }
 
 fn default_drand_seed_domains() -> Vec<String> {
-    vec!["drand.saifmukhtar.dev".to_string()]
+    vec![crate::constants::DRAND_DOMAIN.to_string()]
 }
 
 impl Default for DrandConfig {
@@ -208,7 +208,7 @@ impl Default for KineticConfig {
                     "/ip4/100.60.156.241/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc".to_string(),
                 ],
                 seed_domains: vec![
-                    "seed.saifmukhtar.dev".to_string(),
+                    crate::constants::SEED_DOMAIN.to_string(),
                 ],
                 enable_mdns: true,
                 external_address: None,
