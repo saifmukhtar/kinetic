@@ -69,9 +69,6 @@ pub enum KineticStoreError {
     /// Missing prior commitment in DHT
     #[error("no prior commitment found in DHT")]
     MissingCommitment,
-    /// Insufficient points to spend on reveal
-    #[error("insufficient points to spend on reveal")]
-    InsufficientPoints,
 }
 
 impl KineticStoreError {
@@ -95,8 +92,7 @@ impl KineticStoreError {
             | Self::StaleHeartbeat
             | Self::InvalidHostRouteSignature
             | Self::StaleReveal
-            | Self::MissingCommitment
-            | Self::InsufficientPoints => Severity::Error,
+            | Self::MissingCommitment => Severity::Error,
         }
     }
 

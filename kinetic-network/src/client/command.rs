@@ -1,6 +1,7 @@
 use crate::client::types::{ProxyError, ProxyRequest, ProxyResponse};
 use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};
 use tokio::sync::oneshot;
+use std::sync::Arc;
 
 /// Represents commands sent from the client task to the network event loop.
 #[derive(Debug)]
@@ -8,7 +9,7 @@ pub enum Command {
     /// Publish a record to the DHT redundantly.
     PublishRedundant {
         /// The name under which to publish.
-        name: String,
+        name: Arc<str>,
         /// The serialized payload.
         payload: Vec<u8>,
         /// Channel to return the result.
@@ -22,7 +23,7 @@ pub enum Command {
     /// Publish a heartbeat to maintain domain ownership.
     PublishHeartbeat {
         /// The domain name.
-        name: String,
+        name: Arc<str>,
         /// The heartbeat payload.
         payload: Vec<u8>,
         /// Channel to return the result.
@@ -31,14 +32,14 @@ pub enum Command {
     /// Resolve a domain name from the DHT redundantly.
     ResolveRedundant {
         /// The domain name.
-        name: String,
+        name: Arc<str>,
         /// Channel to return the resolved payload.
         responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
     },
     /// Verify that a record has been replicated to a quorum of nodes.
     VerifyQuorum {
         /// The domain name.
-        name: String,
+        name: Arc<str>,
         /// The expected payload to verify.
         payload: Vec<u8>,
         /// Channel to return the number of nodes reporting the correct payload.
@@ -49,7 +50,7 @@ pub enum Command {
         /// The remote peer ID.
         peer: libp2p::PeerId,
         /// The proxy request payload.
-        request: ProxyRequest,
+        request: Box<ProxyRequest>,
         /// Channel to return the proxy response.
         responder: oneshot::Sender<std::result::Result<ProxyResponse, ProxyError>>,
     },
@@ -58,7 +59,7 @@ pub enum Command {
         /// The channel associated with the incoming request.
         channel: libp2p::request_response::ResponseChannel<ProxyResponse>,
         /// The proxy response payload.
-        response: ProxyResponse,
+        response: Box<ProxyResponse>,
     },
     /// Retrieve diagnostic network status information.
     GetNetworkStatus {
@@ -68,14 +69,14 @@ pub enum Command {
     /// Subscribe to a Gossipsub topic.
     SubscribeGossip {
         /// The topic string.
-        topic: String,
+        topic: Arc<str>,
         /// Channel to return the result.
         responder: oneshot::Sender<std::result::Result<(), NetworkClientError>>,
     },
     /// Broadcast a message to a Gossipsub topic.
     BroadcastGossip {
         /// The topic string.
-        topic: String,
+        topic: Arc<str>,
         /// The serialized payload.
         payload: Vec<u8>,
         /// Channel to return the result.

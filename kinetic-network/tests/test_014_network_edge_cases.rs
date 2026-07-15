@@ -47,7 +47,7 @@ async fn test_client_empty_payload() {
     let cmd = rx.recv().await.unwrap();
     match cmd {
         Command::PublishRedundant { name, payload, .. } => {
-            assert_eq!(name, "empty_test");
+            assert_eq!(&*name, "empty_test");
             assert_eq!(payload.len(), 0);
         }
         _ => panic!("Expected PublishRedundant command"),
@@ -63,10 +63,10 @@ async fn test_client_channel_closed_gracefully() {
     drop(rx);
 
     let request = ProxyRequest {
-        method: "GET".to_string(),
-        path: "/test".to_string(),
-        headers: std::collections::HashMap::new(),
-        body: vec![],
+        method: "GET".into(),
+        path: "/test".into(),
+        headers: Vec::new(),
+        body: bytes::Bytes::new(),
     };
 
     // The channel is closed, so sending the proxy request should fail

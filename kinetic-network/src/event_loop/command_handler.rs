@@ -1,10 +1,74 @@
 use crate::client::Command;
-use crate::event_loop::utils::*;
+
 use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};
 use libp2p::kad::store::RecordStore;
 use libp2p::kad;
 
 impl super::core::NetworkEventLoop {
+    fn enqueue_dht_puts(
+        &mut self,
+        name: std::sync::Arc<str>,
+        keys: Vec<[u8; 32]>,
+        payload: Vec<u8>,
+        responder: tokio::sync::oneshot::Sender<Result<(), kinetic_core::error::PublishError>>,
+    ) {
+        let mut expected = 0;
+        let mut _validation_failures = 0;
+        for key_bytes in &keys {
+            let record_key = kad::RecordKey::new(key_bytes);
+            let record = kad::Record::new(record_key, payload.clone());
+            
+            // Validate locally first. If local store rejects it (e.g. invalid signature), 
+            // the network will too, so don't even bother publishing.
+            if let Err(e) = self.swarm.behaviour_mut().kademlia.store_mut().put(record.clone()) {
+                tracing::debug!("Local store put failed: {:?}", e);
+                _validation_failures += 1;
+                continue;
+            }
+            
+            // Queue outbound network request
+            match self.swarm.behaviour_mut().kademlia.put_record(record, kad::Quorum::One) {
+                Ok(query_id) => {
+                    self.query_id_to_name.insert(query_id, crate::event_loop::core::QueryType::Put(name.clone()));
+                    expected += 1;
+                }
+                Err(e) => {
+                    tracing::debug!("kademlia.put_record failed: {:?}", e);
+                }
+            }
+        }
+
+        if expected > 0 {
+            self.pending_puts.insert(
+                name.clone(),
+                crate::event_loop::utils::PendingPut {
+                    responder,
+                    expected_responses: expected,
+                    success_count: 0,
+                },
+            );
+        } else {
+            tracing::warn!(error_code = "KIN-PUB-004", name = %name, total = %keys.len(), "Publish: all DHT puts failed immediately");
+            let _ = responder.send(Err(PublishError::AllFailed { count: keys.len() }));
+        }
+    }
+
+    fn dispatch_dht_queries(
+        &mut self,
+        name: std::sync::Arc<str>,
+        keys: Vec<[u8; 32]>,
+        query_type_ctor: fn(std::sync::Arc<str>) -> crate::event_loop::core::QueryType,
+    ) -> usize {
+        let mut expected = 0;
+        for key_bytes in keys {
+            let record_key = kad::RecordKey::new(&key_bytes);
+            let query_id = self.swarm.behaviour_mut().kademlia.get_record(record_key);
+            self.query_id_to_name.insert(query_id, query_type_ctor(name.clone()));
+            expected += 1;
+        }
+        expected
+    }
+
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
             Command::PublishRedundant {
@@ -13,35 +77,7 @@ impl super::core::NetworkEventLoop {
                 responder,
             } => {
                 let keys = kinetic_core::types::derive_storage_keys(&name);
-                let total = keys.len();
-                let mut success_count = 0usize;
-                for key_bytes in keys {
-                    let record_key = kad::RecordKey::new(&key_bytes);
-                    let record = kad::Record::new(record_key, payload.clone());
-                    let kad_ok = self
-                        .swarm
-                        .behaviour_mut()
-                        .kademlia
-                        .put_record(record.clone(), kad::Quorum::One)
-                        .is_ok();
-                    let store_ok = self
-                        .swarm
-                        .behaviour_mut()
-                        .kademlia
-                        .store_mut()
-                        .put(record)
-                        .is_ok();
-                    if kad_ok || store_ok {
-                        success_count += 1;
-                    }
-                }
-                if success_count > 0 {
-                    tracing::debug!(name = %name, success = %success_count, total = %total, "PublishRedundant succeeded");
-                    let _ = responder.send(Ok(()));
-                } else {
-                    tracing::warn!(error_code = "KIN-PUB-004", name = %name, total = %total, "PublishRedundant: all DHT puts failed");
-                    let _ = responder.send(Err(PublishError::AllFailed { count: total }));
-                }
+                self.enqueue_dht_puts(name, keys, payload, responder);
             }
             Command::Bootstrap { responder } => {
                 let _ = self.swarm.behaviour_mut().kademlia.bootstrap();
@@ -56,54 +92,10 @@ impl super::core::NetworkEventLoop {
                 payload,
                 responder,
             } => {
-                // Use the dedicated heartbeat keyspace — completely separate from Reveal keys.
-                // Peer nodes' KRS will receive these records, validate the heartbeat signature,
-                // refresh the Reveal's TTL in their MemoryStore, and update liveness metadata.
                 let keys = kinetic_core::types::derive_heartbeat_keys(&name);
-                let total = keys.len();
-                let mut success_count = 0usize;
-                for key_bytes in keys {
-                    let record_key = kad::RecordKey::new(&key_bytes);
-                    let record = kad::Record::new(record_key, payload.clone());
-                    let kad_ok = self
-                        .swarm
-                        .behaviour_mut()
-                        .kademlia
-                        .put_record(record.clone(), kad::Quorum::One)
-                        .is_ok();
-                    let store_ok = self
-                        .swarm
-                        .behaviour_mut()
-                        .kademlia
-                        .store_mut()
-                        .put(record)
-                        .is_ok();
-                    if kad_ok || store_ok {
-                        success_count += 1;
-                    }
-                }
-                if success_count > 0 {
-                    tracing::debug!(name = %name, success = %success_count, total = %total, "PublishHeartbeat succeeded");
-                    let _ = responder.send(Ok(()));
-                } else {
-                    tracing::warn!(error_code = "KIN-PUB-004", name = %name, total = %total, "PublishHeartbeat: all DHT puts failed");
-                    let _ = responder.send(Err(PublishError::AllFailed { count: total }));
-                }
+                self.enqueue_dht_puts(name, keys, payload, responder);
             }
             Command::ResolveRedundant { name, responder } => {
-                let keys = kinetic_core::types::derive_storage_keys(&name);
-
-                // First check our own local store. This guarantees we can resolve our own publications
-                // even in offline mode (0 peers) or before the DHT is fully bootstrapped.
-                for key_bytes in &keys {
-                    let k = kad::RecordKey::new(key_bytes);
-                    if let Some(record) = self.swarm.behaviour_mut().kademlia.store_mut().get(&k) {
-                        tracing::info!("Resolved {} locally from own store", name);
-                        let _ = responder.send(Ok(record.value.clone()));
-                        return;
-                    }
-                }
-
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
                     let name_clean = name.trim_end_matches('.').to_string();
@@ -112,23 +104,28 @@ impl super::core::NetworkEventLoop {
                         name = %name_clean,
                         "Resolution failed: node is offline (0 peers)"
                     );
+                    
+                    // Fallback to local store as a last resort since we're offline
+                    let keys = kinetic_core::types::derive_storage_keys(&name);
+                    for key_bytes in &keys {
+                        let k = kad::RecordKey::new(key_bytes);
+                        if let Some(record) = self.swarm.behaviour_mut().kademlia.store_mut().get(&k) {
+                            tracing::info!("Resolved {} locally from own store (offline fallback)", name);
+                            let _ = responder.send(Ok(record.value.clone()));
+                            return;
+                        }
+                    }
+
                     let _ = responder.send(Err(ResolutionError::Offline));
                     return;
                 }
 
                 let keys = kinetic_core::types::derive_storage_keys(&name);
-
-                let mut expected = 0;
-                for key_bytes in keys {
-                    let record_key = kad::RecordKey::new(&key_bytes);
-                    let query_id = self.swarm.behaviour_mut().kademlia.get_record(record_key);
-                    self.query_id_to_name.insert(query_id, name.clone());
-                    expected += 1;
-                }
+                let expected = self.dispatch_dht_queries(name.clone(), keys, crate::event_loop::core::QueryType::Get);
 
                 self.pending_gets.insert(
                     name.clone(),
-                    PendingGet {
+                    crate::event_loop::utils::PendingGet {
                         responder,
                         expected_responses: expected,
                         received_payloads: Vec::new(),
@@ -149,18 +146,11 @@ impl super::core::NetworkEventLoop {
                 }
 
                 let keys = kinetic_core::types::derive_storage_keys(&name);
-                let mut expected = 0;
-                for key_bytes in keys {
-                    let record_key = kad::RecordKey::new(&key_bytes);
-                    let query_id = self.swarm.behaviour_mut().kademlia.get_record(record_key);
-                    self.query_id_to_name
-                        .insert(query_id, format!("quorum_{}", name));
-                    expected += 1;
-                }
+                let expected = self.dispatch_dht_queries(name.clone(), keys, crate::event_loop::core::QueryType::Quorum);
 
                 self.pending_quorums.insert(
                     name.clone(),
-                    PendingQuorum {
+                    crate::event_loop::utils::PendingQuorum {
                         responder,
                         expected_responses: expected,
                         target_payload: payload,
@@ -177,10 +167,11 @@ impl super::core::NetworkEventLoop {
                     .swarm
                     .behaviour_mut()
                     .proxy
-                    .send_request(&peer, request);
+                    .send_request(&peer, *request);
                 self.pending_proxy_requests.insert(req_id, responder);
             }
             Command::SendProxyResponse { channel, response } => {
+                let response = *response;
                 let _ = self
                     .swarm
                     .behaviour_mut()
@@ -214,7 +205,7 @@ impl super::core::NetworkEventLoop {
                 })));
             }
             Command::SubscribeGossip { topic, responder } => {
-                let ident_topic = libp2p::gossipsub::IdentTopic::new(topic);
+                let ident_topic = libp2p::gossipsub::IdentTopic::new(topic.to_string());
                 let res = self
                     .swarm
                     .behaviour_mut()
@@ -229,7 +220,7 @@ impl super::core::NetworkEventLoop {
                 payload,
                 responder,
             } => {
-                let ident_topic = libp2p::gossipsub::IdentTopic::new(topic);
+                let ident_topic = libp2p::gossipsub::IdentTopic::new(topic.to_string());
                 let res = self
                     .swarm
                     .behaviour_mut()

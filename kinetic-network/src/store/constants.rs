@@ -5,5 +5,3 @@ pub const KRS_HB_PREFIX: &[u8] = b"krs_hb:";
 
 /// Prefix for Kademlia records storing commitments.
 pub const KRS_COMMIT_PREFIX: &[u8] = b"krs_cmt:";
-/// Prefix for Kademlia records storing available points.
-pub const KRS_POINTS_PREFIX: &[u8] = b"krs_pts:";

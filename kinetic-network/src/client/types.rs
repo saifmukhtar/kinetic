@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use thiserror::Error;
 
 /// Errors that can occur during proxy request/response handling.
@@ -22,20 +21,21 @@ pub enum ProxyError {
     ChannelClosed,
     /// Miscellaneous or unclassified error.
     #[error("Other error: {0}")]
-    Other(String),
+    Other(std::borrow::Cow<'static, str>),
 }
 
 /// A request to be proxied to a remote node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProxyRequest {
     /// The HTTP method (e.g. GET, POST).
-    pub method: String,
+    pub method: std::sync::Arc<str>,
     /// The request path.
-    pub path: String,
+    pub path: std::sync::Arc<str>,
     /// Key-value headers.
-    pub headers: HashMap<String, String>,
+    pub headers: Vec<(std::sync::Arc<str>, std::sync::Arc<str>)>,
     /// Request body payload.
-    pub body: Vec<u8>,
+    #[serde(with = "serde_bytes_wrapper")]
+    pub body: bytes::Bytes,
 }
 
 /// A response received from a proxy request.
@@ -44,9 +44,17 @@ pub struct ProxyResponse {
     /// The HTTP status code.
     pub status: u16,
     /// Key-value headers.
-    pub headers: HashMap<String, String>,
+    pub headers: Vec<(std::sync::Arc<str>, std::sync::Arc<str>)>,
     /// Response body payload.
-    pub body: Vec<u8>,
+    #[serde(with = "serde_bytes_wrapper")]
+    pub body: bytes::Bytes,
+}
+
+impl ProxyResponse {
+    /// Returns true if the status code is between 200 and 299.
+    pub fn is_success(&self) -> bool {
+        self.status >= 200 && self.status < 300
+    }
 }
 
 /// The mode in which the network daemon operates.
@@ -63,16 +71,42 @@ pub enum NetworkMode {
 pub struct NetworkConfig {
     /// Operating mode (FullNode or LightClient).
     pub mode: NetworkMode,
-    /// The multiaddr string to listen on.
-    pub listen_addr: String,
+    /// The multiaddr to listen on.
+    pub listen_addr: libp2p::Multiaddr,
     /// Known bootstrap nodes to connect to at startup.
-    pub bootstrap_nodes: Vec<String>,
+    pub bootstrap_nodes: Vec<libp2p::Multiaddr>,
     /// Pre-known domain seeds.
-    pub seed_domains: Vec<String>,
+    pub seed_domains: Vec<std::sync::Arc<str>>,
     /// Whether to enable local mDNS discovery.
     pub enable_mdns: bool,
     /// The initial drand pulse round to use for VDF verification.
     pub initial_drand_pulse: u64,
     /// An optional externally reachable IP or domain to announce.
-    pub external_address: Option<String>,
+    pub external_address: Option<libp2p::Multiaddr>,
+    /// Bypass PoW verification for tests.
+    pub disable_pow: bool,
+    /// The maximum number of reveals a node will accept into the cache per hour (Rate Limiting).
+    pub max_reveals_per_hour: usize,
+    /// The maximum number of reveals to store in memory.
+    pub lru_cache_size: std::num::NonZeroUsize,
+}
+
+pub(crate) mod serde_bytes_wrapper {
+    use bytes::Bytes;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(bytes: &Bytes, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serde_bytes::serialize(bytes.as_ref(), serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Bytes, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let b: Vec<u8> = serde_bytes::deserialize(deserializer)?;
+        Ok(Bytes::from(b))
+    }
 }

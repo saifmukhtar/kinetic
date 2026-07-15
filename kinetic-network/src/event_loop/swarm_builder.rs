@@ -1,5 +1,4 @@
 use libp2p::kad;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 use tracing::info;
@@ -60,18 +59,19 @@ impl super::core::NetworkEventLoop {
             })
             .expect("Valid websocket websys transport");
 
-        #[cfg(not(target_arch = "wasm32"))]
         let (control_tx, control_rx) = std::sync::mpsc::channel();
         let storage_clone = storage.clone();
         let mode = config.mode.clone();
         let initial_drand_pulse = config.initial_drand_pulse;
-        let _enable_mdns = config.enable_mdns;
+        let enable_mdns = config.enable_mdns;
+        let lru_cache_size = config.lru_cache_size;
+        let max_reveals_per_hour = config.max_reveals_per_hour;
 
         let mut swarm = builder
             .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
             .with_behaviour(move |key, relay_client| {
                 let peer_id = key.public().to_peer_id();
-                let store = KineticRecordStore::new(peer_id, storage_clone, initial_drand_pulse);
+                let store = KineticRecordStore::new(peer_id, storage_clone, initial_drand_pulse, lru_cache_size, max_reveals_per_hour);
                 let mut kad_config = kad::Config::default();
                 kad_config
                     .set_protocol_names(vec![libp2p::StreamProtocol::new("/kinetic/kad/2.0.0")])
@@ -134,7 +134,7 @@ impl super::core::NetworkEventLoop {
                 let _ = control_tx.send(stream.new_control());
 
                 #[cfg(not(target_arch = "wasm32"))]
-                let mdns = if _enable_mdns {
+                let mdns = if enable_mdns {
                     libp2p::swarm::behaviour::toggle::Toggle::from(Some(
                         libp2p::mdns::tokio::Behaviour::new(
                             libp2p::mdns::Config::default(),
@@ -214,46 +214,27 @@ impl super::core::NetworkEventLoop {
             .build();
 
         if config.mode == NetworkMode::FullNode && !config.listen_addr.is_empty() {
-            swarm.listen_on(config.listen_addr.parse()?)?;
-            if let Some(ext_addr) = &config.external_address {
-                if let Ok(addr) = ext_addr.parse::<libp2p::Multiaddr>() {
-                    tracing::info!("Adding configured external address: {}", addr);
-                    swarm.add_external_address(addr);
-                } else {
-                    tracing::warn!("Failed to parse external_address: {}", ext_addr);
-                }
+            swarm.listen_on(config.listen_addr.clone())?;
+            if let Some(addr) = &config.external_address {
+                tracing::info!("Adding configured external address: {}", addr);
+                swarm.add_external_address(addr.clone());
             }
         }
 
-        let mut bootstrap_peers = std::collections::HashSet::new();
-        for node_str in &config.bootstrap_nodes {
-            match node_str.parse::<libp2p::Multiaddr>() {
-                Ok(addr) => {
-                    tracing::info!("Successfully parsed bootstrap node: {}", addr);
-                    if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.iter().last() {
-                        bootstrap_peers.insert(peer_id);
-                        swarm
-                            .behaviour_mut()
-                            .kademlia
-                            .add_address(&peer_id, addr.clone());
-                        if let Err(e) = swarm.dial(addr.clone()) {
-                            tracing::warn!("Failed to dial bootstrap node {}: {:?}", addr, e);
-                        } else {
-                            tracing::info!("Dialing bootstrap node: {}", addr);
-                        }
-                    } else {
-                        if let Err(e) = swarm.dial(addr.clone()) {
-                            tracing::warn!(
-                                "Failed to dial bootstrap node (no peer ID) {}: {:?}",
-                                addr,
-                                e
-                            );
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::error!("Failed to parse bootstrap node '{}': {:?}", node_str, e);
-                }
+        let mut bootstrap_peers = rustc_hash::FxHashSet::default();
+        for addr in &config.bootstrap_nodes {
+            tracing::info!("Successfully loaded bootstrap node: {}", addr);
+            if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.iter().last() {
+                bootstrap_peers.insert(peer_id);
+                swarm
+                    .behaviour_mut()
+                    .kademlia
+                    .add_address(&peer_id, addr.clone());
+            }
+            if let Err(e) = swarm.dial(addr.clone()) {
+                tracing::warn!("Failed to dial bootstrap node {}: {:?}", addr, e);
+            } else {
+                tracing::info!("Dialing bootstrap node: {}", addr);
             }
         }
 
@@ -265,26 +246,7 @@ impl super::core::NetworkEventLoop {
             );
         }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        for domain in &config.seed_domains {
-            let host_port = format!("{}:6070", domain);
-            if let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(&host_port) {
-                for addr in addrs {
-                    let ip = addr.ip();
-                    let multiaddr = libp2p::Multiaddr::empty()
-                        .with(match ip {
-                            std::net::IpAddr::V4(v4) => libp2p::multiaddr::Protocol::Ip4(v4),
-                            std::net::IpAddr::V6(v6) => libp2p::multiaddr::Protocol::Ip6(v6),
-                        })
-                        .with(libp2p::multiaddr::Protocol::Tcp(addr.port()));
-                    if swarm.dial(multiaddr.clone()).is_ok() {
-                        info!("Dialing resolved DNS seed node: {}", multiaddr);
-                    }
-                }
-            } else {
-                tracing::warn!("Failed to resolve DNS seed domain: {}", domain);
-            }
-        }
+        // Seed domains are now deferred to NetworkEventLoop::run() to avoid blocking the thread here.
 
         let (tx, rx) = mpsc::channel(32);
         #[cfg(not(target_arch = "wasm32"))]
@@ -299,34 +261,37 @@ impl super::core::NetworkEventLoop {
         let event_loop = Self {
             swarm,
             command_receiver: rx,
-            pending_gets: HashMap::new(),
-            pending_quorums: HashMap::new(),
-            query_id_to_name: HashMap::new(),
-            pending_proxy_requests: HashMap::new(),
+            pending_gets: rustc_hash::FxHashMap::default(),
+            pending_quorums: rustc_hash::FxHashMap::default(),
+            pending_puts: rustc_hash::FxHashMap::default(),
+            query_id_to_name: rustc_hash::FxHashMap::default(),
+            pending_proxy_requests: rustc_hash::FxHashMap::default(),
             incoming_proxy_tx,
             gossip_tx,
-            bad_vdf_counts: HashMap::new(),
+            bad_vdf_counts: rustc_hash::FxHashMap::default(),
             current_drand_pulse: config.initial_drand_pulse,
             drand_pulse_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers,
             startup_time: web_time::Instant::now(),
+            disable_pow: config.disable_pow,
             banned_peers: {
-                let mut peers = std::collections::HashSet::new();
+                let mut peers = rustc_hash::FxHashSet::default();
                 if let Ok(iter) = storage.scan_prefix(b"kinetic_banned_peer:") {
                     for (key_bytes, val_bytes) in iter {
-                        let key_str = String::from_utf8_lossy(&key_bytes).to_string();
-                        let peer_id_str = key_str.trim_start_matches("kinetic_banned_peer:");
-                        if let Ok(peer_id) = peer_id_str.parse::<libp2p::PeerId>() {
-                            if val_bytes.len() == 8 {
-                                let expire =
-                                    u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
-                                let now = web_time::SystemTime::now()
-                                    .duration_since(web_time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_secs();
-                                if expire > now {
-                                    peers.insert(peer_id);
+                        if key_bytes.len() > 20 {
+                            if let Ok(peer_id_str) = std::str::from_utf8(&key_bytes[20..]) {
+                                if let Ok(peer_id) = peer_id_str.parse::<libp2p::PeerId>() {
+                                    if val_bytes.len() == 8 {
+                                        let expire = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
+                                        let now = web_time::SystemTime::now()
+                                            .duration_since(web_time::UNIX_EPOCH)
+                                            .unwrap_or_default()
+                                            .as_secs();
+                                        if expire > now {
+                                            peers.insert(peer_id);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -334,8 +299,110 @@ impl super::core::NetworkEventLoop {
                 }
                 peers
             },
-            commitment_miss_counts: HashMap::new(),
-            bootstrap_connection_time: HashMap::new(),
+            seed_domains: config.seed_domains.clone(),
+            commitment_miss_counts: rustc_hash::FxHashMap::default(),
+            bootstrap_connection_time: rustc_hash::FxHashMap::default(),
+            nat_status: "Unknown".to_string(),
+        };
+
+        Ok((client, event_loop))
+    }
+
+    #[doc(hidden)]
+    pub fn new_test_node(
+        config: NetworkConfig,
+        local_key: libp2p::identity::Keypair,
+        storage: Arc<SledStorage>,
+    ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
+        let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
+            .with_tokio()
+            .with_tcp(
+                libp2p::tcp::Config::default().port_reuse(true),
+                libp2p::noise::Config::new,
+                libp2p::yamux::Config::default,
+            )?;
+
+        let storage_clone = storage.clone();
+        
+        let mut swarm = builder
+            .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
+            .with_behaviour(move |key, relay_client| {
+                let peer_id = key.public().to_peer_id();
+                let store = KineticRecordStore::new(peer_id, storage_clone, 0, std::num::NonZeroUsize::new(100).unwrap(), 100);
+                let mut kad_config = kad::Config::default();
+                kad_config.set_protocol_names(vec![libp2p::StreamProtocol::new("/kinetic/kad/2.0.0")]);
+                let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
+                kademlia.set_mode(Some(kad::Mode::Server));
+
+                let gossipsub = libp2p::gossipsub::Behaviour::new(
+                    libp2p::gossipsub::MessageAuthenticity::Signed(key.clone()),
+                    libp2p::gossipsub::ConfigBuilder::default().build().unwrap(),
+                ).unwrap();
+
+                let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new("/kinetic/1.0.0".into(), key.public()));
+                let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::new());
+
+                KineticBehavior {
+                    relay_client,
+                    dcutr: libp2p::dcutr::Behaviour::new(peer_id),
+                    identify,
+                    ping,
+                    proxy: libp2p::request_response::cbor::Behaviour::new([(libp2p::StreamProtocol::new("/proxy"), libp2p::request_response::ProtocolSupport::Full)], Default::default()),
+                    stream: libp2p_stream::Behaviour::new(),
+                    kademlia,
+                    gossipsub,
+                    autonat: libp2p::autonat::Behaviour::new(peer_id, Default::default()),
+                    upnp: libp2p::swarm::behaviour::toggle::Toggle::from(None),
+                    relay_server: libp2p::swarm::behaviour::toggle::Toggle::from(None),
+                    mdns: libp2p::swarm::behaviour::toggle::Toggle::from(None),
+                }
+            })
+            .unwrap()
+            .build();
+
+        let (tx, rx) = mpsc::channel(32);
+        let client = NetworkClient::new(tx.clone(), libp2p_stream::Behaviour::new().new_control());
+        
+        let (_, drand_pulse_rx) = watch::channel(0);
+
+        if !config.listen_addr.is_empty() {
+            swarm.listen_on(config.listen_addr.clone())?;
+        }
+
+        let mut bootstrap_peers = rustc_hash::FxHashSet::default();
+        for addr in &config.bootstrap_nodes {
+            if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.iter().last() {
+                bootstrap_peers.insert(peer_id);
+                swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
+            }
+            let _ = swarm.dial(addr.clone());
+        }
+
+        if !config.bootstrap_nodes.is_empty() {
+            let _ = swarm.behaviour_mut().kademlia.bootstrap();
+        }
+
+        let event_loop = Self {
+            swarm,
+            command_receiver: rx,
+            pending_gets: Default::default(),
+            pending_quorums: Default::default(),
+            pending_puts: Default::default(),
+            query_id_to_name: Default::default(),
+            pending_proxy_requests: Default::default(),
+            incoming_proxy_tx: None,
+            gossip_tx: None,
+            bad_vdf_counts: Default::default(),
+            current_drand_pulse: 0,
+            drand_pulse_rx,
+            bootstrap_nodes: config.bootstrap_nodes.clone(),
+            bootstrap_peers: Default::default(),
+            startup_time: web_time::Instant::now(),
+            disable_pow: config.disable_pow,
+            banned_peers: Default::default(),
+            seed_domains: vec![],
+            commitment_miss_counts: Default::default(),
+            bootstrap_connection_time: Default::default(),
             nat_status: "Unknown".to_string(),
         };
 

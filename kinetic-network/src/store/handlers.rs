@@ -93,43 +93,7 @@ impl KineticRecordStore {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        if let Some(spent) = reveal.points_spent {
-            if spent > 0 {
-                let mut balance_key = Vec::with_capacity(crate::store::constants::KRS_POINTS_PREFIX.len() + reveal.pubkey.len());
-                balance_key.extend_from_slice(crate::store::constants::KRS_POINTS_PREFIX);
-                balance_key.extend_from_slice(&reveal.pubkey);
-                let mut balance = match self.storage.get(&balance_key) {
-                    Ok(Some(bytes)) if bytes.len() == 8 => u64::from_be_bytes(bytes[..8].try_into().unwrap_or([0u8; 8])),
-                    _ => 0,
-                };
-                balance = balance.saturating_sub(spent);
-                writes_to_perform.push((balance_key, balance.to_be_bytes().to_vec()));
-                tracing::info!(
-                    "Deducted {} points from {}. New balance: {}",
-                    spent,
-                    hex::encode(&reveal.pubkey),
-                    balance
-                );
-            }
-        }
 
-        if let Some(miner_pk) = &reveal.miner_pubkey {
-            let mut balance_key = Vec::with_capacity(crate::store::constants::KRS_POINTS_PREFIX.len() + miner_pk.len());
-            balance_key.extend_from_slice(crate::store::constants::KRS_POINTS_PREFIX);
-            balance_key.extend_from_slice(miner_pk);
-            let mut balance = match self.storage.get(&balance_key) {
-                Ok(Some(bytes)) if bytes.len() == 8 => u64::from_be_bytes(bytes[..8].try_into().unwrap_or([0u8; 8])),
-                _ => 0,
-            };
-            balance = balance.saturating_add(reveal.iterations);
-            writes_to_perform.push((balance_key, balance.to_be_bytes().to_vec()));
-            tracing::info!(
-                "Awarded {} points to miner {}. New balance: {}",
-                reveal.iterations,
-                hex::encode(miner_pk),
-                balance
-            );
-        }
 
         let now = web_time::Instant::now();
         self.accepted_reveals_timestamps.push_back(now);

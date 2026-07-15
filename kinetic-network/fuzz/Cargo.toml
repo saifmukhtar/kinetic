@@ -1,0 +1,26 @@
+[package]
+name = "kinetic-network-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+libp2p = { version = "0.53.2", features = ["kad"] }
+tempfile = "3.8"
+kinetic-storage = { path = "../../kinetic-storage" }
+
+[dependencies.kinetic-network]
+path = ".."
+
+[[bin]]
+name = "fuzz_put_record"
+path = "fuzz_targets/fuzz_put_record.rs"
+test = false
+doc = false
+bench = false
