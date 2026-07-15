@@ -1,0 +1,113 @@
+use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
+use kinetic_network::NetworkEventLoop;
+use kinetic_storage::SledStorage;
+use libp2p::{identity, PeerId, Multiaddr};
+use std::sync::Arc;
+use tempfile::tempdir;
+use std::time::Duration;
+use tokio::task::JoinHandle;
+
+async fn spawn_test_node(
+    port: u16,
+    bootstrap_nodes: Vec<Multiaddr>,
+) -> (NetworkClient, PeerId, Multiaddr, JoinHandle<()>) {
+    let keypair = identity::Keypair::generate_ed25519();
+    let peer_id = keypair.public().to_peer_id();
+
+    // Use loopback TCP port
+    let listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap();
+
+    let config = NetworkConfig {
+        mode: NetworkMode::FullNode,
+        listen_addr: listen_addr.clone(),
+        bootstrap_nodes,
+        external_address: None,
+        initial_drand_pulse: 1000,
+        enable_mdns: false,
+        lru_cache_size: std::num::NonZeroUsize::new(100).unwrap(),
+        max_reveals_per_hour: 100,
+        seed_domains: vec![],
+        disable_pow: true,
+    };
+
+    let dir = tempdir().unwrap();
+    let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+    
+    let (client, event_loop) = NetworkEventLoop::new_test_node(config, keypair, storage).unwrap();
+
+    let handle = tokio::spawn(async move {
+        event_loop.run().await;
+    });
+
+    // Allow time for swarm to start listening and bootstrap
+    tokio::time::sleep(Duration::from_millis(150)).await;
+
+    let p2p_addr = listen_addr.with(libp2p::multiaddr::Protocol::P2p(peer_id));
+
+    (client, peer_id, p2p_addr, handle)
+}
+
+#[tokio::test]
+async fn test_chaos_routing_partition() {
+    let _ = tracing_subscriber::fmt::try_init();
+    
+    let (client1, _peer1, addr1, _handle1) = spawn_test_node(10010, vec![]).await;
+    let (_client2, _peer2, addr2, handle2) = spawn_test_node(10020, vec![addr1.clone()]).await;
+    let (_client3, _peer3, addr3, handle3) = spawn_test_node(10030, vec![addr1.clone(), addr2.clone()]).await;
+    let (_client4, _peer4, addr4, _handle4) = spawn_test_node(10040, vec![addr1.clone(), addr2.clone(), addr3.clone()]).await;
+    let (client5, _peer5, _addr5, _handle5) = spawn_test_node(10050, vec![addr1.clone(), addr2.clone(), addr3.clone(), addr4.clone()]).await;
+
+    // Allow mesh to fully connect and Kademlia routing tables to populate
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+
+    // Node 5 publishes a payload (since Node 5 has all other nodes in its bootstrap list)
+    let test_key = "chaos_key_test";
+    let test_payload = serde_json::to_vec(&serde_json::json!({
+        "name": "chaos_key_test",
+        "node_id": "node_5_chaos",
+        "timestamp": 123456789
+    })).unwrap();
+    
+    println!("Publishing payload from Node 5...");
+    let mut publish_success = false;
+    for _ in 0..10 {
+        match client5.publish_redundant_payload(test_key, test_payload.clone()).await {
+            Ok(_) => {
+                publish_success = true;
+                break;
+            }
+            Err(e) => {
+                println!("Publish failed: {:?}", e);
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    assert!(publish_success, "Failed to publish payload after retries");
+
+    // Allow time for DHT replication
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+
+    // Unleash Chaos: Kill Node 2 and Node 3 brutally.
+    // This creates a large network partition between Node 1 and Node 5.
+    println!("Unleashing Chaos: Dropping Node 2 and Node 3...");
+    handle2.abort();
+    handle3.abort();
+
+    // Allow a moment for the network to realize peers are unreachable
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+
+    // Node 1 attempts to resolve the record.
+    // It will have to query Node 4, which might have it, or route around the dead nodes.
+    println!("Attempting to resolve from Node 1...");
+    let mut resolved = vec![];
+    for _ in 0..15 {
+        if let Ok(res) = client1.resolve_redundant_payload(test_key).await {
+            resolved = res;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+    }
+    
+    assert!(!resolved.is_empty(), "Failed to resolve despite chaos");
+    assert_eq!(resolved, test_payload);
+}

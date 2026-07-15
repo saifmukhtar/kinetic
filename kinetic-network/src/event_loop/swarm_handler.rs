@@ -2,10 +2,99 @@ use crate::behavior::KineticBehaviorEvent;
 use crate::event_loop::utils::*;
 use kinetic_core::error::ResolutionError;
 use kinetic_core::traits::StorageEngine;
-use libp2p::kad::store::RecordStore;
 use libp2p::{kad, swarm::SwarmEvent};
+use libp2p::kad::store::RecordStore;
 
 impl super::core::NetworkEventLoop {
+    pub(crate) fn is_valid_pow(&self, peer_id: &libp2p::PeerId) -> bool {
+        if self.disable_pow {
+            return true;
+        }
+        self.current_drand_pulse > 0
+            && crate::pow::is_valid_sybil_pow(
+                peer_id,
+                self.current_drand_pulse,
+                crate::pow::DEFAULT_DIFFICULTY_BITS,
+            )
+    }
+
+    fn handle_quorum_completion(&mut self, name: std::sync::Arc<str>) {
+        if let std::collections::hash_map::Entry::Occupied(mut pending) = self.pending_quorums.entry(name.clone()) {
+            pending.get_mut().expected_responses -= 1;
+            if pending.get().expected_responses == 0 {
+                let p = pending.remove();
+                let _ = p.responder.send(Ok(p.match_count));
+            }
+        }
+    }
+
+    fn handle_get_completion(&mut self, name: std::sync::Arc<str>) {
+        if let std::collections::hash_map::Entry::Occupied(mut pending) = self.pending_gets.entry(name.clone()) {
+            pending.get_mut().expected_responses -= 1;
+            if pending.get().expected_responses == 0 {
+                let p = pending.remove();
+                let name_clean = name.trim_end_matches('.').to_string();
+                let peers_q = p.peers_queried;
+
+                // Pre-compute local fallback before offloading
+                let keys = kinetic_core::types::derive_storage_keys(&name);
+                let mut local_fallback = None;
+                for key_bytes in &keys {
+                    let k = kad::RecordKey::new(key_bytes);
+                    if let Some(record) = self.swarm.behaviour_mut().kademlia.store_mut().get(&k) {
+                        local_fallback = Some(record.value.clone());
+                        break;
+                    }
+                }
+
+                let current_drand_pulse = self.current_drand_pulse;
+                
+                // Spawn a blocking task to do heavy VDF processing
+                crate::event_loop::utils::spawn(async move {
+                    let tie_breaker_result = tokio::task::spawn_blocking(move || {
+                        Self::xor_tie_breaker(
+                            &name,
+                            p.received_payloads,
+                            current_drand_pulse,
+                        )
+                    })
+                    .await
+                    .unwrap_or(None);
+
+                    match tie_breaker_result {
+                        Some(payload) => {
+                            tracing::debug!(
+                                name = %name_clean,
+                                peers_queried = %peers_q,
+                                "DHT resolution succeeded"
+                            );
+                            let _ = p.responder.send(Ok(payload));
+                        }
+                        None => {
+                            if let Some(payload) = local_fallback {
+                                tracing::info!("Resolved {} locally from own store after DHT network failure", name_clean);
+                                let _ = p.responder.send(Ok(payload));
+                            } else {
+                                tracing::warn!(
+                                    error_code = "KIN-RES-002",
+                                    name = %name_clean,
+                                    peers_queried = %peers_q,
+                                    "DHT resolution: name not found in network or local cache"
+                                );
+                                let _ = p.responder.send(Err(
+                                    ResolutionError::NotFound {
+                                        name: name_clean,
+                                        peers_queried: peers_q,
+                                    },
+                                ));
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+
     pub(crate) async fn handle_swarm_event(&mut self, event: SwarmEvent<KineticBehaviorEvent>) {
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
@@ -25,7 +114,7 @@ impl super::core::NetworkEventLoop {
                         .insert(peer_id, web_time::Instant::now());
                 }
 
-                if self.current_drand_pulse == 0 && !is_bootstrap {
+                if self.current_drand_pulse == 0 && !is_bootstrap && !self.disable_pow {
                     tracing::debug!(
                         "Peer {} connected during uninitialized drand pulse, disconnecting",
                         peer_id
@@ -34,12 +123,7 @@ impl super::core::NetworkEventLoop {
                     return;
                 }
 
-                let pow_valid = self.current_drand_pulse > 0
-                    && crate::pow::is_valid_sybil_pow(
-                        &peer_id,
-                        self.current_drand_pulse,
-                        crate::pow::DEFAULT_DIFFICULTY_BITS,
-                    );
+                let pow_valid = self.is_valid_pow(&peer_id);
 
                 if !pow_valid && !is_bootstrap {
                     tracing::debug!("Peer {} failed S/Kademlia PoW for epoch, disconnecting them to prevent connection slot exhaustion", peer_id);
@@ -55,17 +139,20 @@ impl super::core::NetworkEventLoop {
                 kad::Event::OutboundQueryProgressed { id, result, .. } => match result {
                     kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))) => {
                         if let Some(mapped_name) = self.query_id_to_name.get(&id) {
-                            if mapped_name.starts_with("quorum_") {
-                                let actual_name = mapped_name.trim_start_matches("quorum_");
-                                if let Some(pending) = self.pending_quorums.get_mut(actual_name) {
-                                    if peer_record.record.value == pending.target_payload {
-                                        pending.match_count += 1;
+                            match mapped_name {
+                                crate::event_loop::core::QueryType::Quorum(name) => {
+                                    if let Some(pending) = self.pending_quorums.get_mut(name) {
+                                        if peer_record.record.value == pending.target_payload {
+                                            pending.match_count += 1;
+                                        }
                                     }
                                 }
-                            } else {
-                                if let Some(pending) = self.pending_gets.get_mut(mapped_name) {
-                                    pending.received_payloads.push(peer_record.record.value);
+                                crate::event_loop::core::QueryType::Get(name) => {
+                                    if let Some(pending) = self.pending_gets.get_mut(name) {
+                                        pending.received_payloads.push(peer_record.record.value);
+                                    }
                                 }
+                                crate::event_loop::core::QueryType::Put(_) => {}
                             }
                         }
                     }
@@ -74,71 +161,47 @@ impl super::core::NetworkEventLoop {
                     ))
                     | kad::QueryResult::GetRecord(Err(_)) => {
                         if let Some(mapped_name) = self.query_id_to_name.remove(&id) {
-                            if mapped_name.starts_with("quorum_") {
-                                let actual_name =
-                                    mapped_name.trim_start_matches("quorum_").to_string();
-                                let mut complete = false;
-                                if let Some(pending) = self.pending_quorums.get_mut(&actual_name) {
-                                    pending.expected_responses -= 1;
-                                    if pending.expected_responses == 0 {
-                                        complete = true;
-                                    }
+                            match mapped_name {
+                                crate::event_loop::core::QueryType::Quorum(name) => {
+                                    self.handle_quorum_completion(name);
                                 }
-                                if complete {
-                                    if let Some(pending) = self.pending_quorums.remove(&actual_name)
-                                    {
-                                        let _ = pending.responder.send(Ok(pending.match_count));
-                                    }
+                                crate::event_loop::core::QueryType::Get(name) => {
+                                    self.handle_get_completion(name);
                                 }
-                            } else {
-                                let mut complete = false;
-                                if let Some(pending) = self.pending_gets.get_mut(&mapped_name) {
-                                    pending.expected_responses -= 1;
-                                    if pending.expected_responses == 0 {
-                                        complete = true;
-                                    }
+                                crate::event_loop::core::QueryType::Put(_) => {}
+                            }
+                        }
+                    }
+                kad::QueryResult::PutRecord(res) => {
+                    if let Some(mapped_name) = self.query_id_to_name.remove(&id) {
+                        if let crate::event_loop::core::QueryType::Put(name) = mapped_name {
+                            let mut complete = false;
+                            if let Some(pending) = self.pending_puts.get_mut(&name) {
+                                pending.expected_responses -= 1;
+                                if res.is_ok() {
+                                    pending.success_count += 1;
                                 }
-                                if complete {
-                                    if let Some(pending) = self.pending_gets.remove(&mapped_name) {
-                                        let name_clean =
-                                            mapped_name.trim_end_matches('.').to_string();
-                                        let peers_q = pending.peers_queried;
-                                        match Self::xor_tie_breaker(
-                                            &mapped_name,
-                                            pending.received_payloads,
-                                            self.current_drand_pulse,
-                                        ) {
-                                            Some(payload) => {
-                                                tracing::debug!(
-                                                    name = %name_clean,
-                                                    peers_queried = %peers_q,
-                                                    "DHT resolution succeeded"
-                                                );
-                                                let _ = pending.responder.send(Ok(payload));
-                                            }
-                                            None => {
-                                                tracing::warn!(
-                                                    error_code = "KIN-RES-002",
-                                                    name = %name_clean,
-                                                    peers_queried = %peers_q,
-                                                    "DHT resolution: name not found in network"
-                                                );
-                                                let _ = pending.responder.send(Err(
-                                                    ResolutionError::NotFound {
-                                                        name: name_clean,
-                                                        peers_queried: peers_q,
-                                                    },
-                                                ));
-                                            }
-                                        }
+                                if pending.expected_responses == 0 {
+                                    complete = true;
+                                }
+                            }
+                            if complete {
+                                if let Some(pending) = self.pending_puts.remove(&name) {
+                                    if pending.success_count > 0 {
+                                        tracing::debug!(name = %name, success = %pending.success_count, "Publish succeeded over network");
+                                        let _ = pending.responder.send(Ok(()));
+                                    } else {
+                                        tracing::warn!(error_code = "KIN-PUB-004", name = %name, "Publish: all DHT puts failed over network");
+                                        let _ = pending.responder.send(Err(kinetic_core::error::PublishError::AllFailed { count: 0 })); // We lost original count context, but count isn't critical.
                                     }
                                 }
                             }
                         }
                     }
-                    _ => {}
-                },
-                kad::Event::InboundRequest {
+                }
+                _ => {}
+            },
+            kad::Event::InboundRequest {
                     request:
                         kad::InboundRequest::PutRecord {
                             source,
@@ -146,17 +209,17 @@ impl super::core::NetworkEventLoop {
                             ..
                         },
                 } => {
-                    let put_result = libp2p::kad::store::RecordStore::put(
-                        self.swarm.behaviour_mut().kademlia.store_mut(),
+                    let put_result = self.swarm.behaviour_mut().kademlia.store_mut().put_record(
                         record.clone(),
                     );
 
-                    if put_result.is_err() {
-                        let is_commitment =
+                    if let Err(e) = put_result {
+                        let is_commitment = matches!(e, crate::error::KineticStoreError::UnknownRecordType) &&
                             serde_json::from_slice::<kinetic_core::types::Commitment>(
                                 &record.value,
                             )
                             .is_ok();
+
 
                         if is_commitment {
                             let entry = self.commitment_miss_counts.entry(source).or_insert(0);
@@ -231,7 +294,7 @@ impl super::core::NetworkEventLoop {
                                 OutboundFailure::UnsupportedProtocols => {
                                     crate::client::ProxyError::UnsupportedProtocols
                                 }
-                                _ => crate::client::ProxyError::Other(format!("{:?}", error)),
+                                _ => crate::client::ProxyError::Other(format!("{:?}", error).into()),
                             };
                             let _ = responder.send(Err(proxy_err));
                         }
@@ -256,6 +319,11 @@ impl super::core::NetworkEventLoop {
                     // Add external address to Kademlia to ensure we are visible
                     self.swarm.add_external_address(address);
                     self.nat_status = "Public".to_string();
+                    
+                    let peers: Vec<_> = self.swarm.connected_peers().copied().collect();
+                    for peer in peers {
+                        self.swarm.behaviour_mut().identify.push(std::iter::once(peer));
+                    }
                 } else if matches!(new, libp2p::autonat::NatStatus::Private) {
                     tracing::info!("Node is PRIVATE (Behind NAT). Relay & UPnP fallback active.");
                     self.nat_status = "Relayed (Private)".to_string();
@@ -285,12 +353,7 @@ impl super::core::NetworkEventLoop {
                     info.listen_addrs
                 );
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                let pow_valid = self.current_drand_pulse > 0
-                    && crate::pow::is_valid_sybil_pow(
-                        &peer_id,
-                        self.current_drand_pulse,
-                        crate::pow::DEFAULT_DIFFICULTY_BITS,
-                    );
+                let pow_valid = self.is_valid_pow(&peer_id);
 
                 if !pow_valid && is_bootstrap {
                     if let Some(conn_time) = self.bootstrap_connection_time.get(&peer_id) {
@@ -304,9 +367,9 @@ impl super::core::NetworkEventLoop {
 
                 if pow_valid || is_bootstrap {
                     for addr in info.listen_addrs {
-                        if !is_routable_multiaddr(&addr) {
+                        if !is_routable_multiaddr(&addr, self.disable_pow) {
                             tracing::debug!(
-                                "Ignoring unroutable/private address {:?} from peer {:?}",
+                                "Discarding unroutable address {:?} for peer {}",
                                 addr,
                                 peer_id
                             );
@@ -332,14 +395,9 @@ impl super::core::NetworkEventLoop {
             ))) => {
                 for (peer_id, multiaddr) in list {
                     let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                    let pow_valid = self.current_drand_pulse > 0
-                        && crate::pow::is_valid_sybil_pow(
-                            &peer_id,
-                            self.current_drand_pulse,
-                            crate::pow::DEFAULT_DIFFICULTY_BITS,
-                        );
+                    let pow_valid = self.is_valid_pow(&peer_id);
 
-                    if (pow_valid || is_bootstrap) && is_routable_multiaddr(&multiaddr) {
+                    if (pow_valid || is_bootstrap) && is_routable_multiaddr(&multiaddr, self.disable_pow) {
                         self.swarm
                             .behaviour_mut()
                             .kademlia
@@ -366,10 +424,8 @@ impl super::core::NetworkEventLoop {
                     tracing::warn!(
                         "Mass Peer Disconnect: 0 active peers. Re-dialing bootstrap nodes..."
                     );
-                    for node_str in &self.bootstrap_nodes {
-                        if let Ok(addr) = node_str.parse::<libp2p::Multiaddr>() {
-                            let _ = self.swarm.dial(addr);
-                        }
+                    for addr in &self.bootstrap_nodes {
+                        let _ = self.swarm.dial(addr.clone());
                     }
                 }
             }

@@ -150,7 +150,7 @@ pub(crate) fn verify_reveal(
     let base_required_iterations =
         consensus_math.required_iterations(&reveal.name, reveal.drand_pulse);
 
-    let mut required_iterations = if let Some(prev) = &reveal.previous_proof {
+    let required_iterations = if let Some(prev) = &reveal.previous_proof {
         // Verify previous proof
         let mut prev_hasher = Sha256::new();
         prev_hasher.update(reveal.name.as_bytes());
@@ -192,30 +192,6 @@ pub(crate) fn verify_reveal(
     } else {
         base_required_iterations
     };
-
-    if let Some(spent) = reveal.points_spent {
-        if spent > 0 {
-            let mut balance_key = Vec::with_capacity(crate::store::constants::KRS_POINTS_PREFIX.len() + reveal.pubkey.len());
-            balance_key.extend_from_slice(crate::store::constants::KRS_POINTS_PREFIX);
-            balance_key.extend_from_slice(&reveal.pubkey);
-            let balance = get_u64_from_sled(storage, &balance_key).unwrap_or(0);
-            if balance < spent {
-                let err = KineticStoreError::InsufficientPoints;
-                err.log_warning("KIN-STORE-029", &reveal.name, &format!(
-                    "Rejecting Reveal: Insufficient points (spent {}, balance {})",
-                    spent, balance
-                ));
-                return Err(err);
-            }
-            required_iterations = required_iterations.saturating_sub(spent);
-            tracing::info!(
-                "Reveal for {} spent {} points. Reduced required iterations to {}.",
-                reveal.name,
-                spent,
-                required_iterations
-            );
-        }
-    }
 
     if dev_mode {
         tracing::info!(

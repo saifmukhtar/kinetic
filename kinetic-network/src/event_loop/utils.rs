@@ -15,16 +15,13 @@ pub(crate) struct PendingQuorum {
     pub(crate) match_count: usize,
 }
 
-pub(crate) fn run_blocking<F, R>(f: F) -> R
-where
-    F: FnOnce() -> R,
-{
-    #[cfg(target_arch = "wasm32")]
-    return f();
-
-    #[cfg(not(target_arch = "wasm32"))]
-    return tokio::task::block_in_place(f);
+pub(crate) struct PendingPut {
+    pub(crate) responder: oneshot::Sender<std::result::Result<(), kinetic_core::error::PublishError>>,
+    pub(crate) expected_responses: usize,
+    pub(crate) success_count: usize,
 }
+
+
 
 pub(crate) fn spawn<F>(future: F)
 where
@@ -37,8 +34,8 @@ where
     tokio::spawn(future);
 }
 
-pub(crate) fn is_routable_multiaddr(addr: &libp2p::Multiaddr) -> bool {
-    if kinetic_core::config::is_dev_mode() {
+pub(crate) fn is_routable_multiaddr(addr: &libp2p::Multiaddr, disable_pow: bool) -> bool {
+    if kinetic_core::config::is_dev_mode() || disable_pow {
         return true;
     }
 
@@ -70,7 +67,7 @@ pub(crate) fn is_routable_multiaddr(addr: &libp2p::Multiaddr) -> bool {
                 }
             }
             Protocol::Memory(_) => {
-                return false;
+                return true;
             }
             _ => {}
         }
@@ -92,108 +89,128 @@ impl super::core::NetworkEventLoop {
         let mut pulse_bytes = [0u8; 32];
         pulse_bytes[..8].copy_from_slice(&current_pulse.to_be_bytes());
 
-        let mut unique_payloads = payloads;
-        unique_payloads.sort();
-        unique_payloads.dedup();
+        // Use a HashSet to deduplicate payloads without sorting the raw Vecs
+        let unique_payloads: std::collections::HashSet<Vec<u8>> = payloads.into_iter().collect();
 
-        // Use run_blocking to prevent event loop starvation during VDF verifications
-        crate::event_loop::utils::run_blocking(|| {
-            // Check if this is a KidDocument query by parsing the first payload
-            let is_kid = unique_payloads
-                .iter()
-                .any(|p| serde_json::from_slice::<kinetic_kid::KidDocument>(p).is_ok());
+        // Single-pass parsing
+        enum ParsedPayload {
+            Kid(kinetic_kid::KidDocument),
+            Reveal(kinetic_core::types::Reveal),
+        }
 
-            if is_kid {
-                unique_payloads
-                    .into_iter()
-                    .filter_map(|p| {
-                        let doc = serde_json::from_slice::<kinetic_kid::KidDocument>(&p).ok()?;
+        let mut parsed = Vec::new();
+        let mut is_kid = false;
+
+        for p in unique_payloads {
+            if let Ok(doc) = serde_json::from_slice::<kinetic_kid::KidDocument>(&p) {
+                is_kid = true;
+                parsed.push((p, ParsedPayload::Kid(doc)));
+            } else if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&p) {
+                parsed.push((p, ParsedPayload::Reveal(reveal)));
+            }
+        }
+
+        if is_kid {
+            parsed
+                .into_iter()
+                .filter_map(|(p, parsed_payload)| {
+                    if let ParsedPayload::Kid(doc) = parsed_payload {
                         #[cfg(not(test))]
                         if doc.verify().is_err() {
                             return None;
                         }
                         Some((p, u64::MAX - doc.created_at)) // Sort by newest created_at
-                    })
-                    .min_by_key(|(_, dist)| *dist)
-                    .map(|(p, _)| p)
-            } else {
-                // It's a Reveal query. Sort by XOR distance first, then lazily verify VDFs.
-                let mut candidates = unique_payloads
-                    .into_iter()
-                    .filter_map(|p| {
-                        let reveal =
-                            serde_json::from_slice::<kinetic_core::types::Reveal>(&p).ok()?;
+                    } else {
+                        None
+                    }
+                })
+                .min_by_key(|(_, dist)| *dist)
+                .map(|(p, _)| p)
+        } else {
+            // It's a Reveal query. Sort by XOR distance first, then lazily verify VDFs.
+            let mut candidates = parsed
+                .into_iter()
+                .filter_map(|(p, parsed_payload)| {
+                    if let ParsedPayload::Reveal(reveal) = parsed_payload {
                         let y_bytes: [u8; 32] = reveal
                             .vdf_proof
                             .proof_bytes
                             .get(..32)
                             .and_then(|b| b.try_into().ok())
                             .unwrap_or([0u8; 32]);
+
                         let mut dist = [0u8; 32];
-                        for i in 0..32 {
-                            dist[i] = y_bytes[i] ^ pulse_bytes[i];
+                        for (i, (y, p)) in std::iter::zip(y_bytes, pulse_bytes).enumerate() {
+                            dist[i] = y ^ p;
                         }
                         Some((p, reveal, dist))
-                    })
-                    .collect::<Vec<_>>();
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
 
-                candidates.sort_by_key(|(_, _, dist)| *dist);
+            candidates.sort_by_key(|(_, _, dist)| *dist);
 
-                #[allow(unused_variables, clippy::never_loop)]
-                for (p, reveal, _) in candidates {
-                    #[cfg(not(test))]
-                    {
-                        use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-                        let signable = reveal.signable_bytes();
-                        let is_valid = VerifyingKey::try_from(reveal.pubkey.as_slice())
-                            .and_then(|k| Signature::from_slice(&reveal.signature).map(|s| (k, s)))
-                            .map(|(k, s)| k.verify(&signable, &s).is_ok())
-                            .unwrap_or(false);
+            #[allow(unused_variables, clippy::never_loop)]
+            for (p, reveal, _) in candidates {
+                #[cfg(not(test))]
+                {
+                    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+                    let signable = reveal.signable_bytes();
+                    let is_valid = VerifyingKey::try_from(reveal.pubkey.as_slice())
+                        .and_then(|k| Signature::from_slice(&reveal.signature).map(|s| (k, s)))
+                        .map(|(k, s)| k.verify(&signable, &s).is_ok())
+                        .unwrap_or(false);
 
-                        if !is_valid {
+                    if !is_valid {
+                        tracing::warn!(
+                            error_code = "KIN-RES-004",
+                            name = %reveal.name,
+                            "Skipping candidate: Invalid signature in tie-breaker"
+                        );
+                        continue;
+                    }
+
+                    use kinetic_core::traits::VdfEngine;
+                    use kinetic_vdf::ChiaVdfEngine;
+                    use sha2::{Digest, Sha256};
+
+                    let drand_bytes = match hex::decode(&reveal.drand_randomness) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            tracing::warn!(
+                                error_code = "KIN-RES-003",
+                                "Skipping candidate: invalid drand_randomness hex: {}",
+                                e
+                            );
                             continue;
                         }
+                    };
+                    let mut hasher = Sha256::new();
+                    hasher.update(reveal.name.as_bytes());
+                    hasher.update(reveal.salt);
+                    hasher.update(&drand_bytes);
+                    hasher.update(&reveal.pubkey);
+                    let mut hash = [0u8; 32];
+                    hash.copy_from_slice(&hasher.finalize());
 
-                        use kinetic_core::traits::VdfEngine;
-                        use kinetic_vdf::ChiaVdfEngine;
-                        use sha2::{Digest, Sha256};
-
-                        let drand_bytes = match hex::decode(&reveal.drand_randomness) {
-                            Ok(b) => b,
-                            Err(e) => {
-                                tracing::warn!(
-                                    error_code = "KIN-RES-003",
-                                    "Skipping candidate: invalid drand_randomness hex: {}",
-                                    e
-                                );
-                                continue;
-                            }
-                        };
-                        let mut hasher = Sha256::new();
-                        hasher.update(reveal.name.as_bytes());
-                        hasher.update(reveal.salt);
-                        hasher.update(&drand_bytes);
-                        hasher.update(&reveal.pubkey);
-                        let mut hash = [0u8; 32];
-                        hash.copy_from_slice(&hasher.finalize());
-
-                        let engine = ChiaVdfEngine::new();
-                        let challenge_cmt = kinetic_core::types::Commitment { hash };
-                        if engine
-                            .verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)
-                            .unwrap_or(false)
-                        {
-                            return Some(p);
-                        }
-                    }
-                    #[cfg(test)]
+                    let engine = ChiaVdfEngine::new();
+                    let challenge_cmt = kinetic_core::types::Commitment { hash };
+                    if engine
+                        .verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)
+                        .unwrap_or(false)
                     {
                         return Some(p);
                     }
                 }
-                None
+                #[cfg(test)]
+                {
+                    return Some(p);
+                }
             }
-        })
+            None
+        }
     }
 }
 
@@ -219,7 +236,6 @@ mod tests {
             pubkey: vec![],
             signature: vec![],
             miner_pubkey: None,
-            points_spent: Some(0),
             previous_proof: None,
         };
         serde_json::to_vec(&reveal).unwrap()

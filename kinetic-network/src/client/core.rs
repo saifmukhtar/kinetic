@@ -4,6 +4,8 @@ use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};
 use tokio::sync::{mpsc, oneshot};
 
 /// The primary handle used to interact with the background network event loop.
+
+
 #[derive(Clone)]
 pub struct NetworkClient {
     sender: std::sync::Arc<std::sync::RwLock<mpsc::Sender<Command>>>,
@@ -87,7 +89,7 @@ impl NetworkClient {
         sender_clone
             .send(Command::SendProxyRequest {
                 peer,
-                request,
+                request: Box::new(request),
                 responder: tx,
             })
             .await
@@ -103,7 +105,7 @@ impl NetworkClient {
     ) -> std::result::Result<(), NetworkClientError> {
         let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
-            .send(Command::SendProxyResponse { channel, response })
+            .send(Command::SendProxyResponse { channel, response: Box::new(response) })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         Ok(())
@@ -125,7 +127,7 @@ impl NetworkClient {
         let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::PublishRedundant {
-                name: name.to_string(),
+                name: name.to_string().into(),
                 payload: payload_bytes,
                 responder: tx,
             })
@@ -151,7 +153,7 @@ impl NetworkClient {
         let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::PublishHeartbeat {
-                name: name.to_string(),
+                name: name.to_string().into(),
                 payload: payload_bytes,
                 responder: tx,
             })
@@ -175,7 +177,7 @@ impl NetworkClient {
         let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::ResolveRedundant {
-                name: name.to_string(),
+                name: name.to_string().into(),
                 responder: tx,
             })
             .await
@@ -199,7 +201,7 @@ impl NetworkClient {
         let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::VerifyQuorum {
-                name: name.to_string(),
+                name: name.to_string().into(),
                 payload: payload_bytes,
                 responder: tx,
             })
@@ -273,7 +275,7 @@ impl NetworkClient {
         let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::SubscribeGossip {
-                topic: topic.to_string(),
+                topic: topic.to_string().into(),
                 responder: tx,
             })
             .await
@@ -291,7 +293,7 @@ impl NetworkClient {
         let sender_clone = self.sender.read().unwrap_or_else(|e| e.into_inner()).clone();
         sender_clone
             .send(Command::BroadcastGossip {
-                topic: topic.to_string(),
+                topic: topic.to_string().into(),
                 payload: payload_bytes,
                 responder: tx,
             })
@@ -322,7 +324,7 @@ mod tests {
         // Backend 1 receives it
         let cmd = rx1.recv().await.unwrap();
         match cmd {
-            Command::PublishRedundant { name, .. } => assert_eq!(name, "test"),
+            Command::PublishRedundant { name, .. } => assert_eq!(&*name, "test"),
             _ => panic!("Unexpected command"),
         }
 
@@ -341,7 +343,7 @@ mod tests {
         // Backend 2 receives it
         let cmd2 = rx2.recv().await.unwrap();
         match cmd2 {
-            Command::PublishRedundant { name, .. } => assert_eq!(name, "test2"),
+            Command::PublishRedundant { name, .. } => assert_eq!(&*name, "test2"),
             _ => panic!("Unexpected command"),
         }
     }

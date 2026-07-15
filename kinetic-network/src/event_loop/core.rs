@@ -1,21 +1,29 @@
 use libp2p::{kad, PeerId, Swarm};
-use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::info;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::behavior::KineticBehavior;
 use crate::client::Command;
 
 use crate::event_loop::utils::*;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum QueryType {
+    Get(std::sync::Arc<str>),
+    Quorum(std::sync::Arc<str>),
+    Put(std::sync::Arc<str>),
+}
+
 /// The central event loop that drives the libp2p swarm and handles networking events.
 pub struct NetworkEventLoop {
     pub(crate) swarm: Swarm<KineticBehavior>,
     pub(crate) command_receiver: mpsc::Receiver<Command>,
-    pub(crate) pending_gets: HashMap<String, PendingGet>,
-    pub(crate) pending_quorums: HashMap<String, PendingQuorum>,
-    pub(crate) query_id_to_name: HashMap<kad::QueryId, String>,
-    pub(crate) pending_proxy_requests: HashMap<
+    pub(crate) pending_gets: FxHashMap<std::sync::Arc<str>, PendingGet>,
+    pub(crate) pending_quorums: FxHashMap<std::sync::Arc<str>, PendingQuorum>,
+    pub(crate) pending_puts: FxHashMap<std::sync::Arc<str>, PendingPut>,
+    pub(crate) query_id_to_name: FxHashMap<kad::QueryId, QueryType>,
+    pub(crate) pending_proxy_requests: FxHashMap<
         libp2p::request_response::OutboundRequestId,
         oneshot::Sender<
             std::result::Result<crate::client::ProxyResponse, crate::client::ProxyError>,
@@ -28,15 +36,17 @@ pub struct NetworkEventLoop {
         )>,
     >,
     pub(crate) gossip_tx: Option<tokio::sync::mpsc::Sender<(String, Vec<u8>)>>,
-    pub(crate) bad_vdf_counts: HashMap<PeerId, (u32, web_time::Instant)>,
+    pub(crate) bad_vdf_counts: FxHashMap<PeerId, (u32, web_time::Instant)>,
     pub(crate) current_drand_pulse: u64,
     pub(crate) drand_pulse_rx: watch::Receiver<u64>,
-    pub(crate) bootstrap_nodes: Vec<String>,
-    pub(crate) bootstrap_peers: std::collections::HashSet<libp2p::PeerId>,
+    pub(crate) bootstrap_nodes: Vec<libp2p::Multiaddr>,
+    pub(crate) seed_domains: Vec<std::sync::Arc<str>>,
+    pub(crate) bootstrap_peers: FxHashSet<libp2p::PeerId>,
     pub(crate) startup_time: web_time::Instant,
-    pub(crate) banned_peers: std::collections::HashSet<libp2p::PeerId>,
-    pub(crate) commitment_miss_counts: HashMap<PeerId, u32>,
-    pub(crate) bootstrap_connection_time: HashMap<PeerId, web_time::Instant>,
+    pub(crate) disable_pow: bool,
+    pub(crate) banned_peers: FxHashSet<libp2p::PeerId>,
+    pub(crate) commitment_miss_counts: FxHashMap<PeerId, u32>,
+    pub(crate) bootstrap_connection_time: FxHashMap<PeerId, web_time::Instant>,
     pub(crate) nat_status: String,
 }
 
@@ -45,34 +55,61 @@ impl NetworkEventLoop {
     pub async fn run(mut self) {
         info!("Starting Kinetic P2P event loop");
 
-        let mut prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(3600));
-        let mut redial_delay = futures_timer::Delay::new(web_time::Duration::from_secs(15));
+        #[cfg(not(target_arch = "wasm32"))]
+        for domain in &self.seed_domains {
+            let host_port = format!("{}:6070", domain);
+            if let Ok(mut addrs) = tokio::net::lookup_host(host_port).await {
+                while let Some(addr) = addrs.next() {
+                    let ip = addr.ip();
+                    let multiaddr = libp2p::Multiaddr::empty()
+                        .with(match ip {
+                            std::net::IpAddr::V4(v4) => libp2p::multiaddr::Protocol::Ip4(v4),
+                            std::net::IpAddr::V6(v6) => libp2p::multiaddr::Protocol::Ip6(v6),
+                        })
+                        .with(libp2p::multiaddr::Protocol::Tcp(addr.port()));
+                    if self.swarm.dial(multiaddr.clone()).is_ok() {
+                        info!("Dialing resolved DNS seed node: {}", multiaddr);
+                    }
+                }
+            } else {
+                tracing::warn!("Failed to resolve DNS seed domain: {}", domain);
+            }
+        }
+
+        let initial_prune_jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 60) as u64;
+        let mut prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(3600 + initial_prune_jitter));
+        let initial_redial_jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 5) as u64;
+        let mut redial_delay = futures_timer::Delay::new(web_time::Duration::from_secs(15 + initial_redial_jitter));
 
         loop {
             tokio::select! {
                 _ = &mut prune_delay => {
-                    prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(3600));
+                    let jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 60) as u64;
+                    prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(3600 + jitter));
                     tracing::info!("Running periodic Sled pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                 }
                 _ = &mut redial_delay => {
-                    redial_delay = futures_timer::Delay::new(web_time::Duration::from_secs(15));
+                    let jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 5) as u64;
+                    redial_delay = futures_timer::Delay::new(web_time::Duration::from_secs(15 + jitter));
                     let info = self.swarm.network_info();
                     let num_peers = info.num_peers();
                     if num_peers == 0 {
                         tracing::warn!("0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
-                        for peer in &self.bootstrap_peers {
-                            let _ = self.swarm.dial(*peer);
+                        for addr in &self.bootstrap_nodes {
+                            let _ = self.swarm.dial(addr.clone());
                         }
                     } else if num_peers > 20 {
                         // Case 184: Disconnect from bootstrap nodes to reduce load once safely in the mesh
                         let mut disconnected = false;
-                        for peer in &self.bootstrap_peers {
-                            // disconnect_peer_id returns an error if the peer is not connected, which is fine
+                        self.bootstrap_peers.retain(|peer| {
                             if self.swarm.disconnect_peer_id(*peer).is_ok() {
                                 disconnected = true;
+                                false // remove from set
+                            } else {
+                                true // keep in set
                             }
-                        }
+                        });
                         if disconnected {
                             tracing::info!("Disconnected from bootstrap nodes to reduce load (Case 184). Active mesh peers: {}", num_peers);
                         }
