@@ -2,6 +2,11 @@ use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
 
 use tracing::{info, warn};
 
+/// Forwards a P2P proxy request to the local web server.
+///
+/// Takes a `ProxyRequest` received from the DHT network and translates it into
+/// a standard HTTP request to the configured local backend (e.g. `localhost:8080`).
+/// Returns a `ProxyResponse` which will be routed back to the requester.
 pub async fn forward_request(
     reqwest_client: &reqwest::Client,
     req: ProxyRequest,
@@ -50,6 +55,11 @@ pub async fn forward_request(
     }
 }
 
+/// Background task to handle incoming P2P proxy requests continuously.
+///
+/// Listens on the provided `rx` channel for incoming requests from the network
+/// client, processes them concurrently by forwarding them to the local backend,
+/// and sends the responses back over the P2P channel.
 pub async fn handle_incoming_proxy_requests(
     client: NetworkClient,
     mut rx: tokio::sync::mpsc::Receiver<(
@@ -81,8 +91,8 @@ pub async fn handle_incoming_proxy_requests(
 #[cfg(test)]
 mod proptests {
     use super::*;
-    use proptest::prelude::*;
     use kinetic_network::ProxyRequest;
+    use proptest::prelude::*;
 
     proptest! {
         #[test]
@@ -101,7 +111,7 @@ mod proptests {
             };
 
             let res = rt.block_on(forward_request(&client, req, 65534, "127.0.0.1"));
-            
+
             // Should never panic, and since the backend port is dead, it MUST return a 502 Bad Gateway
             prop_assert_eq!(res.status, 502);
             prop_assert!(String::from_utf8_lossy(&res.body).contains("Bad Gateway"));

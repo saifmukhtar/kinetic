@@ -35,13 +35,13 @@ pub async fn start_gossip_listener(
 
 #[cfg(test)]
 mod proptests {
-    use super::*;
+
     use proptest::prelude::*;
 
     proptest! {
         #[test]
         fn doesnt_panic_on_garbage_gossip(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
-            // Guarantee that receiving absolute garbage over the P2P gossip network 
+            // Guarantee that receiving absolute garbage over the P2P gossip network
             // will never cause a deserialization panic.
             let _ = serde_json::from_slice::<kinetic_core::governance::SignedGovernanceMessage>(&payload);
         }
