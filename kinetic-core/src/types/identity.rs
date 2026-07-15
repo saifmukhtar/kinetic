@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn test_signable_bytes_kid() {
         let valid_did = format!("{}0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", crate::constants::DID_PREFIX);
-        let kid = kinetic_kid::did::KineticDid::new(valid_did).unwrap();
+        let kid = kinetic_kid::did::KineticDid::new(&valid_did).unwrap();
         let doc = kinetic_kid::document::KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,

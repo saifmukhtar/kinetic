@@ -64,11 +64,11 @@ pub fn derive_heartbeat_keys(name: &str) -> Vec<[u8; 32]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::names::DOT_TLD;
+    use crate::constants::TLD_SUFFIX;
 
     #[test]
     fn test_derive_storage_keys() {
-        let keys = derive_storage_keys(&format!("{}{}", "saif", DOT_TLD));
+        let keys = derive_storage_keys(&format!("{}{}", "saif", TLD_SUFFIX));
         assert_eq!(keys.len(), 32);
 
         let keys2 = derive_storage_keys("SAIF.KIN");

@@ -8,24 +8,6 @@ use web_time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use hickory_resolver::config::*;
 
-/// The set of drand Quicknet HTTP endpoints tried in order.
-///
-/// The chain hash `52db9ba7…` identifies the Quicknet chain (3-second round period).
-pub const DRAND_ENDPOINTS: &[&str] = &[
-    "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://api2.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-];
-
-/// Unix timestamp of the Quicknet chain's genesis (2023-08-23).
-pub const QUICKNET_GENESIS_TIME: u64 = 1692803367;
-/// Duration in seconds of each Quicknet round.
-pub const QUICKNET_PERIOD: u64 = 3;
-
-/// The League of Entropy public key for the Quicknet chain.
-pub const QUICKNET_PUBLIC_KEY: &str = "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a";
-
 const CACHE_KEY: &str = "drand_last_pulse";
 
 // Heartbeat staleness threshold — 24 hours in Drand Quicknet rounds (3s each)
@@ -97,7 +79,7 @@ impl DrandPulse {
             return true;
         }
 
-        let pubkey_bytes: [u8; 96] = match hex::decode(QUICKNET_PUBLIC_KEY).ok().and_then(|b| b.try_into().ok()) {
+        let pubkey_bytes: [u8; 96] = match hex::decode(crate::constants::DRAND_PUBLIC_KEY).ok().and_then(|b| b.try_into().ok()) {
             Some(b) => b,
             None => return false,
         };
@@ -278,8 +260,8 @@ impl DrandClient {
 
         // Offline Fallback for Quicknet
         if let Ok(now) = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH) {
-            if now.as_secs() > QUICKNET_GENESIS_TIME {
-                let estimated_round = (now.as_secs() - QUICKNET_GENESIS_TIME) / QUICKNET_PERIOD;
+            if now.as_secs() > crate::constants::DRAND_GENESIS_TIME {
+                let estimated_round = (now.as_secs() - crate::constants::DRAND_GENESIS_TIME) / crate::constants::DRAND_PERIOD;
                 tracing::warn!(
                     "No drand cache found. Using offline estimated round: {}",
                     estimated_round

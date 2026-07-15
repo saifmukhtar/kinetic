@@ -181,13 +181,13 @@ pub struct VdfJobRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::names::DOT_TLD;
+    use crate::constants::TLD_SUFFIX;
 
     #[test]
     fn test_signable_bytes() {
         let reveal = Reveal {
             protocol_version: 2,
-            name: format!("{}{}", "test", DOT_TLD),
+            name: format!("myname{}", TLD_SUFFIX),
             payload: vec![1, 2, 3],
             salt: [0u8; 32],
             drand_pulse: 100,
