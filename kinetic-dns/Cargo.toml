@@ -17,7 +17,7 @@ anyhow.workspace = true
 tracing.workspace = true
 hickory-proto = "0.24"
 kinetic-network = { version = "0.1.0", path = "../kinetic-network" }
-hickory-resolver = { version = "0.24.4", features = ["dns-over-https-rustls", "webpki-roots"] }
+hickory-resolver = { version = "0.24.4", features = ["dns-over-https-rustls", "webpki-roots", "system-config"] }
 serde_json = "1.0.150"
 moka = { version = "0.12", features = ["future"] }
 reqwest = { version = "0.13.4", features = ["json"] }
@@ -27,3 +27,4 @@ service-manager = "0.11"
 dirs = "5.0"
 [dev-dependencies]
 axum = "0.7"
+proptest = "1.4"

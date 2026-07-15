@@ -82,7 +82,7 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         params.name_constraints = Some(NameConstraints {
             permitted_subtrees: vec![
                 GeneralSubtree::DnsName("kin".to_string()),
-                GeneralSubtree::DnsName(kinetic_core::types::DOT_TLD.to_string()),
+                GeneralSubtree::DnsName(kinetic_core::constants::TLD_SUFFIX.to_string()),
             ],
             excluded_subtrees: vec![],
         });
@@ -294,5 +294,33 @@ mod tests {
 
         let _config = super::generate_leaf_cert("testdomain.kin", &root_ca).unwrap();
         // If it returns Ok, the generation and rustls struct conversion succeeded.
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+    use tempfile::tempdir;
+
+    proptest! {
+        #[test]
+        fn test_fuzz_leaf_cert_generation(
+            // Generate chaotic domains, up to 255 chars, including valid and invalid DNS chars
+            domain in "[a-zA-Z0-9.-]{1,255}"
+        ) {
+            rustls::crypto::ring::default_provider().install_default().ok();
+            let dir = tempdir().unwrap();
+            let (root_ca, _) = load_or_create_root_ca(dir.path()).unwrap();
+            
+            // Should either succeed or safely return an Rcgen error, but NEVER panic
+            let result = generate_leaf_cert(&domain, &root_ca);
+            
+            match result {
+                Ok(_) => prop_assert!(true),
+                Err(CaError::Rcgen(_)) => prop_assert!(true), // Invalid DNS chars hit rcgen parsing error safely
+                Err(e) => prop_assert!(false, "Unexpected error type: {:?}", e),
+            }
+        }
     }
 }

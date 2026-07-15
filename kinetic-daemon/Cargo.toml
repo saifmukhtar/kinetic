@@ -4,6 +4,14 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[lib]
+name = "kinetic_daemon"
+path = "src/lib.rs"
+
+[[bin]]
+name = "kinetic-daemon"
+path = "src/main.rs"
+
 [features]
 simulation = ["kinetic-core/simulation", "kinetic-kid/simulation"]
 
@@ -34,7 +42,7 @@ http-body-util = "0.1.3"
 thiserror.workspace = true
 dirs = "6.0.0"
 rcgen = { version = "0.13.2", features = ["x509-parser"] }
-rustls = "0.23.41"
+rustls = { version = "0.23.41", features = ["ring"] }
 tokio-rustls = "0.26.4"
 rustls-pemfile = "2.2.0"
 rustls-pki-types = "1.14.1"
@@ -42,7 +50,6 @@ time = "0.3.51"
 bytes = "1.12.0"
 interprocess = "2.4.2"
 getrandom = "0.4.3"
-nostr-sdk = "0.35.0"
 tower-http = { version = "0.7.0", features = ["fs", "cors"] }
 uuid = { version = "1.23.4", features = ["v4"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
@@ -60,3 +67,5 @@ http = "1.4.2"
 httptest = "0.16.4"
 tempfile = "3.27.0"
 tower = { version = "0.5.3", features = ["util"] }
+proptest = "1.4.0"
+turmoil = "0.7.2"

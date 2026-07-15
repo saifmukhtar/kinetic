@@ -31,7 +31,7 @@ pub fn start_heartbeat_loop(
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                    let expected_round = now.saturating_sub(1691584200) / 3;
+                    let expected_round = now.saturating_sub(kinetic_core::drand::QUICKNET_GENESIS_TIME) / 3;
 
                     if expected_round > latest.round + 5 {
                         tracing::warn!(

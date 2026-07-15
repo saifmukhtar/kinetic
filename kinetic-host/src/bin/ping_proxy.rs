@@ -33,15 +33,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = NetworkConfig {
         mode: NetworkMode::LightClient,
-        listen_addr: "/ip4/0.0.0.0/tcp/0".to_string(),
+        listen_addr: "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
         bootstrap_nodes: vec![
-            "/ip4/127.0.0.1/tcp/6071/p2p/12D3KooWHQaKKkjWdHnnhK78CQkLVQRB9GYoLMAttTbJtdgyizWS"
-                .to_string(),
+            "/ip4/127.0.0.1/tcp/6071/p2p/12D3KooWHQaKKkjWdHnnhK78CQkLVQRB9GYw2yKqH3xZtHhJpQjS"
+                .parse()
+                .unwrap(),
         ],
         seed_domains: vec![],
         enable_mdns: false,
         initial_drand_pulse: 0,
         external_address: None,
+        max_reveals_per_hour: 100,
+        lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+        disable_pow: false,
     };
 
     let (incoming_tx, _) = tokio::sync::mpsc::channel(32);
@@ -59,17 +63,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Dialing Kinetic Host (12D3KooWHQaKKkjWdHnnhK78CQkLVQRB9GYoLMAttTbJtdgyizWS)...");
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-    let mut headers = std::collections::HashMap::new();
-    headers.insert(
-        "Host".to_string(),
-        format!("{}{}", "saif", kinetic_core::types::DOT_TLD),
-    );
+    let mut headers = Vec::new();
+    headers.push((
+        "Host".into(),
+        format!("{}{}", "saif", kinetic_core::constants::TLD_SUFFIX).into(),
+    ));
 
     let req = ProxyRequest {
-        method: "GET".to_string(),
-        path: "/".to_string(),
+        method: "GET".into(),
+        path: "/".into(),
         headers,
-        body: vec![],
+        body: bytes::Bytes::new(),
     };
 
     println!("Sending P2P Proxy Request...");

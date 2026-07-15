@@ -6,10 +6,7 @@ fn main() {
     let pubkey = keypair.verifying_key().to_bytes();
 
     let params = ConsensusParams::default();
-    let iters = params.required_iterations(
-        "test.kin",
-        0,
-    );
+    let iters = params.required_iterations("test.kin", 0);
 
     println!("Public Key: {:?}", pubkey);
     println!("Iterations for test.kin: {}", iters);
