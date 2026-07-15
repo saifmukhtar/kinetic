@@ -18,12 +18,6 @@ pub fn normalize_name(name: &str) -> String {
 pub fn is_reserved_name(name: &str) -> bool {
     let tld = crate::constants::TLD_SUFFIX;
     let reserved = vec![
-        format!("co.uk{}", tld),
-        format!("uk{}", tld),
-        format!("co{}", tld),
-        format!("id{}", tld),
-        format!("app{}", tld),
-        format!("dapp{}", tld),
         format!("localhost{}", tld),
         format!("test{}", tld),
         format!("invalid{}", tld),
@@ -33,15 +27,7 @@ pub fn is_reserved_name(name: &str) -> bool {
     reserved.contains(&name.to_lowercase())
 }
 
-pub const KINETIC_TLDS: &[&str] = &[
-    "co.uk.kin",
-    "uk.kin",
-    "co.kin",
-    "id.kin",
-    "app.kin",
-    "dapp.kin",
-    TLD,
-];
+
 
 /// Category 1: Public Utility Names (Based on RFC 2606 & RFC 6761)
 /// These names are permanently locked and cannot be registered by anyone.
@@ -87,8 +73,8 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
             }
         }
 
-        // Hyphens cannot be at the start or end of a label
-        if part.starts_with('-') || part.ends_with('-') {
+        // Labels cannot start with a hyphen or a digit, and cannot end with a hyphen
+        if part.starts_with('-') || part.ends_with('-') || part.starts_with(|c: char| c.is_ascii_digit()) {
             return Err(crate::error::NamesError::InvalidCharacter);
         }
     }
@@ -114,25 +100,6 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
 /// Extracts the apex domain (e.g., `saif.kin`) from a potentially longer subdomain name (e.g., `blog.saif.kin`).
 pub fn extract_apex_domain(name: &str) -> String {
     let norm = normalize_name(name);
-
-    for tld in KINETIC_TLDS {
-        if norm.ends_with(tld) {
-            if norm.len() == tld.len() {
-                return norm;
-            }
-
-            let suffix_start = norm.len() - tld.len();
-            if norm.as_bytes()[suffix_start - 1] == b'.' {
-                let without_tld = &norm[0..suffix_start - 1];
-                if without_tld.is_empty() {
-                    return norm;
-                }
-                let parts: Vec<&str> = without_tld.split('.').collect();
-                let apex_label = parts.last().unwrap_or(&"");
-                return format!("{}.{}", apex_label, tld);
-            }
-        }
-    }
 
     let parts: Vec<&str> = norm.split('.').collect();
     if parts.len() >= 2 {
@@ -174,7 +141,10 @@ mod tests {
         assert!(
             is_valid_apex_name(&format!("{}{}", "saif-123", crate::constants::TLD_SUFFIX)).is_ok()
         );
-        assert!(is_valid_apex_name(&format!("{}{}", "007", crate::constants::TLD_SUFFIX)).is_ok());
+        assert_eq!(
+            is_valid_apex_name(&format!("{}{}", "007", crate::constants::TLD_SUFFIX)),
+            Err(crate::error::NamesError::InvalidCharacter)
+        );
 
         assert_eq!(
             is_valid_apex_name(&format!("{}{}", "blog.saif", crate::constants::TLD_SUFFIX)),
