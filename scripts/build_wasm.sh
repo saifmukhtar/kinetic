@@ -15,6 +15,6 @@ fi
 # Build for the web
 # --target web generates ES modules that can be imported directly in the browser
 # --out-dir places the output in the Chrome extension folder
-wasm-pack build --target web --out-dir ../kinetic-client/extension/wasm
+wasm-pack build --target web --out-dir ../../kinetic-client/extension/wasm
 
 echo "Successfully built kinetic-wasm for the Chrome extension."
