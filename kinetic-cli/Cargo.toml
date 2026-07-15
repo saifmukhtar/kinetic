@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[[bin]]
+name = "kinetic"
+path = "src/main.rs"
+
 [features]
 simulation = ["kinetic-core/simulation", "kinetic-kid/simulation"]
 

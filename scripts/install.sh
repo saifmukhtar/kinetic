@@ -149,7 +149,7 @@ else echo "Unsupported OS"; exit 1; fi
 
 # 2. Check existing
 EXISTING_BINS=()
-for bin in kinetic-daemon kinetic-node kinetic-host kinetic-dns kinetic-cli kinetic-keygen; do
+for bin in kinetic-daemon kinetic-node kinetic-host kinetic-dns kinetic kinetic-keygen; do
     if [ -f "/usr/local/bin/$bin" ]; then EXISTING_BINS+=("$bin"); fi
 done
 
@@ -205,7 +205,7 @@ MENU_DESCRIPTIONS=(
 )
 select_menu "Select Installation Profile:" PROFILE
 
-BINS_TO_INSTALL=("kinetic-cli")
+BINS_TO_INSTALL=("kinetic")
 INSTALL_DNS=false
 
 case $PROFILE in
@@ -244,7 +244,7 @@ for bin in "${BINS_TO_INSTALL[@]}"; do
     sudo chmod +x "/usr/local/bin/$bin"
     rm -f "/tmp/$bin"
 
-    if [[ "$bin" != "kinetic-cli" ]]; then
+    if [[ "$bin" != "kinetic" ]]; then
         sudo "/usr/local/bin/$bin" install
         sudo "/usr/local/bin/$bin" start-service
     fi

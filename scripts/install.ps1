@@ -136,7 +136,7 @@ $InstallDir = "$env:ProgramFiles\Kinetic"
 
 # 2. Check for existing installation
 $ExistingBins = @()
-$PossibleBins = @("kinetic-daemon", "kinetic-node", "kinetic-host", "kinetic-dns", "kinetic-cli", "kinetic-keygen")
+$PossibleBins = @("kinetic-daemon", "kinetic-node", "kinetic-host", "kinetic-dns", "kinetic", "kinetic-keygen")
 
 if (Test-Path $InstallDir) {
     foreach ($bin in $PossibleBins) {
@@ -201,7 +201,7 @@ $Descs = @(
 )
 $Profile = Show-Menu -Prompt "Select Installation Profile:" -Options $Opts -Descriptions $Descs
 
-$BinsToInstall = @("kinetic-cli")
+$BinsToInstall = @("kinetic")
 $InstallDns = $false
 
 switch ($Profile) {
@@ -235,7 +235,7 @@ foreach ($bin in $BinsToInstall) {
     Write-Host "Downloading $bin..."
     Invoke-WebRequest -Uri "https://github.com/saifmukhtar/kinetic/releases/latest/download/$bin-windows.exe" -OutFile "$InstallDir\$bin.exe"
     
-    if ($bin -ne "kinetic-cli") {
+    if ($bin -ne "kinetic") {
         & "$InstallDir\$bin.exe" install
         & "$InstallDir\$bin.exe" start-service
     }
