@@ -74,7 +74,7 @@ impl super::core::NetworkEventLoop {
                 let store = KineticRecordStore::new(peer_id, storage_clone, initial_drand_pulse, lru_cache_size, max_reveals_per_hour);
                 let mut kad_config = kad::Config::default();
                 kad_config
-                    .set_protocol_names(vec![libp2p::StreamProtocol::new("/kinetic/kad/2.0.0")])
+                    .set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(format!("/{}/kad/2.0.0", kinetic_core::constants::NETWORK_ID)).unwrap()])
                     .set_max_packet_size(10 * 1024);
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 if mode == NetworkMode::LightClient {
@@ -114,7 +114,7 @@ impl super::core::NetworkEventLoop {
                 .expect("Valid gossipsub config");
 
                 let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(
-                    "/kinetic/1.0.0".into(),
+                    format!("/{}/1.0.0", kinetic_core::constants::NETWORK_ID),
                     key.public(),
                 ));
                 let dcutr = libp2p::dcutr::Behaviour::new(peer_id);
@@ -122,7 +122,7 @@ impl super::core::NetworkEventLoop {
                 let proxy =
                     libp2p::request_response::cbor::Behaviour::<ProxyRequest, ProxyResponse>::new(
                         [(
-                            libp2p::StreamProtocol::new("/kinetic/proxy/1.0.0"),
+                            libp2p::StreamProtocol::try_from_owned(format!("/{}/proxy/1.0.0", kinetic_core::constants::NETWORK_ID)).unwrap(),
                             libp2p::request_response::ProtocolSupport::Full,
                         )],
                         libp2p::request_response::Config::default(),
@@ -330,7 +330,7 @@ impl super::core::NetworkEventLoop {
                 let peer_id = key.public().to_peer_id();
                 let store = KineticRecordStore::new(peer_id, storage_clone, 0, std::num::NonZeroUsize::new(100).unwrap(), 100);
                 let mut kad_config = kad::Config::default();
-                kad_config.set_protocol_names(vec![libp2p::StreamProtocol::new("/kinetic/kad/2.0.0")]);
+                kad_config.set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(format!("/{}/kad/2.0.0", kinetic_core::constants::NETWORK_ID)).unwrap()]);
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 kademlia.set_mode(Some(kad::Mode::Server));
 
@@ -339,7 +339,7 @@ impl super::core::NetworkEventLoop {
                     libp2p::gossipsub::ConfigBuilder::default().build().unwrap(),
                 ).unwrap();
 
-                let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new("/kinetic/1.0.0".into(), key.public()));
+                let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(format!("/{}/1.0.0", kinetic_core::constants::NETWORK_ID), key.public()));
                 let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::new());
 
                 KineticBehavior {
@@ -347,7 +347,7 @@ impl super::core::NetworkEventLoop {
                     dcutr: libp2p::dcutr::Behaviour::new(peer_id),
                     identify,
                     ping,
-                    proxy: libp2p::request_response::cbor::Behaviour::new([(libp2p::StreamProtocol::new("/proxy"), libp2p::request_response::ProtocolSupport::Full)], Default::default()),
+                    proxy: libp2p::request_response::cbor::Behaviour::new([(libp2p::StreamProtocol::try_from_owned(format!("/{}/proxy/1.0.0", kinetic_core::constants::NETWORK_ID)).unwrap(), libp2p::request_response::ProtocolSupport::Full)], Default::default()),
                     stream: libp2p_stream::Behaviour::new(),
                     kademlia,
                     gossipsub,
