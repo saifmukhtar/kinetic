@@ -24,7 +24,10 @@ impl KineticDid {
             return Err(KidError::InvalidDidHexLength);
         }
 
-        if !method_specific_id.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()) {
+        if !method_specific_id
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        {
             return Err(KidError::InvalidDidHexCharacters);
         }
 
