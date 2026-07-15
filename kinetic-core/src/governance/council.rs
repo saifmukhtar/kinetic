@@ -50,7 +50,7 @@ pub fn verify_action(
     }
 
     if let GovernanceAction::GrantPremiumName { name, .. } | GovernanceAction::RevokePremiumName { name } = &msg.action {
-        let label = name.strip_suffix(".kin").unwrap_or(name);
+        let label = name.strip_suffix(crate::constants::TLD_SUFFIX).unwrap_or(name);
         if label.len() != 1 {
             return Err(GovernanceError::InvalidPremiumNameLength);
         }

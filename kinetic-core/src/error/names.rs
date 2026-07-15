@@ -23,7 +23,11 @@ pub enum NamesError {
     #[error("Name is a protected infrastructure name (e.g., seed, explorer)")]
     InfrastructureName,
     
+    /// The name has an invalid TLD.
+    #[error("Name has an invalid Top-Level Domain")]
+    InvalidTLD,
+    
     /// The name is a subdomain, but the operation requires an apex domain.
-    #[error("Only apex domains are allowed (subdomains like blog.saif.kin must be managed by the apex owner)")]
+    #[error("Only apex domains are allowed (subdomains must be managed by the apex owner)")]
     NotAnApexDomain,
 }

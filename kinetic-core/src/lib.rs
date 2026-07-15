@@ -35,6 +35,8 @@ pub mod api_error;
 pub mod config;
 /// Mathematical helpers for consensus: VDF difficulty scaling and name-length fees.
 pub mod consensus_math;
+/// Global protocol constants.
+pub mod constants;
 /// drand beacon client for epoch-bound randomness and Sybil-resistance.
 pub mod drand;
 /// Unified error types for storage, VDF, KID, and general Kinetic operations.

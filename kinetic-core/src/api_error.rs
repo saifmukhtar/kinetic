@@ -248,6 +248,7 @@ impl From<VdfError> for ApiError {
                 (500, "VDF Computation Error")
             }
             VdfError::UnsupportedPlatform => (501, "Not Implemented"),
+            VdfError::InvalidProof => (400, "Bad Request"),
         };
         ApiError {
             error_type: e.error_type_uri(),

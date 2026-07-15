@@ -122,7 +122,8 @@ impl DnsZone {
                         }
                     }
                     DnsRecord::KID(kid_str) => {
-                        if !kid_str.starts_with("did:kin:") {
+                        if !kid_str.starts_with(crate::constants::DID_PREFIX) {
+                            tracing::warn!("Rejecting non-Kinetic DID CNAME: {}", kid_str);
                             return Err(crate::error::DnsError::InvalidKid(kid_str.clone()));
                         }
                     }

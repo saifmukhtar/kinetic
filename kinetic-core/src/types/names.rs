@@ -1,15 +1,34 @@
 pub const TLD: &str = "kin";
-pub const DOT_TLD: &str = ".kin";
+// We use the TLD_SUFFIX from constants.rs directly instead of DOT_TLD.
 
 pub fn normalize_name(name: &str) -> String {
     let mut norm = name.to_lowercase();
     while norm.ends_with('.') {
         norm.pop();
     }
-    if !norm.ends_with(DOT_TLD) {
-        norm.push_str(DOT_TLD);
+    if !norm.ends_with(crate::constants::TLD_SUFFIX) {
+        norm.push_str(crate::constants::TLD_SUFFIX);
     }
     norm
+}
+
+// Hardcoded reserved names are evaluated dynamically based on TLD.
+pub fn is_reserved_name(name: &str) -> bool {
+    let tld = crate::constants::TLD_SUFFIX;
+    let reserved = vec![
+        format!("co.uk{}", tld),
+        format!("uk{}", tld),
+        format!("co{}", tld),
+        format!("id{}", tld),
+        format!("app{}", tld),
+        format!("dapp{}", tld),
+        format!("localhost{}", tld),
+        format!("test{}", tld),
+        format!("invalid{}", tld),
+        format!("local{}", tld),
+        format!("null{}", tld),
+    ];
+    reserved.contains(&name.to_lowercase())
 }
 
 pub const KINETIC_TLDS: &[&str] = &[
@@ -41,6 +60,12 @@ pub const PUBLIC_NAMES: &[&str] = &[
 ];
 
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
+    let name_lower = name.to_lowercase();
+    if !name_lower.ends_with(crate::constants::TLD_SUFFIX) {
+        let err = crate::error::NamesError::InvalidTLD;
+        return Err(err);
+    }
+
     let norm = normalize_name(name);
 
     if norm.len() > 253 || norm.is_empty() {
@@ -70,8 +95,7 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     }
 
     // Ensure the registered label is not a Category 1 reserved public utility name.
-    let parts: Vec<&str> = apex.split('.').collect();
-    if !parts.is_empty() && PUBLIC_NAMES.contains(&parts[0]) {
+    if is_reserved_name(&name_lower) {
         return Err(crate::error::NamesError::ReservedName);
     }
 
