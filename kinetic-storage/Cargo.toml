@@ -14,3 +14,4 @@ bytes = "1.6.0"
 
 [dev-dependencies]
 tempfile = "3.27.0"
+proptest = "1.4.0"

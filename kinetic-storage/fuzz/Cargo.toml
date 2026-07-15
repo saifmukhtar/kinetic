@@ -1,0 +1,25 @@
+[package]
+name = "kinetic-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+tempfile = "3.8"
+kinetic-core = { path = "../../kinetic-core" }
+
+[dependencies.kinetic-storage]
+path = ".."
+
+[[bin]]
+name = "fuzz_storage_ops"
+path = "fuzz_targets/fuzz_storage_ops.rs"
+test = false
+doc = false
+bench = false
