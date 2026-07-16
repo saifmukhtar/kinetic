@@ -69,7 +69,7 @@ export default withMermaid(defineConfig({
       }
     ],
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/saif/kinetic' }
+      { icon: 'github', link: 'https://github.com/saifmukhtar/kinetic' }
     ],
     footer: {
       message: 'Released under the MIT License.',
