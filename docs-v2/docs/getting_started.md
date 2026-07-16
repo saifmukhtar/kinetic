@@ -177,7 +177,7 @@ Open `http://example.kin` directly in Chrome or Firefox. The daemon intercepts t
 ```bash
 dig @127.0.0.1 github.com A
 ```
-The daemon recognizes `github.com` does not end in `.kin` and forwards it to `1.1.1.1` untouched. Normal internet is unaffected.
+The daemon recognizes `github.com` does not end in `.kin` and forwards it to your **OS system DNS resolver** (read from your system config via `read_system_conf()`). If the system config cannot be read, it falls back to Cloudflare DNS. Normal internet is unaffected.
 
 ---
 
