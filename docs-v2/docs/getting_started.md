@@ -1,36 +1,33 @@
-# Chapter 11: Getting Started (Installation & Quickstart)
+# Getting Started
 
-If you have made it through the intense mathematical theory and exhaustive code breakdowns of the previous chapters, you are ready to physically deploy Kinetic. 
-
-This final chapter serves as the hands-on, practical guide to compiling the workspace from source, launching the background daemon, and successfully registering your very first decentralized `.kin` domain.
+> **Two paths. Pick yours.**
+>
+> - **[Deploying your own network?](#path-a-deploy-your-own-network)** → You want `kinetic-forge`.
+> - **[Using the `.kin` public network?](#path-b-use-the-kin-network)** → You want `kinetic-daemon`.
 
 ---
 
-## 1. System Prerequisites
+## System Prerequisites
 
-Kinetic relies heavily on advanced cryptographic engines and systems-level networking. Before compiling, ensure your local environment is correctly configured.
+Both paths require the same toolchain.
 
-### Required Toolchains
-1. **Rust:** You must have the standard Rust toolchain (`cargo`, `rustc`) installed via [rustup](https://rustup.rs/).
-2. **C++ Compiler:** The `chiavdf` FFI bindings require a modern C++ compiler (e.g., `g++` or `clang`).
-3. **GMP Library:** The Chia VDF engine relies on the GNU Multiple Precision Arithmetic Library for hyper-fast large integer mathematics.
+### Required
+
+1. **Rust toolchain** — install via [rustup](https://rustup.rs/)
+2. **C++ compiler** — required by the `chiavdf` FFI bindings (`g++` or `clang`)
+3. **GMP library** — the Chia VDF engine uses GNU Multiple Precision Arithmetic for large integer math
 
 **Ubuntu / Debian:**
 ```bash
-sudo apt update
-sudo apt install build-essential cmake libgmp-dev
+sudo apt update && sudo apt install build-essential cmake libgmp-dev
 ```
 
-**macOS (via Homebrew):**
+**macOS (Homebrew):**
 ```bash
 brew install cmake gmp
 ```
 
----
-
-## 2. Compiling the Workspace
-
-Clone the repository and compile the workspace in release mode. The VDF grind is highly sensitive to compiler optimizations; running it in debug mode will make domain registrations unbearably slow.
+### Clone and Build
 
 ```bash
 git clone https://github.com/saifmukhtar/kinetic.git
@@ -38,113 +35,184 @@ cd kinetic
 cargo build --release
 ```
 
-This command will compile all the major crates (`kinetic-core`, `kinetic-network`, `kinetic-vdf`, `kinetic-dns`, and `kinetic-storage`), linking the C++ Chia VDF engine via `build.rs`, and finally producing the `kinetic-daemon` and `kinetic-cli` binaries.
+> ⚠️ Always build in `--release` mode. The VDF computation is highly sensitive to compiler optimizations — debug mode makes name registrations unbearably slow.
 
 ---
 
-## 3. Launching the Kinetic Daemon
+## Path A: Deploy Your Own Network
 
-The `kinetic-daemon` must run continuously in the background. It serves three critical functions:
-1. Acting as your local Kademlia DHT peer.
-2. Intercepting port `53` to provide seamless Split-DNS to your browser.
-3. Serving the embedded **Kinetic UI** via its local Axum HTTP server.
+> *For universities, companies, governments, and communities who want a sovereign namespace under their own TLD.*
 
-Because binding to port `53` (the standard DNS port) is a privileged operation on Linux and macOS, you **must** run the daemon with `sudo` or administrator privileges.
+### Step 1: Run `kinetic-forge`
 
-### Running the Daemon
-In a dedicated terminal window (or configured via a `systemd` service file):
+`kinetic-forge` is the interactive wizard that generates your `network.json` — the single file that defines your entire network identity.
+
+```bash
+./target/release/kinetic-forge
+```
+
+It will ask you for:
+- Your TLD (e.g. `uni`, `acme`, `internal`)
+- Your organization's base domain
+- VDF difficulty (it will benchmark your hardware automatically)
+- Name recycling period (how long idle names survive)
+- Whether to enable Phase 2 governance auto-lock
+
+When it finishes, you will have:
+- A fully configured `network.json`
+- A generated governance keypair in `./keys/` — **keep these offline**
+
+### Step 2: Recompile with Your Network Config
+
+```bash
+cargo build --release --workspace
+```
+
+All binaries now have your network's constants compiled in. Every node your users run will share identical cryptographic constants — there is no runtime config drift possible.
+
+### Step 3: Launch Your Bootstrap Nodes
+
+Run `kinetic-node` on at least two stable servers. These are the DHT entry points for everyone on your network:
+
+```bash
+# On your server:
+sudo ./target/release/kinetic-node
+
+# Get the peer ID to put in network.json:
+./target/release/kinetic-cli peer-id
+```
+
+Update `bootstrap_nodes` in your `network.json` with these addresses, recompile, and distribute the binaries to your users.
+
+### Step 4: Distribute
+
+Users on your network install `kinetic-daemon` and `kinetic-cli` built from your `network.json`. They run the daemon, register names under your TLD, and resolve them natively in their browser — same workflow as the `.kin` network, but entirely under your control.
+
+→ **Full details:** [Fork Your Own Network](./forking.md)
+
+---
+
+## Path B: Use the `.kin` Network
+
+> *For developers and builders using the canonical public network — no operator, no fees, no permission required.*
+
+### Step 1: Launch the Daemon
+
+The `kinetic-daemon` runs continuously in the background. It handles:
+- Your local Kademlia DHT peer connection to the `.kin` network
+- Split-DNS on port `53` — intercepts `.kin` queries, passes everything else through
+- Local REST API on `127.0.0.1:16001`
+
+Because binding port `53` is a privileged operation on Linux and macOS, run with `sudo`:
 
 ```bash
 sudo ./target/release/kinetic-daemon
 ```
 
-*Note: In future production releases, the daemon will automatically drop privileges to a restricted `kinetic` user account immediately after binding to port 53, ensuring maximum system security.*
-
-Once running, the daemon will output logs indicating it has connected to the bootstrap DHT swarm, initialized its auto-healing local Sled database, and bound the local REST API to `127.0.0.1:16001`.
+Once running, the daemon logs will confirm it has connected to the bootstrap DHT swarm and initialized the local Sled database.
 
 ---
 
-## 4. The Kinetic UI Dashboard
+### Step 2: Register Your Name (Two-Phase Protocol)
 
-With the daemon running, the absolute easiest way to manage your domains and network connections is via the bundled **Kinetic UI**. 
+Kinetic uses a **Commit → Grind → Reveal** protocol to prevent front-running. No one can snipe your name during the VDF computation because the commitment is blind.
 
-The UI is a sleek React SPA served directly out of the daemon's binary memory using `rust-embed`.
-
-Open your browser and navigate to:
-**http://localhost:16001**
-
-From this dashboard, you can:
-- Track DHT node discovery.
-- View real-time Hashcash memory pool workers.
-- Graphically register new domains and watch the VDF progress bar.
-
----
-
-## 5. Registering Your First Domain (CLI Workflow)
-
-If you prefer the command line over the web UI, you can use the `kinetic-cli` to claim territory on the network. This process uses the new **Two-Phase Commit/Reveal Protocol** to prevent front-running.
-
-Open a separate terminal window. You do *not* need `sudo` for the CLI.
-
-### Phase 1: The Commit & Grind
-To register `mywebsite.kin`, simply type:
+#### Phase 1: Commit & Grind
 
 ```bash
 ./target/release/kinetic-cli register mywebsite.kin
 ```
 
-### What Happens Next?
-1. The CLI contacts the external Drand beacon to pull down the latest entropy pulse.
-2. It hashes your requested name, a random salt, the Drand pulse, and your Ed25519 public key into a blind commitment, instantly broadcasting it to the DHT.
-3. **The Grind:** The CLI spins up a system-wide mutex lock (`fs2::FileExt`) and computes the VDF. Your CPU fan may spin up. Depending on the name length, this takes a few seconds to a few hours.
-4. **The Reveal Generation:** Once the VDF proof is generated, the CLI creates a local JSON template and saves your mathematical proof to `~/.config/kinetic/zones/mywebsite.kin.reveal.json`.
+What happens:
+1. The CLI fetches the latest `drand` Quicknet pulse (the randomness beacon)
+2. Hashes your name + random salt + drand pulse + your Ed25519 public key into a blind commitment and broadcasts it to the DHT instantly
+3. Starts the VDF computation — your CPU will run at full load. Time depends on name length:
 
-### Phase 2: Configuration & Publishing
-Now, open the newly generated `~/.config/kinetic/zones/mywebsite.kin.json` configuration file in a text editor and add the IP address of your web server as an `A` record.
+| Name length | Approximate time |
+|---|---|
+| 8+ characters | ~2 hours |
+| 6 characters | ~12 hours |
+| 5 characters | ~1 day |
+| 4 characters | ~15 days |
 
-Once you have configured the zone file, publish your records and your cryptographic reveal to the global swarm:
+4. When done, saves your proof to `~/.config/kinetic/zones/mywebsite.kin.reveal.json`
+
+#### Phase 2: Configure & Publish
+
+Open `~/.config/kinetic/zones/mywebsite.kin.json` and add your DNS records:
+
+```json
+{
+  "name": "mywebsite.kin.",
+  "records": [
+    { "type": "A", "value": "YOUR_SERVER_IP" }
+  ],
+  "target_kid": "did:kin:kid1abc9f7..."
+}
+```
+
+Then publish to the global network:
 
 ```bash
 ./target/release/kinetic-cli publish mywebsite.kin
 ```
 
-Your name is instantly live globally!
+Your name is live globally. Any device running the Kinetic daemon can now resolve `mywebsite.kin`.
 
 ---
 
-## 6. Testing the Resolution
+### Step 3: Test Resolution
 
-Because you are running the daemon locally, you can instantly test it without waiting for global DNS propagation.
-
-### Testing with `dig`
-Use the standard network utility `dig` to query your local machine on port `53`.
-
+**Via `dig`:**
 ```bash
 dig @127.0.0.1 mywebsite.kin A
 ```
+You should get an instant response with your `A` record.
 
-You should receive an instantaneous response showing the `A` record you just configured.
+**Via browser:**
+Open `http://mywebsite.kin` directly in Chrome or Firefox. The daemon intercepts the DNS query transparently — no browser extension needed.
 
-### Testing in the Browser
-Because the daemon has updated your OS loopback, you can bypass the terminal entirely.
-
-Open Google Chrome or Mozilla Firefox and type `http://mywebsite.kin` into the URL bar. 
-
-The browser will implicitly ask your local OS for the IP address. The OS will ask the `kinetic-daemon` on port 53. The daemon will realize it is a `.kin` domain, query the Kademlia DHT, verify the mathematics, and seamlessly route your browser to your local web server.
-
-### Testing Legacy Pass-Through
-To verify that the daemon hasn't broken your normal internet connection, try pinging a standard website:
-
+**Verify legacy traffic still works:**
 ```bash
 dig @127.0.0.1 github.com A
 ```
-
-The daemon uses `hickory_resolver` to instantly recognize that `github.com` does not end in `.kin` and forwards the request to Cloudflare (`1.1.1.1`), returning the standard public IP while strictly dropping malicious SSRF requests to internal interfaces.
+The daemon recognizes `github.com` does not end in `.kin` and forwards it to `1.1.1.1` untouched. Normal internet is unaffected.
 
 ---
 
-## Welcome to the Sovereign Web
+### Step 4: Keep Your Name Alive (Heartbeat)
 
-You have just registered a domain name without a credit card, without creating a username, and without asking permission from a corporation or government. Your ownership of that name is secured entirely by the unyielding laws of thermodynamics and cryptography, and your resolution traffic is immune to ISP censorship.
+Ownership is maintained by a continuous cryptographic heartbeat — a signature broadcast to the DHT proving your node is online. The daemon handles this automatically while it runs.
 
-Welcome to Kinetic. The internet is yours again.
+If your daemon goes offline for an extended period, the name enters **Grace-Period Escalation** — attackers must compute an exponentially harder VDF to challenge it, and you can reclaim it instantly by bringing your daemon back online during the challenge window.
+
+→ **Full details:** [VDF Delegation, Heartbeats & Lease System](./hybrid_lease_system.md)
+
+---
+
+## The Kinetic UI Dashboard
+
+Both paths include the embedded **Kinetic UI** — a React dashboard served directly from the daemon binary via `rust-embed`.
+
+With the daemon running, open:
+**[http://localhost:16001](http://localhost:16001)**
+
+From here you can:
+- Monitor DHT peer discovery in real time
+- Track active VDF computation progress
+- View and manage registered domains
+- Inspect heartbeat status for all owned names
+
+---
+
+## What You Just Did
+
+You registered a name without:
+- A credit card
+- A username or account
+- Permission from a corporation or government
+- Paying anyone, ever
+
+Your ownership is secured entirely by cryptographic proofs stored across a global decentralized hash table. No ISP can censor your name. No registry can revoke it. No speculator can outbid you.
+
+Welcome to Kinetic.
