@@ -177,6 +177,4 @@ This transforms naming from machine resolution into identity-driven service disc
 
 ## 5. Security & Edge Case Hardening
 
-Given that the Kinetic Identity Document serves as the permanent cryptographic root of trust, its parsing logic is subjected to exhaustive edge-case validation testing. 
-
-Through the `test_014_edge_cases.rs` suite, the new `document.rs` and `manifest.rs` implementations rigorously validate malformed inputs, truncated signatures, illegal byte lengths, and future-dated timestamp injections. This ensures the protocol remains secure against maliciously crafted identities or corrupted DHT payloads.
+Given that the Kinetic Identity Document serves as the permanent cryptographic root of trust, its parsing logic is subjected to exhaustive edge-case validation. The `kinetic-kid` crate rigorously validates malformed inputs, truncated signatures, illegal byte lengths, and future-dated timestamp injections, ensuring the protocol remains secure against maliciously crafted identities or corrupted DHT payloads.

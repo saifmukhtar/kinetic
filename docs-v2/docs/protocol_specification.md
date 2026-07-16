@@ -50,34 +50,36 @@ stateDiagram-v2
 
 Kinetic's security relies on the asymmetry of VDF verification and the Grace-Period Escalation curve. To formally prove the economic deterrents, empirical simulations were conducted.
 
-### 2.1 The Escalation Curve ($T_{\text{steal}}$)
-When a name becomes `Inactive`, the difficulty to claim it decays according to the equation:
-$$ T_{\text{steal}} = T_{\text{base}} \times e^{\left(\frac{k}{\Delta t}\right)} $$
-*Assume $T_{\text{base}} = 10,000,000$ iterations and an adversary utilizing an ASIC computing $10^9$ iterations/second.*
+### 2.1 The Escalation Curve ($D_{\text{steal}}$)
+When a name becomes `Inactive`, the steal difficulty decays according to a **quadratic inverse** curve (as implemented in `kinetic-core/src/consensus_math.rs`):
+$$ D_{\text{steal}}(\Delta r) = D_{\text{base}} \times \max\left(1,\ \frac{R_{\text{target}}^2}{(\Delta r + 1)^2}\right) $$
+where $R_{\text{target}} = 7{,}884{,}000$ rounds (≈ 9 months at 3s/round on Quicknet) and $\Delta r$ is rounds elapsed since the last heartbeat.
 
-| Idle Time ($\Delta t$) | $T_{\text{steal}}$ (Iterations) | Estimated ASIC Time |
-|-------------------------|--------------------------------|----------------------|
-| 1 Hour                  | $\infty$                       | Forever              |
-| 12 Hours                | $1.14 \times 10^{33}$          | > Age of Universe    |
-| 1 Day                   | $1.07 \times 10^{20}$          | > 100 Years          |
-| 1 Week                  | $7.27 \times 10^{8}$           | 0.73 Seconds         |
-| 1 Month                 | $2.72 \times 10^{7}$           | 0.03 Seconds         |
+| Idle Time | Multiplier | Interpretation |
+|---|---|---|
+| 0 rounds | $R_{\text{target}}^2$ | Near-infinite — theft impossible |
+| 1 month ($\approx$876,000 rounds) | $\sim$81× | Extremely hard |
+| 4.5 months ($\approx$3,942,000 rounds) | $\sim$4× | Hard |
+| 9 months ($\approx$7,884,000 rounds) | $1\times$ (baseline) | Freely reclaimable |
+| Beyond $R_{\text{target}}$ | $1\times$ | Name returned to commons |
 
-**Conclusion:** Active names are mathematically impossible to steal. Abandoned names are cleanly garbage-collected.
+**Conclusion:** Active names are mathematically impossible to steal. Abandoned names are cleanly recycled back to the commons after ≈9 months.
 
 ### 2.2 DHT Keyspace Dispersion (Eclipse Defense)
-Kinetic stores $M=32$ redundant payloads across the Kademlia DHT using $K_i = \text{SHA256}(\text{name} \parallel i)$.
-A simulation generating $1,000,000,000$ names ($32,000,000,000$ derived keys) mapped into 65,536 distinct 16-bit Kademlia sectors yielded:
-- **Expected Keys per Sector:** 488,281
-- **Variance:** $3.24\%$
+Kinetic publishes payloads redundantly across the Kademlia DHT. Each payload is stored at $K_i = \text{SHA256}(\text{name} \parallel i \parallel \text{domain\_tag})$ for multiple deterministic keys. libp2p Kademlia then replicates each key to the $k=20$ closest peers by XOR distance.
 
-**Conclusion:** The SHA-256 derivation provides perfect uniform dispersion. Because the keys are statistically uncorrelated, successfully censoring a name requires uniform control over the entire 256-bit DHT keyspace, making Eclipse attacks practically impossible.
+Because the SHA-256 derivation acts as a random oracle, the storage keys are statistically uncorrelated and uniformly distributed across the 256-bit DHT keyspace. An Eclipse attacker must simultaneously control nodes closest to all derived keys — which requires controlling a supermajority of the entire network.
+
+For an attacker controlling fraction $f=0.20$ of the network with bucket size $k=20$ and $M=5$ redundant keys:
+$$ P_{\text{eclipse}} = f^{k \cdot M} = 0.2^{100} \approx 10^{-70} $$
+
+**Conclusion:** Eclipsing a single name is statistically impossible without controlling a supermajority of the global network.
 
 ---
 
 ## 3. Payload Schemas
 
-To prevent DDoS and OOM (Out-of-Memory) attacks, **all serialized JSON payloads must not exceed 64 KB (65,536 bytes)**. Payloads exceeding this limit are instantly dropped by DHT nodes.
+To prevent DDoS and OOM (Out-of-Memory) attacks, **all serialized payloads must not exceed 8,000 bytes** (enforced in `kinetic-network/src/client/core.rs`). Payloads exceeding this limit are rejected before they enter the DHT.
 
 ### 3.1 The Reveal Struct (Protocol Version 2)
 The core cryptographic truth that proves a user owns a name, finalizing the Two-Phase Commit.
@@ -124,7 +126,7 @@ The mapping of the Identity to concrete services. Also requires a 20-bit Hashcas
     },
     "api": {
       "type": "grpc",
-      "endpoint": "api.saifmukhtar.dev:443"
+      "endpoint": "api.example.org:443"
     },
     "nostr": {
       "type": "websocket",
@@ -143,7 +145,7 @@ The mapping of the Identity to concrete services. Also requires a 20-bit Hashcas
 Kinetic supports "trust-minimized light clients". A browser does not need to run a DHT node; it simply requests data from untrusted HTTP gateways and verifies the payloads locally.
 
 **The Client-Side Resolution Flow:**
-1. **Fetch:** Client requests payloads for $K_1 \dots K_{32}$ from 3 independent public Gateways.
+1. **Fetch:** Client requests payloads from the Kademlia $k=20$ closest peers via 3 independent public Gateways.
 2. **Collect:** Client aggregates the JSON payloads.
 3. **Verify Signatures:** Discard any payload where the Ed25519 signature fails.
 4. **Verify VDF:** Discard any payload where the Chia Class Group VDF validation fails.
