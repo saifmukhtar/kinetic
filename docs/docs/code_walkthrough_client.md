@@ -2,7 +2,7 @@
 
 The previous chapters detailed the desktop and server infrastructure of Kinetic. However, mobile devices represent the vast majority of modern internet usage. Running a full Kademlia DHT node and computing massive VDF proofs on a smartphone would instantly drain the battery and violate OS background execution policies.
 
-To solve this, Kinetic provides `kinetic-client`, a cross-platform mobile application built in Flutter (Dart) that interfaces with the Rust core via Foreign Function Interface (FFI). It resides in a separate repository (`/home/saif/kinetic-client`), rather than as a standard workspace crate.
+To solve this, Kinetic provides `kinetic-client`, a cross-platform mobile application built in Flutter (Dart) that interfaces with the Rust core via Foreign Function Interface (FFI). It resides in a separate repository (`https://github.com/saifmukhtar/kinetic-client`), rather than as a standard workspace crate.
 
 In this chapter, we dissect how the mobile client acts as a lightweight, secure gateway to the Kinetic network without melting your phone.
 
