@@ -7,6 +7,7 @@
   "benchmark_base_iterations": 238819830,
   "steal_target_rounds": 7884000,
   "m_redundancy": 32,
+  "governance_model": "bicameral",
   "drand_genesis_time": 1692803367,
   "drand_period": 3,
   "kinetic_genesis_drand_round": 0,

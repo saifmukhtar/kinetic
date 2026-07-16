@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
 use super::types::{
-    GovernanceAction, GovernanceEffect, GovernanceState, Hash256, SignedGovernanceMessage,
+    GovernanceEffect, GovernanceState, Hash256, SignedGovernanceMessage,
 };
 use crate::error::GovernanceError;
 
@@ -159,76 +159,7 @@ impl GovernanceState {
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        if current_time_sec.saturating_sub(msg.timestamp_sec) > MAX_AGE_SECONDS {
-            return Err(GovernanceError::StaleProposal);
-        }
-
-        if let GovernanceAction::AppointMember { .. }
-        | GovernanceAction::SelfAppointCouncilMember { .. } = &msg.action
-        {
-            if self.active_council.len() >= MAX_COUNCIL_SIZE {
-                return Err(GovernanceError::CouncilAtCapacity);
-            }
-        }
-
-        if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
-            if let Some(&broadcast_time) = self.pending_timelocks.get(target_hash) {
-                if current_time_sec >= broadcast_time + TIMELOCK_SECONDS {
-                    return Ok(self.execute_action(msg, current_time_sec, None));
-                } else {
-                    return Err(GovernanceError::TimelockNotExpired);
-                }
-            } else if let Some(&(broadcast_time, wait_time, _)) =
-                self.pending_updates.get(target_hash)
-            {
-                if current_time_sec >= broadcast_time + wait_time {
-                    return Ok(self.execute_action(msg, current_time_sec, None));
-                } else {
-                    return Err(GovernanceError::OtaTimelockNotExpired);
-                }
-            } else {
-                return Err(GovernanceError::NotPendingOrVetoed);
-            }
-        }
-
-        let actual_active_count = self.count_active_council(current_time_sec);
-        let guard_key_opt = self.get_guard_key()?;
-
-        if self.mode == crate::governance::types::GovernanceMode::Founder {
-            let instant_lock = actual_active_count >= MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
-            let year_passed = current_time_sec >= self.genesis_timestamp_sec + AUTO_LOCK_SECONDS;
-
-            if instant_lock {
-                self.mode = crate::governance::types::GovernanceMode::Council;
-                self.lock_timestamp_sec = Some(current_time_sec);
-                self.grace_period_start_sec = None; // clear grace period if it was active
-            } else if year_passed && self.grace_period_start_sec.is_none() {
-                self.grace_period_start_sec = Some(current_time_sec);
-            }
-
-            if let Some(start_sec) = self.grace_period_start_sec {
-                if current_time_sec >= start_sec + 30 * 24 * 60 * 60 {
-                    // 13-month fallback: forcefully strip founder of power
-                    self.mode = crate::governance::types::GovernanceMode::Council;
-                    self.lock_timestamp_sec = Some(current_time_sec);
-                    self.grace_period_start_sec = None;
-                }
-            }
-        }
-
-        let effective_active_count = std::cmp::max(actual_active_count, MIN_ACTIVE_COUNCIL);
-        if msg.council_size_at_proposal < effective_active_count as u32 {
-            return Err(GovernanceError::CouncilSizeMismatch);
-        }
-
-        match self.mode {
-            crate::governance::types::GovernanceMode::Founder => {
-                crate::governance::founder::verify_action(self, msg, current_time_sec)
-            }
-            crate::governance::types::GovernanceMode::Council => {
-                crate::governance::council::verify_action(self, msg, current_time_sec)
-            }
-        }
+        crate::governance::engine::get_active_engine().verify_action(self, msg, current_time_sec)
     }
 
     /// Executes a verified governance action, applying its state changes and returning any resulting effects.
@@ -238,92 +169,7 @@ impl GovernanceState {
         current_time_sec: u64,
         wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
-        let mut effect = None;
-        match &msg.action {
-            GovernanceAction::AppointMember { key }
-            | GovernanceAction::SelfAppointCouncilMember { candidate_key: key } => {
-                if !self.active_council.contains(key) {
-                    self.active_council.push(*key);
-                }
-            }
-            GovernanceAction::RemoveCouncilMember { target_key } => {
-                self.active_council.retain(|k| k != target_key);
-                self.last_signature_timestamps.remove(target_key);
-            }
-            GovernanceAction::LockCouncil => {
-                if self.mode == crate::governance::types::GovernanceMode::Founder {
-                    self.mode = crate::governance::types::GovernanceMode::Council;
-                    self.lock_timestamp_sec = Some(current_time_sec);
-                }
-            }
-            GovernanceAction::UpdateBinary {
-                manifest_hash,
-                mirrors,
-                ..
-            } => {
-                if let Some(wait_sec) = wait_time {
-                    let action_hash = Self::hash_action(msg);
-                    self.pending_updates
-                        .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
-                } else {
-                    effect = Some(GovernanceEffect::TriggerOTA {
-                        manifest_hash: *manifest_hash,
-                        mirrors: mirrors.clone(),
-                    });
-                }
-            }
-            GovernanceAction::VetoUpdate { target_hash } => {
-                self.pending_timelocks.remove(target_hash);
-                self.pending_updates.remove(target_hash);
-                self.vetoed_hashes.insert(*target_hash);
-            }
-            GovernanceAction::EmergencyReset { override_mode, .. } => {
-                if *override_mode {
-                    let action_hash = Self::hash_action(msg);
-                    self.pending_timelocks.insert(action_hash, current_time_sec);
-                } else {
-                    self.mode = crate::governance::types::GovernanceMode::Founder;
-                    self.active_council.clear();
-                }
-            }
-            GovernanceAction::ExecuteTimelock { target_hash } => {
-                self.pending_timelocks.remove(target_hash);
-
-                if let Some(original) = self.partial_proposals.get(target_hash) {
-                    if let GovernanceAction::EmergencyReset { override_mode, .. } = &original.action
-                    {
-                        if *override_mode {
-                            self.mode = crate::governance::types::GovernanceMode::Founder;
-                            self.active_council.clear();
-                        }
-                    }
-                }
-
-                if let Some((_, _, mirrors)) = self.pending_updates.remove(target_hash) {
-                    effect = Some(GovernanceEffect::TriggerOTA {
-                        manifest_hash: *target_hash,
-                        mirrors,
-                    });
-                }
-            }
-            GovernanceAction::GrantPremiumName {
-                name,
-                target_pubkey,
-            } => {
-                if self.mode == crate::governance::types::GovernanceMode::Founder {
-                    self.founder_premium_grants += 1;
-                }
-                effect = Some(GovernanceEffect::PremiumNameGranted {
-                    name: name.clone(),
-                    target_pubkey: *target_pubkey,
-                });
-            }
-            GovernanceAction::RevokePremiumName { name } => {
-                effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
-            }
-            GovernanceAction::RotateRootKey { .. } | GovernanceAction::RotateGuardKey { .. } => {}
-        }
-        effect
+        crate::governance::engine::get_active_engine().execute_action(self, msg, current_time_sec, wait_time)
     }
 
     /// Checks for any matured timelocked actions (like OTAs) and returns their corresponding effects.

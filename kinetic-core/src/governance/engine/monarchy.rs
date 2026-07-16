@@ -1,0 +1,108 @@
+use ed25519_dalek::Verifier;
+
+use crate::error::GovernanceError;
+use crate::governance::types::{
+    GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
+};
+use crate::traits::GovernanceEngine;
+
+pub struct MonarchyEngine;
+
+impl GovernanceEngine for MonarchyEngine {
+    fn verify_action(
+        &self,
+        state: &mut GovernanceState,
+        msg: &SignedGovernanceMessage,
+        current_time_sec: u64,
+    ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+        let root_key = state.get_root_key()?;
+        let action_bytes = msg.to_canonical_bytes();
+
+        let root_signed = msg
+            .signatures
+            .iter()
+            .any(|sig| root_key.verify(&action_bytes, sig).is_ok());
+
+        if root_signed {
+            if let GovernanceAction::GrantPremiumName { name, .. } = &msg.action {
+                let label = name
+                    .strip_suffix(crate::constants::TLD_SUFFIX)
+                    .unwrap_or(name);
+                if label.len() != 1 {
+                    return Err(GovernanceError::InvalidPremiumNameLength);
+                }
+            }
+            let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
+                Some(1 * 24 * 60 * 60) // 1 day timelock for monarchy updates
+            } else {
+                None
+            };
+            return Ok(self.execute_action(state, msg, current_time_sec, wait_time));
+        }
+
+        Err(GovernanceError::InsufficientSignatures)
+    }
+
+    fn execute_action(
+        &self,
+        state: &mut GovernanceState,
+        msg: &SignedGovernanceMessage,
+        current_time_sec: u64,
+        wait_time: Option<u64>,
+    ) -> Option<GovernanceEffect> {
+        let mut effect = None;
+        match &msg.action {
+            GovernanceAction::UpdateBinary {
+                manifest_hash,
+                mirrors,
+                ..
+            } => {
+                if let Some(wait_sec) = wait_time {
+                    let action_hash = GovernanceState::hash_action(msg);
+                    state.pending_updates
+                        .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
+                } else {
+                    effect = Some(GovernanceEffect::TriggerOTA {
+                        manifest_hash: *manifest_hash,
+                        mirrors: mirrors.clone(),
+                    });
+                }
+            }
+            GovernanceAction::VetoUpdate { target_hash } => {
+                state.pending_timelocks.remove(target_hash);
+                state.pending_updates.remove(target_hash);
+                state.vetoed_hashes.insert(*target_hash);
+            }
+            GovernanceAction::ExecuteTimelock { target_hash } => {
+                state.pending_timelocks.remove(target_hash);
+                if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
+                    effect = Some(GovernanceEffect::TriggerOTA {
+                        manifest_hash: *target_hash,
+                        mirrors,
+                    });
+                }
+            }
+            GovernanceAction::GrantPremiumName {
+                name,
+                target_pubkey,
+            } => {
+                effect = Some(GovernanceEffect::PremiumNameGranted {
+                    name: name.clone(),
+                    target_pubkey: *target_pubkey,
+                });
+            }
+            GovernanceAction::RevokePremiumName { name } => {
+                effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
+            }
+            // Irrelevant in monarchy
+            GovernanceAction::AppointMember { .. }
+            | GovernanceAction::SelfAppointCouncilMember { .. }
+            | GovernanceAction::RemoveCouncilMember { .. }
+            | GovernanceAction::LockCouncil
+            | GovernanceAction::EmergencyReset { .. }
+            | GovernanceAction::RotateRootKey { .. } 
+            | GovernanceAction::RotateGuardKey { .. } => {}
+        }
+        effect
+    }
+}

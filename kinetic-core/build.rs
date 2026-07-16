@@ -20,6 +20,7 @@ struct NetworkConfig {
     drand_http_endpoints: Vec<String>,
     docs_url: String,
     bootstrap_nodes: Vec<String>,
+    governance_model: String,
 }
 
 fn main() {
@@ -89,6 +90,12 @@ fn main() {
          /// The canonical .kin mainnet uses 32. Small trusted forks may use 8-16.\n\
          pub const M_REDUNDANCY: u8 = {};\n\n",
         config.m_redundancy
+    ));
+
+    out.push_str(&format!(
+        "/// The swappable governance engine used by this network.\n\
+         pub const GOVERNANCE_MODEL: &str = \"{}\";\n\n",
+        config.governance_model
     ));
 
     out.push_str(&format!(
