@@ -93,6 +93,7 @@ cargo build --release --workspace
 |---|---|---|
 | `VdfEngine` | `ChiaVdfEngine` — C++ Class Groups, Wesolowski proofs | Mobile/WASM, RSA-based VDF, custom research construction |
 | `StorageEngine` | `SledStorage` — pure-Rust embedded B-tree | RocksDB, SQLite, distributed etcd, IoT constrained environments |
+| `GovernanceEngine` | `BicameralEngine` — Republic with Founder -> Council transition | `MonarchyEngine` (dictatorship), `CouncilEngine` (pure democracy), `AnarchyEngine` (immutable) |
 
 → **[Full fork guide and `network.json` reference](https://kinetic.saifmukhtar.dev/forking.html)**
 
