@@ -319,7 +319,7 @@ pub async fn handle_vdf_renew(
     let mut tasks = state.vdf_tasks.lock().unwrap();
 
     // In ApiState there is no vdf_events yet, so we just check for conflicts by looking at the tasks map directly.
-    for (_id, task) in tasks.iter() {
+    for task in tasks.values() {
         if task.status != "Complete" && task.status != "Failed" {
             // Since we can't easily check name if it's not in VdfTaskStatus, we skip conflict checks for now,
             // or we could inspect the current tasks, but we'll just allow it since the CLI does too.
