@@ -5,8 +5,7 @@ export default defineConfig({
   description: "A gasless, blockchain-free P2P naming network.",
   ignoreDeadLinks: true,
   head: [
-    ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
-    ['link', { rel: 'alternate icon', href: '/favicon.png', type: 'image/png' }]
+    ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }]
   ],
   // Default to light mode as requested by the user, while keeping the toggle
   appearance: true, 
