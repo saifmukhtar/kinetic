@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/saifmukhtar/kinetic/main/kinetic-logo.svg" alt="Kinetic Logo" width="250"/>
+  <img src="./kinetic-logo.svg" alt="Kinetic Logo" width="250"/>
   <h1>⚡ The Kinetic Protocol</h1>
   <p><strong>An open-source, forkable sovereign namespace engine secured by math and time.</strong></p>
   <p>
