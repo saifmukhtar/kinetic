@@ -208,11 +208,25 @@ pub(crate) fn verify_reveal(
             <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
 
         if prev_valid && prev.iterations >= prev_req && is_not_too_old {
+            let normalized_name = kinetic_core::types::normalize_name(&reveal.name);
+            let name_len = normalized_name
+                .strip_suffix(kinetic_core::constants::TLD_SUFFIX)
+                .unwrap_or(&normalized_name)
+                .len();
+            let discount_iterations = match name_len {
+                1 => 1000,                                  // 100% discount (minimum 1000 iterations)
+                63 => base_required_iterations,             // 0% discount (forces lottery re-roll)
+                2..=6 => base_required_iterations / 2,      // 50% discount
+                7..=10 => base_required_iterations / 5,     // 80% discount
+                _ => (base_required_iterations * 15) / 100, // 85% discount for 11+
+            };
+
             tracing::info!(
-                "Valid PreviousProof attached for {}. Granting 80% VDF iteration discount.",
-                reveal.name
+                "Valid PreviousProof attached for {}. Granting loyalty discount for length {}.",
+                reveal.name,
+                name_len
             );
-            std::cmp::max(1, base_required_iterations / 5)
+            std::cmp::max(1000, discount_iterations)
         } else {
             tracing::warn!(
                 "Invalid PreviousProof attached for {}. Falling back to full difficulty.",

@@ -6,10 +6,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+/// API endpoints for configuration management.
 pub mod config;
+/// API endpoints for publishing names and content.
 pub mod publish;
+/// API endpoints for resolving names to payloads.
 pub mod resolve;
+/// API endpoints for Verifiable Delay Function tasks.
 pub mod vdf;
+/// API endpoints for DNS zone management.
 pub mod zone;
 
 use config::*;
@@ -20,33 +25,45 @@ use zone::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
+    /// The current status of the task (e.g. 'running', 'completed', 'failed').
     pub status: String,
+    /// The number of iterations the VDF requires.
     pub iterations: u64,
+    /// The number of iterations completed so far.
     pub progress: u64,
+    /// An optional error message if the task failed.
     pub error: Option<String>,
 }
 
 /// Holds the global state for the API server, including network, storage, and authentication.
 #[derive(Clone)]
 pub struct ApiState {
+    /// The P2P network client.
     pub network: NetworkClient,
+    /// Local storage engine interface.
     pub storage: Arc<dyn StorageEngine>,
+    /// Map of background VDF tasks.
     pub vdf_tasks: Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
 
+    /// API authentication token to restrict access.
     pub auth_token: String,
+    /// Semaphore to restrict concurrent VDF computations.
     pub vdf_semaphore: Arc<tokio::sync::Semaphore>,
 }
 
 /// Payload for publishing a direct reveal configuration.
 #[derive(Deserialize, Debug)]
 pub struct PublishRequest {
+    /// The Reveal object to publish.
     pub reveal: Reveal,
 }
 
 /// Response format for a publish action.
 #[derive(Serialize)]
 pub struct PublishResponse {
+    /// High level status ('success' or 'error').
     pub status: String,
+    /// Detailed message about the publish result.
     pub message: String,
 }
 

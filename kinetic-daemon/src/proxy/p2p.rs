@@ -1,5 +1,6 @@
 use super::*;
 
+/// Handles incoming P2P proxy requests from other nodes and forwards them to a local port.
 pub async fn handle_incoming_proxy_requests(
     client: NetworkClient,
     mut rx: tokio::sync::mpsc::Receiver<(

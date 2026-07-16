@@ -143,11 +143,7 @@ mod tests {
         let action_hash = [3u8; 32];
         state.pending_updates.insert(
             action_hash,
-            (
-                current_time,
-                crate::constants::OTA_TIMELOCK_SECONDS,
-                vec![],
-            ),
+            (current_time, crate::constants::OTA_TIMELOCK_SECONDS, vec![]),
         );
 
         let veto_action = GovernanceAction::VetoUpdate {

@@ -13,35 +13,55 @@ use tracing::{error, info, warn};
 use crate::ca::{CaError, LeafCertCache, RootCa};
 use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
 
+/// HTTP proxy request handling.
 pub mod http;
+/// P2P proxy networking
 pub mod p2p;
+/// Proxy security and certificates
 pub mod security;
+/// Network tunneling for proxy requests
 pub mod tunnel;
-
 pub use http::*;
 pub use p2p::*;
 use security::*;
 pub use tunnel::*;
+
+/// Errors that can occur during proxy operations.
 #[derive(Debug, thiserror::Error)]
 pub enum ProxyError {
-    #[error("Name Not Found: {0}")]
+    /// DNS name could not be found.
+    #[error("Name not found: {0}")]
     NameNotFound(String),
-    #[error("Invalid Payload")]
+    /// The payload format is invalid.
+    #[error("Invalid payload")]
     InvalidPayload,
-    #[error("Hyper Error: {0}")]
+    /// Hyper HTTP library error.
+    #[error("Hyper error: {0}")]
     Hyper(#[from] hyper::Error),
-    #[error("Reqwest Error: {0}")]
+    /// Reqwest HTTP client error.
+    #[error("Reqwest error: {0}")]
     Reqwest(#[from] reqwest::Error),
-    #[error("IO Error: {0}")]
+    /// Standard IO error.
+    #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("CA Error: {0}")]
+    /// Certificate authority error.
+    #[error("CA error: {0}")]
     Ca(#[from] CaError),
-    #[error("HTTP Error: {0}")]
+    /// Generic HTTP error.
+    #[error("HTTP error: {0}")]
     Http(#[from] hyper::http::Error),
     #[error("Other Error: {0}")]
     Other(String),
 }
 
+/// Starts the local HTTP proxy server to intercept and route `.kin` traffic.
+///
+/// # Errors
+/// Returns an error if the server fails to bind to the specified port.
+/// Starts the proxy server and listens for incoming connections.
+///
+/// # Errors
+/// Returns an error if the server fails to bind to the port.
 pub async fn start_proxy_server(
     client: NetworkClient,
     port: u16,

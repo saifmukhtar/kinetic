@@ -13,7 +13,7 @@ This document serves as an adversarial analysis of the Kinetic resolution mathem
 ## Attack 1: The Split View Attack (Two Valid Leases)
 
 **The Attack:**
-An attacker discovers a highly desirable name (`apple.kin`). They compute a perfectly valid VDF, generate a mathematically sound commitment, and sign it. Simultaneously, an honest user does the exact same thing. 
+An attacker discovers a highly desirable name (`example.kin`). They compute a perfectly valid VDF, generate a mathematically sound commitment, and sign it. Simultaneously, an honest user does the exact same thing. 
 A malicious gateway returns *both* Lease Record X (Attacker) and Lease Record Y (Honest User) to the resolving browser. Both records are structurally sound and mathematically valid.
 
 **The Cryptographic Mitigation (Deterministic Selection):**
@@ -78,7 +78,7 @@ Under the Grace-Period Escalation curve, the VDF difficulty to claim a name dead
 ## Attack 5: Name Popularity Attack (DDoS Mitigation via Verification Asymmetry)
 
 **The Attack:**
-A name like `openai.kin` becomes globally famous. An attacker floods the DHT with tens of thousands of valid, but mathematically losing, VDF leases. 
+A name like `example.kin` becomes globally famous. An attacker floods the DHT with tens of thousands of valid, but mathematically losing, VDF leases. 
 Because the DHT nodes must evaluate incoming leases to drop the weaker ones (Competitive Gossip Filtering), the attacker's goal shifts from crashing the Browser to exhausting the CPU of the DHT nodes. This is a Resolution DDoS attack targeting infrastructure validators.
 
 **The Cryptographic Mitigation (Verification Asymmetry):**
@@ -103,7 +103,7 @@ High-security applications must treat human-readable names merely as *initial di
 ## Attack 7: Long Range Resurrection (The Semantic Attack)
 
 **The Attack:**
-Similar to Attack 6, `openai.kin` is abandoned. Ten years later, an attacker legitimately claims it. Now, `openai.kin` points to a completely different KID. Millions of old forum links, archived manifests, and historical documents still reference `openai.kin`. Clicking those links now routes users to the attacker's services.
+Similar to Attack 6, `example.kin` is abandoned. Ten years later, an attacker legitimately claims it. Now, `example.kin` points to a completely different KID. Millions of old forum links, archived manifests, and historical documents still reference `example.kin`. Clicking those links now routes users to the attacker's services.
 
 **The Cryptographic Mitigation (The Core Identity Principle):**
 This attack highlights a core design principle of Kinetic: **Names are ephemeral routing aliases; KIDs are permanent semantic anchors.**

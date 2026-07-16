@@ -2,7 +2,7 @@ use axum::{routing::get, Router};
 use libp2p::PeerId;
 
 /// Builds the Axum router for the Kinetic Node Health-check API.
-/// 
+///
 /// This router exposes basic endpoints such as `/health` for liveness checks
 /// and `/peer_id` to retrieve the local peer ID of the node.
 pub fn build_router(local_peer_id: PeerId) -> Router {

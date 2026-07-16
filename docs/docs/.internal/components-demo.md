@@ -45,8 +45,8 @@ Use this for tutorials and "Getting Started" guides.
 
 ## 4. FAQ Accordions (WebMCP Style)
 
-<FaqAccordion question="Is Kinetic a blockchain?">
-No. Kinetic is entirely blockchain-free. It uses a Kademlia Distributed Hash Table (DHT) and Verifiable Delay Functions (VDFs) to prevent spam without requiring a global ledger or gas fees.
+<FaqAccordion question="Does Kinetic use global ledgers?">
+No. Kinetic is entirely ledger-free. It uses a Kademlia Distributed Hash Table (DHT) and Verifiable Delay Functions (VDFs) to prevent spam without requiring a global ledger or transaction fees.
 </FaqAccordion>
 
 <FaqAccordion question="What happens if I go offline?">

@@ -32,7 +32,8 @@ fn main() {
     }
 
     let json_content = fs::read_to_string(&network_json_path).expect("Failed to read network.json");
-    let config: NetworkConfig = serde_json::from_str(&json_content).expect("Failed to parse network.json");
+    let config: NetworkConfig =
+        serde_json::from_str(&json_content).expect("Failed to parse network.json");
 
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = PathBuf::from(out_dir).join("network_constants.rs");

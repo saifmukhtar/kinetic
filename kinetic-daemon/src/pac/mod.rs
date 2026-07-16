@@ -5,16 +5,20 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 
+/// OS-specific proxy configuration implementations.
 pub mod os;
 
 pub use os::*;
 /// Errors that can occur when configuring the operating system proxy settings.
 #[derive(Debug, thiserror::Error)]
 pub enum ProxyConfigError {
+    /// I/O error reading or writing lockfiles.
     #[error("IO Error: {0}")]
     Io(#[from] std::io::Error),
+    /// Error serializing or deserializing the proxy state.
     #[error("Serialization Error: {0}")]
     Serde(#[from] serde_json::Error),
+    /// The OS-specific command to configure the proxy failed.
     #[error("Command failed: {0}")]
     Command(String),
 }
@@ -23,15 +27,33 @@ pub enum ProxyConfigError {
 /// used to cleanly restore settings on shutdown.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SavedState {
+    /// The PAC URL that was previously configured, if any.
     pub previous_pac_url: Option<String>,
+    /// The proxy type that was previously configured (e.g. 'auto' or 'none'), if applicable.
     pub proxy_type: Option<String>,
 }
 
 /// Defines the interface for an OS-specific proxy configuration manager.
 pub trait ProxyConfigurator: Send + Sync {
+    /// Installs the provided PAC URL into the system proxy configuration.
+    ///
+    /// # Errors
+    /// Returns a `ProxyConfigError` if the OS-specific command fails.
     fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError>;
+    /// Uninstalls the proxy configuration, reverting to direct connection or previous state.
+    ///
+    /// # Errors
+    /// Returns a `ProxyConfigError` if the OS-specific command fails.
     fn uninstall(&self) -> Result<(), ProxyConfigError>;
+    /// Retrieves the current system proxy settings before making modifications.
+    ///
+    /// # Errors
+    /// Returns a `ProxyConfigError` if the OS-specific command fails.
     fn save_previous_state(&self) -> Result<SavedState, ProxyConfigError>;
+    /// Restores the system proxy settings from a previously saved state.
+    ///
+    /// # Errors
+    /// Returns a `ProxyConfigError` if the OS-specific command fails.
     fn restore_state(&self, state: &SavedState) -> Result<(), ProxyConfigError>;
 }
 

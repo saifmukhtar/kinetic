@@ -50,33 +50,37 @@ impl ConsensusParams {
             8..=10 => base * 4,        // 2 hours
             11..=17 => base * 3,       // 1.5 hours
             18..=20 => base * 2,       // 1 hour
-            21..=62 => base * 1,       // 30 minutes (Baseline)
+            21..=62 => base,           // 30 minutes (Baseline)
             63 => {
-                use sha2::{Sha256, Digest};
+                use sha2::{Digest, Sha256};
                 let mut hasher = Sha256::new();
                 hasher.update(label.as_bytes());
-                hasher.update(&current_round.to_be_bytes());
+                hasher.update(current_round.to_be_bytes());
                 let result = hasher.finalize();
                 let hex_string = hex::encode(result);
-                
+
                 let digits: String = hex_string.chars().filter(|c| c.is_ascii_digit()).collect();
-                let first_two = if digits.len() >= 2 { &digits[0..2] } else { "99" };
+                let first_two = if digits.len() >= 2 {
+                    &digits[0..2]
+                } else {
+                    "99"
+                };
                 let num: u8 = first_two.parse().unwrap_or(99);
-                
+
                 match num {
-                    63 => (base * 63) / 1800,        // 63 Seconds (Jackpot!)
-                    0..=10 => (base * 63) / 30,      // 63 Minutes
-                    11..=20 => base * 126,           // 63 Hours
-                    21..=30 => base * 3024,          // 63 Days
-                    31..=40 => base * 21168,         // 63 Weeks
-                    41..=50 => base * 92043,         // 63 Months
+                    63 => (base * 63) / 1800,              // 63 Seconds (Jackpot!)
+                    0..=10 => (base * 63) / 30,            // 63 Minutes
+                    11..=20 => base * 126,                 // 63 Hours
+                    21..=30 => base * 3024,                // 63 Days
+                    31..=40 => base * 21168,               // 63 Weeks
+                    41..=50 => base * 92043,               // 63 Months
                     51..=62 | 64..=70 => base * 1_104_516, // 63 Years
-                    71..=80 => base * 11_045_160,    // 63 Decades
-                    81..=90 => base * 110_451_600,   // 63 Centuries
-                    _ => base * 1_104_516_000,       // 63 Millennia
+                    71..=80 => base * 11_045_160,          // 63 Decades
+                    81..=90 => base * 110_451_600,         // 63 Centuries
+                    _ => base * 1_104_516_000,             // 63 Millennia
                 }
-            },
-            _ => base * 1,             // Fallback
+            }
+            _ => base, // Fallback
         }
     }
 

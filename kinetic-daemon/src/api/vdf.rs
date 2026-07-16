@@ -12,15 +12,19 @@ use std::sync::{Arc, Mutex};
 /// Payload for renewing a registered Kinetic name via VDF.
 #[derive(Deserialize)]
 pub struct NameRenewRequest {
+    /// The domain name to renew.
     pub name: String,
+    /// Optional overridden iteration count.
     pub iterations: Option<u64>,
 }
 
 /// Payload for registering a new Kinetic name via VDF.
 #[derive(Deserialize)]
 pub struct VdfRegisterRequest {
-    name: String,
-    iterations: Option<u64>,
+    /// The domain name to register.
+    pub name: String,
+    /// Optional overridden iteration count.
+    pub iterations: Option<u64>,
 }
 
 /// Handles API requests to initiate a background VDF registration task.

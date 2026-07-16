@@ -11,7 +11,7 @@
 
 ## What Kinetic Actually Is
 
-Kinetic is not a domain registrar. It is not a blockchain. It is not another `.eth` or `.crypto`.
+Kinetic is not a domain registrar. It is a sovereign namespace engine.
 
 **Kinetic is an open-source namespace engine** — a Rust binary suite that any university, company, government, or community can deploy to run their own cryptographically secured naming network. You configure one file (`network.json`), run `kinetic-forge`, and walk away with a complete, self-contained network with your own TLD, your own bootstrap nodes, and your own governance keys.
 
@@ -69,15 +69,15 @@ Every approach for the past four decades has failed to achieve all three without
 
 ---
 
-### Era 1: ICANN and Absolute Centralization (1980s — Present)
+### Era 1: Absolute Centralization (1980s — Present)
 
 The legacy DNS deliberately sacrifices the **Decentralized** leg. It achieves human-meaningful names and security through absolute hierarchical centralization.
 
-At the top sits ICANN — the Internet Corporation for Assigned Names and Numbers. ICANN has unchecked authority to create TLDs and delegate them to registries. Registries delegate to registrars. Registrars sell to you.
+At the top sit central naming authorities. These authorities have unchecked power to create TLDs and delegate them to registries. Registries delegate to registrars. Registrars sell to you.
 
 **The consequences:**
 
-- **Political seizure:** A single phone call can compel ICANN to revoke a domain. No cryptographic due process exists. State actors and corporations exercise this power routinely.
+- **Political seizure:** A single phone call can compel centralized authorities to revoke a domain. No cryptographic due process exists. State actors and corporations exercise this power routinely.
 - **Monopoly rent extraction:** Verisign holds an artificial monopoly over `.com`. They charge arbitrary annual fees for a database entry that costs fractions of a cent to maintain. The fee is not a service cost — it is a toll.
 - **Speculative markets:** Because names are artificially scarce and monetarily valued, an entire predatory industry emerged — domain parking, aftermarket speculation, cybersquatting — that extracts value from builders while producing nothing.
 
@@ -85,15 +85,15 @@ Legacy DNS is technically functional and deeply unethical. It is digital feudali
 
 ---
 
-### Era 2: Capital-Gated Blockchains (2017 — Present)
+### Era 2: Capital-Gated Decentralization
 
-Blockchain naming systems (ENS, Handshake, Unstoppable Domains) placed the registry on a decentralized ledger — achieving the **Decentralized** leg. But they immediately confronted the Sybil problem.
+Early decentralized naming systems attempted to achieve the **Decentralized** leg but immediately confronted the Sybil problem.
 
-In a permissionless network, generating a request costs effectively nothing. Without a gating mechanism, a single attacker can claim every word in the English dictionary in seconds. So blockchain naming systems instituted a gating function: **Financial Capital**.
+In a permissionless network, generating a request costs effectively nothing. Without a gating mechanism, a single attacker can claim every word in the English dictionary in seconds. So these systems instituted a gating function: **Financial Capital**.
 
 **The consequences:**
 
-- **Digital landlordism, decentralized edition:** Capital-gated registries favor entities with deep financial liquidity. Wealthy speculators hoard short names and extract rent from legitimate builders — exactly the same dynamic as ICANN, just with fewer regulations.
+- **Digital landlordism, decentralized edition:** Capital-gated registries favor entities with deep financial liquidity. Wealthy speculators hoard short names and extract rent from legitimate builders — exactly the same dynamic as centralized legacy authorities, just with fewer regulations.
 - **Developer pricing-out:** A peer-to-peer routing primitive should not require a perpetual subscription fee. Tying infrastructure to cryptocurrency market prices makes development costs unpredictable and inaccessible in developing economies.
 - **Valuation paradox:** When the underlying token spikes during a bull market, renewal costs spike with it. Names become inaccessible to the people who need them most precisely when the ecosystem is most active.
 

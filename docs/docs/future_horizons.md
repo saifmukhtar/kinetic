@@ -25,7 +25,7 @@ Currently, the web relies heavily on HTTPS (TLS encryption). When your browser c
 
 Who issues these certificates? A centralized oligopoly of Certificate Authorities (CAs) like Let's Encrypt, DigiCert, and Sectigo. These CAs are trusted by the major browser vendors (Google, Apple, Mozilla). 
 
-If you own `example.kin`, you cannot easily get an HTTPS certificate for it because standard CAs rely on ICANN-controlled DNS to verify domain ownership. Even if you could, relying on a centralized CA to issue a certificate for a decentralized domain defeats the philosophical purpose of Kinetic. A government could simply order a CA to revoke your certificate, instantly rendering your site untrusted by browsers.
+If you own `example.kin`, you cannot easily get an HTTPS certificate for it because standard CAs rely on legacy centralized DNS to verify domain ownership. Even if you could, relying on a centralized CA to issue a certificate for a decentralized domain defeats the philosophical purpose of Kinetic. A government could simply order a CA to revoke your certificate, instantly rendering your site untrusted by browsers.
 
 ### 1.1 The Solution: DANE and self-signed TLS
 
@@ -98,4 +98,4 @@ The history of the internet is a cycle of decentralization followed by rapid cor
 
 Kinetic is not just a routing tool; it is a mathematical wedge designed to pry the base layer of the internet back open. 
 
-By replacing ICANN's political bureaucracy with VDF mathematics, replacing DNS registries with Kademlia DHTs, replacing CAs with DANE, and replacing physical servers with IPFS swarms, Kinetic aims to build a parallel web architecture where censorship is not just illegal, but physically and mathematically impossible.
+By replacing political bureaucracy with VDF mathematics, replacing DNS registries with Kademlia DHTs, replacing CAs with DANE, and replacing physical servers with IPFS swarms, Kinetic aims to build a parallel web architecture where censorship is not just illegal, but physically and mathematically impossible.

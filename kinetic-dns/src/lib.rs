@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! # kinetic-dns
 //!
 //! DNS resolution layer for the Kinetic `.kin` naming network.

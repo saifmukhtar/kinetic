@@ -209,10 +209,10 @@ sudo -v
 for bin in "${BINS_TO_BUILD[@]}"; do
     sudo cp "target/release/$bin" "/usr/local/bin/$bin"
     if [[ "$bin" != "kinetic" ]]; then
-        sudo "/usr/local/bin/$bin" stop-service 2>/dev/null || true
+        sudo "/usr/local/bin/$bin" stop 2>/dev/null || true
         sudo "/usr/local/bin/$bin" uninstall 2>/dev/null || true
         sudo "/usr/local/bin/$bin" install
-        sudo "/usr/local/bin/$bin" start-service
+        sudo "/usr/local/bin/$bin" start
     fi
 done
 

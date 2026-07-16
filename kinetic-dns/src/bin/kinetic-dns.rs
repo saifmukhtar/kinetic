@@ -36,23 +36,28 @@ enum Commands {
     /// Uninstall the DNS server system service
     Uninstall,
     /// Start the DNS server (foreground)
-    Start,
+    Run,
     /// Start the DNS server service (background)
-    StartService,
+    Start,
     /// Stop the DNS server service (background)
-    StopService,
+    Stop,
 }
 
 fn install_service() -> Result<()> {
     println!("Installing Kinetic DNS Server service...");
-    let label: ServiceLabel = "com.kinetic.dnsserver".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.dns",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["start".into()],
+        args: vec!["run".into()],
         contents: None,
         username: None,
         working_directory: None,
@@ -61,12 +66,17 @@ fn install_service() -> Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run 'kinetic-dns-server start-service' to begin.");
+    println!("Service installed successfully. Run 'kinetic-dns-server start' to begin.");
     Ok(())
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.dnsserver".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.dns",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -75,7 +85,12 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.dnsserver".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.dns",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.start(ServiceStartCtx { label })?;
@@ -84,7 +99,12 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.dnsserver".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.dns",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -120,8 +140,15 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
 
             info!("DNS proxy ready on {}:{} (and [::1])", bind_ip, dns_port);
 
-            if let Err(e) = server.block_until_done().await {
-                tracing::error!("DNS Server error: {:?}", e);
+            tokio::select! {
+                res = server.block_until_done() => {
+                    if let Err(e) = res {
+                        tracing::error!("DNS Server error: {:?}", e);
+                    }
+                }
+                _ = kinetic_core::shutdown::shutdown_signal() => {
+                    info!("Shutdown signal received. Commencing graceful shutdown...");
+                }
             }
         }
         Err(e) => {
@@ -151,8 +178,15 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
                         bind_ip, fallback_port
                     );
 
-                    if let Err(e) = server.block_until_done().await {
-                        tracing::error!("DNS Server fallback error: {:?}", e);
+                    tokio::select! {
+                        res = server.block_until_done() => {
+                            if let Err(e) = res {
+                                tracing::error!("DNS Server fallback error: {:?}", e);
+                            }
+                        }
+                        _ = kinetic_core::shutdown::shutdown_signal() => {
+                            info!("Shutdown signal received. Commencing graceful shutdown...");
+                        }
                     }
                 }
                 Err(e2) => {
@@ -179,13 +213,13 @@ async fn main() -> Result<()> {
         Some(Commands::Uninstall) => {
             uninstall_service()?;
         }
-        Some(Commands::StartService) => {
+        Some(Commands::Start) => {
             start_background_service()?;
         }
-        Some(Commands::StopService) => {
+        Some(Commands::Stop) => {
             stop_background_service()?;
         }
-        Some(Commands::Start) | None => {
+        Some(Commands::Run) | None => {
             run_server(cli.api_url, cli.dns_port).await?;
         }
     }

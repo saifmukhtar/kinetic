@@ -2,7 +2,7 @@ use libp2p::identity::Keypair;
 use std::path::Path;
 
 /// Loads a static infrastructure identity from disk, or generates a new one if it does not exist.
-/// 
+///
 /// This ensures that the node maintains a consistent Peer ID across restarts. If the existing
 /// key is corrupted or cannot be read, a new Ed25519 keypair is generated and saved to the specified path.
 pub fn load_or_generate_key(key_path: &Path) -> Keypair {

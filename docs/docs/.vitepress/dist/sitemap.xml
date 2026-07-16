@@ -1,91 +1,99 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/adversarial_analysis.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/adversarial_analysis.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/code_walkthrough_client.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/code_walkthrough_client.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/code_walkthrough_core.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/code_walkthrough_core.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/code_walkthrough_daemon.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/code_walkthrough_daemon.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/code_walkthrough_network.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/code_walkthrough_network.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/cryptography.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/cryptography.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/dns_loopback.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/dns_loopback.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/error_handbook.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/error_handbook.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/forking.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/forking.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/future_horizons.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/future_horizons.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/getting_started.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/getting_started.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/hybrid_lease_system.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/heartbeat.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/index.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/index.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/introduction.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/introduction.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/kinetic-kid.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/kinetic-kid.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/kinetic_node.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/kinetic_node.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/kinetic_sim.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/kinetic_sim.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/kinetic_storage.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/kinetic_storage.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/network_architecture.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/network_architecture.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/protocol_specification.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/privacy_policy.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/SUMMARY.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/protocol_specification.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
   <url>
-    <loc>https://saifmukhtar.github.io/kinetic/vdf-calibration.html</loc>
-    <lastmod>2026-07-16T20:11:04+05:30</lastmod>
+    <loc>https://kinetic.saifmukhtar.dev/SUMMARY.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
+  </url>
+  <url>
+    <loc>https://kinetic.saifmukhtar.dev/terms_of_service.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
+  </url>
+  <url>
+    <loc>https://kinetic.saifmukhtar.dev/vdf-calibration.html</loc>
+    <lastmod>2026-07-17T01:30:38+05:30</lastmod>
   </url>
 </urlset>

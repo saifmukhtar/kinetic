@@ -1,6 +1,8 @@
 use kinetic_core::traits::StorageEngine;
 
 #[allow(clippy::too_many_arguments)]
+/// Starts a background loop that monitors Drand pulses and seamlessly rotates
+/// the node's libp2p identity to maintain a valid Proof of Work (PoW) Sybil resistance.
 pub fn start_pow_miner_loop(
     hc_client: kinetic_network::NetworkClient,
     hc_drand_rx: tokio::sync::watch::Receiver<u64>,
@@ -80,6 +82,8 @@ pub fn start_pow_miner_loop(
     })
 }
 
+/// Starts a background loop that periodically republishes owned domain payloads
+/// to the DHT to ensure they remain alive and discoverable.
 pub fn start_republisher(
     republish_network: kinetic_network::NetworkClient,
     republish_storage: std::sync::Arc<dyn StorageEngine>,

@@ -20,8 +20,10 @@ impl GovernanceEngine for BicameralEngine {
         let guard_key_opt = state.get_guard_key()?;
 
         if state.mode == crate::governance::types::GovernanceMode::Founder {
-            let instant_lock = actual_active_count >= crate::constants::MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
-            let year_passed = current_time_sec >= state.genesis_timestamp_sec + crate::constants::AUTO_LOCK_SECONDS;
+            let instant_lock = actual_active_count >= crate::constants::MIN_ACTIVE_COUNCIL
+                && guard_key_opt.is_some();
+            let year_passed = current_time_sec
+                >= state.genesis_timestamp_sec + crate::constants::AUTO_LOCK_SECONDS;
 
             if instant_lock {
                 state.mode = crate::governance::types::GovernanceMode::Council;
@@ -40,7 +42,8 @@ impl GovernanceEngine for BicameralEngine {
             }
         }
 
-        let effective_active_count = std::cmp::max(actual_active_count, crate::constants::MIN_ACTIVE_COUNCIL);
+        let effective_active_count =
+            std::cmp::max(actual_active_count, crate::constants::MIN_ACTIVE_COUNCIL);
         if msg.council_size_at_proposal < effective_active_count as u32 {
             return Err(GovernanceError::CouncilSizeMismatch);
         }
@@ -153,7 +156,9 @@ impl GovernanceEngine for BicameralEngine {
                 let mut valid_signers = HashSet::new();
                 for sig in &msg.signatures {
                     for (idx, member) in state.active_council.iter().enumerate() {
-                        if !counted_members.contains(&idx) && member.verify(&action_bytes, sig).is_ok() {
+                        if !counted_members.contains(&idx)
+                            && member.verify(&action_bytes, sig).is_ok()
+                        {
                             counted_members.insert(idx);
                             valid_signers.insert(*member);
                             break;
@@ -164,7 +169,8 @@ impl GovernanceEngine for BicameralEngine {
                 let valid_council_sigs = counted_members.len();
 
                 let required_signatures = match &msg.action {
-                    GovernanceAction::AppointMember { .. } | GovernanceAction::UpdateBinary { .. } => {
+                    GovernanceAction::AppointMember { .. }
+                    | GovernanceAction::UpdateBinary { .. } => {
                         (msg.council_size_at_proposal as usize * 69) / 100 + 1
                     }
                     GovernanceAction::SelfAppointCouncilMember { .. }
@@ -255,7 +261,8 @@ impl GovernanceEngine for BicameralEngine {
             } => {
                 if let Some(wait_sec) = wait_time {
                     let action_hash = GovernanceState::hash_action(msg);
-                    state.pending_updates
+                    state
+                        .pending_updates
                         .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
                 } else {
                     effect = Some(GovernanceEffect::TriggerOTA {
@@ -272,7 +279,9 @@ impl GovernanceEngine for BicameralEngine {
             GovernanceAction::EmergencyReset { override_mode, .. } => {
                 if *override_mode {
                     let action_hash = GovernanceState::hash_action(msg);
-                    state.pending_timelocks.insert(action_hash, current_time_sec);
+                    state
+                        .pending_timelocks
+                        .insert(action_hash, current_time_sec);
                 } else {
                     state.mode = crate::governance::types::GovernanceMode::Founder;
                     state.active_council.clear();

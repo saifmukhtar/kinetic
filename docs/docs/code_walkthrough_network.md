@@ -73,4 +73,4 @@ graph LR
 1. **Sovereign Interception (`.kin`)**: If the query ends in `.kin`, the handler issues a Kademlia `GET` query to the `kinetic-network` module. The network fiercely validates the record against eclipse attacks and returns a mathematically verified payload. The DNS server then synthesizes a perfectly standard DNS `A` record containing the decentralized IP, tricking the browser into natively resolving the Web3 application.
 2. **Legacy Pass-Through**: For all non-`.kin` queries (like `google.com`), the DNS handler acts as a transparent tunnel, instantly forwarding the raw byte buffer to an upstream resolver (like Cloudflare or Google). 
 
-Through this robust modular design, the protocol effectively weaponizes the user's local operating system, creating a parallel, mathematically sovereign internet that seamlessly coexists alongside the legacy ICANN infrastructure.
+Through this robust modular design, the protocol effectively weaponizes the user's local operating system, creating a parallel, mathematically sovereign internet that seamlessly coexists alongside the legacy centralized infrastructure.

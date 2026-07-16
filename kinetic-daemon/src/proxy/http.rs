@@ -1,4 +1,5 @@
 use super::*;
+/// Handles an incoming HTTP or HTTPS (CONNECT) proxy request, determining how to route it.
 pub async fn handle_proxy_request(
     req: Request<Incoming>,
     client: NetworkClient,
@@ -90,6 +91,7 @@ pub async fn handle_proxy_request(
     }
 }
 
+/// Forwards an HTTP request directly to a backend service by resolving the `.kin` domain to an IP or PeerId.
 pub async fn forward_to_backend_direct(
     req: Request<Incoming>,
     domain: &str,

@@ -31,7 +31,9 @@ fn main() -> Result<()> {
     println!("      KINETIC NETWORK FORGE 🚀");
     println!("========================================");
     println!("Welcome to the Kinetic Forge! Let's scaffold your isolated private network.");
-    println!("This wizard will configure your custom network parameters and compile custom binaries.");
+    println!(
+        "This wizard will configure your custom network parameters and compile custom binaries."
+    );
     println!();
 
     let network_name: String = Input::with_theme(&ColorfulTheme::default())
@@ -179,8 +181,9 @@ fn patch_constants(
     let path = PathBuf::from("network.json");
 
     let mut config: NetworkConfig = if path.exists() {
-        let content = fs::read_to_string(&path)
-            .context("Failed to read network.json. Are you running this from the workspace root?")?;
+        let content = fs::read_to_string(&path).context(
+            "Failed to read network.json. Are you running this from the workspace root?",
+        )?;
         serde_json::from_str(&content).context("Failed to parse existing network.json")?
     } else {
         NetworkConfig {
@@ -215,7 +218,8 @@ fn patch_constants(
     config.docs_url = docs_url.to_string();
     config.bootstrap_nodes = bootstrap_nodes.to_vec();
 
-    let new_content = serde_json::to_string_pretty(&config).context("Failed to serialize network config")?;
+    let new_content =
+        serde_json::to_string_pretty(&config).context("Failed to serialize network config")?;
     fs::write(&path, new_content).context("Failed to write updated network.json")?;
 
     Ok(())

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 /// Handles incoming governance gossip messages over the P2P network.
-/// 
+///
 /// Parses the signed governance message and applies it to the global governance state if valid.
 /// Any resulting updates to the governance state are then persisted to disk.
 pub fn handle_kinetic_governance_gossip(payload: &[u8], gossip_gov_path: Arc<PathBuf>) {

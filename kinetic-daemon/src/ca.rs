@@ -13,18 +13,24 @@ use time::{Duration, OffsetDateTime};
 /// Defines errors that can occur during Certificate Authority (CA) operations.
 #[derive(Debug, thiserror::Error)]
 pub enum CaError {
+    /// An IO error occurred reading or writing certificates.
     #[error("IO Error: {0}")]
     Io(#[from] std::io::Error),
+    /// An error originated from the `rcgen` certificate generator.
     #[error("RCGen Error: {0}")]
     Rcgen(#[from] rcgen::Error),
+    /// An error originated from `rustls` configuration.
     #[error("Rustls Error: {0}")]
     Rustls(#[from] rustls::Error),
 }
 
 /// Represents a root Certificate Authority (CA) containing the certificate and key pair.
 pub struct RootCa {
+    /// The generated CA certificate encoded in PEM format.
     pub cert_pem: String,
+    /// The private key pair for the CA.
     pub key_pair: KeyPair,
+    /// The parsed RCGen CA certificate.
     pub cert: Certificate,
 }
 

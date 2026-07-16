@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use js_sys::Function;
 use kinetic_network::client::{NetworkConfig, NetworkMode};
 use kinetic_network::NetworkEventLoop;
@@ -8,7 +9,7 @@ use tokio::sync::watch;
 use wasm_bindgen::prelude::*;
 
 /// A WebAssembly wrapper for the Kinetic network client.
-/// 
+///
 /// This struct allows a browser environment to initialize a lightweight
 /// Kinetic network node, resolve domains, and proxy requests through the P2P network.
 #[wasm_bindgen]
@@ -41,9 +42,9 @@ impl kinetic_core::traits::VdfEngine for DummyVdfEngine {
 #[wasm_bindgen]
 impl KineticNode {
     /// Creates a new uninitialized `KineticNode` instance.
-    /// 
+    ///
     /// Accepts a JavaScript callback function to emit status events back to the browser.
-    /// 
+    ///
     /// # Errors
     /// Returns a `JsValue` error if initialization fails.
     #[wasm_bindgen(constructor)]
@@ -56,11 +57,11 @@ impl KineticNode {
     }
 
     /// Starts the node's background event loop and P2P network client.
-    /// 
+    ///
     /// This method sets up an in-memory storage, generates a local Ed25519 identity,
-    /// configures a light client network mode, and spawns the event loop onto the 
+    /// configures a light client network mode, and spawns the event loop onto the
     /// browser's microtask queue.
-    /// 
+    ///
     /// # Errors
     /// Returns a `JsValue` error if storage initialization, network configuration,
     /// or event loop startup fails.
@@ -122,10 +123,10 @@ impl KineticNode {
     }
 
     /// Resolves a domain name across the P2P network to fetch its `DnsZone` configuration.
-    /// 
+    ///
     /// This queries the network for a redundant payload associated with the domain
     /// and parses the revealed `DnsZone` into a JavaScript object.
-    /// 
+    ///
     /// # Errors
     /// Returns a `JsValue` error if the node is not started, the domain resolution fails,
     /// the payload is invalid, or the zone format cannot be parsed/serialized.
@@ -155,10 +156,10 @@ impl KineticNode {
     }
 
     /// Sends an HTTP GET proxy request over the P2P network to a specific node.
-    /// 
+    ///
     /// Connects to the given `PeerId` and requests the specified path, returning
     /// the raw response bytes as a `Uint8Array`.
-    /// 
+    ///
     /// # Errors
     /// Returns a `JsValue` error if the node is not started, the target peer ID is invalid,
     /// or the proxy request fails over the network.

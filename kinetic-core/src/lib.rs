@@ -47,6 +47,8 @@ pub mod governance;
 /// Idempotency key helpers for deduplicating daemon API requests.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod request_id;
+/// Cross-platform graceful shutdown signal listener.
+pub mod shutdown;
 /// Core trait definitions: [`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine).
 pub mod traits;
 /// Shared wire-format types for P2P messages, DNS zones, and domain records.

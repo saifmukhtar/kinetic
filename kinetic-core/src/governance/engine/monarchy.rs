@@ -33,7 +33,7 @@ impl GovernanceEngine for MonarchyEngine {
                 }
             }
             let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
-                Some(1 * 24 * 60 * 60) // 1 day timelock for monarchy updates
+                Some(24 * 60 * 60) // 1 day timelock for monarchy updates
             } else {
                 None
             };
@@ -59,7 +59,8 @@ impl GovernanceEngine for MonarchyEngine {
             } => {
                 if let Some(wait_sec) = wait_time {
                     let action_hash = GovernanceState::hash_action(msg);
-                    state.pending_updates
+                    state
+                        .pending_updates
                         .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
                 } else {
                     effect = Some(GovernanceEffect::TriggerOTA {
@@ -100,7 +101,7 @@ impl GovernanceEngine for MonarchyEngine {
             | GovernanceAction::RemoveCouncilMember { .. }
             | GovernanceAction::LockCouncil
             | GovernanceAction::EmergencyReset { .. }
-            | GovernanceAction::RotateRootKey { .. } 
+            | GovernanceAction::RotateRootKey { .. }
             | GovernanceAction::RotateGuardKey { .. } => {}
         }
         effect

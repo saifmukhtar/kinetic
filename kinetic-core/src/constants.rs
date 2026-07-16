@@ -7,40 +7,13 @@
 
 // ============================================================================
 // 1. DYNAMIC NETWORK CONFIGURATION
-// Generated automatically from network.json by build.rs. 
+// Generated automatically from network.json by build.rs.
 // Includes: TLD, NETWORK_ID, GOVERNANCE_MODEL, BOOTSTRAP_NODES, etc.
 // ============================================================================
 include!(concat!(env!("OUT_DIR"), "/network_constants.rs"));
 
 // ============================================================================
-// 2. GOVERNANCE CRYPTOGRAPHY
-// Used by: `kinetic-core/src/governance/logic.rs` and engines
-// ============================================================================
-
-// --- PRODUCTION KEYS ---
-#[cfg(not(test))]
-mod keys {
-    /// The offline, air-gapped Ed25519 root of trust.
-    pub const ROOT_PUBLIC_KEY_HEX: &str = "REPLACE_ME_OFFLINE_GENERATED_ED25519_ROOT";
-    /// The offline, air-gapped Ed25519 guard key (optional fallback).
-    pub const GUARD_PUBLIC_KEY_HEX: &str = "REPLACE_ME_OFFLINE_GENERATED_ED25519_GUARD";
-}
-
-// --- TEST KEYS ---
-#[cfg(test)]
-mod keys {
-    /// The offline, air-gapped Ed25519 root of trust (test key).
-    pub const ROOT_PUBLIC_KEY_HEX: &str =
-        "be907b4bac84fee5ce8811db2defc9bf0b2a2a2bbc3d54d8a2257ecd70441962";
-    /// The offline, air-gapped Ed25519 guard key (test key).
-    pub const GUARD_PUBLIC_KEY_HEX: &str =
-        "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6";
-}
-
-pub use keys::*;
-
-// ============================================================================
-// 3. GOVERNANCE CONSENSUS TIMINGS & LIMITS
+// 2. GOVERNANCE CONSENSUS TIMINGS & LIMITS
 // Used by: `kinetic-core/src/governance/logic.rs` and engines
 // ============================================================================
 
@@ -64,3 +37,30 @@ pub const AUTO_LOCK_SECONDS: u64 = 365 * 24 * 60 * 60;
 
 /// The specific timelock (in seconds) for Over-The-Air (OTA) binary updates.
 pub const OTA_TIMELOCK_SECONDS: u64 = 48 * 60 * 60;
+
+// ============================================================================
+// 3. GOVERNANCE CRYPTOGRAPHY
+// Used by: `kinetic-core/src/governance/logic.rs` and engines
+// ============================================================================
+
+// --- PRODUCTION KEYS ---
+#[cfg(not(test))]
+mod keys {
+    /// The offline, air-gapped Ed25519 root of trust.
+    pub const ROOT_PUBLIC_KEY_HEX: &str = "REPLACE_ME_OFFLINE_GENERATED_ED25519_ROOT";
+    /// The offline, air-gapped Ed25519 guard key (optional fallback).
+    pub const GUARD_PUBLIC_KEY_HEX: &str = "REPLACE_ME_OFFLINE_GENERATED_ED25519_GUARD";
+}
+
+pub use keys::*;
+
+// --- TEST KEYS ---
+#[cfg(test)]
+mod keys {
+    /// The offline, air-gapped Ed25519 root of trust (test key).
+    pub const ROOT_PUBLIC_KEY_HEX: &str =
+        "be907b4bac84fee5ce8811db2defc9bf0b2a2a2bbc3d54d8a2257ecd70441962";
+    /// The offline, air-gapped Ed25519 guard key (test key).
+    pub const GUARD_PUBLIC_KEY_HEX: &str =
+        "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6";
+}
