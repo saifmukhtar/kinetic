@@ -23,7 +23,6 @@ struct NetworkConfig {
     docs_url: String,
     bootstrap_nodes: Vec<String>,
     m_redundancy: u64,
-    max_payload_size: u64,
 }
 
 fn main() -> Result<()> {
@@ -199,7 +198,6 @@ fn patch_constants(
             docs_url: String::new(),
             bootstrap_nodes: vec![],
             m_redundancy: 32,
-            max_payload_size: 512,
         }
     };
 
