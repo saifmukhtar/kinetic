@@ -66,7 +66,7 @@ For Kinetic to achieve ultimate resilience, the domains must resolve to decentra
 
 The InterPlanetary File System (IPFS) changes the paradigm from "Where is the data?" (Location-based addressing, IPs) to "What is the data?" (Content-based addressing, CIDs).
 
-In the future, the `kinetic-cli` will allow users to bind an IPFS CID to their domain instead of an IP address.
+In the future, the `kinetic` will allow users to bind an IPFS CID to their domain instead of an IP address.
 
 ```bash
 cargo run -- register example.kin QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG

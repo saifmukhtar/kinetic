@@ -79,7 +79,7 @@ Run `kinetic-node` on at least two stable servers. These are the DHT entry point
 sudo ./target/release/kinetic-node
 
 # Get the peer ID to put in network.json:
-./target/release/kinetic-cli peer-id
+kinetic peer-id
 ```
 
 Update `bootstrap_nodes` in your `network.json` with these addresses, recompile, and distribute the binaries to your users.
@@ -120,7 +120,7 @@ Kinetic uses a **Commit → Grind → Reveal** protocol to prevent front-running
 #### Phase 1: Commit & Grind
 
 ```bash
-./target/release/kinetic-cli register mywebsite.kin
+kinetic register example.kin
 ```
 
 What happens:
@@ -135,15 +135,15 @@ What happens:
 | 5 characters | ~1 day |
 | 4 characters | ~15 days |
 
-4. When done, saves your proof to `~/.config/kinetic/zones/mywebsite.kin.reveal.json`
+4. When done, saves your proof to `~/.config/kinetic/zones/example.kin.reveal.json`
 
 #### Phase 2: Configure & Publish
 
-Open `~/.config/kinetic/zones/mywebsite.kin.json` and add your DNS records:
+Open `~/.config/kinetic/zones/example.kin.json` and add your DNS records:
 
 ```json
 {
-  "name": "mywebsite.kin.",
+  "name": "example.kin.",
   "records": [
     { "type": "A", "value": "YOUR_SERVER_IP" }
   ],
@@ -154,10 +154,10 @@ Open `~/.config/kinetic/zones/mywebsite.kin.json` and add your DNS records:
 Then publish to the global network:
 
 ```bash
-./target/release/kinetic-cli publish mywebsite.kin
+kinetic publish example.kin
 ```
 
-Your name is live globally. Any device running the Kinetic daemon can now resolve `mywebsite.kin`.
+Your name is live globally. Any device running the Kinetic daemon can now resolve `example.kin`.
 
 ---
 
@@ -165,12 +165,12 @@ Your name is live globally. Any device running the Kinetic daemon can now resolv
 
 **Via `dig`:**
 ```bash
-dig @127.0.0.1 mywebsite.kin A
+dig @127.0.0.1 example.kin A
 ```
 You should get an instant response with your `A` record.
 
 **Via browser:**
-Open `http://mywebsite.kin` directly in Chrome or Firefox. The daemon intercepts the DNS query transparently — no browser extension needed.
+Open `http://example.kin` directly in Chrome or Firefox. The daemon intercepts the DNS query transparently — no browser extension needed.
 
 **Verify legacy traffic still works:**
 ```bash
