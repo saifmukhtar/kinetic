@@ -24,53 +24,7 @@ impl GovernanceEngine for CouncilEngine {
             return Err(GovernanceError::CouncilSizeMismatch);
         }
 
-        let guard_key_opt = state.get_guard_key()?;
         let action_bytes = msg.to_canonical_bytes();
-
-        if let GovernanceAction::VetoUpdate { .. } = &msg.action {
-            if let Some(guard_key) = guard_key_opt {
-                if msg
-                    .signatures
-                    .iter()
-                    .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
-                {
-                    return Ok(self.execute_action(state, msg, current_time_sec, None));
-                }
-            }
-            return Err(GovernanceError::InvalidGuardSignature);
-        }
-
-        if let GovernanceAction::EmergencyReset { override_mode, .. } = &msg.action {
-            let action_hash = GovernanceState::hash_action(msg);
-            if state.vetoed_hashes.contains(&action_hash) {
-                return Err(GovernanceError::EmergencyResetVetoed);
-            }
-
-            // In Council mode, emergency resets still require Root (or could just be forbidden entirely).
-            // For now, we will mimic Bicameral Phase 2, which requires Root + Guard to reset.
-            let root_key = state.get_root_key()?;
-            let root_signed = msg
-                .signatures
-                .iter()
-                .any(|sig| root_key.verify(&action_bytes, sig).is_ok());
-
-            let guard_signed = if let Some(guard_key) = guard_key_opt {
-                msg.signatures
-                    .iter()
-                    .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
-            } else {
-                false
-            };
-
-            if !root_signed {
-                return Err(GovernanceError::EmergencyResetRequiresRoot);
-            }
-            if !*override_mode && !guard_signed {
-                return Err(GovernanceError::EmergencyResetRequiresGuard);
-            }
-
-            return Ok(self.execute_action(state, msg, current_time_sec, None));
-        }
 
         if let GovernanceAction::GrantPremiumName { name, .. }
         | GovernanceAction::RevokePremiumName { name } = &msg.action
@@ -110,25 +64,7 @@ impl GovernanceEngine for CouncilEngine {
                 let target_active = msg.council_size_at_proposal.saturating_sub(1) as usize;
                 (target_active * 90) / 100 + 1
             }
-            GovernanceAction::RotateRootKey { .. } => {
-                let guard_signed = if let Some(guard_key) = guard_key_opt {
-                    msg.signatures
-                        .iter()
-                        .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
-                } else {
-                    false
-                };
-                if !guard_signed {
-                    return Err(GovernanceError::RotateRequiresGuard);
-                }
-                (msg.council_size_at_proposal as usize * 95) / 100 + 1
-            }
-            GovernanceAction::RotateGuardKey { .. } | GovernanceAction::LockCouncil => {
-                if let GovernanceAction::LockCouncil = &msg.action {
-                    if guard_key_opt.is_none() {
-                        return Err(GovernanceError::MissingGuardKey);
-                    }
-                }
+            GovernanceAction::LockCouncil => {
                 (msg.council_size_at_proposal as usize * 95) / 100 + 1
             }
             _ => return Err(GovernanceError::UnhandledThresholdMath),
@@ -193,32 +129,8 @@ impl GovernanceEngine for CouncilEngine {
                     });
                 }
             }
-            GovernanceAction::VetoUpdate { target_hash } => {
-                state.pending_timelocks.remove(target_hash);
-                state.pending_updates.remove(target_hash);
-                state.vetoed_hashes.insert(*target_hash);
-            }
-            GovernanceAction::EmergencyReset { override_mode, .. } => {
-                if *override_mode {
-                    let action_hash = GovernanceState::hash_action(msg);
-                    state.pending_timelocks.insert(action_hash, current_time_sec);
-                } else {
-                    // Resetting in Council mode doesn't make much sense since there's no Founder to fallback to, 
-                    // but we clear the council anyway per original logic.
-                    state.active_council.clear();
-                }
-            }
             GovernanceAction::ExecuteTimelock { target_hash } => {
                 state.pending_timelocks.remove(target_hash);
-
-                if let Some(original) = state.partial_proposals.get(target_hash) {
-                    if let GovernanceAction::EmergencyReset { override_mode, .. } = &original.action
-                    {
-                        if *override_mode {
-                            state.active_council.clear();
-                        }
-                    }
-                }
 
                 if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
@@ -239,7 +151,10 @@ impl GovernanceEngine for CouncilEngine {
             GovernanceAction::RevokePremiumName { name } => {
                 effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
             }
-            GovernanceAction::RotateRootKey { .. } | GovernanceAction::RotateGuardKey { .. } => {}
+            GovernanceAction::RotateRootKey { .. } 
+            | GovernanceAction::RotateGuardKey { .. } 
+            | GovernanceAction::VetoUpdate { .. }
+            | GovernanceAction::EmergencyReset { .. } => {}
         }
         effect
     }
