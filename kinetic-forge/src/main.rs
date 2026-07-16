@@ -23,6 +23,7 @@ struct NetworkConfig {
     docs_url: String,
     bootstrap_nodes: Vec<String>,
     m_redundancy: u64,
+    governance_model: String,
 }
 
 fn main() -> Result<()> {
@@ -198,6 +199,7 @@ fn patch_constants(
             docs_url: String::new(),
             bootstrap_nodes: vec![],
             m_redundancy: 32,
+            governance_model: "bicameral".to_string(),
         }
     };
 

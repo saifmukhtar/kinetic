@@ -1,4 +1,5 @@
-use crate::error::{StorageError, VdfError};
+use crate::error::{GovernanceError, StorageError, VdfError};
+use crate::governance::types::{GovernanceEffect, GovernanceState, SignedGovernanceMessage};
 use crate::types::{Commitment, VdfProof};
 
 /// Abstract trait defining the contract for any underlying VDF implementation.
@@ -28,4 +29,24 @@ pub trait StorageEngine: Send + Sync {
     /// Iterate over all key-value pairs whose key starts with `prefix`.
     #[allow(clippy::type_complexity)]
     fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
+}
+
+/// Abstract trait defining the rules and consensus parameters for network governance.
+pub trait GovernanceEngine: Send + Sync {
+    /// Verifies whether a signed governance message meets the rules to be executed.
+    fn verify_action(
+        &self,
+        state: &mut GovernanceState,
+        msg: &SignedGovernanceMessage,
+        current_time_sec: u64,
+    ) -> Result<Option<GovernanceEffect>, GovernanceError>;
+
+    /// Executes a verified governance action, applying its state changes and returning any resulting effects.
+    fn execute_action(
+        &self,
+        state: &mut GovernanceState,
+        msg: &SignedGovernanceMessage,
+        current_time_sec: u64,
+        wait_time: Option<u64>,
+    ) -> Option<GovernanceEffect>;
 }
