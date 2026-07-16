@@ -23,25 +23,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v2
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          mdbook-version: 'latest'
+          node-version: 20
           
-      - name: Build mdBook
-        run: mdbook build
+      - name: Install Dependencies
+        run: npm ci
         working-directory: ./docs
-        
-      - name: Generate Sitemap
-        run: |
-          chmod +x generate_sitemap.sh
-          ./generate_sitemap.sh
+          
+      - name: Build VitePress
+        run: npm run docs:build
         working-directory: ./docs
-        
-      - name: Copy Install Scripts
-        run: |
-          cp scripts/install.sh docs/book/install.sh
-          cp scripts/install.ps1 docs/book/install.ps1
         
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -49,7 +42,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './docs/book/'
+          path: './docs/.vitepress/dist/'
           
       - name: Deploy to GitHub Pages
         id: deployment

@@ -89,14 +89,17 @@ Errors originating from the libp2p transport and Kademlia DHT layers.
 
 ---
 
-## Storage Engine Errors (`KIN-STO-*`)
-Errors emitted by the embedded `sled` database engine.
+## Storage Engine & DHT Store Errors (`KIN-STO-*` / `KIN-STORE-*`)
+Errors emitted by the embedded `sled` database engine or the local Kademlia record validator.
 
 | Error Code | HTTP Status | Meaning | Developer Detail |
 | :--- | :--- | :--- | :--- |
 | **KIN-STO-001** | `423 Locked` | **Database Locked**: Another instance of the Kinetic daemon is already running. | Process lock file collision. |
 | **KIN-STO-002** | `500 Internal Server Error` | **Storage Corruption**: The local database structure has been corrupted. | Automatic backup & reset triggered. |
 | **KIN-STO-003** | `500 Internal Server Error` | **Operation Failed**: A read/write operation failed at the engine level. | Disk IO or thread panic inside Sled. |
+| **KIN-STORE-016** | `400 Bad Request` | **Payload Too Large**: The Kademlia record exceeds the 16KB limit. | Anti-bloat limit enforcement. |
+| **KIN-STORE-019** | `400 Bad Request` | **Unknown Record Type**: The Kademlia record payload is not recognized by the Kinetic schema. | Store payload parsing failed. |
+| **KIN-STORE-021** | `400 Bad Request` | **Host Routing Invalid**: The `HostRoutingRecord` failed validation (e.g., bad signature or stale sequence number). | Host node routing rejection. |
 
 ---
 
@@ -172,3 +175,78 @@ Errors related to node identity keypairs and mnemonic seed phrases.
 | **KIN-IDN-002** | `500 Internal Server Error` | **Corrupted Identity File**: The loaded identity file does not contain exactly 32 bytes. | Truncated or modified key file. |
 | **KIN-IDN-003** | `404 Not Found` | **Identity Not Found**: The local identity file could not be found. | `kinetic-cli seed init` has not been run. |
 | **KIN-IDN-004** | `400 Bad Request` | **Invalid Seed Phrase**: The provided seed phrase is not a valid BIP-39 mnemonic. | Typo or invalid dictionary word. |
+
+---
+
+## Certificate Authority Errors (`KIN-CA-*`)
+Errors related to generating the local Certificate Authority for HTTPS interception.
+
+| Error Code | HTTP Status | Meaning | Developer Detail |
+| :--- | :--- | :--- | :--- |
+| **KIN-CA-001** | `500 Internal Server Error` | **IO Error**: An IO error occurred reading or writing certificates. | File system error on `ca_cert.pem` or `.ca.lock`. |
+| **KIN-CA-002** | `500 Internal Server Error` | **RCGen Error**: An error originated from the `rcgen` certificate generator. | Math or parsing error when generating leaf/root certs. |
+| **KIN-CA-003** | `500 Internal Server Error` | **Rustls Error**: An error originated from `rustls` configuration. | Failed to build the ServerConfig. |
+
+---
+
+## Proxy & PAC Configuration Errors (`KIN-PRX-*` / `KIN-PAC-*`)
+Errors related to the local HTTP/DNS proxy server and Proxy Auto-Configuration (PAC) file.
+
+| Error Code | HTTP Status | Meaning | Developer Detail |
+| :--- | :--- | :--- | :--- |
+| **KIN-PRX-001** | `404 Not Found` | **Name Not Found**: The requested DNS name could not be found via the proxy. | Name resolution failed in proxy tunnel. |
+| **KIN-PRX-002** | `400 Bad Request` | **Invalid Payload**: The proxy payload format is invalid. | Malformed request through proxy. |
+| **KIN-PRX-003** | `502 Bad Gateway` | **Hyper Error**: Hyper HTTP library error. | Downstream connection or protocol error. |
+| **KIN-PRX-004** | `502 Bad Gateway` | **Reqwest Error**: Reqwest HTTP client error. | Request fetching failed. |
+| **KIN-PRX-005** | `500 Internal Server Error` | **IO Error**: Standard IO error during proxy stream. | Socket or connection closed. |
+| **KIN-PRX-006** | `500 Internal Server Error` | **CA Error**: Certificate authority error during TLS intercept. | Wrapped `CaError`. |
+| **KIN-PAC-001** | `500 Internal Server Error` | **Registry Error**: Failed to read or modify the OS registry (Windows). | PAC OS installation failed. |
+| **KIN-PAC-002** | `500 Internal Server Error` | **Command Error**: Failed to execute an OS network command (macOS/Linux). | `networksetup` or `gsettings` failed. |
+| **KIN-PAC-003** | `500 Internal Server Error` | **IO Error**: Failed to read/write the lockfile or temporary files. | Disk IO error. |
+| **KIN-PAC-004** | `500 Internal Server Error` | **Serialization Error**: Failed to serialize the proxy state. | `serde_json` failure. |
+| **KIN-PAC-005** | `500 Internal Server Error` | **Unsupported OS**: PAC automatic configuration is not supported on this OS. | Target OS lacking proxy APIs. |
+
+---
+
+## Kinetic Identity Document (KID) Errors (`KIN-KID-*`)
+Errors related to parsing and validating Kinetic Identity Documents (KIDs).
+
+| Error Code | HTTP Status | Meaning | Developer Detail |
+| :--- | :--- | :--- | :--- |
+| **KIN-KID-001** | `400 Bad Request` | **Invalid DID Prefix**: The DID string does not start with the expected `did:kin:` prefix. | DID syntax validation. |
+| **KIN-KID-002** | `400 Bad Request` | **Invalid DID Format**: The method-specific ID portion of the DID is not a valid hex-encoded hash. | Hex parsing failure. |
+| **KIN-KID-003** | `400 Bad Request` | **Invalid DID Hex Length**: The method-specific ID is not exactly 64 characters long. | Must be SHA-256 output length. |
+| **KIN-KID-004** | `400 Bad Request` | **Invalid DID Hex Characters**: The method-specific ID contains invalid lowercase hexadecimal characters. | Non-hex characters detected. |
+| **KIN-KID-005** | `400 Bad Request` | **JSON Parse Error**: JSON deserialization failed. | Malformed KID document structure. |
+| **KIN-KID-006** | `400 Bad Request` | **Canonicalization Error**: JCS canonicalization failed. | Unable to sort JSON deterministically. |
+| **KIN-KID-007** | `401 Unauthorized` | **Invalid Signature**: The signature bytes are invalid or do not verify against any controller key. | Ed25519 verification failed. |
+| **KIN-KID-008** | `400 Bad Request` | **Missing Signature**: The document or manifest does not contain a signature field. | Required cryptographic proof is missing. |
+| **KIN-KID-009** | `400 Bad Request` | **Base64 Decode Error**: Base64url decoding of a key or signature failed. | Improper encoding of binary fields. |
+| **KIN-KID-010** | `400 Bad Request` | **Key Parse Error**: An Ed25519 public key could not be parsed from the provided bytes. | Key format or length is invalid. |
+| **KIN-KID-011** | `401 Unauthorized` | **Unauthorized Manifest Signature**: The manifest signature was produced by a key not listed in the KID document. | Attacker attempting to forge a manifest. |
+
+---
+
+## General Name Formatting Errors (`KIN-NAM-*`)
+Core errors emitted when attempting to format or parse `.kin` domain strings.
+
+| Error Code | HTTP Status | Meaning | Developer Detail |
+| :--- | :--- | :--- | :--- |
+| **KIN-NAM-001** | `400 Bad Request` | **Name Too Long**: The name exceeds the 253 character limit or is completely empty. | RFC bounds violation. |
+| **KIN-NAM-002** | `400 Bad Request` | **Label Too Long**: A single label (word between dots) exceeds 63 characters or is empty. | RFC bounds violation. |
+| **KIN-NAM-003** | `400 Bad Request` | **Invalid Character**: The name contains invalid characters. | Only lowercase letters, digits, and internal hyphens allowed. |
+| **KIN-NAM-004** | `403 Forbidden` | **Reserved Name**: Name is a protected public utility name (e.g., localhost, test). | Hardcoded safety blocklist. |
+| **KIN-NAM-005** | `403 Forbidden` | **Infrastructure Name**: Name is reserved for critical network infrastructure. | e.g. seed, explorer. |
+| **KIN-NAM-006** | `400 Bad Request` | **Invalid TLD**: The name has an invalid Top-Level Domain. | Only `.kin` (or configured custom suffix) allowed. |
+| **KIN-NAM-007** | `400 Bad Request` | **Not An Apex Domain**: Only apex domains are allowed. | Subdomains must be managed by the apex owner. |
+
+---
+
+## Implementation & Internal API Errors (`KIN-IMPL-*` / `KIN-API-*`)
+Errors related to the daemon's internal state, configuration, and API handlers.
+
+| Error Code | HTTP Status | Meaning | Developer Detail |
+| :--- | :--- | :--- | :--- |
+| **KIN-IMPL-001** | `500 Internal Server Error` | **RNG Failure**: The OS randomness generator failed; unable to create a secure API token. | `getrandom` crate failed during startup. |
+| **KIN-IMPL-005** | `500 Internal Server Error` | **Zone Write Failed**: Failed to write the default `.json` DNS zone file to disk after registration. | IO error in the `zones/` directory. |
+| **KIN-API-001** | `* (Warning)` | **Drand Fetch Warning**: Could not fetch the live drand round during publish; falling back to a cached value. | Handled internally; DHT will still validate. |

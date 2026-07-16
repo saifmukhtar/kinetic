@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: "Kinetic",
   description: "A gasless, blockchain-free P2P naming network.",
   ignoreDeadLinks: true,
@@ -9,6 +10,9 @@ export default defineConfig({
   ],
   // Default to light mode as requested by the user, while keeping the toggle
   appearance: true, 
+  markdown: {
+    math: true
+  },
   themeConfig: {
     logo: '/favicon.svg',
     nav: [
@@ -24,7 +28,7 @@ export default defineConfig({
           { text: 'The Mathematical Engine', link: '/cryptography' },
           { text: 'VDF Hardware Calibration', link: '/vdf-calibration' },
           { text: 'P2P Routing & DHT', link: '/network_architecture' },
-          { text: 'VDF Delegation & Heartbeats', link: '/hybrid_lease_system' },
+          { text: 'Heartbeats & Stealing', link: '/heartbeat' },
           { text: 'Kinetic Simulation Sandbox', link: '/kinetic_sim' }
         ]
       },
@@ -55,10 +59,21 @@ export default defineConfig({
           { text: 'kinetic-node', link: '/kinetic_node' },
           { text: 'kinetic-storage', link: '/kinetic_storage' }
         ]
+      },
+      {
+        text: 'Legal',
+        items: [
+          { text: 'Privacy Policy', link: '/privacy_policy' },
+          { text: 'Terms of Service', link: '/terms_of_service' }
+        ]
       }
     ],
     socialLinks: [
       { icon: 'github', link: 'https://github.com/saif/kinetic' }
-    ]
+    ],
+    footer: {
+      message: 'Released under the MIT License.',
+      copyright: 'Copyright © 2026-present Saif Mukhtar | <a href="/privacy_policy">Privacy Policy</a> | <a href="/terms_of_service">Terms of Service</a>'
+    }
   }
-})
+}))

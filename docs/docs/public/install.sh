@@ -168,7 +168,7 @@ if [ ${#EXISTING_BINS[@]} -gt 0 ]; then
         if [ "$CONFIRM" = "YES" ]; then
             sudo -v
             for bin in "${EXISTING_BINS[@]}"; do
-                sudo "/usr/local/bin/$bin" stop-service 2>/dev/null || true
+                sudo "/usr/local/bin/$bin" stop 2>/dev/null || true
                 sudo "/usr/local/bin/$bin" uninstall 2>/dev/null || true
                 sudo rm -f "/usr/local/bin/$bin"
             done
@@ -179,7 +179,7 @@ if [ ${#EXISTING_BINS[@]} -gt 0 ]; then
     elif [ "$CHOICE" -eq 0 ]; then
         sudo -v
         for bin in "${EXISTING_BINS[@]}"; do
-            sudo "/usr/local/bin/$bin" stop-service 2>/dev/null || true
+            sudo "/usr/local/bin/$bin" stop 2>/dev/null || true
             sudo "/usr/local/bin/$bin" uninstall 2>/dev/null || true
             sudo rm -f "/usr/local/bin/$bin"
         done
@@ -246,7 +246,7 @@ for bin in "${BINS_TO_INSTALL[@]}"; do
 
     if [[ "$bin" != "kinetic" ]]; then
         sudo "/usr/local/bin/$bin" install
-        sudo "/usr/local/bin/$bin" start-service
+        sudo "/usr/local/bin/$bin" start
     fi
 done
 

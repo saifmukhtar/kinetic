@@ -159,7 +159,7 @@ if ($ExistingBins.Count -gt 0) {
         $ConfirmWipe = Read-Host "Type 'YES' to confirm full cleanup"
         if ($ConfirmWipe -ceq "YES") {
             foreach ($bin in $ExistingBins) {
-                & "$InstallDir\$bin.exe" stop-service 2>$null
+                & "$InstallDir\$bin.exe" stop 2>$null
                 & "$InstallDir\$bin.exe" uninstall 2>$null
             }
             Start-Sleep -Seconds 2
@@ -172,7 +172,7 @@ if ($ExistingBins.Count -gt 0) {
         } else { Exit }
     } elseif ($Choice -eq 0) {
         foreach ($bin in $ExistingBins) {
-            & "$InstallDir\$bin.exe" stop-service 2>$null
+            & "$InstallDir\$bin.exe" stop 2>$null
             & "$InstallDir\$bin.exe" uninstall 2>$null
         }
         Start-Sleep -Seconds 2
@@ -237,7 +237,7 @@ foreach ($bin in $BinsToInstall) {
     
     if ($bin -ne "kinetic") {
         & "$InstallDir\$bin.exe" install
-        & "$InstallDir\$bin.exe" start-service
+        & "$InstallDir\$bin.exe" start
     }
 }
 
