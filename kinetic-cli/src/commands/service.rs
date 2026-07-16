@@ -8,9 +8,9 @@ pub enum ServiceCommands {
     /// Uninstall the background service
     Uninstall,
     /// Start in the foreground (blocks the terminal)
-    Start,
-    /// Start as a background service (systemd / launchd)
     Run,
+    /// Start as a background service (systemd / launchd)
+    Start,
     /// Stop the background service
     Stop,
     /// Check the status of the background service
@@ -100,9 +100,9 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     let subcommand = match cmd {
         ServiceCommands::Install => "install",
         ServiceCommands::Uninstall => "uninstall",
+        ServiceCommands::Run => "run",
         ServiceCommands::Start => "start",
-        ServiceCommands::Run => "start-service",
-        ServiceCommands::Stop => "stop-service",
+        ServiceCommands::Stop => "stop",
         _ => unreachable!(),
     };
 

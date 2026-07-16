@@ -4,8 +4,8 @@
 //! The underlying consensus engine uses absolute Drand rounds, but this module
 //! translates those rounds into the official Kinetic Epoch/Cycle/Pulse format.
 
-use serde::{Deserialize, Serialize};
 use crate::constants::KINETIC_GENESIS_DRAND_ROUND;
+use serde::{Deserialize, Serialize};
 
 /// Represents a specific point in time on the Kinetic network using branded units.
 ///
@@ -24,6 +24,7 @@ impl KineticTime {
     /// Creates a new `KineticTime` from an absolute Drand round.
     ///
     /// If the provided round is before the `KINETIC_GENESIS_DRAND_ROUND`, it returns a time of zero.
+    #[allow(clippy::absurd_extreme_comparisons)]
     pub fn from_drand_round(current_drand_round: u64) -> Self {
         if current_drand_round < KINETIC_GENESIS_DRAND_ROUND {
             return Self {
@@ -35,10 +36,10 @@ impl KineticTime {
         }
 
         let total_pulses = current_drand_round - KINETIC_GENESIS_DRAND_ROUND;
-        
+
         let epoch = total_pulses / 28_800;
         let remainder_after_epoch = total_pulses % 28_800;
-        
+
         let cycle = remainder_after_epoch / 1_200;
         let pulse = remainder_after_epoch % 1_200;
 
@@ -53,7 +54,10 @@ impl KineticTime {
     /// Formats the time as a sleek, sci-fi aesthetic string.
     /// Example: `Epoch 14, Cycle 8 (Pulse 452)`
     pub fn to_display_string(&self) -> String {
-        format!("Epoch {}, Cycle {} (Pulse {})", self.epoch, self.cycle, self.pulse)
+        format!(
+            "Epoch {}, Cycle {} (Pulse {})",
+            self.epoch, self.cycle, self.pulse
+        )
     }
 }
 
@@ -64,7 +68,7 @@ mod tests {
     // Note: KINETIC_GENESIS_DRAND_ROUND is defined in network.json / build.rs.
     // For these tests, we assume it acts correctly regardless of its exact value,
     // by manually shifting our input by the genesis round.
-    
+
     #[test]
     fn test_kinetic_time_zero() {
         let genesis = KINETIC_GENESIS_DRAND_ROUND;
@@ -77,6 +81,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::absurd_extreme_comparisons)]
     fn test_kinetic_time_pre_genesis() {
         if KINETIC_GENESIS_DRAND_ROUND > 0 {
             let time = KineticTime::from_drand_round(KINETIC_GENESIS_DRAND_ROUND - 1);
@@ -87,11 +92,11 @@ mod tests {
     #[test]
     fn test_kinetic_time_complex() {
         let genesis = KINETIC_GENESIS_DRAND_ROUND;
-        
+
         // 1 day (28,800) + 2 hours (2,400) + 45 pulses = 31,245 total pulses
         let target_round = genesis + 31_245;
         let time = KineticTime::from_drand_round(target_round);
-        
+
         assert_eq!(time.epoch, 1);
         assert_eq!(time.cycle, 2);
         assert_eq!(time.pulse, 45);

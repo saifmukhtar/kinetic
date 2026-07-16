@@ -4,7 +4,7 @@ The cryptography and peer-to-peer networking discussed in previous chapters guar
 
 The primary engineering challenge of deploying a sovereign namespace is bypassing the legacy Domain Name System (DNS). 
 
-ICANN (The Internet Corporation for Assigned Names and Numbers) controls the global Root Zone. If you type `google.com` into your browser, your computer ultimately traverses a hierarchy of ICANN-approved servers to find the IP address. ICANN does not recognize `.kin`. If a browser asks an ICANN root server for `apple.kin`, the request will instantly fail with an `NXDOMAIN` (Non-Existent Domain) error.
+Legacy centralized naming authorities control the global Root Zone. If you type `google.com` into your browser, your computer ultimately traverses a hierarchy of legacy approved servers to find the IP address. Legacy systems do not recognize `.kin`. If a browser asks a legacy root server for `example.kin`, the request will instantly fail with an `NXDOMAIN` (Non-Existent Domain) error.
 
 To achieve native `.kin` resolution without relying on centralized TLD authorities, and without breaking standard Web2 traffic, Kinetic utilizes a **Split-DNS loopback architecture**.
 
@@ -36,13 +36,13 @@ If a local application requests a legacy TLD (e.g., `github.com` or `wikipedia.o
 It instantly forwards the query over standard UDP/TCP to the user's default upstream resolver (such as Cloudflare's `1.1.1.1` or Google's `8.8.8.8`). This incurs practically zero latency overhead for normal internet use. The user experiences the legacy web exactly as they always have.
 
 ### Scenario B: Sovereign Traffic (Interception)
-If the application requests a protocol-specific TLD (e.g., `apple.kin`), the daemon intercepts the request.
+If the application requests a protocol-specific TLD (e.g., `example.kin`), the daemon intercepts the request.
 
-It actively blocks the request from leaking to the upstream ISP or the global ICANN Root Zone. Instead, it initiates the decentralized resolution pipeline:
+It actively blocks the request from leaking to the upstream ISP or the global legacy Root Zone. Instead, it initiates the decentralized resolution pipeline:
 
-1. **Extraction:** The DNS handler extracts the target string (`apple.kin.`).
+1. **Extraction:** The DNS handler extracts the target string (`example.kin.`).
 2. **Kademlia Query:** The DNS handler triggers an asynchronous `GetRecord` Kademlia query down to the `kinetic-network` layer.
-3. **Decentralized Search:** The DHT swarm routing (XOR distance) locates the Redundant Deterministic Storage nodes holding the payload for `apple.kin.`.
+3. **Decentralized Search:** The DHT swarm routing (XOR distance) locates the Redundant Deterministic Storage nodes holding the payload for `example.kin.`.
 4. **Validation:** As the payloads return, the local daemon strictly verifies the Ed25519 signatures and Chia VDF proofs to ensure the data has not been tampered with or eclipsed.
 5. **Synthesis:** The handler unpacks the verified payload (e.g., `192.168.1.100`) and synthesizes a perfectly standard DNS `A` (IPv4) or `AAAA` (IPv6) response record.
 6. **Delivery:** The synthesized record is returned to the local OS, and the browser effortlessly connects to the decentralized application.
@@ -65,7 +65,7 @@ graph LR
     subgraph External Networks
         Kin -->|VDF/DHT Math| DHT[(Kademlia DHT)]
         Pass -->|Standard UDP/TCP| Upstream[Upstream Resolver<br/>1.1.1.1 / 8.8.8.8]
-        Upstream --> ICANN((ICANN Root Zone))
+        Upstream --> LegacyRoot((Legacy Root Zone))
     end
     
     style Daemon fill:#005A9C,stroke:#000,stroke-width:2px,color:#fff
@@ -86,6 +86,6 @@ If you rely on a centralized gateway (even one provided by the Kinetic developer
 By running the `kinetic-daemon` on `127.0.0.1`:
 * **Zero Trust:** Your laptop personally verifies every single VDF proof and Ed25519 signature. You trust absolutely no one but the mathematics executing on your local silicon.
 * **Censorship Immunity:** An ISP or authoritarian firewall cannot block your access to `.kin` domains because the resolution happens internally via encrypted Kademlia peer-to-peer traffic, completely bypassing the ISP's DNS monitors.
-* **Decentralized Verification:** Because every user verifies the math themselves, the network organically achieves global consensus without requiring a centralized blockchain ledger.
+* **Decentralized Verification:** Because every user verifies the math themselves, the network organically achieves global consensus without requiring a centralized global ledger.
 
 The Split-DNS loopback architecture is what transforms Kinetic from a theoretical cryptographic puzzle into a resilient, un-censorable public utility.

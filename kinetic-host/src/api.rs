@@ -18,7 +18,9 @@ pub async fn start_health_api(host_peer_id: libp2p::PeerId) -> Result<()> {
         api_port
     );
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(kinetic_core::shutdown::shutdown_signal())
+        .await?;
 
     Ok(())
 }

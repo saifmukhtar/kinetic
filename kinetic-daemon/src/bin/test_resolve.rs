@@ -1,3 +1,4 @@
+//! Test script for network resolution and P2P integration.
 use anyhow::Result;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use std::time::Duration;

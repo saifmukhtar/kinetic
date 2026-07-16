@@ -19,7 +19,7 @@ impl GovernanceEngine for CouncilEngine {
         let actual_active_count = state.count_active_council(current_time_sec);
         let effective_active_count =
             std::cmp::max(actual_active_count, crate::constants::MIN_ACTIVE_COUNCIL);
-            
+
         if msg.council_size_at_proposal < effective_active_count as u32 {
             return Err(GovernanceError::CouncilSizeMismatch);
         }
@@ -64,9 +64,7 @@ impl GovernanceEngine for CouncilEngine {
                 let target_active = msg.council_size_at_proposal.saturating_sub(1) as usize;
                 (target_active * 90) / 100 + 1
             }
-            GovernanceAction::LockCouncil => {
-                (msg.council_size_at_proposal as usize * 95) / 100 + 1
-            }
+            GovernanceAction::LockCouncil => (msg.council_size_at_proposal as usize * 95) / 100 + 1,
             _ => return Err(GovernanceError::UnhandledThresholdMath),
         };
 
@@ -120,7 +118,8 @@ impl GovernanceEngine for CouncilEngine {
             } => {
                 if let Some(wait_sec) = wait_time {
                     let action_hash = GovernanceState::hash_action(msg);
-                    state.pending_updates
+                    state
+                        .pending_updates
                         .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
                 } else {
                     effect = Some(GovernanceEffect::TriggerOTA {
@@ -151,8 +150,8 @@ impl GovernanceEngine for CouncilEngine {
             GovernanceAction::RevokePremiumName { name } => {
                 effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
             }
-            GovernanceAction::RotateRootKey { .. } 
-            | GovernanceAction::RotateGuardKey { .. } 
+            GovernanceAction::RotateRootKey { .. }
+            | GovernanceAction::RotateGuardKey { .. }
             | GovernanceAction::VetoUpdate { .. }
             | GovernanceAction::EmergencyReset { .. } => {}
         }

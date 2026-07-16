@@ -4,7 +4,7 @@ layout: home
 hero:
   name: "Kinetic"
   text: "The Sovereign Namespace Engine"
-  tagline: "Deploy your own cryptographically secured naming network in minutes. Or use the public .kin network — no fees, no ICANN, no blockchain."
+  tagline: "Deploy your own cryptographically secured naming network in minutes. Or use the public .kin network — no fees, no central authorities, no global ledgers."
   actions:
     - theme: brand
       text: Fork Your Own Network
@@ -19,7 +19,7 @@ hero:
 features:
   - title: "🍴 Fully Forkable"
     details: "Any university, company, or community can deploy their own sovereign namespace with a single config file. Change the TLD, difficulty, and bootstrap nodes — compile and ship."
-  - title: "🔐 Zero Fees. Zero Gas. Zero ICANN."
+  - title: "🔐 Zero Fees. Zero Gas. Zero Central Authorities."
     details: "Names are secured by Verifiable Delay Functions — un-parallelizable sequential computation. No recurring fees. No token. No central authority."
   - title: "🔄 Swappable Engines"
     details: "VdfEngine and StorageEngine are abstract Rust traits. Swap Chia's chiavdf for any VDF construction. Swap Sled for RocksDB, SQLite, or a distributed store."

@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 //! # kinetic-host
 //!
 //! The Kinetic host binary (`kinetic-host`).
@@ -58,11 +59,11 @@ enum Commands {
     /// Uninstall the host system service
     Uninstall,
     /// Start the host (foreground)
-    Start,
+    Run,
     /// Start the host service (background)
-    StartService,
+    Start,
     /// Stop the host service (background)
-    StopService,
+    Stop,
 }
 
 #[tokio::main]
@@ -72,9 +73,9 @@ async fn main() -> Result<()> {
     match &cli.command {
         Some(Commands::Install) => service::install_service()?,
         Some(Commands::Uninstall) => service::uninstall_service()?,
-        Some(Commands::StartService) => service::start_background_service()?,
-        Some(Commands::StopService) => service::stop_background_service()?,
-        Some(Commands::Start) | None => {
+        Some(Commands::Start) => service::start_background_service()?,
+        Some(Commands::Stop) => service::stop_background_service()?,
+        Some(Commands::Run) | None => {
             run_host().await?;
         }
     }

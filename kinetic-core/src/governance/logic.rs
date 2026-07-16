@@ -2,13 +2,9 @@ use ed25519_dalek::VerifyingKey;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
-use super::types::{
-    GovernanceEffect, GovernanceState, Hash256, SignedGovernanceMessage,
-};
+use super::types::{GovernanceEffect, GovernanceState, Hash256, SignedGovernanceMessage};
 use crate::constants::{ACTIVE_WINDOW_SECONDS, GUARD_PUBLIC_KEY_HEX, ROOT_PUBLIC_KEY_HEX};
 use crate::error::GovernanceError;
-
-
 
 /// Validates that the static cryptographic keys required for governance have been correctly initialized.
 ///
@@ -152,7 +148,12 @@ impl GovernanceState {
         current_time_sec: u64,
         wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
-        crate::governance::engine::get_active_engine().execute_action(self, msg, current_time_sec, wait_time)
+        crate::governance::engine::get_active_engine().execute_action(
+            self,
+            msg,
+            current_time_sec,
+            wait_time,
+        )
     }
 
     /// Checks for any matured timelocked actions (like OTAs) and returns their corresponding effects.

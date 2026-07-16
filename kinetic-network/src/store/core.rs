@@ -117,7 +117,7 @@ impl KineticRecordStore {
         }
 
         let max_age_rounds = kinetic_core::types::RESQUARING_EPOCH_ROUNDS;
-        let idle_timeout = (14 * 24 * 3600) / 30;
+        let idle_timeout = (7 * 24 * 3600) / 3; // 7 days of 3-second Drand rounds
 
         let mut expired_names = Vec::new();
 

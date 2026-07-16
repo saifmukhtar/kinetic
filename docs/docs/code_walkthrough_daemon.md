@@ -55,13 +55,13 @@ Handles all aspects of the user's cryptographic Kinetic Identity Document (KID):
 ### 2.2 Name Registration Workflow (`kinetic-cli name`)
 This is the core execution path that initiates the Two-Phase Commit/Reveal protocol for claiming `.kin` domains.
 
-1. **Phase 1: The Commit & Grind (`kinetic-cli name register apple.kin`)**
+1. **Phase 1: The Commit & Grind (`kinetic-cli name register example.kin`)**
    * Grabs the latest Drand beacon.
    * Broadcasts the Phase 1 Hash Commitment to the DHT.
    * Aggressively utilizes local CPU cores to grind the Chia VDF Proof-of-Time.
    * Generates a template `.reveal.json` file in `~/.config/kinetic/zones/`.
 
-2. **Phase 2: Configuration & Reveal (`kinetic-cli name publish apple.kin`)**
+2. **Phase 2: Configuration & Reveal (`kinetic-cli name publish example.kin`)**
    * Once the template is configured with the target IP or service manifest, the user runs this command.
    * It calculates the Ed25519 signature over the exact payload.
    * Submits the finalized cryptographic tuple to the daemon's API, injecting the payload into the global Kademlia DHT.

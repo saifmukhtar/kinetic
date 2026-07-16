@@ -17,7 +17,7 @@ pub fn normalize_name(name: &str) -> String {
 /// Hardcoded reserved names are evaluated dynamically based on TLD.
 pub fn is_reserved_name(name: &str) -> bool {
     let tld = crate::constants::TLD_SUFFIX;
-    let reserved = vec![
+    let reserved = [
         format!("localhost{}", tld),
         format!("test{}", tld),
         format!("invalid{}", tld),
@@ -26,8 +26,6 @@ pub fn is_reserved_name(name: &str) -> bool {
     ];
     reserved.contains(&name.to_lowercase())
 }
-
-
 
 /// Category 1: Public Utility Names (Based on RFC 2606 & RFC 6761)
 /// These names are permanently locked and cannot be registered by anyone.
@@ -74,7 +72,10 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
         }
 
         // Labels cannot start with a hyphen or a digit, and cannot end with a hyphen
-        if part.starts_with('-') || part.ends_with('-') || part.starts_with(|c: char| c.is_ascii_digit()) {
+        if part.starts_with('-')
+            || part.ends_with('-')
+            || part.starts_with(|c: char| c.is_ascii_digit())
+        {
             return Err(crate::error::NamesError::InvalidCharacter);
         }
     }

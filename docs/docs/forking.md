@@ -60,7 +60,7 @@ Run `kinetic-node` on at least two stable servers. The peer ID is printed to std
 
 ## Swappable Engines (The Plugin Architecture)
 
-This is where Kinetic diverges from most blockchain projects. The protocol core defines **abstract traits** in `kinetic-core/src/traits.rs`. All concrete implementations are **swappable at compile time**. You are not locked into any specific backend.
+This is where Kinetic diverges from most legacy decentralized projects. The protocol core defines **abstract traits** in `kinetic-core/src/traits.rs`. All concrete implementations are **swappable at compile time**. You are not locked into any specific backend.
 
 ### `VdfEngine` — The Computation Backend
 
@@ -111,6 +111,30 @@ pub trait StorageEngine: Send + Sync {
 
 ---
 
+### `GovernanceEngine` — The OTA Update Backend
+
+**Trait contract** (`kinetic-core/src/traits.rs`):
+```rust
+pub trait GovernanceEngine: Send + Sync {
+    fn verify_update(&self, payload: &[u8], signatures: &[Vec<u8>]) -> Result<bool, GovernanceError>;
+    fn requires_emergency_delay(&self) -> bool;
+}
+```
+
+**Built-in implementations:**
+- **`Bicameral`**: Requires both a hot guard key and a cold root key (default for high security).
+- **`Monarchy`**: Requires only a single root key (for simpler deployments).
+- **`Anarchy`**: No governance updates allowed; code is law and immutable.
+- **`Council`**: Requires a multisig consensus from a defined council of keys. (Note: Council does not use root/guard keys).
+
+**When you'd swap it:**
+- You want to implement a DAO voting mechanism for network updates.
+- You have a custom hardware-based multisig flow.
+
+**How to swap:** Implement `GovernanceEngine` for your struct, pass `Arc<dyn GovernanceEngine>` where the network node initializes its OTA updater.
+
+---
+
 ## Payload Size Limits
 
 Kinetic enforces two payload size limits at two distinct layers. Both are real, both serve different roles:
@@ -156,9 +180,8 @@ It will walk you through:
   (in months, default: 9)
 > 6
 
-Generating governance keypair...
-  Root Key:  saved to ./keys/root.key (KEEP THIS OFFLINE)
-  Guard Key: saved to ./keys/guard.key (KEEP THIS OFFLINE)
+? Which Governance Engine do you want to use? (Bicameral, Monarchy, Anarchy, Council)
+> Council
 
 Writing network.json...
 Done. Build your network with: cargo build --release --workspace
@@ -201,6 +224,6 @@ No matter what you configure, every Kinetic fork inherits:
 - The **Redundant Deterministic Storage** Eclipse attack defense
 - The **Competitive Gossip** VDF validation at the network edge
 - The **Epoch-Bound transport identity** DoS defense on `kinetic-host`
-- The **Bicameral governance** OTA update pipeline
+- The **swappable GovernanceEngine** OTA update pipeline
 
 The engine is the same. The network is yours.

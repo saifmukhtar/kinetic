@@ -50,7 +50,7 @@ pub struct Reveal {
 
 #### Line-by-Line Breakdown:
 * **`protocol_version: u16`**: Protocol V2.
-* **`pub name: String`**: The requested domain, strictly normalized to a Fully Qualified Domain Name (FQDN) ending in `.kin.` (e.g., `apple.kin.`).
+* **`pub name: String`**: The requested domain, strictly normalized to a Fully Qualified Domain Name (FQDN) ending in `.kin.` (e.g., `example.kin.`).
 * **`pub payload: Vec<u8>`**: The actual routing target (a serialized `DnsZone`). Must fit within the 64KB DHT limit.
 * **`pub drand_pulse` & `pub drand_randomness`**: The exact round number and corresponding entropy fetched from the external Drand beacon. This forms the absolute timestamp of the commitment.
 * **`pub iterations: u64`**: The exact number of VDF iterations (Repeated Squarings) the user claims to have computed. The network nodes will verify if this number matches the length-based minimum requirement.

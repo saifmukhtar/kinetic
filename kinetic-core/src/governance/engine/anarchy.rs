@@ -11,7 +11,7 @@ impl GovernanceEngine for AnarchyEngine {
         _msg: &SignedGovernanceMessage,
         _current_time_sec: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        // In Anarchy mode, the network is perfectly immutable. 
+        // In Anarchy mode, the network is perfectly immutable.
         // No governance actions (updates, name revocations) are allowed.
         Err(GovernanceError::InsufficientSignatures)
     }

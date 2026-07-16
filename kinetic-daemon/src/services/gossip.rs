@@ -1,3 +1,4 @@
+/// Starts the background task that processes incoming pubsub gossip messages.
 pub fn start_gossip_processor(
     mut gossip_rx: tokio::sync::mpsc::Receiver<(String, Vec<u8>)>,
     gossip_gov_path: std::sync::Arc<std::path::PathBuf>,

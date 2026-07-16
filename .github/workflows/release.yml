@@ -29,7 +29,7 @@ jobs:
             host_asset: kinetic-host-linux
             keygen_artifact: kinetic-keygen
             keygen_asset: kinetic-keygen-linux
-            dns_artifact: kinetic-dns-server
+            dns_artifact: kinetic-dns
             dns_asset: kinetic-dns-server-linux
           - os: macos-latest
             artifact_name: kinetic-daemon
@@ -42,7 +42,7 @@ jobs:
             host_asset: kinetic-host-macos
             keygen_artifact: kinetic-keygen
             keygen_asset: kinetic-keygen-macos
-            dns_artifact: kinetic-dns-server
+            dns_artifact: kinetic-dns
             dns_asset: kinetic-dns-server-macos
           - os: windows-latest
             artifact_name: kinetic-daemon.exe
@@ -55,7 +55,7 @@ jobs:
             host_asset: kinetic-host-windows.exe
             keygen_artifact: kinetic-keygen.exe
             keygen_asset: kinetic-keygen-windows.exe
-            dns_artifact: kinetic-dns-server.exe
+            dns_artifact: kinetic-dns.exe
             dns_asset: kinetic-dns-server-windows.exe
 
     steps:
@@ -96,7 +96,7 @@ jobs:
       run: cargo build --release -p kinetic-keygen
 
     - name: Build Kinetic DNS Server (Release)
-      run: cargo build --release -p kinetic-dns --bin kinetic-dns-server
+      run: cargo build --release -p kinetic-dns --bin kinetic-dns
 
     - name: Rename Binaries for Release
       shell: bash

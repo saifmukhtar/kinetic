@@ -68,11 +68,11 @@ enum Commands {
     /// Uninstall the daemon system service
     Uninstall,
     /// Start the daemon (foreground)
-    Start,
+    Run,
     /// Start the daemon service (background)
-    StartService,
+    Start,
     /// Stop the daemon service (background)
-    StopService,
+    Stop,
 }
 
 fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
@@ -142,16 +142,21 @@ fn install_service(user: Option<String>, config_dir_opt: Option<String>) -> Resu
     }
 
     println!("Installing Kinetic Daemon service...");
-    let label: ServiceLabel = "com.kinetic.daemon".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.daemon",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["start"
+        args: vec!["run"
             .parse()
-            .map_err(|_| anyhow::anyhow!("Failed to parse start"))?],
+            .map_err(|_| anyhow::anyhow!("Failed to parse run"))?],
         contents: None,
         username: user,
         working_directory: None,
@@ -160,12 +165,17 @@ fn install_service(user: Option<String>, config_dir_opt: Option<String>) -> Resu
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run 'kinetic-daemon start-service' to begin.");
+    println!("Service installed successfully. Run 'kinetic-daemon start' to begin.");
     Ok(())
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.daemon".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.daemon",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -174,7 +184,12 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.daemon".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.daemon",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.start(ServiceStartCtx { label })?;
@@ -183,7 +198,12 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.daemon".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.daemon",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -443,8 +463,8 @@ async fn run_daemon() -> Result<()> {
         res = api_future => {
             tracing::error!("API Server exited unexpectedly: {:?}", res);
         },
-        _ = tokio::signal::ctrl_c() => {
-            info!("Ctrl+C received. Commencing graceful shutdown...");
+        _ = kinetic_core::shutdown::shutdown_signal() => {
+            info!("Shutdown signal received. Commencing graceful shutdown...");
             if let Err(e) = pac_manager.uninstall() {
                 tracing::error!("Failed to uninstall OS proxy configuration: {}", e);
             }
@@ -469,13 +489,13 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::Uninstall) => {
             uninstall_service()?;
         }
-        Some(Commands::StartService) => {
+        Some(Commands::Start) => {
             start_background_service()?;
         }
-        Some(Commands::StopService) => {
+        Some(Commands::Stop) => {
             stop_background_service()?;
         }
-        Some(Commands::Start) | None => {
+        Some(Commands::Run) | None => {
             run_daemon().await?;
         }
     }

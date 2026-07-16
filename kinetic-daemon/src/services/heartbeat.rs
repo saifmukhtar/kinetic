@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Starts a background loop that periodically broadcasts heartbeats for owned domains.
 pub fn start_heartbeat_loop(
     hb_storage: Arc<dyn StorageEngine>,
     hb_network: kinetic_network::NetworkClient,

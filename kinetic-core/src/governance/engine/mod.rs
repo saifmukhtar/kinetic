@@ -1,7 +1,7 @@
 pub mod anarchy;
 pub mod bicameral;
-pub mod monarchy;
 pub mod council;
+pub mod monarchy;
 
 use crate::traits::GovernanceEngine;
 

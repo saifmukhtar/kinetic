@@ -1,5 +1,10 @@
 use super::*;
 
+/// Handles an HTTP CONNECT request, upgrading the connection, performing TLS termination,
+/// and routing inner HTTP traffic to the appropriate backend.
+///
+/// # Errors
+/// Returns a `ProxyError` if the TLS handshake fails or the inner HTTP request cannot be served.
 pub async fn handle_connect(
     raw_host: String,
     apex_domain: String,

@@ -52,23 +52,28 @@ enum Commands {
     /// Uninstall the node system service
     Uninstall,
     /// Start the node (foreground)
-    Start,
+    Run,
     /// Start the node service (background)
-    StartService,
+    Start,
     /// Stop the node service (background)
-    StopService,
+    Stop,
 }
 
 fn install_service() -> Result<()> {
     println!("Installing Kinetic Node service...");
-    let label: ServiceLabel = "com.kinetic.node".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.node",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["start".into()],
+        args: vec!["run".into()],
         contents: None,
         username: None,
         working_directory: None,
@@ -77,12 +82,17 @@ fn install_service() -> Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run 'kinetic-node start-service' to begin.");
+    println!("Service installed successfully. Run 'kinetic-node start' to begin.");
     Ok(())
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.node".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.node",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -91,7 +101,12 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.node".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.node",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.start(ServiceStartCtx { label })?;
@@ -100,7 +115,12 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = "com.kinetic.node".parse()?;
+    let label: ServiceLabel = format!(
+        "{}.{}.node",
+        kinetic_core::constants::TLD,
+        kinetic_core::constants::NETWORK_ID
+    )
+    .parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -119,13 +139,13 @@ async fn main() -> Result<()> {
         Some(Commands::Uninstall) => {
             uninstall_service()?;
         }
-        Some(Commands::StartService) => {
+        Some(Commands::Start) => {
             start_background_service()?;
         }
-        Some(Commands::StopService) => {
+        Some(Commands::Stop) => {
             stop_background_service()?;
         }
-        Some(Commands::Start) | None => {
+        Some(Commands::Run) | None => {
             run_node().await?;
         }
     }
@@ -332,7 +352,9 @@ async fn run_node() -> Result<()> {
         api_port
     );
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(kinetic_core::shutdown::shutdown_signal())
+        .await?;
 
     Ok(())
 }

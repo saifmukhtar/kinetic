@@ -187,24 +187,9 @@ Ownership is maintained by a continuous cryptographic heartbeat — a signature 
 
 If your daemon goes offline for an extended period, the name enters **Grace-Period Escalation** — attackers must compute an exponentially harder VDF to challenge it, and you can reclaim it instantly by bringing your daemon back online during the challenge window.
 
-→ **Full details:** [VDF Delegation, Heartbeats & Lease System](./hybrid_lease_system.md)
+→ **Full details:** [Heartbeats & Stealing](./heartbeat.md)
 
----
 
-## The Kinetic UI Dashboard
-
-Both paths include the embedded **Kinetic UI** — a React dashboard served directly from the daemon binary via `rust-embed`.
-
-With the daemon running, open:
-**[http://localhost:16001](http://localhost:16001)**
-
-From here you can:
-- Monitor DHT peer discovery in real time
-- Track active VDF computation progress
-- View and manage registered domains
-- Inspect heartbeat status for all owned names
-
----
 
 ## What You Just Did
 
