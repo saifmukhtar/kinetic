@@ -4,7 +4,6 @@ use rcgen::{
 };
 use rustls::ServerConfig;
 use std::collections::HashMap;
-#[cfg(unix)]
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
