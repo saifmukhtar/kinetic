@@ -8,7 +8,7 @@
 
 While the cryptographic mathematics define the consensus laws of the Kinetic Protocol, the local client environment enforces them. To function as practical public infrastructure, Kinetic must bypass the legacy Domain Name System (DNS) seamlessly, without breaking standard internet traffic or requiring complex user configurations. This paper formalizes the architecture of the Kinetic Daemon, documenting its Sovereign Split-DNS loopback interception, dynamic Certificate Authority (CA) generation for HTTPS, Epoch-Bound transport identity, and the Host Architecture that enables decentralized reverse proxying.
 
-All networking components are fully fork-aware. The intercepted TLD is read from `network.json` at compile time, so a fork deploying `.mit` will automatically intercept `.mit` queries — not `.kin` — with zero code changes required.
+All networking components are fully fork-aware. The intercepted TLD is read from `network.json` at compile time, so a fork deploying `.uni` will automatically intercept `.uni` queries — not `.kin` — with zero code changes required.
 
 ---
 
@@ -29,7 +29,7 @@ The daemon enforces the following Split-DNS policy:
 - **Legacy Pass-Through:** If an application requests a standard TLD (e.g., `github.com`), the daemon instantly forwards the raw byte buffer to the upstream resolver (`1.1.1.1` or `8.8.8.8`). This incurs zero latency overhead for normal internet use.
 - **Sovereign Interception:** If a query targets the network's configured TLD (e.g., `.kin` on the canonical network), the daemon traps the request, queries the Kinetic DHT, validates the VDF proofs and Ed25519 signatures locally, and synthesizes a standard DNS `A` record containing the decentralized IP. The browser natively resolves the endpoint with no awareness that a DHT was involved.
 
-**Fork Note:** A university fork configured with TLD `.mit` will intercept `.mit` queries and pass everything else through identically. The TLD is compiled from `network.json` — there is no TLD-specific logic in the daemon binary.
+**Fork Note:** A university fork configured with TLD `.uni` will intercept `.uni` queries and pass everything else through identically. The TLD is compiled from `network.json` — there is no TLD-specific logic in the daemon binary.
 
 ---
 
@@ -40,7 +40,7 @@ A critical hurdle in decentralized routing is TLS/SSL. Modern browsers refuse to
 To circumvent this, the `kinetic-daemon` employs a local HTTPS interceptor (`proxy.rs`, `ca.rs`):
 
 1. **Root CA Generation:** Upon installation, the daemon generates a unique, local Root Certificate Authority and injects it into the host OS trust store using the PAC (Proxy Auto-Config) system (`kinetic-daemon/src/pac/`).
-2. **On-the-Fly Leaf Certificates:** When a user navigates to `https://saif.kin`, the daemon's proxy intercepts the TLS handshake, dynamically mints a valid leaf certificate for `saif.kin` signed by the local Root CA, and serves it to the browser transparently.
+2. **On-the-Fly Leaf Certificates:** When a user navigates to `https://example.kin`, the daemon's proxy intercepts the TLS handshake, dynamically mints a valid leaf certificate for `example.kin` signed by the local Root CA, and serves it to the browser transparently.
 3. **Transparent Forwarding:** The proxy then securely forwards the traffic to the actual peer-to-peer endpoint defined in the domain's Capability Manifest.
 
 This guarantees that `.kin` domains (or any fork's TLD) display the secure TLS padlock in standard browsers, achieving functional parity with legacy Web2 infrastructure without requiring any browser modification.
@@ -55,7 +55,7 @@ To prevent targeted Denial of Service (DoS) attacks and network-layer tracking, 
 
 ### 4.1 Static Host Identity
 
-A permanent Ed25519 keypair uniquely identifies the host across time. This key is strictly used to cryptographically sign `HostRoutingRecords` that are published to the global DHT. The signed record tells clients: *"This is the current ephemeral peer ID to connect to for `saif.kin`."* This key never touches the libp2p transport layer directly.
+A permanent Ed25519 keypair uniquely identifies the host across time. This key is strictly used to cryptographically sign `HostRoutingRecords` that are published to the global DHT. The signed record tells clients: *"This is the current ephemeral peer ID to connect to for `example.kin`."* This key never touches the libp2p transport layer directly.
 
 ### 4.2 Epoch-Bound PoW Transport Identity
 
