@@ -12,6 +12,7 @@ struct NetworkConfig {
     network_id: String,
     benchmark_base_iterations: u64,
     steal_target_rounds: u64,
+    m_redundancy: u8,
     drand_genesis_time: u64,
     drand_period: u64,
     kinetic_genesis_drand_round: u64,
@@ -70,6 +71,24 @@ fn main() {
     out.push_str(&format!(
         "/// The number of rounds a name must be inactive before the steal difficulty completely decays.\npub const STEAL_TARGET_ROUNDS: u64 = {};\n\n",
         config.steal_target_rounds
+    ));
+
+    // Safety floor: refuse to compile a network with fewer than 5 redundant DHT keys.
+    // Below this threshold, Eclipse attack resistance degrades significantly.
+    if config.m_redundancy < 5 {
+        panic!(
+            "network.json: m_redundancy={} is too low. Minimum is 5. \
+             Below this threshold Eclipse attack resistance degrades significantly. \
+             The canonical .kin mainnet uses 32.",
+            config.m_redundancy
+        );
+    }
+    out.push_str(&format!(
+        "/// Number of independent DHT keys each name is stored under (Eclipse resistance).\n\
+         /// WARNING: Do NOT lower this below 5 — Eclipse attack probability rises catastrophically.\n\
+         /// The canonical .kin mainnet uses 32. Small trusted forks may use 8-16.\n\
+         pub const M_REDUNDANCY: u8 = {};\n\n",
+        config.m_redundancy
     ));
 
     out.push_str(&format!(

@@ -1,7 +1,6 @@
 use super::names::normalize_name;
+use crate::constants::M_REDUNDANCY;
 use serde::{Deserialize, Serialize};
-
-pub const M_REDUNDANCY: u8 = 32;
 
 /// Represents a heartbeat indicating that a domain is actively maintained.
 #[derive(Debug, Clone, Serialize, Deserialize)]
