@@ -28,32 +28,32 @@ The canonical public deployment of this engine is the **`.kin` network** — a p
 
 | | 🍴 Fork Your Own Network | 🌐 Use the `.kin` Network |
 |---|---|---|
-| **Who** | Universities, companies, governments | Developers, open-source builders |
+| **Who** | Universities, companies, governments, communities | Developers, open-source builders |
 | **Your TLD** | Whatever you want (`.uni`, `.acme`, `.internal`) | `.kin` |
 | **Control** | You hold governance keys. You can reset. | No operator. Math governs it. |
-| **Squatters** | VDF cliff + you can restart the network | VDF cliff alone |
-| **Start here** | [`kinetic-forge` guide →](#-fork-your-own-network) | [Quick Start →](#-quick-start-kin-network) |
+| **Squatters** | VDF cliff + operator can restart the network | VDF cliff alone |
+| **Start here** | [Fork Guide →](#-fork-your-own-network) | [Quick Start →](#-quick-start-kin-network) |
 
 ---
 
 ## Why This Had to Be Built
 
-Every previous attempt at decentralized naming failed at the same problem: **what stops someone from squatting every name before real users arrive?**
+Every previous approach to decentralized naming failed at the same problem: **what stops someone from registering every valuable name before real users arrive?**
 
-The three existing answers all have fatal flaws:
+Three patterns have been tried. All three have fatal flaws:
 
-- **Central authority (ICANN)** → political seizure, monopoly rent, domain parking markets
-- **Financial capital (ENS, Handshake)** → digital landlordism, cryptocurrency price volatility, developer pricing-out
-- **Proof of Personhood (Worldcoin et al.)** → retina scans, no pseudonymity, no multiple aliases
+- **Central authority** — the registry can seize, censor, or price-gouge. Developers lease land from a sovereign.
+- **Financial capital** — wealthy actors hoard short names and extract rent from builders. Digital landlordism, decentralized edition.
+- **Biometric identity** — retina scans, video ceremonies, no pseudonymity, no multiple aliases. Infrastructure that demands your face.
 
 Kinetic uses a fourth answer: **un-parallelizable sequential computation.**
 
-A Verifiable Delay Function (VDF) is a puzzle that:
+A Verifiable Delay Function (VDF) is a mathematical puzzle that:
 - Takes a provably specific amount of real time to solve
-- **Cannot be parallelized** — a billion-dollar ASIC farm cannot solve it faster than a laptop
+- **Cannot be parallelized** — a billion-dollar server farm cannot solve a single VDF faster than a laptop
 - Produces a compact proof anyone can verify in milliseconds
 
-The result: mass squatting is **physically impossible at scale**. A single CPU cannot claim more than a handful of 6-character names per year. A single legitimate developer registering one name pays **zero dollars and ~30 minutes of CPU**.
+The result: mass squatting is **physically impossible at scale**. A single CPU cannot claim more than a handful of 6-character names per year. A legitimate developer registering one name pays **zero dollars and ~30 minutes of CPU**.
 
 ---
 
@@ -62,7 +62,6 @@ The result: mass squatting is **physically impossible at scale**. A single CPU c
 Kinetic's entire network identity lives in one file:
 
 ```json
-// network.json — configure this, recompile, distribute
 {
   "tld": "uni",
   "tld_suffix": ".uni",
@@ -77,23 +76,23 @@ Kinetic's entire network identity lives in one file:
 }
 ```
 
-`build.rs` compiles every field into compiled constants — no runtime config drift, no misconfigured nodes. Run `kinetic-forge` and walk away with a complete network:
+`build.rs` compiles every field directly into the binaries as constants — no runtime config drift, no misconfigured nodes. Run `kinetic-forge` and walk away with a complete network:
 
 ```bash
 cargo run --bin kinetic-forge
-# Interactive wizard: sets TLD, benchmarks your hardware, generates governance keys
+# Interactive wizard: sets TLD, benchmarks hardware, generates governance keys
 # Output: network.json + ./keys/root.key + ./keys/guard.key
 
 cargo build --release --workspace
 # Every binary now has your network's constants baked in
 ```
 
-**Everything is swappable.** The engine defines abstract traits — swap out the backend at compile time without touching anything else:
+**Everything is swappable at compile time** via abstract traits in `kinetic-core`:
 
-| Component | Default | Swap When |
+| Component | Default | Swap when |
 |---|---|---|
-| `VdfEngine` | `ChiaVdfEngine` (C++ Class Groups) | Mobile/WASM, RSA-based VDF, research construction |
-| `StorageEngine` | `SledStorage` (pure-Rust B-tree) | RocksDB, SQLite, distributed etcd, IoT constrained |
+| `VdfEngine` | `ChiaVdfEngine` — C++ Class Groups, Wesolowski proofs | Mobile/WASM, RSA-based VDF, custom research construction |
+| `StorageEngine` | `SledStorage` — pure-Rust embedded B-tree | RocksDB, SQLite, distributed etcd, IoT constrained environments |
 
 → **[Full fork guide and `network.json` reference](https://kinetic.saifmukhtar.dev/forking.html)**
 
@@ -101,29 +100,32 @@ cargo build --release --workspace
 
 ## 🚀 Quick Start (`.kin` Network)
 
+**macOS & Linux:**
 ```bash
-# Prerequisites: Rust toolchain + build-essential + libgmp-dev
-git clone https://github.com/saifmukhtar/kinetic.git
-cd kinetic
-cargo build --release
-
-# Launch the daemon (intercepts .kin DNS at loopback, passes everything else through)
-sudo ./target/release/kinetic-daemon
-
-# Register a name — zero cost, two-phase commit/reveal
-./target/release/kinetic-cli register myname.kin
-# → Fetches drand randomness, broadcasts blind commitment, grinds VDF on your CPU
-# → Saves proof to ~/.config/kinetic/zones/myname.kin.reveal.json
-
-# Publish to the global DHT
-./target/release/kinetic-cli publish myname.kin
-
-# Test it
-dig @127.0.0.1 myname.kin A
-# → Your browser can now open http://myname.kin directly. No extension needed.
+curl -sL https://kinetic.saifmukhtar.dev/install.sh | bash
 ```
 
-Dashboard at **[http://localhost:16001](http://localhost:16001)** — DHT peer map, VDF progress, heartbeat status.
+**Windows (PowerShell as Admin):**
+```powershell
+Invoke-WebRequest -Uri "https://kinetic.saifmukhtar.dev/install.ps1" -OutFile "install.ps1"; .\install.ps1
+```
+
+The installer downloads prebuilt binaries from GitHub Releases, sets up your system DNS (`systemd-resolved` on Linux, `/etc/resolver` on macOS, NRPT on Windows), and gets you running in minutes.
+
+Once installed, register your first name:
+
+```bash
+# Register — zero cost, two-phase commit/reveal
+kinetic-cli register myname.kin
+# → Fetches drand randomness, broadcasts blind commitment, grinds VDF on your CPU
+
+# Publish to the global DHT once VDF completes
+kinetic-cli publish myname.kin
+
+# Test resolution
+dig @127.0.0.1 myname.kin A
+# → Open http://myname.kin directly in your browser. No extension required.
+```
 
 ---
 
@@ -131,25 +133,25 @@ Dashboard at **[http://localhost:16001](http://localhost:16001)** — DHT peer m
 
 ```mermaid
 graph LR
-    subgraph User OS
-        App[Browser / Application]
-        Daemon((kinetic-daemon\n127.0.0.1:53))
+    subgraph "User OS"
+        App["Browser / Application"]
+        Daemon(("kinetic-daemon\n127.0.0.1:53"))
         App -->|DNS Query| Daemon
     end
 
-    subgraph Split-DNS Router
-        Daemon -->|Ends in .kin / fork TLD| Intercept{Intercept}
-        Daemon -->|All other TLDs| Pass{Pass-Through}
+    subgraph "Split-DNS Router"
+        Daemon -->|"Ends in .kin / fork TLD"| Intercept{"Intercept"}
+        Daemon -->|"All other TLDs"| Pass{"Pass-Through"}
     end
 
-    subgraph Kinetic Network
-        Intercept -->|VDF verify + DHT lookup| DHT[(Kademlia DHT\nM=32 redundant keys)]
-        DHT --> KID[KID → Capability Manifest → Services]
+    subgraph "Kinetic Network"
+        Intercept -->|"VDF verify + DHT lookup"| DHT[("Kademlia DHT\nM=32 redundant keys")]
+        DHT --> KID["KID → Capability Manifest → Services"]
     end
 
-    subgraph Legacy Internet
-        Pass -->|Standard UDP/TCP| Upstream[1.1.1.1 / 8.8.8.8]
-        Upstream --> ICANN((ICANN Root Zone))
+    subgraph "Legacy Internet"
+        Pass -->|"Standard UDP/TCP"| Upstream["1.1.1.1 / 8.8.8.8"]
+        Upstream --> Root(("Root DNS"))
     end
 
     style Daemon fill:#005A9C,stroke:#000,stroke-width:2px,color:#fff
@@ -161,15 +163,15 @@ graph LR
 
 | Crate | Role |
 |---|---|
-| `kinetic-core` | Protocol types, VDF math, consensus constants (compiled from `network.json`) |
+| `kinetic-core` | Protocol types, VDF math, consensus constants compiled from `network.json` |
 | `kinetic-network` | libp2p Kademlia DHT, Competitive Gossip validation, Eclipse defense |
 | `kinetic-vdf` | `ChiaVdfEngine` — C++ chiavdf FFI + Wesolowski proof generation |
 | `kinetic-storage` | `SledStorage` — ACID embedded B-tree, WASM in-memory fallback |
-| `kinetic-daemon` | User-facing daemon: Split-DNS + embedded React UI + REST API |
-| `kinetic-node` | Headless infrastructure node optimized for cloud |
+| `kinetic-daemon` | User-facing daemon: Split-DNS loopback + REST API |
+| `kinetic-node` | Headless infrastructure node for cloud deployments |
 | `kinetic-host` | Epoch-Bound transport identity, DoS defense, CDN host layer |
 | `kinetic-kid` | KID document parsing, Capability Manifest verification |
-| `kinetic-forge` | Interactive network configuration wizard |
+| `kinetic-forge` | Interactive network configuration wizard for fork operators |
 | `kinetic-keygen` | Deterministic offline governance key generator |
 | `kinetic-sim` | 50-node local simulation sandbox |
 
@@ -177,19 +179,19 @@ graph LR
 
 ## 🔐 The Four-Layer Identity Stack
 
-Kinetic resolves names into **cryptographic identities**, not IP addresses:
+Kinetic resolves names into cryptographic identities, not IP addresses:
 
 ```
-example.kin               ← Human-readable alias (transferable, ephemeral)
+example.kin                  ← Human alias (transferable, ephemeral)
     ↓
-did:kin:kid1abc9f7...      ← Permanent KID (Ed25519 keypair, non-transferable)
+did:kin:kid1abc9f7...         ← Permanent KID (Ed25519 keypair, non-transferable)
     ↓
-Capability Manifest        ← Signed map of what services this identity exposes
+Capability Manifest           ← Signed map of services this identity exposes
     ↓
-website / API / relay / ...← Actual content (Kinetic doesn't host this)
+website / API / relay / ...   ← Content (Kinetic routes — it does not host)
 ```
 
-If ownership transfers, the name points to a different KID. Recipients can detect transfers — semantic attacks (sending crypto to the new owner thinking it's the old one) are impossible.
+Name and identity are strictly separated. If ownership transfers, the name points to a different KID. Semantic attacks — sending to the new owner assuming they are the old one — are cryptographically detectable.
 
 ---
 
@@ -197,12 +199,69 @@ If ownership transfers, the name points to a different KID. Recipients can detec
 
 | Property | Mechanism |
 |---|---|
-| **Squatter resistance** | VDF difficulty cliff: 1-char name ≈ 100 years, 6-char ≈ 12 hours |
-| **Front-running protection** | Two-phase Commit/Reveal — blind commitment before VDF starts |
+| **Squatter resistance** | VDF difficulty cliff — 1-char ≈ 100 years, 6-char ≈ 12 hours, 8-char ≈ 2 hours |
+| **Front-running protection** | Two-phase Commit/Reveal — blind commitment broadcast before VDF starts |
 | **Eclipse attack defense** | `M_REDUNDANCY=32` independent DHT keys × k=20 Kademlia peers = 640 storage slots per name |
-| **Theft protection** | Quadratic decay: active names are cryptographically impossible to steal |
+| **Theft protection** | Quadratic decay curve — active names are cryptographically impossible to steal |
 | **Sybil resistance** | VDF cannot be parallelized — no advantage from additional hardware |
-| **Censorship resistance** | Split-DNS loopback: ISP cannot intercept `.kin` queries |
+| **Censorship resistance** | Split-DNS loopback — ISP cannot intercept `.kin` queries |
+
+---
+
+## 🖥️ Client Ecosystem
+
+Client apps live in **[saifmukhtar/kinetic-client](https://github.com/saifmukhtar/kinetic-client)**:
+
+- **Desktop** — Tauri v2 + React native app (macOS, Linux, Windows)
+- **Mobile** — Flutter app (Android, iOS) with Rust FFI via `flutter_rust_bridge`
+- **Browser Extension** — Chrome / Firefox native `.kin` resolution
+
+> The client ecosystem is under active development.
+
+---
+
+## 🌐 The Simulation Sandbox
+
+`kinetic-sim/` contains a 50-container local simulation using **Podman** and **Containerlab**:
+
+- **10 DHT infrastructure nodes**
+- **6 CDN hosts** with Epoch-Bound transport identity
+- **34 AI-driven user daemons** that register, resolve, and heartbeat names
+- **Real-time dashboard** at `kinetic-sim/kinetic-dashboard/`
+
+```bash
+cd kinetic-sim
+
+# Build images and deploy 50-node topology
+./deploy.sh
+
+# Start the orchestrator
+sudo PYTHONPATH="$HOME/.local/lib/python3.14/site-packages" python3 orchestrator.py
+
+# Start the dashboard (separate terminal)
+cd kinetic-dashboard && npm install && npm run dev
+
+# Teardown
+sudo containerlab destroy -t topology.clab.yml --runtime podman
+```
+
+→ **[Full simulation guide](./kinetic-sim/README.md)**
+
+---
+
+## 👩‍💻 Building from Source
+
+```bash
+# Prerequisites
+sudo apt install build-essential cmake libgmp-dev  # Ubuntu/Debian
+brew install cmake gmp                              # macOS
+
+git clone https://github.com/saifmukhtar/kinetic.git
+cd kinetic
+cargo build --release --workspace
+```
+
+> ⚠️ Always build in `--release`. The VDF computation is highly sensitive to compiler optimizations — debug mode makes name registrations unbearably slow.
 
 ---
 
@@ -224,31 +283,13 @@ If ownership transfers, the name points to a different KID. Recipients can detec
 
 ---
 
-## 🌐 The Simulation Sandbox
-
-`kinetic-sim/` contains a 50-container local simulation orchestrating:
-- **10 DHT infrastructure nodes**
-- **6 CDN hosts** with Epoch-Bound transport identity
-- **34 AI-driven user daemons** that register, resolve, and heartbeat names
-
-Used to red-team the protocol under real networking conditions.
-
-```bash
-cd kinetic-sim && docker compose up
-# Dashboard: http://localhost:16001
-```
-
-→ **[Full simulation guide](./kinetic-sim/README.md)**
-
----
-
 ## 🙏 Built On
 
 | Dependency | Role |
 |---|---|
 | [rust-libp2p](https://github.com/libp2p/rust-libp2p) | Kademlia DHT, Gossipsub, libp2p-stream |
 | [chiavdf (Chia Network)](https://github.com/Chia-Network/chiavdf) | C++ VDF engine — Class Groups of Imaginary Quadratic Fields, Wesolowski proofs |
-| [drand Quicknet](https://drand.love/) | Distributed randomness beacon (3-second pulse, no trusted setup) |
+| [drand Quicknet](https://drand.love/) | Distributed randomness beacon — 3-second pulse, no trusted setup |
 | [sled](https://github.com/spacejam/sled) | Pure-Rust embedded B-tree database |
 | [Nostr NIP-04](https://github.com/nostr-protocol/nips) | Encrypted mobile VDF delegation channel |
 
