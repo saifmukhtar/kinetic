@@ -21,7 +21,7 @@ jobs:
           - os: ubuntu-latest
             artifact_name: kinetic-daemon
             asset_name: kinetic-daemon-linux
-            cli_artifact: kinetic-cli
+            cli_artifact: kinetic
             cli_asset: kinetic-cli-linux
             node_artifact: kinetic-node
             node_asset: kinetic-node-linux
@@ -34,7 +34,7 @@ jobs:
           - os: macos-latest
             artifact_name: kinetic-daemon
             asset_name: kinetic-daemon-macos
-            cli_artifact: kinetic-cli
+            cli_artifact: kinetic
             cli_asset: kinetic-cli-macos
             node_artifact: kinetic-node
             node_asset: kinetic-node-macos
@@ -47,7 +47,7 @@ jobs:
           - os: windows-latest
             artifact_name: kinetic-daemon.exe
             asset_name: kinetic-daemon-windows.exe
-            cli_artifact: kinetic-cli.exe
+            cli_artifact: kinetic.exe
             cli_asset: kinetic-cli-windows.exe
             node_artifact: kinetic-node.exe
             node_asset: kinetic-node-windows.exe
