@@ -1,7 +1,7 @@
 #!/bin/bash
 # Generates sitemap.xml, robots.txt, and llms.txt for the VitePress site
 
-BASE_URL="https://saifmukhtar.github.io/kinetic"
+BASE_URL="https://kinetic.saifmukhtar.dev"
 OUT_DIR="docs/.vitepress/dist"
 SITEMAP_FILE="$OUT_DIR/sitemap.xml"
 ROBOTS_FILE="$OUT_DIR/robots.txt"
