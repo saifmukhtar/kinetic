@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://saifmukhtar.github.io/kinetic/sitemap.xml
