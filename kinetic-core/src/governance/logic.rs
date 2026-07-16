@@ -5,27 +5,10 @@ use std::collections::{HashMap, HashSet};
 use super::types::{
     GovernanceEffect, GovernanceState, Hash256, SignedGovernanceMessage,
 };
+use crate::constants::{ACTIVE_WINDOW_SECONDS, GUARD_PUBLIC_KEY_HEX, ROOT_PUBLIC_KEY_HEX};
 use crate::error::GovernanceError;
 
-#[cfg(not(test))]
-pub const ROOT_PUBLIC_KEY_HEX: &str = "REPLACE_ME_OFFLINE_GENERATED_ED25519_ROOT";
-#[cfg(test)]
-pub const ROOT_PUBLIC_KEY_HEX: &str =
-    "be907b4bac84fee5ce8811db2defc9bf0b2a2a2bbc3d54d8a2257ecd70441962";
 
-#[cfg(not(test))]
-pub const GUARD_PUBLIC_KEY_HEX: &str = "REPLACE_ME_OFFLINE_GENERATED_ED25519_GUARD";
-#[cfg(test)]
-pub const GUARD_PUBLIC_KEY_HEX: &str =
-    "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6";
-
-pub const MIN_ACTIVE_COUNCIL: usize = 7;
-pub const MAX_COUNCIL_SIZE: usize = 21;
-pub const MAX_AGE_SECONDS: u64 = 14 * 24 * 60 * 60;
-pub const TIMELOCK_SECONDS: u64 = 30 * 24 * 60 * 60;
-pub const ACTIVE_WINDOW_SECONDS: u64 = 30 * 24 * 60 * 60;
-pub const AUTO_LOCK_SECONDS: u64 = 365 * 24 * 60 * 60;
-pub const OTA_TIMELOCK_SECONDS: u64 = 48 * 60 * 60;
 
 /// Validates that the static cryptographic keys required for governance have been correctly initialized.
 ///

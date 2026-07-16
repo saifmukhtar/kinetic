@@ -20,8 +20,8 @@ impl GovernanceEngine for BicameralEngine {
         let guard_key_opt = state.get_guard_key()?;
 
         if state.mode == crate::governance::types::GovernanceMode::Founder {
-            let instant_lock = actual_active_count >= crate::governance::logic::MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
-            let year_passed = current_time_sec >= state.genesis_timestamp_sec + crate::governance::logic::AUTO_LOCK_SECONDS;
+            let instant_lock = actual_active_count >= crate::constants::MIN_ACTIVE_COUNCIL && guard_key_opt.is_some();
+            let year_passed = current_time_sec >= state.genesis_timestamp_sec + crate::constants::AUTO_LOCK_SECONDS;
 
             if instant_lock {
                 state.mode = crate::governance::types::GovernanceMode::Council;
@@ -40,7 +40,7 @@ impl GovernanceEngine for BicameralEngine {
             }
         }
 
-        let effective_active_count = std::cmp::max(actual_active_count, crate::governance::logic::MIN_ACTIVE_COUNCIL);
+        let effective_active_count = std::cmp::max(actual_active_count, crate::constants::MIN_ACTIVE_COUNCIL);
         if msg.council_size_at_proposal < effective_active_count as u32 {
             return Err(GovernanceError::CouncilSizeMismatch);
         }
@@ -211,7 +211,7 @@ impl GovernanceEngine for BicameralEngine {
                             .insert(signer, msg.timestamp_sec);
                     }
                     let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
-                        Some(crate::governance::logic::OTA_TIMELOCK_SECONDS)
+                        Some(crate::constants::OTA_TIMELOCK_SECONDS)
                     } else {
                         None
                     };
