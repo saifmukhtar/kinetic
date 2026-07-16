@@ -150,7 +150,7 @@ graph LR
     end
 
     subgraph "Legacy Internet"
-        Pass -->|"Standard UDP/TCP"| Upstream["1.1.1.1 / 8.8.8.8"]
+        Pass -->|"Standard UDP/TCP"| Upstream["OS System DNS\n(Cloudflare fallback)"]
         Upstream --> Root(("Root DNS"))
     end
 
