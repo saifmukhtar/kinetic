@@ -16,4 +16,4 @@ Because the protocol relies on VDFs (Verifiable Delay Functions) and cryptograph
 Our documentation and website may contain links to third-party websites (e.g., GitHub). We are not responsible for the privacy practices of those external sites.
 
 ## 5. Contact Us
-For any privacy-related inquiries, please open an issue on the [Kinetic GitHub Repository](https://github.com/saif/kinetic).
+For any privacy-related inquiries, please open an issue on the [Kinetic GitHub Repository](https://github.com/saifmukhtar/kinetic).
