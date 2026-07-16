@@ -72,7 +72,7 @@ export default withMermaid(defineConfig({
       { icon: 'github', link: 'https://github.com/saifmukhtar/kinetic' }
     ],
     footer: {
-      message: 'Released under the MIT License.',
+      message: 'Released under the CC BY 4.0 License.',
       copyright: 'Copyright © 2026-present Saif Mukhtar | <a href="/privacy_policy">Privacy Policy</a> | <a href="/terms_of_service">Terms of Service</a>'
     }
   }
