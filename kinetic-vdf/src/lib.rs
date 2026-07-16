@@ -56,18 +56,22 @@ impl VdfEngine for ChiaVdfEngine {
         // Acquire an exclusive system-wide lock to prevent concurrent VDF
         // evaluations from starving all CPU cores simultaneously.
         use fs2::FileExt;
-        use std::os::unix::fs::OpenOptionsExt;
 
         let lock_dir = dirs::runtime_dir().ok_or_else(|| {
             VdfError::LockFileError("Could not find secure runtime directory".to_string())
         })?;
         let lock_path = lock_dir.join("kinetic_vdf.lock");
 
-        let lock_file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .custom_flags(libc::O_NOFOLLOW)
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true).write(true).create(true);
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.custom_flags(libc::O_NOFOLLOW);
+        }
+
+        let lock_file = options
             .open(&lock_path)
             .map_err(|e| VdfError::LockFileError(e.to_string()))?;
 
