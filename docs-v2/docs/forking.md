@@ -36,11 +36,14 @@ network.json  →  build.rs  →  compiled constants in every binary
 |---|---|---|
 | `benchmark_base_iterations` | `238,819,830` | VDF iterations at 1× difficulty. Set this by running `kinetic-vdf benchmark` on your target hardware and using the 30-minute calibrated value. |
 | `steal_target_rounds` | `7,884,000` | Rounds until steal difficulty decays to baseline. Reduce for faster name recycling on short-lived fork networks. |
+| `m_redundancy` | `32` | Number of independent DHT keys each name is stored under. Higher = stronger Eclipse resistance but more DHT write overhead. **Minimum 5 — enforced at compile time.** |
 | `drand_genesis_time` | `1692803367` | Unix timestamp of the drand beacon genesis. Do not change unless using a private beacon. |
 | `drand_period` | `3` | Seconds per drand pulse. Only change if running a private drand network. |
 | `kinetic_genesis_drand_round` | `0` | The absolute drand round at which your network officially launched. |
 
 > ⚠️ **Warning:** Lowering `benchmark_base_iterations` significantly makes squatting cheaper on your network. For an internal corporate fork with a trusted user base this may be acceptable. For a public-facing fork, keep this at or above the `.kin` mainnet value.
+
+> ⚠️ **Warning:** Lowering `m_redundancy` below 5 will cause a **compile-time panic** — `build.rs` enforces this floor. For small trusted networks (10–50 nodes), `m_redundancy = 8` to `16` is a reasonable tradeoff between Eclipse resistance and DHT write overhead.
 
 ### Bootstrap Nodes
 
@@ -108,6 +111,21 @@ pub trait StorageEngine: Send + Sync {
 
 ---
 
+## Payload Size Limits
+
+Kinetic enforces two payload size limits at two distinct layers. Both are real, both serve different roles:
+
+| Layer | Limit | Enforced In | Purpose |
+|---|---|---|---|
+| **Protocol (core)** | **64 KB (65,536 bytes)** | `kinetic-core/src/types/vdf.rs` — `MAX_PAYLOAD_SIZE` | Authoritative protocol ceiling. `Reveal::validate()` hard-rejects any payload above this at the consensus layer. |
+| **Transport (network)** | **8,000 bytes** | `kinetic-network/src/client/core.rs` — `publish_redundant_payload()` | Tighter P2P gossip guard. Rejects oversized payloads before they enter the DHT, preventing gossip exhaustion attacks. |
+
+In practice the **8,000-byte transport limit** is the operative constraint for published payloads today. The 64 KB protocol limit exists as the ceiling for future payload types (e.g. TLSA records, IPFS CIDs, extended Capability Manifests).
+
+Fork operators can raise or lower the transport limit in their own builds — it is not a `network.json` constant, it is a code-level guard in `kinetic-network`. The protocol-level `MAX_PAYLOAD_SIZE` is the hard ceiling that cannot be exceeded regardless.
+
+---
+
 ## Deploying with `kinetic-forge`
 
 `kinetic-forge` is the interactive wizard that generates your `network.json` and validates it before compilation.
@@ -167,11 +185,11 @@ This asymmetry means rational squatters will not bother with forks. They can onl
 
 | Fork Type | Suggested Config |
 |---|---|
-| University internal namespace | Lower `benchmark_base_iterations` by 50%, reduce `steal_target_rounds` to 3 months, enable Phase 2 auto-lock |
-| Corporate service discovery | Use default difficulty, disable Phase 2 (operator retains permanent control), private bootstrap nodes only |
-| Government public services | Full default difficulty, strict 69% council governance, public bootstrap nodes |
-| Developer sandbox | Dev mode (`is_dev_mode() = true`), 1000-iteration VDF, temp storage backend |
-| Research / academic fork | Swap `VdfEngine` to a custom construction, keep default storage |
+| University internal namespace | `m_redundancy=16`, lower `benchmark_base_iterations` by 50%, reduce `steal_target_rounds` to 3 months, enable Phase 2 auto-lock |
+| Corporate service discovery | `m_redundancy=8` (trusted internal network), default difficulty, disable Phase 2, private bootstrap nodes only |
+| Government public services | `m_redundancy=32`, full default difficulty, strict 69% council governance, public bootstrap nodes |
+| Developer sandbox | `m_redundancy=5` (minimum floor), 1000-iteration VDF, temp storage backend |
+| Research / academic fork | Swap `VdfEngine` to a custom construction, tune `m_redundancy` to match your node count |
 
 ---
 
