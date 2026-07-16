@@ -1,109 +1,162 @@
-# 1. Introduction
+# Introduction
 
-*A stateless, Sybil-resistant naming system secured purely by math and time.*  
+*A sovereign namespace engine secured purely by math and time.*
 *Created by [Saif Mukhtar](https://saifmukhtar.dev)*
 
 > **Official IETF Internet-Drafts:**
 > - [draft-mukhtar-kinetic-network-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-network-00.html)
 > - [draft-mukhtar-kinetic-identity-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-identity-00.html)
 
-To understand the necessity of the Kinetic Protocol, one must first understand the complete historical and sociological failures of digital naming architectures. The internet, at its lowest level, speaks the language of IP addresses (e.g., `192.168.1.100` or `2001:0db8:85a3:0000:0000:8a2e:0370:7334`). While mathematically precise and perfectly suited for silicon routing, these numerical identifiers are completely alien to human cognition. Humans require semantics, semantics require names, and names require registries.
+---
 
-The core problem of any global namespace is mathematically bounded by **Zooko’s Triangle**. Proposed in 2001 by Zooko Wilcox-O'Hearn, this trilemma posits that network identifiers cannot simultaneously achieve three properties:
-1. **Human-Meaningful:** Meaningful and memorable names (like `apple` or `saif`) instead of cryptographic hashes (like `0x4a7e...`).
-2. **Decentralized:** No central authority controls the namespace, preventing censorship, arbitrary seizure, and rent-extraction.
-3. **Secure:** The system is resistant to spoofing, meaning one entity cannot illegitimately claim a name belonging to another, nor can a single entity easily exhaust the entire namespace (Sybil attacks).
+## What Kinetic Actually Is
 
-For the past three decades, network engineers have attempted to square this triangle. Every attempt has failed to achieve all three without introducing fatal economic or sociological compromises.
+Kinetic is not a domain registrar. It is not a blockchain. It is not another `.eth` or `.crypto`.
 
-## Where to Start? (Choose Your Persona)
+**Kinetic is an open-source namespace engine** — a Rust binary suite that any university, company, government, or community can deploy to run their own cryptographically secured naming network. You configure one file (`network.json`), run `kinetic-forge`, and walk away with a complete, self-contained network with your own TLD, your own bootstrap nodes, and your own governance keys.
 
-Depending on your goals, the Kinetic documentation is structured into three primary paths:
+The canonical public deployment of this engine is the **`.kin` network** — a permissionless global commons where no single entity holds administrative authority. `.kin` is the proof that the engine works without any operator at all.
 
-### 1. The Casual Developer & End-User
-If you just want to register a `.kin` domain name and use it for routing, or spin up the Web UI without delving into the math:
-- 🚀 **[Getting Started & Installation](./getting_started.html)**
-- 🌐 **[The Zero-Dollar Gateway (Split-DNS)](./dns_loopback.html)**
+**Two ways to use Kinetic:**
 
-### 2. The Protocol Engineer & Cryptographer
-If you are interested in how Kinetic prevents Sybil attacks without a blockchain, and the underlying mathematical proofs:
-- 🔐 **[Securing Names with Verifiable Delay Functions (VDFs)](./cryptography.html)**
-- 🛡️ **[Adversarial Analysis (Red-Team Audit)](./adversarial_analysis.html)**
-
-### 3. The Node Operator & Contributor
-If you want to run a daemon on a server, contribute to the Rust core, or understand the Kademlia DHT networking:
-- 📡 **[Network Architecture & Immunological DHT](./network_architecture.html)**
-- 💻 **[Exhaustive Code Walkthroughs](./code_walkthrough_core.html)**
+| | Fork Your Own Network | Use the `.kin` Network |
+|---|---|---|
+| **Who** | Universities, companies, governments, communities | Developers, open-source builders, privacy advocates |
+| **TLD** | Whatever you configure (`.uni`, `.acme`, `.internal`) | `.kin` |
+| **Control** | You hold the governance keys. You can reset. | No operator. Math governs it. |
+| **Squatters** | VDF cliff + you can restart the network | VDF cliff alone |
+| **Entry point** | [`kinetic-forge`](./forking.md) | [`Getting Started`](./getting_started.md) |
 
 ---
 
-## 1. The Legacy Era: ICANN and Absolute Centralization (1980s - Present)
+## Choose Your Path
 
-The Domain Name System (DNS), as we know it today, completely sacrifices the **Decentralized** leg of Zooko's Triangle. It opts for human-meaningful names and security through absolute, hierarchical centralization.
+### 🍴 I want to deploy my own network
+→ Start with **[Fork Your Own Network](./forking.md)**
 
-At the very top of the hierarchy sits the ICANN (Internet Corporation for Assigned Names and Numbers) Root Zone. ICANN has the ultimate, unchecked authority to create Top-Level Domains (TLDs like `.com`, `.org`) and delegate them to registries.
+This covers `kinetic-forge`, `network.json`, swappable `VdfEngine` and `StorageEngine` backends, bootstrap node setup, and the fork squatter economics that make private networks self-defending.
 
-### The Failure Modes of ICANN
-The centralization of DNS has led to severe consequences for the modern web:
-* **Political Censorship and Seizure:** Because the root zone is centrally managed, state actors and corporations can compel ICANN or its delegated registries to instantly revoke, seize, or redirect domains without cryptographic due process. 
-* **Monopolistic Rent Extraction:** The legacy DNS system is a massive rent-extraction apparatus. Registries (like Verisign for `.com`) hold artificial monopolies over their TLDs. They charge arbitrary, recurring annual fees for the privilege of a database entry that costs fractions of a cent to maintain. 
-* **The Artificial Economy of Registrars:** Beneath the registries sit registrars (GoDaddy, Namecheap), creating an entire secondary industry built on upselling, domain parking, and predatory aftermarket speculation.
+### 🌐 I want to register a `.kin` name
+→ Start with **[Getting Started](./getting_started.md)**
 
-Legacy DNS is highly functional but fundamentally contradicts the ethos of a free, sovereign, and decentralized internet. It is a system of digital feudalism where developers lease land from a central sovereign.
+This covers installing the daemon, the two-phase commit/reveal registration, configuring your Capability Manifest, and keeping your name alive with the heartbeat system.
 
----
+### 🔐 I want to understand the cryptography
+→ Start with **[The Mathematical Engine](./cryptography.md)**
 
-## 2. The Blockchain Era: Capital-Gated Registries (2017 - Present)
+This covers VDFs over Class Groups, the Wesolowski proof protocol, the `drand` Quicknet beacon, and Ed25519 identity binding. No prior cryptography knowledge assumed.
 
-With the advent of blockchains and smart contracts, engineers attempted to build decentralized alternatives. Legacy blockchain-based naming systems sought to achieve all three legs of Zooko's Triangle by placing the registry on a decentralized, immutable ledger.
+### 📡 I want to run infrastructure or contribute
+→ Start with **[Network Architecture](./network_architecture.md)**
 
-However, moving a registry to a permissionless environment immediately invites the **Sybil Attack**. 
-
-In a permissionless network, the cost of generating a network request is effectively zero. Therefore, if the namespace lacks a gating friction mechanism, a solitary malicious actor can instantaneously execute a script to claim every single word in the English dictionary. 
-
-To prevent this "mass-dictionary squatting," decentralized protocols instituted a gating function: **Financial Capital**.
-
-### The Flaw of Capital-Gated Names
-These systems enforce recurring, annual monetary fees based on string length. While financially gating the namespace solves the Sybil problem (it is too expensive to register every word), it introduces severe economic downstream effects:
-
-1. **Digital Landlordism:** A capital-gated registry inherently favors entities with the deepest financial liquidity. Wealthy speculators can afford the carry costs to hoard premium, short-character names. They sit on these names, extracting rent from legitimate developers or organizations who actually intend to build on them. This recreates the exact rent-seeking dynamics of Web2, simply replacing centralized registries with decentralized whales.
-2. **Developer Pricing-Out:** For a protocol meant to serve as a foundational network primitive (e.g., exposing a local port or routing a decentralized app), an annual monetary fee creates a continuous liability. Peer-to-peer network routing should not require a perpetual subscription fee.
-3. **The Valuation Paradox:** In a capital-gated system built on top of volatile cryptocurrencies, a name's security and accessibility are tied to market speculation. If the underlying token's fiat value spikes during a bull market, the cost to register or renew a domain becomes completely inaccessible to users in developing nations, actively stalling network adoption.
-
-Capital-gated registries did not solve digital landlordism; they merely democratized the ability to be the landlord.
+This covers the Immunological DHT, Redundant Deterministic Storage, Competitive Gossip validation, and the `kinetic-node` headless infrastructure binary.
 
 ---
 
-## 3. The Identity Era: The Proof of Personhood Bottleneck
+## Why This Had to Be Built
 
-To eliminate capital requirements and make naming systems truly free, alternative protocols attempted to define the friction mechanism as **physical human uniqueness**. 
+To understand why Kinetic exists, you need to understand what every previous attempt at decentralized naming got wrong. The problem is older and harder than it looks.
 
-These Proof of Personhood (PoP) systems ensure that one human maps to exactly one digital identity, effectively hard-capping a user to a single name. While mathematically elegant for Sybil resistance (an attacker cannot spoof a million physical bodies), PoP introduces severe sociotechnical bottlenecks:
+### The Mathematical Constraint: Zooko's Triangle
 
-1. **Extreme Onboarding Friction:** To verify physical uniqueness, these protocols require synchronous video verification parties, specialized hardware (iris scanning or biometrics), or global cryptographic puzzle ceremonies. This destroys the developer experience. A developer cannot instantly spin up an ephemeral tunnel domain at 2:00 AM if they must wait for a scheduled validation epoch or scan their retina.
-2. **Trust Anchors and Privacy Decay:** Extracting unique identity, even via advanced zero-knowledge proofs (zkTLS or NFC passports), almost always shackles the decentralized system to high-friction Web2 institutions or government-issued physical credentials, sacrificing pseudonymity.
-3. **The Multiple-Alias Reality:** Developers legitimately need multiple handles for different environments (e.g., staging servers, personal blogs, anonymous routing, burner domains). Forcing a strict 1:1 mapping between a human body and a network handle is an artificial constraint that profoundly misunderstands how internet infrastructure is naturally deployed.
+In 2001, Zooko Wilcox-O'Hearn formalized a trilemma that had been haunting network engineers for decades. Any naming system can have at most two of three properties simultaneously:
+
+1. **Human-Meaningful** — Names that humans can read, remember, and type (`apple`, `university`, `example`)
+2. **Decentralized** — No central authority controls the namespace
+3. **Secure** — The system resists spoofing and Sybil attacks
+
+Every approach for the past four decades has failed to achieve all three without introducing a new fatal flaw.
 
 ---
 
-## 4. The Impasse and The Kinetic Solution
+### Era 1: ICANN and Absolute Centralization (1980s — Present)
 
-We are left with an architectural impasse. A truly decentralized namespace cannot survive without friction, but:
-* Defining friction as **central authority** leads to censorship.
-* Defining friction as **money** leads to digital landlordism.
-* Defining friction as **identity** leads to extreme onboarding bottlenecks.
+The legacy DNS deliberately sacrifices the **Decentralized** leg. It achieves human-meaningful names and security through absolute hierarchical centralization.
 
-The Kinetic Protocol abandons all three. By defining friction strictly as **un-parallelizable time and sequential computation**, Kinetic returns to the purest form of permissionless security. 
+At the top sits ICANN — the Internet Corporation for Assigned Names and Numbers. ICANN has unchecked authority to create TLDs and delegate them to registries. Registries delegate to registrars. Registrars sell to you.
 
-### The Philosophy of Proof-of-Patience
+**The consequences:**
 
-Kinetic enforces an economic reality where mass-scale automated squatting becomes computationally and energetically ruinous, while remaining completely friction-free and zero-cost for a legitimate, solitary developer.
+- **Political seizure:** A single phone call can compel ICANN to revoke a domain. No cryptographic due process exists. State actors and corporations exercise this power routinely.
+- **Monopoly rent extraction:** Verisign holds an artificial monopoly over `.com`. They charge arbitrary annual fees for a database entry that costs fractions of a cent to maintain. The fee is not a service cost — it is a toll.
+- **Speculative markets:** Because names are artificially scarce and monetarily valued, an entire predatory industry emerged — domain parking, aftermarket speculation, cybersquatting — that extracts value from builders while producing nothing.
 
-This is achieved through a three-tier lifecycle:
-1. **Verifiable Delay Functions (VDFs):** Mathematical puzzles that take a specific, sequential amount of time to solve. They cannot be parallelized. A billionaire with 10,000 ASICs cannot solve a single VDF faster than a hobbyist on a laptop.
-2. **Dynamic Scaling:** Shorter names require exponentially larger VDFs. A 1-character name takes weeks to grind; a 6-character name takes seconds. This physically limits the rate at which premium namespace can be consumed.
-3. **The Hybrid Lease:** Ownership is maintained not by paying rent, but by keeping a node alive. A low-overhead background "Heartbeat" (a cryptographic signature over the current time) proves the name is actively being used. If the heartbeat flatlines, the name isn't instantly lost, but enters a Grace-Period Escalation where attackers must burn massive computation to steal it.
+Legacy DNS is technically functional and deeply unethical. It is digital feudalism: developers lease land from a central sovereign.
 
-Through these mechanics, Kinetic establishes a self-cleaning, purely mathematical namespace. There is no ICANN. There are no renewal fees. There are no biometric scans. There is only math, time, and the decentralized Kademlia swarm. 
+---
+
+### Era 2: Capital-Gated Blockchains (2017 — Present)
+
+Blockchain naming systems (ENS, Handshake, Unstoppable Domains) placed the registry on a decentralized ledger — achieving the **Decentralized** leg. But they immediately confronted the Sybil problem.
+
+In a permissionless network, generating a request costs effectively nothing. Without a gating mechanism, a single attacker can claim every word in the English dictionary in seconds. So blockchain naming systems instituted a gating function: **Financial Capital**.
+
+**The consequences:**
+
+- **Digital landlordism, decentralized edition:** Capital-gated registries favor entities with deep financial liquidity. Wealthy speculators hoard short names and extract rent from legitimate builders — exactly the same dynamic as ICANN, just with fewer regulations.
+- **Developer pricing-out:** A peer-to-peer routing primitive should not require a perpetual subscription fee. Tying infrastructure to cryptocurrency market prices makes development costs unpredictable and inaccessible in developing economies.
+- **Valuation paradox:** When the underlying token spikes during a bull market, renewal costs spike with it. Names become inaccessible to the people who need them most precisely when the ecosystem is most active.
+
+Capital-gated registries did not solve digital landlordism. They democratized the ability to be the landlord.
+
+---
+
+### Era 3: Proof of Personhood (2020 — Present)
+
+To eliminate capital requirements entirely, some protocols defined the friction mechanism as **physical human uniqueness** — one human, one name.
+
+Proof of Personhood systems (Worldcoin, BrightID, Proof of Humanity) prevent Sybil attacks by ensuring an attacker cannot generate a million identities without a million physical bodies.
+
+**The consequences:**
+
+- **Extreme onboarding friction:** Retina scans, synchronous video ceremonies, NFC passport reads, scheduled verification epochs. A developer cannot spin up an ephemeral staging domain at 2 AM if they need to scan their iris first.
+- **Privacy destruction:** Extracting unique physical identity — even with zero-knowledge proofs — almost always shackles the system to government-issued credentials or biometric hardware. Pseudonymity is sacrificed.
+- **The multiple-alias reality:** Developers legitimately need multiple names — production, staging, personal, anonymous, testing. A strict 1:1 mapping between a human body and a network handle is an artificial constraint that fundamentally misunderstands how infrastructure is deployed.
+
+---
+
+### The Kinetic Solution: Computational Time as Friction
+
+We are left with an architectural impasse. A truly decentralized namespace cannot survive without friction. But:
+
+- Friction as **central authority** → censorship and seizure
+- Friction as **money** → digital landlordism
+- Friction as **identity** → onboarding destruction and privacy loss
+
+**Kinetic abandons all three.**
+
+The cost of namespace acquisition is defined strictly as **un-parallelizable sequential computation and time** — returning to the purest form of permissionless security.
+
+A Verifiable Delay Function (VDF) is a mathematical puzzle that:
+- Takes a provably specific amount of time to solve
+- **Cannot be parallelized** — a billionaire with 10,000 ASICs cannot solve a single VDF faster than a hobbyist on a laptop
+- Produces a compact cryptographic proof that anyone can verify in milliseconds
+
+Kinetic uses VDFs to make squatting computationally ruinous:
+
+| Name Length | Required Computation | Time on Modern CPU |
+|---|---|---|
+| 1 character | × 1,753,200 baseline | ~100 years |
+| 2 characters | × 7,200 baseline | ~5 months |
+| 4 characters | × 720 baseline | ~15 days |
+| 6 characters | × 24 baseline | ~12 hours |
+| 8+ characters | × 4 baseline | ~2 hours |
+| 21+ characters | × 1 baseline | ~30 minutes |
+
+Mass dictionary squatting is not just expensive — it is physically impossible at scale. A single CPU cannot process more than a handful of names per year at the 6-character tier. An attacker with a thousand CPUs still cannot claim a thousand 6-character names in any reasonable timeframe.
+
+For a single legitimate developer registering one name: **30 minutes of CPU, zero dollars, zero accounts, zero approvals.**
+
+---
+
+## The Engine Philosophy
+
+The deepest insight behind Kinetic is that the `.kin` network — the public canonical deployment — is not the product.
+
+**The engine is the product.**
+
+Every organization that forks Kinetic becomes a stakeholder in the engine's quality and security. Every university running `.uni`, every company running `.internal`, every open-source community running their own TLD — they all benefit from improvements to the shared cryptographic core, and they all contribute to the network effect that makes the engine trustworthy.
+
+`.kin` is the proof that the engine works without any operator. The forks are the proof that the engine works for everyone.
 
 Welcome to the Kinetic Protocol.
