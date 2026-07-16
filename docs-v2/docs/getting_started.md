@@ -78,8 +78,9 @@ Run `kinetic-node` on at least two stable servers. These are the DHT entry point
 # On your server:
 sudo ./target/release/kinetic-node
 
-# Get the peer ID to put in network.json:
-kinetic peer-id
+# The peer ID is printed to stdout when kinetic-node starts.
+# You can also retrieve it from the node's local API:
+curl http://127.0.0.1:<node_api_port>/peer_id
 ```
 
 Update `bootstrap_nodes` in your `network.json` with these addresses, recompile, and distribute the binaries to your users.

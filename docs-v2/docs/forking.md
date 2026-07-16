@@ -54,7 +54,7 @@ network.json  →  build.rs  →  compiled constants in every binary
 ]
 ```
 
-Run `kinetic-node` on at least two stable servers. Use `kinetic-cli peer-id` to get the peer ID after first boot. These nodes are the DHT entry points for everyone joining your network.
+Run `kinetic-node` on at least two stable servers. The peer ID is printed to stdout on first boot and is also available at the node's local `/peer_id` HTTP endpoint. These nodes are the DHT entry points for everyone joining your network.
 
 ---
 
