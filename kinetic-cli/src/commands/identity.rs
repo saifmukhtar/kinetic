@@ -228,6 +228,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_identity_publish_and_resolve() {
+        let temp_dir = env::temp_dir().join(format!(
+            "kinetic_test_env_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        
+        use rand_core::OsRng;
+        let keypair = ed25519_dalek::SigningKey::generate(&mut OsRng);
+        std::fs::write(temp_dir.join("identity.key"), keypair.to_bytes()).unwrap();
+        env::set_var("KINETIC_DATA_DIR", temp_dir.to_str().unwrap());
         let app = Router::new()
             .route(
                 "/publish-kid",
