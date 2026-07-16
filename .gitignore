@@ -49,6 +49,14 @@ ehthumbs_vista.db
 *.stackdump
 [Dd]esktop.ini
 
-# mdBook
-docs/book/
-docs-v2/node_modules/
+# VitePress Docs
+docs/node_modules/
+docs/docs/.vitepress/dist/
+docs/docs/.vitepress/cache/
+docs/docs/.vitepress/dist/
+
+# Fuzzing
+**/fuzz/target/
+**/fuzz/corpus/
+**/fuzz/artifacts/
+**/fuzz/coverage/
