@@ -1,0 +1,67 @@
+/* 
+  Radicle aesthetic override for VitePress 
+  User requested Light Mode as default.
+*/
+:root {
+  /* LIGHT MODE (Default) */
+  --vp-c-bg: #f5f5ff; /* Soft, cool off-white */
+  --vp-c-bg-soft: #efefff;
+  --vp-c-text-1: #232563; /* Deep navy text */
+  --vp-c-text-2: #434583;
+  --vp-c-text-3: #5a5a7a;
+  
+  /* Brand Accents */
+  --vp-c-brand-1: #7070ff;
+  --vp-c-brand-2: #8585ff;
+  --vp-c-brand-3: #9999ff;
+  
+  /* Typography */
+  --vp-font-family-base: "Inter", sans-serif;
+  --vp-font-family-mono: "JetBrains Mono", monospace;
+  
+  /* Custom Selections */
+  --vp-c-selection-bg: #ffff99; /* Radicle signature yellow */
+}
+
+/* DARK MODE */
+.dark {
+  --vp-c-bg: #0a0d10; /* Deep, cool off-black */
+  --vp-c-bg-soft: #14151a;
+  --vp-c-text-1: #f9f9fb; /* Off-white text */
+  --vp-c-text-2: #d9d9db;
+  --vp-c-text-3: #9b9bb1;
+
+  --vp-c-brand-1: #7070ff;
+  --vp-c-brand-2: #6666ff;
+  --vp-c-brand-3: #9999ff;
+
+  --vp-c-selection-bg: #ffff99;
+}
+
+/* Typography Overrides */
+html, body {
+  font-family: var(--vp-font-family-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+code, kbd, pre, samp {
+  font-family: var(--vp-font-family-mono);
+}
+
+/* Make blockquotes look like Radicle's */
+blockquote {
+  border-left: 2px solid var(--vp-c-brand-1);
+  color: var(--vp-c-text-2);
+  background: var(--vp-c-bg-soft);
+  padding: 1rem;
+}
+
+/* Force light mode by default in the system if not already set */
+@media (prefers-color-scheme: dark) {
+  /* VitePress handles this natively, but we ensure the light variables are the root */
+}
+
+::selection {
+  background-color: var(--vp-c-selection-bg);
+  color: var(--vp-c-text-1);
+}
