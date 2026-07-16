@@ -26,7 +26,7 @@ These two concepts are explicitly separated at the data-model level. They must n
 
 ## 2. The Four-Layer Architecture
 
-### 2.1 Layer 1: The Human Namespace (`saif.kin`)
+### 2.1 Layer 1: The Human Namespace (`example.kin`)
 
 The first layer is secured by the Proof-of-Patience VDF registration system described in `kinetic-consensus.md`. Names are designed strictly for human memorability, branding, and high-level routing.
 
@@ -36,7 +36,7 @@ Because ownership may change via Grace-Period Escalation or intentional transfer
 - Characters: `a-z`, `0-9`, `-` only (DNS LDH rule)
 - First character: never a digit, never a hyphen
 - Last character: never a hyphen
-- Only apex domains (`saif.kin`) are registerable — not subdomains (`blog.saif.kin`)
+- Only apex domains (`example.kin`) are registerable — not subdomains (`blog.example.kin`)
 - Reserved names (RFC 2606: `localhost`, `test`, `invalid`, `local`, `null`) are permanently locked
 - Infrastructure names (`docs`, `seed`, `explorer`, etc.) are locked until Phase 2 governance
 
@@ -45,10 +45,10 @@ Because ownership may change via Grace-Period Escalation or intentional transfer
 A Kinetic name does not resolve to an IP address. It resolves to a **Kinetic Identity Document (KID)**.
 
 ```
-saif.kin  →  did:kin:kid1abc9f7...
+example.kin  →  did:kin:kid1abc9f7...
 ```
 
-The KID is the permanent cryptographic root of trust, bound to a high-speed, high-security **Ed25519** keypair [1]. It represents the actual entity. If `saif.kin` changes ownership, the DHT payload is updated to point to a different KID, preventing semantic masquerading.
+The KID is the permanent cryptographic root of trust, bound to a high-speed, high-security **Ed25519** keypair [1]. It represents the actual entity. If `example.kin` changes ownership, the DHT payload is updated to point to a different KID, preventing semantic masquerading.
 
 **KID Document Schema** (as implemented in `kinetic-kid/`):
 ```json
@@ -94,7 +94,7 @@ A KID points to a **Capability Manifest**. The manifest cryptographically declar
 
 The manifest is signed by the KID's Ed25519 private key. Any peer in the network can independently verify the signature without contacting a trusted authority.
 
-**Why this matters for forks:** A university running `.mit` can define custom service types in their Capability Manifests — for example, a `type: "research-endpoint"` or `type: "hpc-cluster"`. The base protocol is service-type agnostic by design.
+**Why this matters for forks:** A university running `.uni` can define custom service types in their Capability Manifests — for example, a `type: "research-endpoint"` or `type: "hpc-cluster"`. The base protocol is service-type agnostic by design.
 
 ### 2.4 Layer 4: Content and Compute
 
