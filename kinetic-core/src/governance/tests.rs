@@ -145,7 +145,7 @@ mod tests {
             action_hash,
             (
                 current_time,
-                crate::governance::logic::OTA_TIMELOCK_SECONDS,
+                crate::constants::OTA_TIMELOCK_SECONDS,
                 vec![],
             ),
         );
@@ -307,7 +307,7 @@ mod tests {
             .duration_since(web_time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let current_time = genesis_time + super::super::logic::AUTO_LOCK_SECONDS + 10;
+        let current_time = genesis_time + crate::constants::AUTO_LOCK_SECONDS + 10;
         let mut state = GovernanceState::new(genesis_time);
 
         // Less than 7 members
@@ -347,7 +347,7 @@ mod tests {
         let mut state = GovernanceState::new(genesis_time);
 
         // At exactly 1 year + 10 seconds, the grace period should start
-        let year_time = genesis_time + super::super::logic::AUTO_LOCK_SECONDS + 10;
+        let year_time = genesis_time + crate::constants::AUTO_LOCK_SECONDS + 10;
         let root_sk = get_root_sk();
         let mut msg = SignedGovernanceMessage {
             action: GovernanceAction::LockCouncil,
