@@ -116,15 +116,15 @@ Once installed, register your first name:
 
 ```bash
 # Register — zero cost, two-phase commit/reveal
-kinetic-cli register myname.kin
+kinetic register example.kin
 # → Fetches drand randomness, broadcasts blind commitment, grinds VDF on your CPU
 
 # Publish to the global DHT once VDF completes
-kinetic-cli publish myname.kin
+kinetic publish example.kin
 
 # Test resolution
-dig @127.0.0.1 myname.kin A
-# → Open http://myname.kin directly in your browser. No extension required.
+dig @127.0.0.1 example.kin A
+# → Open http://example.kin directly in your browser. No extension required.
 ```
 
 ---
