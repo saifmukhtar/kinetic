@@ -66,20 +66,29 @@ where $R_{\text{target}} = 7{,}884{,}000$ rounds (≈ 9 months at 3s/round on Qu
 **Conclusion:** Active names are mathematically impossible to steal. Abandoned names are cleanly recycled back to the commons after ≈9 months.
 
 ### 2.2 DHT Keyspace Dispersion (Eclipse Defense)
-Kinetic publishes payloads redundantly across the Kademlia DHT. Each payload is stored at $K_i = \text{SHA256}(\text{name} \parallel i \parallel \text{domain\_tag})$ for multiple deterministic keys. libp2p Kademlia then replicates each key to the $k=20$ closest peers by XOR distance.
+Kinetic stores `M_REDUNDANCY = 32` independent, deterministically derived keys per name (constant in `kinetic-core/src/types/domain.rs`). Each key is:
+$$ K_i = \text{SHA256}(\text{name} \parallel i \parallel \texttt{"kinetic-dht-v1"}), \quad i \in \{0, 1, \ldots, 31\} $$
+libp2p Kademlia then replicates each of the 32 keys to the $k=20$ closest peers by XOR distance, giving an effective storage redundancy of $32 \times 20 = 640$ independent storage locations per name.
 
-Because the SHA-256 derivation acts as a random oracle, the storage keys are statistically uncorrelated and uniformly distributed across the 256-bit DHT keyspace. An Eclipse attacker must simultaneously control nodes closest to all derived keys — which requires controlling a supermajority of the entire network.
+Because SHA-256 acts as a random oracle, all 32 keys are statistically uncorrelated and uniformly distributed. An Eclipse attacker must simultaneously control nodes closest to all 32 derived keys — an attack requiring supermajority network control.
 
-For an attacker controlling fraction $f=0.20$ of the network with bucket size $k=20$ and $M=5$ redundant keys:
-$$ P_{\text{eclipse}} = f^{k \cdot M} = 0.2^{100} \approx 10^{-70} $$
+For an attacker controlling fraction $f=0.20$ with Kademlia bucket size $k=20$ and $M=32$ keys:
+$$ P_{\text{eclipse}} = (f^k)^M = 0.2^{640} \approx 10^{-448} $$
 
-**Conclusion:** Eclipsing a single name is statistically impossible without controlling a supermajority of the global network.
+**Conclusion:** Eclipsing a single name is physically impossible at any meaningful attacker scale.
 
 ---
 
 ## 3. Payload Schemas
 
-To prevent DDoS and OOM (Out-of-Memory) attacks, **all serialized payloads must not exceed 8,000 bytes** (enforced in `kinetic-network/src/client/core.rs`). Payloads exceeding this limit are rejected before they enter the DHT.
+Kinetic enforces **two payload size limits at two distinct layers**, both enforced in code:
+
+| Layer | Limit | File | Purpose |
+|---|---|---|---|
+| Protocol (core) | **64 KB (65,536 bytes)** | `kinetic-core/src/types/vdf.rs` — `MAX_PAYLOAD_SIZE` | Authoritative protocol limit. `Reveal::validate()` rejects any payload exceeding this at the consensus layer. |
+| Transport (network) | **8,000 bytes** | `kinetic-network/src/client/core.rs` | Tighter P2P gossip guard. Rejects oversized payloads before they reach the DHT, preventing gossip exhaustion attacks. |
+
+In practice, the **8,000-byte transport limit** is the operative constraint for published payloads. The 64KB limit exists as the protocol-level ceiling for future extensions (e.g., TLSA records, IPFS CIDs).
 
 ### 3.1 The Reveal Struct (Protocol Version 2)
 The core cryptographic truth that proves a user owns a name, finalizing the Two-Phase Commit.
