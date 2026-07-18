@@ -93,6 +93,10 @@ pub struct GovernanceState {
     pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
     pub founder_premium_grants: u8,
     pub grace_period_start_sec: Option<u64>,
+    #[serde(default)]
+    pub dynamic_root_key: Option<VerifyingKey>,
+    #[serde(default)]
+    pub dynamic_guard_key: Option<VerifyingKey>,
 }
 
 impl SignedGovernanceMessage {

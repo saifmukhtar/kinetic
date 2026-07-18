@@ -19,24 +19,44 @@ pub async fn forward_request(
         reqwest_client.request(req.method.parse().unwrap_or(reqwest::Method::GET), &url);
 
     for (k, v) in req.headers {
+        if k.to_lowercase() == "host" {
+            continue;
+        }
         builder = builder.header(k.as_ref(), v.as_ref());
     }
+    builder = builder.header("Host", format!("{}:{}", backend_host, local_port));
     builder = builder.body(req.body);
 
     match builder.send().await {
         Ok(res) => {
-            let status = res.status().as_u16();
+            let mut status = res.status().as_u16();
             let mut res_headers = Vec::new();
             for (k, v) in res.headers() {
                 if let Ok(v_str) = v.to_str() {
                     res_headers.push((k.as_str().into(), v_str.into()));
                 }
             }
-            let body = res.bytes().await.unwrap_or_default();
+
+            use futures_util::StreamExt;
+            let mut body = Vec::new();
+            let mut stream = res.bytes_stream();
+            while let Some(chunk_res) = stream.next().await {
+                if let Ok(chunk) = chunk_res {
+                    body.extend_from_slice(&chunk);
+                    if body.len() > 5 * 1024 * 1024 {
+                        warn!("Blocked oversized backend response (>5MB) from local web server");
+                        body.clear();
+                        body.extend_from_slice(b"Payload Too Large");
+                        status = 502;
+                        break;
+                    }
+                }
+            }
+
             ProxyResponse {
                 status,
                 headers: res_headers,
-                body,
+                body: bytes::Bytes::from(body),
             }
         }
         Err(e) => {
@@ -81,6 +101,39 @@ pub async fn handle_incoming_proxy_requests(
         let backend_host_clone = backend_host.clone();
 
         tokio::spawn(async move {
+            if req.path.contains("..") || !req.path.starts_with('/') {
+                warn!("Blocked malicious P2P proxy path: {}", req.path);
+                let _ = client_clone
+                    .send_proxy_response(
+                        channel,
+                        ProxyResponse {
+                            status: 400,
+                            headers: Vec::new(),
+                            body: bytes::Bytes::from_static(b"Bad Request: Invalid Path"),
+                        },
+                    )
+                    .await;
+                return;
+            }
+
+            if req.body.len() > 5 * 1024 * 1024 {
+                warn!(
+                    "Blocked oversized P2P proxy request ({} bytes)",
+                    req.body.len()
+                );
+                let _ = client_clone
+                    .send_proxy_response(
+                        channel,
+                        ProxyResponse {
+                            status: 413,
+                            headers: Vec::new(),
+                            body: bytes::Bytes::from_static(b"Payload Too Large"),
+                        },
+                    )
+                    .await;
+                return;
+            }
+
             let proxy_res =
                 forward_request(&reqwest_client, req, local_port, &backend_host_clone).await;
             let _ = client_clone.send_proxy_response(channel, proxy_res).await;

@@ -8,7 +8,8 @@ pub(crate) fn verify_host_routing_record(
 ) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
-    // Enforce timestamp freshness — reject records older than 10 minutes.
+    // Enforce timestamp freshness — reject records older than 10 minutes,
+    // and reject records more than 5 minutes in the future to prevent pinning via u64::MAX timestamps.
     let now = web_time::SystemTime::now()
         .duration_since(web_time::UNIX_EPOCH)
         .map_err(|_| KineticStoreError::InvalidHostRouteSignature)?
@@ -25,6 +26,18 @@ pub(crate) fn verify_host_routing_record(
         );
         return Err(err);
     }
+    if record.timestamp > now + 300 {
+        let err = KineticStoreError::InvalidHostRouteSignature;
+        err.log_warning(
+            "KIN-STORE-024",
+            &record.host_id,
+            &format!(
+                "HostRoutingRecord is from the future ({} seconds ahead)",
+                record.timestamp.saturating_sub(now)
+            ),
+        );
+        return Err(err);
+    }
 
     // Parse the host_id as a libp2p PeerId and extract its public key.
     let host_peer_id = record
@@ -34,14 +47,12 @@ pub(crate) fn verify_host_routing_record(
 
     // Extract the Ed25519 public key bytes from the PeerId multihash.
     // libp2p Ed25519 PeerIds encode the 32-byte public key in their multihash payload.
+    // The strict identity multihash for an Ed25519 key is:
+    // [0x00, 0x24, 0x08, 0x01, 0x12, 0x20] followed by 32 bytes of public key.
     let pubkey_bytes: [u8; 32] = match host_peer_id.as_ref().digest() {
-        bytes if bytes.len() >= 36 => {
-            // Multihash format: <varint code> <varint length> <payload>
-            // For identity multihash, the payload starts at byte 2 and contains
-            // the protobuf-encoded public key. The last 32 bytes are the raw ed25519 key.
-            let payload = &bytes[bytes.len() - 32..];
+        bytes if bytes.len() == 38 && bytes[0..6] == [0x00, 0x24, 0x08, 0x01, 0x12, 0x20] => {
             let mut arr = [0u8; 32];
-            arr.copy_from_slice(payload);
+            arr.copy_from_slice(&bytes[6..38]);
             arr
         }
         _ => return Err(KineticStoreError::InvalidPublicKey),
@@ -72,12 +83,117 @@ fn get_u64_from_sled(
     }
 }
 
+pub(crate) fn compute_required_iterations(
+    reveal: &kinetic_core::types::Reveal,
+    current_drand_round: u64,
+    engine: &dyn kinetic_core::traits::VdfEngine,
+) -> Result<u64, KineticStoreError> {
+    if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&reveal.name) {
+        let err = KineticStoreError::InvalidName;
+        err.log_warning(
+            "KIN-STORE-029",
+            &reveal.name,
+            &format!("Rejecting Kademlia Reveal: Invalid name: {:?}", e),
+        );
+        return Err(err);
+    }
+
+    use kinetic_core::types::Commitment;
+    use sha2::{Digest, Sha256};
+
+    let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
+
+    let drand_rand = hex::decode(&reveal.drand_randomness).map_err(|_| {
+        let err = KineticStoreError::InvalidDrandHex;
+        err.log_warning(
+            "KIN-STORE-028",
+            &reveal.name,
+            "Rejecting Kademlia Reveal: Invalid Drand hex",
+        );
+        err
+    })?;
+
+    let base_required_iterations =
+        consensus_math.required_iterations(&reveal.name, reveal.drand_pulse, &drand_rand);
+    let required_iterations = if let Some(prev) = &reveal.previous_proof {
+        // Verify previous proof
+        let mut prev_hasher = Sha256::new();
+        prev_hasher.update(reveal.name.as_bytes());
+        prev_hasher.update(prev.salt);
+        let prev_drand_rand = hex::decode(&prev.drand_randomness).map_err(|_| {
+            let err = KineticStoreError::InvalidDrandHex;
+            err.log_warning(
+                "KIN-STORE-028",
+                &reveal.name,
+                "Rejecting Kademlia Reveal: Previous record has invalid Drand hex",
+            );
+            err
+        })?;
+        prev_hasher.update(&prev_drand_rand);
+        prev_hasher.update(&reveal.pubkey);
+        let mut prev_hash = [0u8; 32];
+        prev_hash.copy_from_slice(&prev_hasher.finalize());
+        let prev_challenge = Commitment { hash: prev_hash };
+
+        let prev_valid = matches!(
+            engine.verify(&prev_challenge, &prev.vdf_proof, prev.iterations),
+            Ok(true)
+        );
+
+        let prev_req =
+            consensus_math.required_iterations(&reveal.name, prev.drand_pulse, &prev_drand_rand);
+        let is_not_too_old = current_drand_round.saturating_sub(prev.drand_pulse)
+            <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
+
+        if prev_valid && prev.iterations >= prev_req && is_not_too_old {
+            let normalized_name = kinetic_core::types::normalize_name(&reveal.name);
+            let name_len = normalized_name
+                .strip_suffix(kinetic_core::constants::TLD_SUFFIX)
+                .unwrap_or(&normalized_name)
+                .len();
+            let discount_iterations = match name_len {
+                1 => 1000,                                  // 100% discount (minimum 1000 iterations)
+                63 => base_required_iterations,             // 0% discount (forces lottery re-roll)
+                2..=6 => base_required_iterations / 2,      // 50% discount
+                7..=10 => base_required_iterations / 5,     // 80% discount
+                _ => (base_required_iterations * 15) / 100, // 85% discount for 11+
+            };
+
+            tracing::info!(
+                "Valid PreviousProof attached for {}. Granting loyalty discount for length {}.",
+                reveal.name,
+                name_len
+            );
+            std::cmp::max(1000, discount_iterations)
+        } else {
+            tracing::warn!(
+                "Invalid PreviousProof attached for {}. Falling back to full difficulty.",
+                reveal.name
+            );
+            base_required_iterations
+        }
+    } else {
+        base_required_iterations
+    };
+    Ok(required_iterations)
+}
+
 pub(crate) fn verify_reveal(
     reveal: &kinetic_core::types::Reveal,
     storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
     current_drand_round: u64,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> Result<(), KineticStoreError> {
+    if let Err(e) = reveal.validate() {
+        let err = KineticStoreError::InvalidName;
+        err.log_warning(
+            "KIN-STORE-029",
+            &reveal.name,
+            &format!("Rejecting Kademlia Reveal: Validation failed: {:?}", e),
+        );
+        return Err(err);
+    }
+
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
     use kinetic_core::types::Commitment;
     use sha2::{Digest, Sha256};
@@ -174,69 +290,8 @@ pub(crate) fn verify_reveal(
         );
     }
 
-    let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-    let base_required_iterations =
-        consensus_math.required_iterations(&reveal.name, reveal.drand_pulse);
-
-    let required_iterations = if let Some(prev) = &reveal.previous_proof {
-        // Verify previous proof
-        let mut prev_hasher = Sha256::new();
-        prev_hasher.update(reveal.name.as_bytes());
-        prev_hasher.update(prev.salt);
-        let prev_drand_rand = hex::decode(&prev.drand_randomness).map_err(|_| {
-            let err = KineticStoreError::InvalidDrandHex;
-            err.log_warning(
-                "KIN-STORE-028",
-                &reveal.name,
-                "Rejecting Kademlia Reveal: Previous record has invalid Drand hex",
-            );
-            err
-        })?;
-        prev_hasher.update(prev_drand_rand);
-        prev_hasher.update(&reveal.pubkey);
-        let mut prev_hash = [0u8; 32];
-        prev_hash.copy_from_slice(&prev_hasher.finalize());
-        let prev_challenge = Commitment { hash: prev_hash };
-
-        let prev_valid = matches!(
-            engine.verify(&prev_challenge, &prev.vdf_proof, prev.iterations),
-            Ok(true)
-        );
-
-        let prev_req = consensus_math.required_iterations(&reveal.name, prev.drand_pulse);
-        let is_not_too_old = current_drand_round.saturating_sub(prev.drand_pulse)
-            <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
-
-        if prev_valid && prev.iterations >= prev_req && is_not_too_old {
-            let normalized_name = kinetic_core::types::normalize_name(&reveal.name);
-            let name_len = normalized_name
-                .strip_suffix(kinetic_core::constants::TLD_SUFFIX)
-                .unwrap_or(&normalized_name)
-                .len();
-            let discount_iterations = match name_len {
-                1 => 1000,                                  // 100% discount (minimum 1000 iterations)
-                63 => base_required_iterations,             // 0% discount (forces lottery re-roll)
-                2..=6 => base_required_iterations / 2,      // 50% discount
-                7..=10 => base_required_iterations / 5,     // 80% discount
-                _ => (base_required_iterations * 15) / 100, // 85% discount for 11+
-            };
-
-            tracing::info!(
-                "Valid PreviousProof attached for {}. Granting loyalty discount for length {}.",
-                reveal.name,
-                name_len
-            );
-            std::cmp::max(1000, discount_iterations)
-        } else {
-            tracing::warn!(
-                "Invalid PreviousProof attached for {}. Falling back to full difficulty.",
-                reveal.name
-            );
-            base_required_iterations
-        }
-    } else {
-        base_required_iterations
-    };
+    let required_iterations =
+        compute_required_iterations(reveal, current_drand_round, engine.as_ref())?;
 
     if dev_mode {
         tracing::info!(

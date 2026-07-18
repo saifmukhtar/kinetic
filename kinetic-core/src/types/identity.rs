@@ -100,18 +100,29 @@ pub fn save_keypair_from_mnemonic(
     use bip39::{Language, Mnemonic};
     use directories::ProjectDirs;
     use pbkdf2::pbkdf2_hmac;
-    use sha2::Sha512;
-    use std::fs;
+    use sha2::{Digest, Sha256, Sha512};
+    use std::fs::{self, OpenOptions};
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
     use std::path::PathBuf;
+    use zeroize::Zeroize;
 
     let mnemonic = Mnemonic::parse_in(Language::English, phrase)
         .map_err(|e| crate::error::IdentityError::InvalidSeedPhrase(format!("{}", e)))?;
 
-    let seed = mnemonic.to_seed("");
+    let mut seed = mnemonic.to_seed("");
+
+    // Use the SHA-256 hash of the seed itself as a dynamic salt
+    let salt = Sha256::digest(seed);
+
     let mut derived = [0u8; 32];
-    pbkdf2_hmac::<Sha512>(&seed, b"duckU", 2048, &mut derived);
+    pbkdf2_hmac::<Sha512>(&seed, &salt, 600_000, &mut derived);
 
     let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived);
+
+    // Securely wipe intermediate seed and derived buffers
+    seed.zeroize();
+    derived.zeroize();
 
     let key_path = std::env::var("KINETIC_KEY_PATH")
         .map(PathBuf::from)
@@ -130,7 +141,15 @@ pub fn save_keypair_from_mnemonic(
     }
 
     let tmp_path = key_path.with_extension("tmp");
-    fs::write(&tmp_path, signing_key.to_bytes())?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&tmp_path)?;
+    file.write_all(&signing_key.to_bytes())?;
+    file.sync_all()?;
+
     fs::rename(tmp_path, &key_path)?;
 
     Ok(signing_key)

@@ -25,11 +25,11 @@ impl super::core::NetworkEventLoop {
                 .behaviour_mut()
                 .kademlia
                 .store_mut()
-                .put(record.clone())
+                .put_record(record.clone())
             {
-                tracing::debug!("Local store put failed: {:?}", e);
-                _validation_failures += 1;
-                continue;
+                tracing::debug!("Local store put_record failed: {:?}", e);
+                let _ = responder.send(Err(PublishError::Rejected(e.to_string())));
+                return;
             }
 
             // Queue outbound network request

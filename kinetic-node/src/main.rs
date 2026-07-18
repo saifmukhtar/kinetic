@@ -75,7 +75,7 @@ fn install_service() -> Result<()> {
         program: current_exe.clone(),
         args: vec!["run".into()],
         contents: None,
-        username: None,
+        username: Some("nobody".to_string()),
         working_directory: None,
         environment: None,
         autostart: true,
@@ -154,6 +154,15 @@ async fn main() -> Result<()> {
 }
 
 async fn run_node() -> Result<()> {
+    if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
+        tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");
+        tracing::error!(
+            "The network cannot boot in production mode with a bricked governance plane."
+        );
+        tracing::error!("Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}", e);
+        std::process::exit(1);
+    }
+
     let config = KineticConfig::load();
 
     // 1. Initialize structured tracing
@@ -170,7 +179,7 @@ async fn run_node() -> Result<()> {
         .daemon
         .storage_dir
         .to_str()
-        .unwrap_or(default_storage.to_str().unwrap_or("/tmp/kinetic_db"));
+        .unwrap_or(default_storage.to_str().unwrap_or("./kinetic_db"));
     let storage = Arc::new(SledStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
@@ -346,9 +355,9 @@ async fn run_node() -> Result<()> {
     // 7. Start Health-check API
     let app = api::build_router(local_peer_id);
     let api_port = 16003;
-    let addr = SocketAddr::from(([0, 0, 0, 0], api_port));
+    let addr = SocketAddr::from(([127, 0, 0, 1], api_port));
     info!(
-        "Node Health-check API listening on http://0.0.0.0:{}",
+        "Node Health-check API listening on http://127.0.0.1:{}",
         api_port
     );
     let listener = tokio::net::TcpListener::bind(addr).await?;

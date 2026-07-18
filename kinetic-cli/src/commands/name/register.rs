@@ -89,7 +89,7 @@ pub async fn handle(
     info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
 
     let required_iterations = kinetic_core::consensus_math::ConsensusParams::default()
-        .required_iterations(&fqdn, drand_data.round);
+        .required_iterations(&fqdn, drand_data.round, &challenge_bytes);
     let actual_iterations = std::cmp::max(iterations, required_iterations);
 
     if actual_iterations >= 10_000_000 {

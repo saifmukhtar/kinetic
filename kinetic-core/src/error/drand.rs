@@ -87,8 +87,19 @@ impl DrandError {
         )
     }
 
-    /// Returns the `Display` representation as the user-facing message.
+    /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
-        self.to_string()
+        match self {
+            Self::AllEndpointsFailed => "All Drand endpoints failed.".to_string(),
+            Self::Network(_) | Self::HttpError(_) | Self::Reqwest(_) => {
+                "A network error occurred while fetching the Drand pulse.".to_string()
+            }
+            Self::NoCachedPulse => "No cached Drand pulse found.".to_string(),
+            Self::Serde(_) => "Failed to parse the Drand pulse.".to_string(),
+            Self::Storage(_) => {
+                "A storage error occurred while reading or writing the Drand cache.".to_string()
+            }
+            Self::InvalidSignature => "Invalid Drand signature.".to_string(),
+        }
     }
 }

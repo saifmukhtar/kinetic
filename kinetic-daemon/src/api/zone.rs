@@ -14,6 +14,12 @@ pub async fn handle_get_zone(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
+        ));
+    }
     let path = kinetic_core::config::get_zones_dir().join(format!("{}.json", fqdn));
     if let Ok(content) = std::fs::read_to_string(path) {
         match serde_json::from_str::<serde_json::Value>(&content) {
@@ -44,6 +50,12 @@ pub async fn handle_post_zone(
     Json(zone): Json<kinetic_core::types::DnsZone>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
+        ));
+    }
     let path = kinetic_core::config::get_zones_dir().join(format!("{}.json", fqdn));
     let _ = std::fs::create_dir_all(kinetic_core::config::get_zones_dir());
 
@@ -77,6 +89,12 @@ pub async fn handle_publish_zone(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
+        ));
+    }
 
     // 1. Read the current zone file
     let zone_path = kinetic_core::config::get_zones_dir().join(format!("{}.json", fqdn));

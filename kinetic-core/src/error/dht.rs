@@ -197,6 +197,9 @@ pub enum PublishError {
         /// Number of failed PUT operations.
         count: usize,
     },
+    /// The record was rejected by the store (e.g. invalid signature, stale).
+    #[error("Rejected by the network: {0}")]
+    Rejected(String),
     /// An unexpected internal error occurred during the publish flow.
     #[error("Internal error: {message}")]
     Internal {
@@ -216,7 +219,8 @@ impl PublishError {
             Self::InvalidProof(_) => "KIN-PUB-002",
             Self::AlreadyOwned { .. } => "KIN-PUB-003",
             Self::AllFailed { .. } => "KIN-PUB-004",
-            Self::Internal { .. } => "KIN-PUB-005",
+            Self::Rejected(_) => "KIN-PUB-005",
+            Self::Internal { .. } => "KIN-PUB-006",
         }
     }
 
@@ -237,6 +241,7 @@ impl PublishError {
             Self::InvalidProof(_) => Severity::Error,
             Self::AlreadyOwned { .. } => Severity::Info,
             Self::AllFailed { .. } => Severity::Warning,
+            Self::Rejected(_) => Severity::Warning,
             Self::Internal { .. } => Severity::Error,
         }
     }
@@ -252,6 +257,7 @@ impl PublishError {
             Self::AllFailed { .. } => {
                 "The network rejected all publish attempts. Please try again.".to_string()
             }
+            Self::Rejected(reason) => format!("Publish rejected: {}", reason),
             Self::Internal { .. } => "An internal error occurred during publishing.".to_string(),
         }
     }

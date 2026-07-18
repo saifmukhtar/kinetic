@@ -34,7 +34,7 @@ mod native {
             let path = path.as_ref();
             match sled::open(path) {
                 Ok(db) => Ok(Self { db }),
-                Err(e) => {
+                Err(sled::Error::Io(e)) => {
                     let err_str = e.to_string().to_lowercase();
                     if err_str.contains("lock")
                         || err_str.contains("resource temporarily unavailable")
@@ -43,7 +43,13 @@ mod native {
                     {
                         return Err(StorageError::DatabaseLocked);
                     }
-
+                    Err(StorageError::OperationFailed(format!("IO error: {}", e)))
+                }
+                Err(sled::Error::Corruption { .. }) => {
+                    tracing::error!(
+                        "Sled database corruption detected at {:?}, backing up and creating new...",
+                        path
+                    );
                     let mut bak_path = path.to_path_buf().into_os_string();
                     bak_path.push(".corrupt.bak");
 
@@ -54,8 +60,11 @@ mod native {
                         }
                     }
 
-                    Err(StorageError::OperationFailed(e.to_string()))
+                    Err(StorageError::OperationFailed(
+                        "Database corrupted and recovery failed".to_string(),
+                    ))
                 }
+                Err(e) => Err(StorageError::OperationFailed(e.to_string())),
             }
         }
 

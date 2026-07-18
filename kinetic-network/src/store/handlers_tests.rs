@@ -54,51 +54,60 @@ mod tests {
     fn test_rate_limiting() {
         let (mut store, _storage) = setup_store(5); // max 5 reveals per hour
 
-        // Insert 5 reveals
-        for i in 0..5 {
-            let _r = dummy_reveal(&format!("domain{}.kinetic", i), 100);
-            // but we can just push to accepted_reveals_timestamps directly to test rate limiting
-            // Wait, actually `handle_reveal` will return InvalidVdf if it's not a real reveal.
-            // Let's just test that the length correctly limits.
+        let name = "domain0.kinetic".to_string();
+        store
+            .accepted_reveals_timestamps
+            .put(name.clone(), std::collections::VecDeque::new());
+
+        for _ in 0..5 {
             store
                 .accepted_reveals_timestamps
+                .get_mut(&name)
+                .unwrap()
                 .push_back(web_time::Instant::now());
         }
 
-        // The 6th should fail. To test this realistically without generating full VDF proofs,
-        // we could bypass verify_reveal, but we can't. So we just simulate it by looking at
-        // the rate limiting block in handle_reveal.
-
-        let _reveal = dummy_reveal("domain6.kinetic", 100);
-
-        // Since we already have 5, the condition `if self.accepted_reveals_timestamps.len() > self.max_reveals_per_hour`
-        // should trigger because we insert it *before* checking the limit.
-        // But the check happens *after* `verify_reveal`. So we can't test handle_reveal end-to-end here without valid proofs.
-
-        // Let's directly test the time window logic instead
-        store.accepted_reveals_timestamps.clear();
+        store
+            .accepted_reveals_timestamps
+            .get_mut(&name)
+            .unwrap()
+            .clear();
         let now = web_time::Instant::now();
         store
             .accepted_reveals_timestamps
+            .get_mut(&name)
+            .unwrap()
             .push_back(now - web_time::Duration::from_secs(4000));
         store
             .accepted_reveals_timestamps
+            .get_mut(&name)
+            .unwrap()
             .push_back(now - web_time::Duration::from_secs(3000));
         for _ in 0..5 {
-            store.accepted_reveals_timestamps.push_back(now);
+            store
+                .accepted_reveals_timestamps
+                .get_mut(&name)
+                .unwrap()
+                .push_back(now);
         }
 
-        // Simulating the check
-        while let Some(t) = store.accepted_reveals_timestamps.front() {
+        let deque = store.accepted_reveals_timestamps.get_mut(&name).unwrap();
+        while let Some(t) = deque.front() {
             if web_time::Instant::now().duration_since(*t) > web_time::Duration::from_secs(3600) {
-                store.accepted_reveals_timestamps.pop_front();
+                deque.pop_front();
             } else {
                 break;
             }
         }
 
-        // Only the 3000 one should remain
-        assert_eq!(store.accepted_reveals_timestamps.len(), 6); // 5 (now) + 1 (3000s ago)
+        assert_eq!(
+            store
+                .accepted_reveals_timestamps
+                .get_mut(&name)
+                .unwrap()
+                .len(),
+            6
+        ); // 5 (now) + 1 (3000s ago)
     }
 
     #[test]

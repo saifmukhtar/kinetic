@@ -88,7 +88,8 @@ pub async fn handle(
     info!("Commitment accepted. Starting discounted VDF computation...");
 
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-    let base_iterations = consensus_math.required_iterations(&fqdn, drand_data.round);
+    let base_iterations =
+        consensus_math.required_iterations(&fqdn, drand_data.round, &challenge_bytes);
 
     // 80% discount
     let discounted_iterations = std::cmp::max(1, base_iterations / 5);

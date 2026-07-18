@@ -32,7 +32,7 @@ pub struct ManifestPointer {
 ///
 /// Identifies a Kinetic user and binds their Ed25519 public keys to a
 /// `did:kin:<hash>` decentralized identifier. The document is signed with the
-/// controller key and includes a Proof-of-Work nonce to prevent spam.
+/// controller key.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct KidDocument {
     #[serde(rename = "type")]

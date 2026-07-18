@@ -19,26 +19,6 @@ pub struct KineticNode {
     on_event: Function,
 }
 
-struct DummyVdfEngine;
-impl kinetic_core::traits::VdfEngine for DummyVdfEngine {
-    fn evaluate(
-        &self,
-        _challenge: &kinetic_core::types::Commitment,
-        _iterations: u64,
-    ) -> Result<kinetic_core::types::VdfProof, kinetic_core::error::VdfError> {
-        Err(kinetic_core::error::VdfError::ProofGenerationError)
-    }
-
-    fn verify(
-        &self,
-        _challenge: &kinetic_core::types::Commitment,
-        _proof: &kinetic_core::types::VdfProof,
-        _iterations: u64,
-    ) -> Result<bool, kinetic_core::error::VdfError> {
-        Ok(false)
-    }
-}
-
 #[wasm_bindgen]
 impl KineticNode {
     /// Creates a new uninitialized `KineticNode` instance.
@@ -94,7 +74,7 @@ impl KineticNode {
         };
 
         // 5. Initialize the Event Loop
-        let vdf_engine = Arc::new(DummyVdfEngine);
+        let vdf_engine = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
         let (client, event_loop) =
             NetworkEventLoop::new(config, local_key, storage, drand_rx, None, None, vdf_engine)
                 .map_err(|e| JsValue::from_str(&e.to_string()))?;

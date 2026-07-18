@@ -2751,6 +2751,7 @@ dependencies = [
  "rand 0.10.2",
  "rand_core 0.6.4",
  "reqwest 0.13.4",
+ "rpassword",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -2793,6 +2794,7 @@ dependencies = [
  "toml",
  "tracing",
  "web-time",
+ "zeroize",
 ]
 
 [[package]]
@@ -2866,6 +2868,7 @@ dependencies = [
  "kinetic-core",
  "kinetic-network",
  "moka",
+ "privdrop",
  "proptest",
  "reqwest 0.13.4",
  "serde_json",
@@ -2900,6 +2903,7 @@ dependencies = [
  "clap",
  "dirs 6.0.0",
  "ed25519-dalek",
+ "futures-util",
  "hex",
  "http 1.4.2",
  "http-body-util",
@@ -3081,6 +3085,7 @@ dependencies = [
  "kinetic-core",
  "kinetic-network",
  "kinetic-storage",
+ "kinetic-vdf",
  "libp2p",
  "serde-wasm-bindgen",
  "serde_json",
@@ -4724,6 +4729,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "privdrop"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70722a5a3728c9603c8d9469b64b8d1ee54dae6d74e24146da7f501b4c76540f"
+dependencies = [
+ "libc",
+ "nix 0.30.1",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5284,6 +5299,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rpassword"
+version = "7.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2da316a15f47e3d053de9cb2c439650bd8fa4aaeb9365f2e5f27f492ff73c196"
+dependencies = [
+ "libc",
+ "rtoolbox",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "rtnetlink"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5299,6 +5325,16 @@ dependencies = [
  "nix 0.30.1",
  "thiserror 1.0.69",
  "tokio",
+]
+
+[[package]]
+name = "rtoolbox"
+version = "0.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50a0e551c1e27e1731aba276dbeaeac73f53c7cd34d1bda485d02bd1e0f36844"
+dependencies = [
+ "libc",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

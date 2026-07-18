@@ -19,10 +19,10 @@ impl GovernanceState {
     ///
     /// Returns an `io::Error` if creating, writing to, or renaming the file fails.
     pub fn save_to_disk(&self, path: &std::path::Path) -> std::io::Result<()> {
-        let temp_path = path.with_extension("tmp");
-        let file = std::fs::File::create(&temp_path)?;
-        bincode::serialize_into(file, self).map_err(std::io::Error::other)?;
-        std::fs::rename(temp_path, path)?;
+        let parent = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+        let mut temp_file = tempfile::NamedTempFile::new_in(parent)?;
+        bincode::serialize_into(&mut temp_file, self).map_err(std::io::Error::other)?;
+        temp_file.persist(path).map_err(|e| e.error)?;
         Ok(())
     }
 
@@ -33,10 +33,17 @@ impl GovernanceState {
         match std::fs::File::open(path) {
             Ok(file) => match bincode::deserialize_from(file) {
                 Ok(state) => state,
-                Err(e) => panic!(
-                    "CRITICAL: Governance state file is corrupted: {}. Refusing to start.",
-                    e
-                ),
+                Err(e) => {
+                    tracing::error!("CRITICAL: Governance state file is corrupted: {}. Renaming to .corrupt and starting fresh.", e);
+                    let corrupt_path = path.with_extension("corrupt");
+                    let _ = std::fs::rename(path, corrupt_path);
+                    Self::new(
+                        web_time::SystemTime::now()
+                            .duration_since(web_time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs(),
+                    )
+                }
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Self::new(
                 web_time::SystemTime::now()
@@ -44,7 +51,18 @@ impl GovernanceState {
                     .unwrap_or_default()
                     .as_secs(),
             ),
-            Err(e) => panic!("CRITICAL: Failed to read Governance state file: {}", e),
+            Err(e) => {
+                tracing::error!(
+                    "CRITICAL: Failed to read Governance state file: {}. Starting fresh.",
+                    e
+                );
+                Self::new(
+                    web_time::SystemTime::now()
+                        .duration_since(web_time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs(),
+                )
+            }
         }
     }
 }

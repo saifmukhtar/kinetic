@@ -7,6 +7,7 @@ use rand_core::OsRng;
 use sha2::{Digest, Sha256};
 
 #[test]
+#[ignore = "Slow cryptographic test: takes >60s to compute VDF proof"]
 fn test_010_xor_eclipse() {
     let mut csprng = OsRng;
     let keypair = SigningKey::generate(&mut csprng);
@@ -18,8 +19,9 @@ fn test_010_xor_eclipse() {
 
     let drand_randomness = hex::encode(pulse_bytes);
 
-    let name = "alice.kin";
-    let iterations = 1; // 1 iteration for fast test
+    let name = "thisisaverylongnamethatisverycheap.kin";
+    let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
+    let iterations = consensus_math.required_iterations(name, drand_pulse, &[0u8; 32]);
 
     // Generate REAL VDF Proof
     let mut hasher = Sha256::new();

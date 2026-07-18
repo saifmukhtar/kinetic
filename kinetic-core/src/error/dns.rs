@@ -98,8 +98,31 @@ impl DnsError {
         false // These are all deterministic validation failures
     }
 
-    /// Returns the `Display` representation as the user-facing message.
+    /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
-        self.to_string()
+        match self {
+            Self::NestedTooDeeply => {
+                "The DNS zone contains data that is nested too deeply.".to_string()
+            }
+            Self::ParseError(_) => "Failed to parse the DNS zone data.".to_string(),
+            Self::TooManyRecords => {
+                "The DNS zone contains too many records (maximum 50).".to_string()
+            }
+            Self::InvalidLabelLength(_) => "A DNS record label has an invalid length.".to_string(),
+            Self::InvalidLabelCharacters(_) => {
+                "A DNS record label contains invalid characters.".to_string()
+            }
+            Self::InvalidCnameConfiguration(_) => {
+                "A CNAME record must be the only record for its label.".to_string()
+            }
+            Self::TxtRecordTooLong(_) => {
+                "A TXT record is too long (maximum 255 bytes).".to_string()
+            }
+            Self::InvalidCnameTarget(_) => "A CNAME target is invalid or too long.".to_string(),
+            Self::InvalidPeerId(_) => "A PeerId string is invalid.".to_string(),
+            Self::InvalidKid(_) => {
+                "A KID string is invalid or missing the 'did:kin:' prefix.".to_string()
+            }
+        }
     }
 }

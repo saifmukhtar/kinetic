@@ -205,7 +205,7 @@ impl Default for KineticConfig {
                     .map(|s| s.to_string())
                     .collect(),
                 seed_domains: vec![format!("seed.{}", crate::constants::BASE_DOMAIN)],
-                enable_mdns: true,
+                enable_mdns: false,
                 external_address: None,
             },
             drand: DrandConfig::default(),
@@ -344,6 +344,6 @@ mod tests {
         let config = KineticConfig::default();
         assert_eq!(config.daemon.api_port, ports::API_DAEMON);
         assert_eq!(config.network.daemon_port, ports::P2P_DAEMON);
-        assert!(config.network.enable_mdns);
+        assert!(!config.network.enable_mdns);
     }
 }

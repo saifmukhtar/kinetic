@@ -142,9 +142,13 @@ impl NetworkClient {
         name: &str,
         payload_bytes: Vec<u8>,
     ) -> std::result::Result<(), PublishError> {
-        if payload_bytes.len() > 8000 {
+        // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
+        // This client limit is deliberately set higher (80 KB) to safely accommodate
+        // the 64 KB payload plus any cryptographic proofs (VDFs, signatures) and
+        // structural serialization overhead without rejecting valid payloads.
+        if payload_bytes.len() > 80_000 {
             return Err(PublishError::Internal {
-                message: format!("Payload size ({} bytes) exceeds the 8000-byte P2P network limit. Please compress or link to external storage.", payload_bytes.len()),
+                message: format!("Payload size ({} bytes) exceeds the 80000-byte P2P network limit. Please compress or link to external storage.", payload_bytes.len()),
                 source: None,
             });
         }
@@ -334,7 +338,10 @@ impl NetworkClient {
         let key = format!("host_route_{}", host_id);
         match self.resolve_redundant_payload(&key).await {
             Ok(bytes) => {
-                let record = serde_json::from_slice(&bytes)
+                let record =
+                    serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&bytes)
+                        .map_err(|e| NetworkClientError::Other(e.to_string()))?;
+                crate::store::verification::verify_host_routing_record(&record)
                     .map_err(|e| NetworkClientError::Other(e.to_string()))?;
                 Ok(Some(record))
             }

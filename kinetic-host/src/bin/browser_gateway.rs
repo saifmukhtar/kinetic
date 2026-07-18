@@ -50,10 +50,14 @@ async fn handle_request(
             headers.push((k.as_str().into(), v_str.into()));
         }
     }
+    // The host prefix is passed as the second argument, default to "test"
+    let host_prefix = std::env::args()
+        .nth(2)
+        .unwrap_or_else(|| "test".to_string());
     // Force Host header for virtual hosting test
     headers.push((
         "Host".into(),
-        format!("{}{}", "saif", kinetic_core::constants::TLD_SUFFIX).into(),
+        format!("{}{}", host_prefix, kinetic_core::constants::TLD_SUFFIX).into(),
     ));
 
     use http_body_util::BodyExt;
@@ -99,7 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         current_pulse,
         kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
     );
-    let storage = Arc::new(SledStorage::new("/tmp/kinetic_gateway_db")?);
+    let storage = Arc::new(SledStorage::new("./kinetic_gateway_db")?);
 
     let config = NetworkConfig {
         mode: NetworkMode::LightClient,
@@ -132,9 +136,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     tokio::spawn(loop_task.run());
 
-    let target_peer = "12D3KooWHQaKKkjWdHnnhK78CQkLVQRB9GYoLMAttTbJtdgyizWS"
-        .parse()
-        .unwrap();
+    // First argument is the target peer ID
+    let target_peer_str = std::env::args()
+        .nth(1)
+        .expect("Usage: browser_gateway <target_peer_id> [host_prefix]");
+    let target_peer = target_peer_str.parse().unwrap();
     let state = GatewayState {
         client,
         target_peer,

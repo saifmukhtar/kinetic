@@ -44,8 +44,8 @@ pub struct NetworkEventLoop {
     pub(crate) bootstrap_peers: FxHashSet<libp2p::PeerId>,
     pub(crate) startup_time: web_time::Instant,
     pub(crate) disable_pow: bool,
-    pub(crate) banned_peers: FxHashSet<libp2p::PeerId>,
-    pub(crate) commitment_miss_counts: FxHashMap<PeerId, u32>,
+    pub(crate) banned_peers: FxHashMap<libp2p::PeerId, u64>,
+
     pub(crate) bootstrap_connection_time: FxHashMap<PeerId, web_time::Instant>,
     pub(crate) nat_status: String,
 }

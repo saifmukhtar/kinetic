@@ -69,12 +69,34 @@ pub struct PublishResponse {
 
 /// Constructs the axum `Router` for the API, registering public and authenticated routes.
 pub fn app(state: ApiState) -> Router {
-    use tower_http::cors::{Any, CorsLayer};
+    use tower_http::cors::CorsLayer;
 
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin(tower_http::cors::AllowOrigin::predicate(
+            |origin: &axum::http::HeaderValue, _request_parts| {
+                if let Ok(o) = origin.to_str() {
+                    o.starts_with("http://localhost:")
+                        || o.starts_with("http://127.0.0.1:")
+                        || o.starts_with("http://[::1]:")
+                        || o == "http://localhost"
+                        || o == "http://127.0.0.1"
+                        || o == "http://[::1]"
+                        || o.starts_with("chrome-extension://")
+                        || o.starts_with("moz-extension://")
+                } else {
+                    false
+                }
+            },
+        ))
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::OPTIONS,
+        ])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+        ]);
 
     // Auth-guarded routes (CLI uses these bare paths with a bearer token)
     let auth_routes = Router::new()
@@ -228,15 +250,7 @@ async fn auth_middleware(
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|h| h.to_str().ok());
 
-    let token_path = kinetic_core::config::get_api_token_path();
-    let expected_token = match std::fs::read_to_string(&token_path) {
-        Ok(t) => t.trim().to_string(),
-        Err(e) => {
-            tracing::warn!(error_code="KIN-IMPL-004", error=?e, "Could not read token file {:?}, falling back to in-memory token", token_path);
-            state.auth_token.clone()
-        }
-    };
-
+    let expected_token = state.auth_token.clone();
     let expected_header = format!("Bearer {}", expected_token);
 
     match auth_header {
@@ -256,9 +270,9 @@ async fn auth_middleware(
                 Ok(next.run(req).await)
             } else {
                 tracing::warn!(
-                    "Rejecting unauthorized API request. Expected token length: {}, Header: {:?}",
+                    "Rejecting unauthorized API request. Expected token length: {}, Presented header length: {}",
                     expected_token.len(),
-                    header
+                    header.len()
                 );
                 Err(StatusCode::UNAUTHORIZED)
             }

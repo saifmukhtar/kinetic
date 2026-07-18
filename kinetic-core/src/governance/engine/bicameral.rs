@@ -16,6 +16,10 @@ impl GovernanceEngine for BicameralEngine {
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+        if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
+            return Err(GovernanceError::StaleProposal);
+        }
+
         let actual_active_count = state.count_active_council(current_time_sec);
         let guard_key_opt = state.get_guard_key()?;
 
@@ -276,7 +280,11 @@ impl GovernanceEngine for BicameralEngine {
                 state.pending_updates.remove(target_hash);
                 state.vetoed_hashes.insert(*target_hash);
             }
-            GovernanceAction::EmergencyReset { override_mode, .. } => {
+            GovernanceAction::EmergencyReset {
+                override_mode,
+                new_root,
+                new_guard,
+            } => {
                 if *override_mode {
                     let action_hash = GovernanceState::hash_action(msg);
                     state
@@ -285,17 +293,25 @@ impl GovernanceEngine for BicameralEngine {
                 } else {
                     state.mode = crate::governance::types::GovernanceMode::Founder;
                     state.active_council.clear();
+                    state.dynamic_root_key = Some(*new_root);
+                    state.dynamic_guard_key = Some(*new_guard);
                 }
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
                 state.pending_timelocks.remove(target_hash);
 
                 if let Some(original) = state.partial_proposals.get(target_hash) {
-                    if let GovernanceAction::EmergencyReset { override_mode, .. } = &original.action
+                    if let GovernanceAction::EmergencyReset {
+                        override_mode,
+                        new_root,
+                        new_guard,
+                    } = &original.action
                     {
                         if *override_mode {
                             state.mode = crate::governance::types::GovernanceMode::Founder;
                             state.active_council.clear();
+                            state.dynamic_root_key = Some(*new_root);
+                            state.dynamic_guard_key = Some(*new_guard);
                         }
                     }
                 }
@@ -322,7 +338,12 @@ impl GovernanceEngine for BicameralEngine {
             GovernanceAction::RevokePremiumName { name } => {
                 effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
             }
-            GovernanceAction::RotateRootKey { .. } | GovernanceAction::RotateGuardKey { .. } => {}
+            GovernanceAction::RotateRootKey { new_key } => {
+                state.dynamic_root_key = Some(*new_key);
+            }
+            GovernanceAction::RotateGuardKey { new_key } => {
+                state.dynamic_guard_key = Some(*new_key);
+            }
         }
         effect
     }

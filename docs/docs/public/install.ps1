@@ -231,15 +231,35 @@ switch ($Profile) {
 
 Write-Host "`nInstalling: $($BinsToInstall -join ', ')" -ForegroundColor Yellow
 
+$TmpDir = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [guid]::NewGuid().ToString())
+New-Item -ItemType Directory -Path $TmpDir | Out-Null
+
+Write-Host "Downloading checksums..."
+Invoke-WebRequest -Uri "https://github.com/saifmukhtar/kinetic/releases/latest/download/checksums-windows-latest.txt" -OutFile "$TmpDir\checksums.txt"
+$Checksums = Get-Content "$TmpDir\checksums.txt"
+
 foreach ($bin in $BinsToInstall) {
     Write-Host "Downloading $bin..."
-    Invoke-WebRequest -Uri "https://github.com/saifmukhtar/kinetic/releases/latest/download/$bin-windows.exe" -OutFile "$InstallDir\$bin.exe"
+    $Asset = "$bin-windows.exe"
+    Invoke-WebRequest -Uri "https://github.com/saifmukhtar/kinetic/releases/latest/download/$Asset" -OutFile "$TmpDir\$Asset"
+    
+    Write-Host "Verifying checksum for $bin..."
+    $CalculatedHash = (Get-FileHash "$TmpDir\$Asset" -Algorithm SHA256).Hash.ToLower()
+    $ExpectedHash = ($Checksums | Where-Object { $_ -match $Asset }) -split '\s+' | Select-Object -First 1
+    if ($CalculatedHash -ne $ExpectedHash) {
+        Write-Host "Checksum mismatch for $bin! Installation aborted." -ForegroundColor Red
+        Remove-Item -Path $TmpDir -Recurse -Force
+        Exit 1
+    }
+
+    Move-Item -Path "$TmpDir\$Asset" -Destination "$InstallDir\$bin.exe" -Force
     
     if ($bin -ne "kinetic") {
         & "$InstallDir\$bin.exe" install
         & "$InstallDir\$bin.exe" start
     }
 }
+Remove-Item -Path $TmpDir -Recurse -Force
 
 $OldPath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine)
 if ($OldPath -notmatch [regex]::Escape($InstallDir)) {

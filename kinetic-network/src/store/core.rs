@@ -22,8 +22,9 @@ pub struct KineticRecordStore {
     /// The latest heartbeat pulse observed for each domain.
     pub last_heartbeats_by_name: HashMap<String, u64>,
 
-    /// History of timestamps for accepted reveals used for rate limiting.
-    pub accepted_reveals_timestamps: std::collections::VecDeque<web_time::Instant>,
+    /// History of timestamps for accepted reveals used for rate limiting per name.
+    pub accepted_reveals_timestamps:
+        LruCache<String, std::collections::VecDeque<web_time::Instant>>,
     /// The current observed Drand pulse round.
     pub current_drand_round: u64,
     /// Configuration for rate limiting reveals
@@ -54,8 +55,54 @@ impl KineticRecordStore {
                 if let Ok(reveal) =
                     serde_json::from_slice::<kinetic_core::types::Reveal>(&val_bytes)
                 {
-                    tracing::info!("[KRS restore] Reveal for {}", name);
-                    reveals_by_name.put(name, reveal);
+                    let mut is_valid = false;
+                    if let Ok(req) = super::verification::compute_required_iterations(
+                        &reveal,
+                        initial_drand_round,
+                        vdf_engine.as_ref(),
+                    ) {
+                        if reveal.iterations >= req {
+                            use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+                            if let Ok(pubkey) = VerifyingKey::try_from(reveal.pubkey.as_slice()) {
+                                if let Ok(sig) = Signature::from_slice(&reveal.signature) {
+                                    if pubkey.verify(&reveal.signable_bytes(), &sig).is_ok() {
+                                        use kinetic_core::types::Commitment;
+                                        use sha2::{Digest, Sha256};
+                                        let drand_rand = hex::decode(&reveal.drand_randomness)
+                                            .unwrap_or_else(|_| vec![0u8; 32]);
+                                        let mut hasher = Sha256::new();
+                                        hasher.update(reveal.name.as_bytes());
+                                        hasher.update(reveal.salt);
+                                        hasher.update(&drand_rand);
+                                        hasher.update(&reveal.pubkey);
+                                        let mut hash = [0u8; 32];
+                                        hash.copy_from_slice(&hasher.finalize());
+                                        let challenge = Commitment { hash };
+
+                                        if matches!(
+                                            vdf_engine.verify(
+                                                &challenge,
+                                                &reveal.vdf_proof,
+                                                reveal.iterations
+                                            ),
+                                            Ok(true)
+                                        ) {
+                                            is_valid = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if is_valid {
+                        tracing::info!("[KRS restore] Reveal for {}", name);
+                        reveals_by_name.put(name, reveal);
+                    } else {
+                        tracing::warn!(
+                            "[KRS restore] Discarding invalid locally stored Reveal for {}",
+                            name
+                        );
+                    }
                 }
             }
         }
@@ -94,7 +141,7 @@ impl KineticRecordStore {
             vdf_engine,
             reveals_by_name,
             last_heartbeats_by_name,
-            accepted_reveals_timestamps: std::collections::VecDeque::new(),
+            accepted_reveals_timestamps: LruCache::new(lru_cache_size),
             current_drand_round: initial_drand_round,
             max_reveals_per_hour,
         }
@@ -174,7 +221,7 @@ impl KineticRecordStore {
         if !keys_to_delete.is_empty() {
             let storage = self.storage.clone();
             crate::event_loop::utils::spawn(async move {
-                let _ = tokio::task::spawn_blocking(move || {
+                let _ = crate::event_loop::utils::spawn_blocking(move || {
                     for key in keys_to_delete {
                         let _ = storage.delete(&key);
                     }
@@ -190,7 +237,11 @@ impl KineticRecordStore {
     pub fn put_record(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         tracing::info!("KineticRecordStore::put called for key: {:?}", r.key);
 
-        if r.value.len() > 16 * 1024 {
+        // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
+        // This store limit is deliberately set higher (80 KB) to safely accommodate
+        // the 64 KB payload plus any cryptographic proofs (VDFs, signatures) and
+        // structural serialization overhead without rejecting valid payloads.
+        if r.value.len() > 80 * 1024 {
             let err = KineticStoreError::PayloadTooLarge;
             tracing::warn!(
                 error_code = "KIN-STORE-016",
@@ -203,62 +254,91 @@ impl KineticRecordStore {
 
         if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&r.value) {
             if parsed.get("hash").is_some() && parsed.get("vdf_proof").is_none() {
-                if let Ok(commitment) =
-                    serde_json::from_value::<kinetic_core::types::Commitment>(parsed)
-                {
-                    tracing::info!("KineticRecordStore::put parsed Commitment");
-                    let mut key = Vec::with_capacity(KRS_COMMIT_PREFIX.len() + 32);
-                    key.extend_from_slice(KRS_COMMIT_PREFIX);
-                    key.extend_from_slice(&commitment.hash);
-                    let _ = self
-                        .storage
-                        .put(&key, &self.current_drand_round.to_be_bytes());
-                    return self
-                        .inner
-                        .put(r)
-                        .map_err(|_| KineticStoreError::PayloadTooLarge);
+                match serde_json::from_value::<kinetic_core::types::Commitment>(parsed) {
+                    Ok(commitment) => {
+                        tracing::info!("KineticRecordStore::put parsed Commitment");
+                        let mut key = Vec::with_capacity(KRS_COMMIT_PREFIX.len() + 32);
+                        key.extend_from_slice(KRS_COMMIT_PREFIX);
+                        key.extend_from_slice(&commitment.hash);
+                        let _ = self
+                            .storage
+                            .put(&key, &self.current_drand_round.to_be_bytes());
+                        return self
+                            .inner
+                            .put(r)
+                            .map_err(|_| KineticStoreError::PayloadTooLarge);
+                    }
+                    Err(_) => {
+                        let err = KineticStoreError::UnknownRecordType;
+                        return Err(err);
+                    }
                 }
             } else if parsed.get("vdf_proof").is_some() {
-                if let Ok(reveal) = serde_json::from_value::<kinetic_core::types::Reveal>(parsed) {
-                    tracing::info!("KineticRecordStore::put parsed Reveal for {}", reveal.name);
-                    self.handle_reveal(&reveal)?;
+                match serde_json::from_value::<kinetic_core::types::Reveal>(parsed) {
+                    Ok(reveal) => {
+                        tracing::info!("KineticRecordStore::put parsed Reveal for {}", reveal.name);
+                        self.handle_reveal(&reveal)?;
+                    }
+                    Err(_) => {
+                        let err = KineticStoreError::UnknownRecordType;
+                        return Err(err);
+                    }
                 }
-            } else if parsed.get("node_id").is_some() {
-                if let Ok(heartbeat) =
-                    serde_json::from_value::<kinetic_core::types::Heartbeat>(parsed)
-                {
-                    tracing::info!(
-                        "KineticRecordStore::put parsed Heartbeat for {}",
-                        heartbeat.name
-                    );
-                    self.handle_heartbeat(&heartbeat)?;
+            } else if parsed.get("latest_drand_pulse").is_some() {
+                match serde_json::from_value::<kinetic_core::types::Heartbeat>(parsed) {
+                    Ok(heartbeat) => {
+                        tracing::info!(
+                            "KineticRecordStore::put parsed Heartbeat for {}",
+                            heartbeat.name
+                        );
+                        self.handle_heartbeat(&heartbeat)?;
+                    }
+                    Err(_) => {
+                        let err = KineticStoreError::UnknownRecordType;
+                        return Err(err);
+                    }
                 }
             } else if parsed.get("delegation_signature").is_some() {
-                if let Ok(auth_kid) =
-                    serde_json::from_value::<kinetic_core::types::AuthorizedKid>(parsed)
-                {
-                    let active_reveal = self.reveals_by_name.get(&auth_kid.name);
-                    super::verification::verify_authorized_kid(&auth_kid, active_reveal)?;
+                match serde_json::from_value::<kinetic_core::types::AuthorizedKid>(parsed) {
+                    Ok(auth_kid) => {
+                        let active_reveal = self.reveals_by_name.get(&auth_kid.name);
+                        super::verification::verify_authorized_kid(&auth_kid, active_reveal)?;
+                    }
+                    Err(_) => {
+                        let err = KineticStoreError::UnknownRecordType;
+                        return Err(err);
+                    }
                 }
             } else if parsed.get("manifest").is_some() {
-                if let Ok(auth_manifest) =
-                    serde_json::from_value::<kinetic_core::types::AuthorizedManifest>(parsed)
-                {
-                    let active_reveal = self.reveals_by_name.get(&auth_manifest.name);
-                    super::verification::verify_authorized_manifest(&auth_manifest, active_reveal)?;
+                match serde_json::from_value::<kinetic_core::types::AuthorizedManifest>(parsed) {
+                    Ok(auth_manifest) => {
+                        let active_reveal = self.reveals_by_name.get(&auth_manifest.name);
+                        super::verification::verify_authorized_manifest(
+                            &auth_manifest,
+                            active_reveal,
+                        )?;
+                    }
+                    Err(_) => {
+                        let err = KineticStoreError::UnknownRecordType;
+                        return Err(err);
+                    }
                 }
             } else if parsed.get("host_id").is_some() {
-                if let Ok(host_route) =
-                    serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed)
-                {
-                    match crate::store::verification::verify_host_routing_record(&host_route) {
-                        Ok(()) => {
-                            tracing::info!("KineticRecordStore::put accepted verified HostRoutingRecord for {}", host_route.host_id);
+                match serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed) {
+                    Ok(host_route) => {
+                        match crate::store::verification::verify_host_routing_record(&host_route) {
+                            Ok(()) => {
+                                tracing::info!("KineticRecordStore::put accepted verified HostRoutingRecord for {}", host_route.host_id);
+                            }
+                            Err(err) => {
+                                tracing::warn!(error_code = "KIN-STORE-021", host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);
+                                return Err(err);
+                            }
                         }
-                        Err(err) => {
-                            tracing::warn!(error_code = "KIN-STORE-021", host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);
-                            return Err(err);
-                        }
+                    }
+                    Err(_) => {
+                        let err = KineticStoreError::UnknownRecordType;
+                        return Err(err);
                     }
                 }
             } else {
@@ -295,20 +375,7 @@ impl kad::store::RecordStore for KineticRecordStore {
     type ProvidedIter<'a> = <kad::store::MemoryStore as kad::store::RecordStore>::ProvidedIter<'a>;
 
     fn get(&self, k: &kad::RecordKey) -> Option<std::borrow::Cow<'_, kad::Record>> {
-        if let Some(record) = self.inner.get(k) {
-            return Some(record);
-        }
-
-        let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
-        sled_key.extend_from_slice(b"kad_record:");
-        sled_key.extend_from_slice(k.as_ref());
-
-        if let Ok(Some(bytes)) = self.storage.get(&sled_key) {
-            let record = kad::Record::new(k.clone(), bytes.to_vec());
-            return Some(std::borrow::Cow::Owned(record));
-        }
-
-        None
+        self.inner.get(k)
     }
 
     fn put(&mut self, r: kad::Record) -> kad::store::Result<()> {

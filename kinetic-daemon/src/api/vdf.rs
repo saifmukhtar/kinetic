@@ -38,6 +38,12 @@ pub async fn handle_vdf_register(
     Json(req): Json<VdfRegisterRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&req.name);
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
+        ));
+    }
     let task_id = uuid::Uuid::new_v4().to_string();
 
     // Store initial task state, ensuring only 1 is active
@@ -53,6 +59,17 @@ pub async fn handle_vdf_register(
                 StatusCode::CONFLICT,
                 Json(serde_json::json!({
                     "error": "A VDF registration is already in progress. Please wait for it to complete."
+                })),
+            ));
+        }
+
+        tasks.retain(|_, t| t.progress < 100 && t.error.is_none());
+
+        if tasks.len() >= 1000 {
+            return Err((
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({
+                    "error": "Too many concurrent VDF tasks. Please wait."
                 })),
             ));
         }
@@ -87,7 +104,17 @@ pub async fn handle_vdf_register(
             }
         };
 
-        // Step 2: Commitment
+        // Step 2: Commitment — generate privately now; broadcast AFTER the VDF proof exists.
+        //
+        // Option B (C-1 fix): The old flow broadcast the commitment first, then computed the VDF.
+        // For any name whose VDF takes longer than the commitment prune window the reveal always
+        // arrived to a dead commitment. By deferring the broadcast until the proof is in hand the
+        // commitment is always at most ~32 seconds old when the reveal lands — fixing C-1 for
+        // every name length, including 2-4 char names whose VDFs take days to months.
+        //
+        // Anti-front-running is fully preserved: the commitment hash is
+        // SHA-256(name‖salt‖randomness‖pubkey) — opaque to any observer during the 32-second
+        // window before the reveal appears.
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
         let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
         let keypair = match kinetic_core::types::load_keypair(&identity_path.to_string_lossy()) {
@@ -103,7 +130,14 @@ pub async fn handle_vdf_register(
         };
         let pubkey = keypair.verifying_key().to_bytes();
         let mut salt = [0u8; 32];
-        getrandom::fill(&mut salt).unwrap_or_default();
+        if let Err(e) = getrandom::fill(&mut salt) {
+            update_task_error(
+                &tasks_clone,
+                &task_id_clone,
+                format!("Failed to generate secure random salt: {}", e),
+            );
+            return;
+        }
         let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
 
         use sha2::Digest;
@@ -116,51 +150,15 @@ pub async fn handle_vdf_register(
         hash.copy_from_slice(&hasher.finalize());
         let challenge = kinetic_core::types::Commitment { hash };
 
-        // Post commitment to DHT via internal network client
-        update_task_status(&tasks_clone, &task_id_clone, "Broadcasting Commitment", 30);
-
-        let _commit_req = kinetic_core::types::CommitRequest {
-            name: fqdn.clone(),
-            commitment: challenge.clone(),
-        };
-        // We'll skip sending the literal HTTP commit request internally, and just broadcast it directly to DHT:
-        let commit_bytes = match serde_json::to_vec(&challenge) {
-            Ok(b) => b,
-            Err(e) => {
-                update_task_error(
-                    &tasks_clone,
-                    &task_id_clone,
-                    format!("Serialization failed in VDF task: {}", e),
-                );
-                tracing::error!(
-                    error_code = "KIN-VDF-002",
-                    "Serialization failed in VDF task: {}",
-                    e
-                );
-                return;
-            }
-        };
-        if let Err(e) = network_clone
-            .publish_redundant_payload(&fqdn, commit_bytes)
-            .await
-        {
-            update_task_error(
-                &tasks_clone,
-                &task_id_clone,
-                format!("DHT Commit Error: {}", e),
-            );
-            return;
-        }
-
         // Step 3: VDF Evaluation (Blocking)
         update_task_status(
             &tasks_clone,
             &task_id_clone,
-            "Computing VDF... (This may take a few minutes)",
-            40,
+            "Computing VDF... (this may take a while)",
+            30,
         );
         let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-            .required_iterations(&fqdn, drand_data.round);
+            .required_iterations(&fqdn, drand_data.round, &challenge_bytes);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
         let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
@@ -196,6 +194,41 @@ pub async fn handle_vdf_register(
         };
 
         drop(permit);
+
+        // Broadcast commitment now that the proof exists (Option B / C-1 fix).
+        // Commitment age will be ~32 s when the reveal lands — well within any prune window.
+        update_task_status(&tasks_clone, &task_id_clone, "Broadcasting Commitment", 85);
+        let commit_bytes = match serde_json::to_vec(&challenge) {
+            Ok(b) => b,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Commitment serialization error: {}", e),
+                );
+                return;
+            }
+        };
+        if let Err(e) = network_clone
+            .publish_redundant_payload(&fqdn, commit_bytes)
+            .await
+        {
+            update_task_error(
+                &tasks_clone,
+                &task_id_clone,
+                format!("DHT Commit Error: {}", e),
+            );
+            return;
+        }
+
+        // Wait >10 drand rounds (10 × 3 s = 30 s) to satisfy the commit_age ≥ 10 rule in verify_reveal.
+        update_task_status(
+            &tasks_clone,
+            &task_id_clone,
+            "Maturing commitment (32 s)...",
+            88,
+        );
+        tokio::time::sleep(std::time::Duration::from_secs(32)).await;
 
         update_task_status(&tasks_clone, &task_id_clone, "Publishing Registration", 90);
 
@@ -316,6 +349,12 @@ pub async fn handle_vdf_renew(
     Json(req): Json<NameRenewRequest>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&req.name);
+    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
+        ));
+    }
     let mut tasks = state.vdf_tasks.lock().unwrap();
 
     // In ApiState there is no vdf_events yet, so we just check for conflicts by looking at the tasks map directly.
@@ -381,7 +420,7 @@ pub async fn handle_vdf_renew(
             }
         };
 
-        // Step 3: Commitment
+        // Step 3: Commitment — generate privately; broadcast AFTER VDF (Option B / C-1 fix).
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
         let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
         let keypair = match kinetic_core::types::load_keypair(&identity_path.to_string_lossy()) {
@@ -397,7 +436,14 @@ pub async fn handle_vdf_renew(
         };
         let pubkey = keypair.verifying_key().to_bytes();
         let mut salt = [0u8; 32];
-        getrandom::fill(&mut salt).unwrap_or_default();
+        if let Err(e) = getrandom::fill(&mut salt) {
+            update_task_error(
+                &tasks_clone,
+                &task_id_clone,
+                format!("Failed to generate secure random salt: {}", e),
+            );
+            return;
+        }
         let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
 
         use sha2::Digest;
@@ -410,40 +456,16 @@ pub async fn handle_vdf_renew(
         hash.copy_from_slice(&hasher.finalize());
         let challenge = kinetic_core::types::Commitment { hash };
 
-        update_task_status(&tasks_clone, &task_id_clone, "Broadcasting Commitment", 30);
-        let commit_bytes = match serde_json::to_vec(&challenge) {
-            Ok(b) => b,
-            Err(e) => {
-                update_task_error(
-                    &tasks_clone,
-                    &task_id_clone,
-                    format!("Serialization failed in VDF task: {}", e),
-                );
-                return;
-            }
-        };
-        if let Err(e) = network_clone
-            .publish_redundant_payload(&fqdn, commit_bytes)
-            .await
-        {
-            update_task_error(
-                &tasks_clone,
-                &task_id_clone,
-                format!("DHT Commit Error: {}", e),
-            );
-            return;
-        }
-
         // Step 4: VDF Evaluation (Blocking)
         update_task_status(
             &tasks_clone,
             &task_id_clone,
-            "Computing Renewal VDF... (This may take a few minutes)",
-            40,
+            "Computing Renewal VDF... (this may take a while)",
+            30,
         );
 
         let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-            .required_iterations(&fqdn, drand_data.round);
+            .required_iterations(&fqdn, drand_data.round, &challenge_bytes);
         // Renewals get an 80% discount
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);
@@ -480,6 +502,40 @@ pub async fn handle_vdf_renew(
         };
 
         drop(permit);
+
+        // Broadcast commitment now that the renewal proof exists (Option B / C-1 fix).
+        update_task_status(&tasks_clone, &task_id_clone, "Broadcasting Commitment", 85);
+        let commit_bytes = match serde_json::to_vec(&challenge) {
+            Ok(b) => b,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Commitment serialization error: {}", e),
+                );
+                return;
+            }
+        };
+        if let Err(e) = network_clone
+            .publish_redundant_payload(&fqdn, commit_bytes)
+            .await
+        {
+            update_task_error(
+                &tasks_clone,
+                &task_id_clone,
+                format!("DHT Commit Error: {}", e),
+            );
+            return;
+        }
+
+        // Wait >10 drand rounds to satisfy commit_age ≥ 10 in verify_reveal.
+        update_task_status(
+            &tasks_clone,
+            &task_id_clone,
+            "Maturing commitment (32 s)...",
+            88,
+        );
+        tokio::time::sleep(std::time::Duration::from_secs(32)).await;
 
         update_task_status(&tasks_clone, &task_id_clone, "Publishing Renewal", 90);
 

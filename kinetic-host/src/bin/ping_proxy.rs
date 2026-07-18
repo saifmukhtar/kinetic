@@ -1,8 +1,25 @@
 use anyhow::Result;
+use clap::Parser;
 use kinetic_network::{client::ProxyRequest, NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
 use std::sync::Arc;
 use tokio::sync::watch;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Target peer ID to ping
+    #[arg(short, long)]
+    target_peer: String,
+
+    /// Domain prefix to send in the Host header
+    #[arg(short, long, default_value = "ping_proxy")]
+    host_prefix: String,
+
+    /// Custom path for the ping database
+    #[arg(short, long)]
+    db_path: Option<std::path::PathBuf>,
+}
 
 async fn fetch_drand_pulse() -> u64 {
     let client = reqwest::Client::new();
@@ -23,6 +40,8 @@ async fn fetch_drand_pulse() -> u64 {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
+    let args = Args::parse();
+
     let current_pulse = fetch_drand_pulse().await;
     println!("Fetched current Drand pulse: {}", current_pulse);
 
@@ -32,7 +51,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
     );
     println!("Mined PeerId: {}", key.public().to_peer_id());
-    let storage = Arc::new(SledStorage::new("/tmp/kinetic_ping_db")?);
+
+    let db_path = args
+        .db_path
+        .unwrap_or_else(|| kinetic_core::config::get_base_dir().join("kinetic_ping_db"));
+
+    let storage = Arc::new(SledStorage::new(db_path)?);
 
     let config = NetworkConfig {
         mode: NetworkMode::LightClient,
@@ -65,18 +89,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     tokio::spawn(loop_task.run());
 
-    // The peer ID from your sandbox logs
-    let target_peer = "12D3KooWHQaKKkjWdHnnhK78CQkLVQRB9GYoLMAttTbJtdgyizWS"
+    let target_peer = args
+        .target_peer
         .parse()
-        .unwrap();
+        .expect("Invalid target peer ID format");
 
-    println!("Dialing Kinetic Host (12D3KooWHQaKKkjWdHnnhK78CQkLVQRB9GYoLMAttTbJtdgyizWS)...");
+    println!("Dialing Kinetic Host ({})...", target_peer);
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     let mut headers = Vec::new();
     headers.push((
         "Host".into(),
-        format!("{}{}", "saif", kinetic_core::constants::TLD_SUFFIX).into(),
+        format!(
+            "{}{}",
+            args.host_prefix,
+            kinetic_core::constants::TLD_SUFFIX
+        )
+        .into(),
     ));
 
     let req = ProxyRequest {

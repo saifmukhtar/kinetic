@@ -31,6 +31,8 @@ pub struct SavedState {
     pub previous_pac_url: Option<String>,
     /// The proxy type that was previously configured (e.g. 'auto' or 'none'), if applicable.
     pub proxy_type: Option<String>,
+    /// Maps macOS service names to their previous PAC URLs.
+    pub macos_services: Option<std::collections::HashMap<String, String>>,
 }
 
 /// Defines the interface for an OS-specific proxy configuration manager.
@@ -79,6 +81,7 @@ impl ProxyConfigurator for FallbackConfigurator {
         Ok(SavedState {
             previous_pac_url: None,
             proxy_type: None,
+            macos_services: None,
         })
     }
 
@@ -150,6 +153,16 @@ impl PacManager {
 
         // Save current state atomically
         let previous = self.configurator.save_previous_state()?;
+
+        let has_previous = previous.previous_pac_url.is_some()
+            || previous
+                .macos_services
+                .as_ref()
+                .is_some_and(|m| !m.is_empty());
+        if has_previous {
+            warn!("WARNING: Kinetic is temporarily overriding your existing system proxy settings! Your original proxy will NOT be used while Kinetic is running. It will be restored upon exit.");
+        }
+
         let tmp_path = self.lock_path.with_extension("tmp");
         if let Ok(file) = File::create(&tmp_path) {
             let _ = serde_json::to_writer(file, &previous);
@@ -213,10 +226,8 @@ function FindProxyForURL(url, host) {{
                 .get(axum::http::header::HOST)
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("");
-            if host.starts_with("localhost")
-                || host.starts_with("127.0.0.1")
-                || host.starts_with("[::1]")
-            {
+            let host_only = host.split(':').next().unwrap_or("");
+            if host_only == "localhost" || host_only == "127.0.0.1" || host_only == "[::1]" {
                 axum::response::Response::builder()
                     .header("Content-Type", "application/x-ns-proxy-autoconfig")
                     .body(pac_script.clone())

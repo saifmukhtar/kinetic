@@ -37,13 +37,35 @@ impl KineticRecordStore {
                     .unwrap_or(reveal.drand_pulse);
 
                 let hb_age = self.current_drand_round.saturating_sub(last_hb_round);
-                let base_diff =
-                    consensus_math.required_iterations(&reveal.name, reveal.drand_pulse);
+                let drand_rand =
+                    hex::decode(&reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
+                let base_diff = consensus_math.required_iterations(
+                    &reveal.name,
+                    reveal.drand_pulse,
+                    &drand_rand,
+                );
                 let steal_threshold = consensus_math.steal_difficulty(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
                 if reveal.iterations == existing_reveal.iterations && hb_age < 100 {
-                    if reveal.pubkey > existing_reveal.pubkey {
+                    let existing_drand_rand = hex::decode(&existing_reveal.drand_randomness)
+                        .unwrap_or_else(|_| vec![0u8; 32]);
+
+                    let dist_new: Vec<u8> = reveal
+                        .pubkey
+                        .iter()
+                        .zip(drand_rand.iter().cycle())
+                        .map(|(&a, &b)| a ^ b)
+                        .collect();
+
+                    let dist_existing: Vec<u8> = existing_reveal
+                        .pubkey
+                        .iter()
+                        .zip(existing_drand_rand.iter().cycle())
+                        .map(|(&a, &b)| a ^ b)
+                        .collect();
+
+                    if dist_new > dist_existing {
                         let err = KineticStoreError::TieBroken;
                         err.log_warning("KIN-STORE-004", &reveal.name, "Rejecting Steal Reveal:");
                         return Err(err);
@@ -75,8 +97,37 @@ impl KineticRecordStore {
                         let _ = self.storage.delete(&sled_key);
                     }
                 }
+            } else {
+                if reveal.drand_pulse <= existing_reveal.drand_pulse {
+                    let err = KineticStoreError::StaleReveal;
+                    err.log_warning("KIN-STORE-023", &reveal.name, "Rejecting Replayed Reveal:");
+                    return Err(err);
+                }
             }
         }
+
+        let now = web_time::Instant::now();
+        if !self.accepted_reveals_timestamps.contains(&reveal.name) {
+            self.accepted_reveals_timestamps
+                .put(reveal.name.clone(), std::collections::VecDeque::new());
+        }
+        let deque = self
+            .accepted_reveals_timestamps
+            .get_mut(&reveal.name)
+            .unwrap();
+        while let Some(t) = deque.front() {
+            if now.duration_since(*t) > web_time::Duration::from_secs(3600) {
+                deque.pop_front();
+            } else {
+                break;
+            }
+        }
+        if deque.len() >= self.max_reveals_per_hour {
+            let err = KineticStoreError::RateLimited;
+            err.log_warning("KIN-STORE-022", &reveal.name, "Rejecting Reveal:");
+            return Err(err);
+        }
+        deque.push_back(now);
 
         self.reveals_by_name
             .put(reveal.name.clone(), reveal.clone());
@@ -88,21 +139,6 @@ impl KineticRecordStore {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        let now = web_time::Instant::now();
-        self.accepted_reveals_timestamps.push_back(now);
-        while let Some(t) = self.accepted_reveals_timestamps.front() {
-            if now.duration_since(*t) > web_time::Duration::from_secs(3600) {
-                self.accepted_reveals_timestamps.pop_front();
-            } else {
-                break;
-            }
-        }
-        if self.accepted_reveals_timestamps.len() > self.max_reveals_per_hour {
-            let err = KineticStoreError::RateLimited;
-            err.log_warning("KIN-STORE-022", &reveal.name, "Rejecting Reveal:");
-            return Err(err);
-        }
-
         let current_round = std::cmp::max(self.current_drand_round, reveal.drand_pulse);
         self.last_heartbeats_by_name
             .insert(reveal.name.clone(), current_round);
@@ -112,7 +148,7 @@ impl KineticRecordStore {
         if !writes_to_perform.is_empty() {
             let storage = self.storage.clone();
             crate::event_loop::utils::spawn(async move {
-                let _ = tokio::task::spawn_blocking(move || {
+                let _ = crate::event_loop::utils::spawn_blocking(move || {
                     for (k, v) in writes_to_perform {
                         let _ = storage.put(&k, &v);
                     }
@@ -187,7 +223,7 @@ impl KineticRecordStore {
 
         let storage = self.storage.clone();
         crate::event_loop::utils::spawn(async move {
-            let _ = tokio::task::spawn_blocking(move || {
+            let _ = crate::event_loop::utils::spawn_blocking(move || {
                 let _ = storage.put(&hb_key, &hb_val);
             })
             .await;

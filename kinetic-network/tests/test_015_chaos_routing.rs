@@ -72,9 +72,7 @@ async fn test_chaos_routing_partition() {
     // Node 5 publishes a payload (since Node 5 has all other nodes in its bootstrap list)
     let test_key = "chaos_key_test";
     let test_payload = serde_json::to_vec(&serde_json::json!({
-        "name": "chaos_key_test",
-        "node_id": "node_5_chaos",
-        "timestamp": 123456789
+        "hash": vec![0u8; 32]
     }))
     .unwrap();
 

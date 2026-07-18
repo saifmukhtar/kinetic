@@ -55,11 +55,10 @@ impl super::core::NetworkEventLoop {
 
                 // Spawn a blocking task to do heavy VDF processing
                 crate::event_loop::utils::spawn(async move {
-                    let tie_breaker_result = tokio::task::spawn_blocking(move || {
+                    let tie_breaker_result = crate::event_loop::utils::spawn_blocking(move || {
                         Self::xor_tie_breaker(&name, p.received_payloads, current_drand_pulse)
                     })
-                    .await
-                    .unwrap_or(None);
+                    .await;
 
                     match tie_breaker_result {
                         Some(payload) => {
@@ -99,13 +98,23 @@ impl super::core::NetworkEventLoop {
     pub(crate) async fn handle_swarm_event(&mut self, event: SwarmEvent<KineticBehaviorEvent>) {
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                if self.banned_peers.contains(&peer_id) {
-                    tracing::warn!(
-                        "Banned peer {} attempted to connect, disconnecting immediately.",
-                        peer_id
-                    );
-                    let _ = self.swarm.disconnect_peer_id(peer_id);
-                    return;
+                let now = web_time::SystemTime::now()
+                    .duration_since(web_time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+
+                if let Some(&expire_time) = self.banned_peers.get(&peer_id) {
+                    if expire_time > now {
+                        tracing::warn!(
+                            "Banned peer {} attempted to connect, disconnecting immediately.",
+                            peer_id
+                        );
+                        let _ = self.swarm.disconnect_peer_id(peer_id);
+                        return;
+                    } else {
+                        // Expired, remove from memory
+                        self.banned_peers.remove(&peer_id);
+                    }
                 }
 
                 tracing::info!("Connection established with {:?}", peer_id);
@@ -222,17 +231,7 @@ impl super::core::NetworkEventLoop {
                         .put_record(record.clone());
 
                     if let Err(e) = put_result {
-                        let is_commitment =
-                            matches!(e, crate::error::KineticStoreError::UnknownRecordType)
-                                && serde_json::from_slice::<kinetic_core::types::Commitment>(
-                                    &record.value,
-                                )
-                                .is_ok();
-
-                        if is_commitment {
-                            let entry = self.commitment_miss_counts.entry(source).or_insert(0);
-                            *entry += 1;
-                        } else {
+                        if e.severity() == kinetic_core::error::Severity::Error {
                             let now = web_time::Instant::now();
                             let entry = self.bad_vdf_counts.entry(source).or_insert((0, now));
                             if now.duration_since(entry.1) > web_time::Duration::from_secs(60) {
@@ -244,12 +243,18 @@ impl super::core::NetworkEventLoop {
                             if entry.0 >= 3 {
                                 tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
                                 let _ = self.swarm.disconnect_peer_id(source);
-                                self.banned_peers.insert(source);
                                 let expire_time = web_time::SystemTime::now()
                                     .duration_since(web_time::UNIX_EPOCH)
                                     .unwrap_or_default()
                                     .as_secs()
                                     + 86400;
+
+                                // Prevent unbounded growth of banned peers map
+                                if self.banned_peers.len() >= 10_000 {
+                                    self.banned_peers.clear();
+                                }
+                                self.banned_peers.insert(source, expire_time);
+
                                 let key = format!("kinetic_banned_peer:{}", source);
                                 let _ = self
                                     .swarm
@@ -259,6 +264,12 @@ impl super::core::NetworkEventLoop {
                                     .storage
                                     .put(key.as_bytes(), &expire_time.to_be_bytes());
                             }
+                        } else {
+                            tracing::debug!(
+                                "Peer {} sent a record rejected with non-fatal error: {}",
+                                source,
+                                e
+                            );
                         }
                     }
                 }

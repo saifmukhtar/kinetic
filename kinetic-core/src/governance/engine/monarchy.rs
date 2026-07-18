@@ -15,6 +15,10 @@ impl GovernanceEngine for MonarchyEngine {
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+        if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
+            return Err(GovernanceError::StaleProposal);
+        }
+
         let root_key = state.get_root_key()?;
         let action_bytes = msg.to_canonical_bytes();
 
@@ -100,9 +104,14 @@ impl GovernanceEngine for MonarchyEngine {
             | GovernanceAction::SelfAppointCouncilMember { .. }
             | GovernanceAction::RemoveCouncilMember { .. }
             | GovernanceAction::LockCouncil
-            | GovernanceAction::EmergencyReset { .. }
-            | GovernanceAction::RotateRootKey { .. }
-            | GovernanceAction::RotateGuardKey { .. } => {}
+            | GovernanceAction::EmergencyReset { .. } => {}
+
+            GovernanceAction::RotateRootKey { new_key } => {
+                state.dynamic_root_key = Some(*new_key);
+            }
+            GovernanceAction::RotateGuardKey { new_key } => {
+                state.dynamic_guard_key = Some(*new_key);
+            }
         }
         effect
     }

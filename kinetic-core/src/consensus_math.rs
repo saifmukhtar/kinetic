@@ -20,17 +20,27 @@ impl ConsensusParams {
     }
 
     /// Calculate required iterations for a name based on length and hardware anchor
-    pub fn required_iterations(&self, name: &str, current_round: u64) -> u64 {
-        let normalized_name = crate::types::normalize_name(name);
-
-        let label = normalized_name
+    pub fn required_iterations(
+        &self,
+        name: &str,
+        current_round: u64,
+        drand_randomness: &[u8],
+    ) -> u64 {
+        let normalized_name = crate::types::names::normalize_name(name);
+        let apex = crate::types::names::extract_apex_domain(&normalized_name);
+        let label = apex
             .strip_suffix(crate::constants::TLD_SUFFIX)
-            .unwrap_or(&normalized_name);
-        self.required_iterations_by_label(label, current_round)
+            .unwrap_or(&apex);
+        self.required_iterations_by_label(label, current_round, drand_randomness)
     }
 
     /// Calculate required iterations for a specific label
-    pub fn required_iterations_by_label(&self, label: &str, current_round: u64) -> u64 {
+    pub fn required_iterations_by_label(
+        &self,
+        label: &str,
+        current_round: u64,
+        drand_randomness: &[u8],
+    ) -> u64 {
         if crate::config::is_dev_mode() {
             return 1000;
         }
@@ -56,16 +66,14 @@ impl ConsensusParams {
                 let mut hasher = Sha256::new();
                 hasher.update(label.as_bytes());
                 hasher.update(current_round.to_be_bytes());
+                hasher.update(drand_randomness);
                 let result = hasher.finalize();
-                let hex_string = hex::encode(result);
 
-                let digits: String = hex_string.chars().filter(|c| c.is_ascii_digit()).collect();
-                let first_two = if digits.len() >= 2 {
-                    &digits[0..2]
-                } else {
-                    "99"
-                };
-                let num: u8 = first_two.parse().unwrap_or(99);
+                // Unbiased extraction: combine first 4 bytes into u32, modulo 100
+                let mut bytes = [0u8; 4];
+                bytes.copy_from_slice(&result[0..4]);
+                let val = u32::from_be_bytes(bytes);
+                let num = (val % 100) as u8;
 
                 match num {
                     63 => (base * 63) / 1800,              // 63 Seconds (Jackpot!)
@@ -116,9 +124,9 @@ mod tests {
     fn test_decay_length() {
         let params = ConsensusParams::default();
         let _pk = [0u8; 32];
-        let a = params.required_iterations("a", 0);
-        let ab = params.required_iterations("ab", 0);
-        let abc = params.required_iterations("abc", 0);
+        let a = params.required_iterations("a", 0, &[0u8; 32]);
+        let ab = params.required_iterations("ab", 0, &[0u8; 32]);
+        let abc = params.required_iterations("abc", 0, &[0u8; 32]);
         assert!(a > ab);
         assert!(ab > abc);
     }

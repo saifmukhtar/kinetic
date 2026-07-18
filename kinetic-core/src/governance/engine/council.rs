@@ -16,6 +16,10 @@ impl GovernanceEngine for CouncilEngine {
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+        if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
+            return Err(GovernanceError::StaleProposal);
+        }
+
         let actual_active_count = state.count_active_council(current_time_sec);
         let effective_active_count =
             std::cmp::max(actual_active_count, crate::constants::MIN_ACTIVE_COUNCIL);

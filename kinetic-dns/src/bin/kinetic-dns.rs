@@ -140,6 +140,15 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
 
             info!("DNS proxy ready on {}:{} (and [::1])", bind_ip, dns_port);
 
+            #[cfg(unix)]
+            {
+                if let Err(e) = privdrop::PrivDrop::default().user("nobody").apply() {
+                    tracing::warn!("Note: Could not drop privileges to 'nobody': {} (Safe if already running as non-root)", e);
+                } else {
+                    tracing::info!("Successfully dropped privileges to 'nobody' after binding privileged port.");
+                }
+            }
+
             tokio::select! {
                 res = server.block_until_done() => {
                     if let Err(e) = res {
@@ -177,6 +186,15 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
                         "DNS proxy ready (fallback) on {}:{}",
                         bind_ip, fallback_port
                     );
+
+                    #[cfg(unix)]
+                    {
+                        if let Err(e) = privdrop::PrivDrop::default().user("nobody").apply() {
+                            tracing::warn!("Note: Could not drop privileges to 'nobody': {} (Safe if already running as non-root)", e);
+                        } else {
+                            tracing::info!("Successfully dropped privileges to 'nobody' after binding fallback port.");
+                        }
+                    }
 
                     tokio::select! {
                         res = server.block_until_done() => {

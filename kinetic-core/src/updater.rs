@@ -1,4 +1,3 @@
-use crate::governance::Hash256;
 use futures_util::StreamExt;
 use reqwest::Client;
 use sha2::{Digest, Sha256};
@@ -22,7 +21,8 @@ use web_time::Duration;
 /// Returns an error if all mirrors fail or produce an invalid hash.
 pub async fn perform_ota_update(
     self_id: &str,
-    manifest_hash: Hash256,
+    manifest_signature: [u8; 64],
+    governance_pubkey: [u8; 32],
     mirrors: Vec<String>,
 ) -> Result<(), crate::error::UpdaterError> {
     if mirrors.is_empty() {
@@ -31,7 +31,6 @@ pub async fn perform_ota_update(
 
     let client = Client::builder().timeout(Duration::from_secs(60)).build()?;
 
-    // Load-balance across mirrors by shuffling them deterministically-random per node
     let mut shuffled_mirrors = mirrors;
     let random_state = std::collections::hash_map::RandomState::new();
     shuffled_mirrors.sort_by_cached_key(|url| {
@@ -46,9 +45,13 @@ pub async fn perform_ota_update(
     let mut temp_path = None;
 
     for mirror in shuffled_mirrors {
+        if !mirror.starts_with("https://") {
+            warn!("Skipping insecure mirror (HTTP not allowed): {}", mirror);
+            continue;
+        }
+
         info!("Attempting OTA update from mirror: {}", mirror);
 
-        // 1. Download Manifest
         let manifest_url = format!("{}/manifest.json", mirror);
         let response = match client.get(&manifest_url).send().await {
             Ok(res) if res.status().is_success() => res,
@@ -77,24 +80,27 @@ pub async fn perform_ota_update(
             }
         };
 
-        // 2. Verify Manifest Hash
-        let mut hasher = Sha256::new();
-        hasher.update(&manifest_bytes);
-        let result_hash = hasher.finalize();
-        let mut result_hash_array = [0u8; 32];
-        result_hash_array.copy_from_slice(&result_hash);
+        use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+        let pubkey = match VerifyingKey::try_from(governance_pubkey.as_slice()) {
+            Ok(k) => k,
+            Err(_) => {
+                error!("Invalid governance pubkey provided for OTA.");
+                return Err(crate::error::UpdaterError::NetworkError(
+                    "Invalid governance pubkey".to_string(),
+                ));
+            }
+        };
+        let signature = Signature::from_bytes(&manifest_signature);
 
-        if result_hash_array != manifest_hash {
+        if pubkey.verify(&manifest_bytes, &signature).is_err() {
             warn!(
-                "Manifest hash verification failed for mirror: {}. Expected: {}, Got: {}",
-                mirror,
-                hex::encode(manifest_hash),
-                hex::encode(result_hash_array)
+                "Manifest signature verification failed for mirror: {}",
+                mirror
             );
             continue;
         }
 
-        info!("Manifest hash verified for mirror: {}", mirror);
+        info!("Manifest signature verified for mirror: {}", mirror);
 
         // 3. Parse Manifest and lookup target hash
         let manifest: std::collections::HashMap<String, String> =
@@ -164,10 +170,22 @@ pub async fn perform_ota_update(
         let mut hasher = Sha256::new();
         let mut byte_stream = response.bytes_stream();
         let mut download_success = true;
+        let mut bytes_downloaded = 0usize;
+        const MAX_DOWNLOAD_SIZE: usize = 250 * 1024 * 1024; // 250 MB max
 
         while let Some(chunk_result) = byte_stream.next().await {
             match chunk_result {
                 Ok(chunk) => {
+                    bytes_downloaded = bytes_downloaded.saturating_add(chunk.len());
+                    if bytes_downloaded > MAX_DOWNLOAD_SIZE {
+                        error!(
+                            "OTA update aborted: Binary exceeds {} byte limit.",
+                            MAX_DOWNLOAD_SIZE
+                        );
+                        download_success = false;
+                        break;
+                    }
+
                     hasher.update(&chunk);
                     if let Err(e) = temp_file.write_all(&chunk) {
                         error!("Failed to write chunk to temp file: {}", e);
@@ -269,8 +287,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_perform_ota_no_mirrors() {
-        let dummy_hash = [0u8; 32];
-        let res = perform_ota_update("test-id", dummy_hash, vec![]).await;
+        let dummy_sig = [0u8; 64];
+        let dummy_pubkey = [0u8; 32];
+        let res = perform_ota_update("test-id", dummy_sig, dummy_pubkey, vec![]).await;
         assert!(matches!(
             res,
             Err(crate::error::UpdaterError::NoMirrorsProvided)
@@ -294,10 +313,11 @@ mod tests {
             }
         });
 
-        // We provide a dummy hash that definitely won't match "BAD!"
-        let dummy_hash = [1u8; 32];
+        let dummy_sig = [1u8; 64];
+        let dummy_pubkey = [2u8; 32];
 
-        let res = perform_ota_update("test-id", dummy_hash, vec![mirror_url]).await;
+        // The mirror will be skipped entirely because it's http://, failing with NetworkError "All mirrors failed".
+        let res = perform_ota_update("test-id", dummy_sig, dummy_pubkey, vec![mirror_url]).await;
 
         // It should try the mirror, get the file, hash it, fail verification, and exhaust all mirrors
         if let Err(crate::error::UpdaterError::NetworkError(msg)) = res {

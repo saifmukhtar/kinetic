@@ -14,7 +14,9 @@ pub struct Heartbeat {
 impl Heartbeat {
     /// Serializes the heartbeat data into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(4 + self.name.len() + 8);
+        let prefix = b"kinetic-heartbeat-v1";
+        let mut bytes = Vec::with_capacity(prefix.len() + 4 + self.name.len() + 8);
+        bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&self.latest_drand_pulse.to_be_bytes());

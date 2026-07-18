@@ -70,58 +70,84 @@ pub async fn start_drand_heartbeat(
     hc_vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(3));
+    let mut last_verified_epoch: Option<u64> = None;
     loop {
         interval.tick().await;
         if let Ok(pulse) = hb_drand.fetch_latest().await {
             if !pulse.is_unavailable && !pulse.is_from_cache {
                 let _ = drand_pulse_tx.send(pulse.round);
 
-                let pow_valid = kinetic_network::pow::is_valid_sybil_pow(
-                    &hb_local_peer_id,
+                let current_epoch = kinetic_network::pow::get_staggered_epoch(
+                    &hb_local_peer_id.to_bytes(),
                     pulse.round,
-                    kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
                 );
-                if !pow_valid {
-                    tracing::info!(
-                        "PoW epoch expired for ephemeral identity. Hot-swapping network loop..."
-                    );
-                    let current_local_key = tokio::task::spawn_blocking(move || {
-                        kinetic_network::pow::mine_sybil_keypair(
-                            pulse.round,
+
+                let needs_validation = match last_verified_epoch {
+                    Some(epoch) => epoch != current_epoch,
+                    None => true,
+                };
+
+                if needs_validation {
+                    let peer_id_clone = hb_local_peer_id;
+                    let pulse_round = pulse.round;
+                    let pow_valid = tokio::task::spawn_blocking(move || {
+                        kinetic_network::pow::is_valid_sybil_pow(
+                            &peer_id_clone,
+                            pulse_round,
                             kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
                         )
                     })
                     .await
-                    .unwrap_or_else(|_| {
-                        tracing::error!(
-                            "PoW mining task panicked, falling back to random identity"
+                    .unwrap_or(false);
+
+                    if !pow_valid {
+                        tracing::info!(
+                            "PoW epoch expired for ephemeral identity. Hot-swapping network loop..."
                         );
-                        libp2p::identity::Keypair::generate_ed25519()
-                    });
-                    hb_local_peer_id = libp2p::PeerId::from_public_key(&current_local_key.public());
-
-                    if let Ok(mut lock) = shared_peer_id.write() {
-                        *lock = hb_local_peer_id.to_string();
-                    }
-
-                    let mut handle = loop_handle_ref.lock().await;
-                    handle.abort();
-
-                    if let Ok((new_client, new_loop)) = NetworkEventLoop::new(
-                        hc_config.clone(),
-                        current_local_key.clone(),
-                        hc_storage.clone(),
-                        hc_drand_rx.clone(),
-                        Some(hc_inc_tx.clone()),
-                        Some(hc_gossip_tx.clone()),
-                        hc_vdf_engine.clone(),
-                    ) {
-                        hc_client
-                            .update_backend(new_client.get_sender(), new_client.stream_control());
-                        *handle = tokio::spawn(async move {
-                            new_loop.run().await;
+                        let current_local_key = tokio::task::spawn_blocking(move || {
+                            kinetic_network::pow::mine_sybil_keypair(
+                                pulse_round,
+                                kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
+                            )
+                        })
+                        .await
+                        .unwrap_or_else(|_| {
+                            tracing::error!(
+                                "PoW mining task panicked, falling back to random identity"
+                            );
+                            libp2p::identity::Keypair::generate_ed25519()
                         });
-                        tracing::info!("Successfully hot-swapped P2P backend with new PoW identity in Host mode.");
+                        hb_local_peer_id =
+                            libp2p::PeerId::from_public_key(&current_local_key.public());
+                        last_verified_epoch = None;
+
+                        if let Ok(mut lock) = shared_peer_id.write() {
+                            *lock = hb_local_peer_id.to_string();
+                        }
+
+                        let mut handle = loop_handle_ref.lock().await;
+                        handle.abort();
+
+                        if let Ok((new_client, new_loop)) = NetworkEventLoop::new(
+                            hc_config.clone(),
+                            current_local_key.clone(),
+                            hc_storage.clone(),
+                            hc_drand_rx.clone(),
+                            Some(hc_inc_tx.clone()),
+                            Some(hc_gossip_tx.clone()),
+                            hc_vdf_engine.clone(),
+                        ) {
+                            hc_client.update_backend(
+                                new_client.get_sender(),
+                                new_client.stream_control(),
+                            );
+                            *handle = tokio::spawn(async move {
+                                new_loop.run().await;
+                            });
+                            tracing::info!("Successfully hot-swapped P2P backend with new PoW identity in Host mode.");
+                        }
+                    } else {
+                        last_verified_epoch = Some(current_epoch);
                     }
                 }
             }

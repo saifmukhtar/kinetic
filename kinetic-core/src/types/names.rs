@@ -17,14 +17,10 @@ pub fn normalize_name(name: &str) -> String {
 /// Hardcoded reserved names are evaluated dynamically based on TLD.
 pub fn is_reserved_name(name: &str) -> bool {
     let tld = crate::constants::TLD_SUFFIX;
-    let reserved = [
-        format!("localhost{}", tld),
-        format!("test{}", tld),
-        format!("invalid{}", tld),
-        format!("local{}", tld),
-        format!("null{}", tld),
-    ];
-    reserved.contains(&name.to_lowercase())
+    let name_lower = name.to_lowercase();
+    PUBLIC_NAMES
+        .iter()
+        .any(|&r| format!("{}{}", r, tld) == name_lower)
 }
 
 /// Category 1: Public Utility Names (Based on RFC 2606 & RFC 6761)

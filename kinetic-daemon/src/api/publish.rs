@@ -116,6 +116,10 @@ pub async fn handle_publish(
             }
             if !owned.contains(&fqdn) {
                 owned.push(fqdn.clone());
+                if owned.len() > 10_000 {
+                    let skip_count = owned.len() - 10_000;
+                    owned = owned.into_iter().skip(skip_count).collect();
+                }
                 if let Ok(b) = serde_json::to_vec(&owned) {
                     let _ = state.storage.put(owned_key, &b);
                     info!(

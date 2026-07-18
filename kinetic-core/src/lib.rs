@@ -21,7 +21,6 @@
 //!   Kinetic Rulebook that governs privileged on-chain actions.
 //! - **`consensus_math`** — Deterministic VDF iteration calculations and
 //!   grace-period escalation formulas.
-//! - **`mempool`** — In-memory pending-record staging area used by the daemon.
 //! - **`drand`** — Client for the drand distributed randomness beacon.
 //! - **`updater`** — OTA update state machine for daemon self-updates.
 //! - **`api_error`** — Axum-compatible [`ApiError`] type for HTTP API handlers.

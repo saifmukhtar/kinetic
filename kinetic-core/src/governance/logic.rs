@@ -12,6 +12,9 @@ use crate::error::GovernanceError;
 ///
 /// Returns a `GovernanceError` if keys are missing, still set to placeholders, or have incorrect lengths.
 pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
+    if crate::config::is_dev_mode() {
+        return Ok(());
+    }
     if ROOT_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
         return Err(GovernanceError::MissingRootKey);
     }
@@ -38,6 +41,8 @@ impl GovernanceState {
             partial_proposals: HashMap::new(),
             founder_premium_grants: 0,
             grace_period_start_sec: None,
+            dynamic_root_key: None,
+            dynamic_guard_key: None,
         }
     }
 
@@ -101,6 +106,9 @@ impl GovernanceState {
     ///
     /// Returns a `GovernanceError` if the key is missing, invalid, or has the wrong length.
     pub fn get_root_key(&self) -> Result<VerifyingKey, GovernanceError> {
+        if let Some(key) = self.dynamic_root_key {
+            return Ok(key);
+        }
         let bytes =
             hex::decode(ROOT_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MissingRootKey)?;
         if bytes.len() != 32 {
@@ -115,6 +123,9 @@ impl GovernanceState {
     ///
     /// Returns a `GovernanceError` if the key format is invalid.
     pub fn get_guard_key(&self) -> Result<Option<VerifyingKey>, GovernanceError> {
+        if let Some(key) = self.dynamic_guard_key {
+            return Ok(Some(key));
+        }
         if GUARD_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
             return Ok(None);
         }
@@ -188,11 +199,51 @@ pub fn process_governance_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
 ) -> Result<Option<GovernanceEffect>, crate::error::GovernanceError> {
-    let msg_to_update = state.merge_signatures(msg);
     let current_time_sec = web_time::SystemTime::now()
         .duration_since(web_time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
 
+    if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
+        return Err(crate::error::GovernanceError::StaleProposal);
+    }
+
+    let action_bytes = msg.to_canonical_bytes();
+    let root_key = state.get_root_key()?;
+    let guard_key_opt = state.get_guard_key().unwrap_or(None);
+
+    let mut is_authorized = false;
+    use ed25519_dalek::Verifier;
+    for sig in &msg.signatures {
+        if root_key.verify(&action_bytes, sig).is_ok() {
+            is_authorized = true;
+            break;
+        }
+        if let Some(guard) = &guard_key_opt {
+            if guard.verify(&action_bytes, sig).is_ok() {
+                is_authorized = true;
+                break;
+            }
+        }
+        for member in &state.active_council {
+            if member.verify(&action_bytes, sig).is_ok() {
+                is_authorized = true;
+                break;
+            }
+        }
+        if is_authorized {
+            break;
+        }
+    }
+
+    if !is_authorized {
+        return Err(crate::error::GovernanceError::InsufficientSignatures);
+    }
+
+    state.partial_proposals.retain(|_, p| {
+        current_time_sec.abs_diff(p.timestamp_sec) <= crate::constants::MAX_AGE_SECONDS
+    });
+
+    let msg_to_update = state.merge_signatures(msg);
     state.verify_action(&msg_to_update, current_time_sec)
 }

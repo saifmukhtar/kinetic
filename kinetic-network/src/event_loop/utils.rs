@@ -33,6 +33,23 @@ where
     tokio::spawn(future);
 }
 
+pub(crate) async fn spawn_blocking<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    #[cfg(target_arch = "wasm32")]
+    {
+        // On WASM, we don't have true blocking threads, so we just run it synchronously.
+        f()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        tokio::task::spawn_blocking(f).await.unwrap()
+    }
+}
+
 pub(crate) fn is_routable_multiaddr(addr: &libp2p::Multiaddr, disable_pow: bool) -> bool {
     if kinetic_core::config::is_dev_mode() || disable_pow {
         return true;
@@ -77,10 +94,12 @@ pub(crate) fn is_routable_multiaddr(addr: &libp2p::Multiaddr, disable_pow: bool)
 impl super::core::NetworkEventLoop {
     /// Resolves conflicts when multiple records are found for the same Kademlia key.
     pub fn xor_tie_breaker(
-        _query_name: &str,
+        query_name: &str,
         payloads: Vec<Vec<u8>>,
         current_pulse: u64,
     ) -> Option<Vec<u8>> {
+        let _original_payloads = payloads.clone();
+
         if payloads.is_empty() {
             return None;
         }
@@ -95,21 +114,39 @@ impl super::core::NetworkEventLoop {
         enum ParsedPayload {
             Kid(kinetic_kid::KidDocument),
             Reveal(kinetic_core::types::Reveal),
+            HostRouting(kinetic_core::types::HostRoutingRecord),
         }
 
         let mut parsed = Vec::new();
         let mut is_kid = false;
+        let mut is_host_routing = false;
 
         for p in unique_payloads {
             if let Ok(doc) = serde_json::from_slice::<kinetic_kid::KidDocument>(&p) {
-                is_kid = true;
-                parsed.push((p, ParsedPayload::Kid(doc)));
+                if doc.kid.to_string() == query_name {
+                    is_kid = true;
+                    parsed.push((p, ParsedPayload::Kid(doc)));
+                }
+            } else if let Ok(host_route) =
+                serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&p)
+            {
+                if query_name == format!("routing:{}", host_route.host_id) {
+                    is_host_routing = true;
+                    parsed.push((p, ParsedPayload::HostRouting(host_route)));
+                }
             } else if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&p) {
-                parsed.push((p, ParsedPayload::Reveal(reveal)));
+                if reveal.name == query_name && reveal.validate().is_ok() {
+                    parsed.push((p, ParsedPayload::Reveal(reveal)));
+                }
             }
         }
 
         if is_kid {
+            let current_time = web_time::SystemTime::now()
+                .duration_since(web_time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
             parsed
                 .into_iter()
                 .filter_map(|(p, parsed_payload)| {
@@ -118,7 +155,33 @@ impl super::core::NetworkEventLoop {
                         if doc.verify().is_err() {
                             return None;
                         }
+
+                        // Reject future-dated documents (allowing 300s clock drift)
+                        if doc.created_at > current_time + 300 {
+                            tracing::warn!(
+                                "Rejecting KidDocument: created_at ({}) is in the future",
+                                doc.created_at
+                            );
+                            return None;
+                        }
+
                         Some((p, u64::MAX - doc.created_at)) // Sort by newest created_at
+                    } else {
+                        None
+                    }
+                })
+                .min_by_key(|(_, dist)| *dist)
+                .map(|(p, _)| p)
+        } else if is_host_routing {
+            parsed
+                .into_iter()
+                .filter_map(|(p, parsed_payload)| {
+                    if let ParsedPayload::HostRouting(record) = parsed_payload {
+                        if crate::store::verification::verify_host_routing_record(&record).is_err()
+                        {
+                            return None;
+                        }
+                        Some((p, u64::MAX - record.timestamp)) // Sort by newest timestamp
                     } else {
                         None
                     }
@@ -194,13 +257,85 @@ impl super::core::NetworkEventLoop {
                     let mut hash = [0u8; 32];
                     hash.copy_from_slice(&hasher.finalize());
 
-                    let engine = ChiaVdfEngine::new();
-                    let challenge_cmt = kinetic_core::types::Commitment { hash };
-                    if engine
-                        .verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)
-                        .unwrap_or(false)
+                    if current_pulse.saturating_sub(reveal.drand_pulse)
+                        > kinetic_core::types::RESQUARING_EPOCH_ROUNDS
                     {
-                        return Some(p);
+                        tracing::warn!(
+                            error_code = "KIN-RES-005",
+                            name = %reveal.name,
+                            "Skipping candidate: Reveal expired (older than RESQUARING_EPOCH_ROUNDS)"
+                        );
+                        continue;
+                    }
+
+                    let engine = ChiaVdfEngine::new();
+
+                    let required_iterations =
+                        match crate::store::verification::compute_required_iterations(
+                            &reveal,
+                            current_pulse,
+                            &engine,
+                        ) {
+                            Ok(req) => req,
+                            Err(e) => {
+                                tracing::warn!(
+                                    error_code = "KIN-RES-006",
+                                    name = %reveal.name,
+                                    "Skipping candidate: failed to compute required iterations: {:?}", e
+                                );
+                                continue;
+                            }
+                        };
+
+                    if reveal.iterations < required_iterations {
+                        tracing::warn!(
+                            error_code = "KIN-RES-007",
+                            name = %reveal.name,
+                            "Skipping candidate: Insufficient VDF iterations. Provided {}, Required {}",
+                            reveal.iterations, required_iterations
+                        );
+                        continue;
+                    }
+
+                    let challenge_cmt = kinetic_core::types::Commitment { hash };
+                    match engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations) {
+                        Ok(true) => return Some(p),
+                        Ok(false) => {
+                            tracing::warn!(
+                                error_code = "KIN-RES-008",
+                                name = %reveal.name,
+                                "Skipping candidate: VDF verification failed"
+                            );
+                            continue;
+                        }
+                        Err(kinetic_core::error::VdfError::UnsupportedPlatform) => {
+                            let count = _original_payloads.iter().filter(|&x| x == &p).count();
+                            // If we can't verify the VDF locally (e.g. wasm32), require 3 identical responses
+                            if count >= 3 {
+                                tracing::info!(
+                                    name = %reveal.name,
+                                    count = count,
+                                    "VDF verified via P2P quorum consensus (UnsupportedPlatform bypass)"
+                                );
+                                return Some(p);
+                            } else {
+                                tracing::warn!(
+                                    error_code = "KIN-RES-009",
+                                    name = %reveal.name,
+                                    count = count,
+                                    "VDF verification skipped due to UnsupportedPlatform, but quorum (3) not reached"
+                                );
+                                continue;
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                error_code = "KIN-RES-010",
+                                name = %reveal.name,
+                                "Skipping candidate: VDF verification error: {:?}", e
+                            );
+                            continue;
+                        }
                     }
                 }
                 #[cfg(test)]
@@ -224,8 +359,8 @@ mod tests {
         proof_bytes[0] = proof_first_byte;
 
         let reveal = Reveal {
-            protocol_version: 1,
-            name: "test.kin".to_string(),
+            protocol_version: 2,
+            name: "dummy.kin".to_string(),
             payload: vec![],
             salt: [0u8; 32],
             drand_pulse: 0,
@@ -246,7 +381,7 @@ mod tests {
         let payload_b = make_dummy_reveal(0x05);
 
         let winner = NetworkEventLoop::xor_tie_breaker(
-            "test.kin",
+            "dummy.kin",
             vec![payload_a.clone(), payload_b.clone()],
             0,
         );
@@ -254,7 +389,7 @@ mod tests {
 
         let pulse: u64 = 0x1500_0000_0000_0000;
         let winner2 = NetworkEventLoop::xor_tie_breaker(
-            "test.kin",
+            "dummy.kin",
             vec![payload_a.clone(), payload_b.clone()],
             pulse,
         );

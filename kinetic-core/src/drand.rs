@@ -10,8 +10,8 @@ use hickory_resolver::config::*;
 
 const CACHE_KEY: &str = "drand_last_pulse";
 
-// Heartbeat staleness threshold — 24 hours in Drand Quicknet rounds (3s each)
-const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 28800; // 24hr * 60min * 20 rounds/min
+// Heartbeat staleness threshold — 10 minutes in Drand Quicknet rounds (3s each)
+const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200; // 10min * 20 rounds/min
 
 use crate::error::DrandError;
 
@@ -150,7 +150,7 @@ impl DrandClient {
                     for txt in txt_lookup.iter() {
                         let url_str = txt.to_string();
                         let url_str = url_str.trim_matches('"').to_string();
-                        if url_str.starts_with("http") {
+                        if url_str.starts_with("https://") {
                             endpoints.push(url_str);
                         }
                     }
@@ -203,8 +203,21 @@ impl DrandClient {
                 .send()
                 .await
             {
-                Ok(resp) if resp.status().is_success() => {
-                    return Ok(resp.json::<DrandPulse>().await?);
+                Ok(mut resp) if resp.status().is_success() => {
+                    let mut body = bytes::BytesMut::new();
+                    while let Some(chunk) = resp
+                        .chunk()
+                        .await
+                        .map_err(|e| DrandError::Network(e.to_string()))?
+                    {
+                        body.extend_from_slice(&chunk);
+                        if body.len() > 64 * 1024 {
+                            return Err(DrandError::Network(
+                                "Drand response exceeded 64 KB limit".to_string(),
+                            ));
+                        }
+                    }
+                    return Ok(serde_json::from_slice::<DrandPulse>(&body)?);
                 }
                 Ok(_resp) if attempt < max_attempts - 1 => {
                     #[cfg(not(target_arch = "wasm32"))]
@@ -262,25 +275,6 @@ impl DrandClient {
                 is_from_cache: true,
                 is_unavailable: false,
             });
-        }
-
-        // Offline Fallback for Quicknet
-        if let Ok(now) = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH) {
-            if now.as_secs() > crate::constants::DRAND_GENESIS_TIME {
-                let estimated_round = (now.as_secs() - crate::constants::DRAND_GENESIS_TIME)
-                    / crate::constants::DRAND_PERIOD;
-                tracing::warn!(
-                    "No drand cache found. Using offline estimated round: {}",
-                    estimated_round
-                );
-                return Ok(DrandPulse {
-                    round: estimated_round,
-                    randomness: String::new(),
-                    signature: String::new(),
-                    is_from_cache: true,
-                    is_unavailable: false,
-                });
-            }
         }
 
         Err(DrandError::NoCachedPulse)

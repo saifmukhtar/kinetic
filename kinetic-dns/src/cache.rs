@@ -48,5 +48,8 @@ impl Expiry<String, Option<Vec<u8>>> for KineticExpiry {
 
 /// Creates a new Moka cache for DNS resolution results.
 pub fn create_cache() -> Cache<String, Option<Vec<u8>>> {
-    Cache::builder().expire_after(KineticExpiry).build()
+    Cache::builder()
+        .expire_after(KineticExpiry)
+        .max_capacity(10_000)
+        .build()
 }

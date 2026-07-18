@@ -38,9 +38,9 @@ pub async fn handle_connect(
                     warn!("Forwarding error: {}", e);
                     Ok(Response::builder()
                         .status(StatusCode::BAD_GATEWAY)
-                        .body(Full::new(Bytes::from(format!("Backend Error: {}", e))))
+                        .body(axum::body::Body::from(format!("Backend Error: {}", e)))
                         .unwrap_or_else(|_| {
-                            Response::new(Full::new(Bytes::from("Internal Proxy Error")))
+                            Response::new(axum::body::Body::from("Internal Proxy Error"))
                         }))
                 }
             }

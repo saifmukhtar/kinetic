@@ -75,8 +75,17 @@ impl VdfError {
         matches!(self, Self::LockAcquireError(_))
     }
 
-    /// Returns the `Display` representation as the user-facing message.
+    /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
-        self.to_string()
+        match self {
+            Self::LockFileError(_) => "Failed to create VDF lock file.".to_string(),
+            Self::LockAcquireError(_) => "Failed to acquire VDF lock.".to_string(),
+            Self::DiscriminantError => "Failed to create VDF discriminant.".to_string(),
+            Self::ProofGenerationError => "Failed to generate VDF proof.".to_string(),
+            Self::UnsupportedPlatform => {
+                "VDF operations are not supported on this platform.".to_string()
+            }
+            Self::InvalidProof => "The VDF proof is structurally invalid or too large.".to_string(),
+        }
     }
 }

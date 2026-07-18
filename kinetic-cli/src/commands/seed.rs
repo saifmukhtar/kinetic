@@ -11,10 +11,7 @@ pub enum SeedCommands {
     /// Generate a new master seed phrase and derive the node identity
     Init,
     /// Restore the node identity from an existing seed phrase
-    Restore {
-        /// The 24-word seed phrase (in quotes)
-        phrase: String,
-    },
+    Restore,
 }
 
 /// Dispatches seed-related CLI subcommands.
@@ -47,7 +44,10 @@ pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
             save_keypair_from_mnemonic(&identity_path.to_string_lossy(), &phrase)?;
             info!("Identity derived and saved to {:?}", identity_path);
         }
-        SeedCommands::Restore { phrase } => {
+        SeedCommands::Restore => {
+            let phrase = rpassword::prompt_password("Enter your 24-word seed phrase: ")
+                .map_err(|e| anyhow::anyhow!("Failed to read seed phrase: {}", e))?;
+
             info!("Attempting to restore identity from phrase...");
             match save_keypair_from_mnemonic(&identity_path.to_string_lossy(), &phrase) {
                 Ok(_) => {

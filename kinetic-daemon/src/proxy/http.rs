@@ -6,7 +6,7 @@ pub async fn handle_proxy_request(
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
     config: Arc<kinetic_core::config::KineticConfig>,
-) -> Result<Response<Full<Bytes>>, std::convert::Infallible> {
+) -> Result<Response<axum::body::Body>, std::convert::Infallible> {
     if req.method() == Method::CONNECT {
         let raw_host = req.uri().host().unwrap_or("").to_string();
         let domain_name = kinetic_core::types::normalize_name(&raw_host);
@@ -15,11 +15,11 @@ pub async fn handle_proxy_request(
             // Reject non-.kin CONNECT — we are not a general proxy
             return Ok(Response::builder()
                 .status(StatusCode::FORBIDDEN)
-                .body(Full::new(Bytes::from(
+                .body(axum::body::Body::from(
                     "Kinetic proxy only handles .kin domains",
-                )))
+                ))
                 .unwrap_or_else(|_| {
-                    Response::new(Full::new(Bytes::from("Internal Proxy Error")))
+                    Response::new(axum::body::Body::from("Internal Proxy Error"))
                 }));
         }
 
@@ -47,8 +47,8 @@ pub async fn handle_proxy_request(
 
         return Ok(Response::builder()
             .status(StatusCode::OK)
-            .body(Full::new(Bytes::new()))
-            .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("Internal Proxy Error")))));
+            .body(axum::body::Body::empty())
+            .unwrap_or_else(|_| Response::new(axum::body::Body::from("Internal Proxy Error"))));
     }
 
     // Fallback logic for plain HTTP .kin requests
@@ -70,10 +70,10 @@ pub async fn handle_proxy_request(
     if !host_name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
-            .body(Full::new(Bytes::from(
+            .body(axum::body::Body::from(
                 "Only .kin domains are supported by this proxy",
-            )))
-            .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("Internal Proxy Error")))));
+            ))
+            .unwrap_or_else(|_| Response::new(axum::body::Body::from("Internal Proxy Error"))));
     }
 
     info!("Proxying plain HTTP request for {} -> {}", host_name, path);
@@ -85,8 +85,8 @@ pub async fn handle_proxy_request(
             warn!("Proxy request failed: {}", e);
             Ok(Response::builder()
                 .status(StatusCode::BAD_GATEWAY)
-                .body(Full::new(Bytes::from(format!("Proxy Error: {}", e))))
-                .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("Internal Proxy Error")))))
+                .body(axum::body::Body::from(format!("Proxy Error: {}", e)))
+                .unwrap_or_else(|_| Response::new(axum::body::Body::from("Internal Proxy Error"))))
         }
     }
 }
@@ -97,7 +97,7 @@ pub async fn forward_to_backend_direct(
     domain: &str,
     network_client: &NetworkClient,
     config: Arc<kinetic_core::config::KineticConfig>,
-) -> Result<Response<Full<Bytes>>, ProxyError> {
+) -> Result<Response<axum::body::Body>, ProxyError> {
     let apex_domain = kinetic_core::types::extract_apex_domain(domain);
 
     // Resolve via DHT directly — NOT via system DNS
@@ -208,15 +208,28 @@ pub async fn forward_to_backend_direct(
             return Err(ProxyError::NameNotFound(domain.to_string()));
         };
 
+        // Extract the original requested port (default to 80 if HTTP)
+        let original_port = req
+            .uri()
+            .port_u16()
+            .or_else(|| {
+                req.headers()
+                    .get(hyper::header::HOST)
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|s| s.split(':').nth(1))
+                    .and_then(|p| p.parse::<u16>().ok())
+            })
+            .unwrap_or(80);
+
         // Case 199: Prevent infinite proxy loops even in Dev Mode
         // This check must happen before the dev mode bypass to protect the daemon's internal ports.
         if (ip_addr.is_loopback() || ip_addr.is_unspecified())
-            && (ip_str.contains(&format!(":{}", config.daemon.proxy_port))
-                || ip_str.contains(&format!(":{}", config.daemon.api_port))
-                || ip_str.contains(&format!(":{}", config.daemon.dns_port))
-                || ip_str.contains(&format!(":{}", config.daemon.backend_port))
-                || ip_str.contains(&format!(":{}", config.network.daemon_port))
-                || ip_str.contains(":16001"))
+            && (original_port == config.daemon.proxy_port
+                || original_port == config.daemon.api_port
+                || original_port == config.daemon.dns_port
+                || original_port == config.daemon.backend_port
+                || original_port == config.network.daemon_port
+                || original_port == 16001)
         // PAC port
         {
             return Err(ProxyError::Other(
@@ -235,13 +248,14 @@ pub async fn forward_to_backend_direct(
 
         // Explicitly HTTP — no TLS to backend
         let formatted_host = if ip_addr.is_ipv6() {
-            format!("[{}]", ip_str)
+            format!("[{}]", ip_addr)
         } else {
-            ip_str.clone()
+            ip_addr.to_string()
         };
         let backend_url = format!(
-            "http://{}{}",
+            "http://{}:{}{}",
             formatted_host,
+            original_port,
             req.uri()
                 .path_and_query()
                 .map(|p| p.as_str())
@@ -250,6 +264,7 @@ pub async fn forward_to_backend_direct(
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
+            .no_proxy()
             .redirect(reqwest::redirect::Policy::none())
             .build()?;
 
@@ -276,8 +291,9 @@ pub async fn forward_to_backend_direct(
             resp_builder = resp_builder.header(name, value);
         }
 
-        let body = backend_resp.bytes().await?;
-        Ok(resp_builder.body(Full::new(body))?)
+        let body_stream = backend_resp.bytes_stream();
+        let body = axum::body::Body::from_stream(body_stream);
+        Ok(resp_builder.body(body)?)
     } else if let Ok(mut peer_id) = ip_str.parse::<libp2p::PeerId>() {
         // Transparently resolve HostRoutingRecord if this PeerId is a static infrastructure node
         if let Ok(Some(record)) = network_client
@@ -365,7 +381,7 @@ pub async fn forward_to_backend_direct(
             resp_builder = resp_builder.header(name.as_ref(), value.as_ref());
         }
 
-        Ok(resp_builder.body(Full::new(proxy_resp.body))?)
+        Ok(resp_builder.body(axum::body::Body::from(proxy_resp.body))?)
     } else {
         warn!(
             "Payload for {} is neither an IP address, SocketAddr, nor PeerId (got {:?})",

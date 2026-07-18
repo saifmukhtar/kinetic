@@ -142,10 +142,10 @@ mod tests {
         // Since it's rejected by the local Kademlia store (UnknownRecordType)
         // and remote nodes won't store it, it fails with AllFailed.
         match res.unwrap_err() {
-            kinetic_core::error::PublishError::AllFailed { .. } => {
+            kinetic_core::error::PublishError::Rejected(_) => {
                 // Success
             }
-            e => panic!("Expected AllFailed, got {:?}", e),
+            e => panic!("Expected Rejected, got {:?}", e),
         }
     }
 

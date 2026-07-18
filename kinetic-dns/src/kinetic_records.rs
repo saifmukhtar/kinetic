@@ -163,6 +163,14 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     kinetic_core::types::DnsRecord::A(ip)
                                         if q_type == hickory_proto::rr::RecordType::A =>
                                     {
+                                        if ip.is_loopback()
+                                            || ip.is_unspecified()
+                                            || ip.is_broadcast()
+                                            || ip.is_multicast()
+                                        {
+                                            warn!("Blocked SSRF attempt: A record points to forbidden IP {}", ip);
+                                            continue;
+                                        }
                                         response_records.push(Record::from_rdata(
                                             name.clone(),
                                             60,
@@ -172,6 +180,13 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     kinetic_core::types::DnsRecord::AAAA(ip)
                                         if q_type == hickory_proto::rr::RecordType::AAAA =>
                                     {
+                                        if ip.is_loopback()
+                                            || ip.is_unspecified()
+                                            || ip.is_multicast()
+                                        {
+                                            warn!("Blocked SSRF attempt: AAAA record points to forbidden IP {}", ip);
+                                            continue;
+                                        }
                                         response_records.push(Record::from_rdata(
                                             name.clone(),
                                             60,

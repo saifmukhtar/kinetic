@@ -9,10 +9,14 @@ fn test_006_sled_corruption_recovery() {
     let dir = tempdir().unwrap();
     let db_path = dir.path().join("storage_db");
 
-    // To guarantee sled::open fails, we create a directory where it expects its main database file
+    // To guarantee sled::open fails with a Corruption error, we write garbage data to the configuration file
     fs::create_dir_all(&db_path).unwrap();
-    let corrupt_file = db_path.join("db");
-    fs::create_dir(&corrupt_file).unwrap();
+    let corrupt_file = db_path.join("conf");
+    fs::write(
+        &corrupt_file,
+        b"this is completely invalid garbage data for sled",
+    )
+    .unwrap();
 
     // Under OLD logic, SledStorage::new would return an Err here and the daemon would crash/loop
     // Under NEW logic, SledStorage::new should catch the error, rename the dir to storage_db.corrupt.bak, and create a fresh db

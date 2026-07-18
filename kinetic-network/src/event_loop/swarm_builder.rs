@@ -59,6 +59,7 @@ impl super::core::NetworkEventLoop {
             })
             .expect("Valid websocket websys transport");
 
+        #[cfg(not(target_arch = "wasm32"))]
         let (control_tx, control_rx) = std::sync::mpsc::channel();
         let storage_clone = storage.clone();
         let mode = config.mode.clone();
@@ -87,7 +88,10 @@ impl super::core::NetworkEventLoop {
                         kinetic_core::constants::NETWORK_ID
                     ))
                     .unwrap()])
-                    .set_max_packet_size(10 * 1024);
+                    // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
+                    // This limit is deliberately set higher (100 KB) to safely accommodate
+                    // the 64 KB payload plus Kademlia/protobuf network routing overhead.
+                    .set_max_packet_size(100 * 1024);
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 if mode == NetworkMode::LightClient {
                     kademlia.set_mode(Some(kad::Mode::Client));
@@ -101,20 +105,26 @@ impl super::core::NetworkEventLoop {
                     libp2p::gossipsub::ConfigBuilder::default()
                         .heartbeat_interval(web_time::Duration::from_secs(10)) // Less frequent heartbeats (save battery)
                         .prune_backoff(web_time::Duration::from_secs(60))
-                        .mesh_n(2) // target mesh degree
-                        .mesh_n_low(1) // must be < mesh_n
-                        .mesh_n_high(4) // must be > mesh_n
-                        .mesh_outbound_min(1) // must be <= mesh_n_low and * 2 <= mesh_n
+                        .mesh_n(4) // target mesh degree
+                        .mesh_n_low(3) // must be < mesh_n
+                        .mesh_n_high(8) // must be > mesh_n
+                        .mesh_outbound_min(2) // must be <= mesh_n_low and * 2 <= mesh_n
                         .gossip_lazy(1)
                         .validation_mode(libp2p::gossipsub::ValidationMode::Strict)
-                        .max_transmit_size(10 * 1024)
+                        // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
+                        // This limit is deliberately set higher (100 KB) to safely accommodate
+                        // the 64 KB payload plus Gossipsub/protobuf network routing overhead.
+                        .max_transmit_size(100 * 1024)
                         .build()
                         .expect("Valid gossipsub config")
                 } else {
                     // Case 184: Gossipsub CPU DoS Protection. Use Strict validation to quickly penalize invalid sigs
                     libp2p::gossipsub::ConfigBuilder::default()
                         .validation_mode(libp2p::gossipsub::ValidationMode::Strict)
-                        .max_transmit_size(10 * 1024)
+                        // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
+                        // This limit is deliberately set higher (100 KB) to safely accommodate
+                        // the 64 KB payload plus Gossipsub/protobuf network routing overhead.
+                        .max_transmit_size(100 * 1024)
                         .build()
                         .expect("Valid gossipsub config")
                 };
@@ -183,15 +193,15 @@ impl super::core::NetworkEventLoop {
                         libp2p::relay::Behaviour::new(
                             peer_id,
                             libp2p::relay::Config {
-                                max_circuits: 16,
-                                max_circuits_per_peer: 4,
+                                max_circuits: 512,
+                                max_circuits_per_peer: 2,
                                 circuit_src_rate_limiters: vec![],
                                 max_circuit_duration: std::time::Duration::from_secs(2 * 60),
                                 max_circuit_bytes: 1024 * 1024 * 4,
                                 reservation_rate_limiters: vec![],
-                                max_reservations: 128,
-                                max_reservations_per_peer: 4,
-                                reservation_duration: std::time::Duration::from_secs(60 * 60),
+                                max_reservations: 1024,
+                                max_reservations_per_peer: 2,
+                                reservation_duration: std::time::Duration::from_secs(5 * 60),
                             },
                         ),
                     ))
@@ -224,7 +234,7 @@ impl super::core::NetworkEventLoop {
                     c.with_idle_connection_timeout(web_time::Duration::from_secs(60))
                 // Aggressive power saving for mobile
                 } else {
-                    c.with_idle_connection_timeout(web_time::Duration::from_secs(30 * 24 * 3600))
+                    c.with_idle_connection_timeout(web_time::Duration::from_secs(300))
                 }
             })
             .build();
@@ -292,7 +302,7 @@ impl super::core::NetworkEventLoop {
             startup_time: web_time::Instant::now(),
             disable_pow: config.disable_pow,
             banned_peers: {
-                let mut peers = rustc_hash::FxHashSet::default();
+                let mut peers = rustc_hash::FxHashMap::default();
                 if let Ok(iter) = storage.scan_prefix(b"kinetic_banned_peer:") {
                     for (key_bytes, val_bytes) in iter {
                         if key_bytes.len() > 20 {
@@ -307,7 +317,9 @@ impl super::core::NetworkEventLoop {
                                             .unwrap_or_default()
                                             .as_secs();
                                         if expire > now {
-                                            peers.insert(peer_id);
+                                            peers.insert(peer_id, expire);
+                                        } else {
+                                            let _ = storage.delete(&key_bytes);
                                         }
                                     }
                                 }
@@ -318,7 +330,7 @@ impl super::core::NetworkEventLoop {
                 peers
             },
             seed_domains: config.seed_domains.clone(),
-            commitment_miss_counts: rustc_hash::FxHashMap::default(),
+
             bootstrap_connection_time: rustc_hash::FxHashMap::default(),
             nat_status: "Unknown".to_string(),
         };
@@ -327,6 +339,7 @@ impl super::core::NetworkEventLoop {
     }
 
     #[doc(hidden)]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_test_node(
         config: NetworkConfig,
         local_key: libp2p::identity::Keypair,
@@ -448,7 +461,7 @@ impl super::core::NetworkEventLoop {
             disable_pow: config.disable_pow,
             banned_peers: Default::default(),
             seed_domains: vec![],
-            commitment_miss_counts: Default::default(),
+
             bootstrap_connection_time: Default::default(),
             nat_status: "Unknown".to_string(),
         };

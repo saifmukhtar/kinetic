@@ -90,14 +90,28 @@ pub async fn handle_incoming_proxy_requests(
 
             let proxy_res = match builder.send().await {
                 Ok(res) => {
-                    let status = res.status().as_u16();
+                    let mut status = res.status().as_u16();
                     let mut res_headers = Vec::new();
                     for (k, v) in res.headers() {
                         if let Ok(v_str) = v.to_str() {
                             res_headers.push((k.as_str().into(), v_str.into()));
                         }
                     }
-                    let body = res.bytes().await.unwrap_or_default().to_vec();
+                    use futures_util::StreamExt;
+                    let mut body = Vec::new();
+                    let mut stream = res.bytes_stream();
+                    while let Some(chunk_res) = stream.next().await {
+                        if let Ok(chunk) = chunk_res {
+                            body.extend_from_slice(&chunk);
+                            if body.len() > 5 * 1024 * 1024 {
+                                tracing::warn!("Blocked oversized P2P backend response (>5MB)");
+                                body.clear();
+                                body.extend_from_slice(b"Payload Too Large");
+                                status = 502; // Or 413
+                                break;
+                            }
+                        }
+                    }
                     ProxyResponse {
                         status,
                         headers: res_headers,

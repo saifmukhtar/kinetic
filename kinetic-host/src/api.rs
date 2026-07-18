@@ -12,9 +12,9 @@ pub async fn start_health_api(host_peer_id: libp2p::PeerId) -> Result<()> {
         );
 
     let api_port = 16004;
-    let addr = SocketAddr::from(([0, 0, 0, 0], api_port));
+    let addr = SocketAddr::from(([127, 0, 0, 1], api_port));
     info!(
-        "Node Health-check API listening on http://0.0.0.0:{}",
+        "Host Health-check API listening on http://127.0.0.1:{}",
         api_port
     );
     let listener = tokio::net::TcpListener::bind(addr).await?;

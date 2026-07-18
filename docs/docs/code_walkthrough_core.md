@@ -12,7 +12,7 @@ The `kinetic-core` crate acts as the shared dictionary for the entire workspace.
 
 Located in `kinetic-core/src/types.rs`, the ownership lifecycle is governed by two structs: `CommitRequest` and `Reveal`.
 
-#### Phase 1: The Commitment
+#### Phase 1: The Commitment (Broadcast post-grind)
 ```rust
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct CommitRequest {
@@ -22,7 +22,7 @@ pub struct CommitRequest {
     pub pubkey: Vec<u8>,
 }
 ```
-This lightweight struct is broadcast instantly. The `salt` ensures that if two users attempt to register the exact same name at the exact same time, their commitment hashes are completely distinct, preventing one from copying the other's VDF.
+This lightweight struct is generated locally before the VDF starts, but is broadcast only after the VDF finishes. The `salt` ensures that if two users attempt to register the exact same name at the exact same time, their commitment hashes are completely distinct, preventing one from copying the other's VDF.
 
 #### Phase 2: The Reveal
 ```rust

@@ -119,6 +119,7 @@ impl ProxyConfigurator for KdeConfigurator {
         Ok(SavedState {
             previous_pac_url: pac_url,
             proxy_type: proxy_type.or(Some("0".to_string())),
+            macos_services: None,
         })
     }
 
@@ -203,9 +204,38 @@ impl ProxyConfigurator for GnomeConfigurator {
     }
 
     fn save_previous_state(&self) -> Result<SavedState, ProxyConfigError> {
+        let proxy_type = Command::new("gsettings")
+            .args(["get", "org.gnome.system.proxy", "mode"])
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    String::from_utf8(o.stdout).ok()
+                } else {
+                    None
+                }
+            })
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+
+        let pac_url = Command::new("gsettings")
+            .args(["get", "org.gnome.system.proxy", "autoconfig-url"])
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    String::from_utf8(o.stdout).ok()
+                } else {
+                    None
+                }
+            })
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && s != "''");
+
         Ok(SavedState {
-            previous_pac_url: None,
-            proxy_type: Some("'none'".to_string()),
+            previous_pac_url: pac_url,
+            proxy_type,
+            macos_services: None,
         })
     }
 
@@ -217,12 +247,11 @@ impl ProxyConfigurator for GnomeConfigurator {
         }
         if let Some(ref pac_url) = state.previous_pac_url {
             let _ = Command::new("gsettings")
-                .args([
-                    "set",
-                    "org.gnome.system.proxy",
-                    "autoconfig-url",
-                    &format!("'{}'", pac_url),
-                ])
+                .args(["set", "org.gnome.system.proxy", "autoconfig-url", pac_url])
+                .status();
+        } else {
+            let _ = Command::new("gsettings")
+                .args(["set", "org.gnome.system.proxy", "autoconfig-url", "''"])
                 .status();
         }
         Ok(())

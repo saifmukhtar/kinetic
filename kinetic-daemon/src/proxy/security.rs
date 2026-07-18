@@ -44,6 +44,9 @@ pub(crate) fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
             false
         }
         std::net::IpAddr::V6(v6) => {
+            if let Some(v4) = v6.to_ipv4() {
+                return is_ssrf_risk(std::net::IpAddr::V4(v4));
+            }
             let segments = v6.segments();
             // fc00::/7 (Unique local)
             if (segments[0] & 0xfe00) == 0xfc00 {
@@ -51,6 +54,14 @@ pub(crate) fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
             }
             // fe80::/10 (Link-local)
             if (segments[0] & 0xffc0) == 0xfe80 {
+                return true;
+            }
+            // 2001::/32 (Teredo)
+            if segments[0] == 0x2001 && segments[1] == 0 {
+                return true;
+            }
+            // 2002::/16 (6to4)
+            if segments[0] == 0x2002 {
                 return true;
             }
             false

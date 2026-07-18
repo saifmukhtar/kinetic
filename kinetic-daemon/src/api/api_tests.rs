@@ -15,9 +15,7 @@ mod tests {
     use tower::ServiceExt;
 
     fn get_test_token() -> String {
-        std::fs::read_to_string(kinetic_core::config::get_api_token_path())
-            .map(|t| t.trim().to_string())
-            .unwrap_or_else(|_| "test-token-123".to_string())
+        "test-token-123".to_string()
     }
 
     async fn setup_test_app() -> (axum::Router, mpsc::Receiver<Command>, Arc<SledStorage>) {

@@ -116,7 +116,7 @@ Once running, the daemon logs will confirm it has connected to the bootstrap DHT
 
 ### Step 2: Register Your Name (Two-Phase Protocol)
 
-Kinetic uses a **Commit → Grind → Reveal** protocol to prevent front-running. No one can snipe your name during the VDF computation because the commitment is blind.
+Kinetic uses a **Grind → Commit → Reveal** protocol to prevent front-running. No one can snipe your name because the commitment is blind and is published only after the VDF work is done.
 
 #### Phase 1: Commit & Grind
 
@@ -125,9 +125,8 @@ kinetic register example.kin
 ```
 
 What happens:
-1. The CLI fetches the latest `drand` Quicknet pulse (the randomness beacon)
-2. Hashes your name + random salt + drand pulse + your Ed25519 public key into a blind commitment and broadcasts it to the DHT instantly
-3. Starts the VDF computation — your CPU will run at full load. Time depends on name length:
+1. The CLI fetches the latest `drand` Quicknet pulse (the randomness beacon) to use as the starting seed.
+2. Starts the VDF computation — your CPU will run at full load. Time depends on name length:
 
 | Name length | Approximate time |
 |---|---|
@@ -136,7 +135,9 @@ What happens:
 | 5 characters | ~1 day |
 | 4 characters | ~15 days |
 
-4. When done, saves your proof to `~/.config/kinetic/zones/example.kin.reveal.json`
+3. When the math is done, it hashes your name + random salt + drand pulse + your Ed25519 public key into a blind commitment and broadcasts it to the DHT.
+4. Waits exactly 32 seconds to mathematically lock the front-running barrier.
+5. Saves your proof to `~/.config/kinetic/zones/example.kin.reveal.json`
 
 #### Phase 2: Configure & Publish
 

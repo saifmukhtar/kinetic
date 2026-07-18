@@ -78,6 +78,7 @@ impl From<PublishError> for ApiError {
             PublishError::InvalidProof(_) => (400, "Invalid VDF Proof"),
             PublishError::AlreadyOwned { .. } => (409, "Name Already Owned"),
             PublishError::AllFailed { .. } => (503, "Publish Failed"),
+            PublishError::Rejected(_) => (422, "Publish Rejected"),
             PublishError::Internal { .. } => (500, "Internal Publish Error"),
         };
         ApiError {

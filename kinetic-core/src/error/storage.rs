@@ -44,8 +44,19 @@ impl StorageError {
         matches!(self, Self::OperationFailed(_))
     }
 
-    /// Returns the `Display` representation as the user-facing message.
+    /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
-        self.to_string()
+        match self {
+            Self::DatabaseLocked => {
+                "Another instance of Kinetic daemon is already running (Database is locked)."
+                    .to_string()
+            }
+            Self::Corruption(_) => {
+                "Storage corruption detected. The local database may need to be reset.".to_string()
+            }
+            Self::OperationFailed(_) => {
+                "A read or write operation failed on the local storage.".to_string()
+            }
+        }
     }
 }

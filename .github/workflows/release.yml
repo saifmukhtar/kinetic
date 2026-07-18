@@ -108,6 +108,16 @@ jobs:
         cp target/release/${{ matrix.keygen_artifact }} target/release/${{ matrix.keygen_asset }}
         cp target/release/${{ matrix.dns_artifact }} target/release/${{ matrix.dns_asset }}
 
+    - name: Generate Checksums
+      shell: bash
+      run: |
+        cd target/release
+        if command -v sha256sum >/dev/null 2>&1; then
+          sha256sum ${{ matrix.asset_name }} ${{ matrix.cli_asset }} ${{ matrix.node_asset }} ${{ matrix.host_asset }} ${{ matrix.keygen_asset }} ${{ matrix.dns_asset }} > checksums-${{ matrix.os }}.txt
+        else
+          shasum -a 256 ${{ matrix.asset_name }} ${{ matrix.cli_asset }} ${{ matrix.node_asset }} ${{ matrix.host_asset }} ${{ matrix.keygen_asset }} ${{ matrix.dns_asset }} > checksums-${{ matrix.os }}.txt
+        fi
+
     - name: Upload Binary to Release
       uses: softprops/action-gh-release@v1
       with:
@@ -118,5 +128,6 @@ jobs:
           target/release/${{ matrix.host_asset }}
           target/release/${{ matrix.keygen_asset }}
           target/release/${{ matrix.dns_asset }}
+          target/release/checksums-${{ matrix.os }}.txt
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

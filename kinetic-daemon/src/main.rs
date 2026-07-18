@@ -212,6 +212,15 @@ fn stop_background_service() -> Result<()> {
 }
 
 async fn run_daemon() -> Result<()> {
+    if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
+        tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");
+        tracing::error!(
+            "The network cannot boot in production mode with a bricked governance plane."
+        );
+        tracing::error!("Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}", e);
+        std::process::exit(1);
+    }
+
     let config = KineticConfig::load();
 
     if config.daemon.backend_port == config.daemon.api_port
@@ -441,11 +450,11 @@ async fn run_daemon() -> Result<()> {
         let mut server = hickory_server::ServerFuture::new(dns_handler);
 
         let udp_socket =
-            tokio::net::UdpSocket::bind(format!("0.0.0.0:{}", config.daemon.dns_port)).await?;
+            tokio::net::UdpSocket::bind(format!("127.0.0.1:{}", config.daemon.dns_port)).await?;
         server.register_socket(udp_socket);
 
         let tcp_listener =
-            tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.daemon.dns_port)).await?;
+            tokio::net::TcpListener::bind(format!("127.0.0.1:{}", config.daemon.dns_port)).await?;
         server.register_listener(tcp_listener, std::time::Duration::from_secs(5));
 
         tokio::spawn(async move {

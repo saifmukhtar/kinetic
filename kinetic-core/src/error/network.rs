@@ -75,8 +75,18 @@ impl NetworkClientError {
         )
     }
 
-    /// Returns the `Display` representation as the user-facing message.
+    /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
-        self.to_string()
+        match self {
+            Self::Timeout => "The network request timed out.".to_string(),
+            Self::Offline => "The node is offline or unreachable.".to_string(),
+            Self::RoutingTableEmpty => "The Kademlia routing table is empty.".to_string(),
+            Self::ChannelClosed => "Internal channel closed.".to_string(),
+            Self::StreamDropped => "Stream dropped by peer.".to_string(),
+            Self::UnsupportedProtocol => "Unsupported protocol.".to_string(),
+            Self::GossipSubError(_) => "A GossipSub operation failed.".to_string(),
+            Self::StoreError(_) => "Kademlia store error.".to_string(),
+            Self::Other(_) => "A network error occurred.".to_string(),
+        }
     }
 }

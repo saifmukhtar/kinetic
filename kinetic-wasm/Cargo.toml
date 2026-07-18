@@ -24,6 +24,7 @@ console_error_panic_hook = "0.1"
 kinetic-core = { path = "../kinetic-core" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
+kinetic-vdf = { path = "../kinetic-vdf" }
 
 # External crates
 libp2p = { version = "0.53.2", default-features = false }

@@ -11,7 +11,7 @@ async fn test_client_payload_size_limits() {
     let (tx, _rx) = mpsc::channel(32);
     let client = NetworkClient::new_mock(tx);
 
-    let large_payload = vec![0u8; 8001]; // Exceeds 8000 bytes limit
+    let large_payload = vec![0u8; 80_001]; // Exceeds 80000 bytes limit
 
     let result = client
         .publish_redundant_payload("large_test", large_payload)
@@ -19,7 +19,7 @@ async fn test_client_payload_size_limits() {
     assert!(result.is_err());
 
     if let Err(PublishError::Internal { message, .. }) = result {
-        assert!(message.contains("8000-byte"));
+        assert!(message.contains("80000-byte"));
     } else {
         panic!(
             "Expected PublishError::Internal with size limit message, got {:?}",

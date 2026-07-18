@@ -31,6 +31,7 @@ pbkdf2 = "0.13.0"
 drand-verify = "0.6.2"
 kinetic-kid = { version = "0.1.0", path = "../kinetic-kid" }
 bytes = "1.6.0"
+zeroize = { version = "1", features = ["zeroize_derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 directories = "6.0.0"
@@ -55,9 +56,6 @@ harness = false
 name = "names_bench"
 harness = false
 
-[[bin]]
-name = "bin_test"
-path = "src/bin_test.rs"
 
 [build-dependencies]
 serde = { version = "1.0.228", features = ["derive"] }

@@ -3,7 +3,6 @@ set -e
 
 # Hide cursor
 tput civis
-trap "tput cnorm" EXIT
 
 # Colors
 CYAN='\033[0;36m'
@@ -143,9 +142,16 @@ select_multi_menu() {
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 ASSET_SUFFIX=""
-if [ "$OS" = "Linux" ]; then ASSET_SUFFIX="linux"
-elif [ "$OS" = "Darwin" ]; then ASSET_SUFFIX="macos"
-else echo "Unsupported OS"; exit 1; fi
+CHECKSUM_FILE=""
+if [ "$OS" = "Linux" ]; then 
+    ASSET_SUFFIX="linux"
+    CHECKSUM_FILE="checksums-ubuntu-latest.txt"
+elif [ "$OS" = "Darwin" ]; then 
+    ASSET_SUFFIX="macos"
+    CHECKSUM_FILE="checksums-macos-latest.txt"
+else 
+    echo "Unsupported OS"; exit 1; 
+fi
 
 # 2. Check existing
 EXISTING_BINS=()
@@ -237,12 +243,26 @@ tput cnorm
 echo -e "${YELLOW}Installing: ${BINS_TO_INSTALL[*]}${NC}"
 sudo -v
 
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"; tput cnorm' EXIT
+
+echo "Downloading checksums..."
+curl -sL "https://github.com/saifmukhtar/kinetic/releases/latest/download/$CHECKSUM_FILE" -o "$TMP_DIR/checksums.txt"
+
 for bin in "${BINS_TO_INSTALL[@]}"; do
     echo "Downloading $bin..."
-    curl -sL "https://github.com/saifmukhtar/kinetic/releases/latest/download/$bin-$ASSET_SUFFIX" -o "/tmp/$bin"
-    sudo cp "/tmp/$bin" "/usr/local/bin/$bin"
-    sudo chmod +x "/usr/local/bin/$bin"
-    rm -f "/tmp/$bin"
+    curl -sL "https://github.com/saifmukhtar/kinetic/releases/latest/download/$bin-$ASSET_SUFFIX" -o "$TMP_DIR/$bin-$ASSET_SUFFIX"
+
+    echo "Verifying checksum for $bin..."
+    if command -v sha256sum >/dev/null 2>&1; then
+        grep "$bin-$ASSET_SUFFIX" "$TMP_DIR/checksums.txt" | (cd "$TMP_DIR" && sha256sum -c -)
+    else
+        grep "$bin-$ASSET_SUFFIX" "$TMP_DIR/checksums.txt" | (cd "$TMP_DIR" && shasum -a 256 -c -)
+    fi
+
+    sudo mv "$TMP_DIR/$bin-$ASSET_SUFFIX" "/usr/local/bin/$bin"
+    sudo chown root:root "/usr/local/bin/$bin"
+    sudo chmod 755 "/usr/local/bin/$bin"
 
     if [[ "$bin" != "kinetic" ]]; then
         sudo "/usr/local/bin/$bin" install

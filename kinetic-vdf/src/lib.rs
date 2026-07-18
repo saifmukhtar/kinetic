@@ -16,7 +16,7 @@
 //! [`VdfError::UnsupportedPlatform`] because native compilation of chiavdf is
 //! not supported in that environment.
 //!
-//! A filesystem lock (`/tmp/kinetic_vdf.lock`) is acquired before each
+//! A filesystem lock (in `dirs::runtime_dir()`) is acquired before each
 //! evaluation to prevent concurrent VDF computations from saturating all CPU
 //! cores simultaneously.
 
@@ -154,8 +154,7 @@ impl VdfEngine for ChiaVdfEngine {
         _proof: &VdfProof,
         _iterations: u64,
     ) -> Result<bool, VdfError> {
-        // Stubbed out for WebAssembly Light Node (assume true)
-        Ok(true)
+        Err(VdfError::UnsupportedPlatform)
     }
 }
 

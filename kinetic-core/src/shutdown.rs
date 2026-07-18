@@ -1,7 +1,7 @@
 use tracing::info;
 
 /// A cross-platform future that resolves when a shutdown signal is received.
-/// Listens for both Ctrl+C (SIGINT) and SIGTERM (Unix).
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn shutdown_signal() {
     let ctrl_c = async {
         tokio::signal::ctrl_c()
@@ -28,4 +28,11 @@ pub async fn shutdown_signal() {
             info!("SIGTERM received, starting graceful shutdown");
         },
     }
+}
+
+/// A cross-platform future that resolves when a shutdown signal is received.
+/// On WebAssembly, this returns a pending future that never resolves.
+#[cfg(target_arch = "wasm32")]
+pub async fn shutdown_signal() {
+    std::future::pending::<()>().await
 }

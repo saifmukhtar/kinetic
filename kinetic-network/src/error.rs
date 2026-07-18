@@ -69,6 +69,9 @@ pub enum KineticStoreError {
     /// Missing prior commitment in DHT
     #[error("no prior commitment found in DHT")]
     MissingCommitment,
+    /// Invalid apex domain name
+    #[error("the provided name is not a valid kinetic apex domain")]
+    InvalidName,
 }
 
 impl KineticStoreError {
@@ -93,7 +96,8 @@ impl KineticStoreError {
             | Self::StaleHeartbeat
             | Self::InvalidHostRouteSignature
             | Self::StaleReveal
-            | Self::MissingCommitment => Severity::Error,
+            | Self::MissingCommitment
+            | Self::InvalidName => Severity::Error,
         }
     }
 

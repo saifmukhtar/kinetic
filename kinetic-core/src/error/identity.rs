@@ -66,8 +66,17 @@ impl IdentityError {
         false
     }
 
-    /// Returns the `Display` representation as the user-facing message.
+    /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
-        self.to_string()
+        match self {
+            Self::Io(_) => {
+                "An I/O error occurred while reading or writing the identity file.".to_string()
+            }
+            Self::CorruptedIdentityFile(_) => {
+                "The identity file is corrupted and cannot be used.".to_string()
+            }
+            Self::IdentityNotFound(_) => "The identity file could not be found.".to_string(),
+            Self::InvalidSeedPhrase(_) => "The provided seed phrase is invalid.".to_string(),
+        }
     }
 }
