@@ -211,13 +211,24 @@ Name and identity are strictly separated. If ownership transfers, the name point
 
 ## 🖥️ Client Ecosystem
 
-Client apps live in **[saifmukhtar/kinetic-client](https://github.com/saifmukhtar/kinetic-client)**:
+The front-end client ecosystem allows users to easily install and use Kinetic directly with zero configuration. It lives in **[saifmukhtar/kinetic-client](https://github.com/saifmukhtar/kinetic-client)**:
 
-- **Desktop** — Tauri v2 + React native app (macOS, Linux, Windows)
-- **Mobile** — Flutter app (Android, iOS) with Rust FFI via `flutter_rust_bridge`
-- **Browser Extension** — Chrome / Firefox native `.kin` resolution
+- **Desktop App** — Tauri v2 + React native application (macOS, Linux, Windows). Features a one-click installer for the entire Kinetic suite.
+- **Mobile App** — Flutter application (Android, iOS) with Rust FFI via `flutter_rust_bridge`.
+- **Browser Extension** — Chrome / Firefox extension for native `.kin` resolution.
 
 > The client ecosystem is under active development.
+
+---
+
+## 🧰 Developer SDKs
+
+The official SDKs for building applications on top of the Kinetic network live in **[saifmukhtar/kinetic-sdk](https://github.com/saifmukhtar/kinetic-sdk)**:
+
+- **Rust SDK** — Native high-performance bindings.
+- **TypeScript SDK** — Web and Node.js integrations.
+
+> The SDKs provide a seamless way to query names, resolve identities, and manage your Kinetic resources programmatically.
 
 ---
 
