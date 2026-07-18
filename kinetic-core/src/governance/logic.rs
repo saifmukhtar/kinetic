@@ -173,7 +173,7 @@ impl GovernanceState {
         let mut matured_hashes = Vec::new();
 
         for (hash, (broadcast_time, wait_time, mirrors)) in &self.pending_updates {
-            if current_time_sec >= *broadcast_time + *wait_time {
+            if current_time_sec >= broadcast_time.saturating_add(*wait_time) {
                 matured_hashes.push((*hash, mirrors.clone()));
             }
         }

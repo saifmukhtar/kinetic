@@ -45,7 +45,8 @@ impl KineticRecordStore {
         let mut last_heartbeats_by_name = HashMap::new();
 
         // Restore state from sled
-        if let Ok(iter) = storage.scan_prefix(KRS_REVEAL_PREFIX) {
+        // Added limit to prevent memory exhaustion
+        if let Ok(iter) = storage.scan_prefix(KRS_REVEAL_PREFIX, Some(max_reveals_per_hour)) {
             for (key_bytes, val_bytes) in iter {
                 let prefix_len = KRS_REVEAL_PREFIX.len();
                 if key_bytes.len() <= prefix_len {
@@ -107,7 +108,7 @@ impl KineticRecordStore {
             }
         }
 
-        if let Ok(iter) = storage.scan_prefix(KRS_HB_PREFIX) {
+        if let Ok(iter) = storage.scan_prefix(KRS_HB_PREFIX, None) {
             for (key_bytes, val_bytes) in iter {
                 let prefix_len = KRS_HB_PREFIX.len();
                 if key_bytes.len() <= prefix_len {
@@ -152,7 +153,7 @@ impl KineticRecordStore {
         let mut keys_to_delete = Vec::new();
 
         // 1. Scan and Prune Commitments from Sled
-        if let Ok(iter) = self.storage.scan_prefix(KRS_COMMIT_PREFIX) {
+        if let Ok(iter) = self.storage.scan_prefix(KRS_COMMIT_PREFIX, None) {
             for (key_bytes, val_bytes) in iter {
                 if val_bytes.len() == 8 {
                     let round = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));

@@ -21,11 +21,11 @@ mod tests {
             let mut records = HashMap::new();
             records.insert(
                 "@".to_string(),
-                vec![DnsRecord::A("192.168.1.100".parse().unwrap())],
+                vec![DnsRecord::A("93.184.216.34".parse().unwrap())],
             );
             records.insert(
                 "www".to_string(),
-                vec![DnsRecord::A("192.168.1.101".parse().unwrap())],
+                vec![DnsRecord::A("93.184.216.35".parse().unwrap())],
             );
 
             let zone = DnsZone { records };
@@ -97,7 +97,7 @@ mod tests {
         assert_eq!(answers.len(), 1);
 
         if let Some(hickory_proto::rr::RData::A(ipv4)) = answers[0].data() {
-            assert_eq!(ipv4.to_string(), "192.168.1.100");
+            assert_eq!(ipv4.to_string(), "93.184.216.34");
         } else {
             panic!("Expected A record");
         }

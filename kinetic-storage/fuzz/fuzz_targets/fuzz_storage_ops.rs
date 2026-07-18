@@ -41,7 +41,7 @@ fuzz_target!(|data: &[u8]| {
             let _ = storage.delete(payload);
         }
         _ => {
-            let _ = storage.scan_prefix(payload);
+            let _ = storage.scan_prefix(payload, None);
         }
     }
 });

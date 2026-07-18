@@ -55,20 +55,13 @@ impl AuthorizedManifest {
 pub fn load_keypair(
     filename: &str,
 ) -> Result<ed25519_dalek::SigningKey, crate::error::IdentityError> {
-    use directories::ProjectDirs;
     use std::fs;
     use std::path::PathBuf;
 
     let key_path = std::env::var("KINETIC_KEY_PATH")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
-            ProjectDirs::from("com", "kinetic", "kinetic")
-                .map(|d| d.config_dir().join(filename))
-                .unwrap_or_else(|| {
-                    std::env::current_dir()
-                        .unwrap_or_else(|_| PathBuf::from("."))
-                        .join(format!(".kinetic/{}", filename))
-                })
+            crate::config::get_base_dir().join(filename)
         });
 
     if key_path.exists() {
@@ -98,7 +91,6 @@ pub fn save_keypair_from_mnemonic(
     phrase: &str,
 ) -> Result<ed25519_dalek::SigningKey, crate::error::IdentityError> {
     use bip39::{Language, Mnemonic};
-    use directories::ProjectDirs;
     use pbkdf2::pbkdf2_hmac;
     use sha2::{Digest, Sha256, Sha512};
     use std::fs::{self, OpenOptions};
@@ -127,13 +119,7 @@ pub fn save_keypair_from_mnemonic(
     let key_path = std::env::var("KINETIC_KEY_PATH")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
-            ProjectDirs::from("com", "kinetic", "kinetic")
-                .map(|d| d.config_dir().join(filename))
-                .unwrap_or_else(|| {
-                    std::env::current_dir()
-                        .unwrap_or_else(|_| PathBuf::from("."))
-                        .join(format!(".kinetic/{}", filename))
-                })
+            crate::config::get_base_dir().join(filename)
         });
 
     if let Some(parent) = key_path.parent() {

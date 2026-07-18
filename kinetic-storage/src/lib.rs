@@ -82,10 +82,15 @@ mod native {
     }
 
     impl StorageEngine for SledStorage {
-        fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+        fn scan_prefix(&self, prefix: &[u8], limit: Option<usize>) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
             let iter = self.db.scan_prefix(prefix);
             let mut results = Vec::new();
             for item in iter {
+                if let Some(l) = limit {
+                    if results.len() >= l {
+                        break;
+                    }
+                }
                 let (k, v) = item.map_err(|e| StorageError::OperationFailed(e.to_string()))?;
                 results.push((k.to_vec(), v.to_vec()));
             }
@@ -150,13 +155,18 @@ mod wasm {
     }
 
     impl StorageEngine for SledStorage {
-        fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+        fn scan_prefix(&self, prefix: &[u8], limit: Option<usize>) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
             let db = self
                 .db
                 .read()
                 .map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
             let mut results = Vec::new();
             for (k, v) in db.range(prefix.to_vec()..) {
+                if let Some(l) = limit {
+                    if results.len() >= l {
+                        break;
+                    }
+                }
                 if k.starts_with(prefix) {
                     results.push((k.clone(), v.clone()));
                 } else {
@@ -227,7 +237,7 @@ mod tests {
         storage.put(b"prefix:2", b"val2").unwrap();
         storage.put(b"other:1", b"val3").unwrap();
 
-        let mut results = storage.scan_prefix(b"prefix:").unwrap();
+        let mut results = storage.scan_prefix(b"prefix:", None).unwrap();
         results.sort();
 
         assert_eq!(results.len(), 2);

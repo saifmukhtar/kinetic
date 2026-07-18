@@ -36,4 +36,7 @@ pub enum KidError {
     /// The manifest signature was produced by a key not listed in the KID document.
     #[error("Manifest signed by unauthorized key")]
     UnauthorizedManifestSignature,
+    /// The document contains too many keys or endpoints, exceeding maximum bounds.
+    #[error("Document exceeds maximum size bounds (DoS protection)")]
+    TooManyKeys,
 }

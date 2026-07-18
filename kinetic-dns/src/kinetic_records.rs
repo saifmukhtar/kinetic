@@ -167,6 +167,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             || ip.is_unspecified()
                                             || ip.is_broadcast()
                                             || ip.is_multicast()
+                                            || ip.is_private()
+                                            || ip.is_link_local()
+                                            || ip.is_documentation()
                                         {
                                             warn!("Blocked SSRF attempt: A record points to forbidden IP {}", ip);
                                             continue;
@@ -180,9 +183,23 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     kinetic_core::types::DnsRecord::AAAA(ip)
                                         if q_type == hickory_proto::rr::RecordType::AAAA =>
                                     {
+                                        let is_ula = ip.segments()[0] & 0xfe00 == 0xfc00;
+                                        let is_link_local = ip.segments()[0] & 0xffc0 == 0xfe80;
+                                        let is_ipv4_forbidden = ip.to_ipv4().map_or(false, |v4| {
+                                            v4.is_loopback()
+                                                || v4.is_private()
+                                                || v4.is_link_local()
+                                                || v4.is_unspecified()
+                                                || v4.is_broadcast()
+                                                || v4.is_documentation()
+                                        });
+
                                         if ip.is_loopback()
                                             || ip.is_unspecified()
                                             || ip.is_multicast()
+                                            || is_ula
+                                            || is_link_local
+                                            || is_ipv4_forbidden
                                         {
                                             warn!("Blocked SSRF attempt: AAAA record points to forbidden IP {}", ip);
                                             continue;

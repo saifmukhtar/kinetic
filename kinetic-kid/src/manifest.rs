@@ -56,6 +56,10 @@ impl CapabilityManifest {
 
     /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document.
     pub fn verify(&self, kid_document: &KidDocument) -> Result<(), KidError> {
+        if kid_document.controller_keys.len() > 20 {
+            return Err(KidError::TooManyKeys);
+        }
+
         if self.kid != kid_document.kid {
             return Err(KidError::UnauthorizedManifestSignature);
         }

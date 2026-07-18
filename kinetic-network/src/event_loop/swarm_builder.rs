@@ -303,7 +303,7 @@ impl super::core::NetworkEventLoop {
             disable_pow: config.disable_pow,
             banned_peers: {
                 let mut peers = rustc_hash::FxHashMap::default();
-                if let Ok(iter) = storage.scan_prefix(b"kinetic_banned_peer:") {
+                if let Ok(iter) = storage.scan_prefix(b"kinetic_banned_peer:", None) {
                     for (key_bytes, val_bytes) in iter {
                         if key_bytes.len() > 20 {
                             if let Ok(peer_id_str) = std::str::from_utf8(&key_bytes[20..]) {

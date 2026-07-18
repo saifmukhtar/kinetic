@@ -119,9 +119,7 @@ fn install_service(user: Option<String>, config_dir_opt: Option<String>) -> Resu
     let base_config_dir = if let Some(dir) = config_dir_opt {
         std::path::PathBuf::from(dir)
     } else {
-        dirs::config_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("kinetic")
+        kinetic_core::config::get_base_dir()
     };
     std::fs::create_dir_all(&base_config_dir)?;
 
@@ -316,9 +314,7 @@ async fn run_daemon() -> Result<()> {
         disable_pow: false,
     };
 
-    let base_config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic");
+    let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
     let gov_state_path = std::sync::Arc::new(base_config_dir.join("governance_state.bin"));
@@ -371,9 +367,7 @@ async fn run_daemon() -> Result<()> {
         drand_pulse_tx.clone(),
     );
 
-    let base_config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic");
+    let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
     let root_ca = match ca::load_or_create_root_ca(&base_config_dir) {

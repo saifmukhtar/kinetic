@@ -69,6 +69,10 @@ impl KidDocument {
     /// This requires parsing the signature, canonicalizing the doc, and trying the controller keys.
     /// In v1, it must be signed by at least one valid Ed25519 controller key.
     pub fn verify(&self) -> Result<(), KidError> {
+        if self.controller_keys.len() > 20 {
+            return Err(KidError::TooManyKeys);
+        }
+
         let sig_b64 = self.signature.as_ref().ok_or(KidError::MissingSignature)?;
         let sig_bytes = b64_url.decode(sig_b64)?;
 

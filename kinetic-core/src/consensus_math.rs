@@ -94,7 +94,7 @@ impl ConsensusParams {
 
     /// Calculate the cost to steal a name based on how long it has been offline
     pub fn steal_difficulty(&self, base_iterations: u64, rounds_idle: u64) -> u64 {
-        let idle_plus = (rounds_idle + 1) as u128;
+        let idle_plus = rounds_idle.saturating_add(1) as u128;
         let target_rounds = self.steal_target_rounds as u128;
 
         let multiplier = if target_rounds > idle_plus {

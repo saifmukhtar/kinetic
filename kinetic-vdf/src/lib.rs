@@ -57,8 +57,9 @@ impl VdfEngine for ChiaVdfEngine {
         // evaluations from starving all CPU cores simultaneously.
         use fs2::FileExt;
 
-        let lock_dir = dirs::runtime_dir().ok_or_else(|| {
-            VdfError::LockFileError("Could not find secure runtime directory".to_string())
+        let lock_dir = kinetic_core::config::get_base_dir();
+        std::fs::create_dir_all(&lock_dir).map_err(|e| {
+            VdfError::LockFileError(format!("Could not create config directory: {}", e))
         })?;
         let lock_path = lock_dir.join("kinetic_vdf.lock");
 

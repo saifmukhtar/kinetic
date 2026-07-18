@@ -50,7 +50,7 @@ fn test_scan_empty_prefix() {
     storage.put(b"a", b"1").unwrap();
     storage.put(b"b", b"2").unwrap();
 
-    let mut res = storage.scan_prefix(b"").unwrap();
+    let mut res = storage.scan_prefix(b"", None).unwrap();
     res.sort();
     assert_eq!(res.len(), 2);
     assert_eq!(res[0].0, b"a");
@@ -63,7 +63,7 @@ fn test_scan_nonexistent_prefix() {
     let storage = SledStorage::new(dir.path()).unwrap();
     storage.put(b"a", b"1").unwrap();
 
-    let res = storage.scan_prefix(b"z").unwrap();
+    let res = storage.scan_prefix(b"z", None).unwrap();
     assert!(res.is_empty());
 }
 
@@ -103,7 +103,7 @@ fn test_scan_order() {
     storage.put(b"p:1", b"1").unwrap();
     storage.put(b"p:2", b"2").unwrap();
 
-    let res = storage.scan_prefix(b"p:").unwrap();
+    let res = storage.scan_prefix(b"p:", None).unwrap();
     // sled scan_prefix returns items in lexicographic order
     assert_eq!(res.len(), 3);
     assert_eq!(res[0].0, b"p:1");
@@ -119,7 +119,7 @@ fn test_deleted_key_not_in_scan() {
     storage.put(b"p:2", b"2").unwrap();
     storage.delete(b"p:1").unwrap();
 
-    let res = storage.scan_prefix(b"p:").unwrap();
+    let res = storage.scan_prefix(b"p:", None).unwrap();
     assert_eq!(res.len(), 1);
     assert_eq!(res[0].0, b"p:2");
 }
@@ -146,7 +146,7 @@ fn test_concurrency_reads_writes() {
         h.join().unwrap();
     }
 
-    let all_keys = storage.scan_prefix(b"thread_key_").unwrap();
+    let all_keys = storage.scan_prefix(b"thread_key_", None).unwrap();
     assert_eq!(all_keys.len(), 10);
 }
 
@@ -158,10 +158,10 @@ fn test_multiple_prefixes() {
     storage.put(b"b:1", b"v").unwrap();
     storage.put(b"a:2", b"v").unwrap();
 
-    let a_keys = storage.scan_prefix(b"a:").unwrap();
+    let a_keys = storage.scan_prefix(b"a:", None).unwrap();
     assert_eq!(a_keys.len(), 2);
 
-    let b_keys = storage.scan_prefix(b"b:").unwrap();
+    let b_keys = storage.scan_prefix(b"b:", None).unwrap();
     assert_eq!(b_keys.len(), 1);
 }
 

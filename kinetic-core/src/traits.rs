@@ -26,9 +26,9 @@ pub trait StorageEngine: Send + Sync {
     /// Removes the entry for `key`. A no-op if the key does not exist.
     fn delete(&self, key: &[u8]) -> Result<(), StorageError>;
 
-    /// Iterate over all key-value pairs whose key starts with `prefix`.
+    /// Iterate over all key-value pairs whose key starts with `prefix`. If `limit` is Some(n), returns at most n results.
     #[allow(clippy::type_complexity)]
-    fn scan_prefix(&self, prefix: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
+    fn scan_prefix(&self, prefix: &[u8], limit: Option<usize>) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
 }
 
 /// Abstract trait defining the rules and consensus parameters for network governance.

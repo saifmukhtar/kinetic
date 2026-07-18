@@ -103,9 +103,7 @@ async fn run_host() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let storage_path = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic/host_db");
+    let storage_path = kinetic_core::config::get_base_dir().join("host_db");
     let storage = Arc::new(SledStorage::new(
         storage_path
             .to_str()
@@ -187,9 +185,7 @@ async fn run_host() -> Result<()> {
         disable_pow: false,
     };
 
-    let base_config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic");
+    let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
     let gov_state_path = std::sync::Arc::new(base_config_dir.join("governance_state.bin"));

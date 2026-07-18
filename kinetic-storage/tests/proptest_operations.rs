@@ -42,7 +42,7 @@ proptest! {
                     let _ = storage.delete(&k);
                 }
                 StorageOp::ScanPrefix(prefix) => {
-                    let _ = storage.scan_prefix(&prefix);
+                    let _ = storage.scan_prefix(&prefix, None);
                 }
             }
         }
