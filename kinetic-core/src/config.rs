@@ -35,7 +35,7 @@ pub mod ports {
 
 /// Top-level configuration for any Kinetic binary.
 ///
-/// Loaded from `~/.config/kinetic/config.toml` (or the path set by
+/// Loaded from `~/.local/share/kinetic/config.toml` (or the path set by
 /// `KINETIC_CONFIG_PATH`). If the file does not exist, a default config is
 /// written and used.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -177,10 +177,7 @@ fn default_p2p_host() -> u16 {
 impl Default for KineticConfig {
     fn default() -> Self {
         #[cfg(not(target_arch = "wasm32"))]
-        let storage_dir = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("kinetic")
-            .join("db");
+        let storage_dir = crate::config::get_base_dir().join("db");
 
         #[cfg(target_arch = "wasm32")]
         let storage_dir = PathBuf::from("/kinetic-db");
@@ -220,12 +217,7 @@ impl KineticConfig {
     pub fn load() -> Self {
         let config_path = std::env::var("KINETIC_CONFIG_PATH")
             .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::config_dir()
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("kinetic")
-                    .join("config.toml")
-            });
+            .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
         let config = if let Ok(config_str) = fs::read_to_string(&config_path) {
             match toml::from_str(&config_str) {
@@ -262,12 +254,7 @@ impl KineticConfig {
     pub fn save(&self) -> Result<(), std::io::Error> {
         let config_path = std::env::var("KINETIC_CONFIG_PATH")
             .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::config_dir()
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("kinetic")
-                    .join("config.toml")
-            });
+            .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
         if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent)?;

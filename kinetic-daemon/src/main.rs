@@ -21,7 +21,7 @@
 //!
 //! ## Authentication
 //!
-//! A random API token is written to `~/.config/kinetic/api.token` on first
+//! A random API token is written to `~/.local/share/kinetic/api.token` on first
 //! run. All mutating API calls must include this token in the
 //! `X-Kinetic-Token` header.
 

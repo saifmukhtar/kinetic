@@ -137,11 +137,11 @@ What happens:
 
 3. When the math is done, it hashes your name + random salt + drand pulse + your Ed25519 public key into a blind commitment and broadcasts it to the DHT.
 4. Waits exactly 32 seconds to mathematically lock the front-running barrier.
-5. Saves your proof to `~/.config/kinetic/zones/example.kin.reveal.json`
+5. Saves your proof to `~/.local/share/kinetic/zones/example.kin.reveal.json`
 
 #### Phase 2: Configure & Publish
 
-Open `~/.config/kinetic/zones/example.kin.json` and add your DNS records:
+Open `~/.local/share/kinetic/zones/example.kin.json` and add your DNS records:
 
 ```json
 {

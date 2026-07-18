@@ -241,9 +241,7 @@ async fn run_node() -> Result<()> {
         disable_pow: false,
     };
 
-    let base_config_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic");
+    let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
     let gov_state_path = std::sync::Arc::new(base_config_dir.join("governance_state.bin"));

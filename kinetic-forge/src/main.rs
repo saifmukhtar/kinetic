@@ -153,7 +153,7 @@ fn main() -> Result<()> {
         println!("2. Note its printed P2P Multiaddress (which includes its PeerId).");
         println!("3. For all subsequent nodes you deploy, you must manually add that first node's");
         println!(
-            "   multiaddress to their `~/.config/kinetic/config.toml` under `bootstrap_nodes`."
+            "   multiaddress to their `~/.local/share/kinetic/config.toml` under `bootstrap_nodes`."
         );
         println!("4. (Optional) Add the multiaddress to a DNS TXT record at your seed domain.");
         println!("========================================");

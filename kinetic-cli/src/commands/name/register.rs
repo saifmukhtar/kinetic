@@ -150,10 +150,7 @@ pub async fn handle(
         fqdn.clone()
     };
 
-    let kid_dir = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic")
-        .join("kids");
+    let kid_dir = kinetic_core::config::get_base_dir().join("kids");
     std::fs::create_dir_all(&kid_dir).unwrap_or_default();
 
     let base_kid_path = kid_dir.join(format!("{}.json", base_name));

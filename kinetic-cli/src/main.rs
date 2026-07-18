@@ -4,7 +4,7 @@
 //!
 //! This binary provides an ergonomic terminal interface for interacting with a
 //! locally running `kinetic-daemon`. It authenticates all requests using the
-//! token stored in `~/.config/kinetic/api.token`.
+//! token stored in `~/.local/share/kinetic/api.token`.
 //!
 //! ## Command groups
 //!

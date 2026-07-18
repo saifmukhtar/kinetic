@@ -59,7 +59,7 @@ This is the core execution path that initiates the Two-Phase Commit/Reveal proto
    * Grabs the latest Drand beacon.
    * Aggressively utilizes local CPU cores to grind the Chia VDF Proof-of-Time.
    * Broadcasts the Phase 1 Hash Commitment to the DHT and waits exactly 32 seconds to lock the timeline.
-   * Generates a template `.reveal.json` file in `~/.config/kinetic/zones/`.
+   * Generates a template `.reveal.json` file in `~/.local/share/kinetic/zones/`.
 
 2. **Phase 2: Configuration & Reveal (`kinetic-cli name publish example.kin`)**
    * Once the template is configured with the target IP or service manifest, the user runs this command.

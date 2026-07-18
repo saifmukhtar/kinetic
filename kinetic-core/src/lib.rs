@@ -9,7 +9,7 @@
 //! ## What lives here
 //!
 //! - **`config`** — [`KineticConfig`](config::KineticConfig) loaded from
-//!   `~/.config/kinetic/config.toml` and the canonical port constants.
+//!   `~/.local/share/kinetic/config.toml` and the canonical port constants.
 //! - **`types`** — Core domain types: [`DnsZone`](types::DnsZone),
 //!   [`DnsRecord`](types::DnsRecord), [`Commitment`](types::Commitment),
 //!   [`VdfProof`](types::VdfProof), and helpers for `.kin` name normalisation.
