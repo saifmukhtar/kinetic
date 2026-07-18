@@ -44,6 +44,7 @@ export default withMermaid(defineConfig({
       {
         text: 'Reference',
         items: [
+          { text: 'CLI Reference', link: '/cli_reference' },
           { text: 'Adversarial Analysis', link: '/adversarial_analysis' },
           { text: 'Protocol Specification', link: '/protocol_specification' },
           { text: 'Error Handbook', link: '/error_handbook' }
