@@ -29,6 +29,12 @@ pub fn save_zone_file(
     fqdn: &str,
     zone: &kinetic_core::types::DnsZone,
 ) -> Result<(), std::io::Error> {
+    if let Err(e) = kinetic_core::types::names::is_valid_apex_name(fqdn) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("Invalid apex name: {:?}", e),
+        ));
+    }
     let zones_dir = get_zones_dir();
     std::fs::create_dir_all(&zones_dir)?;
     let path = zones_dir.join(format!("{}.json", fqdn));

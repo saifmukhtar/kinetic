@@ -81,7 +81,20 @@ pub async fn handle_identity_command(
             let json_data = serde_json::to_string_pretty(&signed_doc)?;
 
             std::fs::write(&output, json_data)?;
-            info!("Successfully generated KID and wrote to {}", output);
+
+            // Also save the private key securely
+            let key_path = std::path::Path::new(&output).with_extension("key");
+            use std::io::Write;
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut opts = std::fs::OpenOptions::new();
+            opts.write(true).create(true).truncate(true).mode(0o600);
+            if let Ok(mut file) = opts.open(&key_path) {
+                let _ = file.write_all(&keypair.to_bytes());
+                info!("Successfully generated KID and wrote to {}", output);
+                info!("Saved private controller key to {}", key_path.display());
+            } else {
+                anyhow::bail!("Failed to write private controller key securely");
+            }
         }
         IdentityCommands::Publish {
             kid,
