@@ -54,7 +54,7 @@ fn main() -> Result<()> {
     let mut hasher = Sha256::new();
     hasher.update(network_name.as_bytes());
     let hash_result = hasher.finalize();
-    let network_id = hex::encode(&hash_result[..4]); // Use first 8 characters
+    let network_id = hex::encode(&hash_result[..16]); // Use first 32 characters (16 bytes)
     let network_id_str = format!("{}-{}", tld, network_id);
 
     let tld_suffix = format!(".{}", tld);
@@ -88,9 +88,18 @@ fn main() -> Result<()> {
         let period: u64 = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Drand Round Period (Seconds)")
             .interact_text()?;
-        let endpoint: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Drand HTTP Endpoint (e.g. http://my-drand.internal)")
+        let mut endpoint: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Drand HTTPS Endpoint (e.g. https://my-drand.internal)")
             .interact_text()?;
+
+        while !endpoint.starts_with("https://") {
+            println!(
+                "⚠️ SECURITY: Custom Drand endpoints must use https:// to prevent MITM attacks."
+            );
+            endpoint = Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("Drand HTTPS Endpoint (e.g. https://my-drand.internal)")
+                .interact_text()?;
+        }
         (pk, genesis, period, endpoint)
     } else {
         (
