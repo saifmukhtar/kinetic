@@ -35,7 +35,7 @@ impl GovernanceState {
             lock_timestamp_sec: None,
             active_council: Vec::new(),
             last_signature_timestamps: HashMap::new(),
-            pending_timelocks: HashMap::new(),
+
             vetoed_hashes: HashSet::new(),
             pending_updates: HashMap::new(),
             partial_proposals: HashMap::new(),
@@ -87,17 +87,8 @@ impl GovernanceState {
     }
 
     /// Counts the number of active council members within the recent active window.
-    pub fn count_active_council(&self, current_time_sec: u64) -> usize {
-        self.active_council
-            .iter()
-            .filter(|key| {
-                if let Some(&last_sig_time) = self.last_signature_timestamps.get(key) {
-                    current_time_sec.saturating_sub(last_sig_time) <= ACTIVE_WINDOW_SECONDS
-                } else {
-                    false
-                }
-            })
-            .count()
+    pub fn count_active_council(&self, _current_time_sec: u64) -> usize {
+        self.active_council.len()
     }
 
     /// Retrieves the static root verifying key.
@@ -186,6 +177,8 @@ impl GovernanceState {
             });
         }
 
+
+
         effects
     }
 }
@@ -201,7 +194,7 @@ pub fn process_governance_message(
 ) -> Result<Option<GovernanceEffect>, crate::error::GovernanceError> {
     let current_time_sec = web_time::SystemTime::now()
         .duration_since(web_time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs();
 
     if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
@@ -243,6 +236,13 @@ pub fn process_governance_message(
     state.partial_proposals.retain(|_, p| {
         current_time_sec.abs_diff(p.timestamp_sec) <= crate::constants::MAX_AGE_SECONDS
     });
+
+    let mut temp_state = state.clone();
+    if let Err(e) = temp_state.verify_action(msg, current_time_sec) {
+        if e != crate::error::GovernanceError::InsufficientSignatures {
+            return Err(e);
+        }
+    }
 
     let msg_to_update = state.merge_signatures(msg);
     state.verify_action(&msg_to_update, current_time_sec)

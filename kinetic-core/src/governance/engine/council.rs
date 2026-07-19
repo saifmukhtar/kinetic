@@ -20,6 +20,17 @@ impl GovernanceEngine for CouncilEngine {
             return Err(GovernanceError::StaleProposal);
         }
 
+        if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
+            let is_mature = if let Some((start, wait, _)) = state.pending_updates.get(target_hash) {
+                current_time_sec >= start.saturating_add(*wait)
+            } else {
+                return Err(GovernanceError::NotPendingOrVetoed);
+            };
+            if !is_mature {
+                return Err(GovernanceError::TimelockNotExpired);
+            }
+        }
+
         let actual_active_count = state.count_active_council(current_time_sec);
         let effective_active_count =
             std::cmp::max(actual_active_count, crate::constants::MIN_ACTIVE_COUNCIL);
@@ -133,7 +144,6 @@ impl GovernanceEngine for CouncilEngine {
                 }
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
-                state.pending_timelocks.remove(target_hash);
 
                 if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
@@ -156,8 +166,7 @@ impl GovernanceEngine for CouncilEngine {
             }
             GovernanceAction::RotateRootKey { .. }
             | GovernanceAction::RotateGuardKey { .. }
-            | GovernanceAction::VetoUpdate { .. }
-            | GovernanceAction::EmergencyReset { .. } => {}
+            | GovernanceAction::VetoUpdate { .. } => {}
         }
         effect
     }

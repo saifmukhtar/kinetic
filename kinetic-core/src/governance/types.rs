@@ -30,11 +30,7 @@ pub enum GovernanceAction {
     RemoveCouncilMember {
         target_key: VerifyingKey,
     },
-    EmergencyReset {
-        new_root: VerifyingKey,
-        new_guard: VerifyingKey,
-        override_mode: bool,
-    },
+
     ExecuteTimelock {
         target_hash: Hash256,
     },
@@ -87,7 +83,7 @@ pub struct GovernanceState {
     pub lock_timestamp_sec: Option<u64>,
     pub active_council: Vec<VerifyingKey>,
     pub last_signature_timestamps: HashMap<VerifyingKey, u64>,
-    pub pending_timelocks: HashMap<Hash256, u64>,
+
     pub vetoed_hashes: HashSet<Hash256>,
     pub pending_updates: HashMap<Hash256, (u64, u64, Vec<String>)>,
     pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
@@ -146,16 +142,7 @@ impl SignedGovernanceMessage {
                 buf.push(0x07);
                 buf.extend_from_slice(target_key.as_bytes());
             }
-            GovernanceAction::EmergencyReset {
-                new_root,
-                new_guard,
-                override_mode,
-            } => {
-                buf.push(0x08);
-                buf.extend_from_slice(new_root.as_bytes());
-                buf.extend_from_slice(new_guard.as_bytes());
-                buf.push(if *override_mode { 1 } else { 0 });
-            }
+
             GovernanceAction::ExecuteTimelock { target_hash } => {
                 buf.push(0x09);
                 buf.extend_from_slice(target_hash);

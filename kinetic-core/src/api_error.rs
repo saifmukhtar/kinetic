@@ -136,11 +136,8 @@ impl From<GovernanceError> for ApiError {
             GovernanceError::InvalidGuardSignature | GovernanceError::InsufficientSignatures => {
                 (401, "Unauthorized")
             }
-            GovernanceError::EmergencyResetVetoed
-            | GovernanceError::EmergencyResetRequiresRoot
-            | GovernanceError::EmergencyResetRequiresGuard
-            | GovernanceError::EmergencyResetInPhase1
-            | GovernanceError::FounderPremiumLimitReached
+
+            GovernanceError::FounderPremiumLimitReached
             | GovernanceError::RevokeRequiresCouncilMode
             | GovernanceError::RotateRequiresGuard
             | GovernanceError::EmptyCouncil

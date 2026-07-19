@@ -8,6 +8,7 @@
   "steal_target_rounds": 7884000,
   "m_redundancy": 32,
   "governance_model": "bicameral",
+  "pow_difficulty_bits": 20,
   "drand_genesis_time": 1692803367,
   "drand_period": 3,
   "kinetic_genesis_drand_round": 0,

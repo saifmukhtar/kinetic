@@ -20,6 +20,17 @@ impl GovernanceEngine for BicameralEngine {
             return Err(GovernanceError::StaleProposal);
         }
 
+        if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
+            let is_mature = if let Some((start, wait, _)) = state.pending_updates.get(target_hash) {
+                current_time_sec >= start.saturating_add(*wait)
+            } else {
+                return Err(GovernanceError::NotPendingOrVetoed);
+            };
+            if !is_mature {
+                return Err(GovernanceError::TimelockNotExpired);
+            }
+        }
+
         let actual_active_count = state.count_active_council(current_time_sec);
         let guard_key_opt = state.get_guard_key()?;
 
@@ -54,9 +65,7 @@ impl GovernanceEngine for BicameralEngine {
 
         match state.mode {
             crate::governance::types::GovernanceMode::Founder => {
-                if let GovernanceAction::EmergencyReset { .. } = &msg.action {
-                    return Err(GovernanceError::EmergencyResetInPhase1);
-                }
+
                 if let GovernanceAction::RevokePremiumName { .. } = &msg.action {
                     return Err(GovernanceError::RevokeRequiresCouncilMode);
                 }
@@ -115,35 +124,7 @@ impl GovernanceEngine for BicameralEngine {
                     return Err(GovernanceError::InvalidGuardSignature);
                 }
 
-                if let GovernanceAction::EmergencyReset { override_mode, .. } = &msg.action {
-                    let action_hash = GovernanceState::hash_action(msg);
-                    if state.vetoed_hashes.contains(&action_hash) {
-                        return Err(GovernanceError::EmergencyResetVetoed);
-                    }
 
-                    let root_key = state.get_root_key()?;
-                    let root_signed = msg
-                        .signatures
-                        .iter()
-                        .any(|sig| root_key.verify(&action_bytes, sig).is_ok());
-
-                    let guard_signed = if let Some(guard_key) = guard_key_opt {
-                        msg.signatures
-                            .iter()
-                            .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
-                    } else {
-                        false
-                    };
-
-                    if !root_signed {
-                        return Err(GovernanceError::EmergencyResetRequiresRoot);
-                    }
-                    if !*override_mode && !guard_signed {
-                        return Err(GovernanceError::EmergencyResetRequiresGuard);
-                    }
-
-                    return Ok(self.execute_action(state, msg, current_time_sec, None));
-                }
 
                 if let GovernanceAction::GrantPremiumName { name, .. }
                 | GovernanceAction::RevokePremiumName { name } = &msg.action
@@ -276,45 +257,11 @@ impl GovernanceEngine for BicameralEngine {
                 }
             }
             GovernanceAction::VetoUpdate { target_hash } => {
-                state.pending_timelocks.remove(target_hash);
                 state.pending_updates.remove(target_hash);
                 state.vetoed_hashes.insert(*target_hash);
             }
-            GovernanceAction::EmergencyReset {
-                override_mode,
-                new_root,
-                new_guard,
-            } => {
-                if *override_mode {
-                    let action_hash = GovernanceState::hash_action(msg);
-                    state
-                        .pending_timelocks
-                        .insert(action_hash, current_time_sec);
-                } else {
-                    state.mode = crate::governance::types::GovernanceMode::Founder;
-                    state.active_council.clear();
-                    state.dynamic_root_key = Some(*new_root);
-                    state.dynamic_guard_key = Some(*new_guard);
-                }
-            }
-            GovernanceAction::ExecuteTimelock { target_hash } => {
-                state.pending_timelocks.remove(target_hash);
 
-                if let Some(original) = state.partial_proposals.get(target_hash) {
-                    if let GovernanceAction::EmergencyReset {
-                        override_mode,
-                        new_root,
-                        new_guard,
-                    } = &original.action
-                    {
-                        if *override_mode {
-                            state.mode = crate::governance::types::GovernanceMode::Founder;
-                            state.active_council.clear();
-                            state.dynamic_root_key = Some(*new_root);
-                            state.dynamic_guard_key = Some(*new_guard);
-                        }
-                    }
-                }
+            GovernanceAction::ExecuteTimelock { target_hash } => {
 
                 if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {

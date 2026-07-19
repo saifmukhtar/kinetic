@@ -13,6 +13,7 @@ struct NetworkConfig {
     benchmark_base_iterations: u64,
     steal_target_rounds: u64,
     m_redundancy: u8,
+    pow_difficulty_bits: u32,
     drand_genesis_time: u64,
     drand_period: u64,
     kinetic_genesis_drand_round: u64,
@@ -97,6 +98,12 @@ fn main() {
         "/// The swappable governance engine used by this network.\n\
          pub const GOVERNANCE_MODEL: &str = \"{}\";\n\n",
         config.governance_model
+    ));
+
+    out.push_str(&format!(
+        "/// The target number of leading zero bits required for PoW mining.\n\
+         pub const POW_DIFFICULTY_BITS: u32 = {};\n\n",
+        config.pow_difficulty_bits
     ));
 
     out.push_str(&format!(

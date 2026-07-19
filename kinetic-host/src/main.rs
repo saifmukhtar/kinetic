@@ -139,7 +139,7 @@ async fn run_host() -> Result<()> {
     let local_key = tokio::task::spawn_blocking(move || {
         kinetic_network::pow::mine_sybil_keypair(
             initial_drand_pulse,
-            kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
+            kinetic_core::constants::POW_DIFFICULTY_BITS,
         )
     })
     .await

@@ -275,7 +275,7 @@ async fn run_daemon() -> Result<()> {
     let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
     let local_key = kinetic_network::pow::mine_sybil_keypair(
         initial_drand_pulse,
-        kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
+        kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     tracing::info!("Daemon starting with Peer ID: {}", local_peer_id);

@@ -19,6 +19,17 @@ impl GovernanceEngine for MonarchyEngine {
             return Err(GovernanceError::StaleProposal);
         }
 
+        if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
+            let is_mature = if let Some((start, wait, _)) = state.pending_updates.get(target_hash) {
+                current_time_sec >= start.saturating_add(*wait)
+            } else {
+                return Err(GovernanceError::NotPendingOrVetoed);
+            };
+            if !is_mature {
+                return Err(GovernanceError::TimelockNotExpired);
+            }
+        }
+
         let root_key = state.get_root_key()?;
         let action_bytes = msg.to_canonical_bytes();
 
@@ -74,12 +85,10 @@ impl GovernanceEngine for MonarchyEngine {
                 }
             }
             GovernanceAction::VetoUpdate { target_hash } => {
-                state.pending_timelocks.remove(target_hash);
                 state.pending_updates.remove(target_hash);
                 state.vetoed_hashes.insert(*target_hash);
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
-                state.pending_timelocks.remove(target_hash);
                 if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         manifest_hash: *target_hash,
@@ -103,8 +112,7 @@ impl GovernanceEngine for MonarchyEngine {
             GovernanceAction::AppointMember { .. }
             | GovernanceAction::SelfAppointCouncilMember { .. }
             | GovernanceAction::RemoveCouncilMember { .. }
-            | GovernanceAction::LockCouncil
-            | GovernanceAction::EmergencyReset { .. } => {}
+            | GovernanceAction::LockCouncil => {}
 
             GovernanceAction::RotateRootKey { new_key } => {
                 state.dynamic_root_key = Some(*new_key);

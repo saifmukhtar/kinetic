@@ -43,7 +43,7 @@ pub fn start_pow_miner_loop(
                     kinetic_network::pow::is_valid_sybil_pow(
                         &peer_id_clone,
                         pulse,
-                        kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
+                        kinetic_core::constants::POW_DIFFICULTY_BITS,
                     )
                 })
                 .await
@@ -54,7 +54,7 @@ pub fn start_pow_miner_loop(
                     current_local_key = tokio::task::spawn_blocking(move || {
                         kinetic_network::pow::mine_sybil_keypair(
                             pulse,
-                            kinetic_network::pow::DEFAULT_DIFFICULTY_BITS,
+                            kinetic_core::constants::POW_DIFFICULTY_BITS,
                         )
                     })
                     .await

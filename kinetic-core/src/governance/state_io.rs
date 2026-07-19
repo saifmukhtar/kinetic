@@ -34,15 +34,14 @@ impl GovernanceState {
             Ok(file) => match bincode::deserialize_from(file) {
                 Ok(state) => state,
                 Err(e) => {
-                    tracing::error!("CRITICAL: Governance state file is corrupted: {}. Renaming to .corrupt and starting fresh.", e);
-                    let corrupt_path = path.with_extension("corrupt");
-                    let _ = std::fs::rename(path, corrupt_path);
-                    Self::new(
-                        web_time::SystemTime::now()
-                            .duration_since(web_time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs(),
-                    )
+                    let now = web_time::SystemTime::now()
+                        .duration_since(web_time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    let corrupt_path = path.with_extension(format!("corrupt.{}", now));
+                    let _ = std::fs::rename(path, &corrupt_path);
+                    tracing::error!("CRITICAL: Governance state corrupted: {}. Refusing to start with a reset state.", e);
+                    panic!("Governance state at {} is corrupt; manual recovery required (backup at {}).", path.display(), corrupt_path.display());
                 }
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Self::new(
@@ -52,16 +51,8 @@ impl GovernanceState {
                     .as_secs(),
             ),
             Err(e) => {
-                tracing::error!(
-                    "CRITICAL: Failed to read Governance state file: {}. Starting fresh.",
-                    e
-                );
-                Self::new(
-                    web_time::SystemTime::now()
-                        .duration_since(web_time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs(),
-                )
+                tracing::error!("CRITICAL: Failed to read Governance state file: {}.", e);
+                panic!("Governance state at {} is unreadable; manual recovery required.", path.display());
             }
         }
     }

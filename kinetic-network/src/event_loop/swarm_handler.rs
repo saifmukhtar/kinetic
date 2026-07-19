@@ -14,7 +14,7 @@ impl super::core::NetworkEventLoop {
             && crate::pow::is_valid_sybil_pow(
                 peer_id,
                 self.current_drand_pulse,
-                crate::pow::DEFAULT_DIFFICULTY_BITS,
+                kinetic_core::constants::POW_DIFFICULTY_BITS,
             )
     }
 
@@ -146,7 +146,7 @@ impl super::core::NetworkEventLoop {
                             crate::pow::is_valid_sybil_pow(
                                 &peer_id_clone,
                                 current_pulse,
-                                crate::pow::DEFAULT_DIFFICULTY_BITS,
+                                kinetic_core::constants::POW_DIFFICULTY_BITS,
                             )
                         })
                         .await;

@@ -31,18 +31,7 @@ pub enum GovernanceError {
     /// The Guard's signature over the veto message is invalid.
     #[error("Invalid Guard signature for Veto")]
     InvalidGuardSignature,
-    /// The Guard has permanently vetoed the EmergencyReset action.
-    #[error("EmergencyReset has already been permanently vetoed by the Guard")]
-    EmergencyResetVetoed,
-    /// An EmergencyReset was attempted without a valid Root signature.
-    #[error("EmergencyReset requires Root signature")]
-    EmergencyResetRequiresRoot,
-    /// An EmergencyReset (without override) was attempted without a valid Guard signature.
-    #[error("EmergencyReset without override requires Guard signature")]
-    EmergencyResetRequiresGuard,
-    /// An EmergencyReset was attempted during Phase 1 (bootstrapping), which is meaningless.
-    #[error("EmergencyReset is invalid during Phase 1 (unlocked state)")]
-    EmergencyResetInPhase1,
+
     /// A root-key rotation was attempted without a valid Guard co-signature.
     #[error("RotateRootKey requires Guard signature")]
     RotateRequiresGuard,
@@ -82,14 +71,10 @@ impl GovernanceError {
             Self::NotPendingOrVetoed => "KIN-GOV-007",
             Self::CouncilSizeMismatch => "KIN-GOV-008",
             Self::InvalidGuardSignature => "KIN-GOV-009",
-            Self::EmergencyResetVetoed => "KIN-GOV-010",
-            Self::EmergencyResetRequiresRoot => "KIN-GOV-011",
-            Self::EmergencyResetRequiresGuard => "KIN-GOV-012",
             Self::RotateRequiresGuard => "KIN-GOV-013",
             Self::UnhandledThresholdMath => "KIN-GOV-014",
             Self::EmptyCouncil => "KIN-GOV-015",
             Self::InsufficientSignatures => "KIN-GOV-016",
-            Self::EmergencyResetInPhase1 => "KIN-GOV-017",
             Self::FounderPremiumLimitReached => "KIN-GOV-018",
             Self::InvalidPremiumNameLength => "KIN-GOV-019",
             Self::RevokeRequiresCouncilMode => "KIN-GOV-020",
@@ -114,13 +99,9 @@ impl GovernanceError {
             | Self::CouncilSizeMismatch
             | Self::InvalidGuardSignature
             | Self::UnhandledThresholdMath => Severity::Error,
-            Self::EmergencyResetVetoed
-            | Self::EmergencyResetRequiresRoot
-            | Self::EmergencyResetRequiresGuard
-            | Self::RotateRequiresGuard
+            Self::RotateRequiresGuard
             | Self::EmptyCouncil
             | Self::InsufficientSignatures
-            | Self::EmergencyResetInPhase1
             | Self::FounderPremiumLimitReached
             | Self::InvalidPremiumNameLength
             | Self::RevokeRequiresCouncilMode
@@ -148,10 +129,6 @@ impl GovernanceError {
             Self::NotPendingOrVetoed => "The target governance action is not currently pending in the queue, or it was already vetoed.".to_string(),
             Self::CouncilSizeMismatch => "The proposed action was rejected because it claimed a lower total council size than what is actively recorded on the network.".to_string(),
             Self::InvalidGuardSignature => "The Guard's signature provided for the veto is invalid or corrupted.".to_string(),
-            Self::EmergencyResetVetoed => "The Emergency Reset action was permanently vetoed by the Guard key.".to_string(),
-            Self::EmergencyResetRequiresRoot => "An Emergency Reset requires a valid signature from the Root key.".to_string(),
-            Self::EmergencyResetRequiresGuard => "An Emergency Reset without the override flag requires a valid signature from the Guard key.".to_string(),
-            Self::EmergencyResetInPhase1 => "An Emergency Reset cannot be performed because the network is still in Founder mode.".to_string(),
             Self::RotateRequiresGuard => "Rotating the Root key requires a valid signature from the Guard key.".to_string(),
             Self::UnhandledThresholdMath => "The governance action type is unrecognized and cannot be processed by the voting logic.".to_string(),
             Self::EmptyCouncil => "The council is currently empty. Actions must be performed by the Root key.".to_string(),
