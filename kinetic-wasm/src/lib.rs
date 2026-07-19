@@ -126,6 +126,14 @@ impl KineticNode {
         let reveal: kinetic_core::types::Reveal = serde_json::from_slice(&bytes)
             .map_err(|e| JsValue::from_str(&format!("Invalid reveal format: {}", e)))?;
 
+        if reveal.name != name {
+            return Err(JsValue::from_str("Reveal name mismatch"));
+        }
+
+        if !reveal.verify_signature() {
+            return Err(JsValue::from_str("Invalid reveal signature"));
+        }
+
         let zone = kinetic_core::types::DnsZone::parse_payload(&reveal.payload)
             .map_err(|e| JsValue::from_str(&format!("Invalid zone format: {}", e)))?;
 

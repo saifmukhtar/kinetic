@@ -82,7 +82,11 @@ mod native {
     }
 
     impl StorageEngine for SledStorage {
-        fn scan_prefix(&self, prefix: &[u8], limit: Option<usize>) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+        fn scan_prefix(
+            &self,
+            prefix: &[u8],
+            limit: Option<usize>,
+        ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
             let iter = self.db.scan_prefix(prefix);
             let mut results = Vec::new();
             for item in iter {
@@ -155,7 +159,11 @@ mod wasm {
     }
 
     impl StorageEngine for SledStorage {
-        fn scan_prefix(&self, prefix: &[u8], limit: Option<usize>) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
+        fn scan_prefix(
+            &self,
+            prefix: &[u8],
+            limit: Option<usize>,
+        ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError> {
             let db = self
                 .db
                 .read()

@@ -28,7 +28,11 @@ pub trait StorageEngine: Send + Sync {
 
     /// Iterate over all key-value pairs whose key starts with `prefix`. If `limit` is Some(n), returns at most n results.
     #[allow(clippy::type_complexity)]
-    fn scan_prefix(&self, prefix: &[u8], limit: Option<usize>) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
+    fn scan_prefix(
+        &self,
+        prefix: &[u8],
+        limit: Option<usize>,
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
 }
 
 /// Abstract trait defining the rules and consensus parameters for network governance.

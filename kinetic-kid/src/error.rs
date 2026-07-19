@@ -39,4 +39,7 @@ pub enum KidError {
     /// The document contains too many keys or endpoints, exceeding maximum bounds.
     #[error("Document exceeds maximum size bounds (DoS protection)")]
     TooManyKeys,
+    /// The valid_from timestamp is set in the future beyond acceptable skew.
+    #[error("Manifest valid_from is in the future")]
+    InvalidValidFrom,
 }

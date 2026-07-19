@@ -2862,6 +2862,7 @@ dependencies = [
  "axum 0.7.9",
  "clap",
  "dirs 5.0.1",
+ "ed25519-dalek",
  "hickory-proto",
  "hickory-resolver",
  "hickory-server",
@@ -2870,6 +2871,7 @@ dependencies = [
  "moka",
  "privdrop",
  "proptest",
+ "rand_core 0.6.4",
  "reqwest 0.13.4",
  "serde_json",
  "service-manager",
@@ -2955,6 +2957,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "thiserror 1.0.69",
+ "web-time",
 ]
 
 [[package]]
@@ -3043,6 +3046,7 @@ dependencies = [
  "anyhow",
  "axum 0.8.9",
  "bytes",
+ "ed25519-dalek",
  "hickory-client",
  "hickory-proto",
  "hickory-server",
@@ -3052,6 +3056,7 @@ dependencies = [
  "kinetic-storage",
  "kinetic-vdf",
  "libp2p",
+ "rand_core 0.6.4",
  "reqwest 0.13.4",
  "serde_json",
  "tempfile",

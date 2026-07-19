@@ -333,6 +333,7 @@ impl super::core::NetworkEventLoop {
 
             bootstrap_connection_time: rustc_hash::FxHashMap::default(),
             nat_status: "Unknown".to_string(),
+            loopback_tx: None,
         };
 
         Ok((client, event_loop))
@@ -464,6 +465,7 @@ impl super::core::NetworkEventLoop {
 
             bootstrap_connection_time: Default::default(),
             nat_status: "Unknown".to_string(),
+            loopback_tx: None,
         };
 
         Ok((client, event_loop))

@@ -132,17 +132,32 @@ impl super::core::NetworkEventLoop {
                     let _ = self.swarm.disconnect_peer_id(peer_id);
                     return;
                 }
+                let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
+                if self.disable_pow {
+                    return;
+                }
 
-                let pow_valid = self.is_valid_pow(&peer_id);
-
-                if !pow_valid && !is_bootstrap {
-                    tracing::debug!("Peer {} failed S/Kademlia PoW for epoch, disconnecting them to prevent connection slot exhaustion", peer_id);
-                    let _ = self.swarm.disconnect_peer_id(peer_id);
-                } else if !pow_valid && is_bootstrap {
-                    tracing::debug!(
-                        "Bootstrap peer {} failed PoW — permitted initially",
-                        peer_id
-                    );
+                if let Some(loopback) = &self.loopback_tx {
+                    let loopback_clone = loopback.clone();
+                    let current_pulse = self.current_drand_pulse;
+                    let peer_id_clone = peer_id;
+                    crate::event_loop::utils::spawn(async move {
+                        let valid = crate::event_loop::utils::spawn_blocking(move || {
+                            crate::pow::is_valid_sybil_pow(
+                                &peer_id_clone,
+                                current_pulse,
+                                crate::pow::DEFAULT_DIFFICULTY_BITS,
+                            )
+                        })
+                        .await;
+                        let _ = loopback_clone.send(
+                            crate::event_loop::core::LoopbackCommand::ConnectionPoWVerified {
+                                peer_id: peer_id_clone,
+                                valid,
+                                is_bootstrap,
+                            },
+                        );
+                    });
                 }
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Kademlia(e)) => match e {
@@ -223,6 +238,45 @@ impl super::core::NetworkEventLoop {
                             ..
                         },
                 } => {
+                    // Offload VDF verification for Reveals
+                    if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&record.value) {
+                        if parsed.get("vdf_proof").is_some() {
+                            if let Ok(reveal) =
+                                serde_json::from_value::<kinetic_core::types::Reveal>(parsed)
+                            {
+                                let store = self.swarm.behaviour_mut().kademlia.store_mut();
+                                let storage = store.storage.clone();
+                                let engine = store.vdf_engine.clone();
+                                let current_drand_round = store.current_drand_round;
+
+                                if let Some(loopback) = &self.loopback_tx {
+                                    let loopback_clone = loopback.clone();
+                                    let record_clone = record.clone();
+                                    crate::event_loop::utils::spawn(async move {
+                                        let verdict =
+                                            crate::event_loop::utils::spawn_blocking(move || {
+                                                crate::store::verification::verify_reveal(
+                                                    &reveal,
+                                                    &storage,
+                                                    current_drand_round,
+                                                    &engine,
+                                                )
+                                            })
+                                            .await;
+
+                                        let _ = loopback_clone.send(crate::event_loop::core::LoopbackCommand::CommitVerifiedRecord {
+                                            source,
+                                            record: record_clone,
+                                            verdict,
+                                        });
+                                    });
+                                }
+                                return;
+                            }
+                        }
+                    }
+
+                    // For non-Reveal records or if parsing fails (will be rejected), run inline
                     let put_result = self
                         .swarm
                         .behaviour_mut()
@@ -251,7 +305,14 @@ impl super::core::NetworkEventLoop {
 
                                 // Prevent unbounded growth of banned peers map
                                 if self.banned_peers.len() >= 10_000 {
-                                    self.banned_peers.clear();
+                                    if let Some(&oldest_peer) = self
+                                        .banned_peers
+                                        .iter()
+                                        .min_by_key(|&(_, &exp)| exp)
+                                        .map(|(p, _)| p)
+                                    {
+                                        self.banned_peers.remove(&oldest_peer);
+                                    }
                                 }
                                 self.banned_peers.insert(source, expire_time);
 

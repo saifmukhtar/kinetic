@@ -98,8 +98,6 @@ impl super::core::NetworkEventLoop {
         payloads: Vec<Vec<u8>>,
         current_pulse: u64,
     ) -> Option<Vec<u8>> {
-        let _original_payloads = payloads.clone();
-
         if payloads.is_empty() {
             return None;
         }
@@ -107,8 +105,10 @@ impl super::core::NetworkEventLoop {
         let mut pulse_bytes = [0u8; 32];
         pulse_bytes[..8].copy_from_slice(&current_pulse.to_be_bytes());
 
-        // Use a HashSet to deduplicate payloads without sorting the raw Vecs
-        let unique_payloads: std::collections::HashSet<Vec<u8>> = payloads.into_iter().collect();
+        // Deduplicate payloads in-place
+        let mut unique_payloads = payloads;
+        unique_payloads.sort_unstable();
+        unique_payloads.dedup();
 
         // Single-pass parsing
         enum ParsedPayload {
@@ -309,24 +309,12 @@ impl super::core::NetworkEventLoop {
                             continue;
                         }
                         Err(kinetic_core::error::VdfError::UnsupportedPlatform) => {
-                            let count = _original_payloads.iter().filter(|&x| x == &p).count();
-                            // If we can't verify the VDF locally (e.g. wasm32), require 3 identical responses
-                            if count >= 3 {
-                                tracing::info!(
-                                    name = %reveal.name,
-                                    count = count,
-                                    "VDF verified via P2P quorum consensus (UnsupportedPlatform bypass)"
-                                );
-                                return Some(p);
-                            } else {
-                                tracing::warn!(
-                                    error_code = "KIN-RES-009",
-                                    name = %reveal.name,
-                                    count = count,
-                                    "VDF verification skipped due to UnsupportedPlatform, but quorum (3) not reached"
-                                );
-                                continue;
-                            }
+                            tracing::error!(
+                                error_code = "KIN-RES-009",
+                                name = %reveal.name,
+                                "VDF verification is unsupported on this platform. Resolution failed."
+                            );
+                            continue;
                         }
                         Err(e) => {
                             tracing::warn!(

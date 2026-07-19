@@ -39,6 +39,30 @@ impl ResponseHandler for MockResponseHandler {
     }
 }
 
+fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
+    let mut reveal = kinetic_core::types::Reveal {
+        protocol_version: 2,
+        name: name.to_string(),
+        payload,
+        salt: [0u8; 32],
+        drand_pulse: 0,
+        drand_randomness: "".to_string(),
+        vdf_proof: kinetic_core::types::VdfProof {
+            proof_bytes: vec![],
+        },
+        iterations: 1,
+        pubkey: vec![],
+        signature: vec![],
+        miner_pubkey: None,
+        previous_proof: None,
+    };
+    use ed25519_dalek::Signer;
+    let keypair = ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng);
+    reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
+    reveal.signature = keypair.sign(&reveal.signable_bytes()).to_bytes().to_vec();
+    reveal
+}
+
 async fn start_mock_daemon() -> String {
     let app = Router::new().route(
         "/api/resolve/:domain",
@@ -55,42 +79,12 @@ async fn start_mock_daemon() -> String {
                         )],
                     );
                     let payload = serde_json::to_vec(&zone).unwrap();
-                    let reveal = kinetic_core::types::Reveal {
-                        protocol_version: 1,
-                        name: "test1.kin".to_string(),
-                        payload,
-                        salt: [0u8; 32],
-                        drand_pulse: 0,
-                        drand_randomness: "".to_string(),
-                        vdf_proof: kinetic_core::types::VdfProof {
-                            proof_bytes: vec![],
-                        },
-                        iterations: 1,
-                        pubkey: vec![],
-                        signature: vec![],
-                        miner_pubkey: None,
-                        previous_proof: None,
-                    };
+                    let reveal = mock_reveal("test1.kin", payload);
                     (StatusCode::OK, serde_json::to_vec(&reveal).unwrap()).into_response()
                 }
                 "invalid-payload.kin" => (StatusCode::OK, vec![0, 1, 2, 3]).into_response(),
                 "invalid-zone.kin" => {
-                    let reveal = kinetic_core::types::Reveal {
-                        protocol_version: 1,
-                        name: "invalid-zone.kin".to_string(),
-                        payload: vec![1, 2, 3, 4], // Invalid JSON for DnsZone
-                        salt: [0u8; 32],
-                        drand_pulse: 0,
-                        drand_randomness: "".to_string(),
-                        vdf_proof: kinetic_core::types::VdfProof {
-                            proof_bytes: vec![],
-                        },
-                        iterations: 1,
-                        pubkey: vec![],
-                        signature: vec![],
-                        miner_pubkey: None,
-                        previous_proof: None,
-                    };
+                    let reveal = mock_reveal("invalid-zone.kin", vec![1, 2, 3, 4]); // Invalid JSON for DnsZone
                     (StatusCode::OK, serde_json::to_vec(&reveal).unwrap()).into_response()
                 }
                 "500.kin" => (StatusCode::INTERNAL_SERVER_ERROR, "Error").into_response(),

@@ -6,6 +6,7 @@ impl KineticRecordStore {
     pub(crate) fn handle_reveal(
         &mut self,
         reveal: &kinetic_core::types::Reveal,
+        skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
         // Finding 3: Use the shared constant instead of a hardcoded magic number.
         if self.current_drand_round.saturating_sub(reveal.drand_pulse)
@@ -17,14 +18,16 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        if let Err(e) = super::verification::verify_reveal(
-            reveal,
-            &self.storage,
-            self.current_drand_round,
-            &self.vdf_engine,
-        ) {
-            e.log_warning("KIN-STORE-002", &reveal.name, "Rejecting Reveal:");
-            return Err(e);
+        if !skip_verify {
+            if let Err(e) = super::verification::verify_reveal(
+                reveal,
+                &self.storage,
+                self.current_drand_round,
+                &self.vdf_engine,
+            ) {
+                e.log_warning("KIN-STORE-002", &reveal.name, "Rejecting Reveal:");
+                return Err(e);
+            }
         }
 
         if let Some(existing_reveal) = self.reveals_by_name.get(&reveal.name) {

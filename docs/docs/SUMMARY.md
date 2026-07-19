@@ -27,6 +27,7 @@
 
 ## Reference
 
+- [CLI Reference (CLI Arguments Explained)](./cli_reference.md)
 - [Adversarial Analysis (Red-Team Audit)](./adversarial_analysis.md)
 - [Kinetic Protocol Specification v2](./protocol_specification.md)
 - [Error Handbook](./error_handbook.md)

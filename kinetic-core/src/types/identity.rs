@@ -28,6 +28,7 @@ impl AuthorizedKid {
 pub struct AuthorizedManifest {
     pub name: String,
     pub manifest: kinetic_kid::manifest::CapabilityManifest,
+    pub kid_doc: Option<kinetic_kid::document::KidDocument>,
     pub owner_signature: Vec<u8>,
 }
 
@@ -60,9 +61,7 @@ pub fn load_keypair(
 
     let key_path = std::env::var("KINETIC_KEY_PATH")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            crate::config::get_base_dir().join(filename)
-        });
+        .unwrap_or_else(|_| crate::config::get_base_dir().join(filename));
 
     if key_path.exists() {
         let bytes = fs::read(&key_path)?;
@@ -118,9 +117,7 @@ pub fn save_keypair_from_mnemonic(
 
     let key_path = std::env::var("KINETIC_KEY_PATH")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            crate::config::get_base_dir().join(filename)
-        });
+        .unwrap_or_else(|_| crate::config::get_base_dir().join(filename));
 
     if let Some(parent) = key_path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -190,6 +187,7 @@ mod tests {
         let auth_manifest = AuthorizedManifest {
             name: "test.kin".to_string(),
             manifest,
+            kid_doc: None,
             owner_signature: vec![1, 2, 3],
         };
 

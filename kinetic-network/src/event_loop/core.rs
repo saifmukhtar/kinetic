@@ -15,6 +15,19 @@ pub(crate) enum QueryType {
     Put(std::sync::Arc<str>),
 }
 
+pub(crate) enum LoopbackCommand {
+    CommitVerifiedRecord {
+        source: libp2p::PeerId,
+        record: libp2p::kad::Record,
+        verdict: Result<(), crate::error::KineticStoreError>,
+    },
+    ConnectionPoWVerified {
+        peer_id: libp2p::PeerId,
+        valid: bool,
+        is_bootstrap: bool,
+    },
+}
+
 /// The central event loop that drives the libp2p swarm and handles networking events.
 pub struct NetworkEventLoop {
     pub(crate) swarm: Swarm<KineticBehavior>,
@@ -48,12 +61,16 @@ pub struct NetworkEventLoop {
 
     pub(crate) bootstrap_connection_time: FxHashMap<PeerId, web_time::Instant>,
     pub(crate) nat_status: String,
+    pub(crate) loopback_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopbackCommand>>,
 }
 
 impl NetworkEventLoop {
     /// Starts the event loop. Blocks indefinitely until the command channel is closed.
     pub async fn run(mut self) {
         info!("Starting Kinetic P2P event loop");
+
+        let (loopback_tx, mut loopback_rx) = tokio::sync::mpsc::unbounded_channel();
+        self.loopback_tx = Some(loopback_tx);
 
         #[cfg(not(target_arch = "wasm32"))]
         for domain in &self.seed_domains {
@@ -140,6 +157,80 @@ impl NetworkEventLoop {
                         info!("Network client dropped, exiting loop");
                         break;
                     }
+                },
+                Some(cmd) = loopback_rx.recv() => {
+                    self.handle_loopback(cmd).await;
+                }
+            }
+        }
+    }
+
+    pub(crate) async fn handle_loopback(&mut self, cmd: LoopbackCommand) {
+        match cmd {
+            LoopbackCommand::CommitVerifiedRecord {
+                source,
+                record,
+                verdict,
+            } => {
+                if let Err(e) = verdict {
+                    if e.severity() == kinetic_core::error::Severity::Error {
+                        let now = web_time::Instant::now();
+                        let entry = self.bad_vdf_counts.entry(source).or_insert((0, now));
+                        if now.duration_since(entry.1) > web_time::Duration::from_secs(60) {
+                            *entry = (1, now);
+                        } else {
+                            entry.0 += 1;
+                        }
+
+                        if entry.0 >= 3 {
+                            tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
+                            let _ = self.swarm.disconnect_peer_id(source);
+                            let expire_time = web_time::SystemTime::now()
+                                .duration_since(web_time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs()
+                                + 86400;
+                            // Enforce LRU bounding on banned peers if over 10_000
+                            if self.banned_peers.len() >= 10_000 {
+                                // Find the oldest expiry
+                                if let Some(&oldest_peer) = self
+                                    .banned_peers
+                                    .iter()
+                                    .min_by_key(|&(_, &exp)| exp)
+                                    .map(|(p, _)| p)
+                                {
+                                    self.banned_peers.remove(&oldest_peer);
+                                }
+                            }
+                            self.banned_peers.insert(source, expire_time);
+                        }
+                    }
+                } else {
+                    tracing::debug!(
+                        "Offloaded DHT record verification succeeded for peer {}",
+                        source
+                    );
+                    let _ = self
+                        .swarm
+                        .behaviour_mut()
+                        .kademlia
+                        .store_mut()
+                        .put_verified_record(record);
+                }
+            }
+            LoopbackCommand::ConnectionPoWVerified {
+                peer_id,
+                valid,
+                is_bootstrap,
+            } => {
+                if !valid && !is_bootstrap {
+                    tracing::debug!("Peer {} failed S/Kademlia PoW for epoch, disconnecting them to prevent connection slot exhaustion", peer_id);
+                    let _ = self.swarm.disconnect_peer_id(peer_id);
+                } else if !valid && is_bootstrap {
+                    tracing::debug!(
+                        "Bootstrap peer {} failed PoW — permitted initially",
+                        peer_id
+                    );
                 }
             }
         }

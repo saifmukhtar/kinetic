@@ -117,145 +117,141 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
             info!("Successfully resolved .kin from Cache/DHT");
 
             match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload_bytes) {
-                Ok(reveal) => match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
-                    Ok(zone) => {
-                        let subdomain = if domain_name == apex_domain {
-                            "@".to_string()
-                        } else {
-                            let mut sub = domain_name
-                                .trim_end_matches(&format!(".{}", apex_domain))
-                                .to_string();
-                            if sub.ends_with('.') {
-                                sub.pop();
-                            }
-                            if sub.is_empty() {
+                Ok(reveal) => {
+                    if !reveal.verify_signature() {
+                        warn!(
+                            "Rejecting .kin resolution: reveal signature invalid for {}",
+                            apex_domain
+                        );
+                        let response = builder
+                            .error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
+                        let _ = response_handle.send_response(response).await;
+                        header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
+                        return header.into();
+                    }
+
+                    match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
+                        Ok(zone) => {
+                            let subdomain = if domain_name == apex_domain {
                                 "@".to_string()
                             } else {
-                                sub
-                            }
-                        };
-
-                        if let Some(records) = zone
-                            .records
-                            .get(&subdomain)
-                            .or_else(|| zone.records.get("*"))
-                        {
-                            let name = match Name::from_str(query_name) {
-                                Ok(n) => n,
-                                Err(e) => {
-                                    error!("Invalid query name format: {}", e);
-                                    let response = builder.error_msg(
-                                        request.header(),
-                                        hickory_proto::op::ResponseCode::FormErr,
-                                    );
-                                    let _ = response_handle.send_response(response).await;
-                                    header.set_response_code(
-                                        hickory_proto::op::ResponseCode::FormErr,
-                                    );
-                                    return header.into();
+                                let mut sub = domain_name
+                                    .trim_end_matches(&format!(".{}", apex_domain))
+                                    .to_string();
+                                if sub.ends_with('.') {
+                                    sub.pop();
+                                }
+                                if sub.is_empty() {
+                                    "@".to_string()
+                                } else {
+                                    sub
                                 }
                             };
-                            let q_type = query.query_type();
-                            let mut response_records = Vec::new();
 
-                            for record in records {
-                                match record {
-                                    kinetic_core::types::DnsRecord::A(ip)
-                                        if q_type == hickory_proto::rr::RecordType::A =>
-                                    {
-                                        if ip.is_loopback()
-                                            || ip.is_unspecified()
-                                            || ip.is_broadcast()
-                                            || ip.is_multicast()
-                                            || ip.is_private()
-                                            || ip.is_link_local()
-                                            || ip.is_documentation()
-                                        {
-                                            warn!("Blocked SSRF attempt: A record points to forbidden IP {}", ip);
-                                            continue;
-                                        }
-                                        response_records.push(Record::from_rdata(
-                                            name.clone(),
-                                            60,
-                                            RData::A((*ip).into()),
-                                        ));
+                            if let Some(records) = zone
+                                .records
+                                .get(&subdomain)
+                                .or_else(|| zone.records.get("*"))
+                            {
+                                let name = match Name::from_str(query_name) {
+                                    Ok(n) => n,
+                                    Err(e) => {
+                                        error!("Invalid query name format: {}", e);
+                                        let response = builder.error_msg(
+                                            request.header(),
+                                            hickory_proto::op::ResponseCode::FormErr,
+                                        );
+                                        let _ = response_handle.send_response(response).await;
+                                        header.set_response_code(
+                                            hickory_proto::op::ResponseCode::FormErr,
+                                        );
+                                        return header.into();
                                     }
-                                    kinetic_core::types::DnsRecord::AAAA(ip)
-                                        if q_type == hickory_proto::rr::RecordType::AAAA =>
-                                    {
-                                        let is_ula = ip.segments()[0] & 0xfe00 == 0xfc00;
-                                        let is_link_local = ip.segments()[0] & 0xffc0 == 0xfe80;
-                                        let is_ipv4_forbidden = ip.to_ipv4().map_or(false, |v4| {
-                                            v4.is_loopback()
-                                                || v4.is_private()
-                                                || v4.is_link_local()
-                                                || v4.is_unspecified()
-                                                || v4.is_broadcast()
-                                                || v4.is_documentation()
-                                        });
+                                };
+                                let q_type = query.query_type();
+                                let mut response_records = Vec::new();
 
-                                        if ip.is_loopback()
-                                            || ip.is_unspecified()
-                                            || ip.is_multicast()
-                                            || is_ula
-                                            || is_link_local
-                                            || is_ipv4_forbidden
+                                for record in records {
+                                    match record {
+                                        kinetic_core::types::DnsRecord::A(ip)
+                                            if q_type == hickory_proto::rr::RecordType::A =>
                                         {
-                                            warn!("Blocked SSRF attempt: AAAA record points to forbidden IP {}", ip);
-                                            continue;
-                                        }
-                                        response_records.push(Record::from_rdata(
-                                            name.clone(),
-                                            60,
-                                            RData::AAAA((*ip).into()),
-                                        ));
-                                    }
-                                    kinetic_core::types::DnsRecord::CNAME(target)
-                                        if q_type == hickory_proto::rr::RecordType::CNAME =>
-                                    {
-                                        if let Ok(cname) = Name::from_str(target) {
+                                            if !kinetic_core::net::is_ssrf_safe(
+                                                std::net::IpAddr::V4(*ip),
+                                            ) {
+                                                warn!("Blocked SSRF attempt: A record points to forbidden IP {}", ip);
+                                                continue;
+                                            }
                                             response_records.push(Record::from_rdata(
                                                 name.clone(),
                                                 60,
-                                                RData::CNAME(hickory_proto::rr::rdata::CNAME(
-                                                    cname,
+                                                RData::A((*ip).into()),
+                                            ));
+                                        }
+                                        kinetic_core::types::DnsRecord::AAAA(ip)
+                                            if q_type == hickory_proto::rr::RecordType::AAAA =>
+                                        {
+                                            if !kinetic_core::net::is_ssrf_safe(
+                                                std::net::IpAddr::V6(*ip),
+                                            ) {
+                                                warn!("Blocked SSRF attempt: AAAA record points to forbidden IP {}", ip);
+                                                continue;
+                                            }
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::AAAA((*ip).into()),
+                                            ));
+                                        }
+                                        kinetic_core::types::DnsRecord::CNAME(target)
+                                            if q_type == hickory_proto::rr::RecordType::CNAME =>
+                                        {
+                                            if let Ok(cname) = Name::from_str(target) {
+                                                response_records.push(Record::from_rdata(
+                                                    name.clone(),
+                                                    60,
+                                                    RData::CNAME(hickory_proto::rr::rdata::CNAME(
+                                                        cname,
+                                                    )),
+                                                ));
+                                            }
+                                        }
+                                        kinetic_core::types::DnsRecord::TXT(txt)
+                                            if q_type == hickory_proto::rr::RecordType::TXT =>
+                                        {
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::TXT(hickory_proto::rr::rdata::TXT::new(
+                                                    vec![txt.clone()],
                                                 )),
                                             ));
                                         }
+                                        _ => {}
                                     }
-                                    kinetic_core::types::DnsRecord::TXT(txt)
-                                        if q_type == hickory_proto::rr::RecordType::TXT =>
-                                    {
-                                        response_records.push(Record::from_rdata(
-                                            name.clone(),
-                                            60,
-                                            RData::TXT(hickory_proto::rr::rdata::TXT::new(vec![
-                                                txt.clone(),
-                                            ])),
-                                        ));
-                                    }
-                                    _ => {}
                                 }
-                            }
 
-                            if !response_records.is_empty() {
-                                header.set_response_code(hickory_proto::op::ResponseCode::NoError);
-                                let response = builder.build(
-                                    header,
-                                    response_records.iter(),
-                                    std::iter::empty(),
-                                    std::iter::empty(),
-                                    std::iter::empty(),
-                                );
-                                let _ = response_handle.send_response(response).await;
-                                return header.into();
+                                if !response_records.is_empty() {
+                                    header.set_response_code(
+                                        hickory_proto::op::ResponseCode::NoError,
+                                    );
+                                    let response = builder.build(
+                                        header,
+                                        response_records.iter(),
+                                        std::iter::empty(),
+                                        std::iter::empty(),
+                                        std::iter::empty(),
+                                    );
+                                    let _ = response_handle.send_response(response).await;
+                                    return header.into();
+                                }
+                            } else {
+                                warn!("No records found for subdomain: {}", subdomain);
                             }
-                        } else {
-                            warn!("No records found for subdomain: {}", subdomain);
                         }
+                        Err(e) => warn!("Payload was not a valid DnsZone: {}", e),
                     }
-                    Err(e) => warn!("Payload was not a valid DnsZone: {}", e),
-                },
+                }
                 Err(e) => warn!("Payload was not a valid Reveal tuple: {}", e),
             }
         }

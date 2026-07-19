@@ -236,6 +236,19 @@ impl KineticRecordStore {
 impl KineticRecordStore {
     /// Attempts to put a record, returning a typed KineticStoreError on failure.
     pub fn put_record(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
+        self.put_record_internal(r, false)
+    }
+
+    /// Attempts to put a record directly, bypassing VDF verification (for offloaded validation).
+    pub fn put_verified_record(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
+        self.put_record_internal(r, true)
+    }
+
+    fn put_record_internal(
+        &mut self,
+        r: kad::Record,
+        skip_reveal_verify: bool,
+    ) -> Result<(), KineticStoreError> {
         tracing::info!("KineticRecordStore::put called for key: {:?}", r.key);
 
         // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
@@ -278,7 +291,7 @@ impl KineticRecordStore {
                 match serde_json::from_value::<kinetic_core::types::Reveal>(parsed) {
                     Ok(reveal) => {
                         tracing::info!("KineticRecordStore::put parsed Reveal for {}", reveal.name);
-                        self.handle_reveal(&reveal)?;
+                        self.handle_reveal(&reveal, skip_reveal_verify)?;
                     }
                     Err(_) => {
                         let err = KineticStoreError::UnknownRecordType;
@@ -314,9 +327,11 @@ impl KineticRecordStore {
                 match serde_json::from_value::<kinetic_core::types::AuthorizedManifest>(parsed) {
                     Ok(auth_manifest) => {
                         let active_reveal = self.reveals_by_name.get(&auth_manifest.name);
+                        let existing_record = self.inner.get(&r.key);
                         super::verification::verify_authorized_manifest(
                             &auth_manifest,
                             active_reveal,
+                            existing_record.as_ref(),
                         )?;
                     }
                     Err(_) => {

@@ -379,6 +379,7 @@ pub(crate) fn verify_authorized_kid(
 pub(crate) fn verify_authorized_manifest(
     auth_manifest: &kinetic_core::types::AuthorizedManifest,
     active_reveal: Option<&kinetic_core::types::Reveal>,
+    existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let reveal = active_reveal.ok_or_else(|| {
         let err = KineticStoreError::InvalidManifestSignature;
@@ -397,19 +398,50 @@ pub(crate) fn verify_authorized_manifest(
     let sig = ed25519_dalek::Signature::from_slice(&auth_manifest.owner_signature)
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
-    if pubkey.verify(&auth_manifest.signable_bytes(), &sig).is_ok() {
-        tracing::info!(
-            "KineticRecordStore::put accepted AuthorizedManifest for {}",
-            auth_manifest.manifest.kid.as_str()
-        );
-        Ok(())
-    } else {
+    if pubkey
+        .verify(&auth_manifest.signable_bytes(), &sig)
+        .is_err()
+    {
         let err = KineticStoreError::InvalidManifestSignature;
         err.log_warning(
             "KIN-STORE-018",
             &auth_manifest.name,
-            "Rejecting AuthorizedManifest: invalid signature",
+            "Rejecting AuthorizedManifest: invalid owner signature",
         );
-        Err(err)
+        return Err(err);
     }
+
+    let kid_doc = auth_manifest
+        .kid_doc
+        .as_ref()
+        .ok_or(KineticStoreError::InvalidManifestSignature)?;
+    kid_doc
+        .verify()
+        .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
+    auth_manifest
+        .manifest
+        .verify(kid_doc)
+        .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
+
+    if let Some(existing) = existing_record {
+        if let Ok(old_manifest) =
+            serde_json::from_slice::<kinetic_core::types::AuthorizedManifest>(&existing.value)
+        {
+            if auth_manifest.manifest.version <= old_manifest.manifest.version {
+                let err = KineticStoreError::InvalidManifestSignature;
+                err.log_warning(
+                    "KIN-STORE-034",
+                    &auth_manifest.name,
+                    "Rejecting AuthorizedManifest: Version rollback detected",
+                );
+                return Err(err);
+            }
+        }
+    }
+
+    tracing::info!(
+        "KineticRecordStore::put accepted AuthorizedManifest for {}",
+        auth_manifest.manifest.kid.as_str()
+    );
+    Ok(())
 }

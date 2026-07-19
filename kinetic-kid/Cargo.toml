@@ -15,6 +15,7 @@ ed25519-dalek = { version = "2.0", features = ["rand_core"] }
 sha2 = "0.10"
 base64 = "0.22"
 thiserror = "1.0"
+web-time = "1.1.0"
 [dev-dependencies]
 rand_core = { version = "0.6", features = ["getrandom"] }
 proptest = "1.5.0"

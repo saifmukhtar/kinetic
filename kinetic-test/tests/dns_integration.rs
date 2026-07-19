@@ -31,7 +31,7 @@ mod tests {
             let zone = DnsZone { records };
             let payload = serde_json::to_vec(&zone).unwrap();
 
-            let reveal = Reveal {
+            let mut reveal = Reveal {
                 protocol_version: 2,
                 name: "testdns.kin".to_string(),
                 payload,
@@ -47,6 +47,10 @@ mod tests {
                 previous_proof: None,
                 miner_pubkey: None,
             };
+            use ed25519_dalek::Signer;
+            let keypair = ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng);
+            reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
+            reveal.signature = keypair.sign(&reveal.signable_bytes()).to_bytes().to_vec();
             Ok(Json(reveal))
         } else {
             Err(axum::http::StatusCode::NOT_FOUND)

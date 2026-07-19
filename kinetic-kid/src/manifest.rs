@@ -64,6 +64,14 @@ impl CapabilityManifest {
             return Err(KidError::UnauthorizedManifestSignature);
         }
 
+        let current_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if self.valid_from > current_time + 300 {
+            return Err(KidError::InvalidValidFrom);
+        }
+
         let sig_b64 = self.signature.as_ref().ok_or(KidError::MissingSignature)?;
         let sig_bytes = b64_url.decode(sig_b64)?;
 

@@ -43,6 +43,8 @@ pub mod error;
 /// On-chain governance: council proposals, voting, and parameter updates.
 pub mod governance;
 
+/// Network security utilities for SSRF prevention.
+pub mod net;
 /// Idempotency key helpers for deduplicating daemon API requests.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod request_id;

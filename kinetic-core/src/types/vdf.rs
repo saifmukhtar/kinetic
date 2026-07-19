@@ -114,6 +114,18 @@ impl Reveal {
         Ok(())
     }
 
+    /// Verifies the Ed25519 signature over the signable bytes.
+    pub fn verify_signature(&self) -> bool {
+        use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+        let signable = self.signable_bytes();
+        if let Ok(pubkey) = VerifyingKey::try_from(self.pubkey.as_slice()) {
+            if let Ok(sig) = Signature::from_slice(self.signature.as_slice()) {
+                return pubkey.verify(&signable, &sig).is_ok();
+            }
+        }
+        false
+    }
+
     /// Serializes the reveal payload into a byte vector for cryptographic signing.
     /// Returns the length-prefixed serialized fields.
     pub fn signable_bytes(&self) -> Vec<u8> {

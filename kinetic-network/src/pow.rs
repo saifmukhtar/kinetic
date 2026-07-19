@@ -5,7 +5,7 @@ use tracing::info;
 /// The number of drand pulses in a single PoW epoch (e.g., 1440 for 12 hours at 30s per pulse).
 pub const EPOCH_PULSES: u64 = 1440; // 12 hours at 30s per pulse
 /// The default difficulty level (number of leading zero bits) for PoW mining.
-pub const DEFAULT_DIFFICULTY_BITS: u32 = 8;
+pub const DEFAULT_DIFFICULTY_BITS: u32 = 20;
 
 /// Computes the leading zero bits of a given byte slice.
 fn leading_zeros(hash: &[u8]) -> u32 {

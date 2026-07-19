@@ -97,8 +97,18 @@ impl DrandPulse {
             Err(_) => return false,
         };
 
-        // Quicknet is unchained, so previous_signature is empty array
-        pk.verify(self.round, &[], &sig_bytes).unwrap_or(false)
+        // 1. Verify BLS signature over the round (Quicknet is unchained, so previous_signature is empty array)
+        if !pk.verify(self.round, &[], &sig_bytes).unwrap_or(false) {
+            return false;
+        }
+
+        // 2. Bind the randomness to the signature: randomness MUST equal SHA-256(signature).
+        use sha2::{Digest, Sha256};
+        let expected = Sha256::digest(&sig_bytes);
+        match hex::decode(&self.randomness) {
+            Ok(r) => r.as_slice() == expected.as_slice(),
+            Err(_) => false,
+        }
     }
 }
 
@@ -145,13 +155,21 @@ impl DrandClient {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let mut injected_count = 0;
             for domain in &self.seed_domains {
+                if injected_count >= 5 {
+                    break;
+                }
                 if let Ok(txt_lookup) = self.resolver.txt_lookup(domain.as_str()).await {
                     for txt in txt_lookup.iter() {
+                        if injected_count >= 5 {
+                            break;
+                        }
                         let url_str = txt.to_string();
                         let url_str = url_str.trim_matches('"').to_string();
                         if url_str.starts_with("https://") {
                             endpoints.push(url_str);
+                            injected_count += 1;
                         }
                     }
                 }

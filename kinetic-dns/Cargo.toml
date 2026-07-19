@@ -29,3 +29,5 @@ privdrop = "0.5.6"
 [dev-dependencies]
 axum = "0.7"
 proptest = "1.4"
+ed25519-dalek = { version = "2.0", features = ["rand_core"] }
+rand_core = { version = "0.6", features = ["getrandom"] }

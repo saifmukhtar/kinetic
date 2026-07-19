@@ -93,9 +93,12 @@ pub async fn handle_identity_command(
             let keypair = kinetic_core::types::load_keypair(&identity_path.to_string_lossy())?;
             use ed25519_dalek::Signer;
 
+            let mut kid_doc_opt = None;
+
             if std::path::Path::new(&kid).exists() {
                 let data = std::fs::read_to_string(&kid)?;
                 let doc: kinetic_kid::document::KidDocument = serde_json::from_str(&data)?;
+                kid_doc_opt = Some(doc.clone());
 
                 let mut auth_kid = kinetic_core::types::AuthorizedKid {
                     name: name.clone(),
@@ -129,6 +132,7 @@ pub async fn handle_identity_command(
                 let mut auth_manifest = kinetic_core::types::AuthorizedManifest {
                     name: name.clone(),
                     manifest: doc,
+                    kid_doc: kid_doc_opt,
                     owner_signature: vec![],
                 };
                 let signable = auth_manifest.signable_bytes();
