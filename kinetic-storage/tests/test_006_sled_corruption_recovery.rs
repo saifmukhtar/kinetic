@@ -18,29 +18,31 @@ fn test_006_sled_corruption_recovery() {
     )
     .unwrap();
 
-    // Under OLD logic, SledStorage::new would return an Err here and the daemon would crash/loop
-    // Under NEW logic, SledStorage::new should catch the error, rename the dir to storage_db.corrupt.bak, and create a fresh db
+    // Under NEW security rules, SledStorage::new should fail closed (return Err)
+    // but still back up the corrupt database with a timestamp.
     let storage_result = SledStorage::new(&db_path);
 
     assert!(
-        storage_result.is_ok(),
-        "SECURITY FLAW: Sled corruption was not auto-recovered. The node is stuck in a boot loop!"
+        storage_result.is_err(),
+        "SECURITY FLAW: Sled corruption should fail closed, not silently recover!"
     );
 
-    let storage = storage_result.unwrap();
-
-    // Verify we can write to the fresh db
-    storage.put(b"test_key", b"test_value").unwrap();
-    let res = storage.get(b"test_key").unwrap();
-    assert_eq!(res.unwrap(), &b"test_value"[..]);
-
-    // Verify the .bak directory was created
-    let mut bak_path = db_path.clone().into_os_string();
-    bak_path.push(".corrupt.bak");
-    let bak_path = PathBuf::from(bak_path);
+    // Verify a .bak directory with a timestamp was created
+    let parent = db_path.parent().unwrap();
+    let entries = fs::read_dir(parent).unwrap();
+    
+    let mut backup_found = false;
+    for entry in entries {
+        let entry = entry.unwrap();
+        let name = entry.file_name().into_string().unwrap();
+        if name.starts_with("storage_db.corrupt.") && name.ends_with(".bak") {
+            backup_found = true;
+            break;
+        }
+    }
 
     assert!(
-        bak_path.exists(),
-        "The corrupted database was not moved to a backup directory!"
+        backup_found,
+        "The corrupted database was not moved to a timestamped backup directory!"
     );
 }

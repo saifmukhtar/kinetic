@@ -35,34 +35,42 @@ mod native {
             match sled::open(path) {
                 Ok(db) => Ok(Self { db }),
                 Err(sled::Error::Io(e)) => {
+                    let kind = e.kind();
+                    if kind == std::io::ErrorKind::WouldBlock
+                        || kind == std::io::ErrorKind::PermissionDenied
+                    {
+                        return Err(StorageError::DatabaseLocked);
+                    }
+                    // Fallback for platform-specific locks
                     let err_str = e.to_string().to_lowercase();
-                    if err_str.contains("lock")
-                        || err_str.contains("resource temporarily unavailable")
+                    if err_str.contains("resource temporarily unavailable")
                         || err_str.contains("in use")
-                        || err_str.contains("would block")
                     {
                         return Err(StorageError::DatabaseLocked);
                     }
                     Err(StorageError::OperationFailed(format!("IO error: {}", e)))
                 }
                 Err(sled::Error::Corruption { .. }) => {
-                    tracing::error!(
-                        "Sled database corruption detected at {:?}, backing up and creating new...",
-                        path
-                    );
+                    let ts = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+
                     let mut bak_path = path.to_path_buf().into_os_string();
-                    bak_path.push(".corrupt.bak");
+                    bak_path.push(format!(".corrupt.{}.bak", ts));
 
-                    let _ = std::fs::remove_dir_all(&bak_path);
-                    if std::fs::rename(path, &bak_path).is_ok() {
-                        if let Ok(db) = sled::open(path) {
-                            return Ok(Self { db });
-                        }
-                    }
+                    tracing::error!(
+                        "CRITICAL: Sled database corruption detected at {:?}. Backing up to {:?}",
+                        path,
+                        bak_path
+                    );
 
-                    Err(StorageError::OperationFailed(
-                        "Database corrupted and recovery failed".to_string(),
-                    ))
+                    let _ = std::fs::rename(path, &bak_path);
+
+                    Err(StorageError::OperationFailed(format!(
+                        "Database corrupted. Manual recovery required. Backup moved to {:?}",
+                        bak_path
+                    )))
                 }
                 Err(e) => Err(StorageError::OperationFailed(e.to_string())),
             }
