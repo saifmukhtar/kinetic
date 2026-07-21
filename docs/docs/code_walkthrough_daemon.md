@@ -22,7 +22,7 @@ graph TD
         CA[Certificate Auth<br/>(ca.rs)] --> Proxy[HTTPS Proxy<br/>(proxy.rs)]
         Proxy --> PAC[PAC File Server<br/>(pac.rs)]
         
-        Nostr[Nostr Client<br/>(nostr.rs)] -->|Delegated VDFs| API
+
     end
 ```
 
@@ -30,7 +30,6 @@ graph TD
 - **`api.rs`**: The core REST API router that serves the React frontend and handles local control commands from the CLI (e.g., identity generation, name registration, service manifests).
 - **`proxy.rs` & `ca.rs`**: The proxy engine acts as an HTTP/HTTPS forwarder. It dynamically provisions self-signed TLS certificates on the fly using `ca.rs`, enabling seamless secure connections to `.kin` domains without browser warnings.
 - **`pac.rs`**: Serves the Proxy Auto-Configuration (PAC) file required by the OS to route `.kin` traffic gracefully into the Kinetic loopback interface.
-- **`nostr.rs`**: An encrypted communication layer (NIP-04) allowing mobile devices to delegate intense VDF computations to the desktop daemon.
 
 ### 1.2 Extensive Test Coverage
 The Daemon's modularity allows for extremely rigorous, isolated testing. Instead of testing the entire daemon monolithically, each module is backed by comprehensive inline test suites:

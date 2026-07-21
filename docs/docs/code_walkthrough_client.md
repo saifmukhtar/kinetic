@@ -22,7 +22,7 @@ The Rust side exposes high-level asynchronous functions. Unlike the Desktop daem
 
 *   **`daemon.rs` (`init_light_client()`)**: Initializes the lightweight Kademlia node that queries the DHT but does not store data for other peers.
 *   **`resolver.rs`**: Handles intercepts for the mobile WebView, ensuring `kin://` URLs are securely resolved and routed.
-*   **`delegation.rs`**: Manages the complex Nostr/HTTP flow required to outsource VDF computation to desktop nodes.
+*   **`delegation.rs`**: Manages the HTTP flow required to outsource VDF computation to desktop nodes.
 
 ### The Dart UI Invocation
 
@@ -42,14 +42,14 @@ It calls `get_or_spawn_transport_bridge()` to spin up a temporary, dynamically a
 
 ---
 
-## 3. VDF Delegation via Nostr & HTTP
+## 3. VDF Delegation via HTTP
 
 The most computationally expensive operation in Kinetic is domain registration. Because a smartphone cannot physically compute a 4-million iteration VDF without overheating, it delegates the math to a Desktop node.
 
 ### The Delegation Flow
 
 1.  **Mobile Request (`delegation.rs`)**: The Rust engine generates a new Ed25519 identity, fetches the Drand pulse, creates the `CommitRequest`, and generates a small Hashcash Proof-of-Work to deter spam.
-2.  **Encrypted Transport**: The request is encrypted and published either via a Nostr Relay (`wss://relay.kinetic.network`) or a direct HTTP fallback.
+2.  **Encrypted Transport**: The request is encrypted and published via a direct HTTP connection to the desktop node.
 3.  **Desktop Grind**: The Desktop node verifies the PoW, computes the massive VDF proof, and returns the encrypted `Reveal` bytes to the phone.
 4.  **Finalization**: The mobile phone signs the final payload with its locally secured private key and broadcasts it to the DHT. 
 

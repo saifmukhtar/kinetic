@@ -73,7 +73,7 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 
 ### 11. The "Mobile Partition" Edge Case
 - **Location:** `kinetic-network/src/event_loop.rs:334` (`SwarmEvent::ConnectionEstablished`)
-- **What happens if:** A user runs a node on a low-power device (like an Android phone). The code enforces S/Kademlia PoW tied to the *current* 30-second Drand pulse for all peers. 
+- **What happens if:** A user runs a node on a low-power device (like an Android phone). The code enforces S/Kademlia PoW tied to the *current* 3-second Drand pulse for all peers. 
 - **Status:** 🟢 **Solved / Fixed**. Light clients have been updated to completely bypass `mine_sybil_keypair` on startup and instead use ephemeral `Keypair::generate_ed25519()`. Since `kinetic-network`'s `event_loop` handles failed PoWs by simply keeping the connection but ignoring the peer for the incoming Kademlia routing table, Light Clients function perfectly: they save CPU/battery by skipping mining, avoid being routed to by servers (reducing their bandwidth), but can still successfully dial out to bootstrap nodes and query the DHT.
 
 ### 12. The "Stale DNS Cache" Edge Case
@@ -431,16 +431,6 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 - **What happens if:** A user on a malicious public Wi-Fi network resolves the seed domain `seed.saifmukhtar.dev`.
 - **Status:** 🟢 **Solved / Fixed**. Completely disabled DNS-based seed discovery (`seed_domains()`) on the mobile client. The mobile app now relies exclusively on hardcoded IP multiaddrs which include cryptographically verified `PeerId`s (e.g., `/p2p/12D3K...`). A malicious Wi-Fi router intercepting traffic cannot spoof the Kademlia handshake without the private key matching the expected `PeerId`.
 
-### 79. The "Nostr Relay Privacy Leak" Edge Case
-- **Location:** `mobile/lib/src/services/nostr_service.dart:14`
-- **What happens if:** A user looks up a `.kin` identity that includes a Nostr `pubkey`.
-- **Status:** 🟢 **Solved / Fixed**. Removed the automatic `NostrService.fetchProfile` fallback in `identity_provider.dart`. The mobile app no longer broadcasts queried Nostr pubkeys over plaintext WebSockets to Damus/Nos.lol, effectively closing the third-party tracking vector and enforcing Kinetic's strict P2P-only privacy model.
-
-### 80. The "WebSocket Rapid Connection Leak" Edge Case
-- **Location:** `mobile/lib/src/services/nostr_service.dart:35`
-- **What happens if:** A user rapidly taps on 10 different `.kin` profiles.
-- **Status:** 🟢 **Solved / Fixed**. Disabled the `npub1` direct-lookup feature entirely in `identity_provider.dart` and decoupled the frontend from `NostrService`. This permanently prevents rapid WebSocket spawn exhaustion during search bar typing and avoids unintended IP bans from upstream relays.
-
 ### 81. The "Sandbox Escape Local API Attack" Edge Case
 - **Location:** `mobile/lib/src/screens/browser/browser_page.dart:29`
 - **What happens if:** An attacker hosts a malicious `.kin` site with custom JavaScript.
@@ -460,16 +450,6 @@ This document records the exhaustive "What If" edge-case analysis across all cra
 - **Location:** `mobile/lib/src/providers/daemon_provider.dart:31`
 - **What happens if:** A user minimizes the app to reply to a text message, then returns 5 minutes later.
 - **Status:** 🟢 **Solved / Fixed**. Implemented a `reconnectNetwork` FFI binding and integrated it into `daemon_provider.dart` using a `WidgetsBindingObserver`. When the Flutter app transitions back to `AppLifecycleState.resumed`, the client dynamically triggers Kademlia to re-bootstrap and re-dial seed peers, successfully restoring connectivity without needing to restart the app or the async runtime.
-
-### 85. The "Nostr Malicious Image Injection" Edge Case
-- **Location:** `mobile/lib/src/screens/identity/identity_tab.dart:255`
-- **What happens if:** An attacker sets their Nostr banner URL to a 1GB image payload, a tracking pixel, or an infinite stream.
-- **Status:** 🟢 **Solved / Fixed**. Completely removed the `NetworkImage(banner)` and `NetworkImage(avatar)` rendering logic from `_ProfileHeader`. The UI now displays a secure local icon placeholder for avatars and no banner. This physically prevents malicious tracking URLs from capturing the mobile device's IP, and eliminates the risk of Flutter Out-Of-Memory (OOM) crashes from multi-gigabyte image bombs.
-
-### 86. The "Nostr Overwrite Identity Forgery" Edge Case
-- **Location:** `mobile/lib/src/providers/identity_provider.dart:84`
-- **What happens if:** The `.kin` DNS zone defines a Nostr key, and the Nostr relay returns a spoofed JSON payload with unexpected types (e.g. `nip05` as an array).
-- **Status:** 🟢 **Solved / Fixed**. Refactored `identity_tab.dart` to strictly use `is String ? ... as String : null` checking for all profile attributes instead of the dangerous `as String?` cast. If the node returns a spoofed JSON format, the UI silently falls back to `null` safely without triggering a `TypeError` crash.
 
 ### 87. The "Missing Internet Permissions" Edge Case
 - **Location:** `mobile/android/app/src/main/AndroidManifest.xml`
