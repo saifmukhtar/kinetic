@@ -76,11 +76,11 @@ Because legitimate clients resolve the target using the signed `HostRoutingRecor
 
 Because claiming a name requires massive VDF computation (potentially hours of CPU time), mobile devices with battery constraints are practically excluded from direct registration.
 
-The planned solution is **Delegated Compute** utilizing the Nostr protocol [2]. A user on a mobile device constructs a signed registration commitment, encrypts it using Nostr NIP-04 (Encrypted Direct Message), and broadcasts it to a specific public key belonging to their desktop Kinetic daemon or a paid compute provider.
+The planned solution is **Delegated Compute**. A user on a mobile device constructs a signed registration commitment, encrypts it, and broadcasts it to a specific public key belonging to their desktop Kinetic daemon or a paid compute provider.
 
 The desktop daemon receives the encrypted request, executes the VDF using high-performance hardware, and publishes the resulting reveal tuple to the DHT. Because the commitment strictly binds the payload to the mobile user's public key, the delegator cannot steal the name.
 
-> **Current Status:** The mobile commitment architecture and key delegation structure are implemented. The Nostr transport integration is planned for Phase 2. In the current version, mobile delegation is achieved via a direct local network connection between the mobile client and the desktop daemon.
+> **Current Status:** The mobile commitment architecture and key delegation structure are implemented. The encrypted transport integration is planned for Phase 2. In the current version, mobile delegation is achieved via a direct local network connection between the mobile client and the desktop daemon.
 
 ---
 
@@ -106,6 +106,5 @@ By utilizing OS-level DNS loopbacks, dynamic Certificate Authorities, and Epoch-
 
 [1] Baumgart, I., & Mies, S. (2007). *S/Kademlia: A practicable approach towards secure key-based routing.* In 2007 International Conference on Parallel and Distributed Systems (pp. 1-8). IEEE.
 
-[2] fiatjaf. (2020). *NIP-04: Encrypted Direct Message.* Nostr Implementation Possibilities. Retrieved from https://github.com/nostr-protocol/nips
 
-[3] Maymounkov, P., & Mazières, D. (2002). *Kademlia: A peer-to-peer information system based on the XOR metric.* IPTPS '02.
+[2] Maymounkov, P., & Mazières, D. (2002). *Kademlia: A peer-to-peer information system based on the XOR metric.* IPTPS '02.

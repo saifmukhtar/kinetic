@@ -81,11 +81,6 @@ A KID points to a **Capability Manifest**. The manifest cryptographically declar
       "type": "api",
       "protocol": "https",
       "target": "api.myservice.com"
-    },
-    {
-      "type": "nostr-relay",
-      "protocol": "wss",
-      "target": "relay.nostr.info"
     }
   ],
   "signature": "0x7a8b9c..."

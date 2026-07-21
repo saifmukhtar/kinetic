@@ -92,11 +92,6 @@ A KID points to a Capability Manifest. The manifest describes exactly what servi
       "protocol": "grpc",
       "target": "api.backend.local",
       "port": 50051
-    },
-    {
-      "type": "nostr-relay",
-      "protocol": "wss",
-      "target": "relay.nostr.info"
     }
   ],
   "signature": "0x7a8b9c..."

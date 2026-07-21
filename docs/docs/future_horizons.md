@@ -15,7 +15,7 @@ The most significant near-term opportunity for Kinetic is not the `.kin` network
 - **`kinetic-forge` GUI:** A desktop application wrapping the interactive `kinetic-forge` wizard, allowing non-Rust developers to configure and deploy a fork with zero CLI knowledge
 - **Fork Registry:** A voluntary public directory of active Kinetic forks — their TLDs, bootstrap nodes, and governance contacts — enabling cross-fork peering and discovery
 - **Cross-Network Resolution:** A proposed extension allowing a `.kin` daemon to optionally resolve names on registered fork networks, creating a federated namespace without sacrificing individual network sovereignty
-- **Delegated Compute (Mobile):** Completing the Nostr NIP-04 integration so mobile users can delegate VDF computation to their desktop daemon or a paid compute provider, enabling name registration from battery-constrained devices
+- **Delegated Compute (Mobile):** Completing the encrypted delegation flow so mobile users can delegate VDF computation to their desktop daemon or a paid compute provider, enabling name registration from battery-constrained devices
 
 ---
 

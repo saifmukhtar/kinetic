@@ -1,7 +1,7 @@
-# Kinetic Protocol Specification v2
+# Kinetic Protocol Specification v1
 ## A Decentralized, Identity-Centric Service Discovery Network
 
-**Version 2.0 (Formal Specification)**
+**Version 1.0 (Formal Specification)**
 
 ## Abstract
 Kinetic is a completely decentralized protocol that maps human-readable names to cryptographic identities (KIDs), which in turn map to service manifests. Kinetic eliminates the need for global ledgers, heavy consensus algorithms, or trusted resolution authorities by strictly utilizing verifiable delay functions (VDFs), cryptographic signatures, and a Kademlia Distributed Hash Table (DHT).
@@ -10,7 +10,7 @@ This document serves as the formal architectural specification for the Kinetic p
 
 ---
 
-## 1. The Formal State Machine (Protocol V2)
+## 1. The Formal State Machine (Protocol V1)
 
 Ownership of a Kinetic name is an ephemeral state defined purely by cryptographic mathematics, not by database registry entries. The state of any name traverses the following lifecycle:
 
@@ -90,7 +90,7 @@ Kinetic enforces **two payload size limits at two distinct layers**, both enforc
 
 In practice, the **8,000-byte transport limit** is the operative constraint for published payloads. The 64KB limit exists as the protocol-level ceiling for future extensions (e.g., TLSA records, IPFS CIDs).
 
-### 3.1 The Reveal Struct (Protocol Version 2)
+### 3.1 The Reveal Struct (Protocol Version 1)
 The core cryptographic truth that proves a user owns a name, finalizing the Two-Phase Commit.
 
 ```json
@@ -136,10 +136,6 @@ The mapping of the Identity to concrete services. Also requires a 20-bit Hashcas
     "api": {
       "type": "grpc",
       "endpoint": "api.example.org:443"
-    },
-    "nostr": {
-      "type": "websocket",
-      "endpoint": "wss://relay.kinetic.network"
     }
   },
   "pow_nonce": 9238471,
