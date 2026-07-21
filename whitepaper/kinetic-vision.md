@@ -20,7 +20,7 @@ The Kinetic Protocol is deliberately designed to be read through two distinct le
 
 ### Lens I: Kinetic as a Forkable Protocol Engine
 
-A university can fork Kinetic and deploy `.uni` — a sovereign namespace for student projects and research infrastructure. A company can fork Kinetic and deploy `.acme` — an internal service discovery layer with zero subscription fees, zero ICANN dependency, and zero renewal overhead. A government can fork Kinetic and deploy `.gov2` — a cryptographically secured, politically neutral namespace for public services.
+A university can fork Kinetic and deploy `.uni` — a sovereign namespace for student projects and research infrastructure. A company can fork Kinetic and deploy `.acme` — an internal service discovery layer with zero subscription fees, zero ICANN dependency, and zero renewal overhead. A government can fork Kinetic and deploy `.gov` — a cryptographically secured, politically neutral namespace for public services.
 
 Every fork uses the same battle-tested Rust engine. The only thing that changes is a single configuration file — `network.json` — which defines the TLD, the VDF difficulty baseline, the bootstrap nodes, the genesis round, and the governance key. The `kinetic-forge` tool is a purpose-built wizard that generates this file interactively, compiling a complete, ready-to-deploy network binary in minutes.
 
@@ -74,7 +74,7 @@ The upgrade mechanism. A Bicameral Rule Book with a 69% supermajority threshold 
 The fork model is only valuable if forking is genuinely easy. `kinetic-forge` is the purpose-built interactive wizard that makes it so.
 
 Running `kinetic-forge` guides a network operator through:
-- Defining the network TLD (`.uni`, `.acme`, `.gov2`, or anything else)
+- Defining the network TLD (`.uni`, `.acme`, `.gov`, or anything else)
 - Setting the VDF difficulty baseline (stored in `network.json` as `benchmark_base_iterations`)
 - Configuring the governance key structure
 - Selecting the `drand` beacon and genesis round

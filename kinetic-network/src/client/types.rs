@@ -73,6 +73,8 @@ pub struct NetworkConfig {
     pub mode: NetworkMode,
     /// The multiaddr to listen on.
     pub listen_addr: libp2p::Multiaddr,
+    /// The multiaddr to listen on over QUIC.
+    pub quic_listen_addr: Option<libp2p::Multiaddr>,
     /// Known bootstrap nodes to connect to at startup.
     pub bootstrap_nodes: Vec<libp2p::Multiaddr>,
     /// Pre-known domain seeds.

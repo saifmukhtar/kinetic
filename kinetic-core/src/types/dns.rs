@@ -17,6 +17,7 @@ pub enum DnsRecord {
     TXT(String),
     PeerId(String),
     KID(String),
+    IPFS(String),
 }
 
 /// Represents a host routing record that maps a host ID to a peer ID.
@@ -31,8 +32,10 @@ pub struct HostRoutingRecord {
 impl HostRoutingRecord {
     /// Serializes the routing record into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-routing-v1").as_bytes();
         let mut bytes =
-            Vec::with_capacity(4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8);
+            Vec::with_capacity(prefix.len() + 4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8);
+        bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&(self.host_id.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.host_id.as_bytes());
         bytes.extend_from_slice(&(self.current_peer_id.len() as u32).to_be_bytes());
@@ -146,6 +149,14 @@ impl DnsZone {
                         if !kid_str.starts_with(crate::constants::DID_PREFIX) {
                             tracing::warn!("Rejecting non-Kinetic DID CNAME: {}", kid_str);
                             return Err(crate::error::DnsError::InvalidKid(kid_str.clone()));
+                        }
+                    }
+                    DnsRecord::IPFS(cid) => {
+                        if cid.is_empty() || cid.len() > 100 {
+                            return Err(crate::error::DnsError::InvalidIpfsCid(cid.clone()));
+                        }
+                        if !cid.starts_with("Qm") && !cid.starts_with('b') {
+                            return Err(crate::error::DnsError::InvalidIpfsCid(cid.clone()));
                         }
                     }
                 }

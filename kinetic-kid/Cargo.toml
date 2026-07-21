@@ -16,6 +16,9 @@ sha2 = "0.10"
 base64 = "0.22"
 thiserror = "1.0"
 web-time = "1.1.0"
+rand_chacha = "0.10.0"
+rand_core = "0.6"
+ml-dsa = "0.1.1"
 [dev-dependencies]
 rand_core = { version = "0.6", features = ["getrandom"] }
 proptest = "1.5.0"

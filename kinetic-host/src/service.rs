@@ -15,12 +15,7 @@ use std::env;
 /// executable path cannot be resolved, or the service installation fails.
 pub fn install_service() -> Result<()> {
     println!("Installing Kinetic Host service...");
-    let label: ServiceLabel = format!(
-        "{}.{}.host",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     let current_exe = env::current_exe()?;
@@ -31,7 +26,7 @@ pub fn install_service() -> Result<()> {
             .parse()
             .map_err(|_| anyhow::anyhow!("Failed to parse run"))?],
         contents: None,
-        username: Some("nobody".to_string()),
+        username: std::env::var("SUDO_USER").ok().or_else(|| Some("nobody".to_string())),
         working_directory: None,
         environment: None,
         autostart: true,
@@ -50,12 +45,7 @@ pub fn install_service() -> Result<()> {
 /// Returns an error if the native service manager cannot be detected or if
 /// the uninstallation fails.
 pub fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.host",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -71,12 +61,7 @@ pub fn uninstall_service() -> Result<()> {
 /// Returns an error if the native service manager cannot be detected or if
 /// the service fails to start.
 pub fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.host",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.start(ServiceStartCtx { label })?;
@@ -92,12 +77,7 @@ pub fn start_background_service() -> Result<()> {
 /// Returns an error if the native service manager cannot be detected or if
 /// the service fails to stop.
 pub fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.host",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.stop(ServiceStopCtx { label })?;

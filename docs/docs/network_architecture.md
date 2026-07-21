@@ -102,7 +102,7 @@ Why is this so powerful?
 Let's assume a highly capable attacker controls an astounding **20%** ($f = 0.2$) of all nodes in the global Kinetic network. 
 The probability of the attacker successfully clustering enough Sybil nodes to eclipse a single key is roughly equal to $f$.
 
-With Kinetic Protocol V2 using $M = 32$ redundant keys, the keys are mathematically independent. The probability that the attacker successfully eclipses all 32 keys simultaneously is:
+With Kinetic Protocol V1 using $M = 32$ redundant keys, the keys are mathematically independent. The probability that the attacker successfully eclipses all 32 keys simultaneously is:
 
 $$ P(\text{total eclipse}) = f^M = (0.2)^{32} \approx 4.29 \times 10^{-23} $$
 

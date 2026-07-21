@@ -45,7 +45,7 @@ proptest! {
         prev_iterations in any::<u64>()
     ) {
         let reveal = Reveal {
-            protocol_version: 2,
+            protocol_version: 1,
             name: name.clone(),
             payload: vec![],
             salt: [0u8; 32],

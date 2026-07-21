@@ -38,17 +38,28 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     let config = KineticConfig::load();
-    let client = utils::build_client(30)?;
 
     match cli.command {
+        Commands::Setup(cmd) => {
+            commands::setup::handle_setup_command(cmd).await?;
+        }
         Commands::Name { cmd } => {
+            let client = utils::build_client(30)?;
             commands::name::handle_name_command(cmd, &config, &client).await?;
         }
         Commands::Identity { cmd } => {
+            let client = utils::build_client(30)?;
             commands::identity::handle_identity_command(cmd, &config, &client).await?;
         }
         Commands::Seed { cmd } => {
             commands::seed::handle_seed_command(cmd).await?;
+        }
+        Commands::Governance { cmd } => {
+            let client = utils::build_client(30)?;
+            commands::governance::handle_governance_command(cmd, &config, &client).await?;
+        }
+        Commands::DnsTree { cmd } => {
+            commands::dns_tree::handle_dns_tree_command(cmd).await?;
         }
         Commands::Daemon { cmd } => {
             handle_service_command("kinetic-daemon", cmd, false).await?;
@@ -61,6 +72,10 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Dns { cmd } => {
             handle_service_command("kinetic-dns", cmd, true).await?;
+        }
+        Commands::Clock(args) => {
+            let client = utils::build_client(30)?;
+            commands::clock::handle_clock_command(args, &config, &client).await?;
         }
     }
 

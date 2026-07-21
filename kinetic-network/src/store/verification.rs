@@ -114,7 +114,7 @@ pub(crate) fn compute_required_iterations(
     })?;
 
     let base_required_iterations =
-        consensus_math.required_iterations(&reveal.name, reveal.drand_pulse, &drand_rand);
+        consensus_math.required_iterations(&reveal.name, &drand_rand);
     let required_iterations = if let Some(prev) = &reveal.previous_proof {
         // Verify previous proof
         let mut prev_hasher = Sha256::new();
@@ -141,7 +141,7 @@ pub(crate) fn compute_required_iterations(
         );
 
         let prev_req =
-            consensus_math.required_iterations(&reveal.name, prev.drand_pulse, &prev_drand_rand);
+            consensus_math.required_iterations(&reveal.name, &prev_drand_rand);
         let is_not_too_old = current_drand_round.saturating_sub(prev.drand_pulse)
             <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
 

@@ -1,7 +1,6 @@
-use kinetic_core::traits::StorageEngine;
 use kinetic_storage::SledStorage;
 use std::fs;
-use std::path::PathBuf;
+
 use tempfile::tempdir;
 
 #[test]
@@ -30,7 +29,7 @@ fn test_006_sled_corruption_recovery() {
     // Verify a .bak directory with a timestamp was created
     let parent = db_path.parent().unwrap();
     let entries = fs::read_dir(parent).unwrap();
-    
+
     let mut backup_found = false;
     for entry in entries {
         let entry = entry.unwrap();

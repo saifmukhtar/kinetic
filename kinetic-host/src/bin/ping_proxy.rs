@@ -52,15 +52,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!("Mined PeerId: {}", key.public().to_peer_id());
 
-    let db_path = args
-        .db_path
-        .unwrap_or_else(|| kinetic_core::config::get_base_dir().join("kinetic_ping_db"));
+    let db_path = args.db_path.unwrap_or_else(|| {
+        kinetic_core::config::get_base_dir().join(kinetic_core::constants::DB_NAME_PING)
+    });
 
     let storage = Arc::new(SledStorage::new(db_path)?);
 
     let config = NetworkConfig {
         mode: NetworkMode::LightClient,
         listen_addr: "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
+        quic_listen_addr: None,
         bootstrap_nodes: kinetic_core::constants::BOOTSTRAP_NODES
             .iter()
             .filter_map(|s| s.parse().ok())

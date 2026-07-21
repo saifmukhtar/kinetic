@@ -1,9 +1,8 @@
-use ed25519_dalek::Verifier;
 use std::collections::HashSet;
 
 use crate::error::GovernanceError;
 use crate::governance::types::{
-    GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
+    verify_signature, GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
 };
 use crate::traits::GovernanceEngine;
 
@@ -56,9 +55,9 @@ impl GovernanceEngine for CouncilEngine {
         let mut valid_signers = HashSet::new();
         for sig in &msg.signatures {
             for (idx, member) in state.active_council.iter().enumerate() {
-                if !counted_members.contains(&idx) && member.verify(&action_bytes, sig).is_ok() {
+                if !counted_members.contains(&idx) && verify_signature(member, &action_bytes, sig) {
                     counted_members.insert(idx);
-                    valid_signers.insert(*member);
+                    valid_signers.insert(member.clone());
                     break;
                 }
             }
@@ -116,7 +115,7 @@ impl GovernanceEngine for CouncilEngine {
             GovernanceAction::AppointMember { key }
             | GovernanceAction::SelfAppointCouncilMember { candidate_key: key } => {
                 if !state.active_council.contains(key) {
-                    state.active_council.push(*key);
+                    state.active_council.push(key.clone());
                 }
             }
             GovernanceAction::RemoveCouncilMember { target_key } => {
@@ -144,7 +143,6 @@ impl GovernanceEngine for CouncilEngine {
                 }
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
-
                 if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         manifest_hash: *target_hash,
@@ -158,7 +156,7 @@ impl GovernanceEngine for CouncilEngine {
             } => {
                 effect = Some(GovernanceEffect::PremiumNameGranted {
                     name: name.clone(),
-                    target_pubkey: *target_pubkey,
+                    target_pubkey: target_pubkey.clone(),
                 });
             }
             GovernanceAction::RevokePremiumName { name } => {

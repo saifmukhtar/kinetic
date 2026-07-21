@@ -3,32 +3,36 @@
 mod tests {
     use super::super::logic::process_governance_message;
     use super::super::types::{
-        GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
+        GovernanceAction, GovernanceEffect, GovernanceState, PublicKeyBytes,
+        SignedGovernanceMessage,
     };
-    use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
+    use ml_dsa::signature::SignatureEncoding as MlDsaSignatureEncoding;
+    use ml_dsa::signature::{Keypair, Signer};
+    use ml_dsa::{KeyExport, MlDsa65};
 
-    fn get_root_sk() -> SigningKey {
+    fn get_root_sk() -> ml_dsa::SigningKey<MlDsa65> {
         let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
             .unwrap();
-        SigningKey::from_bytes(bytes.as_slice().try_into().unwrap())
+        ml_dsa::SigningKey::<MlDsa65>::from_seed(bytes.as_slice().try_into().unwrap())
     }
 
-    fn get_guard_sk() -> SigningKey {
+    fn get_guard_sk() -> ml_dsa::SigningKey<MlDsa65> {
         let bytes = hex::decode("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
             .unwrap();
-        SigningKey::from_bytes(bytes.as_slice().try_into().unwrap())
+        ml_dsa::SigningKey::<MlDsa65>::from_seed(bytes.as_slice().try_into().unwrap())
     }
 
-    fn generate_key(seed: u8) -> (SigningKey, VerifyingKey) {
+    fn generate_key(seed: u8) -> (ml_dsa::SigningKey<MlDsa65>, PublicKeyBytes) {
         let bytes = [seed; 32];
-        let signing_key = SigningKey::from_bytes(&bytes);
-        let verifying_key = signing_key.verifying_key();
+        let signing_key = ml_dsa::SigningKey::<MlDsa65>::from_seed((&bytes).into());
+        let verifying_key = signing_key.verifying_key().to_bytes().to_vec();
         (signing_key, verifying_key)
     }
 
-    fn sign_action(msg: &SignedGovernanceMessage, signer: &SigningKey) -> Signature {
+    fn sign_action(msg: &SignedGovernanceMessage, signer: &ml_dsa::SigningKey<MlDsa65>) -> Vec<u8> {
         let serialized = msg.to_canonical_bytes();
-        signer.sign(&serialized)
+        let sig: ml_dsa::Signature<MlDsa65> = signer.sign(&serialized);
+        MlDsaSignatureEncoding::to_bytes(&sig).into()
     }
 
     #[test]
@@ -41,9 +45,12 @@ mod tests {
         let mut state = GovernanceState::new(current_time);
 
         let action = GovernanceAction::UpdateBinary {
-            manifest_hash: [1u8; 32],
+            manifest_hash: [0u8; 32],
             version_nonce: 1,
-            mirrors: vec!["http://test.com".to_string()],
+            github_username: "saifmukhtar".to_string(),
+            git_commit: "deadbeef".to_string(),
+            git_branch: "main".to_string(),
+            mirrors: vec!["http://mirror1.com".to_string()],
         };
 
         let mut msg = SignedGovernanceMessage {
@@ -61,7 +68,7 @@ mod tests {
         assert_eq!(state.pending_updates.len(), 1);
         let action_hash = GovernanceState::hash_action(&msg);
         let (_, wait_time, _) = state.pending_updates.get(&action_hash).unwrap();
-        assert_eq!(*wait_time, 3 * 24 * 60 * 60); // 3 days wait
+        assert_eq!(*wait_time, 24 * 60 * 60); // 1 day wait
     }
 
     #[test]
@@ -76,18 +83,20 @@ mod tests {
         let (c2_sk, c2_pk) = generate_key(2);
         let (c3_sk, c3_pk) = generate_key(3);
 
-        state.active_council.push(c1_pk);
-        state.active_council.push(c2_pk);
-        state.active_council.push(c3_pk);
+        state.active_council.push(c1_pk.clone());
+        state.active_council.push(c2_pk.clone());
+        state.active_council.push(c3_pk.clone());
         let mut council = vec![(c1_sk, c1_pk), (c2_sk, c2_pk), (c3_sk, c3_pk)];
         for i in 0..4 {
             let (sk, pk) = generate_key(4 + i as u8);
-            state.active_council.push(pk);
+            state.active_council.push(pk.clone());
             council.push((sk, pk));
         }
 
         for pk in &state.active_council {
-            state.last_signature_timestamps.insert(*pk, current_time);
+            state
+                .last_signature_timestamps
+                .insert(pk.clone(), current_time);
         }
 
         state.mode = crate::governance::types::GovernanceMode::Council;
@@ -96,6 +105,9 @@ mod tests {
         let action = GovernanceAction::UpdateBinary {
             manifest_hash: [2u8; 32],
             version_nonce: 2,
+            github_username: "user".to_string(),
+            git_commit: "commit".to_string(),
+            git_branch: "main".to_string(),
             mirrors: vec!["http://test2.com".to_string()],
         };
 
@@ -179,7 +191,7 @@ mod tests {
         let mut msg_invalid_len = SignedGovernanceMessage {
             action: GovernanceAction::GrantPremiumName {
                 name: "ab".to_string(),
-                target_pubkey,
+                target_pubkey: target_pubkey.clone(),
             },
             council_size_at_proposal: 7,
             timestamp_sec: current_time,
@@ -202,7 +214,7 @@ mod tests {
             let mut msg = SignedGovernanceMessage {
                 action: GovernanceAction::GrantPremiumName {
                     name: name.to_string(),
-                    target_pubkey,
+                    target_pubkey: target_pubkey.clone(),
                 },
                 council_size_at_proposal: 7,
                 timestamp_sec: current_time,
@@ -269,7 +281,7 @@ mod tests {
         // Add 7 members
         for i in 0..7 {
             let (_, pk) = generate_key(i);
-            state.active_council.push(pk);
+            state.active_council.push(pk.clone());
             state.last_signature_timestamps.insert(pk, current_time);
         }
 
@@ -278,6 +290,9 @@ mod tests {
             action: GovernanceAction::UpdateBinary {
                 manifest_hash: [1u8; 32],
                 version_nonce: 1,
+                github_username: "user".to_string(),
+                git_commit: "commit".to_string(),
+                git_branch: "main".to_string(),
                 mirrors: vec![],
             }, // just an action to trigger verify_action
             council_size_at_proposal: 7,
@@ -308,7 +323,7 @@ mod tests {
 
         // Less than 7 members
         let (_, pk) = generate_key(1);
-        state.active_council.push(pk);
+        state.active_council.push(pk.clone());
         state.last_signature_timestamps.insert(pk, current_time);
 
         let root_sk = get_root_sk();
@@ -316,6 +331,9 @@ mod tests {
             action: GovernanceAction::UpdateBinary {
                 manifest_hash: [0u8; 32],
                 version_nonce: 1,
+                github_username: "saifmukhtar".to_string(),
+                git_commit: "deadbeef".to_string(),
+                git_branch: "main".to_string(),
                 mirrors: vec![],
             },
             council_size_at_proposal: 7,
@@ -326,12 +344,13 @@ mod tests {
 
         let _ = state.verify_action(&msg, current_time);
 
-        // Should NOT be council mode yet, but grace period started
+        // Should transition directly to council mode
         assert_eq!(
             state.mode,
-            crate::governance::types::GovernanceMode::Founder
+            crate::governance::types::GovernanceMode::Council
         );
-        assert_eq!(state.grace_period_start_sec, Some(current_time));
+        assert_eq!(state.lock_timestamp_sec, Some(current_time));
+        assert!(state.grace_period_start_sec.is_none());
     }
 
     #[test]
@@ -355,33 +374,77 @@ mod tests {
 
         let _ = state.verify_action(&msg, year_time);
 
-        // Should NOT be council mode yet, but grace period started
-        assert_eq!(
-            state.mode,
-            crate::governance::types::GovernanceMode::Founder
-        );
-        assert_eq!(state.grace_period_start_sec, Some(year_time));
-
-        // At 13 months, it should automatically flip to council mode
-        let thirteen_months = year_time + (30 * 24 * 60 * 60);
-
-        let mut fallback_msg = SignedGovernanceMessage {
-            action: GovernanceAction::LockCouncil,
-            council_size_at_proposal: 0,
-            timestamp_sec: thirteen_months,
-            signatures: vec![],
-        };
-        fallback_msg
-            .signatures
-            .push(sign_action(&fallback_msg, &root_sk));
-
-        let _ = state.verify_action(&fallback_msg, thirteen_months);
-
+        // Should transition directly to council mode
         assert_eq!(
             state.mode,
             crate::governance::types::GovernanceMode::Council
         );
+        assert_eq!(state.lock_timestamp_sec, Some(year_time));
         assert!(state.grace_period_start_sec.is_none());
-        assert_eq!(state.lock_timestamp_sec, Some(thirteen_months));
+    }
+
+    use proptest::prelude::*;
+    use proptest::collection::vec;
+    use proptest::string::string_regex;
+
+    proptest! {
+        #[test]
+        fn test_fuzz_to_canonical_bytes(
+            manifest_hash in any::<[u8; 32]>(),
+            version_nonce in any::<u64>(),
+            github_username in string_regex("[a-zA-Z0-9_-]{1,39}").unwrap(),
+            git_commit in string_regex("[0-9a-f]{40}").unwrap(),
+            git_branch in string_regex("[a-zA-Z0-9_/-]{1,100}").unwrap(),
+            mirrors in vec(string_regex("https?://[a-zA-Z0-9.-]+").unwrap(), 0..10),
+            council_size in any::<u32>(),
+            timestamp in any::<u64>(),
+        ) {
+            let action = GovernanceAction::UpdateBinary {
+                manifest_hash,
+                version_nonce,
+                github_username,
+                git_commit,
+                git_branch,
+                mirrors,
+            };
+            
+            let msg = SignedGovernanceMessage {
+                action: action.clone(),
+                council_size_at_proposal: council_size,
+                timestamp_sec: timestamp,
+                signatures: vec![], // Signatures aren't part of canonical hash
+            };
+
+            // Ensure we don't panic on serialization of randomized but valid structure
+            let bytes = msg.to_canonical_bytes();
+            prop_assert!(!bytes.is_empty());
+            
+            // Ensure identical inputs produce identical bytes
+            let msg_clone = msg.clone();
+            prop_assert_eq!(&bytes, &msg_clone.to_canonical_bytes());
+            
+            // Ensure hash computation does not panic
+            let hash = GovernanceState::hash_action(&msg);
+            prop_assert_eq!(hash.len(), 32);
+        }
+    }
+
+    #[test]
+    fn test_governance_state_pruning() {
+        let current_time = 100_000_000;
+        let mut state = GovernanceState::new(current_time);
+
+        // Add a pending update that expired 31 days ago
+        let expired_time = current_time - (31 * 24 * 60 * 60);
+        state.pending_updates.insert([1u8; 32], (expired_time, 1, vec![]));
+
+        // Add a pending update that expired 29 days ago (should stay)
+        let fresh_time = current_time - (29 * 24 * 60 * 60);
+        state.pending_updates.insert([2u8; 32], (fresh_time, 1, vec![]));
+
+        state.prune(current_time);
+
+        assert_eq!(state.pending_updates.len(), 1);
+        assert!(state.pending_updates.contains_key(&[2u8; 32]));
     }
 }

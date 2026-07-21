@@ -42,4 +42,7 @@ pub enum KidError {
     /// The valid_from timestamp is set in the future beyond acceptable skew.
     #[error("Manifest valid_from is in the future")]
     InvalidValidFrom,
+    /// The manifest has expired based on its expires_at timestamp.
+    #[error("Manifest has expired")]
+    ManifestExpired,
 }

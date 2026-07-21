@@ -138,7 +138,11 @@ select_multi_menu() {
     echo ""
 }
 
-# 1. Detect OS
+# 1. Detect OS and User
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
+SHARE_DIR="$REAL_HOME/.local/share/kinetic"
+
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 ASSET_SUFFIX=""
@@ -264,29 +268,23 @@ for bin in "${BINS_TO_INSTALL[@]}"; do
     sudo chown root:root "/usr/local/bin/$bin"
     sudo chmod 755 "/usr/local/bin/$bin"
 
+    if [[ "$bin" == "kinetic" ]]; then
+        if [[ " ${BINS_TO_INSTALL[@]} " =~ " kinetic-daemon " || " ${BINS_TO_INSTALL[@]} " =~ " kinetic-node " ]]; then
+            if [ ! -f "$SHARE_DIR/identity.key" ]; then
+                echo -e "${YELLOW}\nGenerating a new node identity...${NC}"
+                sudo -u "$REAL_USER" mkdir -p "$SHARE_DIR"
+                sudo -u "$REAL_USER" env HOME="$REAL_HOME" /usr/local/bin/kinetic setup || true
+            fi
+        fi
+    fi
+
     if [[ "$bin" != "kinetic" ]]; then
-        sudo "/usr/local/bin/$bin" install
-        sudo "/usr/local/bin/$bin" start
+        sudo env HOME="$REAL_HOME" "/usr/local/bin/$bin" install
+        sudo env HOME="$REAL_HOME" "/usr/local/bin/$bin" start
     fi
 done
 
-if [ "$INSTALL_DNS" = true ]; then
-    if [ "$OS" = "Linux" ] && systemctl is-active --quiet systemd-resolved; then
-        sudo mkdir -p /etc/systemd/resolved.conf.d/
-        cat << 'RES' | sudo tee /etc/systemd/resolved.conf.d/kinetic.conf > /dev/null
-[Resolve]
-DNS=127.0.0.2
-Domains=~kin
-RES
-        sudo systemctl restart systemd-resolved
-    elif [ "$OS" = "Darwin" ]; then
-        sudo mkdir -p /etc/resolver
-        cat << 'RES' | sudo tee /etc/resolver/kin > /dev/null
-nameserver 127.0.0.1
-port 53
-RES
-    fi
-fi
+
 
 echo -e "\n${GREEN}=== Kinetic installed successfully! ===${NC}"
 echo -e "${CYAN}Documentation & Guide:${NC} https://kinetic.saifmukhtar.dev"

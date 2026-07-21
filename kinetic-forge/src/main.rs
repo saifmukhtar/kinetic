@@ -112,8 +112,18 @@ fn main() -> Result<()> {
 
     println!();
 
-    // The network must be bootstrapped manually via configs since PeerIds are generated at runtime.
     let bootstrap_nodes: Vec<String> = vec![];
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    
+    let kinetic_genesis_drand_round = if now > drand_genesis {
+        (now - drand_genesis) / drand_period
+    } else {
+        0
+    };
 
     println!();
     if !Confirm::with_theme(&ColorfulTheme::default())
@@ -134,6 +144,7 @@ fn main() -> Result<()> {
         &drand_pubkey,
         drand_genesis,
         drand_period,
+        kinetic_genesis_drand_round,
         &drand_http,
         &docs_url,
         &bootstrap_nodes,
@@ -183,6 +194,7 @@ fn patch_constants(
     drand_pubkey: &str,
     drand_genesis: u64,
     drand_period: u64,
+    kinetic_genesis_drand_round: u64,
     drand_http: &str,
     docs_url: &str,
     bootstrap_nodes: &[String],
@@ -222,6 +234,7 @@ fn patch_constants(
     config.network_id = network_id.to_string();
     config.drand_genesis_time = drand_genesis;
     config.drand_period = drand_period;
+    config.kinetic_genesis_drand_round = kinetic_genesis_drand_round;
     config.drand_public_key = drand_pubkey.to_string();
     config.drand_http_endpoints = vec![drand_http.to_string()];
     config.docs_url = docs_url.to_string();

@@ -103,7 +103,7 @@ impl super::core::NetworkEventLoop {
                     .unwrap_or_default()
                     .as_secs();
 
-                if let Some(&expire_time) = self.banned_peers.get(&peer_id) {
+                if let Some(&expire_time) = self.banned_peers.peek(&peer_id) {
                     if expire_time > now {
                         tracing::warn!(
                             "Banned peer {} attempted to connect, disconnecting immediately.",
@@ -113,7 +113,7 @@ impl super::core::NetworkEventLoop {
                         return;
                     } else {
                         // Expired, remove from memory
-                        self.banned_peers.remove(&peer_id);
+                        self.banned_peers.pop(&peer_id);
                     }
                 }
 
@@ -141,7 +141,9 @@ impl super::core::NetworkEventLoop {
                     let loopback_clone = loopback.clone();
                     let current_pulse = self.current_drand_pulse;
                     let peer_id_clone = peer_id;
+                    let pow_semaphore = self.pow_semaphore.clone();
                     crate::event_loop::utils::spawn(async move {
+                        let _permit = pow_semaphore.acquire().await;
                         let valid = crate::event_loop::utils::spawn_blocking(move || {
                             crate::pow::is_valid_sybil_pow(
                                 &peer_id_clone,
@@ -287,14 +289,15 @@ impl super::core::NetworkEventLoop {
                     if let Err(e) = put_result {
                         if e.severity() == kinetic_core::error::Severity::Error {
                             let now = web_time::Instant::now();
-                            let entry = self.bad_vdf_counts.entry(source).or_insert((0, now));
-                            if now.duration_since(entry.1) > web_time::Duration::from_secs(60) {
-                                *entry = (1, now);
+                            let (count, last_time) = self.bad_vdf_counts.get(&source).copied().unwrap_or((0, now));
+                            let new_val = if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
+                                (1, now)
                             } else {
-                                entry.0 += 1;
-                            }
+                                (count + 1, now)
+                            };
+                            self.bad_vdf_counts.put(source, new_val);
 
-                            if entry.0 >= 3 {
+                            if new_val.0 >= 3 {
                                 tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
                                 let _ = self.swarm.disconnect_peer_id(source);
                                 let expire_time = web_time::SystemTime::now()
@@ -303,20 +306,13 @@ impl super::core::NetworkEventLoop {
                                     .as_secs()
                                     + 86400;
 
-                                // Prevent unbounded growth of banned peers map
-                                if self.banned_peers.len() >= 10_000 {
-                                    if let Some(&oldest_peer) = self
-                                        .banned_peers
-                                        .iter()
-                                        .min_by_key(|&(_, &exp)| exp)
-                                        .map(|(p, _)| p)
-                                    {
-                                        self.banned_peers.remove(&oldest_peer);
-                                    }
-                                }
-                                self.banned_peers.insert(source, expire_time);
+                                self.banned_peers.put(source, expire_time);
 
-                                let key = format!("kinetic_banned_peer:{}", source);
+                                let key = format!(
+                                    "{}{}",
+                                    kinetic_core::constants::DB_PREFIX_BANNED_PEER,
+                                    source
+                                );
                                 let _ = self
                                     .swarm
                                     .behaviour_mut()
@@ -504,6 +500,7 @@ impl super::core::NetworkEventLoop {
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 tracing::debug!("Connection closed for peer {:?}: {:?}", peer_id, cause);
+                self.bootstrap_connection_time.remove(&peer_id);
 
                 // Case 189: Mass Peer Disconnect
                 let active_peers = self.swarm.network_info().num_peers();

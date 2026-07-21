@@ -61,12 +61,7 @@ enum Commands {
 
 fn install_service() -> Result<()> {
     println!("Installing Kinetic Node service...");
-    let label: ServiceLabel = format!(
-        "{}.{}.node",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     let current_exe = env::current_exe()?;
@@ -75,7 +70,7 @@ fn install_service() -> Result<()> {
         program: current_exe.clone(),
         args: vec!["run".into()],
         contents: None,
-        username: Some("nobody".to_string()),
+        username: std::env::var("SUDO_USER").ok().or_else(|| Some("nobody".to_string())),
         working_directory: None,
         environment: None,
         autostart: true,
@@ -87,12 +82,7 @@ fn install_service() -> Result<()> {
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.node",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -101,12 +91,7 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.node",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.start(ServiceStartCtx { label })?;
@@ -115,12 +100,7 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.node",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -216,6 +196,7 @@ async fn run_node() -> Result<()> {
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port)
             .parse()
             .map_err(|e| anyhow::anyhow!("Failed to parse listen_addr: {}", e))?,
+        quic_listen_addr: Some(format!("/ip4/0.0.0.0/udp/{}/quic-v1", config.network.node_quic_port).parse().unwrap()),
         bootstrap_nodes: config
             .network
             .bootstrap_nodes
@@ -244,7 +225,10 @@ async fn run_node() -> Result<()> {
     let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
-    let gov_state_path = std::sync::Arc::new(base_config_dir.join("governance_state.bin"));
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_KINETIC_GOVERNANCE_PATH)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| base_config_dir.join("governance.key"));
+    let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
@@ -268,7 +252,7 @@ async fn run_node() -> Result<()> {
 
     // Subscribe to Quicknet Pulse Gossip
     let _ = network_client
-        .subscribe_gossip("drand_pulse_quicknet")
+        .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
         .await;
     tokio::spawn(async move {
         network_loop.run().await;
@@ -281,9 +265,9 @@ async fn run_node() -> Result<()> {
     let drand_pulse_tx_gossip = drand_pulse_tx.clone();
     tokio::spawn(async move {
         while let Some((topic, payload)) = gossip_rx.recv().await {
-            if topic == "kinetic_governance" {
+            if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
                 gossip::handle_kinetic_governance_gossip(&payload, gossip_gov_path.clone());
-            } else if topic == "drand_pulse_quicknet" {
+            } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
                 if let Ok(pulse) = serde_json::from_slice::<DrandPulse>(&payload) {
                     if pulse.verify() {
                         if let Ok(latest) = drand_client_gossip.load_cached_pulse() {
@@ -340,7 +324,7 @@ async fn run_node() -> Result<()> {
                         if !p2p_only {
                             if let Ok(payload) = serde_json::to_vec(&pulse) {
                                 let _ = hb_network
-                                    .broadcast_gossip("drand_pulse_quicknet", payload)
+                                    .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND, payload)
                                     .await;
                             }
                         }

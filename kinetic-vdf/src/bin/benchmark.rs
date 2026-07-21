@@ -54,15 +54,15 @@ fn main() {
     println!("\n=== BENCHMARK RESULTS ===");
     println!("Average iterations per minute: {}", avg);
 
-    let baseline_10_min = avg * 10;
-    let baseline_15_min = avg * 15;
+    let target_minutes = kinetic_core::constants::BENCHMARK_TARGET_MINUTES;
+    let target_iterations = avg * (target_minutes as u64);
 
     println!(
-        "For a 10-minute baseline: set TODO_BENCHMARK_BASE_ITERATIONS = {}",
-        baseline_10_min
+        "Based on your network.json target of {:.1} minutes:",
+        target_minutes
     );
     println!(
-        "For a 15-minute baseline: set TODO_BENCHMARK_BASE_ITERATIONS = {}",
-        baseline_15_min
+        "Set \"benchmark_base_iterations\": {} in your network.json",
+        target_iterations
     );
 }

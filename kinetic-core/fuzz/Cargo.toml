@@ -20,11 +20,18 @@ version = "1.3.3"
 version = "1.0"
 
 [[bin]]
-name = "fuzz_target_1"
-path = "fuzz_targets/fuzz_target_1.rs"
+name = "fuzz_json_deserialize"
+path = "fuzz_targets/fuzz_json_deserialize.rs"
 test = false
 doc = false
 bench = false
 
 [workspace]
 members = ["."]
+
+[[bin]]
+name = "fuzz_core_bincode"
+path = "fuzz_targets/fuzz_core_bincode.rs"
+test = false
+doc = false
+bench = false

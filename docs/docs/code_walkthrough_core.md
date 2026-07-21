@@ -49,7 +49,7 @@ pub struct Reveal {
 ```
 
 #### Line-by-Line Breakdown:
-* **`protocol_version: u16`**: Protocol V2.
+* **`protocol_version: u16`**: Protocol V1.
 * **`pub name: String`**: The requested domain, strictly normalized to a Fully Qualified Domain Name (FQDN) ending in `.kin.` (e.g., `example.kin.`).
 * **`pub payload: Vec<u8>`**: The actual routing target (a serialized `DnsZone`). Must fit within the 64KB DHT limit.
 * **`pub drand_pulse` & `pub drand_randomness`**: The exact round number and corresponding entropy fetched from the external Drand beacon. This forms the absolute timestamp of the commitment.
@@ -60,7 +60,7 @@ pub struct Reveal {
 
 ### 1.2 Heartbeats via Rebroadcast
 
-In Protocol V2, there is no separate `Heartbeat` struct. To prove an active lease and defend a name against grace-period escalation, the `kinetic-daemon` simply rebroadcasts the exact `Reveal` struct periodically.
+In Protocol V1, there is no separate `Heartbeat` struct. To prove an active lease and defend a name against grace-period escalation, the `kinetic-daemon` simply rebroadcasts the exact `Reveal` struct periodically.
 
 ### 1.3 The Dynamic Difficulty Engine
 

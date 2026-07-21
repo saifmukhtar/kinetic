@@ -26,6 +26,7 @@ pub(crate) enum LoopbackCommand {
         valid: bool,
         is_bootstrap: bool,
     },
+    DialResolvedSeed(libp2p::Multiaddr),
 }
 
 /// The central event loop that drives the libp2p swarm and handles networking events.
@@ -49,7 +50,7 @@ pub struct NetworkEventLoop {
         )>,
     >,
     pub(crate) gossip_tx: Option<tokio::sync::mpsc::Sender<(String, Vec<u8>)>>,
-    pub(crate) bad_vdf_counts: FxHashMap<PeerId, (u32, web_time::Instant)>,
+    pub(crate) bad_vdf_counts: lru::LruCache<PeerId, (u32, web_time::Instant)>,
     pub(crate) current_drand_pulse: u64,
     pub(crate) drand_pulse_rx: watch::Receiver<u64>,
     pub(crate) bootstrap_nodes: Vec<libp2p::Multiaddr>,
@@ -57,11 +58,12 @@ pub struct NetworkEventLoop {
     pub(crate) bootstrap_peers: FxHashSet<libp2p::PeerId>,
     pub(crate) startup_time: web_time::Instant,
     pub(crate) disable_pow: bool,
-    pub(crate) banned_peers: FxHashMap<libp2p::PeerId, u64>,
+    pub(crate) banned_peers: lru::LruCache<libp2p::PeerId, u64>,
 
     pub(crate) bootstrap_connection_time: FxHashMap<PeerId, web_time::Instant>,
     pub(crate) nat_status: String,
     pub(crate) loopback_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopbackCommand>>,
+    pub(crate) pow_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
 }
 
 impl NetworkEventLoop {
@@ -74,22 +76,14 @@ impl NetworkEventLoop {
 
         #[cfg(not(target_arch = "wasm32"))]
         for domain in &self.seed_domains {
-            let host_port = format!("{}:6070", domain);
-            if let Ok(mut addrs) = tokio::net::lookup_host(host_port).await {
-                for addr in addrs.by_ref() {
-                    let ip = addr.ip();
-                    let multiaddr = libp2p::Multiaddr::empty()
-                        .with(match ip {
-                            std::net::IpAddr::V4(v4) => libp2p::multiaddr::Protocol::Ip4(v4),
-                            std::net::IpAddr::V6(v6) => libp2p::multiaddr::Protocol::Ip6(v6),
-                        })
-                        .with(libp2p::multiaddr::Protocol::Tcp(addr.port()));
-                    if self.swarm.dial(multiaddr.clone()).is_ok() {
-                        info!("Dialing resolved DNS seed node: {}", multiaddr);
-                    }
+            let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
+            if addrs.is_empty() {
+                tracing::warn!("Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
+            }
+            for multiaddr in addrs {
+                if self.swarm.dial(multiaddr.clone()).is_ok() {
+                    tracing::info!("Dialing resolved DNS TXT seed node: {}", multiaddr);
                 }
-            } else {
-                tracing::warn!("Failed to resolve DNS seed domain: {}", domain);
             }
         }
 
@@ -125,6 +119,23 @@ impl NetworkEventLoop {
                         tracing::warn!("0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
                         for addr in &self.bootstrap_nodes {
                             let _ = self.swarm.dial(addr.clone());
+                        }
+                        
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Some(tx) = &self.loopback_tx {
+                            let tx_clone = tx.clone();
+                            let domains = self.seed_domains.clone();
+                            tokio::spawn(async move {
+                                for domain in &domains {
+                                    let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
+                                    if addrs.is_empty() {
+                                        tracing::warn!("Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
+                                    }
+                                    for multiaddr in addrs {
+                                        let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
+                                    }
+                                }
+                            });
                         }
                     } else if num_peers > 20 {
                         // Case 184: Disconnect from bootstrap nodes to reduce load once safely in the mesh
@@ -175,14 +186,15 @@ impl NetworkEventLoop {
                 if let Err(e) = verdict {
                     if e.severity() == kinetic_core::error::Severity::Error {
                         let now = web_time::Instant::now();
-                        let entry = self.bad_vdf_counts.entry(source).or_insert((0, now));
-                        if now.duration_since(entry.1) > web_time::Duration::from_secs(60) {
-                            *entry = (1, now);
+                        let (count, last_time) = self.bad_vdf_counts.get(&source).copied().unwrap_or((0, now));
+                        let new_val = if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
+                            (1, now)
                         } else {
-                            entry.0 += 1;
-                        }
+                            (count + 1, now)
+                        };
+                        self.bad_vdf_counts.put(source, new_val);
 
-                        if entry.0 >= 3 {
+                        if new_val.0 >= 3 {
                             tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
                             let _ = self.swarm.disconnect_peer_id(source);
                             let expire_time = web_time::SystemTime::now()
@@ -190,19 +202,7 @@ impl NetworkEventLoop {
                                 .unwrap_or_default()
                                 .as_secs()
                                 + 86400;
-                            // Enforce LRU bounding on banned peers if over 10_000
-                            if self.banned_peers.len() >= 10_000 {
-                                // Find the oldest expiry
-                                if let Some(&oldest_peer) = self
-                                    .banned_peers
-                                    .iter()
-                                    .min_by_key(|&(_, &exp)| exp)
-                                    .map(|(p, _)| p)
-                                {
-                                    self.banned_peers.remove(&oldest_peer);
-                                }
-                            }
-                            self.banned_peers.insert(source, expire_time);
+                            self.banned_peers.put(source, expire_time);
                         }
                     }
                 } else {
@@ -231,6 +231,13 @@ impl NetworkEventLoop {
                         "Bootstrap peer {} failed PoW — permitted initially",
                         peer_id
                     );
+                }
+            }
+            LoopbackCommand::DialResolvedSeed(multiaddr) => {
+                if self.swarm.network_info().num_peers() < 20 {
+                    if self.swarm.dial(multiaddr.clone()).is_ok() {
+                        tracing::info!("Dialing resolved fallback DNS seed node: {}", multiaddr);
+                    }
                 }
             }
         }

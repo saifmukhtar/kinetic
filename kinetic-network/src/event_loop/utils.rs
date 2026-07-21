@@ -298,7 +298,7 @@ impl super::core::NetworkEventLoop {
                     }
 
                     let challenge_cmt = kinetic_core::types::Commitment { hash };
-                    match engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations) {
+                    match tokio::task::block_in_place(|| engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)) {
                         Ok(true) => return Some(p),
                         Ok(false) => {
                             tracing::warn!(
@@ -347,7 +347,7 @@ mod tests {
         proof_bytes[0] = proof_first_byte;
 
         let reveal = Reveal {
-            protocol_version: 2,
+            protocol_version: 1,
             name: "dummy.kin".to_string(),
             payload: vec![],
             salt: [0u8; 32],

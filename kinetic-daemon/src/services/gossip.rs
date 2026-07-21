@@ -7,7 +7,7 @@ pub fn start_gossip_processor(
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         while let Some((topic, payload)) = gossip_rx.recv().await {
-            if topic == "kinetic_governance" {
+            if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
                 if let Ok(signed_msg) = serde_json::from_slice::<
                     kinetic_core::governance::SignedGovernanceMessage,
                 >(&payload)
@@ -25,6 +25,13 @@ pub fn start_gossip_processor(
                                 "Governance state updated via gossip. Effect: {:?}",
                                 effect
                             );
+                            if let kinetic_core::governance::GovernanceEffect::TriggerOTA { manifest_hash, mirrors } = effect {
+                                tokio::spawn(async move {
+                                    if let Err(e) = kinetic_core::updater::perform_ota_update("kinetic-daemon", manifest_hash, mirrors).await {
+                                        tracing::error!("Daemon OTA update failed: {}", e);
+                                    }
+                                });
+                            }
                             let _ = state.save_to_disk(&gossip_gov_path);
                         }
                         Ok(None) => {
@@ -38,7 +45,7 @@ pub fn start_gossip_processor(
                         }
                     }
                 }
-            } else if topic == "drand_pulse_quicknet" {
+            } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
                 if let Ok(pulse) =
                     serde_json::from_slice::<kinetic_core::drand::DrandPulse>(&payload)
                 {

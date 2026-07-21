@@ -22,10 +22,11 @@ fuzz_target!(|data: &[u8]| {
     let local_peer_id = Keypair::generate_ed25519().public().to_peer_id();
     let mut store = KineticRecordStore::new(
         local_peer_id,
-        Arc::clone(storage),
+        Arc::clone(&storage) as Arc<dyn kinetic_core::traits::StorageEngine>,
         0,
         NonZeroUsize::new(1024).unwrap(),
-        1000
+        1000,
+        Arc::new(kinetic_vdf::ChiaVdfEngine) as Arc<dyn kinetic_core::traits::VdfEngine>,
     );
 
     let key = kad::RecordKey::new(&"fuzz_key");

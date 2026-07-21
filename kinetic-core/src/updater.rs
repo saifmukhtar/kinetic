@@ -1,12 +1,30 @@
 use futures_util::StreamExt;
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::env;
 use std::io::Write;
 use std::process::Command;
 use tempfile::NamedTempFile;
 use tracing::{error, info, warn};
 use web_time::Duration;
+
+/// Represents the parsed JSON from `manifest.json`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Manifest {
+    /// The canonical version string.
+    pub version: String,
+    /// A mapping of binary names to their expected SHA-256 hashes.
+    pub binaries: HashMap<String, String>,
+}
+
+/// Represents the parsed JSON from `release.json`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Release {
+    /// The canonical version string of the release.
+    pub version: String,
+}
 
 /// Downloads and atomically replaces the running binary from one of the given
 /// `mirrors`, verifying the download against `expected_hash` (SHA-256).
@@ -21,8 +39,7 @@ use web_time::Duration;
 /// Returns an error if all mirrors fail or produce an invalid hash.
 pub async fn perform_ota_update(
     self_id: &str,
-    manifest_signature: [u8; 64],
-    governance_pubkey: [u8; 32],
+    expected_manifest_hash: [u8; 32],
     mirrors: Vec<String>,
 ) -> Result<(), crate::error::UpdaterError> {
     if mirrors.is_empty() {
@@ -80,42 +97,75 @@ pub async fn perform_ota_update(
             }
         };
 
-        use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-        let pubkey = match VerifyingKey::try_from(governance_pubkey.as_slice()) {
-            Ok(k) => k,
-            Err(_) => {
-                error!("Invalid governance pubkey provided for OTA.");
-                return Err(crate::error::UpdaterError::NetworkError(
-                    "Invalid governance pubkey".to_string(),
-                ));
-            }
-        };
-        let signature = Signature::from_bytes(&manifest_signature);
+        let mut hasher = Sha256::new();
+        hasher.update(&manifest_bytes);
+        let result_hash = hasher.finalize();
+        let mut result_hash_array = [0u8; 32];
+        result_hash_array.copy_from_slice(&result_hash);
 
-        if pubkey.verify(&manifest_bytes, &signature).is_err() {
+        if result_hash_array != expected_manifest_hash {
             warn!(
-                "Manifest signature verification failed for mirror: {}",
-                mirror
+                "Manifest hash verification failed for mirror: {}. Expected: {}, Got: {}",
+                mirror,
+                hex::encode(expected_manifest_hash),
+                hex::encode(result_hash_array)
             );
             continue;
         }
 
-        info!("Manifest signature verified for mirror: {}", mirror);
+        info!("Manifest hash verified for mirror: {}", mirror);
 
         // 3. Parse Manifest and lookup target hash
-        let manifest: std::collections::HashMap<String, String> =
+        let manifest: Manifest =
             match serde_json::from_slice(&manifest_bytes) {
                 Ok(m) => m,
                 Err(e) => {
                     warn!(
-                        "Failed to parse JSON manifest from mirror {}: {}",
+                        "Failed to parse strict JSON manifest from mirror {}: {}",
                         mirror, e
                     );
                     continue;
                 }
             };
 
-        let target_hash_hex = match manifest.get(self_id) {
+        // Fetch release.json and verify version matches strictly
+        let release_url = format!("{}/release.json", mirror);
+        let release_res = match client.get(&release_url).send().await {
+            Ok(res) if res.status().is_success() => res,
+            Ok(res) => {
+                warn!("Mirror {} returned status {} for release.json", mirror, res.status());
+                continue;
+            }
+            Err(e) => {
+                warn!("Mirror {} failed to connect for release.json: {}", mirror, e);
+                continue;
+            }
+        };
+
+        let release_bytes = match release_res.bytes().await {
+            Ok(b) => b,
+            Err(e) => {
+                warn!("Failed to read release.json bytes from mirror {}: {}", mirror, e);
+                continue;
+            }
+        };
+
+        let release: Release = match serde_json::from_slice(&release_bytes) {
+            Ok(r) => r,
+            Err(e) => {
+                warn!("Failed to parse strict JSON release.json from mirror {}: {}", mirror, e);
+                continue;
+            }
+        };
+
+        if manifest.version != release.version {
+            warn!("Strict version verification failed! Manifest version ({}) != Release version ({}). Aborting.", manifest.version, release.version);
+            continue;
+        }
+
+        info!("Strict version verification passed: v{}", manifest.version);
+
+        let target_hash_hex = match manifest.binaries.get(self_id) {
             Some(h) => h,
             None => {
                 info!(
@@ -287,9 +337,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_perform_ota_no_mirrors() {
-        let dummy_sig = [0u8; 64];
-        let dummy_pubkey = [0u8; 32];
-        let res = perform_ota_update("test-id", dummy_sig, dummy_pubkey, vec![]).await;
+        let dummy_hash = [0u8; 32];
+        let res = perform_ota_update("test-id", dummy_hash, vec![]).await;
         assert!(matches!(
             res,
             Err(crate::error::UpdaterError::NoMirrorsProvided)
@@ -313,11 +362,10 @@ mod tests {
             }
         });
 
-        let dummy_sig = [1u8; 64];
-        let dummy_pubkey = [2u8; 32];
+        let dummy_hash = [1u8; 32];
 
         // The mirror will be skipped entirely because it's http://, failing with NetworkError "All mirrors failed".
-        let res = perform_ota_update("test-id", dummy_sig, dummy_pubkey, vec![mirror_url]).await;
+        let res = perform_ota_update("test-id", dummy_hash, vec![mirror_url]).await;
 
         // It should try the mirror, get the file, hash it, fail verification, and exhaust all mirrors
         if let Err(crate::error::UpdaterError::NetworkError(msg)) = res {
@@ -327,6 +375,49 @@ mod tests {
                 "Expected NetworkError with invalid hash message, got: {:?}",
                 res
             );
+        }
+    }
+
+    #[test]
+    fn test_strict_version_matching_logic() {
+        let manifest_json = r#"{ "version": "1.2.3", "binaries": {} }"#;
+        let release_json = r#"{ "version": "1.2.3", "notes": "foo" }"#;
+        
+        let manifest: Manifest = serde_json::from_str(manifest_json).unwrap();
+        let release: Release = serde_json::from_str(release_json).unwrap();
+        
+        assert_eq!(manifest.version, release.version);
+    }
+    
+    #[test]
+    fn test_strict_version_mismatch_logic() {
+        let manifest_json = r#"{ "version": "1.2.3", "binaries": {} }"#;
+        let release_json = r#"{ "version": "1.2.4" }"#;
+        
+        let manifest: Manifest = serde_json::from_str(manifest_json).unwrap();
+        let release: Release = serde_json::from_str(release_json).unwrap();
+        
+        assert_ne!(manifest.version, release.version);
+    }
+    
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn doesnt_crash_manifest_parsing(s in any::<String>()) {
+            let _ = serde_json::from_str::<Manifest>(&s);
+        }
+
+        #[test]
+        fn doesnt_crash_release_parsing(s in any::<String>()) {
+            let _ = serde_json::from_str::<Release>(&s);
+        }
+        
+        #[test]
+        fn valid_manifest_versions_parse(version in "[a-zA-Z0-9.-]+") {
+            let json = format!(r#"{{ "version": "{}", "binaries": {{}} }}"#, version);
+            let manifest: Manifest = serde_json::from_str(&json).unwrap();
+            assert_eq!(manifest.version, version);
         }
     }
 }

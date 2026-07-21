@@ -190,6 +190,23 @@ impl DrandClient {
                         last_error = Some(DrandError::InvalidSignature);
                         continue;
                     }
+
+                    let now = web_time::SystemTime::now()
+                        .duration_since(web_time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    let estimated_round = (now.saturating_sub(crate::constants::DRAND_GENESIS_TIME)) / crate::constants::DRAND_PERIOD;
+                    let age = estimated_round.saturating_sub(pulse.round);
+                    
+                    if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
+                        warn!(
+                            "Drand endpoint {} returned an unacceptably stale pulse (round {}, expected ~{}).",
+                            endpoint, pulse.round, estimated_round
+                        );
+                        last_error = Some(DrandError::StalePulse { expected: estimated_round, got: pulse.round });
+                        continue;
+                    }
+
                     pulse.is_from_cache = false;
                     pulse.is_unavailable = false;
                     // Cache on every successful fetch
@@ -222,26 +239,37 @@ impl DrandClient {
                 .await
             {
                 Ok(mut resp) if resp.status().is_success() => {
-                    let mut body = bytes::BytesMut::new();
-                    while let Some(chunk) = resp
-                        .chunk()
-                        .await
-                        .map_err(|e| DrandError::Network(e.to_string()))?
+                    #[cfg(target_arch = "wasm32")]
                     {
-                        body.extend_from_slice(&chunk);
-                        if body.len() > 64 * 1024 {
-                            return Err(DrandError::Network(
-                                "Drand response exceeded 64 KB limit".to_string(),
-                            ));
+                        let bytes = resp.bytes().await.map_err(|e| DrandError::Network(e.to_string()))?;
+                        if bytes.len() > 64 * 1024 {
+                            return Err(DrandError::Network("Drand response exceeded 64 KB limit".to_string()));
                         }
+                        return Ok(serde_json::from_slice::<DrandPulse>(&bytes)?);
                     }
-                    return Ok(serde_json::from_slice::<DrandPulse>(&body)?);
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        let mut body = bytes::BytesMut::new();
+                        while let Some(chunk) = resp
+                            .chunk()
+                            .await
+                            .map_err(|e| DrandError::Network(e.to_string()))?
+                        {
+                            body.extend_from_slice(&chunk);
+                            if body.len() > 64 * 1024 {
+                                return Err(DrandError::Network(
+                                    "Drand response exceeded 64 KB limit".to_string(),
+                                ));
+                            }
+                        }
+                        return Ok(serde_json::from_slice::<DrandPulse>(&body)?);
+                    }
                 }
                 Ok(_resp) if attempt < max_attempts - 1 => {
                     #[cfg(not(target_arch = "wasm32"))]
                     tokio::time::sleep(delay).await;
                     #[cfg(target_arch = "wasm32")]
-                    let _ = delay; // TODO: Sleep in wasm
+                    gloo_timers::future::sleep(delay).await;
                     delay *= 2;
                 }
                 Ok(resp) => {
@@ -251,7 +279,7 @@ impl DrandClient {
                     #[cfg(not(target_arch = "wasm32"))]
                     tokio::time::sleep(delay).await;
                     #[cfg(target_arch = "wasm32")]
-                    let _ = delay; // TODO: Sleep in wasm
+                    gloo_timers::future::sleep(delay).await;
                     delay *= 2; // exponential backoff
                 }
                 Err(e) => return Err(DrandError::Network(e.to_string())),

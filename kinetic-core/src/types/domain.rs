@@ -14,7 +14,7 @@ pub struct Heartbeat {
 impl Heartbeat {
     /// Serializes the heartbeat data into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
-        let prefix = b"kinetic-heartbeat-v1";
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-heartbeat-v1").as_bytes();
         let mut bytes = Vec::with_capacity(prefix.len() + 4 + self.name.len() + 8);
         bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
@@ -35,7 +35,7 @@ pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
         let mut hasher = Sha256::new();
         hasher.update(normalized.as_bytes());
         hasher.update([i]);
-        hasher.update(b"kinetic-dht-v1");
+        hasher.update(concat!(env!("KINETIC_NETWORK_ID"), "-dht-v1").as_bytes());
 
         let result = hasher.finalize();
         let mut key = [0u8; 32];
@@ -54,7 +54,7 @@ pub fn derive_heartbeat_keys(name: &str) -> Vec<[u8; 32]> {
 
     for i in 0..M_REDUNDANCY {
         let mut hasher = Sha256::new();
-        hasher.update(b"kinetic-hb-v1");
+        hasher.update(concat!(env!("KINETIC_NETWORK_ID"), "-hb-v1").as_bytes());
         hasher.update(normalized.as_bytes());
         hasher.update([i]);
 

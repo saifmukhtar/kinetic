@@ -13,9 +13,9 @@ impl Default for ConsensusParams {
 }
 
 impl ConsensusParams {
-    /// Calculates the base hardware iteration requirement for a given round,
-    /// doubling every `hardware_drift_rounds`.
-    pub fn calculate_hardware_anchor(&self, _current_round: u64) -> u64 {
+    /// Calculates the base hardware iteration requirement.
+    /// This is now a fixed value defined in network.json and updated via OTA network upgrades.
+    pub fn calculate_hardware_anchor(&self) -> u64 {
         crate::constants::BENCHMARK_BASE_ITERATIONS
     }
 
@@ -23,7 +23,6 @@ impl ConsensusParams {
     pub fn required_iterations(
         &self,
         name: &str,
-        current_round: u64,
         drand_randomness: &[u8],
     ) -> u64 {
         let normalized_name = crate::types::names::normalize_name(name);
@@ -31,41 +30,40 @@ impl ConsensusParams {
         let label = apex
             .strip_suffix(crate::constants::TLD_SUFFIX)
             .unwrap_or(&apex);
-        self.required_iterations_by_label(label, current_round, drand_randomness)
+        self.required_iterations_by_label(label, drand_randomness)
     }
 
     /// Calculate required iterations for a specific label
     pub fn required_iterations_by_label(
         &self,
         label: &str,
-        current_round: u64,
         drand_randomness: &[u8],
     ) -> u64 {
         if crate::config::is_dev_mode() {
-            return 1000;
+            return crate::constants::DEV_MODE_ITERATIONS;
         }
 
         let len = label.len();
-        let base = self.calculate_hardware_anchor(current_round);
+        let base = self.calculate_hardware_anchor();
+        let tm = crate::constants::BENCHMARK_TARGET_MINUTES as u64;
 
-        // "Squatter Cliff" curve (1x = 30 minutes)
+        // "Squatter Cliff" curve dynamically adjusting to the hardware time target
         match len {
-            0 | 1 => base * 1_753_200, // 100 years (Reserved/Impossible)
-            2 => base * 7_200,         // 5 months
-            3 => base * 4_320,         // 3 months
-            4 => base * 720,           // 15 days
-            5 => base * 48,            // 1 day
-            6 => base * 24,            // 12 hours
-            7 => base * 5,             // 2.5 hours
-            8..=10 => base * 4,        // 2 hours
-            11..=17 => base * 3,       // 1.5 hours
-            18..=20 => base * 2,       // 1 hour
-            21..=62 => base,           // 30 minutes (Baseline)
+            0 | 1 => (base * 52_596_000) / tm, // 100 years (Reserved/Impossible)
+            2 => (base * 43_200) / tm,         // 30 days
+            3 => (base * 34_560) / tm,         // 24 days
+            4 => (base * 21_600) / tm,         // 15 days
+            5 => (base * 1_440) / tm,          // 1 day
+            6 => (base * 720) / tm,            // 12 hours
+            7 => (base * 150) / tm,            // 2.5 hours
+            8..=10 => (base * 120) / tm,       // 2 hours
+            11..=17 => (base * 90) / tm,       // 1.5 hours
+            18..=20 => (base * 60) / tm,       // 1 hour
+            21..=62 => base,                   // Baseline (always takes exactly `tm` minutes)
             63 => {
                 use sha2::{Digest, Sha256};
                 let mut hasher = Sha256::new();
                 hasher.update(label.as_bytes());
-                hasher.update(current_round.to_be_bytes());
                 hasher.update(drand_randomness);
                 let result = hasher.finalize();
 
@@ -76,16 +74,16 @@ impl ConsensusParams {
                 let num = (val % 100) as u8;
 
                 match num {
-                    63 => (base * 63) / 1800,              // 63 Seconds (Jackpot!)
-                    0..=10 => (base * 63) / 30,            // 63 Minutes
-                    11..=20 => base * 126,                 // 63 Hours
-                    21..=30 => base * 3024,                // 63 Days
-                    31..=40 => base * 21168,               // 63 Weeks
-                    41..=50 => base * 92043,               // 63 Months
-                    51..=62 | 64..=70 => base * 1_104_516, // 63 Years
-                    71..=80 => base * 11_045_160,          // 63 Decades
-                    81..=90 => base * 110_451_600,         // 63 Centuries
-                    _ => base * 1_104_516_000,             // 63 Millennia
+                    63 => (base * 63) / (tm * 60),                  // 63 Seconds (Jackpot!)
+                    0..=10 => (base * 63) / tm,                     // 63 Minutes
+                    11..=20 => (base * 63 * 60) / tm,               // 63 Hours
+                    21..=30 => (base * 63 * 60 * 24) / tm,          // 63 Days
+                    31..=40 => (base * 63 * 60 * 24 * 7) / tm,      // 63 Weeks
+                    41..=50 => (base * 63 * 60 * 24 * 30) / tm,     // 63 Months
+                    51..=62 | 64..=70 => (base * 63 * 60 * 24 * 365) / tm, // 63 Years
+                    71..=80 => (base * 63 * 60 * 24 * 3650) / tm,   // 63 Decades
+                    81..=90 => (base * 63 * 60 * 24 * 36500) / tm,  // 63 Centuries
+                    _ => (base * 63 * 60 * 24 * 365000) / tm,       // 63 Millennia
                 }
             }
             _ => base, // Fallback
@@ -124,9 +122,9 @@ mod tests {
     fn test_decay_length() {
         let params = ConsensusParams::default();
         let _pk = [0u8; 32];
-        let a = params.required_iterations("a", 0, &[0u8; 32]);
-        let ab = params.required_iterations("ab", 0, &[0u8; 32]);
-        let abc = params.required_iterations("abc", 0, &[0u8; 32]);
+        let a = params.required_iterations("a", &[0u8; 32]);
+        let ab = params.required_iterations("ab", &[0u8; 32]);
+        let abc = params.required_iterations("abc", &[0u8; 32]);
         assert!(a > ab);
         assert!(ab > abc);
     }

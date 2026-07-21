@@ -1,7 +1,8 @@
 use crate::utils::{parse_and_format_api_error, save_zone_file};
-use ed25519_dalek::Signer;
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::types::{load_keypair, Commitment, Reveal};
+use ml_dsa::signature::Signer;
+use ml_dsa::SignatureEncoding;
 use reqwest::Client;
 use serde_json::json;
 use sha2::Digest;

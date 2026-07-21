@@ -6,7 +6,7 @@ pub async fn start_gossip_listener(
     gov_state_path: Arc<PathBuf>,
 ) {
     while let Some((topic, payload)) = gossip_rx.recv().await {
-        if topic == "kinetic_governance" {
+        if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
             if let Ok(signed_msg) = serde_json::from_slice::<
                 kinetic_core::governance::SignedGovernanceMessage,
             >(&payload)

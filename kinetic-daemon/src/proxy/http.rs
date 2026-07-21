@@ -16,7 +16,7 @@ pub async fn handle_proxy_request(
             return Ok(Response::builder()
                 .status(StatusCode::FORBIDDEN)
                 .body(axum::body::Body::from(
-                    "Kinetic proxy only handles .kin domains",
+                    format!("Kinetic proxy only handles {} domains", kinetic_core::constants::TLD_SUFFIX)
                 ))
                 .unwrap_or_else(|_| {
                     Response::new(axum::body::Body::from("Internal Proxy Error"))
@@ -98,74 +98,104 @@ pub async fn forward_to_backend_direct(
     network_client: &NetworkClient,
     config: Arc<kinetic_core::config::KineticConfig>,
 ) -> Result<Response<axum::body::Body>, ProxyError> {
-    let apex_domain = kinetic_core::types::extract_apex_domain(domain);
-
-    // Resolve via DHT directly — NOT via system DNS
-    let payload = network_client
-        .resolve_redundant_payload(&apex_domain)
-        .await
-        .map_err(|_| ProxyError::NameNotFound(apex_domain.clone()))?;
-
-    // The DHT stores the full Reveal JSON (set by api.rs via serde_json::to_vec(&reveal)).
-    // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
-    let reveal = serde_json::from_slice::<kinetic_core::types::Reveal>(&payload)
-        .map_err(|_| ProxyError::InvalidPayload)?;
-
-    let zone = match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
-        Ok(z) => z,
-        Err(e) => {
-            tracing::warn!("Proxy Error: Invalid DnsZone payload: {}", e);
-            return Err(ProxyError::InvalidPayload);
-        }
-    };
-
-    let mut subdomain = if domain == apex_domain {
-        "@".to_string()
-    } else {
-        let trimmed = domain.trim_end_matches(&format!(".{}", apex_domain));
-        trimmed.trim_end_matches('.').to_string()
-    };
-    if subdomain.is_empty() {
-        subdomain = "@".to_string();
-    }
-
-    tracing::info!(
-        "Proxy looking for subdomain '{}' in zone: {:?}",
-        subdomain,
-        zone
-    );
-
-    let records = match zone.records.get(&subdomain) {
-        Some(r) => r,
-        None => {
-            tracing::warn!("Proxy Error: Subdomain '{}' not found in zone", subdomain);
-            return Err(ProxyError::NameNotFound(domain.to_string()));
-        }
-    };
-
+    let mut current_domain = domain.to_string();
     let mut target_str = String::new();
-    for record in records {
-        tracing::info!("Proxy considering record: {:?}", record);
-        match record {
-            kinetic_core::types::DnsRecord::A(ip) => {
-                target_str = ip.to_string();
-                break;
+    let mut recursion_count = 0;
+
+    while recursion_count < 10 {
+        recursion_count += 1;
+        let apex_domain = kinetic_core::types::extract_apex_domain(&current_domain);
+
+        // Resolve via DHT directly — NOT via system DNS
+        let payload = network_client
+            .resolve_redundant_payload(&apex_domain)
+            .await
+            .map_err(|_| ProxyError::NameNotFound(apex_domain.clone()))?;
+
+        // The DHT stores the full Reveal JSON (set by api.rs via serde_json::to_vec(&reveal)).
+        // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
+        let reveal = serde_json::from_slice::<kinetic_core::types::Reveal>(&payload)
+            .map_err(|_| ProxyError::InvalidPayload)?;
+
+        let zone = match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
+            Ok(z) => z,
+            Err(e) => {
+                tracing::warn!("Proxy Error: Invalid DnsZone payload: {}", e);
+                return Err(ProxyError::InvalidPayload);
             }
-            kinetic_core::types::DnsRecord::AAAA(ip) => {
-                target_str = ip.to_string();
-                break;
-            }
-            kinetic_core::types::DnsRecord::TXT(_) => {
-                continue; // Do NOT parse TXT records as IPs for proxying
-            }
-            kinetic_core::types::DnsRecord::PeerId(peer_id) => {
-                target_str = peer_id.clone();
-                break;
-            }
-            // Note: If CNAME points to another .kin, we'd need to resolve recursively here,
-            // but for simplicity we only support direct resolution for proxy right now.
-            _ => continue,
+        };
+
+        let mut subdomain = if current_domain == apex_domain {
+            "@".to_string()
+        } else {
+            let trimmed = current_domain.trim_end_matches(&format!(".{}", apex_domain));
+            trimmed.trim_end_matches('.').to_string()
+        };
+        if subdomain.is_empty() {
+            subdomain = "@".to_string();
         }
+
+        tracing::info!(
+            "Proxy looking for subdomain '{}' in zone: {:?}",
+            subdomain,
+            zone
+        );
+
+        let records = match zone.records.get(&subdomain) {
+            Some(r) => r,
+            None => {
+                tracing::warn!("Proxy Error: Subdomain '{}' not found in zone", subdomain);
+                return Err(ProxyError::NameNotFound(current_domain.clone()));
+            }
+        };
+
+        let mut cname_target = None;
+        for record in records {
+            tracing::info!("Proxy considering record: {:?}", record);
+            match record {
+                kinetic_core::types::DnsRecord::A(ip) => {
+                    target_str = ip.to_string();
+                    break;
+                }
+                kinetic_core::types::DnsRecord::AAAA(ip) => {
+                    target_str = ip.to_string();
+                    break;
+                }
+                kinetic_core::types::DnsRecord::TXT(_) => {
+                    continue; // Do NOT parse TXT records as IPs for proxying
+                }
+                kinetic_core::types::DnsRecord::PeerId(peer_id) => {
+                    target_str = peer_id.clone();
+                    break;
+                }
+                kinetic_core::types::DnsRecord::CNAME(target) => {
+                    cname_target = Some(target.clone());
+                    break;
+                }
+                kinetic_core::types::DnsRecord::IPFS(cid) => {
+                    target_str = format!("ipfs://{}", cid);
+                    break;
+                }
+                _ => continue,
+            }
+        }
+
+        if !target_str.is_empty() {
+            break; // Found our final target!
+        }
+
+        if let Some(target) = cname_target {
+            if target.ends_with(kinetic_core::constants::TLD_SUFFIX) {
+                tracing::info!("CNAME recursion from {} to {}", current_domain, target);
+                current_domain = target;
+                continue;
+            } else {
+                tracing::warn!("CNAME points to external domain {} which proxy cannot resolve", target);
+                return Err(ProxyError::NameNotFound(current_domain.clone()));
+            }
+        }
+
+        break;
     }
 
     if target_str.is_empty() {
@@ -174,29 +204,55 @@ pub async fn forward_to_backend_direct(
 
     let ip_str = target_str;
 
+    if ip_str.starts_with("ipfs://") {
+        let cid = ip_str.trim_start_matches("ipfs://");
+        let gateway = config.daemon.ipfs_gateway.trim_end_matches('/');
+        let path = req
+            .uri()
+            .path_and_query()
+            .map(|pq| pq.as_str())
+            .unwrap_or("/")
+            .trim_start_matches('/');
+            
+        let ipfs_url = if path.is_empty() {
+            format!("{}/{}", gateway, cid)
+        } else {
+            format!("{}/{}/{}", gateway, cid, path)
+        };
+
+        tracing::info!("Proxying IPFS request to gateway: {}", ipfs_url);
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()?;
+
+        let mut out_req = client.request(req.method().clone(), &ipfs_url);
+        
+        for (name, value) in req.headers() {
+            // Strip HOST so the gateway handles it properly
+            if name != hyper::header::HOST {
+                out_req = out_req.header(name, value);
+            }
+        }
+
+        let backend_resp = out_req.send().await?;
+        let mut resp_builder = Response::builder().status(backend_resp.status());
+        for (name, value) in backend_resp.headers() {
+            if name.as_str().to_lowercase() == "strict-transport-security" {
+                continue; // Strip HSTS
+            }
+            resp_builder = resp_builder.header(name, value);
+        }
+
+        let body_stream = backend_resp.bytes_stream();
+        let body = axum::body::Body::from_stream(body_stream);
+        return Ok(resp_builder.body(body)?);
+    }
+
     // Validate it is actually a routable IP or PeerId
-    let is_ip_or_socket = if let Ok(_ip) = ip_str.parse::<std::net::IpAddr>() {
-        // Double check it wasn't a TXT/PeerId record that just happens to be a valid IP
-        records
-            .iter()
-            .find(|r| match r {
-                kinetic_core::types::DnsRecord::A(s) => s.to_string() == ip_str,
-                kinetic_core::types::DnsRecord::AAAA(s) => s.to_string() == ip_str,
-                _ => false,
-            })
-            .is_some()
-    } else if let Ok(_sa) = ip_str.parse::<std::net::SocketAddr>() {
-        records
-            .iter()
-            .find(|r| match r {
-                kinetic_core::types::DnsRecord::A(s) => s.to_string() == ip_str,
-                kinetic_core::types::DnsRecord::AAAA(s) => s.to_string() == ip_str,
-                _ => false,
-            })
-            .is_some()
-    } else {
-        false
-    };
+    let is_ip_or_socket = ip_str.parse::<std::net::IpAddr>().is_ok()
+        || ip_str.parse::<std::net::SocketAddr>().is_ok();
 
     if is_ip_or_socket {
         // Prevent SSRF: Do not proxy to loopback, private, or multicast networks!
@@ -229,7 +285,7 @@ pub async fn forward_to_backend_direct(
                 || original_port == config.daemon.dns_port
                 || original_port == config.daemon.backend_port
                 || original_port == config.network.daemon_port
-                || original_port == 16001)
+                || original_port == config.daemon.pac_port)
         // PAC port
         {
             return Err(ProxyError::Other(
@@ -237,9 +293,11 @@ pub async fn forward_to_backend_direct(
             ));
         }
 
-        if is_ssrf_risk(ip_addr) && !kinetic_core::config::is_dev_mode() {
+        let is_ssrf = is_ssrf_risk(ip_addr) || ip_addr.is_unspecified();
+
+        if is_ssrf && !kinetic_core::config::is_dev_mode() {
             return Err(ProxyError::Other("SSRF Protection: Cannot proxy to loopback or private IPs. (Use Dev Mode to bypass)".to_string()));
-        } else if is_ssrf_risk(ip_addr) {
+        } else if is_ssrf {
             tracing::warn!(
                 "DEV MODE: Forwarding to private IP {}. This would be blocked in production.",
                 ip_addr

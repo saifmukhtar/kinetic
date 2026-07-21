@@ -2,6 +2,10 @@ pub mod identity;
 pub mod name;
 pub mod seed;
 pub mod service;
+pub mod clock;
+pub mod dns_tree;
+pub mod governance;
+pub mod setup;
 
 use clap::Subcommand;
 pub use service::handle_service_command;
@@ -19,11 +23,25 @@ pub enum Commands {
         #[command(subcommand)]
         cmd: identity::IdentityCommands,
     },
-    /// Generate and backup the master node seed phrase
+    /// Interactive wizard to initialize your Kinetic node
+    Setup(setup::SetupCommand),
+    /// Submit proposals and manage Kinetic Network governance
+    Governance {
+        #[command(subcommand)]
+        cmd: governance::GovernanceCommands,
+    },
+    /// Starts a localized bootstrap seed node.
     Seed {
         #[command(subcommand)]
         cmd: seed::SeedCommands,
     },
+    /// Generates Cloudflare DNS Tree records from a list of IPs.
+    DnsTree {
+        #[command(subcommand)]
+        cmd: dns_tree::DnsTreeCommands,
+    },
+    /// Displays a real-time digital clock of the Kinetic Network Time.
+    Clock(clock::ClockArgs),
     /// Manage the Kinetic Daemon (P2P node + local proxy for name owners)
     Daemon {
         #[command(subcommand)]

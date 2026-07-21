@@ -1,8 +1,6 @@
-use ed25519_dalek::Verifier;
-
 use crate::error::GovernanceError;
 use crate::governance::types::{
-    GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
+    verify_signature, GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
 };
 use crate::traits::GovernanceEngine;
 
@@ -36,7 +34,7 @@ impl GovernanceEngine for MonarchyEngine {
         let root_signed = msg
             .signatures
             .iter()
-            .any(|sig| root_key.verify(&action_bytes, sig).is_ok());
+            .any(|sig| verify_signature(&root_key, &action_bytes, sig));
 
         if root_signed {
             if let GovernanceAction::GrantPremiumName { name, .. } = &msg.action {
@@ -102,7 +100,7 @@ impl GovernanceEngine for MonarchyEngine {
             } => {
                 effect = Some(GovernanceEffect::PremiumNameGranted {
                     name: name.clone(),
-                    target_pubkey: *target_pubkey,
+                    target_pubkey: target_pubkey.clone(),
                 });
             }
             GovernanceAction::RevokePremiumName { name } => {
@@ -115,10 +113,10 @@ impl GovernanceEngine for MonarchyEngine {
             | GovernanceAction::LockCouncil => {}
 
             GovernanceAction::RotateRootKey { new_key } => {
-                state.dynamic_root_key = Some(*new_key);
+                state.dynamic_root_key = Some(new_key.clone());
             }
             GovernanceAction::RotateGuardKey { new_key } => {
-                state.dynamic_guard_key = Some(*new_key);
+                state.dynamic_guard_key = Some(new_key.clone());
             }
         }
         effect

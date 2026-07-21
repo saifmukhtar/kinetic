@@ -272,6 +272,7 @@ impl From<DrandError> for ApiError {
             DrandError::NoCachedPulse => (404, "Not Found"),
             DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
             DrandError::InvalidSignature => (422, "Cryptographic Verification Failed"),
+            DrandError::StalePulse { .. } => (400, "Stale Drand Pulse"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -299,7 +300,8 @@ impl From<DnsError> for ApiError {
             | DnsError::TxtRecordTooLong(_)
             | DnsError::InvalidCnameTarget(_)
             | DnsError::InvalidPeerId(_)
-            | DnsError::InvalidKid(_) => (400, "Bad Request"),
+            | DnsError::InvalidKid(_)
+            | DnsError::InvalidIpfsCid(_) => (400, "Bad Request"),
         };
         ApiError {
             error_type: e.error_type_uri(),

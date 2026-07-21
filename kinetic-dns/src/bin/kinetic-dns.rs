@@ -43,21 +43,91 @@ enum Commands {
     Stop,
 }
 
+fn configure_os_dns(dns_port: u16) -> Result<()> {
+    let os = std::env::consts::OS;
+    let tld = kinetic_core::constants::TLD;
+    let network_id = kinetic_core::constants::NETWORK_ID;
+    let bind_ip = kinetic_core::constants::DNS_IP;
+
+    if os == "linux" {
+        let conf_dir = std::path::Path::new("/etc/systemd/resolved.conf.d");
+        if conf_dir.exists() {
+            let conf_path = conf_dir.join(format!("{}.conf", network_id));
+            let content = format!(
+                "[Resolve]\nDNS={}:{}\nDomains=~{}\n",
+                bind_ip, dns_port, tld
+            );
+            std::fs::write(&conf_path, content)?;
+            println!("Wrote systemd-resolved config to {:?}", conf_path);
+            let _ = std::process::Command::new("systemctl")
+                .args(&["restart", "systemd-resolved"])
+                .status();
+        }
+    } else if os == "macos" {
+        let _ = std::process::Command::new("ifconfig")
+            .args(&["lo0", "alias", bind_ip, "up"])
+            .status();
+            
+        let conf_dir = std::path::Path::new("/etc/resolver");
+        std::fs::create_dir_all(conf_dir).ok();
+        let conf_path = conf_dir.join(tld);
+        let content = format!("nameserver {}\nport {}\n", bind_ip, dns_port);
+        std::fs::write(&conf_path, content)?;
+        println!("Wrote macOS resolver config to {:?}", conf_path);
+    } else if os == "windows" {
+        let _ = std::process::Command::new("powershell")
+            .args(&[
+                "-Command",
+                &format!("Add-DnsClientNrptRule -Namespace '.{}' -NameServers '{}'", tld, bind_ip)
+            ])
+            .status();
+        println!("Added Windows NRPT rule for .{}", tld);
+    }
+    Ok(())
+}
+
+fn remove_os_dns() {
+    let os = std::env::consts::OS;
+    let tld = kinetic_core::constants::TLD;
+    let network_id = kinetic_core::constants::NETWORK_ID;
+
+    if os == "linux" {
+        let conf_path = format!("/etc/systemd/resolved.conf.d/{}.conf", network_id);
+        std::fs::remove_file(&conf_path).ok();
+        let _ = std::process::Command::new("systemctl")
+            .args(&["restart", "systemd-resolved"])
+            .status();
+    } else if os == "macos" {
+        let conf_path = format!("/etc/resolver/{}", tld);
+        std::fs::remove_file(&conf_path).ok();
+        let bind_ip = kinetic_core::constants::DNS_IP;
+        let _ = std::process::Command::new("ifconfig")
+            .args(&["lo0", "-alias", bind_ip])
+            .status();
+    } else if os == "windows" {
+        let _ = std::process::Command::new("powershell")
+            .args(&[
+                "-Command",
+                &format!("Get-DnsClientNrptRule | Where-Object {{ $_.Namespace -eq '.{}' }} | Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue", tld)
+            ])
+            .status();
+    }
+}
+
 fn install_service() -> Result<()> {
     println!("Installing Kinetic DNS Server service...");
-    let label: ServiceLabel = format!(
-        "{}.{}.dns",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["run".into()],
+        args: vec![
+            "run".into(),
+            "--dns-port".into(),
+            kinetic_core::config::KineticConfig::load().daemon.dns_port.to_string().into(),
+        ],
         contents: None,
         username: None,
         working_directory: None,
@@ -66,31 +136,28 @@ fn install_service() -> Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
+    if let Err(e) = configure_os_dns(kinetic_core::config::KineticConfig::load().daemon.dns_port) {
+        println!("Warning: Failed to configure OS DNS: {}", e);
+    }
+
     println!("Service installed successfully. Run 'kinetic-dns-server start' to begin.");
     Ok(())
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.dns",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
+    
+    remove_os_dns();
+    
     println!("Service uninstalled.");
     Ok(())
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.dns",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.start(ServiceStartCtx { label })?;
@@ -99,12 +166,7 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.dns",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -124,11 +186,13 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
     let dns_handler = KineticDnsHandler::new(api_url);
     let mut server = ServerFuture::new(dns_handler);
 
-    let bind_ip = if cfg!(target_os = "linux") {
-        "127.0.0.2"
-    } else {
-        "127.0.0.1"
-    };
+    let bind_ip = kinetic_core::constants::DNS_IP;
+
+    if cfg!(target_os = "macos") {
+        let _ = std::process::Command::new("ifconfig")
+            .args(&["lo0", "alias", bind_ip, "up"])
+            .status();
+    }
 
     match UdpSocket::bind(format!("{}:{}", bind_ip, dns_port)).await {
         Ok(socket) => {
@@ -142,10 +206,15 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
 
             #[cfg(unix)]
             {
-                if let Err(e) = privdrop::PrivDrop::default().user("nobody").apply() {
-                    tracing::warn!("Note: Could not drop privileges to 'nobody': {} (Safe if already running as non-root)", e);
+                if let Err(e) = privdrop::PrivDrop::default()
+                    .user("nobody")
+                    .group("nogroup")
+                    .apply()
+                {
+                    tracing::error!("Failed to drop privileges: {}", e);
+                    std::process::exit(1);
                 } else {
-                    tracing::info!("Successfully dropped privileges to 'nobody' after binding privileged port.");
+                    tracing::info!("Successfully dropped privileges after binding privileged port.");
                 }
             }
 
@@ -189,10 +258,15 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
 
                     #[cfg(unix)]
                     {
-                        if let Err(e) = privdrop::PrivDrop::default().user("nobody").apply() {
-                            tracing::warn!("Note: Could not drop privileges to 'nobody': {} (Safe if already running as non-root)", e);
+                        if let Err(e) = privdrop::PrivDrop::default()
+                            .user("nobody")
+                            .group("nogroup")
+                            .apply()
+                        {
+                            tracing::error!("Failed to drop privileges: {}", e);
+                            std::process::exit(1);
                         } else {
-                            tracing::info!("Successfully dropped privileges to 'nobody' after binding fallback port.");
+                            tracing::info!("Successfully dropped privileges after binding fallback port.");
                         }
                     }
 

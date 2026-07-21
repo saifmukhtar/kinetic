@@ -1,0 +1,8 @@
+{
+  "version": "1.2.3",
+  "binaries": {
+    "kinetic-daemon": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    "kinetic-node": "cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe",
+    "kinetic-host": "beefcafebeefcafebeefcafebeefcafebeefcafebeefcafebeefcafebeefcafe"
+  }
+}

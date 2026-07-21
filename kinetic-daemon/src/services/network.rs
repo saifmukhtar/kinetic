@@ -117,11 +117,12 @@ pub fn start_republisher(
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(43200)); // 12 hours
         loop {
             interval.tick().await;
-            let owned_key = b"kinetic_owned_names";
+            let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
             if let Ok(Some(bytes)) = republish_storage.get(owned_key) {
                 if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
                     for name in names {
-                        let reveal_key = format!("kinetic_reveal:{}", name);
+                        let reveal_key =
+                            format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, name);
                         if let Ok(Some(reveal_bytes)) = republish_storage.get(reveal_key.as_bytes())
                         {
                             if let Ok(reveal) =

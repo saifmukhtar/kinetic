@@ -32,6 +32,9 @@ drand-verify = "0.6.2"
 kinetic-kid = { version = "0.1.0", path = "../kinetic-kid" }
 bytes = "1.6.0"
 zeroize = { version = "1", features = ["zeroize_derive"] }
+rand_chacha = "0.10.0"
+rand_core = "0.10.1"
+ml-dsa = "0.1.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 directories = "6.0.0"
@@ -42,6 +45,8 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.14", features = ["js"] }
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+gloo-timers = { version = "0.3.0", features = ["futures"] }
 
 [dev-dependencies]
 criterion = "0.8.2"

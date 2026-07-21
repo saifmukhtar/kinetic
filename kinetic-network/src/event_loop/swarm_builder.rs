@@ -33,6 +33,7 @@ impl super::core::NetworkEventLoop {
                 libp2p::noise::Config::new,
                 libp2p::yamux::Config::default,
             )?
+            .with_quic()
             .with_dns()?;
 
         #[cfg(all(target_os = "android", not(target_arch = "wasm32")))]
@@ -42,7 +43,8 @@ impl super::core::NetworkEventLoop {
                 libp2p::tcp::Config::default().port_reuse(true),
                 libp2p::noise::Config::new,
                 libp2p::yamux::Config::default,
-            )?;
+            )?
+            .with_quic();
 
         #[cfg(target_arch = "wasm32")]
         let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
@@ -239,8 +241,18 @@ impl super::core::NetworkEventLoop {
             })
             .build();
 
-        if config.mode == NetworkMode::FullNode && !config.listen_addr.is_empty() {
-            swarm.listen_on(config.listen_addr.clone())?;
+        if config.mode == NetworkMode::FullNode {
+            if !config.listen_addr.is_empty() {
+                swarm.listen_on(config.listen_addr.clone())?;
+            }
+            if let Some(quic_addr) = &config.quic_listen_addr {
+                if !quic_addr.is_empty() {
+                    match swarm.listen_on(quic_addr.clone()) {
+                        Ok(_) => tracing::info!("Listening on QUIC: {}", quic_addr),
+                        Err(e) => tracing::warn!("Failed to bind QUIC on {}: {}. Falling back to TCP only.", quic_addr, e),
+                    }
+                }
+            }
             if let Some(addr) = &config.external_address {
                 tracing::info!("Adding configured external address: {}", addr);
                 swarm.add_external_address(addr.clone());
@@ -294,7 +306,7 @@ impl super::core::NetworkEventLoop {
             pending_proxy_requests: rustc_hash::FxHashMap::default(),
             incoming_proxy_tx,
             gossip_tx,
-            bad_vdf_counts: rustc_hash::FxHashMap::default(),
+            bad_vdf_counts: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
             current_drand_pulse: config.initial_drand_pulse,
             drand_pulse_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
@@ -302,8 +314,11 @@ impl super::core::NetworkEventLoop {
             startup_time: web_time::Instant::now(),
             disable_pow: config.disable_pow,
             banned_peers: {
-                let mut peers = rustc_hash::FxHashMap::default();
-                if let Ok(iter) = storage.scan_prefix(b"kinetic_banned_peer:", None) {
+                let mut peers = lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap());
+                if let Ok(iter) = storage.scan_prefix(
+                    kinetic_core::constants::DB_PREFIX_BANNED_PEER.as_bytes(),
+                    None,
+                ) {
                     for (key_bytes, val_bytes) in iter {
                         if key_bytes.len() > 20 {
                             if let Ok(peer_id_str) = std::str::from_utf8(&key_bytes[20..]) {
@@ -317,7 +332,7 @@ impl super::core::NetworkEventLoop {
                                             .unwrap_or_default()
                                             .as_secs();
                                         if expire > now {
-                                            peers.insert(peer_id, expire);
+                                            peers.put(peer_id, expire);
                                         } else {
                                             let _ = storage.delete(&key_bytes);
                                         }
@@ -334,6 +349,7 @@ impl super::core::NetworkEventLoop {
             bootstrap_connection_time: rustc_hash::FxHashMap::default(),
             nat_status: "Unknown".to_string(),
             loopback_tx: None,
+            pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
         };
 
         Ok((client, event_loop))
@@ -353,7 +369,8 @@ impl super::core::NetworkEventLoop {
                 libp2p::tcp::Config::default().port_reuse(true),
                 libp2p::noise::Config::new,
                 libp2p::yamux::Config::default,
-            )?;
+            )?
+            .with_quic();
 
         let storage_clone = storage.clone();
         let vdf_engine_clone = vdf_engine.clone();
@@ -426,6 +443,11 @@ impl super::core::NetworkEventLoop {
         if !config.listen_addr.is_empty() {
             swarm.listen_on(config.listen_addr.clone())?;
         }
+        if let Some(quic_addr) = &config.quic_listen_addr {
+            if !quic_addr.is_empty() {
+                let _ = swarm.listen_on(quic_addr.clone());
+            }
+        }
 
         let mut bootstrap_peers = rustc_hash::FxHashSet::default();
         for addr in &config.bootstrap_nodes {
@@ -453,19 +475,20 @@ impl super::core::NetworkEventLoop {
             pending_proxy_requests: Default::default(),
             incoming_proxy_tx: None,
             gossip_tx: None,
-            bad_vdf_counts: Default::default(),
+            bad_vdf_counts: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
             current_drand_pulse: 0,
             drand_pulse_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers: Default::default(),
             startup_time: web_time::Instant::now(),
             disable_pow: config.disable_pow,
-            banned_peers: Default::default(),
+            banned_peers: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
             seed_domains: vec![],
 
             bootstrap_connection_time: Default::default(),
             nat_status: "Unknown".to_string(),
             loopback_tx: None,
+            pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
         };
 
         Ok((client, event_loop))

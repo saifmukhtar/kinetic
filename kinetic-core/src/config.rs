@@ -31,6 +31,8 @@ pub mod ports {
     pub const DNS: u16 = 53;
     /// Local backend HTTP port for the proxy.
     pub const BACKEND: u16 = 80;
+    /// PAC (Proxy Auto-Config) server port.
+    pub const PAC: u16 = 16001;
 }
 
 /// Top-level configuration for any Kinetic binary.
@@ -111,6 +113,12 @@ pub struct DaemonConfig {
     /// Whether the node should automatically download and install OTA updates.
     #[serde(default = "default_auto_update")]
     pub auto_update: bool,
+    /// Port for the PAC (Proxy Auto-Config) server (default: [`ports::PAC`]).
+    #[serde(default = "default_pac_port")]
+    pub pac_port: u16,
+    /// IPFS gateway URL to use for resolving `IPFS(cid)` records in the HTTP Proxy.
+    #[serde(default = "default_ipfs_gateway")]
+    pub ipfs_gateway: String,
 }
 
 fn default_auto_update() -> bool {
@@ -137,18 +145,35 @@ fn default_backend_port() -> u16 {
     ports::BACKEND
 }
 
+fn default_pac_port() -> u16 {
+    ports::PAC
+}
+
+fn default_ipfs_gateway() -> String {
+    crate::constants::IPFS_GATEWAY.to_string()
+}
+
 /// P2P networking configuration shared across all Kinetic binaries.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2pConfig {
     /// P2P listen port for the daemon (default: [`ports::P2P_DAEMON`]).
     #[serde(default = "default_p2p_daemon")]
     pub daemon_port: u16,
+    /// P2P listen port for the daemon over QUIC (default: [`ports::P2P_DAEMON`]).
+    #[serde(default = "default_p2p_daemon_quic")]
+    pub daemon_quic_port: u16,
     /// P2P listen port for the node (default: [`ports::P2P_NODE`]).
     #[serde(default = "default_p2p_node")]
     pub node_port: u16,
+    /// P2P listen port for the node over QUIC (default: [`ports::P2P_NODE`]).
+    #[serde(default = "default_p2p_node_quic")]
+    pub node_quic_port: u16,
     /// P2P listen port for the host (default: [`ports::P2P_HOST`]).
     #[serde(default = "default_p2p_host")]
     pub host_port: u16,
+    /// P2P listen port for the host over QUIC (default: [`ports::P2P_HOST`]).
+    #[serde(default = "default_p2p_host_quic")]
+    pub host_quic_port: u16,
     /// Multiaddr strings for the initial bootstrap peers.
     pub bootstrap_nodes: Vec<String>,
     /// `.kin` domain names used to discover additional bootstrap peers via DNS.
@@ -166,11 +191,23 @@ fn default_p2p_daemon() -> u16 {
     ports::P2P_DAEMON
 }
 
+fn default_p2p_daemon_quic() -> u16 {
+    ports::P2P_DAEMON
+}
+
 fn default_p2p_node() -> u16 {
     ports::P2P_NODE
 }
 
+fn default_p2p_node_quic() -> u16 {
+    ports::P2P_NODE
+}
+
 fn default_p2p_host() -> u16 {
+    ports::P2P_HOST
+}
+
+fn default_p2p_host_quic() -> u16 {
     ports::P2P_HOST
 }
 
@@ -192,11 +229,16 @@ impl Default for KineticConfig {
                 storage_dir,
                 network_mode: "FullNode".to_string(),
                 auto_update: true,
+                pac_port: ports::PAC,
+                ipfs_gateway: crate::constants::IPFS_GATEWAY.to_string(),
             },
             network: P2pConfig {
                 daemon_port: ports::P2P_DAEMON,
+                daemon_quic_port: ports::P2P_DAEMON,
                 node_port: ports::P2P_NODE,
+                node_quic_port: ports::P2P_NODE,
                 host_port: ports::P2P_HOST,
+                host_quic_port: ports::P2P_HOST,
                 bootstrap_nodes: crate::constants::BOOTSTRAP_NODES
                     .iter()
                     .map(|s| s.to_string())
@@ -215,28 +257,33 @@ impl KineticConfig {
     /// the file is missing or unparseable.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load() -> Self {
-        let config_path = std::env::var("KINETIC_CONFIG_PATH")
+        let config_path = std::env::var(crate::constants::ENV_KINETIC_CONFIG_PATH)
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
-        let config = if let Ok(config_str) = fs::read_to_string(&config_path) {
-            match toml::from_str(&config_str) {
+        let config = match fs::read_to_string(&config_path) {
+            Ok(config_str) => match toml::from_str(&config_str) {
                 Ok(config) => config,
                 Err(e) => {
                     tracing::error!("Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.", e);
                     std::process::exit(1);
                 }
-            }
-        } else {
-            // Create default config if it doesn't exist
-            let default_cfg = Self::default();
-            if let Some(parent) = config_path.parent() {
-                let _ = fs::create_dir_all(parent);
-                if let Ok(toml_str) = toml::to_string_pretty(&default_cfg) {
-                    let _ = fs::write(&config_path, toml_str);
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // Create default config only if it doesn't exist
+                let default_cfg = Self::default();
+                if let Some(parent) = config_path.parent() {
+                    let _ = fs::create_dir_all(parent);
+                    if let Ok(toml_str) = toml::to_string_pretty(&default_cfg) {
+                        let _ = fs::write(&config_path, toml_str);
+                    }
                 }
+                default_cfg
             }
-            default_cfg
+            Err(e) => {
+                tracing::error!("Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.", e);
+                std::process::exit(1);
+            }
         };
 
         config
@@ -252,7 +299,7 @@ impl KineticConfig {
     /// from.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn save(&self) -> Result<(), std::io::Error> {
-        let config_path = std::env::var("KINETIC_CONFIG_PATH")
+        let config_path = std::env::var(crate::constants::ENV_KINETIC_CONFIG_PATH)
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
@@ -285,22 +332,30 @@ pub fn get_zones_dir() -> PathBuf {
 
 /// Returns the platform-appropriate base directory for Kinetic data files.
 ///
-/// Can be overridden with the `KINETIC_DATA_DIR` environment variable.
+/// The directory is automatically namespaced by `{TLD}-{NETWORK_ID}` so that
+/// multiple forks can coexist on the same machine without colliding on disk.
+/// Can be overridden entirely with the `KINETIC_DATA_DIR` environment variable.
 pub fn get_base_dir() -> PathBuf {
-    if let Ok(path) = std::env::var("KINETIC_DATA_DIR") {
+    if let Ok(path) = std::env::var(crate::constants::ENV_KINETIC_DATA_DIR) {
         return PathBuf::from(path);
     }
+
+    // Namespace by network identity so forks don't collide.
+    // NETWORK_ID is already unique (forge generates it as {tld}-{SHA256(name)[0:16]}).
+    // e.g. mainnet → ~/.local/share/kinetic/
+    //      a fork  → ~/.local/share/uni-3f8a2b.../
+    let network_dir = crate::constants::NETWORK_ID;
 
     #[cfg(not(target_arch = "wasm32"))]
     {
         dirs::data_local_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("kinetic")
+            .join(network_dir)
     }
 
     #[cfg(target_arch = "wasm32")]
     {
-        PathBuf::from("/kinetic")
+        PathBuf::from(format!("/{}", network_dir))
     }
 }
 

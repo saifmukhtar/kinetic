@@ -23,6 +23,24 @@ pub enum IdentityCommands {
     },
     /// Resolve a did:kin from the network
     Resolve { did: String },
+    /// Revoke a Kinetic Identity Document (KID)
+    Revoke {
+        #[arg(long)]
+        kid: String,
+        #[arg(long)]
+        key: String,
+        #[arg(short, long, default_value = "revoked_kid.json")]
+        output: String,
+    },
+    /// Rotate the controller key for a KID
+    RotateKey {
+        #[arg(long)]
+        kid: String,
+        #[arg(long)]
+        old_key: String,
+        #[arg(short, long, default_value = "rotated_kid.json")]
+        output: String,
+    },
 }
 
 /// Dispatches identity-related CLI subcommands.
@@ -40,9 +58,9 @@ pub async fn handle_identity_command(
 ) -> anyhow::Result<()> {
     match cmd {
         IdentityCommands::Create { output } => {
-            info!("Generating new Ed25519 keypair for Kinetic Identity...");
-            use rand_core::OsRng;
-            let keypair = ed25519_dalek::SigningKey::generate(&mut OsRng);
+            info!("Generating new ML-DSA-65 keypair for Kinetic Identity...");
+            use ml_dsa::{Generate, KeyExport, Keypair};
+            let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
 
             use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
             let pub_key_b64 = b64_url.encode(keypair.verifying_key().to_bytes());
@@ -67,11 +85,12 @@ pub async fn handle_identity_command(
                     .as_secs(),
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: format!("{}#primary", did_str),
-                    key_type: "Ed25519".to_string(),
+                    key_type: "ML-DSA-65".to_string(),
                     public_key: pub_key_b64,
                 }],
                 manifest: None,
                 revocation_keys: vec![],
+                deactivated: false,
                 signature: None,
             };
 
@@ -104,7 +123,7 @@ pub async fn handle_identity_command(
             // Load identity keypair to sign the AuthorizedKid
             let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
             let keypair = kinetic_core::types::load_keypair(&identity_path.to_string_lossy())?;
-            use ed25519_dalek::Signer;
+            use ml_dsa::signature::Signer;
 
             let mut kid_doc_opt = None;
 
@@ -119,6 +138,7 @@ pub async fn handle_identity_command(
                     owner_signature: vec![],
                 };
                 let signable = auth_kid.signable_bytes();
+                use ml_dsa::SignatureEncoding;
                 auth_kid.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
 
                 let daemon_url = format!("http://127.0.0.1:{}/publish-kid", config.daemon.api_port);
@@ -149,6 +169,7 @@ pub async fn handle_identity_command(
                     owner_signature: vec![],
                 };
                 let signable = auth_manifest.signable_bytes();
+                use ml_dsa::SignatureEncoding;
                 auth_manifest.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
 
                 let daemon_url = format!(
@@ -185,6 +206,87 @@ pub async fn handle_identity_command(
                 }
                 Ok(res) => warn!("Daemon returned error: {}", res.status()),
                 Err(e) => warn!("Failed to connect to daemon: {}", e),
+            }
+        }
+        IdentityCommands::Revoke { kid, key, output } => {
+            info!("Revoking Kinetic Identity Document (KID) {}...", kid);
+            let kid_data = std::fs::read_to_string(&kid)
+                .map_err(|e| anyhow::anyhow!("Failed to read KID file: {}", e))?;
+            let mut doc: kinetic_kid::document::KidDocument = serde_json::from_str(&kid_data)
+                .map_err(|e| anyhow::anyhow!("Failed to parse KID: {}", e))?;
+
+            // Load the revocation key
+            let key_data = std::fs::read(&key)
+                .map_err(|e| anyhow::anyhow!("Failed to read revocation key: {}", e))?;
+            if key_data.len() != 32 {
+                anyhow::bail!("Revocation key file must contain exactly 32 bytes (raw seed)");
+            }
+            let mut seed = [0u8; 32];
+            seed.copy_from_slice(&key_data);
+            let signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&seed).into());
+
+            // Deactivate and sign
+            doc.deactivated = true;
+            let signed_doc = doc
+                .sign(&signing_key)
+                .map_err(|e| anyhow::anyhow!("Failed to sign revoked KID: {}", e))?;
+
+            let json_data = serde_json::to_string_pretty(&signed_doc)?;
+            std::fs::write(&output, json_data)?;
+            info!("Successfully revoked KID and wrote to {}", output);
+        }
+        IdentityCommands::RotateKey { kid, old_key, output } => {
+            info!("Rotating controller key for KID {}...", kid);
+            let kid_data = std::fs::read_to_string(&kid)
+                .map_err(|e| anyhow::anyhow!("Failed to read KID file: {}", e))?;
+            let mut doc: kinetic_kid::document::KidDocument = serde_json::from_str(&kid_data)
+                .map_err(|e| anyhow::anyhow!("Failed to parse KID: {}", e))?;
+
+            // Generate new controller key
+            info!("Generating new ML-DSA-65 keypair for rotated identity...");
+            use ml_dsa::{Generate, KeyExport, Keypair};
+            let new_keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
+            use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+            let new_pub_b64 = b64_url.encode(new_keypair.verifying_key().to_bytes());
+
+            // Replace primary controller key
+            let primary_id = format!("{}#primary", doc.kid);
+            doc.controller_keys = vec![kinetic_kid::document::ControllerKey {
+                id: primary_id,
+                key_type: "ML-DSA-65".to_string(),
+                public_key: new_pub_b64,
+            }];
+
+            // Load the OLD key to sign the update
+            let old_key_data = std::fs::read(&old_key)
+                .map_err(|e| anyhow::anyhow!("Failed to read old key: {}", e))?;
+            if old_key_data.len() != 32 {
+                anyhow::bail!("Old key file must contain exactly 32 bytes (raw seed)");
+            }
+            let mut seed = [0u8; 32];
+            seed.copy_from_slice(&old_key_data);
+            let old_signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&seed).into());
+
+            // Sign the updated document with the OLD key to prove authorization to rotate
+            let signed_doc = doc
+                .sign(&old_signing_key)
+                .map_err(|e| anyhow::anyhow!("Failed to sign rotated KID: {}", e))?;
+
+            let json_data = serde_json::to_string_pretty(&signed_doc)?;
+            std::fs::write(&output, json_data)?;
+            info!("Successfully rotated keys and wrote KID to {}", output);
+
+            // Save the new private key securely
+            let key_path = std::path::Path::new(&output).with_extension("key");
+            use std::io::Write;
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut opts = std::fs::OpenOptions::new();
+            opts.write(true).create(true).truncate(true).mode(0o600);
+            if let Ok(mut file) = opts.open(&key_path) {
+                let _ = file.write_all(&new_keypair.to_bytes());
+                info!("Saved new private controller key to {}", key_path.display());
+            } else {
+                anyhow::bail!("Failed to write new private controller key securely");
             }
         }
     }
@@ -254,10 +356,11 @@ mod tests {
         ));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
-        use rand_core::OsRng;
-        let keypair = ed25519_dalek::SigningKey::generate(&mut OsRng);
+        use ml_dsa::Generate;
+        let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
+        use ml_dsa::KeyExport;
         std::fs::write(temp_dir.join("identity.key"), keypair.to_bytes()).unwrap();
-        env::set_var("KINETIC_DATA_DIR", temp_dir.to_str().unwrap());
+        env::set_var(kinetic_core::constants::ENV_KINETIC_DATA_DIR, temp_dir.to_str().expect("valid utf-8 path"));
         let app = Router::new()
             .route(
                 "/publish-kid",

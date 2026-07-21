@@ -50,6 +50,9 @@ impl Expiry<String, Option<Vec<u8>>> for KineticExpiry {
 pub fn create_cache() -> Cache<String, Option<Vec<u8>>> {
     Cache::builder()
         .expire_after(KineticExpiry)
-        .max_capacity(10_000)
+        .max_capacity(10 * 1024 * 1024) // 10 MB total memory limit
+        .weigher(|_key, value: &Option<Vec<u8>>| -> u32 {
+            value.as_ref().map(|v| v.len() as u32).unwrap_or(1)
+        })
         .build()
 }

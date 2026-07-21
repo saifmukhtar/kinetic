@@ -28,6 +28,14 @@ pub enum DrandError {
     /// The BLS threshold signature was mathematically invalid.
     #[error("Invalid Drand signature")]
     InvalidSignature,
+    /// The returned pulse is too old compared to the system clock.
+    #[error("Stale pulse: expected round ~{expected}, but got {got}")]
+    StalePulse {
+        /// The expected Drand round based on the local system clock.
+        expected: u64,
+        /// The actual round returned by the endpoint.
+        got: u64,
+    },
 }
 
 impl PartialEq for DrandError {
@@ -41,6 +49,7 @@ impl PartialEq for DrandError {
             (Self::Storage(a), Self::Storage(b)) => a == b,
             (Self::Reqwest(a), Self::Reqwest(b)) => a.to_string() == b.to_string(),
             (Self::InvalidSignature, Self::InvalidSignature) => true,
+            (Self::StalePulse { expected: e1, got: g1 }, Self::StalePulse { expected: e2, got: g2 }) => e1 == e2 && g1 == g2,
             _ => false,
         }
     }
@@ -59,6 +68,7 @@ impl DrandError {
             Self::Storage(_) => "KIN-DRA-006",
             Self::Reqwest(_) => "KIN-DRA-007",
             Self::InvalidSignature => "KIN-DRA-008",
+            Self::StalePulse { .. } => "KIN-DRA-009",
         }
     }
 
@@ -74,7 +84,8 @@ impl DrandError {
             | Self::Network(_)
             | Self::HttpError(_)
             | Self::NoCachedPulse
-            | Self::Reqwest(_) => Severity::Warning,
+            | Self::Reqwest(_)
+            | Self::StalePulse { .. } => Severity::Warning,
             Self::Serde(_) | Self::Storage(_) | Self::InvalidSignature => Severity::Error,
         }
     }
@@ -83,7 +94,7 @@ impl DrandError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::AllEndpointsFailed | Self::Network(_) | Self::HttpError(_) | Self::Reqwest(_)
+            Self::AllEndpointsFailed | Self::Network(_) | Self::HttpError(_) | Self::Reqwest(_) | Self::StalePulse { .. }
         )
     }
 
@@ -100,6 +111,7 @@ impl DrandError {
                 "A storage error occurred while reading or writing the Drand cache.".to_string()
             }
             Self::InvalidSignature => "Invalid Drand signature.".to_string(),
+            Self::StalePulse { .. } => "The fetched Drand pulse was too old.".to_string(),
         }
     }
 }

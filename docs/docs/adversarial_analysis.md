@@ -19,7 +19,7 @@ A malicious gateway returns *both* Lease Record X (Attacker) and Lease Record Y 
 **The Cryptographic Mitigation (Deterministic Selection):**
 The Kinetic protocol strictly mandates a deterministic conflict-resolution rule to prevent state divergence. The client-side resolver evaluates the payloads using the following hierarchy:
 1. **Oldest Original Commitment:** The resolver compares the `drand_pulse` contained within the VDF `Reveal`. The payload with the chronologically earliest legitimate pulse instantly wins. This prevents an attacker from "stealing" a name by computing a VDF years later.
-2. **The XOR Tie-Breaker (Protocol V2):** If and only if both users committed to the name within the exact same 30-second `drand` window, the resolver executes the XOR Lottery. The winner is the payload whose VDF output bytes possess the smallest XOR distance to the *subsequent* `drand` pulse ($B_{t+1}$). Because neither user can predict $B_{t+1}$ during their commitment phase, the tie-breaker is a mathematically un-gameable, perfectly fair lottery.
+2. **The XOR Tie-Breaker (Protocol V1):** If and only if both users committed to the name within the exact same 3-second `drand` window, the resolver executes the XOR Lottery. The winner is the payload whose VDF output bytes possess the smallest XOR distance to the *subsequent* `drand` pulse ($B_{t+1}$). Because neither user can predict $B_{t+1}$ during their commitment phase, the tie-breaker is a mathematically un-gameable, perfectly fair lottery.
 
 ---
 
@@ -69,7 +69,7 @@ Unless the attacker commands a supermajority of the global network's identity-ge
 An attacker archives a perfectly valid, VDF-proven `Reveal` Record from the year 2028. In the year 2035, the attacker replays this exact record to the network, attempting to trick a resolver into thinking the 2028 owner is still the current owner.
 
 **The Cryptographic Mitigation (Drand Entanglement):**
-In Protocol V2, the `drand_pulse` acts as both the commitment anchor and the heartbeat age. The daemon continuously signs the latest `drand_pulse` as it rebroadcasts the `Reveal`.
+In Protocol V1, the `drand_pulse` acts as both the commitment anchor and the heartbeat age. The daemon continuously signs the latest `drand_pulse` as it rebroadcasts the `Reveal`.
 When the 2028 record is replayed in 2035, the resolver calculates the idle time ($\Delta t$) by subtracting the heartbeat's 2028 `drand_pulse` from the current 2035 `drand` pulse. The resolver determines the name has been "dead" for 7 years. 
 Under the Grace-Period Escalation curve, the VDF difficulty to claim a name dead for 7 years is trivially small. Any honest user currently holding the name in 2035 will have a newer `Reveal`, causing the resolver to effortlessly discard the replayed 2028 record as obsolete.
 

@@ -254,6 +254,18 @@ foreach ($bin in $BinsToInstall) {
 
     Move-Item -Path "$TmpDir\$Asset" -Destination "$InstallDir\$bin.exe" -Force
     
+    if ($bin -eq "kinetic") {
+        if ($BinsToInstall -contains "kinetic-daemon" -or $BinsToInstall -contains "kinetic-node") {
+            $ShareDir = "$env:LOCALAPPDATA\kinetic"
+            if (-not (Test-Path "$ShareDir\identity.key")) {
+                Write-Host "`nGenerating a new node identity..." -ForegroundColor Yellow
+                New-Item -ItemType Directory -Force -Path $ShareDir | Out-Null
+                
+                & "$InstallDir\kinetic.exe" setup
+            }
+        }
+    }
+
     if ($bin -ne "kinetic") {
         & "$InstallDir\$bin.exe" install
         & "$InstallDir\$bin.exe" start
@@ -266,11 +278,7 @@ if ($OldPath -notmatch [regex]::Escape($InstallDir)) {
     [Environment]::SetEnvironmentVariable("Path", "$OldPath;$InstallDir", [EnvironmentVariableTarget]::Machine)
 }
 
-if ($InstallDns) {
-    Write-Host "Configuring Windows NRPT Split-DNS natively..."
-    Get-DnsClientNrptRule | Where-Object { $_.Namespace -eq '.kin' } | Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue
-    Add-DnsClientNrptRule -Namespace ".kin" -NameServers "127.0.0.1"
-}
+
 
 Write-Host "`n=== Kinetic installed successfully! ===" -ForegroundColor Green
 Write-Host "Documentation & Guide: " -ForegroundColor Cyan -NoNewline; Write-Host "https://kinetic.saifmukhtar.dev"

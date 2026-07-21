@@ -17,7 +17,7 @@ mod tests {
     ) -> Result<Json<Reveal>, axum::http::StatusCode> {
         let name = name.trim_end_matches('.');
         if name == "testdns.kin" {
-            let key_a = Keypair::generate_ed25519();
+            let key_a = libp2p::identity::Keypair::generate_ed25519();
             let mut records = HashMap::new();
             records.insert(
                 "@".to_string(),
@@ -32,7 +32,7 @@ mod tests {
             let payload = serde_json::to_vec(&zone).unwrap();
 
             let mut reveal = Reveal {
-                protocol_version: 2,
+                protocol_version: 1,
                 name: "testdns.kin".to_string(),
                 payload,
                 salt: [0u8; 32],
@@ -47,10 +47,11 @@ mod tests {
                 previous_proof: None,
                 miner_pubkey: None,
             };
-            use ed25519_dalek::Signer;
-            let keypair = ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng);
+            use ml_dsa::signature::Signer;
+            use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
+            let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
             reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
-            reveal.signature = keypair.sign(&reveal.signable_bytes()).to_bytes().to_vec();
+            reveal.signature = keypair.sign(&reveal.signable_bytes()).to_vec();
             Ok(Json(reveal))
         } else {
             Err(axum::http::StatusCode::NOT_FOUND)

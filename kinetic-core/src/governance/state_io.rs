@@ -5,10 +5,7 @@ use std::sync::Mutex;
 lazy_static! {
     pub static ref GLOBAL_GOVERNANCE_STATE: Mutex<GovernanceState> =
         Mutex::new(GovernanceState::new(
-            web_time::SystemTime::now()
-                .duration_since(web_time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
+            crate::constants::KINETIC_GENESIS_TIME
         ));
 }
 
@@ -45,14 +42,14 @@ impl GovernanceState {
                 }
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Self::new(
-                web_time::SystemTime::now()
-                    .duration_since(web_time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs(),
+                crate::constants::KINETIC_GENESIS_TIME
             ),
             Err(e) => {
                 tracing::error!("CRITICAL: Failed to read Governance state file: {}.", e);
-                panic!("Governance state at {} is unreadable; manual recovery required.", path.display());
+                panic!(
+                    "Governance state at {} is unreadable; manual recovery required.",
+                    path.display()
+                );
             }
         }
     }

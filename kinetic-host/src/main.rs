@@ -150,7 +150,7 @@ async fn run_host() -> Result<()> {
         local_peer_id
     );
 
-    let p2p_port = std::env::var("KINETIC_HOST_P2P_PORT")
+    let p2p_port = std::env::var(kinetic_core::constants::ENV_KINETIC_HOST_P2P_PORT)
         .unwrap_or_else(|_| config.network.host_port.to_string())
         .parse::<u16>()
         .unwrap_or(config.network.host_port);
@@ -160,6 +160,7 @@ async fn run_host() -> Result<()> {
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", p2p_port)
             .parse()
             .map_err(|e| anyhow::anyhow!("Failed to parse listen_addr: {}", e))?,
+        quic_listen_addr: Some(format!("/ip4/0.0.0.0/udp/{}/quic-v1", p2p_port).parse().unwrap()),
         bootstrap_nodes: config
             .network
             .bootstrap_nodes
@@ -188,7 +189,10 @@ async fn run_host() -> Result<()> {
     let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
-    let gov_state_path = std::sync::Arc::new(base_config_dir.join("governance_state.bin"));
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_KINETIC_GOVERNANCE_PATH)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| base_config_dir.join("governance.key"));
+    let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
@@ -222,12 +226,12 @@ async fn run_host() -> Result<()> {
         gov_state_path.clone(),
     ));
 
-    let backend_port = std::env::var("KINETIC_HOST_BACKEND_PORT")
+    let backend_port = std::env::var(kinetic_core::constants::ENV_KINETIC_HOST_BACKEND_PORT)
         .unwrap_or_else(|_| "80".to_string())
         .parse::<u16>()
         .unwrap_or(80);
-    let backend_host =
-        std::env::var("KINETIC_HOST_BACKEND_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let backend_host = std::env::var(kinetic_core::constants::ENV_KINETIC_HOST_BACKEND_HOST)
+        .unwrap_or_else(|_| "127.0.0.1".to_string());
 
     tokio::spawn(proxy::handle_incoming_proxy_requests(
         network_client.clone(),

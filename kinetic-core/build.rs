@@ -11,6 +11,7 @@ struct NetworkConfig {
     base_domain: String,
     network_id: String,
     benchmark_base_iterations: u64,
+    benchmark_target_minutes: Option<f64>,
     steal_target_rounds: u64,
     m_redundancy: u8,
     pow_difficulty_bits: u32,
@@ -22,6 +23,8 @@ struct NetworkConfig {
     docs_url: String,
     bootstrap_nodes: Vec<String>,
     governance_model: String,
+    dns_ip: Option<String>,
+    ipfs_gateway: Option<String>,
 }
 
 fn main() {
@@ -71,6 +74,12 @@ fn main() {
         config.benchmark_base_iterations
     ));
 
+    let target_minutes = config.benchmark_target_minutes.unwrap_or(30.0);
+    out.push_str(&format!(
+        "/// The physical time (in minutes) corresponding to the BENCHMARK_BASE_ITERATIONS.\npub const BENCHMARK_TARGET_MINUTES: f64 = {:.1};\n\n",
+        target_minutes
+    ));
+
     out.push_str(&format!(
         "/// The number of rounds a name must be inactive before the steal difficulty completely decays.\npub const STEAL_TARGET_ROUNDS: u64 = {};\n\n",
         config.steal_target_rounds
@@ -100,6 +109,15 @@ fn main() {
         config.governance_model
     ));
 
+    let dns_ip = config.dns_ip.as_deref().unwrap_or("127.0.0.2");
+    out.push_str(
+        "/// The loopback IP address this network's DNS server should bind to on Linux/Windows.\n"
+    );
+    out.push_str(&format!(
+        "pub const DNS_IP: &str = \"{}\";\n\n",
+        dns_ip
+    ));
+
     out.push_str(&format!(
         "/// The target number of leading zero bits required for PoW mining.\n\
          pub const POW_DIFFICULTY_BITS: u32 = {};\n\n",
@@ -122,6 +140,16 @@ fn main() {
     ));
 
     out.push_str(&format!(
+        "/// The absolute Unix timestamp (in seconds) of the Kinetic network genesis.\npub const KINETIC_GENESIS_TIME: u64 = {};\n\n",
+        config.drand_genesis_time + (config.kinetic_genesis_drand_round * config.drand_period)
+    ));
+
+    // Expose NETWORK_ID as a compile-time env var so constants.rs can use env!() for
+    // fork-isolated gossip topics and DB key prefixes without requiring a generated file.
+    println!("cargo:rustc-env=KINETIC_NETWORK_ID={}", config.network_id);
+    println!("cargo:rustc-env=KINETIC_NETWORK_ID_UPPER={}", config.network_id.to_uppercase());
+
+    out.push_str(&format!(
         "/// The League of Entropy public key for the Quicknet chain (or custom beacon).\npub const DRAND_PUBLIC_KEY: &str = \"{}\";\n\n",
         config.drand_public_key
     ));
@@ -141,7 +169,15 @@ fn main() {
     for node in config.bootstrap_nodes {
         out.push_str(&format!("    \"{}\",\n", node));
     }
-    out.push_str("];\n");
+    out.push_str("];\n\n");
+
+    let default_ipfs_gateway = config.ipfs_gateway.unwrap_or_else(|| {
+        format!("https://ipfs.{}/ipfs/", config.base_domain)
+    });
+    out.push_str(&format!(
+        "/// The default public IPFS gateway used by the network proxy.\npub const IPFS_GATEWAY: &str = \"{}\";\n\n",
+        default_ipfs_gateway
+    ));
 
     fs::write(&dest_path, out).expect("Failed to write network_constants.rs");
 }

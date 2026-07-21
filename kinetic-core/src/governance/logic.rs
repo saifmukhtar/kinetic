@@ -1,9 +1,11 @@
-use ed25519_dalek::VerifyingKey;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
-use super::types::{GovernanceEffect, GovernanceState, Hash256, SignedGovernanceMessage};
-use crate::constants::{ACTIVE_WINDOW_SECONDS, GUARD_PUBLIC_KEY_HEX, ROOT_PUBLIC_KEY_HEX};
+use super::types::{
+    verify_signature, GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
+    SignedGovernanceMessage,
+};
+use crate::constants::{GUARD_PUBLIC_KEY_HEX, ROOT_PUBLIC_KEY_HEX};
 use crate::error::GovernanceError;
 
 /// Validates that the static cryptographic keys required for governance have been correctly initialized.
@@ -56,6 +58,21 @@ impl GovernanceState {
         array
     }
 
+    /// Prunes expired timelocks and old partial proposals to prevent memory leaks over long-term operation.
+    pub fn prune(&mut self, current_time_sec: u64) {
+        let thirty_days_sec = 30 * 24 * 60 * 60;
+
+        // Remove pending updates that have been executable for more than 30 days
+        self.pending_updates.retain(|_, (exec_time, _, _)| {
+            current_time_sec <= *exec_time + thirty_days_sec
+        });
+
+        // Remove partial proposals older than 30 days
+        self.partial_proposals.retain(|_, msg| {
+            current_time_sec <= msg.timestamp_sec + thirty_days_sec
+        });
+    }
+
     /// Merges signatures from an incoming message into the existing state's partial proposal for the same action.
     /// Returns the updated message containing the combined signatures.
     pub fn merge_signatures(
@@ -73,7 +90,7 @@ impl GovernanceState {
         let mut changed = false;
         for sig in &incoming_msg.signatures {
             if !msg_to_update.signatures.contains(sig) {
-                msg_to_update.signatures.push(*sig);
+                msg_to_update.signatures.push(sig.clone());
                 changed = true;
             }
         }
@@ -96,16 +113,16 @@ impl GovernanceState {
     /// # Errors
     ///
     /// Returns a `GovernanceError` if the key is missing, invalid, or has the wrong length.
-    pub fn get_root_key(&self) -> Result<VerifyingKey, GovernanceError> {
-        if let Some(key) = self.dynamic_root_key {
-            return Ok(key);
+    pub fn get_root_key(&self) -> Result<PublicKeyBytes, GovernanceError> {
+        if let Some(key) = &self.dynamic_root_key {
+            return Ok(key.clone());
         }
         let bytes =
             hex::decode(ROOT_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MissingRootKey)?;
-        if bytes.len() != 32 {
+        if bytes.len() != 1952 {
             return Err(GovernanceError::KeyLengthMismatch);
         }
-        VerifyingKey::try_from(bytes.as_slice()).map_err(|_| GovernanceError::KeyLengthMismatch)
+        Ok(bytes)
     }
 
     /// Retrieves the static guard verifying key, if configured.
@@ -113,21 +130,19 @@ impl GovernanceState {
     /// # Errors
     ///
     /// Returns a `GovernanceError` if the key format is invalid.
-    pub fn get_guard_key(&self) -> Result<Option<VerifyingKey>, GovernanceError> {
-        if let Some(key) = self.dynamic_guard_key {
-            return Ok(Some(key));
+    pub fn get_guard_key(&self) -> Result<Option<PublicKeyBytes>, GovernanceError> {
+        if let Some(key) = &self.dynamic_guard_key {
+            return Ok(Some(key.clone()));
         }
         if GUARD_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
             return Ok(None);
         }
         let bytes =
             hex::decode(GUARD_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MissingGuardKey)?;
-        if bytes.len() != 32 {
+        if bytes.len() != 1952 {
             return Err(GovernanceError::KeyLengthMismatch);
         }
-        let key = VerifyingKey::try_from(bytes.as_slice())
-            .map_err(|_| GovernanceError::KeyLengthMismatch)?;
-        Ok(Some(key))
+        Ok(Some(bytes))
     }
 
     /// Verifies whether a signed governance message meets the quorum and validity rules to be executed.
@@ -177,8 +192,6 @@ impl GovernanceState {
             });
         }
 
-
-
         effects
     }
 }
@@ -197,6 +210,8 @@ pub fn process_governance_message(
         .unwrap_or_default()
         .as_secs();
 
+    state.prune(current_time_sec);
+
     if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
         return Err(crate::error::GovernanceError::StaleProposal);
     }
@@ -206,20 +221,19 @@ pub fn process_governance_message(
     let guard_key_opt = state.get_guard_key().unwrap_or(None);
 
     let mut is_authorized = false;
-    use ed25519_dalek::Verifier;
     for sig in &msg.signatures {
-        if root_key.verify(&action_bytes, sig).is_ok() {
+        if verify_signature(&root_key, &action_bytes, sig) {
             is_authorized = true;
             break;
         }
         if let Some(guard) = &guard_key_opt {
-            if guard.verify(&action_bytes, sig).is_ok() {
+            if verify_signature(guard, &action_bytes, sig) {
                 is_authorized = true;
                 break;
             }
         }
         for member in &state.active_council {
-            if member.verify(&action_bytes, sig).is_ok() {
+            if verify_signature(member, &action_bytes, sig) {
                 is_authorized = true;
                 break;
             }

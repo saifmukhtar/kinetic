@@ -43,6 +43,8 @@ pub mod event_loop;
 pub mod pow;
 /// The in-memory Kademlia record store implementation.
 pub mod store;
+/// DNS tree structures for name resolution.
+pub mod dns_tree;
 
 pub use client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, ProxyResponse};
 pub use error::KineticStoreError;

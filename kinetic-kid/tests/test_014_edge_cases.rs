@@ -1,18 +1,19 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
-use ed25519_dalek::SigningKey;
 use kinetic_kid::{CapabilityManifest, ControllerKey, KidDocument, KidError, KineticDid};
-use rand_core::OsRng;
+use ml_dsa::MlDsa65;
+use ml_dsa::{Generate, Keypair, SigningKey};
+use sha2::Digest;
 
-fn generate_keypair() -> SigningKey {
-    SigningKey::generate(&mut OsRng)
+fn generate_keypair() -> SigningKey<MlDsa65> {
+    SigningKey::<MlDsa65>::generate()
 }
 
-fn create_valid_doc_and_key() -> (KidDocument, SigningKey) {
+fn create_valid_doc_and_key() -> (KidDocument, SigningKey<MlDsa65>) {
     let keypair = generate_keypair();
+    use ml_dsa::KeyExport;
     let pub_key_b64 = b64_url.encode(keypair.verifying_key().to_bytes());
 
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
+    let mut hasher = sha2::Sha256::new();
     hasher.update(keypair.verifying_key().to_bytes());
     let hash = hasher.finalize();
     let mut hex_hash = String::new();
@@ -28,11 +29,12 @@ fn create_valid_doc_and_key() -> (KidDocument, SigningKey) {
         created_at: 1000,
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", did),
-            key_type: "Ed25519".to_string(),
+            key_type: "ML-DSA-65".to_string(),
             public_key: pub_key_b64,
         }],
         manifest: None,
         revocation_keys: vec![],
+        deactivated: false,
         signature: None,
     };
     (doc, keypair)
@@ -103,6 +105,7 @@ fn test_manifest_verify_kid_mismatch() {
         kid: other_doc.kid.clone(),
         version: 1,
         valid_from: 1000,
+        expires_at: None,
         services: vec![],
         signature: None,
     };
@@ -121,6 +124,7 @@ fn test_manifest_verify_missing_signature() {
         kid: doc.kid.clone(),
         version: 1,
         valid_from: 1000,
+        expires_at: None,
         services: vec![],
         signature: None,
     };
@@ -139,14 +143,15 @@ fn test_manifest_verify_invalid_signature() {
         kid: doc.kid.clone(),
         version: 1,
         valid_from: 1000,
+        expires_at: None,
         services: vec![],
         signature: None,
     };
     let mut signed_manifest = manifest.sign(&key).unwrap();
-    signed_manifest.signature = Some(b64_url.encode([0u8; 64])); // Invalid signature bytes
+    signed_manifest.signature = Some(b64_url.encode([0u8; 3309])); // Invalid signature bytes
     assert!(matches!(
         signed_manifest.verify(&signed_doc),
-        Err(KidError::UnauthorizedManifestSignature)
+        Err(KidError::InvalidSignature)
     ));
 }
 
@@ -159,6 +164,7 @@ fn test_manifest_verify_short_signature() {
         kid: doc.kid.clone(),
         version: 1,
         valid_from: 1000,
+        expires_at: None,
         services: vec![],
         signature: None,
     };
@@ -182,6 +188,7 @@ fn test_manifest_verify_no_matching_key() {
         kid: doc.kid.clone(),
         version: 1,
         valid_from: 1000,
+        expires_at: None,
         services: vec![],
         signature: None,
     };

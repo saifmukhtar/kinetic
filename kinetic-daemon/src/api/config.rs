@@ -12,7 +12,7 @@ pub async fn handle_config(State(state): State<ApiState>) -> Json<serde_json::Va
 
 /// Handles requests to retrieve a list of names owned by this node.
 pub async fn handle_owned_names(State(state): State<ApiState>) -> Json<Vec<String>> {
-    let owned_key = b"kinetic_owned_names";
+    let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
     let owned_names: Vec<String> = match state.storage.get(owned_key) {
         Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
             Ok(v) => v,
@@ -37,6 +37,15 @@ pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_
             "uptime": "Unknown"
         })),
     }
+}
+
+/// Handles requests to retrieve the active governance state file.
+pub async fn handle_get_governance() -> impl axum::response::IntoResponse {
+    let gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+        .lock()
+        .unwrap();
+    let data = bincode::serialize(&*gov).unwrap_or_default();
+    (axum::http::StatusCode::OK, data)
 }
 
 /// Handles requests to update the daemon configuration, such as changing the network mode.

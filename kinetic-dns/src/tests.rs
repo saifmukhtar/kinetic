@@ -41,7 +41,7 @@ impl ResponseHandler for MockResponseHandler {
 
 fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
     let mut reveal = kinetic_core::types::Reveal {
-        protocol_version: 2,
+        protocol_version: 1,
         name: name.to_string(),
         payload,
         salt: [0u8; 32],
@@ -56,8 +56,9 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         miner_pubkey: None,
         previous_proof: None,
     };
-    use ed25519_dalek::Signer;
-    let keypair = ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng);
+    use ml_dsa::signature::Signer;
+    use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
+    let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
     reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
     reveal.signature = keypair.sign(&reveal.signable_bytes()).to_bytes().to_vec();
     reveal

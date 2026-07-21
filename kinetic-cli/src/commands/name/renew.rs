@@ -1,8 +1,9 @@
 use crate::utils::parse_and_format_api_error;
-use ed25519_dalek::Signer;
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::{load_keypair, Commitment};
+use ml_dsa::signature::Signer;
+use ml_dsa::{KeyExport, Keypair, SignatureEncoding};
 use reqwest::Client;
 use sha2::Digest;
 use std::time::Duration;
@@ -41,7 +42,7 @@ pub async fn handle(
     let keypair = load_keypair(&identity_path.to_string_lossy())?;
     let pubkey = keypair.verifying_key().to_bytes();
 
-    if old_reveal.pubkey != pubkey {
+    if old_reveal.pubkey != pubkey.as_slice() {
         return Err(anyhow::anyhow!(
             "Local keypair does not match the public key in the old reveal."
         ));
@@ -88,8 +89,7 @@ pub async fn handle(
     info!("Commitment accepted. Starting discounted VDF computation...");
 
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-    let base_iterations =
-        consensus_math.required_iterations(&fqdn, drand_data.round, &challenge_bytes);
+    let base_iterations = consensus_math.required_iterations(&fqdn, &challenge_bytes);
 
     // 80% discount
     let discounted_iterations = std::cmp::max(1, base_iterations / 5);
@@ -136,7 +136,7 @@ pub async fn handle(
     };
 
     let mut new_reveal = kinetic_core::types::Reveal {
-        protocol_version: 2,
+        protocol_version: 1,
         name: fqdn.clone(),
         payload: old_reveal.payload.clone(),
         salt,

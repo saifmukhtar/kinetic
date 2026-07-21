@@ -87,8 +87,8 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         // Generate new CA
         let mut params = CertificateParams::new(vec![])?;
         let mut dn = DistinguishedName::new();
-        dn.push(DnType::CommonName, "Kinetic Local Root CA");
-        dn.push(DnType::OrganizationName, "Kinetic Protocol");
+        dn.push(DnType::CommonName, format!("{} Local Root CA", kinetic_core::constants::NETWORK_ID));
+        dn.push(DnType::OrganizationName, format!("{} Protocol", kinetic_core::constants::NETWORK_ID));
         params.distinguished_name = dn;
         params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
         params.name_constraints = Some(NameConstraints {
@@ -159,7 +159,7 @@ pub fn generate_leaf_cert(domain: &str, root_ca: &RootCa) -> Result<ServerConfig
     let mut params = CertificateParams::new(vec![domain.to_string()])?;
     let mut dn = DistinguishedName::new();
     dn.push(DnType::CommonName, domain);
-    dn.push(DnType::OrganizationName, "Kinetic Protocol Proxy");
+    dn.push(DnType::OrganizationName, format!("{} Protocol Proxy", kinetic_core::constants::NETWORK_ID));
     params.distinguished_name = dn;
     params.not_before = OffsetDateTime::now_utc();
     params.not_after = OffsetDateTime::now_utc() + Duration::days(30);

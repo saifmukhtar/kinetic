@@ -44,27 +44,23 @@ impl KineticRecordStore {
                     hex::decode(&reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
                 let base_diff = consensus_math.required_iterations(
                     &reveal.name,
-                    reveal.drand_pulse,
                     &drand_rand,
                 );
                 let steal_threshold = consensus_math.steal_difficulty(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
                 if reveal.iterations == existing_reveal.iterations && hb_age < 100 {
-                    let existing_drand_rand = hex::decode(&existing_reveal.drand_randomness)
-                        .unwrap_or_else(|_| vec![0u8; 32]);
-
                     let dist_new: Vec<u8> = reveal
                         .pubkey
                         .iter()
-                        .zip(drand_rand.iter().cycle())
+                        .zip(reveal.vdf_proof.proof_bytes.iter().cycle())
                         .map(|(&a, &b)| a ^ b)
                         .collect();
 
                     let dist_existing: Vec<u8> = existing_reveal
                         .pubkey
                         .iter()
-                        .zip(existing_drand_rand.iter().cycle())
+                        .zip(existing_reveal.vdf_proof.proof_bytes.iter().cycle())
                         .map(|(&a, &b)| a ^ b)
                         .collect();
 
@@ -132,8 +128,13 @@ impl KineticRecordStore {
         }
         deque.push_back(now);
 
-        self.reveals_by_name
-            .put(reveal.name.clone(), reveal.clone());
+        if let Some((evicted_name, _)) = self.reveals_by_name
+            .push(reveal.name.clone(), reveal.clone())
+        {
+            if evicted_name != reveal.name {
+                self.last_heartbeats_by_name.remove(&evicted_name);
+            }
+        }
         let reveal_key = [KRS_REVEAL_PREFIX, reveal.name.as_bytes()].concat();
 
         let mut writes_to_perform = Vec::new();

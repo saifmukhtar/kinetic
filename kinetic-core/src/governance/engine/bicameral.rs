@@ -1,4 +1,3 @@
-use ed25519_dalek::Verifier;
 use std::collections::HashSet;
 
 use crate::error::GovernanceError;
@@ -40,20 +39,10 @@ impl GovernanceEngine for BicameralEngine {
             let year_passed = current_time_sec
                 >= state.genesis_timestamp_sec + crate::constants::AUTO_LOCK_SECONDS;
 
-            if instant_lock {
+            if instant_lock || year_passed {
                 state.mode = crate::governance::types::GovernanceMode::Council;
                 state.lock_timestamp_sec = Some(current_time_sec);
                 state.grace_period_start_sec = None;
-            } else if year_passed && state.grace_period_start_sec.is_none() {
-                state.grace_period_start_sec = Some(current_time_sec);
-            }
-
-            if let Some(start_sec) = state.grace_period_start_sec {
-                if current_time_sec >= start_sec + 30 * 24 * 60 * 60 {
-                    state.mode = crate::governance::types::GovernanceMode::Council;
-                    state.lock_timestamp_sec = Some(current_time_sec);
-                    state.grace_period_start_sec = None;
-                }
             }
         }
 
@@ -65,7 +54,6 @@ impl GovernanceEngine for BicameralEngine {
 
         match state.mode {
             crate::governance::types::GovernanceMode::Founder => {
-
                 if let GovernanceAction::RevokePremiumName { .. } = &msg.action {
                     return Err(GovernanceError::RevokeRequiresCouncilMode);
                 }
@@ -74,10 +62,9 @@ impl GovernanceEngine for BicameralEngine {
                 let guard_key_opt = state.get_guard_key()?;
                 let action_bytes = msg.to_canonical_bytes();
 
-                let root_signed = msg
-                    .signatures
-                    .iter()
-                    .any(|sig| root_key.verify(&action_bytes, sig).is_ok());
+                let root_signed = msg.signatures.iter().any(|sig| {
+                    crate::governance::types::verify_signature(&root_key, &action_bytes, sig)
+                });
 
                 if root_signed {
                     if let GovernanceAction::LockCouncil = &msg.action {
@@ -97,7 +84,7 @@ impl GovernanceEngine for BicameralEngine {
                         }
                     }
                     let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
-                        Some(3 * 24 * 60 * 60) // 3 days
+                        Some(1 * 24 * 60 * 60) // 1 day
                     } else {
                         None
                     };
@@ -113,18 +100,18 @@ impl GovernanceEngine for BicameralEngine {
 
                 if let GovernanceAction::VetoUpdate { .. } = &msg.action {
                     if let Some(guard_key) = guard_key_opt {
-                        if msg
-                            .signatures
-                            .iter()
-                            .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
-                        {
+                        if msg.signatures.iter().any(|sig| {
+                            crate::governance::types::verify_signature(
+                                &guard_key,
+                                &action_bytes,
+                                sig,
+                            )
+                        }) {
                             return Ok(self.execute_action(state, msg, current_time_sec, None));
                         }
                     }
                     return Err(GovernanceError::InvalidGuardSignature);
                 }
-
-
 
                 if let GovernanceAction::GrantPremiumName { name, .. }
                 | GovernanceAction::RevokePremiumName { name } = &msg.action
@@ -142,10 +129,14 @@ impl GovernanceEngine for BicameralEngine {
                 for sig in &msg.signatures {
                     for (idx, member) in state.active_council.iter().enumerate() {
                         if !counted_members.contains(&idx)
-                            && member.verify(&action_bytes, sig).is_ok()
+                            && crate::governance::types::verify_signature(
+                                member,
+                                &action_bytes,
+                                sig,
+                            )
                         {
                             counted_members.insert(idx);
-                            valid_signers.insert(*member);
+                            valid_signers.insert(member.clone());
                             break;
                         }
                     }
@@ -169,9 +160,13 @@ impl GovernanceEngine for BicameralEngine {
                     }
                     GovernanceAction::RotateRootKey { .. } => {
                         let guard_signed = if let Some(guard_key) = guard_key_opt {
-                            msg.signatures
-                                .iter()
-                                .any(|sig| guard_key.verify(&action_bytes, sig).is_ok())
+                            msg.signatures.iter().any(|sig| {
+                                crate::governance::types::verify_signature(
+                                    &guard_key,
+                                    &action_bytes,
+                                    sig,
+                                )
+                            })
                         } else {
                             false
                         };
@@ -226,7 +221,7 @@ impl GovernanceEngine for BicameralEngine {
             GovernanceAction::AppointMember { key }
             | GovernanceAction::SelfAppointCouncilMember { candidate_key: key } => {
                 if !state.active_council.contains(key) {
-                    state.active_council.push(*key);
+                    state.active_council.push(key.clone());
                 }
             }
             GovernanceAction::RemoveCouncilMember { target_key } => {
@@ -262,7 +257,6 @@ impl GovernanceEngine for BicameralEngine {
             }
 
             GovernanceAction::ExecuteTimelock { target_hash } => {
-
                 if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         manifest_hash: *target_hash,
@@ -279,17 +273,17 @@ impl GovernanceEngine for BicameralEngine {
                 }
                 effect = Some(GovernanceEffect::PremiumNameGranted {
                     name: name.clone(),
-                    target_pubkey: *target_pubkey,
+                    target_pubkey: target_pubkey.clone(),
                 });
             }
             GovernanceAction::RevokePremiumName { name } => {
                 effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
             }
             GovernanceAction::RotateRootKey { new_key } => {
-                state.dynamic_root_key = Some(*new_key);
+                state.dynamic_root_key = Some(new_key.clone());
             }
             GovernanceAction::RotateGuardKey { new_key } => {
-                state.dynamic_guard_key = Some(*new_key);
+                state.dynamic_guard_key = Some(new_key.clone());
             }
         }
         effect

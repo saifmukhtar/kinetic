@@ -89,25 +89,34 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
             let url = format!("{}/api/resolve/{}", api_url_clone, apex_domain_clone);
             match http_client_clone.get(&url).send().await {
-                Ok(resp) => {
+                Ok(mut resp) => {
                     if resp.status().is_success() {
-                        if let Ok(payload) = resp.bytes().await {
-                            Ok::<_, Arc<anyhow::Error>>(Some(payload.to_vec()))
+                        let mut payload = Vec::new();
+                        let mut limit_exceeded = false;
+                        while let Ok(Some(chunk)) = resp.chunk().await {
+                            if payload.len() + chunk.len() > 100 * 1024 {
+                                limit_exceeded = true;
+                                break;
+                            }
+                            payload.extend_from_slice(&chunk);
+                        }
+                        if limit_exceeded {
+                            warn!("API response exceeded 100KB limit");
+                            Ok::<_, Arc<anyhow::Error>>(None)
                         } else {
-                            Err(Arc::new(anyhow::anyhow!(
-                                "Failed to read API response body"
-                            )))
+                            Ok::<_, Arc<anyhow::Error>>(Some(payload))
                         }
                     } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
                         Ok(None)
                     } else {
-                        Err(Arc::new(anyhow::anyhow!(
-                            "API returned status: {}",
-                            resp.status()
-                        )))
+                        warn!("API returned status: {}", resp.status());
+                        Err(Arc::new(anyhow::anyhow!("API error: {}", resp.status())))
                     }
                 }
-                Err(e) => Err(Arc::new(anyhow::anyhow!("API request failed: {}", e))),
+                Err(e) => {
+                    warn!("API request failed: {}", e);
+                    Err(Arc::new(e.into()))
+                }
             }
         })
         .await;
@@ -132,6 +141,56 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
                     match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
                         Ok(zone) => {
+                            if let Some(records) = zone.records.get("@") {
+                                for record in records {
+                                    if let kinetic_core::types::DnsRecord::KID(did) = record {
+                                        info!("E2E Auth: Domain specifies KID: {}. Fetching from daemon...", did);
+                                        let kid_url = format!("{}/api/resolve-kid/{}", api_url, did);
+                                        match http_client.get(&kid_url).send().await {
+                                            Ok(kid_resp) if kid_resp.status().is_success() => {
+                                                if let Ok(kid_json) = kid_resp.json::<serde_json::Value>().await {
+                                                    let mut matched = false;
+                                                    use base64::Engine;
+                                                    let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&reveal.pubkey);
+                                                    
+                                                    if let Some(keys) = kid_json["kid_document"]["controller_keys"].as_array() {
+                                                        for key in keys {
+                                                            if key["public_key"].as_str() == Some(&expected_pubkey) {
+                                                                matched = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    if !matched {
+                                                        warn!("E2E Auth Failed: Reveal pubkey does not match authorized KID {}", did);
+                                                        let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
+                                                        let _ = response_handle.send_response(response).await;
+                                                        header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
+                                                        return header.into();
+                                                    } else {
+                                                        info!("E2E Auth Successful: Reveal pubkey matches Authorized KID {}", did);
+                                                    }
+                                                }
+                                            }
+                                            Ok(resp) => {
+                                                warn!("E2E Auth: Daemon returned {} for KID {}", resp.status(), did);
+                                                let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
+                                                let _ = response_handle.send_response(response).await;
+                                                header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
+                                                return header.into();
+                                            }
+                                            Err(e) => {
+                                                warn!("E2E Auth Request failed: {}", e);
+                                                let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
+                                                let _ = response_handle.send_response(response).await;
+                                                header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
+                                                return header.into();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             let subdomain = if domain_name == apex_domain {
                                 "@".to_string()
                             } else {
@@ -203,9 +262,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 RData::AAAA((*ip).into()),
                                             ));
                                         }
-                                        kinetic_core::types::DnsRecord::CNAME(target)
-                                            if q_type == hickory_proto::rr::RecordType::CNAME =>
-                                        {
+                                        kinetic_core::types::DnsRecord::CNAME(target) => {
+                                            // By DNS RFC, a CNAME should be returned regardless of what the user asked for (A/AAAA/TXT).
+                                            // The OS resolver will receive the CNAME and recursively follow it.
                                             if let Ok(cname) = Name::from_str(target) {
                                                 response_records.push(Record::from_rdata(
                                                     name.clone(),
@@ -217,13 +276,46 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             }
                                         }
                                         kinetic_core::types::DnsRecord::TXT(txt)
-                                            if q_type == hickory_proto::rr::RecordType::TXT =>
+                                            if q_type == hickory_proto::rr::RecordType::TXT || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
                                             response_records.push(Record::from_rdata(
                                                 name.clone(),
                                                 60,
                                                 RData::TXT(hickory_proto::rr::rdata::TXT::new(
                                                     vec![txt.clone()],
+                                                )),
+                                            ));
+                                        }
+                                        kinetic_core::types::DnsRecord::PeerId(pid)
+                                            if q_type == hickory_proto::rr::RecordType::TXT || q_type == hickory_proto::rr::RecordType::ANY =>
+                                        {
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::TXT(hickory_proto::rr::rdata::TXT::new(
+                                                    vec![format!("peerid={}", pid)],
+                                                )),
+                                            ));
+                                        }
+                                        kinetic_core::types::DnsRecord::KID(kid)
+                                            if q_type == hickory_proto::rr::RecordType::TXT || q_type == hickory_proto::rr::RecordType::ANY =>
+                                        {
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::TXT(hickory_proto::rr::rdata::TXT::new(
+                                                    vec![format!("kid={}", kid)],
+                                                )),
+                                            ));
+                                        }
+                                        kinetic_core::types::DnsRecord::IPFS(cid)
+                                            if q_type == hickory_proto::rr::RecordType::TXT || q_type == hickory_proto::rr::RecordType::ANY =>
+                                        {
+                                            response_records.push(Record::from_rdata(
+                                                name.clone(),
+                                                60,
+                                                RData::TXT(hickory_proto::rr::rdata::TXT::new(
+                                                    vec![format!("ipfs={}", cid)],
                                                 )),
                                             ));
                                         }

@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+
 use serde::{Deserialize, Serialize};
 
 use crate::did::KineticDid;
@@ -37,7 +37,11 @@ pub struct CapabilityManifest {
     pub version: u64,
     /// Unix timestamp (seconds) from which this manifest is considered valid.
     pub valid_from: u64,
+    /// Unix timestamp (seconds) after which this manifest is invalid.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<u64>,
     /// Ordered list of service endpoints this DID owner is advertising.
+    #[serde(deserialize_with = "crate::bounded::deserialize_max_50")]
     pub services: Vec<ServiceEntry>,
     /// Base64url-encoded Ed25519 signature over the JCS-canonical manifest (excluding this field).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -71,27 +75,40 @@ impl CapabilityManifest {
         if self.valid_from > current_time + 300 {
             return Err(KidError::InvalidValidFrom);
         }
+        if let Some(expires) = self.expires_at {
+            if current_time >= expires {
+                return Err(KidError::ManifestExpired);
+            }
+        }
+        if self.services.len() > 50 {
+            return Err(KidError::TooManyKeys);
+        }
+        for svc in &self.services {
+            if svc.id.len() > 256 || svc.service_type.len() > 256 || svc.protocol.len() > 64 || svc.endpoint.len() > 2048 {
+                return Err(KidError::TooManyKeys);
+            }
+        }
 
         let sig_b64 = self.signature.as_ref().ok_or(KidError::MissingSignature)?;
         let sig_bytes = b64_url.decode(sig_b64)?;
 
-        let signature_array: &[u8; 64] = sig_bytes
-            .as_slice()
-            .try_into()
+        let signature = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(sig_bytes.as_slice())
             .map_err(|_| KidError::InvalidSignature)?;
-        let signature = Signature::from_bytes(signature_array);
 
         let msg_str = self.canonicalize()?;
-        let msg_bytes = msg_str.as_bytes();
+        let mut msg_bytes = b"kinetic-manifest-v1\0".to_vec();
+        msg_bytes.extend_from_slice(msg_str.as_bytes());
 
         for key in &kid_document.controller_keys {
-            if key.key_type == "Ed25519" {
+            if key.key_type.eq_ignore_ascii_case("MlDsa65") {
                 if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
-                    if let Ok(pk_array) = pk_bytes.as_slice().try_into() {
-                        if let Ok(public_key) = VerifyingKey::from_bytes(pk_array) {
-                            if public_key.verify(msg_bytes, &signature).is_ok() {
-                                return Ok(());
-                            }
+                    use ml_dsa::KeyInit;
+                    if let Ok(public_key) =
+                        ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
+                    {
+                        use ml_dsa::signature::Verifier;
+                        if public_key.verify(&msg_bytes, &signature).is_ok() {
+                            return Ok(());
                         }
                     }
                 }
@@ -100,12 +117,14 @@ impl CapabilityManifest {
 
         Err(KidError::UnauthorizedManifestSignature)
     }
-
     /// Helper to sign the manifest with a given keypair and return the signed manifest.
-    pub fn sign(mut self, keypair: &ed25519_dalek::SigningKey) -> Result<Self, KidError> {
-        use ed25519_dalek::Signer;
+    pub fn sign(mut self, keypair: &ml_dsa::SigningKey<ml_dsa::MlDsa65>) -> Result<Self, KidError> {
+        use ml_dsa::signature::Signer;
+        use ml_dsa::SignatureEncoding;
         let msg_str = self.canonicalize()?;
-        let signature = keypair.sign(msg_str.as_bytes());
+        let mut msg_bytes = b"kinetic-manifest-v1\0".to_vec();
+        msg_bytes.extend_from_slice(msg_str.as_bytes());
+        let signature = keypair.sign(&msg_bytes);
         self.signature = Some(b64_url.encode(signature.to_bytes()));
         Ok(self)
     }

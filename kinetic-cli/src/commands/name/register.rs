@@ -1,8 +1,9 @@
 use crate::utils::{parse_and_format_api_error, save_zone_file};
-use ed25519_dalek::Signer;
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::{load_keypair, Commitment, Reveal};
+use ml_dsa::signature::Signer;
+use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
 use reqwest::Client;
 use serde_json::json;
 use sha2::Digest;
@@ -89,21 +90,33 @@ pub async fn handle(
     info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
 
     let required_iterations = kinetic_core::consensus_math::ConsensusParams::default()
-        .required_iterations(&fqdn, drand_data.round, &challenge_bytes);
+        .required_iterations(&fqdn, &challenge_bytes);
     let actual_iterations = std::cmp::max(iterations, required_iterations);
 
-    if actual_iterations >= 10_000_000 {
+    let label = kinetic_core::types::names::extract_apex_domain(&fqdn);
+    let label = label.strip_suffix(kinetic_core::constants::TLD_SUFFIX).unwrap_or(&label);
+
+    let expected_minutes = (actual_iterations as f64 / kinetic_core::constants::BENCHMARK_BASE_ITERATIONS as f64) * kinetic_core::constants::BENCHMARK_TARGET_MINUTES;
+    let time_str = if expected_minutes >= 1440.0 {
+        format!("{:.1} days", expected_minutes / 1440.0)
+    } else if expected_minutes >= 60.0 {
+        format!("{:.1} hours", expected_minutes / 60.0)
+    } else {
+        format!("{:.0} minutes", expected_minutes)
+    };
+
+    if label.len() >= 1 && label.len() <= 6 {
         warn!("================================================================");
-        warn!(
-            "CRITICAL WARNING: You have requested {} VDF iterations.",
-            actual_iterations
-        );
-        warn!("This computation may take several HOURS or DAYS to complete.");
-        warn!("If you close this terminal, interrupt the process (Ctrl+C), or if your computer sleeps/restarts, ALL PROGRESS WILL BE LOST because checkpointing is not supported.");
-        warn!("Please ensure your computer is plugged in and sleep mode is disabled.");
+        warn!("CRITICAL WARNING: You are attempting to register a {}-letter domain.", label.len());
+        warn!("Short domains require massive VDF computations to prevent squatting.");
+        warn!("This requires {} iterations and will take approximately {} of continuous CPU time.", actual_iterations, time_str);
+        warn!("(Note: This expected time assumes an Intel Core i5-11400H equivalent CPU or better).");
+        warn!("If your computer sleeps, restarts, or loses power during this process, ALL PROGRESS WILL BE LOST.");
         warn!("================================================================");
-        info!("Starting in 10 seconds. Press Ctrl+C NOW to cancel...");
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        info!("Starting in 15 seconds. Press Ctrl+C NOW to cancel...");
+        tokio::time::sleep(Duration::from_secs(15)).await;
+    } else {
+        info!("This domain requires {} iterations and will take approximately {}.", actual_iterations, time_str);
     }
 
     let refresh_challenge = challenge.clone();
@@ -176,7 +189,7 @@ pub async fn handle(
     let final_kid_str = if kid_str.is_empty() {
         // Generate a new KID for this new base name
         use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
-        let kid_keypair = ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng);
+        let kid_keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
         let pk_bytes = kid_keypair.verifying_key().to_bytes();
         let pk_b64 = b64_url.encode(pk_bytes);
 
@@ -192,7 +205,7 @@ pub async fn handle(
             .map_err(|e| anyhow::anyhow!("Invalid DID: {}", e))?;
         let controller_key = kinetic_kid::document::ControllerKey {
             id: format!("{}#key-1", did.as_str()),
-            key_type: "Ed25519".to_string(),
+            key_type: "ML-DSA-65".to_string(),
             public_key: pk_b64,
         };
 
@@ -206,6 +219,7 @@ pub async fn handle(
             controller_keys: vec![controller_key],
             manifest: None,
             revocation_keys: vec![],
+            deactivated: false,
             signature: None,
         };
 
@@ -248,7 +262,7 @@ pub async fn handle(
     let payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
 
     let mut reveal = Reveal {
-        protocol_version: 2,
+        protocol_version: 1,
         name: fqdn.clone(),
         payload,
         salt,

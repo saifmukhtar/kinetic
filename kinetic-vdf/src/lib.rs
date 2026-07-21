@@ -53,14 +53,18 @@ impl Default for ChiaVdfEngine {
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 impl VdfEngine for ChiaVdfEngine {
     fn evaluate(&self, challenge: &Commitment, iterations: u64) -> Result<VdfProof, VdfError> {
+        // Bound max iterations to 400 Billion to prevent DoS lock contention (allows up to ~30 days of CPU time)
+        if iterations > 400_000_000_000 {
+            return Err(VdfError::ProofGenerationError);
+        }
         // Acquire an exclusive system-wide lock to prevent concurrent VDF
         // evaluations from starving all CPU cores simultaneously.
         use fs2::FileExt;
 
-        let lock_dir = kinetic_core::config::get_base_dir();
-        std::fs::create_dir_all(&lock_dir).map_err(|e| {
-            VdfError::LockFileError(format!("Could not create config directory: {}", e))
-        })?;
+        let mut lock_dir = kinetic_core::config::get_base_dir();
+        if std::fs::create_dir_all(&lock_dir).is_err() {
+            lock_dir = std::env::temp_dir();
+        }
         let lock_path = lock_dir.join("kinetic_vdf.lock");
 
         let mut options = std::fs::OpenOptions::new();
@@ -99,8 +103,8 @@ impl VdfEngine for ChiaVdfEngine {
         proof: &VdfProof,
         iterations: u64,
     ) -> Result<bool, VdfError> {
-        if proof.proof_bytes.len() > 10_240 {
-            // 10 KB sanity check
+        if proof.proof_bytes.len() > 1024 {
+            // 1 KB sanity check (Wesolowski proofs are small)
             return Err(VdfError::InvalidProof);
         }
 
@@ -220,7 +224,7 @@ mod tests {
         for iterations in [100, 1000, 10_000, 100_000] {
             let proof = engine.evaluate(&challenge, iterations).unwrap();
             assert!(
-                proof.proof_bytes.len() <= 10_240,
+                proof.proof_bytes.len() <= 1024,
                 "Proof size {} exceeds MAX_PROOF_SIZE at {} iterations",
                 proof.proof_bytes.len(),
                 iterations

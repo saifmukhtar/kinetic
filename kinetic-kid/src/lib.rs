@@ -24,6 +24,8 @@
 
 #![deny(missing_docs)]
 
+/// Secure, bounded JSON deserialization helpers.
+pub mod bounded;
 /// DID parsing and validation for the `did:kin:` scheme.
 pub mod did;
 /// KID document types: [`KidDocument`], [`ControllerKey`], and [`ManifestPointer`].
@@ -42,12 +44,11 @@ pub use manifest::{CapabilityManifest, ServiceEntry};
 mod tests {
     use super::*;
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
-    use ed25519_dalek::SigningKey;
-    use rand_core::OsRng;
+    use ml_dsa::SigningKey;
+    use ml_dsa::{Generate, KeyExport, Keypair};
 
-    fn generate_keypair() -> SigningKey {
-        let mut csprng = OsRng;
-        SigningKey::generate(&mut csprng)
+    fn generate_keypair() -> SigningKey<ml_dsa::MlDsa65> {
+        SigningKey::<ml_dsa::MlDsa65>::generate()
     }
 
     #[test]
@@ -68,6 +69,7 @@ mod tests {
             controller_keys: vec![],
             manifest: None,
             revocation_keys: vec![],
+            deactivated: false,
             signature: None,
         };
 
@@ -78,7 +80,7 @@ mod tests {
 
         // Fields must be in lexicographical order per JCS
         let expected = format!(
-            r#"{{"controller_keys":[],"created_at":1000,"kid":"did:kin:{}","type":"kinetic.kid.v1"}}"#,
+            r#"{{"controller_keys":[],"created_at":1000,"deactivated":false,"kid":"did:kin:{}","type":"kinetic.kid.v1"}}"#,
             "a".repeat(64)
         );
         assert_eq!(jcs_str, expected);
@@ -106,11 +108,12 @@ mod tests {
             created_at: 1234567890,
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#primary", hex_hash),
-                key_type: "Ed25519".to_string(),
+                key_type: "MlDsa65".to_string(),
                 public_key: pub_key_b64,
             }],
             manifest: None,
             revocation_keys: vec![],
+            deactivated: false,
             signature: None,
         };
 
@@ -148,11 +151,12 @@ mod tests {
             created_at: 1000,
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#primary", hex_hash),
-                key_type: "Ed25519".to_string(),
+                key_type: "MlDsa65".to_string(),
                 public_key: pub_key_b64,
             }],
             manifest: None,
             revocation_keys: vec![],
+            deactivated: false,
             signature: None,
         };
 
@@ -161,6 +165,7 @@ mod tests {
             kid: did,
             version: 1,
             valid_from: 1000,
+            expires_at: None,
             services: vec![ServiceEntry {
                 id: "web".to_string(),
                 service_type: "website".to_string(),
@@ -182,11 +187,12 @@ mod tests {
             created_at: 1000,
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#bad", "b".repeat(64)),
-                key_type: "Ed25519".to_string(),
+                key_type: "MlDsa65".to_string(),
                 public_key: b64_url.encode(bad_keypair.verifying_key().to_bytes()),
             }],
             manifest: None,
             revocation_keys: vec![],
+            deactivated: false,
             signature: None,
         };
 

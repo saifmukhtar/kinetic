@@ -120,7 +120,7 @@ pub async fn handle_publish_zone(
     };
 
     // 2. Load the persisted Reveal (stored at registration time)
-    let reveal_key = format!("kinetic_reveal:{}", fqdn);
+    let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
     let reveal_bytes = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(b)) => b,
         _ => {
@@ -166,7 +166,8 @@ pub async fn handle_publish_zone(
     };
 
     let signable = reveal.signable_bytes();
-    use ed25519_dalek::Signer;
+    use ml_dsa::signature::Signer;
+    use ml_dsa::SignatureEncoding;
     reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
     // 4. Update the stored Reveal so future zone publishes reflect the latest payload

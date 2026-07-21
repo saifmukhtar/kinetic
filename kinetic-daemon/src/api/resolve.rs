@@ -31,7 +31,7 @@ pub async fn handle_resolve_name(
         Err(kinetic_core::error::ResolutionError::NotFound { .. }) => {
             // Fallback to local storage if DHT lookup fails or returns nothing
             // This rescues users who lost their local reveal.json and the DHT dropped their record
-            let reveal_key = format!("kinetic_reveal:{}", fqdn);
+            let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
             match state.storage.get(reveal_key.as_bytes()) {
                 Ok(Some(bytes)) => {
                     match serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {

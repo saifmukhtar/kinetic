@@ -63,6 +63,7 @@ impl KineticNode {
         let config = NetworkConfig {
             mode: NetworkMode::LightClient,
             listen_addr: libp2p::Multiaddr::empty(),
+            quic_listen_addr: None,
             bootstrap_nodes: vec![],
             initial_drand_pulse: 0,
             seed_domains: vec![],

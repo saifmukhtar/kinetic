@@ -54,7 +54,7 @@ pub async fn handle_publish(
                 );
                 state
                     .storage
-                    .get(b"kinetic_last_drand_round")
+                    .get(kinetic_core::constants::DB_PREFIX_LAST_DRAND)
                     .ok()
                     .flatten()
                     .and_then(|b| {
@@ -107,7 +107,7 @@ pub async fn handle_publish(
                 fqdn
             );
 
-            let owned_key = b"kinetic_owned_names";
+            let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
             let mut owned = Vec::new();
             if let Ok(Some(bytes)) = state.storage.get(owned_key) {
                 if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
@@ -130,7 +130,7 @@ pub async fn handle_publish(
             }
 
             // Persist the full Reveal so zone updates can re-sign without the original VDF params.
-            let reveal_key = format!("kinetic_reveal:{}", fqdn);
+            let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
             if let Ok(reveal_bytes) = serde_json::to_vec(&reveal) {
                 let _ = state.storage.put(reveal_key.as_bytes(), &reveal_bytes);
                 info!(
@@ -303,15 +303,22 @@ pub async fn handle_publish_kid(
 
     // 1b. Verify the wrapper signature against the registered name's Reveal locally.
     // If it fails here, we reject early and don't spam the DHT.
-    let reveal_key = format!("kinetic_reveal:{}", auth_kid.name);
+    let reveal_key = format!(
+        "{}{}",
+        kinetic_core::constants::DB_PREFIX_REVEAL,
+        auth_kid.name
+    );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {
-                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
-                {
-                    use ed25519_dalek::Verifier;
-                    if let Ok(sig) = ed25519_dalek::Signature::from_slice(&auth_kid.owner_signature)
-                    {
+                use ml_dsa::KeyInit;
+                if let Ok(pubkey) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
+                    reveal.pubkey.as_slice(),
+                ) {
+                    use ml_dsa::signature::Verifier;
+                    if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
+                        auth_kid.owner_signature.as_slice(),
+                    ) {
                         pubkey.verify(&auth_kid.signable_bytes(), &sig).is_ok()
                     } else {
                         false
@@ -387,16 +394,22 @@ pub async fn handle_publish_manifest(
     );
 
     // 1b. Verify the wrapper signature against the registered name's Reveal locally.
-    let reveal_key = format!("kinetic_reveal:{}", auth_manifest.name);
+    let reveal_key = format!(
+        "{}{}",
+        kinetic_core::constants::DB_PREFIX_REVEAL,
+        auth_manifest.name
+    );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {
-                if let Ok(pubkey) = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
-                {
-                    use ed25519_dalek::Verifier;
-                    if let Ok(sig) =
-                        ed25519_dalek::Signature::from_slice(&auth_manifest.owner_signature)
-                    {
+                use ml_dsa::KeyInit;
+                if let Ok(pubkey) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
+                    reveal.pubkey.as_slice(),
+                ) {
+                    use ml_dsa::signature::Verifier;
+                    if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
+                        auth_manifest.owner_signature.as_slice(),
+                    ) {
                         pubkey.verify(&auth_manifest.signable_bytes(), &sig).is_ok()
                     } else {
                         false
@@ -492,6 +505,87 @@ pub async fn handle_publish_manifest(
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to publish: {}", e),
+            ))
+        }
+    }
+}
+
+/// Handles API requests to publish a `SignedGovernanceMessage` to the DHT/Gossip network.
+///
+/// # Errors
+///
+/// Returns an error if the governance message is invalid, quorum checks fail prematurely,
+/// or publishing to the Gossipsub network fails.
+pub async fn handle_publish_governance(
+    State(state): State<ApiState>,
+    Json(msg): Json<kinetic_core::governance::SignedGovernanceMessage>,
+) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    tracing::info!("Received API publish request for Governance action");
+
+    // Process the message locally to ensure it is mathematically valid before gossiping.
+    // We lock the global state, process it, and optionally save it.
+    let is_valid = {
+        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+        match kinetic_core::governance::process_governance_message(&mut gov, &msg) {
+            Ok(effect_opt) => {
+                let path = kinetic_core::config::get_base_dir().join("governance.bin");
+                if let Err(e) = gov.save_to_disk(&path) {
+                    tracing::error!("Failed to save modified governance state to disk: {}", e);
+                }
+                if let Some(kinetic_core::governance::GovernanceEffect::TriggerOTA { manifest_hash, mirrors }) = effect_opt {
+                    tokio::spawn(async move {
+                        if let Err(e) = kinetic_core::updater::perform_ota_update("kinetic-daemon", manifest_hash, mirrors).await {
+                            tracing::error!("Daemon OTA update failed: {}", e);
+                        }
+                    });
+                }
+                true
+            }
+            Err(e) => {
+                tracing::warn!("Rejecting governance message via API: {}", e);
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    format!("Invalid governance message: {}", e),
+                ));
+            }
+        }
+    };
+
+    if !is_valid {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Governance message validation failed".to_string(),
+        ));
+    }
+
+    // Serialize and gossip
+    let payload_bytes = match serde_json::to_vec(&msg) {
+        Ok(b) => b,
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Serialization failed: {}", e),
+            ))
+        }
+    };
+
+    match state
+        .network
+        .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE, payload_bytes)
+        .await
+    {
+        Ok(_) => {
+            tracing::info!("Successfully published Governance Message to the Gossip network");
+            Ok(Json(PublishResponse {
+                status: "success".to_string(),
+                message: "Governance action accepted and routed to P2P network".to_string(),
+            }))
+        }
+        Err(e) => {
+            tracing::error!("Failed to publish Governance Message to P2P network: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to broadcast: {}", e),
             ))
         }
     }

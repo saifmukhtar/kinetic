@@ -3,7 +3,7 @@ use kinetic_core::types::{Reveal, VdfProof};
 #[test]
 fn test_subdomain_hijack_validation() {
     let invalid_reveal = Reveal {
-        protocol_version: 2,
+        protocol_version: 1,
         name: format!("{}{}", "blog.saif", kinetic_core::constants::TLD_SUFFIX), // Subdomain!
         payload: vec![],
         salt: [0; 32],
@@ -25,7 +25,7 @@ fn test_subdomain_hijack_validation() {
     );
 
     let valid_reveal = Reveal {
-        protocol_version: 2,
+        protocol_version: 1,
         name: format!("{}{}", "saif", kinetic_core::constants::TLD_SUFFIX), // Apex domain!
         payload: vec![],
         salt: [0; 32],

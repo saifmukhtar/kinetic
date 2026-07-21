@@ -115,11 +115,11 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
 
     if !binary_found {
         let role_hint = match binary {
-            "kinetic-daemon" => "manage .kin domain names and run the local P2P proxy",
-            "kinetic-host" => "host a website or service reachable at a .kin name (VPS / homelab)",
-            "kinetic-node" => "run a full DHT node and contribute to the Kinetic network",
-            "kinetic-dns" => "enable system-wide .kin DNS resolution (e.g. for curl)",
-            _ => "use this Kinetic component",
+            "kinetic-daemon" => format!("manage {} domain names and run the local P2P proxy", kinetic_core::constants::TLD_SUFFIX),
+            "kinetic-host" => format!("host a website or service reachable at a {} name (VPS / homelab)", kinetic_core::constants::TLD_SUFFIX),
+            "kinetic-node" => format!("run a full DHT node and contribute to the {} network", kinetic_core::constants::NETWORK_ID),
+            "kinetic-dns" => format!("enable system-wide {} DNS resolution (e.g. for curl)", kinetic_core::constants::TLD_SUFFIX),
+            _ => "use this Kinetic component".to_string(),
         };
 
         eprintln!();

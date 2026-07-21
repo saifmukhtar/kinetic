@@ -11,10 +11,11 @@ pub struct AuthorizedKid {
 impl AuthorizedKid {
     /// Serializes the KID document into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-kid-v1").as_bytes();
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
-        let mut bytes = Vec::with_capacity(19 + 4 + self.name.len() + 4 + canon_bytes.len());
-        bytes.extend_from_slice(b"kinetic-auth-kid-v1");
+        let mut bytes = Vec::with_capacity(prefix.len() + 4 + self.name.len() + 4 + canon_bytes.len());
+        bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&(canon_bytes.len() as u32).to_be_bytes());
@@ -35,10 +36,11 @@ pub struct AuthorizedManifest {
 impl AuthorizedManifest {
     /// Serializes the manifest into a byte vector for cryptographic signing.
     pub fn signable_bytes(&self) -> Vec<u8> {
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-manifest-v1").as_bytes();
         let canon_bytes = self.manifest.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
-        let mut bytes = Vec::with_capacity(24 + 4 + self.name.len() + 4 + canon_bytes.len());
-        bytes.extend_from_slice(b"kinetic-auth-manifest-v1");
+        let mut bytes = Vec::with_capacity(prefix.len() + 4 + self.name.len() + 4 + canon_bytes.len());
+        bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&(canon_bytes.len() as u32).to_be_bytes());
@@ -55,11 +57,11 @@ impl AuthorizedManifest {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_keypair(
     filename: &str,
-) -> Result<ed25519_dalek::SigningKey, crate::error::IdentityError> {
+) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
     use std::fs;
     use std::path::PathBuf;
 
-    let key_path = std::env::var("KINETIC_KEY_PATH")
+    let key_path = std::env::var(crate::constants::ENV_KINETIC_KEY_PATH)
         .map(PathBuf::from)
         .unwrap_or_else(|_| crate::config::get_base_dir().join(filename));
 
@@ -68,7 +70,9 @@ pub fn load_keypair(
         if bytes.len() == 32 {
             let mut array = [0u8; 32];
             array.copy_from_slice(&bytes);
-            return Ok(ed25519_dalek::SigningKey::from_bytes(&array));
+            return Ok(ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed(
+                (&array).into(),
+            ));
         } else {
             return Err(crate::error::IdentityError::CorruptedIdentityFile(
                 format!("Expected 32 bytes, found {}. Please restore from a backup or manually delete the file to generate a new identity.", bytes.len())
@@ -76,7 +80,7 @@ pub fn load_keypair(
         }
     }
 
-    Err(crate::error::IdentityError::IdentityNotFound("Identity file not found. Please run 'kinetic-cli seed init' or use the Desktop app to create one.".to_string()))
+    Err(crate::error::IdentityError::IdentityNotFound("Identity file not found. Please run 'kinetic seed init' or use the Desktop app to create one.".to_string()))
 }
 
 /// Derives and saves an Ed25519 signing keypair from a mnemonic seed phrase.
@@ -88,7 +92,7 @@ pub fn load_keypair(
 pub fn save_keypair_from_mnemonic(
     filename: &str,
     phrase: &str,
-) -> Result<ed25519_dalek::SigningKey, crate::error::IdentityError> {
+) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
     use bip39::{Language, Mnemonic};
     use pbkdf2::pbkdf2_hmac;
     use sha2::{Digest, Sha256, Sha512};
@@ -109,13 +113,13 @@ pub fn save_keypair_from_mnemonic(
     let mut derived = [0u8; 32];
     pbkdf2_hmac::<Sha512>(&seed, &salt, 600_000, &mut derived);
 
-    let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived);
+    let signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&derived).into());
 
     // Securely wipe intermediate seed and derived buffers
     seed.zeroize();
     derived.zeroize();
 
-    let key_path = std::env::var("KINETIC_KEY_PATH")
+    let key_path = std::env::var(crate::constants::ENV_KINETIC_KEY_PATH)
         .map(PathBuf::from)
         .unwrap_or_else(|_| crate::config::get_base_dir().join(filename));
 
@@ -130,6 +134,7 @@ pub fn save_keypair_from_mnemonic(
         .truncate(true)
         .mode(0o600)
         .open(&tmp_path)?;
+    use ml_dsa::KeyExport;
     file.write_all(&signing_key.to_bytes())?;
     file.sync_all()?;
 
@@ -160,6 +165,7 @@ mod tests {
             manifest: None,
             revocation_keys: vec![],
             signature: None,
+            deactivated: false,
         };
         let auth_kid = AuthorizedKid {
             name: "test.kin".to_string(),
@@ -168,7 +174,8 @@ mod tests {
         };
 
         let bytes = auth_kid.signable_bytes();
-        assert!(bytes.starts_with(b"kinetic-auth-kid-v1"));
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-kid-v1").as_bytes();
+        assert!(bytes.starts_with(prefix));
         assert!(bytes.windows(8).any(|w| w == b"test.kin"));
     }
 
@@ -181,6 +188,7 @@ mod tests {
             kid,
             version: 1,
             valid_from: 0,
+            expires_at: None,
             services: vec![],
             signature: None,
         };
@@ -192,7 +200,8 @@ mod tests {
         };
 
         let bytes = auth_manifest.signable_bytes();
-        assert!(bytes.starts_with(b"kinetic-auth-manifest-v1"));
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-manifest-v1").as_bytes();
+        assert!(bytes.starts_with(prefix));
         assert!(bytes.windows(8).any(|w| w == b"test.kin"));
     }
 
@@ -204,7 +213,10 @@ mod tests {
         let dir = tempdir().unwrap();
 
         // 1. Not Found
-        std::env::set_var("KINETIC_KEY_PATH", dir.path().join("missing.bin"));
+        std::env::set_var(
+            crate::constants::ENV_KINETIC_KEY_PATH,
+            dir.path().join("missing.bin"),
+        );
         let result = load_keypair("test.bin");
         assert!(matches!(
             result,
@@ -214,7 +226,7 @@ mod tests {
         // 2. Corrupted File
         let corrupt_path = dir.path().join("corrupted.bin");
         fs::write(&corrupt_path, b"too_short").unwrap();
-        std::env::set_var("KINETIC_KEY_PATH", &corrupt_path);
+        std::env::set_var(crate::constants::ENV_KINETIC_KEY_PATH, &corrupt_path);
         let result = load_keypair("test.bin");
         assert!(matches!(
             result,
@@ -230,13 +242,14 @@ mod tests {
 
         // 4. Successful Save and Load
         let valid_path = dir.path().join("valid_key.bin");
-        std::env::set_var("KINETIC_KEY_PATH", &valid_path);
+        std::env::set_var(crate::constants::ENV_KINETIC_KEY_PATH, &valid_path);
         let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
         let saved_key = save_keypair_from_mnemonic("test.bin", phrase).unwrap();
         let loaded_key = load_keypair("test.bin").unwrap();
+        use ml_dsa::KeyExport;
         assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());
 
         // Clean up env var
-        std::env::remove_var("KINETIC_KEY_PATH");
+        std::env::remove_var(crate::constants::ENV_KINETIC_KEY_PATH);
     }
 }

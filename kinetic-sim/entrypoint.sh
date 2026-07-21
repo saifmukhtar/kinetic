@@ -39,12 +39,28 @@ fi
 # preventing all 40 processes from pegging all CPU cores simultaneously.
 # ─────────────────────────────────────────────────────────────────────────────
 echo "[${ROLE} ${INDEX}] Waiting for PoW mining lock..."
-LOCK_DIR=/shared-volume/mining.lock
+LOCK_FILE=/shared-volume/mining.lock
+LOCK_DIR=/shared-volume/mining.lock.dir
 
-# Retry acquiring the lock every 3 seconds
-while ! mkdir "$LOCK_DIR" 2>/dev/null; do
-    sleep 3
-done
+release_lock() {
+    if command -v flock >/dev/null 2>&1; then
+        flock -u 9 2>/dev/null || true
+        exec 9>&- 2>/dev/null || true
+    else
+        rmdir "$LOCK_DIR" 2>/dev/null || true
+        trap - EXIT
+    fi
+}
+
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCK_FILE"
+    flock -x 9
+else
+    while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+        sleep 3
+    done
+    trap 'release_lock' EXIT
+fi
 echo "[${ROLE} ${INDEX}] Mining lock acquired!"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -64,13 +80,13 @@ if [ "$ROLE" == "daemon" ]; then
         if [ $ELAPSED -ge $TIMEOUT ]; then
             echo "[Daemon $INDEX] ERROR: P2P did not wire within ${TIMEOUT}s. Aborting."
             # Release the lock so next container can try
-            rmdir "$LOCK_DIR" 2>/dev/null
+            release_lock
             exit 1
         fi
     done
 
     echo "[Daemon $INDEX] P2P wired! Releasing lock for next container..."
-    rmdir "$LOCK_DIR" 2>/dev/null
+    release_lock
 
     # ── Full lifecycle (the orchestrator drives this via kinetic-cli exec) ──
     # The orchestrator.py calls `podman exec` to run these commands at the
@@ -95,13 +111,13 @@ if [ "$ROLE" == "host" ]; then
         ELAPSED=$((ELAPSED + 1))
         if [ $ELAPSED -ge $TIMEOUT ]; then
             echo "[Host $INDEX] ERROR: P2P did not wire within ${TIMEOUT}s. Aborting."
-            rmdir "$LOCK_DIR" 2>/dev/null
+            release_lock
             exit 1
         fi
     done
 
     echo "[Host $INDEX] P2P wired! Releasing lock for next container..."
-    rmdir "$LOCK_DIR" 2>/dev/null
+    release_lock
 
     echo "[Host $INDEX] Scaffolding web directory..."
     mkdir -p /var/www

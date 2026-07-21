@@ -10,14 +10,14 @@ fn main() {
     for bits in difficulties {
         println!("Testing difficulty: {} bits", bits);
         let start = Instant::now();
-        
+
         // This function generates the identity that meets the required bits (pulse 1 for testing)
         let _ = mine_sybil_keypair(1, bits);
-        
+
         let elapsed = start.elapsed();
         println!("  -> Time taken: {:?}", elapsed);
         println!("-----------------------------------------");
     }
-    
+
     println!("Done!");
 }

@@ -1,6 +1,6 @@
-use ed25519_dalek::Signer;
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Heartbeat;
+use ml_dsa::signature::Signer;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,7 +12,7 @@ pub fn start_heartbeat_loop(
     hb_drand: Arc<kinetic_core::drand::DrandClient>,
     p2p_only: bool,
     initial_drand_pulse: u64,
-    daemon_keypair_hb: ed25519_dalek::SigningKey,
+    daemon_keypair_hb: ml_dsa::SigningKey<ml_dsa::MlDsa65>,
     drand_pulse_tx_hb: tokio::sync::watch::Sender<u64>,
 ) -> tokio::task::JoinHandle<()> {
     let last_known_live_round = Arc::new(AtomicU64::new(initial_drand_pulse));
@@ -54,7 +54,7 @@ pub fn start_heartbeat_loop(
                             if !p2p_only {
                                 if let Ok(payload) = serde_json::to_vec(&p) {
                                     let _ = hb_network
-                                        .broadcast_gossip("drand_pulse_quicknet", payload)
+                                        .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND, payload)
                                         .await;
                                 }
                             }
@@ -89,7 +89,7 @@ pub fn start_heartbeat_loop(
             } else {
                 continue;
             }
-            let owned_key = b"kinetic_owned_names";
+            let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
             if let Ok(Some(bytes)) = hb_storage.get(owned_key) {
                 if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
                     for name in names {
@@ -99,8 +99,9 @@ pub fn start_heartbeat_loop(
                             signature: vec![],
                         };
 
+                        use ml_dsa::SignatureEncoding;
                         let sig = daemon_keypair_hb.sign(&heartbeat.signable_bytes());
-                        heartbeat.signature = sig.to_vec();
+                        heartbeat.signature = sig.to_bytes().to_vec();
 
                         let name_clone = name.clone();
                         let hb_network_clone = hb_network.clone();

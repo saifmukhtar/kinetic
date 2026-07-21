@@ -109,7 +109,7 @@ mod tests {
 
         let req_body = serde_json::json!({
             "reveal": {
-                "protocol_version": 2,
+                "protocol_version": 1,
                 "name": "sub.example.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
@@ -146,7 +146,7 @@ mod tests {
         // Protocol version 1 (should be 2) to trigger structural validator error
         let req_body = serde_json::json!({
             "reveal": {
-                "protocol_version": 1,
+                "protocol_version": 0,
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
@@ -184,12 +184,12 @@ mod tests {
         let mut mock_pulse = [0u8; 8];
         mock_pulse.copy_from_slice(&1_000_000u64.to_be_bytes());
         storage
-            .put(b"kinetic_last_drand_round", &mock_pulse)
+            .put(kinetic_core::constants::DB_PREFIX_LAST_DRAND, &mock_pulse)
             .unwrap();
 
         let req_body = serde_json::json!({
             "reveal": {
-                "protocol_version": 2,
+                "protocol_version": 1,
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
@@ -224,7 +224,7 @@ mod tests {
         let (app, mut cmd_rx, storage) = setup_test_app().await;
 
         let mock_reveal = kinetic_core::types::Reveal {
-            protocol_version: 2,
+            protocol_version: 1,
             name: "validname.kin".to_string(),
             payload: vec![1, 2, 3],
             salt: [0; 32],
@@ -239,7 +239,7 @@ mod tests {
             previous_proof: None,
             miner_pubkey: None,
         };
-        let reveal_key = "kinetic_reveal:validname.kin";
+        let reveal_key = format!("{}validname.kin", kinetic_core::constants::DB_PREFIX_REVEAL);
         storage
             .put(
                 reveal_key.as_bytes(),

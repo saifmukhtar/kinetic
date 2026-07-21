@@ -46,7 +46,7 @@ impl KineticRecordStore {
 
         // Restore state from sled
         // Added limit to prevent memory exhaustion
-        if let Ok(iter) = storage.scan_prefix(KRS_REVEAL_PREFIX, Some(max_reveals_per_hour)) {
+        if let Ok(iter) = storage.scan_prefix(KRS_REVEAL_PREFIX, Some(100_000)) {
             for (key_bytes, val_bytes) in iter {
                 let prefix_len = KRS_REVEAL_PREFIX.len();
                 if key_bytes.len() <= prefix_len {
@@ -81,11 +81,11 @@ impl KineticRecordStore {
                                         let challenge = Commitment { hash };
 
                                         if matches!(
-                                            vdf_engine.verify(
+                                            tokio::task::block_in_place(|| vdf_engine.verify(
                                                 &challenge,
                                                 &reveal.vdf_proof,
                                                 reveal.iterations
-                                            ),
+                                            )),
                                             Ok(true)
                                         ) {
                                             is_valid = true;

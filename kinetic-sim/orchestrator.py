@@ -105,6 +105,19 @@ def health():
 def proxy_to_container(host_id, domain, filename):
     import subprocess
     from flask import Response
+    
+    # SECURITY: Prevent Directory Traversal and Shell Injection
+    if ".." in domain or ".." in filename:
+        return "Invalid path: Directory traversal blocked", 400
+    if filename.startswith("/") or domain.startswith("/"):
+        return "Invalid path: Absolute paths blocked", 400
+        
+    import re
+    if not re.match(r'^[\w\.-]+$', domain):
+        return "Invalid domain characters", 400
+    if not re.match(r'^[\w\./-]+$', filename):
+        return "Invalid filename characters", 400
+        
     container = f"clab-kinetic-swarm-host{host_id}"
     cmd = ["sudo", "podman", "exec", container, "cat", f"/var/www/{domain}/{filename}"]
     try:
@@ -131,7 +144,7 @@ def run_simulation():
     registry.log("orchestrator", "Orchestrator",
                  "═══════════════════════════════════════════════════════════")
     registry.log("orchestrator", "Orchestrator",
-                 " KINETIC SWARM INTELLIGENCE — CAUSAL MULTI-AGENT SIM v2 ")
+                 " KINETIC SWARM INTELLIGENCE — CAUSAL MULTI-AGENT SIM v1 ")
     registry.log("orchestrator", "Orchestrator",
                  "═══════════════════════════════════════════════════════════")
     registry.log("orchestrator", "Orchestrator",

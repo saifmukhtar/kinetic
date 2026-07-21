@@ -43,6 +43,10 @@ pub enum DnsError {
     /// A KID string does not start with the required `did:kin:` prefix.
     #[error("Invalid KID string (missing prefix): {0}")]
     InvalidKid(String),
+
+    /// An IPFS CID string is invalid.
+    #[error("Invalid IPFS CID string: {0}")]
+    InvalidIpfsCid(String),
 }
 
 impl PartialEq for DnsError {
@@ -58,6 +62,7 @@ impl PartialEq for DnsError {
             (Self::InvalidCnameTarget(a), Self::InvalidCnameTarget(b)) => a == b,
             (Self::InvalidPeerId(a), Self::InvalidPeerId(b)) => a == b,
             (Self::InvalidKid(a), Self::InvalidKid(b)) => a == b,
+            (Self::InvalidIpfsCid(a), Self::InvalidIpfsCid(b)) => a == b,
             _ => false,
         }
     }
@@ -79,6 +84,7 @@ impl DnsError {
             Self::InvalidCnameTarget(_) => "KIN-DNS-008",
             Self::InvalidPeerId(_) => "KIN-DNS-009",
             Self::InvalidKid(_) => "KIN-DNS-010",
+            Self::InvalidIpfsCid(_) => "KIN-DNS-011",
         }
     }
 
@@ -122,6 +128,9 @@ impl DnsError {
             Self::InvalidPeerId(_) => "A PeerId string is invalid.".to_string(),
             Self::InvalidKid(_) => {
                 "A KID string is invalid or missing the 'did:kin:' prefix.".to_string()
+            }
+            Self::InvalidIpfsCid(_) => {
+                "An IPFS CID string is invalid.".to_string()
             }
         }
     }

@@ -20,6 +20,7 @@ async fn spawn_test_node(
     let config = NetworkConfig {
         mode: NetworkMode::FullNode,
         listen_addr: listen_addr.clone(),
+        quic_listen_addr: None,
         bootstrap_nodes,
         external_address: None,
         initial_drand_pulse: 1000,

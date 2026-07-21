@@ -10,7 +10,7 @@ mod tests {
 
     fn dummy_reveal(name: &str, drand_pulse: u64) -> Reveal {
         Reveal {
-            protocol_version: 2,
+            protocol_version: 1,
             name: name.to_string(),
             payload: vec![],
             salt: [0u8; 32],

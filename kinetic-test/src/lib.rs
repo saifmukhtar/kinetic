@@ -18,6 +18,7 @@ mod tests {
     ) -> (NetworkClient, tokio::task::JoinHandle<()>) {
         let config = NetworkConfig {
             listen_addr: format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap(),
+            quic_listen_addr: None,
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
@@ -111,7 +112,8 @@ mod tests {
         let boot_addr = format!("/ip4/127.0.0.1/tcp/10012/p2p/{}", peer_a);
         let (client_b, _handle_b) = setup_node(10013, key_b, vec![boot_addr]).await;
 
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        // Give more time for the DHT to bootstrap and exchange Kademlia info
+        tokio::time::sleep(Duration::from_secs(3)).await;
 
         let name = "nonexistent.kin";
         let res = client_b.resolve_redundant_payload(name).await;
@@ -130,7 +132,7 @@ mod tests {
         let key_a = Keypair::generate_ed25519();
         let (client_a, _handle_a) = setup_node(10011, key_a, vec![]).await;
 
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(3)).await;
 
         let name = "invalid_payload.kin";
         let invalid_payload = b"not a json object or valid reveal".to_vec();
@@ -155,6 +157,7 @@ mod tests {
         let key_a = Keypair::generate_ed25519();
         let config = NetworkConfig {
             listen_addr: "/ip4/127.0.0.1/tcp/10020".parse().unwrap(),
+            quic_listen_addr: None,
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(1).unwrap(), // Size 1
@@ -215,6 +218,7 @@ mod tests {
 
         let config = NetworkConfig {
             listen_addr: "/ip4/127.0.0.1/tcp/10021".parse().unwrap(),
+            quic_listen_addr: None,
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(1000).unwrap(),

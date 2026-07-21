@@ -69,7 +69,7 @@ Kinetic's entire network identity lives in one file:
   "network_id": "university-net",
   "benchmark_base_iterations": 238819830,
   "steal_target_rounds": 7884000,
-  "m_redundancy": 16,
+  "m_redundancy": 32,
   "bootstrap_nodes": [
     "/ip4/YOUR_IP/tcp/6070/p2p/YOUR_PEER_ID"
   ]
@@ -303,7 +303,6 @@ cargo build --release --workspace
 | [chiavdf (Chia Network)](https://github.com/Chia-Network/chiavdf) | C++ VDF engine — Class Groups of Imaginary Quadratic Fields, Wesolowski proofs |
 | [drand Quicknet](https://drand.love/) | Distributed randomness beacon — 3-second pulse, no trusted setup |
 | [sled](https://github.com/spacejam/sled) | Pure-Rust embedded B-tree database |
-| [Nostr NIP-04](https://github.com/nostr-protocol/nips) | Encrypted mobile VDF delegation channel |
 
 ---
 

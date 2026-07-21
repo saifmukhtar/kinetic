@@ -25,7 +25,7 @@ pub struct CommitRequest {
 }
 
 fn default_protocol_version() -> u8 {
-    2
+    1
 }
 
 /// Data for the previous VDF proof in a chain of proofs.
@@ -44,7 +44,9 @@ impl PreviousProof {
     /// Serializes the previous proof data into a byte vector for hashing or signing.
     /// Returns the concatenated bytes of the proof parameters.
     pub fn proof_bytes(&self) -> Vec<u8> {
-        let capacity = 32 // salt
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-vdf-prev-v1").as_bytes();
+        let capacity = prefix.len()
+            + 32 // salt
             + 8 // drand_pulse
             + 4 + self.drand_randomness.len()
             + 8 // iterations
@@ -52,6 +54,7 @@ impl PreviousProof {
             + 4 + self.signature.len();
 
         let mut bytes = Vec::with_capacity(capacity);
+        bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
 
@@ -95,9 +98,9 @@ impl Reveal {
     ///
     /// Returns a `KineticError` if the protocol version is unsupported, the name is invalid, or the payload size exceeds `MAX_PAYLOAD_SIZE`.
     pub fn validate(&self) -> Result<(), crate::error::KineticError> {
-        if self.protocol_version != 2 {
+        if self.protocol_version != 1 {
             return Err(crate::error::KineticError::Internal(format!(
-                "Invalid protocol version {}. Only protocol version 2 is supported.",
+                "Invalid protocol version {}. Only protocol version 1 is supported.",
                 self.protocol_version
             )));
         }
@@ -114,12 +117,17 @@ impl Reveal {
         Ok(())
     }
 
-    /// Verifies the Ed25519 signature over the signable bytes.
+    /// Verifies the ML-DSA signature over the signable bytes.
     pub fn verify_signature(&self) -> bool {
-        use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+        use ml_dsa::signature::Verifier;
+        use ml_dsa::KeyInit;
         let signable = self.signable_bytes();
-        if let Ok(pubkey) = VerifyingKey::try_from(self.pubkey.as_slice()) {
-            if let Ok(sig) = Signature::from_slice(self.signature.as_slice()) {
+        if let Ok(pubkey) =
+            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(self.pubkey.as_slice())
+        {
+            if let Ok(sig) =
+                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(self.signature.as_slice())
+            {
                 return pubkey.verify(&signable, &sig).is_ok();
             }
         }
@@ -129,6 +137,7 @@ impl Reveal {
     /// Serializes the reveal payload into a byte vector for cryptographic signing.
     /// Returns the length-prefixed serialized fields.
     pub fn signable_bytes(&self) -> Vec<u8> {
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-vdf-reveal-v1").as_bytes();
         let prev_proof_bytes = self
             .previous_proof
             .as_ref()
@@ -136,7 +145,8 @@ impl Reveal {
             .unwrap_or_default();
 
         // OPTIMIZATION: Calculate exact capacity to prevent multiple reallocations
-        let mut capacity = 1 // protocol_version
+        let mut capacity = prefix.len()
+            + 1 // protocol_version
             + 4 + self.name.len()
             + 4 + self.payload.len()
             + 32 // salt
@@ -157,6 +167,7 @@ impl Reveal {
         }
 
         let mut bytes = Vec::with_capacity(capacity);
+        bytes.extend_from_slice(prefix);
         bytes.push(self.protocol_version);
 
         // SECURITY: Length-prefix all variable-length fields (u32) to prevent canonicalization ambiguity attacks
@@ -217,7 +228,7 @@ mod tests {
     #[test]
     fn test_signable_bytes() {
         let reveal = Reveal {
-            protocol_version: 2,
+            protocol_version: 1,
             name: format!("myname{}", TLD_SUFFIX),
             payload: vec![1, 2, 3],
             salt: [0u8; 32],
@@ -233,7 +244,9 @@ mod tests {
             miner_pubkey: None,
         };
         let bytes = reveal.signable_bytes();
-        assert_eq!(bytes[0], 2);
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-vdf-reveal-v1").as_bytes();
+        assert!(bytes.starts_with(prefix));
+        assert_eq!(bytes[prefix.len()], 1); // protocol version follows the prefix
         assert!(bytes.len() > 10);
     }
 }

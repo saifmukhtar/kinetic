@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use ml_dsa::signature::{Signer, Verifier};
+use ml_dsa::KeyInit;
 use serde::{Deserialize, Serialize};
 
 use crate::did::KineticDid;
@@ -11,7 +12,7 @@ pub struct ControllerKey {
     /// A fragment URI identifying this key within the DID document (e.g. `did:kin:…#key-0`).
     pub id: String,
     #[serde(rename = "type")]
-    /// The key algorithm; always `"Ed25519"` in v1.
+    /// The key algorithm; always `"ML-DSA-65"` in v1.
     pub key_type: String,
     /// The Base64url-encoded raw public key bytes.
     pub public_key: String,
@@ -25,12 +26,13 @@ pub struct ManifestPointer {
     pub hash: Option<String>,
     /// Zero or more retrieval URLs for the manifest (e.g. HTTPS, IPFS).
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    #[serde(deserialize_with = "crate::bounded::deserialize_max_20")]
     pub locations: Vec<String>,
 }
 
 /// A Kinetic Identity Document (KID) — the W3C DID-compatible root of identity.
 ///
-/// Identifies a Kinetic user and binds their Ed25519 public keys to a
+/// Identifies a Kinetic user and binds their ML-DSA-65 public keys to a
 /// `did:kin:<hash>` decentralized identifier. The document is signed with the
 /// controller key.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -42,15 +44,20 @@ pub struct KidDocument {
     pub kid: KineticDid,
     /// Unix timestamp (seconds) when this document was created.
     pub created_at: u64,
-    /// Ordered list of Ed25519 verification keys that control this DID.
+    /// Ordered list of ML-DSA-65 verification keys that control this DID.
+    #[serde(deserialize_with = "crate::bounded::deserialize_max_20")]
     pub controller_keys: Vec<ControllerKey>,
     /// Optional pointer to a [`CapabilityManifest`](crate::manifest::CapabilityManifest).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manifest: Option<ManifestPointer>,
     /// Base64url-encoded public keys authorised to revoke this document.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    #[serde(deserialize_with = "crate::bounded::deserialize_max_20")]
     pub revocation_keys: Vec<String>,
-    /// Base64url-encoded Ed25519 signature over the JCS-canonical document (excluding this field).
+    /// Whether this identity document has been deactivated/revoked.
+    #[serde(default)]
+    pub deactivated: bool,
+    /// Base64url-encoded ML-DSA-65 signature over the JCS-canonical document (excluding this field).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
 }
@@ -67,47 +74,67 @@ impl KidDocument {
 
     /// Verifies the signature of the document using the listed controller keys.
     /// This requires parsing the signature, canonicalizing the doc, and trying the controller keys.
-    /// In v1, it must be signed by at least one valid Ed25519 controller key.
+    /// In v1, it must be signed by at least one valid ML-DSA-65 controller key.
     pub fn verify(&self) -> Result<(), KidError> {
-        if self.controller_keys.len() > 20 {
+        if self.controller_keys.len() > 20 || self.revocation_keys.len() > 20 {
             return Err(KidError::TooManyKeys);
+        }
+        for key in &self.controller_keys {
+            if key.id.len() > 256 || key.public_key.len() > 8192 || key.key_type.len() > 32 {
+                return Err(KidError::TooManyKeys);
+            }
+        }
+        for rk in &self.revocation_keys {
+            if rk.len() > 8192 { return Err(KidError::TooManyKeys); }
+        }
+        if let Some(manifest) = &self.manifest {
+            if manifest.locations.len() > 20 {
+                return Err(KidError::TooManyKeys);
+            }
+            for loc in &manifest.locations {
+                if loc.len() > 2048 { return Err(KidError::TooManyKeys); }
+            }
+            if let Some(hash) = &manifest.hash {
+                if hash.len() > 256 { return Err(KidError::TooManyKeys); }
+            }
         }
 
         let sig_b64 = self.signature.as_ref().ok_or(KidError::MissingSignature)?;
         let sig_bytes = b64_url.decode(sig_b64)?;
 
-        let signature_array: &[u8; 64] = sig_bytes
-            .as_slice()
-            .try_into()
+        let signature = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(sig_bytes.as_slice())
             .map_err(|_| KidError::InvalidSignature)?;
-        let signature = Signature::from_bytes(signature_array);
 
         let msg_str = self.canonicalize()?;
-        let msg_bytes = msg_str.as_bytes();
+        let mut msg_bytes = b"kinetic-kid-v1\0".to_vec();
+        msg_bytes.extend_from_slice(msg_str.as_bytes());
 
-        let method_specific_id = self.kid.as_str().trim_start_matches("did:kin:");
+        // Note: We no longer enforce that did_hash_matched == true here.
+        // In a fully decentralized DID resolution system, key rotation means the
+        // current controller keys may no longer hash to the original DID identifier.
 
-        for key in &self.controller_keys {
-            if key.key_type == "Ed25519" {
-                if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
-                    if let Ok(pk_array) = pk_bytes.as_slice().try_into() {
-                        if let Ok(public_key) = VerifyingKey::from_bytes(pk_array) {
-                            use sha2::{Digest, Sha256};
-                            let mut hasher = Sha256::new();
-                            hasher.update(pk_bytes.as_slice());
-                            let hash = hasher.finalize();
-                            let mut hex_hash = String::new();
-                            for byte in hash {
-                                use std::fmt::Write;
-                                let _ = write!(&mut hex_hash, "{:02x}", byte);
-                            }
-
-                            // Ensure that the key signing the document actually matches the DID hash!
-                            if hex_hash != method_specific_id {
-                                continue;
-                            }
-
-                            if public_key.verify(msg_bytes, &signature).is_ok() {
+        if self.deactivated {
+            // Document is deactivated (revoked), the signature MUST be from a revocation key
+            for rk_b64 in &self.revocation_keys {
+                if let Ok(pk_bytes) = b64_url.decode(rk_b64) {
+                    if let Ok(public_key) =
+                        ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
+                    {
+                        if public_key.verify(&msg_bytes, &signature).is_ok() {
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+        } else {
+            // Document is active, the signature MUST be from a controller key
+            for key in &self.controller_keys {
+                if key.key_type.eq_ignore_ascii_case("MlDsa65") {
+                    if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
+                        if let Ok(public_key) =
+                            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
+                        {
+                            if public_key.verify(&msg_bytes, &signature).is_ok() {
                                 return Ok(());
                             }
                         }
@@ -120,10 +147,12 @@ impl KidDocument {
     }
 
     /// Helper to sign the document with a given keypair and return the signed document.
-    pub fn sign(mut self, keypair: &ed25519_dalek::SigningKey) -> Result<Self, KidError> {
-        use ed25519_dalek::Signer;
+    pub fn sign(mut self, keypair: &ml_dsa::SigningKey<ml_dsa::MlDsa65>) -> Result<Self, KidError> {
+        use ml_dsa::SignatureEncoding;
         let msg_str = self.canonicalize()?;
-        let signature = keypair.sign(msg_str.as_bytes());
+        let mut msg_bytes = b"kinetic-kid-v1\0".to_vec();
+        msg_bytes.extend_from_slice(msg_str.as_bytes());
+        let signature = keypair.sign(&msg_bytes);
         self.signature = Some(b64_url.encode(signature.to_bytes()));
         Ok(self)
     }

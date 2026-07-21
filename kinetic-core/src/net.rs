@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::IpAddr;
 
 /// Checks if an IP address is safe to connect to or proxy through.
 /// Blocks loopback, unspecified, private, link-local, broadcast, multicast,

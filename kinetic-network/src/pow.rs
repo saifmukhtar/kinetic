@@ -5,7 +5,6 @@ use tracing::info;
 /// The number of drand pulses in a single PoW epoch (e.g., 1440 for 12 hours at 30s per pulse).
 pub const EPOCH_PULSES: u64 = 1440; // 12 hours at 30s per pulse
 
-
 /// Computes the leading zero bits of a given byte slice.
 fn leading_zeros(hash: &[u8]) -> u32 {
     let mut zeros = 0;

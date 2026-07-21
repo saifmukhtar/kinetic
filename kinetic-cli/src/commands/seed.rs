@@ -41,6 +41,33 @@ pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
             println!("be able to view this phrase again.");
             println!("========================================================");
 
+            let words: Vec<&str> = phrase.split_whitespace().collect();
+            let idx1 = (entropy[0] % 24) as usize;
+            let mut idx2 = (entropy[1] % 24) as usize;
+            if idx1 == idx2 {
+                idx2 = (idx2 + 1) % 24;
+            }
+
+            loop {
+                use std::io::Write;
+                print!("\nTo verify your backup, please enter word #{}: ", idx1 + 1);
+                std::io::stdout().flush().unwrap();
+                let mut input1 = String::new();
+                std::io::stdin().read_line(&mut input1).unwrap();
+                
+                print!("Please enter word #{}: ", idx2 + 1);
+                std::io::stdout().flush().unwrap();
+                let mut input2 = String::new();
+                std::io::stdin().read_line(&mut input2).unwrap();
+
+                if input1.trim() == words[idx1] && input2.trim() == words[idx2] {
+                    println!("\n✅ Seed phrase verified successfully!");
+                    break;
+                } else {
+                    println!("\n❌ Incorrect words. Please check your backup and try again.");
+                }
+            }
+
             save_keypair_from_mnemonic(&identity_path.to_string_lossy(), &phrase)?;
             info!("Identity derived and saved to {:?}", identity_path);
         }

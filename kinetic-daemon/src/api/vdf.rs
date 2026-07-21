@@ -128,6 +128,7 @@ pub async fn handle_vdf_register(
                 return;
             }
         };
+        use ml_dsa::{KeyExport, Keypair};
         let pubkey = keypair.verifying_key().to_bytes();
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
@@ -158,7 +159,7 @@ pub async fn handle_vdf_register(
             30,
         );
         let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-            .required_iterations(&fqdn, drand_data.round, &challenge_bytes);
+            .required_iterations(&fqdn, &challenge_bytes);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
         let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
@@ -253,7 +254,7 @@ pub async fn handle_vdf_register(
         };
 
         let mut reveal = kinetic_core::types::Reveal {
-            protocol_version: 2,
+            protocol_version: 1,
             name: fqdn.clone(),
             payload,
             salt,
@@ -269,7 +270,8 @@ pub async fn handle_vdf_register(
             miner_pubkey: None,
         };
 
-        use ed25519_dalek::Signer;
+        use ml_dsa::signature::Signer;
+        use ml_dsa::SignatureEncoding;
         let signable = reveal.signable_bytes();
         reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
@@ -304,7 +306,7 @@ pub async fn handle_vdf_register(
 
         // Save to internal storage so Dashboard can see it
         let mut owned = Vec::new();
-        if let Ok(Some(bytes)) = storage_clone.get(b"kinetic_owned_names") {
+        if let Ok(Some(bytes)) = storage_clone.get(kinetic_core::constants::DB_PREFIX_OWNED_NAMES) {
             if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
                 owned = names;
             }
@@ -312,7 +314,7 @@ pub async fn handle_vdf_register(
         if !owned.contains(&fqdn) {
             owned.push(fqdn.clone());
             if let Ok(b) = serde_json::to_vec(&owned) {
-                let _ = storage_clone.put(b"kinetic_owned_names", &b);
+                let _ = storage_clone.put(kinetic_core::constants::DB_PREFIX_OWNED_NAMES, &b);
             }
         }
 
@@ -384,7 +386,7 @@ pub async fn handle_vdf_renew(
     tokio::spawn(async move {
         // Step 1: Read previous Reveal from Sled storage
         update_task_status(&tasks_clone, &task_id_clone, "Loading previous reveal", 5);
-        let local_reveal_key = format!("kinetic_reveal:{}", fqdn);
+        let local_reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
         let old_reveal_bytes = match storage_clone.get(local_reveal_key.as_bytes()) {
             Ok(Some(b)) => b,
             _ => {
@@ -434,6 +436,7 @@ pub async fn handle_vdf_renew(
                 return;
             }
         };
+        use ml_dsa::{KeyExport, Keypair};
         let pubkey = keypair.verifying_key().to_bytes();
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
@@ -465,7 +468,7 @@ pub async fn handle_vdf_renew(
         );
 
         let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-            .required_iterations(&fqdn, drand_data.round, &challenge_bytes);
+            .required_iterations(&fqdn, &challenge_bytes);
         // Renewals get an 80% discount
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);
@@ -549,7 +552,7 @@ pub async fn handle_vdf_renew(
         };
 
         let mut new_reveal = kinetic_core::types::Reveal {
-            protocol_version: 2,
+            protocol_version: 1,
             name: fqdn.clone(),
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
@@ -565,7 +568,8 @@ pub async fn handle_vdf_renew(
             miner_pubkey: None,
         };
 
-        use ed25519_dalek::Signer;
+        use ml_dsa::signature::Signer;
+        use ml_dsa::SignatureEncoding;
         let signable = new_reveal.signable_bytes();
         new_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
@@ -592,7 +596,7 @@ pub async fn handle_vdf_renew(
             return;
         }
 
-        let local_reveal_key = format!("kinetic_reveal:{}", fqdn);
+        let local_reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
         let _ = storage_clone.put(local_reveal_key.as_bytes(), &reveal_bytes);
 
         update_task_status(&tasks_clone, &task_id_clone, "Complete", 100);

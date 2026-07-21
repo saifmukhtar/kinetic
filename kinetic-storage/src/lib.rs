@@ -51,13 +51,15 @@ mod native {
                     Err(StorageError::OperationFailed(format!("IO error: {}", e)))
                 }
                 Err(sled::Error::Corruption { .. }) => {
+                    static CORRUPT_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                    let count = CORRUPT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     let ts = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
 
                     let mut bak_path = path.to_path_buf().into_os_string();
-                    bak_path.push(format!(".corrupt.{}.bak", ts));
+                    bak_path.push(format!(".corrupt.{}_{}_{}.bak", ts, std::process::id(), count));
 
                     tracing::error!(
                         "CRITICAL: Sled database corruption detected at {:?}. Backing up to {:?}",
@@ -65,7 +67,12 @@ mod native {
                         bak_path
                     );
 
-                    let _ = std::fs::rename(path, &bak_path);
+                    if let Err(e) = std::fs::rename(path, &bak_path) {
+                        return Err(StorageError::OperationFailed(format!(
+                            "Database corrupted. Failed to backup corrupted database: {}. Manual intervention required.",
+                            e
+                        )));
+                    }
 
                     Err(StorageError::OperationFailed(format!(
                         "Database corrupted. Manual recovery required. Backup moved to {:?}",
@@ -197,6 +204,13 @@ mod wasm {
                 .db
                 .write()
                 .map_err(|_| StorageError::OperationFailed("Lock poisoned".into()))?;
+            
+            if db.len() >= 10_000 && !db.contains_key(key) {
+                return Err(StorageError::OperationFailed(
+                    "WASM storage quota exceeded (10,000 keys). Cannot insert new keys.".into(),
+                ));
+            }
+            
             db.insert(key.to_vec(), value.to_vec());
             Ok(())
         }
