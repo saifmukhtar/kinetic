@@ -1,12 +1,23 @@
+//! Data structures and serialized action types for network governance.
+
 use ml_dsa::signature::Verifier;
 use ml_dsa::KeyInit;
 use ml_dsa::MlDsa65;
 use std::collections::{HashMap, HashSet};
 
+/// 32-byte SHA-256 hash array.
 pub type Hash256 = [u8; 32];
+/// Base64url-encoded or raw public key byte vector.
 pub type PublicKeyBytes = Vec<u8>;
+/// Signature byte vector.
 pub type SignatureBytes = Vec<u8>;
 
+/// Verifies an ML-DSA-65 post-quantum signature over a message byte slice.
+///
+/// # Security
+///
+/// Returns `true` if the signature is cryptographically valid for `pubkey`; `false` if key decoding,
+/// signature parsing, or verification fails.
 pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
     if let Ok(pk) = ml_dsa::VerifyingKey::<MlDsa65>::new_from_slice(pubkey) {
         if let Ok(signature) = ml_dsa::Signature::<MlDsa65>::try_from(sig) {
@@ -16,97 +27,148 @@ pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
     false
 }
 
-/// Enumerates the possible actions that can be taken by the governance system.
+/// Enumerates privileged protocol actions governed by council threshold voting or Founder mode.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum GovernanceAction {
+    /// Appoint a new member key to the network Council.
     AppointMember {
+        /// ML-DSA-65 public key of the candidate member.
         key: PublicKeyBytes,
     },
+    /// Propose an Over-The-Air (OTA) binary update with a mandatory timelock.
     UpdateBinary {
+        /// Expected SHA-256 hash of `manifest.json`.
         manifest_hash: Hash256,
+        /// Nonce string or timestamp to prevent replay attacks.
         version_nonce: u64,
+        /// GitHub handle of the release author.
         github_username: String,
+        /// Git commit SHA hash.
         git_commit: String,
+        /// Source Git branch name.
         git_branch: String,
+        /// List of HTTPS mirror URLs serving the update binaries.
         mirrors: Vec<String>,
     },
+    /// Transition the network from Founder mode to Council mode.
     LockCouncil,
+    /// Cancel and veto a pending OTA update proposal via the Guard key.
     VetoUpdate {
+        /// Target SHA-256 action hash to veto.
         target_hash: Hash256,
     },
+    /// Rotate the network's offline Root public key.
     RotateRootKey {
+        /// New ML-DSA-65 Root public key.
         new_key: PublicKeyBytes,
     },
+    /// Rotate the network's Guard public key.
     RotateGuardKey {
+        /// New ML-DSA-65 Guard public key.
         new_key: PublicKeyBytes,
     },
+    /// Allow a council member to self-appoint an updated signing key.
     SelfAppointCouncilMember {
+        /// Replacement key of the existing member.
         candidate_key: PublicKeyBytes,
     },
+    /// Remove an active member from the network Council.
     RemoveCouncilMember {
+        /// Public key of the member to remove.
         target_key: PublicKeyBytes,
     },
-
+    /// Execute a timelocked action after its waiting period has expired.
     ExecuteTimelock {
+        /// Target action hash pending in the timelock queue.
         target_hash: Hash256,
     },
+    /// Grant a 1-character premium domain name (Founder phase only, max 5 lifetime grants).
     GrantPremiumName {
+        /// Target 1-character name label.
         name: String,
+        /// Recipient's ML-DSA-65 public key.
         target_pubkey: PublicKeyBytes,
     },
+    /// Revoke a previously granted 1-character premium domain name (Council mode only).
     RevokePremiumName {
+        /// Target 1-character name label to revoke.
         name: String,
     },
 }
 
-/// Represents the side effects or outcomes of executing a governance action.
+/// Side effects produced when a governance action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GovernanceEffect {
+    /// Trigger an OTA binary update download and self-replacement.
     TriggerOTA {
+        /// Expected SHA-256 hash of `manifest.json`.
         manifest_hash: Hash256,
+        /// List of HTTPS download mirror URLs.
         mirrors: Vec<String>,
     },
+    /// Inform node subsystems of a premium domain grant.
     PremiumNameGranted {
+        /// Granted 1-character name.
         name: String,
+        /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
+    /// Inform node subsystems of a premium domain revocation.
     PremiumNameRevoked {
+        /// Revoked 1-character name.
         name: String,
     },
 }
 
-/// Indicates the current phase or mode of the governance system (e.g., Founder phase vs Council phase).
+/// Operational governance mode of the network.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GovernanceMode {
+    /// Founder bootstrap mode: initial root key holds single-signer ratification authority.
     Founder,
+    /// Decentralized Council mode: actions require supermajority threshold voting.
     Council,
 }
 
-/// Represents a governance message that has been signed by one or more authorized keys.
+/// Proposal message container with signatures from authorized council members.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SignedGovernanceMessage {
+    /// Target governance action payload.
     pub action: GovernanceAction,
+    /// Recorded council size at the time the proposal was created (prevents denominator manipulation).
     pub council_size_at_proposal: u32,
+    /// Proposal creation Unix timestamp in seconds.
     pub timestamp_sec: u64,
+    /// Collected ML-DSA-65 signatures supporting this proposal.
     pub signatures: Vec<SignatureBytes>,
 }
 
-/// Maintains the current state of the governance system, including active council members and pending actions.
+/// Persistent on-disk state container for the network governance subsystem.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GovernanceState {
+    /// Unix timestamp of network genesis.
     pub genesis_timestamp_sec: u64,
+    /// Current operating mode ([`GovernanceMode::Founder`] vs [`GovernanceMode::Council`]).
     pub mode: GovernanceMode,
+    /// Timestamp when Council mode was locked, if applicable.
     pub lock_timestamp_sec: Option<u64>,
+    /// List of active council member public keys.
     pub active_council: Vec<PublicKeyBytes>,
+    /// Map tracking the last signature timestamp per council member to detect inactive members.
     pub last_signature_timestamps: HashMap<PublicKeyBytes, u64>,
-
+    /// Set of action hashes that have been vetoed by the Guard key.
     pub vetoed_hashes: HashSet<Hash256>,
+    /// Timelocked pending updates: `HashMap<Hash256, (proposal_timestamp, timelock_expiration, mirrors)>`.
     pub pending_updates: HashMap<Hash256, (u64, u64, Vec<String>)>,
+    /// In-progress proposals aggregating threshold signatures.
     pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
+    /// Counter tracking 1-character premium name grants issued by the Founder (max 5).
     pub founder_premium_grants: u8,
+    /// Start timestamp of the 14-day automatic transition grace period.
     pub grace_period_start_sec: Option<u64>,
+    /// Dynamically rotated Root key (if updated via `RotateRootKey`).
     #[serde(default)]
     pub dynamic_root_key: Option<PublicKeyBytes>,
+    /// Dynamically rotated Guard key (if updated via `RotateGuardKey`).
     #[serde(default)]
     pub dynamic_guard_key: Option<PublicKeyBytes>,
 }

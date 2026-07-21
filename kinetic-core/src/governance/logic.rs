@@ -1,3 +1,5 @@
+//! Core governance state transitions, message signature aggregation, and timelock management.
+
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
@@ -12,7 +14,9 @@ use crate::error::GovernanceError;
 ///
 /// # Errors
 ///
-/// Returns a `GovernanceError` if keys are missing, still set to placeholders, or have incorrect lengths.
+/// - Returns [`GovernanceError::MissingRootKey`] if the root key hex string is unconfigured or invalid.
+/// - Returns [`GovernanceError::MissingGuardKey`] if the guard key hex string is unconfigured or invalid.
+/// - Returns [`GovernanceError::KeyLengthMismatch`] if a public key is not exactly 1,952 bytes.
 pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
     if crate::config::is_dev_mode() {
         return Ok(());

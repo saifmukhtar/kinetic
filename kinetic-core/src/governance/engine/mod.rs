@@ -1,3 +1,5 @@
+//! Governance engine trait drivers for different network decision-making models.
+
 pub mod anarchy;
 pub mod bicameral;
 pub mod council;
@@ -5,7 +7,7 @@ pub mod monarchy;
 
 use crate::traits::GovernanceEngine;
 
-/// Returns the active governance engine based on the build-time configuration.
+/// Returns the active governance engine driver based on compile-time configuration.
 pub fn get_active_engine() -> Box<dyn GovernanceEngine> {
     match crate::constants::GOVERNANCE_MODEL {
         "bicameral" => Box::new(bicameral::BicameralEngine),

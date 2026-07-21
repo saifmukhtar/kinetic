@@ -1,10 +1,18 @@
+//! Immutable protocol engine driver.
+
 use crate::error::GovernanceError;
 use crate::governance::types::{GovernanceEffect, GovernanceState, SignedGovernanceMessage};
 use crate::traits::GovernanceEngine;
 
+/// Immutable protocol engine driver where all governance modifications are rejected.
 pub struct AnarchyEngine;
 
 impl GovernanceEngine for AnarchyEngine {
+    /// Rejects all governance actions, preserving absolute protocol immutability.
+    ///
+    /// # Errors
+    ///
+    /// - Always returns [`GovernanceError::InsufficientSignatures`].
     fn verify_action(
         &self,
         _state: &mut GovernanceState,

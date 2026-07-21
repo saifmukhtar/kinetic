@@ -1,12 +1,24 @@
+//! Single-key Founder governance engine driver.
+
 use crate::error::GovernanceError;
 use crate::governance::types::{
     verify_signature, GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
 };
 use crate::traits::GovernanceEngine;
 
+/// Single-signer governance engine driver controlled exclusively by the Founder Root key.
 pub struct MonarchyEngine;
 
 impl GovernanceEngine for MonarchyEngine {
+    /// Verifies that the proposal is signed by the Founder Root key.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds [`MAX_AGE_SECONDS`](crate::constants::MAX_AGE_SECONDS).
+    /// - Returns [`GovernanceError::NotPendingOrVetoed`] if the target action hash is not pending in timelock queue.
+    /// - Returns [`GovernanceError::TimelockNotExpired`] if mandatory timelocks have not elapsed.
+    /// - Returns [`GovernanceError::InvalidPremiumNameLength`] if a premium name is not 1 character.
+    /// - Returns [`GovernanceError::InsufficientSignatures`] if the Root key signature is missing.
     fn verify_action(
         &self,
         state: &mut GovernanceState,

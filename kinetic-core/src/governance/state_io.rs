@@ -1,8 +1,14 @@
+//! Persistence and disk serialization helpers for [`GovernanceState`].
+//!
+//! Provides atomic Bincode state persistence using temporary file renaming and
+//! automatic corrupted-state backup routines.
+
 use super::types::GovernanceState;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
 lazy_static! {
+    /// Thread-safe global governance state instance initialized from genesis.
     pub static ref GLOBAL_GOVERNANCE_STATE: Mutex<GovernanceState> =
         Mutex::new(GovernanceState::new(
             crate::constants::KINETIC_GENESIS_TIME

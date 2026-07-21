@@ -1,3 +1,5 @@
+//! Pure council threshold multi-signature governance engine driver.
+
 use std::collections::HashSet;
 
 use crate::error::GovernanceError;
@@ -6,9 +8,20 @@ use crate::governance::types::{
 };
 use crate::traits::GovernanceEngine;
 
+/// Decentralized multi-signature governance engine driver controlled by the network Council.
 pub struct CouncilEngine;
 
 impl GovernanceEngine for CouncilEngine {
+    /// Verifies council member signatures against required supermajority thresholds.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp is too old.
+    /// - Returns [`GovernanceError::CouncilSizeMismatch`] if claimed council size is less than actual active count.
+    /// - Returns [`GovernanceError::InvalidPremiumNameLength`] if a premium name is not 1 character.
+    /// - Returns [`GovernanceError::EmptyCouncil`] if the active council is empty.
+    /// - Returns [`GovernanceError::UnhandledThresholdMath`] if threshold rules are undefined.
+    /// - Returns [`GovernanceError::InsufficientSignatures`] if valid member signatures do not meet supermajority bounds.
     fn verify_action(
         &self,
         state: &mut GovernanceState,
