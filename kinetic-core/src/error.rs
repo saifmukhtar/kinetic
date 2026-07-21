@@ -1,3 +1,21 @@
+//! Unified error taxonomy and logbook registry for Kinetic.
+//!
+//! All errors in Kinetic follow a domain-specific hierarchy designed to prevent
+//! raw OS error leakage, enforce RFC 7807 problem details URIs, and supply clean
+//! user-facing messages.
+//!
+//! ## Kinetic Error Taxonomy Architecture
+//!
+//! Every specialized domain error (e.g. [`ResolutionError`], [`PublishError`], [`RegistrationError`])
+//! provides a rich metadata interface:
+//!
+//! 1. **Stable Protocol Code**: Unique string code (e.g. `KIN-RES-001`, `KIN-PUB-003`, `KIN-REG-005`).
+//! 2. **RFC 7807 Type URI**: Web specification URI for standard error documentation.
+//! 3. **Retryability Flag** ([`is_retryable`](ResolutionError::is_retryable)): Indicates if clients should retry.
+//! 4. **Severity Classifier** ([`Severity`]): Directs logging and alert levels (`Info`, `Warning`, `Error`, `Critical`).
+//! 5. **User Message** ([`user_message`](ResolutionError::user_message)): Clean, non-technical explanation for UIs.
+//! 6. **Developer Details** ([`details`](ResolutionError::details)): Structured JSON payload for API extractors.
+
 use thiserror::Error;
 
 /// DHT record rejection and resolution/publish/registration error types.
@@ -33,17 +51,20 @@ pub use updater::UpdaterError;
 pub use vdf::{VdfError, VdfRejectReason};
 
 /// The top-level error type for core Kinetic protocol operations.
+///
+/// Encapsulates all subsystem errors into a single unified enum used across
+/// the core kernel boundaries.
 #[derive(Error, Debug)]
 pub enum KineticError {
     /// A VDF proof did not meet the required difficulty target.
     #[error("VDF proof verification failed")]
     InvalidVdfProof,
 
-    /// Domain name validation failed.
+    /// Domain name validation failed. Wraps [`NamesError`].
     #[error("Invalid Domain Name: {0}")]
     InvalidName(#[from] NamesError),
 
-    /// An Ed25519 or similar signature failed to verify.
+    /// An Ed25519 or ML-DSA-65 signature failed verification.
     #[error("Signature verification failed")]
     InvalidSignature,
 
@@ -55,15 +76,15 @@ pub enum KineticError {
     #[error("Invalid Drand pulse: {0}")]
     InvalidDrandPulse(String),
 
-    /// A Sled or other storage operation failed.
+    /// A storage operation in Sled failed. Wraps [`StorageError`].
     #[error("Storage layer error: {0}")]
     StorageError(String),
 
-    /// An unexpected internal engine error.
+    /// An unexpected internal engine failure.
     #[error("Internal engine error: {0}")]
     Internal(String),
 
-    /// An OS I/O error.
+    /// An OS I/O failure.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -75,22 +96,22 @@ pub enum KineticError {
     #[error("Cryptographic operation failed: {0}")]
     CryptoError(String),
 
-    /// A P2P network interaction failed.
+    /// A P2P network interaction failed. Wraps [`NetworkClientError`].
     #[error("Network interaction failed: {0}")]
     NetworkError(String),
 }
 
 // ─── Severity ─────────────────────────────────────────────────────────────────
 
-/// How serious an error is — drives logging level, monitoring alerts, and UI treatment.
+/// Alert and logging severity levels for Kinetic operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
-    /// Expected outcome, not a system problem (e.g. name not found).
+    /// Expected outcome, not a system problem (e.g., name not found).
     Info,
-    /// Transient condition expected to self-recover (e.g. offline, timeout).
+    /// Transient condition expected to self-recover (e.g., peer disconnect, timeout).
     Warning,
-    /// Unexpected failure requiring attention (e.g. VDF tampering).
+    /// Unexpected failure requiring attention (e.g., invalid VDF proof, corrupt record).
     Error,
-    /// Security-critical failure — system should halt (e.g. getrandom failed).
+    /// Security-critical failure requiring process halt or emergency reset.
     Critical,
 }

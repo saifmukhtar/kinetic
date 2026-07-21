@@ -1,7 +1,21 @@
-pub const TLD: &str = "kin";
-// We use the TLD_SUFFIX from constants.rs directly instead of crate::constants::TLD_SUFFIX.
+//! Domain name validation, normalization, and RFC reserved name checks.
 
-/// Normalizes a given name string by converting to lowercase, removing trailing dots, and ensuring it ends with the Kinetic TLD suffix.
+/// Canonical TLD name string for the Kinetic network.
+pub const TLD: &str = "kin";
+
+/// Normalizes a given domain name string.
+///
+/// Converts the name to lowercase, strips trailing dots, and appends the canonical
+/// Kinetic TLD suffix ([`crate::constants::TLD_SUFFIX`]) if missing.
+///
+/// # Examples
+///
+/// ```
+/// use kinetic_core::types::names::normalize_name;
+///
+/// assert_eq!(normalize_name("SAIF.KIN"), "saif.kin");
+/// assert_eq!(normalize_name("saif"), "saif.kin");
+/// ```
 pub fn normalize_name(name: &str) -> String {
     let mut norm = name.to_lowercase();
     while norm.ends_with('.') {
@@ -13,8 +27,10 @@ pub fn normalize_name(name: &str) -> String {
     norm
 }
 
-/// Checks if a given domain name is a reserved name.
-/// Hardcoded reserved names are evaluated dynamically based on TLD.
+/// Checks whether a given domain name is a Category 1 reserved public utility name.
+///
+/// Hardcoded reserved names (e.g. `localhost`, `test`, `example`) are permanently
+/// locked and cannot be registered under any TLD instance.
 pub fn is_reserved_name(name: &str) -> bool {
     let tld = crate::constants::TLD_SUFFIX;
     let name_lower = name.to_lowercase();
@@ -23,8 +39,9 @@ pub fn is_reserved_name(name: &str) -> bool {
         .any(|&r| format!("{}{}", r, tld) == name_lower)
 }
 
-/// Category 1: Public Utility Names (Based on RFC 2606 & RFC 6761)
-/// These names are permanently locked and cannot be registered by anyone.
+/// Category 1: Public Utility Names (Based on RFC 2606 & RFC 6761).
+///
+/// These names are permanently locked across the network to prevent collisions.
 pub const PUBLIC_NAMES: &[&str] = &[
     "test",
     "example",
@@ -42,7 +59,19 @@ pub const PUBLIC_NAMES: &[&str] = &[
 ];
 
 /// Validates whether a given domain name is a valid apex domain that can be registered.
-/// It checks against standard DNS label rules, lengths, and Kinetic reserved name categories.
+///
+/// Enforces standard DNS LDH (Letters, Digits, Hyphen) rules, total/label length limits,
+/// apex structure, and Category 1/2 reservation checks.
+///
+/// # Errors
+///
+/// - Returns [`NamesError::InvalidTLD`](crate::error::NamesError::InvalidTLD) if the name does not end with the network TLD suffix.
+/// - Returns [`NamesError::NameTooLong`](crate::error::NamesError::NameTooLong) if the total domain length exceeds 253 characters or is empty.
+/// - Returns [`NamesError::LabelTooLong`](crate::error::NamesError::LabelTooLong) if any individual dot-separated label exceeds 63 characters.
+/// - Returns [`NamesError::InvalidCharacter`](crate::error::NamesError::InvalidCharacter) if a label contains non-LDH characters or invalid hyphen/digit placements.
+/// - Returns [`NamesError::NotAnApexDomain`](crate::error::NamesError::NotAnApexDomain) if the input is a subdomain (e.g. `blog.saif.kin`) instead of an apex domain (`saif.kin`).
+/// - Returns [`NamesError::ReservedName`](crate::error::NamesError::ReservedName) if the label matches a Category 1 public utility name.
+/// - Returns [`NamesError::InfrastructureName`](crate::error::NamesError::InfrastructureName) if the label is a locked Category 2 network infrastructure name.
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     let name_lower = name.to_lowercase();
     if !name_lower.ends_with(crate::constants::TLD_SUFFIX) {
@@ -94,7 +123,7 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     Ok(())
 }
 
-/// Extracts the apex domain (e.g., `saif.kin`) from a potentially longer subdomain name (e.g., `blog.saif.kin`).
+/// Extracts the apex domain (e.g., `saif.kin`) from a subdomain string (e.g., `blog.saif.kin`).
 pub fn extract_apex_domain(name: &str) -> String {
     let norm = normalize_name(name);
 

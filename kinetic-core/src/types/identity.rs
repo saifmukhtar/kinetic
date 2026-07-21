@@ -1,15 +1,27 @@
+//! Cryptographic identity, Key Identifier (KID) documents, and post-quantum key management.
+//!
+//! This module handles ML-DSA-65 post-quantum signing keypairs, PBKDF2-HMAC-SHA512 key derivation
+//! (600,000 iterations), atomic file writes with strict POSIX `0o600` permissions, and memory zeroization.
+
 use serde::{Deserialize, Serialize};
 
-/// Represents an authorized Key Identifier (KID) associated with a domain.
+/// Authorized Key Identifier (KID) document bound to a `.kin` domain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedKid {
+    /// Domain name associated with this KID.
     pub name: String,
+    /// Embedded KID document containing public keys and controller data.
     pub kid_doc: kinetic_kid::document::KidDocument,
+    /// Domain owner's signature verifying the KID attachment.
     pub owner_signature: Vec<u8>,
 }
 
 impl AuthorizedKid {
-    /// Serializes the KID document into a byte vector for cryptographic signing.
+    /// Serializes the KID document into length-prefixed bytes for signing.
+    ///
+    /// # Returns
+    ///
+    /// Concatenated byte vector prefixed with the network KID authorization header.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-kid-v1").as_bytes();
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
@@ -24,17 +36,25 @@ impl AuthorizedKid {
     }
 }
 
-/// Represents an authorized capability manifest bound to a domain.
+/// Authorized capability manifest bound to a `.kin` domain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedManifest {
+    /// Domain name associated with this capability manifest.
     pub name: String,
+    /// Embedded capability manifest structure.
     pub manifest: kinetic_kid::manifest::CapabilityManifest,
+    /// Optional associated KID document.
     pub kid_doc: Option<kinetic_kid::document::KidDocument>,
+    /// Domain owner's signature verifying the manifest attachment.
     pub owner_signature: Vec<u8>,
 }
 
 impl AuthorizedManifest {
-    /// Serializes the manifest into a byte vector for cryptographic signing.
+    /// Serializes the capability manifest into length-prefixed bytes for signing.
+    ///
+    /// # Returns
+    ///
+    /// Concatenated byte vector prefixed with the network manifest authorization header.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-manifest-v1").as_bytes();
         let canon_bytes = self.manifest.canonicalize().unwrap_or_default();
@@ -49,11 +69,15 @@ impl AuthorizedManifest {
     }
 }
 
-/// Loads an Ed25519 signing keypair from the specified file.
+/// Loads an ML-DSA-65 post-quantum signing keypair from disk.
+///
+/// Looks up the file at `KINETIC_KEY_PATH` or the default base directory path.
 ///
 /// # Errors
 ///
-/// Returns an `IdentityError` if the file is not found or is corrupted (e.g., incorrect length).
+/// - Returns [`IdentityError::IdentityNotFound`](crate::error::IdentityError::IdentityNotFound) if the key file does not exist.
+/// - Returns [`IdentityError::CorruptedIdentityFile`](crate::error::IdentityError::CorruptedIdentityFile) if the key file byte length is not 32 bytes (seed length).
+/// - Returns [`IdentityError::Io`](crate::error::IdentityError::Io) if a filesystem read error occurs.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_keypair(
     filename: &str,
@@ -83,11 +107,15 @@ pub fn load_keypair(
     Err(crate::error::IdentityError::IdentityNotFound("Identity file not found. Please run 'kinetic seed init' or use the Desktop app to create one.".to_string()))
 }
 
-/// Derives and saves an Ed25519 signing keypair from a mnemonic seed phrase.
+/// Derives an ML-DSA-65 post-quantum signing keypair from a 24-word BIP39 seed phrase and saves it to disk.
+///
+/// Uses PBKDF2-HMAC-SHA512 (600,000 iterations) with a dynamic SHA-256 seed salt.
+/// Writes to disk atomically with strict POSIX `0o600` user-only permissions.
 ///
 /// # Errors
 ///
-/// Returns an `IdentityError` if the seed phrase is invalid or if there is an error writing to disk.
+/// - Returns [`IdentityError::InvalidSeedPhrase`](crate::error::IdentityError::InvalidSeedPhrase) if the mnemonic string fails BIP39 parsing.
+/// - Returns [`IdentityError::Io`](crate::error::IdentityError::Io) if directory creation or atomic file writing fails.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_keypair_from_mnemonic(
     filename: &str,

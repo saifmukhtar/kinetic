@@ -328,7 +328,7 @@ impl RegistrationError {
             Self::AlreadyOwned { .. } => "KIN-REG-004",
             Self::AlreadyInProgress { .. } => "KIN-REG-005",
             Self::NetworkRejected { .. } => "KIN-REG-006",
-            Self::Internal { .. } => "KIN-REG-006",
+            Self::Internal { .. } => "KIN-REG-007",
         }
     }
 

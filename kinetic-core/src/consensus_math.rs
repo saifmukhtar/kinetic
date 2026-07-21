@@ -1,6 +1,25 @@
-/// Parameters for the network's consensus mechanisms.
+//! Consensus difficulty math, Squatter Cliff curve, and inverse-square domain takeover calculations.
+//!
+//! # VDF Squatter Cliff Curve
+//!
+//! To prevent high-value short domain names from being trivially squatted, Kinetic requires
+//! exponential VDF iteration effort for shorter domain labels:
+//! - **1-char labels**: 100 years of sequential computation (permanently locked).
+//! - **2-char labels**: 30 days of computation.
+//! - **3 to 4-char labels**: 24 days down to 15 days.
+//! - **5 to 20-char labels**: 1 day down to 1 hour.
+//! - **21 to 62-char labels**: Baseline target time.
+//!
+//! # Inverse-Square Steal Decay Math
+//!
+//! When a domain owner fails to publish regular heartbeats, the iteration effort required
+//! for a third party to claim ("steal") the domain decays via an inverse-square formula:
+//!
+//! $$\text{Multiplier} = \left(\frac{\text{steal\_target\_rounds}}{\text{rounds\_idle} + 1}\right)^2$$
+
+/// Consensus parameters governing VDF difficulty and domain takeover decay rates.
 pub struct ConsensusParams {
-    /// Number of rounds a name must be inactive before the steal difficulty decays.
+    /// Number of Drand rounds a domain must remain idle before takeover difficulty decays to $1\times$.
     pub steal_target_rounds: u64,
 }
 
@@ -13,13 +32,24 @@ impl Default for ConsensusParams {
 }
 
 impl ConsensusParams {
-    /// Calculates the base hardware iteration requirement.
-    /// This is now a fixed value defined in network.json and updated via OTA network upgrades.
+    /// Returns the baseline hardware anchor iteration benchmark defined for the network.
     pub fn calculate_hardware_anchor(&self) -> u64 {
         crate::constants::BENCHMARK_BASE_ITERATIONS
     }
 
-    /// Calculate required iterations for a name based on length and hardware anchor
+    /// Calculates the required VDF iterations for a full `.kin` domain name.
+    ///
+    /// Normalizes the name, extracts the apex label, and evaluates difficulty against the Squatter Cliff curve.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kinetic_core::consensus_math::ConsensusParams;
+    ///
+    /// let params = ConsensusParams::default();
+    /// let iterations = params.required_iterations("saif.kin", &[0u8; 32]);
+    /// assert!(iterations > 0);
+    /// ```
     pub fn required_iterations(
         &self,
         name: &str,
@@ -33,7 +63,9 @@ impl ConsensusParams {
         self.required_iterations_by_label(label, drand_randomness)
     }
 
-    /// Calculate required iterations for a specific label
+    /// Calculates required VDF iterations for a raw domain label based on the Squatter Cliff curve.
+    ///
+    /// In dev mode (`is_dev_mode()`), returns a fixed low iteration count ([`DEV_MODE_ITERATIONS`](crate::constants::DEV_MODE_ITERATIONS)).
     pub fn required_iterations_by_label(
         &self,
         label: &str,
@@ -90,7 +122,22 @@ impl ConsensusParams {
         }
     }
 
-    /// Calculate the cost to steal a name based on how long it has been offline
+    /// Calculates the VDF iteration effort required to claim an idle domain.
+    ///
+    /// Applies an inverse-square multiplier based on `rounds_idle`. As `rounds_idle` increases,
+    /// the required effort decays down to the baseline `base_iterations`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kinetic_core::consensus_math::ConsensusParams;
+    ///
+    /// let params = ConsensusParams::default();
+    /// let base = 100;
+    /// // Early takeover attempt requires high multiplier
+    /// let diff_early = params.steal_difficulty(base, 100);
+    /// assert!(diff_early >= base);
+    /// ```
     pub fn steal_difficulty(&self, base_iterations: u64, rounds_idle: u64) -> u64 {
         let idle_plus = rounds_idle.saturating_add(1) as u128;
         let target_rounds = self.steal_target_rounds as u128;

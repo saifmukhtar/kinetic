@@ -1,45 +1,59 @@
+//! Global configuration models, default values, and port definitions for Kinetic.
+//!
+//! This module defines [`KineticConfig`], which represents the complete runtime
+//! configuration loaded from disk (`config.toml`) or environment variables.
+//!
+//! ## Configuration Resolution Order
+//!
+//! 1. **Explicit file path**: `KINETIC_CONFIG_PATH` environment variable.
+//! 2. **Default user path**: `~/.local/share/{NETWORK_ID}/config.toml` (or platform equivalent via [`get_base_dir`]).
+//! 3. **Fallback defaults**: If the file does not exist, a clean default config is automatically written to disk.
+//!
+//! ## Port Allocation Strategy
+//!
+//! All default port assignments are centralized in the [`ports`] submodule to ensure
+//! zero collisions between `kinetic-daemon`, `kinetic-node`, and `kinetic-host`.
+
 use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 use std::path::PathBuf;
 
-/// Host routing records max age (10 minutes)
+/// Maximum age in seconds (10 minutes) for cached host routing records in proxy forwarding.
 pub const HOST_ROUTE_MAX_AGE_SECS: u64 = 600;
 
-/// Well-known port constants for all Kinetic binaries.
+/// Well-known default network port assignments for Kinetic binaries.
 ///
-/// Centralising port assignments here prevents accidental conflicts
-/// between the daemon, node, and host binaries.
+/// Centralizing port assignments here prevents accidental conflicts
+/// between the daemon, node, and host processes on a single system.
 pub mod ports {
-    /// P2P listen port for `kinetic-daemon`.
+    /// Default P2P listen port for `kinetic-daemon` (6070).
     pub const P2P_DAEMON: u16 = 6070;
-    /// P2P listen port for `kinetic-node`.
+    /// Default P2P listen port for `kinetic-node` (6071).
     pub const P2P_NODE: u16 = 6071;
-    /// P2P listen port for `kinetic-host`.
+    /// Default P2P listen port for `kinetic-host` (6072).
     pub const P2P_HOST: u16 = 6072;
 
-    /// HTTP API port for `kinetic-daemon`.
+    /// Default authenticated HTTP API port for `kinetic-daemon` (16002).
     pub const API_DAEMON: u16 = 16002;
-    /// HTTP health-check API port for `kinetic-node`.
+    /// Default HTTP health-check port for `kinetic-node` (16003).
     pub const API_NODE: u16 = 16003;
-    /// HTTP health-check API port for `kinetic-host`.
+    /// Default HTTP health-check port for `kinetic-host` (16004).
     pub const API_HOST: u16 = 16004;
 
-    /// Local `.kin` reverse-proxy port.
+    /// Default HTTP reverse-proxy port for intercepting `.kin` requests (5463).
     pub const PROXY: u16 = 5463;
-    /// DNS resolver port (system default).
+    /// Default UDP DNS resolver port for native OS queries (53).
     pub const DNS: u16 = 53;
-    /// Local backend HTTP port for the proxy.
+    /// Default local backend HTTP port (80).
     pub const BACKEND: u16 = 80;
-    /// PAC (Proxy Auto-Config) server port.
+    /// Default Proxy Auto-Config (PAC) server port (16001).
     pub const PAC: u16 = 16001;
 }
 
-/// Top-level configuration for any Kinetic binary.
+/// Primary configuration container for Kinetic nodes and daemons.
 ///
-/// Loaded from `~/.local/share/kinetic/config.toml` (or the path set by
-/// `KINETIC_CONFIG_PATH`). If the file does not exist, a default config is
-/// written and used.
+/// Holds settings for daemon behavior, P2P networking, and Drand beacon connections.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KineticConfig {
     /// Daemon-level settings: ports, storage path, and network mode.
@@ -87,7 +101,7 @@ impl Default for DrandConfig {
     }
 }
 
-/// Daemon-specific configuration: API ports, storage, and operating mode.
+/// Daemon-specific configuration: API ports, storage paths, and operating mode.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonConfig {
     /// Port for the daemon's authenticated HTTP API (default: [`ports::API_DAEMON`]).
@@ -96,27 +110,28 @@ pub struct DaemonConfig {
     /// Port for the built-in DNS resolver (default: [`ports::DNS`]).
     #[serde(default = "default_dns_port")]
     pub dns_port: u16,
-    /// Port for the built-in reverse proxy (default: [`ports::PROXY`]).
+    /// Port for the built-in HTTP reverse proxy (default: [`ports::PROXY`]).
     #[serde(default = "default_proxy_port")]
     pub proxy_port: u16,
     /// Port for the local backend HTTP server (default: [`ports::BACKEND`]).
     #[serde(default = "default_backend_port")]
     pub backend_port: u16,
-    /// Whether to start the built-in DNS resolver (default: false).
+    /// Whether to start the built-in UDP DNS resolver on boot (default: `false`).
     #[serde(default)]
     pub enable_dns: bool,
-    /// Directory where the embedded Sled database is stored.
+    /// Path to the directory where the embedded storage database is persisted.
     pub storage_dir: PathBuf,
-    /// Network operating mode: `"FullNode"` or `"LightClient"`.
+    /// Network operating mode. Supported values: `"FullNode"` (participates in DHT storage & routing)
+    /// or `"LightClient"` (queries network without storing records).
     #[serde(default = "default_network_mode")]
     pub network_mode: String,
-    /// Whether the node should automatically download and install OTA updates.
+    /// Whether the node should automatically download and install OTA binary updates.
     #[serde(default = "default_auto_update")]
     pub auto_update: bool,
     /// Port for the PAC (Proxy Auto-Config) server (default: [`ports::PAC`]).
     #[serde(default = "default_pac_port")]
     pub pac_port: u16,
-    /// IPFS gateway URL to use for resolving `IPFS(cid)` records in the HTTP Proxy.
+    /// IPFS gateway URL used to resolve `IPFS(cid)` records in the HTTP Proxy.
     #[serde(default = "default_ipfs_gateway")]
     pub ipfs_gateway: String,
 }
@@ -253,8 +268,18 @@ impl Default for KineticConfig {
 }
 
 impl KineticConfig {
-    /// Loads config from disk, falling back to defaults and writing them if
-    /// the file is missing or unparseable.
+    /// Loads runtime configuration from disk (`config.toml`) or environment variables.
+    ///
+    /// Resolution Order:
+    /// 1. Checks `KINETIC_CONFIG_PATH` environment variable.
+    /// 2. Defaults to `get_base_dir().join("config.toml")`.
+    /// 3. If missing, writes default configuration to disk and returns default settings.
+    ///
+    /// # Security & Fail-Closed Behavior
+    ///
+    /// If `config.toml` exists but contains invalid TOML syntax or corrupted fields, this method
+    /// logs a critical error and aborts execution via `std::process::exit(1)`. This prevents
+    /// "fail-open" security vulnerabilities where invalid configs silently degrade to insecure defaults.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load() -> Self {
         let config_path = std::env::var(crate::constants::ENV_KINETIC_CONFIG_PATH)
@@ -290,13 +315,16 @@ impl KineticConfig {
     }
 
     #[cfg(target_arch = "wasm32")]
-    /// Stub implementation for loading configuration in Wasm
+    /// Stub implementation for loading configuration in Wasm environments.
     pub fn load() -> Self {
         Self::default()
     }
 
-    /// Serialises and writes the config back to the same path it was loaded
-    /// from.
+    /// Serializes and writes the current configuration back to `config.toml`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`std::io::Error`] if file creation, TOML serialization, or writing fails.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn save(&self) -> Result<(), std::io::Error> {
         let config_path = std::env::var(crate::constants::ENV_KINETIC_CONFIG_PATH)
@@ -313,37 +341,34 @@ impl KineticConfig {
     }
 
     #[cfg(target_arch = "wasm32")]
-    /// Stub implementation for saving configuration in Wasm
+    /// Stub implementation for saving configuration in Wasm environments.
     pub fn save(&self) -> Result<(), std::io::Error> {
         Ok(())
     }
 }
 
-/// A globally secure check for Dev Mode.
-/// It mathematically guarantees that Dev Mode cannot be activated in release builds.
+/// Returns `true` if compile-time simulation mode is enabled (`cfg!(feature = "simulation")`).
+///
+/// Mathematically guarantees that dev-mode mocks cannot be activated in release builds.
 pub fn is_dev_mode() -> bool {
     cfg!(feature = "simulation")
 }
 
-/// Returns the path to the directory where local zone JSON files are stored.
+/// Returns the path to the directory where local zone JSON files are stored (`{base_dir}/zones`).
 pub fn get_zones_dir() -> PathBuf {
     get_base_dir().join("zones")
 }
 
 /// Returns the platform-appropriate base directory for Kinetic data files.
 ///
-/// The directory is automatically namespaced by `{TLD}-{NETWORK_ID}` so that
-/// multiple forks can coexist on the same machine without colliding on disk.
-/// Can be overridden entirely with the `KINETIC_DATA_DIR` environment variable.
+/// Automatically namespaced by `{TLD}-{NETWORK_ID}` (e.g. `~/.local/share/kinetic/`)
+/// to ensure multiple network instances or forks coexist without disk collisions.
+/// Overrideable with the `KINETIC_DATA_DIR` environment variable.
 pub fn get_base_dir() -> PathBuf {
     if let Ok(path) = std::env::var(crate::constants::ENV_KINETIC_DATA_DIR) {
         return PathBuf::from(path);
     }
 
-    // Namespace by network identity so forks don't collide.
-    // NETWORK_ID is already unique (forge generates it as {tld}-{SHA256(name)[0:16]}).
-    // e.g. mainnet → ~/.local/share/kinetic/
-    //      a fork  → ~/.local/share/uni-3f8a2b.../
     let network_dir = crate::constants::NETWORK_ID;
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -359,7 +384,7 @@ pub fn get_base_dir() -> PathBuf {
     }
 }
 
-/// Returns the path to the API secret token used for local CLI authentication.
+/// Returns the path to the secret CLI API token file (`{base_dir}/api.token`).
 pub fn get_api_token_path() -> PathBuf {
     get_base_dir().join("api.token")
 }

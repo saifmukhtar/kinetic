@@ -1,6 +1,10 @@
+//! Cross-platform async signal handling for graceful node shutdown.
+//!
+//! Listens for `SIGINT` (Ctrl+C) and `SIGTERM` signals to trigger graceful task termination.
+
 use tracing::info;
 
-/// A cross-platform future that resolves when a shutdown signal is received.
+/// A cross-platform future that resolves when a shutdown signal (`SIGINT` or `SIGTERM`) is received.
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn shutdown_signal() {
     let ctrl_c = async {

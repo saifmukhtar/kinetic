@@ -1,6 +1,8 @@
-//! RFC 7807-compatible API error type.
-//! This is the ONLY error type that crosses HTTP boundaries.
-//! Internal Rust errors are converted to ApiError at the API layer.
+//! RFC 7807 Problem Details HTTP API error serialization boundary.
+//!
+//! `ApiError` is the single unified error payload that crosses HTTP network boundaries.
+//! All domain-specific error enums in [`crate::error`] implement `From<T> for ApiError`,
+//! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use crate::error::{
     DnsError, DrandError, GovernanceError, IdentityError, NetworkClientError, PublishError,
@@ -8,29 +10,29 @@ use crate::error::{
 };
 use serde::{Deserialize, Serialize};
 
-/// RFC 7807 Problem Details for HTTP APIs, with Kinetic extensions.
+/// RFC 7807 Problem Details representation for HTTP API responses, augmented with Kinetic extensions.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ApiError {
-    /// RFC 7807: URI identifying the error type
+    /// RFC 7807: URI identifying the specific error category (e.g. `"https://kinetic.network/errors/KIN-RES-002"`).
     #[serde(rename = "type")]
     pub error_type: String,
-    /// RFC 7807: Short stable human-readable summary
+    /// RFC 7807: Short human-readable title summarizing the error category.
     pub title: String,
-    /// RFC 7807: HTTP status code
+    /// RFC 7807: Associated HTTP response status code (e.g. `404`, `503`).
     pub status: u16,
-    /// RFC 7807: Human-facing explanation
+    /// RFC 7807: Human-facing explanation of the specific error occurrence.
     pub detail: String,
-    /// RFC 7807: URI of the specific request instance
+    /// RFC 7807: Optional URI identifying the specific request instance.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<String>,
-    /// Kinetic: stable protocol error code (e.g. "KIN-RES-002")
+    /// Kinetic Extension: Stable protocol error code (e.g. `"KIN-RES-002"`).
     pub code: String,
-    /// Kinetic: whether the client should retry
+    /// Kinetic Extension: Indicates whether client applications should retry the request.
     pub retryable: bool,
-    /// Kinetic: developer-facing structured diagnostics
+    /// Kinetic Extension: Developer-facing structured JSON diagnostic details.
     #[serde(skip_serializing_if = "serde_json::Value::is_null")]
     pub details: serde_json::Value,
-    /// Kinetic: correlation ID for log tracing
+    /// Kinetic Extension: Task-local correlation ID for server log tracing.
     pub request_id: String,
 }
 

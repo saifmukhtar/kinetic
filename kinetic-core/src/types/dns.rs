@@ -1,36 +1,57 @@
+//! DNS zone models, record types, and host routing structures.
+//!
+//! Handles standard DNS record types ([`A`](DnsRecord::A), [`AAAA`](DnsRecord::AAAA), [`CNAME`](DnsRecord::CNAME), [`TXT`](DnsRecord::TXT))
+//! as well as Kinetic-native decentralized record types ([`PeerId`](DnsRecord::PeerId), [`KID`](DnsRecord::KID), [`IPFS`](DnsRecord::IPFS)).
+
 use serde::{Deserialize, Serialize};
 
-/// Represents a DNS zone containing various records.
+/// Represents a DNS zone mapping subdomain labels to lists of [`DnsRecord`] entries.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DnsZone {
+    /// HashMap mapping dot-separated labels (e.g. `"@"`, `"blog"`) to record vectors.
     #[serde(default)]
     pub records: std::collections::HashMap<String, Vec<DnsRecord>>,
 }
 
-/// Enumerates the supported DNS record types and their values.
+/// Supported DNS record types and their associated payload values.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "value")]
 pub enum DnsRecord {
+    /// Standard IPv4 address record.
     A(std::net::Ipv4Addr),
+    /// Standard IPv6 address record.
     AAAA(std::net::Ipv6Addr),
+    /// Canonical Name alias pointing to another domain.
     CNAME(String),
+    /// Text record (max 255 bytes).
     TXT(String),
+    /// libp2p PeerId record pointing to a P2P node address.
     PeerId(String),
+    /// Key Identifier DID document reference (must begin with `did:kin:`).
     KID(String),
+    /// InterPlanetary File System (IPFS) Content Identifier (CID).
     IPFS(String),
 }
 
-/// Represents a host routing record that maps a host ID to a peer ID.
+/// Host routing record mapping a host identifier to a P2P peer ID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostRoutingRecord {
+    /// Unique host identifier string.
     pub host_id: String,
+    /// Currently assigned libp2p PeerId.
     pub current_peer_id: String,
+    /// Unix timestamp of record creation.
     pub timestamp: u64,
+    /// Owner signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
     pub signature: Vec<u8>,
 }
 
 impl HostRoutingRecord {
-    /// Serializes the routing record into a byte vector for cryptographic signing.
+    /// Serializes the host routing record into length-prefixed bytes for signing.
+    ///
+    /// # Returns
+    ///
+    /// Concatenated byte vector prefixed with the network routing header string.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-routing-v1").as_bytes();
         let mut bytes =
@@ -46,11 +67,16 @@ impl HostRoutingRecord {
 }
 
 impl DnsZone {
-    /// Parses a raw payload into a `DnsZone` and validates it.
+    /// Parses a raw JSON payload into a [`DnsZone`] and validates its structure.
+    ///
+    /// Features a streaming JSON recursion depth guard (max 10 levels) to prevent
+    /// stack-overflow DoS attacks ("JSON bombs") when handling untrusted network data.
     ///
     /// # Errors
     ///
-    /// Returns a `DnsError` if the payload is deeply nested, fails JSON deserialization, or fails DNS record validation.
+    /// - Returns [`DnsError::NestedTooDeeply`](crate::error::DnsError::NestedTooDeeply) if JSON bracket nesting exceeds 10 levels.
+    /// - Returns [`DnsError::JsonError`](crate::error::DnsError::JsonError) if JSON deserialization fails.
+    /// - Returns [`DnsError`] variants from [`validate`](DnsZone::validate) if record validation rules fail.
     pub fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError> {
         let mut depth = 0;
         let mut in_string = false;
@@ -88,11 +114,19 @@ impl DnsZone {
         Ok(zone)
     }
 
-    /// Validates the DNS zone records for structural correctness and constraints.
+    /// Validates all records within the DNS zone for structural correctness and network limits.
     ///
     /// # Errors
     ///
-    /// Returns a `DnsError` if there are too many records, invalid labels, invalid CNAME configurations, or improperly formatted records.
+    /// - Returns [`DnsError::TooManyRecords`](crate::error::DnsError::TooManyRecords) if the zone contains more than 50 total records.
+    /// - Returns [`DnsError::InvalidLabelLength`](crate::error::DnsError::InvalidLabelLength) if a label is empty or exceeds 63 characters.
+    /// - Returns [`DnsError::InvalidLabelCharacters`](crate::error::DnsError::InvalidLabelCharacters) if a label contains invalid characters or leading/trailing hyphens.
+    /// - Returns [`DnsError::InvalidCnameConfiguration`](crate::error::DnsError::InvalidCnameConfiguration) if a CNAME coexists with other records on the same label.
+    /// - Returns [`DnsError::TxtRecordTooLong`](crate::error::DnsError::TxtRecordTooLong) if a TXT record exceeds 255 bytes.
+    /// - Returns [`DnsError::InvalidCnameTarget`](crate::error::DnsError::InvalidCnameTarget) if a CNAME target is empty or > 253 characters.
+    /// - Returns [`DnsError::InvalidPeerId`](crate::error::DnsError::InvalidPeerId) if a `PeerId` string fails libp2p parsing.
+    /// - Returns [`DnsError::InvalidKid`](crate::error::DnsError::InvalidKid) if a `KID` string does not begin with `did:kin:`.
+    /// - Returns [`DnsError::InvalidIpfsCid`](crate::error::DnsError::InvalidIpfsCid) if an `IPFS` CID string is invalid.
     pub fn validate(&self) -> Result<(), crate::error::DnsError> {
         let mut total_records = 0;
 

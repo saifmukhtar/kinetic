@@ -1,29 +1,25 @@
 //! # kinetic-core
 //!
-//! The shared kernel for the Kinetic decentralised naming network.
+//! The foundational shared kernel for the Kinetic decentralized naming network.
 //!
-//! This crate contains all the foundational types, traits, and logic that every
-//! other crate in the workspace depends on. Nothing in here performs I/O or
-//! talks to the network — it is pure, deterministic logic.
+//! `kinetic-core` contains the core domain models, protocol constants, cryptographic
+//! state machines, error hierarchies, and common I/O utilities used across all Kinetic
+//! binaries and sub-crates.
 //!
-//! ## What lives here
+//! ## Architecture & Module Map
 //!
-//! - **`config`** — [`KineticConfig`](config::KineticConfig) loaded from
-//!   `~/.local/share/kinetic/config.toml` and the canonical port constants.
-//! - **`types`** — Core domain types: [`DnsZone`](types::DnsZone),
-//!   [`DnsRecord`](types::DnsRecord), [`Commitment`](types::Commitment),
-//!   [`VdfProof`](types::VdfProof), and helpers for `.kin` name normalisation.
-//! - **`error`** — The unified [`KineticError`] hierarchy with typed variants
-//!   for publishing, resolution, registration, VDF, and governance failures.
-//! - **`traits`** — Abstract interfaces: [`VdfEngine`](traits::VdfEngine) and
-//!   [`StorageEngine`](traits::StorageEngine).
-//! - **`governance`** — The bicameral council state machine and the
-//!   Kinetic Rulebook that governs privileged on-chain actions.
-//! - **`consensus_math`** — Deterministic VDF iteration calculations and
-//!   grace-period escalation formulas.
-//! - **`drand`** — Client for the drand distributed randomness beacon.
-//! - **`updater`** — OTA update state machine for daemon self-updates.
-//! - **`api_error`** — Axum-compatible [`ApiError`] type for HTTP API handlers.
+//! - **[`config`]** — Daemon configuration structures ([`KineticConfig`](config::KineticConfig)) and network port defaults.
+//! - **[`types`]** — Shared wire-format types ([`DnsZone`](types::DnsZone), [`DnsRecord`](types::DnsRecord), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
+//! - **[`error`]** — Unified error logbook ([`KineticError`](error::KineticError)), domain errors ([`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), [`RegistrationError`](error::RegistrationError)), and stable error codes.
+//! - **[`traits`]** — Core abstraction traits ([`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine)).
+//! - **[`governance`]** — Bicameral council state machine and parameter rulebooks governing privileged protocol actions.
+//! - **[`consensus_math`]** — Deterministic math routines for VDF difficulty scaling, name-length pricing, and grace period calculations.
+//! - **[`drand`]** — Client interface for the drand distributed randomness beacon used in time-bound operations.
+//! - **[`net`]** — Network security primitives, IP classification, and SSRF prevention guards.
+//! - **[`shutdown`]** — Cross-platform graceful shutdown listeners.
+//! - **[`updater`]** *(Non-WASM)* — OTA self-update state machine for node binaries.
+//! - **[`api_error`]** *(Non-WASM)* — HTTP status code mapping and Axum-compatible API error responses ([`ApiError`](api_error::ApiError)).
+//! - **[`request_id`]** *(Non-WASM)* — Idempotency key generators for daemon API requests.
 
 #![deny(missing_docs)]
 
@@ -38,9 +34,9 @@ pub mod consensus_math;
 pub mod constants;
 /// drand beacon client for epoch-bound randomness and Sybil-resistance.
 pub mod drand;
-/// Unified error types for storage, VDF, KID, and general Kinetic operations.
+/// Unified error taxonomy: [`KineticError`](error::KineticError), [`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), and [`RegistrationError`](error::RegistrationError).
 pub mod error;
-/// On-chain governance: council proposals, voting, and parameter updates.
+/// Protocol governance: council proposals, voting, and parameter updates.
 pub mod governance;
 
 /// Network security utilities for SSRF prevention.
@@ -58,9 +54,18 @@ pub mod types;
 /// Self-updater module for Kinetic node binaries.
 pub mod updater;
 
+/// HTTP API error response wrapper ([`ApiError`](api_error::ApiError)) for Axum web handlers.
 #[cfg(not(target_arch = "wasm32"))]
 pub use api_error::ApiError;
 
+/// Primary protocol error taxonomy re-exported at crate root:
+/// - [`KineticError`]: Top-level unified error enum.
+/// - [`PublishError`]: Record publication failures (`KIN-PUB-*`).
+/// - [`RegistrationError`]: Domain registration failures (`KIN-REG-*`).
+/// - [`ResolutionError`]: DHT name resolution failures (`KIN-RES-*`).
+/// - [`RecordRejectReason`]: Storage engine rejection codes.
+/// - [`VdfRejectReason`]: VDF proof validation rejection reasons.
+/// - [`Severity`]: Logging & monitoring alert severity classifier (`Info`, `Warning`, `Error`, `Critical`).
 pub use error::{
     KineticError, PublishError, RecordRejectReason, RegistrationError, ResolutionError, Severity,
     VdfRejectReason,

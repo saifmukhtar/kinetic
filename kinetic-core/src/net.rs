@@ -1,8 +1,25 @@
+//! Network IP address validation and Server-Side Request Forgery (SSRF) defenses.
+//!
+//! Provides IP filtering utilities for HTTP proxy forwarding to prevent malicious target resolution.
+
 use std::net::IpAddr;
 
-/// Checks if an IP address is safe to connect to or proxy through.
-/// Blocks loopback, unspecified, private, link-local, broadcast, multicast,
-/// documentation, CGNAT (100.64.0.0/10), and NAT64 (64:ff9b::/96) addresses.
+/// Checks whether an IP address is safe to connect to or proxy through.
+///
+/// Returns `false` for loopback, unspecified, private, link-local, broadcast,
+/// multicast, documentation, CGNAT (`100.64.0.0/10`), NAT64 (`64:ff9b::/96`),
+/// and IPv4-mapped IPv6 internal targets.
+///
+/// # Examples
+///
+/// ```
+/// use std::net::IpAddr;
+/// use kinetic_core::net::is_ssrf_safe;
+///
+/// assert!(is_ssrf_safe("1.1.1.1".parse::<IpAddr>().unwrap()));
+/// assert!(!is_ssrf_safe("127.0.0.1".parse::<IpAddr>().unwrap()));
+/// assert!(!is_ssrf_safe("192.168.1.1".parse::<IpAddr>().unwrap()));
+/// ```
 pub fn is_ssrf_safe(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {

@@ -1,3 +1,9 @@
+//! League of Entropy Drand Quicknet randomness beacon client and cache manager.
+//!
+//! Fetches 3-second public randomness pulses from Drand HTTP endpoints and DNS seed TXT records,
+//! verifies BLS12-381 G2 signatures, binds SHA-256 randomness output, and caches valid pulses to storage.
+
+use crate::error::DrandError;
 use crate::traits::StorageEngine;
 use drand_verify::{G2PubkeyRfc, Pubkey};
 use serde::{Deserialize, Serialize};
@@ -13,28 +19,26 @@ const CACHE_KEY: &str = "drand_last_pulse";
 // Heartbeat staleness threshold — 10 minutes in Drand Quicknet rounds (3s each)
 const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200; // 10min * 20 rounds/min
 
-use crate::error::DrandError;
-
-/// A single randomness beacon from the drand Quicknet chain.
+/// A single randomness beacon pulse from the drand Quicknet network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrandPulse {
-    /// The monotonically increasing round number.
+    /// Monotonically increasing round number.
     pub round: u64,
-    /// The hex-encoded randomness output for this round.
+    /// Hex-encoded SHA-256 randomness output string.
     pub randomness: String,
-    /// The BLS signature from the League of Entropy.
+    /// BLS12-381 G2 signature string from the League of Entropy.
     #[serde(default)]
     pub signature: String,
-    /// `true` if this pulse was loaded from the local Sled cache rather than fetched live.
+    /// `true` if loaded from the local storage cache rather than fetched live.
     #[serde(default)]
     pub is_from_cache: bool,
-    /// `true` if no live or cached pulse was available (sentinel / unavailable state).
+    /// `true` if no live or cached pulse was available (sentinel unavailable state).
     #[serde(default)]
     pub is_unavailable: bool,
 }
 
 impl DrandPulse {
-    /// Returns a sentinel [`DrandPulse`] representing an unavailable beacon.
+    /// Returns a sentinel [`DrandPulse`] representing an unavailable beacon state.
     pub fn unavailable() -> Self {
         Self {
             round: 0,
@@ -45,16 +49,15 @@ impl DrandPulse {
         }
     }
 
-    /// Returns `true` if this pulse is suitable for driving a VDF-based registration
-    /// (must be live — not from cache and not the unavailable sentinel).
+    /// Returns `true` if this pulse is suitable for driving VDF domain registrations (must be live).
     pub fn is_usable_for_registration(&self) -> bool {
         !self.is_unavailable && !self.is_from_cache
     }
 
-    /// Returns `true` if this pulse can be used to validate a heartbeat.
+    /// Returns `true` if this pulse is acceptable for heartbeat validation.
     ///
-    /// Cached pulses are accepted if they are not too stale relative to `current_live_round`
-    /// (threshold: `MAX_STALE_ROUNDS_FOR_HEARTBEAT`).
+    /// Accepts cached pulses if their round age relative to `current_live_round` does not
+    /// exceed `MAX_STALE_ROUNDS_FOR_HEARTBEAT` (200 rounds / 10 minutes).
     pub fn is_usable_for_heartbeat(&self, current_live_round: u64) -> bool {
         if self.is_unavailable {
             return false;
@@ -62,13 +65,14 @@ impl DrandPulse {
         if !self.is_from_cache {
             return true;
         }
-        // Cached: only accept if not too stale
-        // Cached: only accept if not too stale
         let staleness = current_live_round.saturating_sub(self.round);
         staleness <= MAX_STALE_ROUNDS_FOR_HEARTBEAT
     }
 
-    /// Cryptographically verifies the pulse against the League of Entropy's public key.
+    /// Cryptographically verifies the pulse against the League of Entropy Quicknet public key.
+    ///
+    /// Validates both the BLS12-381 G2 signature and the `SHA-256(signature) == randomness` binding.
+    /// In dev mode (`is_dev_mode()`), bypasses signature verification to allow offline mock testing.
     pub fn verify(&self) -> bool {
         if self.is_unavailable {
             return true;
@@ -112,10 +116,7 @@ impl DrandPulse {
     }
 }
 
-/// HTTP client for the drand Quicknet randomness beacon.
-///
-/// Fetches the latest pulse from `DRAND_ENDPOINTS` with exponential backoff
-/// and falls back to a locally cached pulse when the network is unavailable.
+/// HTTP and DNS-backed client for fetching and caching Drand Quicknet randomness pulses.
 pub struct DrandClient {
     http: reqwest::Client,
     storage: Option<Arc<dyn StorageEngine>>,
@@ -128,7 +129,7 @@ pub struct DrandClient {
 impl DrandClient {
     /// Creates a new [`DrandClient`].
     ///
-    /// Pass `Some(storage)` to enable caching of the last successfully fetched pulse.
+    /// Accepts an optional [`StorageEngine`] handle to cache successfully fetched pulses on disk.
     pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
         let config = crate::config::KineticConfig::load();
         Self {
@@ -144,8 +145,19 @@ impl DrandClient {
         }
     }
 
-    /// Fetches the latest drand pulse, falling back to the on-disk cache if all
-    /// network endpoints fail.
+    /// Fetches the latest verified Drand pulse across configured endpoints and DNS seeds.
+    ///
+    /// Performs exponential backoff, verifies BLS signatures, enforces a 10-minute staleness
+    /// limit, and falls back to local storage cache if network endpoints are unreachable.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`DrandError::InvalidSignature`](crate::error::DrandError::InvalidSignature) if an endpoint returns a bad BLS signature.
+    /// - Returns [`DrandError::StalePulse`](crate::error::DrandError::StalePulse) if a pulse is older than 200 rounds (10 minutes).
+    /// - Returns [`DrandError::HttpError`](crate::error::DrandError::HttpError) on non-200 HTTP responses.
+    /// - Returns [`DrandError::Network`](crate::error::DrandError::Network) on connection timeouts or body size limit violations (> 64 KB).
+    /// - Returns [`DrandError::NoCachedPulse`](crate::error::DrandError::NoCachedPulse) if all endpoints fail and no cache exists.
+    /// - Returns [`DrandError::AllEndpointsFailed`](crate::error::DrandError::AllEndpointsFailed) if network and fallback attempts fail.
     pub async fn fetch_latest(&self) -> Result<DrandPulse, DrandError> {
         if crate::config::is_dev_mode() {
             return self.load_cached_pulse();
@@ -288,7 +300,12 @@ impl DrandClient {
         Err(DrandError::AllEndpointsFailed)
     }
 
-    /// Caches a pulse to the local storage engine.
+    /// Caches a verified pulse to the local storage engine.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`DrandError::JsonError`](crate::error::DrandError::JsonError) if JSON serialization fails.
+    /// - Returns [`DrandError::Storage`](crate::error::DrandError::Storage) if writing to disk fails.
     pub fn cache_pulse(&self, pulse: &DrandPulse) -> Result<(), DrandError> {
         if let Some(storage) = &self.storage {
             let bytes = serde_json::to_vec(pulse)?;
@@ -297,11 +314,14 @@ impl DrandClient {
         Ok(())
     }
 
-    /// Retrieves the most recent successfully fetched pulse from local storage.
+    /// Retrieves the most recent successfully cached pulse from local storage.
     ///
-    /// In dev mode, returns a synthetic mock pulse to allow offline development.
-    /// When storage is empty and the system clock is available, returns an
-    /// estimated pulse derived from the Quicknet genesis time.
+    /// In dev mode (`is_dev_mode()`), if the cache is empty, returns a synthetic mock pulse (`round: 5,000,000`).
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`DrandError::NoCachedPulse`](crate::error::DrandError::NoCachedPulse) if storage is empty or missing (outside dev mode).
+    /// - Returns [`DrandError::Storage`](crate::error::DrandError::Storage) if database reading fails.
     pub fn load_cached_pulse(&self) -> Result<DrandPulse, DrandError> {
         if let Some(storage) = &self.storage {
             if let Ok(Some(bytes)) = storage.get(CACHE_KEY.as_bytes()) {

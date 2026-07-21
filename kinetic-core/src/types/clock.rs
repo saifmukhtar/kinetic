@@ -1,29 +1,51 @@
-//! Kinetic Timekeeping
+//! Kinetic Network Timekeeping & Branded Time Units.
 //!
-//! Provides purely cosmetic, branded time tracking for frontends and block explorers.
-//! The underlying consensus engine uses absolute Drand rounds, but this module
-//! translates those rounds into the official Kinetic Epoch/Cycle/Pulse format.
+//! Provides branded time tracking for frontends, explorers, and node monitoring.
+//! The underlying consensus engine uses absolute Drand rounds, which this module
+//! translates into the official Kinetic time hierarchy:
+//!
+//! - **1 Pulse** = 1 Drand Round (3 seconds)
+//! - **1 Cycle** = 1,200 Pulses (1 Hour)
+//! - **1 Epoch** = 28,800 Pulses (1 Day / 24 Hours)
+//! - **1 Orbit** = 7 Epochs (1 Week / 7 Days / 201,600 Pulses)
 
 use crate::constants::KINETIC_GENESIS_DRAND_ROUND;
 use serde::{Deserialize, Serialize};
 
 /// Represents a specific point in time on the Kinetic network using branded units.
 ///
-/// - 1 Pulse = 1 Drand Round (3 seconds)
-/// - 1 Cycle = 1,200 Pulses (1 Hour)
-/// - 1 Epoch = 28,800 Pulses (1 Day)
+/// # Time Hierarchy
+///
+/// - **Pulse**: 1 Drand Round (3 seconds)
+/// - **Cycle**: 1,200 Pulses (1 Hour)
+/// - **Epoch**: 28,800 Pulses (1 Day)
+/// - **Orbit**: 7 Epochs (1 Week)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KineticTime {
+    /// Number of completed 24-hour network Epochs (28,800 pulses each).
     pub epoch: u64,
+    /// Number of completed 1-hour network Cycles within the current Epoch (1,200 pulses each, 0..23).
     pub cycle: u64,
+    /// Number of completed 3-second Pulses within the current Cycle (0..1199).
     pub pulse: u64,
+    /// Total number of pulses elapsed since network genesis.
     pub total_pulses: u64,
 }
 
 impl KineticTime {
-    /// Creates a new `KineticTime` from an absolute Drand round.
+    /// Creates a new [`KineticTime`] instance from an absolute Drand round number.
     ///
-    /// If the provided round is before the `KINETIC_GENESIS_DRAND_ROUND`, it returns a time of zero.
+    /// If `current_drand_round` is less than [`KINETIC_GENESIS_DRAND_ROUND`],
+    /// returns a time structure initialized to zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kinetic_core::types::clock::KineticTime;
+    ///
+    /// let time = KineticTime::from_drand_round(0);
+    /// assert_eq!(time.total_pulses, 0);
+    /// ```
     #[allow(clippy::absurd_extreme_comparisons)]
     pub fn from_drand_round(current_drand_round: u64) -> Self {
         if current_drand_round < KINETIC_GENESIS_DRAND_ROUND {
@@ -51,8 +73,30 @@ impl KineticTime {
         }
     }
 
-    /// Formats the time as a sleek, sci-fi aesthetic string.
-    /// Example: `Epoch 14, Cycle 8 (Pulse 452)`
+    /// Returns the number of completed 7-day network Orbits (1 Orbit = 7 Epochs).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kinetic_core::types::clock::KineticTime;
+    ///
+    /// let time = KineticTime { epoch: 14, cycle: 0, pulse: 0, total_pulses: 403200 };
+    /// assert_eq!(time.orbit(), 2);
+    /// ```
+    pub fn orbit(&self) -> u64 {
+        self.epoch / 7
+    }
+
+    /// Formats the time into a branded aesthetic string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kinetic_core::types::clock::KineticTime;
+    ///
+    /// let time = KineticTime { epoch: 14, cycle: 8, pulse: 452, total_pulses: 413252 };
+    /// assert_eq!(time.to_display_string(), "Epoch 14, Cycle 8 (Pulse 452)");
+    /// ```
     pub fn to_display_string(&self) -> String {
         format!(
             "Epoch {}, Cycle {} (Pulse {})",

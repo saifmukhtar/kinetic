@@ -1,3 +1,8 @@
+//! Over-The-Air (OTA) binary update engine and mirror verification pipeline.
+//!
+//! Handles HTTPS mirror queries, strict version verification (`manifest.version == release.version`),
+//! SHA-256 chunked download hashing, atomic binary image replacement ([`self_replace`]), and process re-execution.
+
 use futures_util::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -10,33 +15,39 @@ use tempfile::NamedTempFile;
 use tracing::{error, info, warn};
 use web_time::Duration;
 
-/// Represents the parsed JSON from `manifest.json`.
+/// Represents parsed metadata from `manifest.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Manifest {
-    /// The canonical version string.
+    /// Canonical version string of the target release (e.g. `"1.2.3"`).
     pub version: String,
-    /// A mapping of binary names to their expected SHA-256 hashes.
+    /// Mapping of binary target names to expected SHA-256 hexadecimal hash strings.
     pub binaries: HashMap<String, String>,
 }
 
-/// Represents the parsed JSON from `release.json`.
+/// Represents parsed release metadata from `release.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Release {
-    /// The canonical version string of the release.
+    /// Canonical version string of the release.
     pub version: String,
 }
 
-/// Downloads and atomically replaces the running binary from one of the given
-/// `mirrors`, verifying the download against `expected_hash` (SHA-256).
+/// Downloads and atomically replaces the running executable from verified HTTPS mirrors.
 ///
-/// The update follows five safety properties:
-/// 1. A 60-second request timeout prevents hanging on unresponsive mirrors.
-/// 2. The download is streamed chunk-by-chunk to avoid OOM on large binaries.
-/// 3. Hash verification is performed before the binary is replaced.
-/// 4. The binary is replaced atomically using `self_replace`.
-/// 5. The process is re-launched via `exec()`, retaining all CLI arguments.
+/// # Security & Safety Guarantees
 ///
-/// Returns an error if all mirrors fail or produce an invalid hash.
+/// 1. **HTTPS Enforcement**: Rejects insecure `http://` mirror URLs.
+/// 2. **Strict Version Verification**: Asserts that `manifest.version == release.version`.
+/// 3. **SHA-256 Hash Matching**: Verifies the SHA-256 digest of downloaded binaries before disk swap.
+/// 4. **Chunked Memory Cap**: Streams binary chunks with a 250 MB max limit to prevent OOM attacks.
+/// 5. **Atomic Process Replacement**: Swaps binary images on disk using [`self_replace`] and executes POSIX `exec()` to inherit runtime parameters.
+///
+/// # Errors
+///
+/// - Returns [`UpdaterError::NoMirrorsProvided`](crate::error::UpdaterError::NoMirrorsProvided) if the mirror vector is empty.
+/// - Returns [`UpdaterError::NetworkError`](crate::error::UpdaterError::NetworkError) if all mirrors fail or return invalid hashes.
+/// - Returns [`UpdaterError::ReqwestError`](crate::error::UpdaterError::ReqwestError) if HTTP client setup or request execution fails.
+/// - Returns [`UpdaterError::SelfReplaceError`](crate::error::UpdaterError::SelfReplaceError) if file swapping fails (e.g. permission denied).
+/// - Returns [`UpdaterError::SpawnFailed`](crate::error::UpdaterError::SpawnFailed) if process re-execution fails.
 pub async fn perform_ota_update(
     self_id: &str,
     expected_manifest_hash: [u8; 32],

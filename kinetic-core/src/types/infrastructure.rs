@@ -1,4 +1,7 @@
-/// Category 2: Kinetic Infrastructure Names
+//! Category 2 reserved network infrastructure names and heartbeat exemption rules.
+
+/// Category 2: Kinetic Infrastructure Names.
+///
 /// These names represent critical network infrastructure (docs, bootstrap nodes, explorer).
 /// To prevent squatters from claiming critical network infrastructure, these names CANNOT be
 /// mined by users. They are permanently locked and can only be allocated or reassigned by
