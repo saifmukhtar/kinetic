@@ -16,12 +16,15 @@ pub mod resolve;
 pub mod vdf;
 /// API endpoints for DNS zone management.
 pub mod zone;
+/// API endpoints for streaming Kinetic time.
+pub mod time;
 
 use config::*;
 use publish::*;
 use resolve::*;
 use vdf::*;
 use zone::*;
+use time::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
@@ -104,6 +107,7 @@ pub fn app(state: ApiState) -> Router {
         .route("/publish", post(handle_publish))
         .route("/publish-kid", post(handle_publish_kid))
         .route("/publish-manifest", post(handle_publish_manifest))
+        .route("/publish-governance", post(handle_publish_governance))
         .route("/config", axum::routing::get(handle_config))
         .route("/config", axum::routing::post(handle_set_config))
         .route(
@@ -129,9 +133,11 @@ pub fn app(state: ApiState) -> Router {
 
     let public_api_routes = Router::new()
         .route("/network-status", axum::routing::get(handle_network_status))
+        .route("/governance", axum::routing::get(handle_get_governance))
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
-        .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid));
+        .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
+        .route("/time", axum::routing::get(handle_get_time));
 
     // Expose all routes under /api (for the UI) and at bare paths (for the CLI).
     // auth_routes is defined with .layer() so the middleware is preserved in both cases.
@@ -177,18 +183,9 @@ fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<Stri
     Ok(token)
 }
 
-/// Starts the HTTP API server on the specified port.
-///
-/// # Errors
-///
-/// Returns an error if the server fails to bind to the port or if token generation fails.
-pub async fn start_server(
-    network: NetworkClient,
-    storage: Arc<dyn StorageEngine>,
-    port: u16,
-) -> anyhow::Result<()> {
+/// Ensures the API token is generated and returned.
+pub fn ensure_api_token() -> anyhow::Result<String> {
     let token_path = kinetic_core::config::get_api_token_path();
-
     let token = if let Ok(existing) = std::fs::read_to_string(&token_path) {
         let trimmed = existing.trim().to_string();
         if trimmed.len() == 64 {
@@ -199,12 +196,25 @@ pub async fn start_server(
     } else {
         generate_and_write_token(&token_path)?
     };
+    Ok(token)
+}
+
+/// Starts the HTTP API server on the specified port.
+///
+/// # Errors
+///
+/// Returns an error if the server fails to bind to the port or if token generation fails.
+pub async fn start_server(
+    network: NetworkClient,
+    storage: Arc<dyn StorageEngine>,
+    port: u16,
+) -> anyhow::Result<()> {
+    let token = ensure_api_token()?;
 
     let state = ApiState {
         network,
         storage,
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
-
         auth_token: token,
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
     };

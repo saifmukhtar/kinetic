@@ -86,7 +86,10 @@ fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
         let status = std::process::Command::new("sudo")
             .arg("cp")
             .arg(cert_path)
-            .arg("/usr/local/share/ca-certificates/kinetic.crt")
+            .arg(format!(
+                "/usr/local/share/ca-certificates/{}.crt",
+                kinetic_core::constants::NETWORK_ID
+            ))
             .status()?;
         if status.success() {
             std::process::Command::new("sudo")
@@ -115,7 +118,8 @@ fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-fn install_service(user: Option<String>, config_dir_opt: Option<String>) -> Result<()> {
+fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> Result<()> {
+    user = user.or_else(|| std::env::var("SUDO_USER").ok());
     let base_config_dir = if let Some(dir) = config_dir_opt {
         std::path::PathBuf::from(dir)
     } else {
@@ -139,13 +143,19 @@ fn install_service(user: Option<String>, config_dir_opt: Option<String>) -> Resu
         println!("CA Trusted successfully.");
     }
 
+    if let Some(ref u) = user {
+        #[cfg(unix)]
+        {
+            let _ = std::process::Command::new("chown")
+                .arg("-R")
+                .arg(format!("{}:{}", u, u))
+                .arg(&base_config_dir)
+                .status();
+        }
+    }
+
     println!("Installing Kinetic Daemon service...");
-    let label: ServiceLabel = format!(
-        "{}.{}.daemon",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     let current_exe = env::current_exe()?;
@@ -168,12 +178,7 @@ fn install_service(user: Option<String>, config_dir_opt: Option<String>) -> Resu
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.daemon",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -182,12 +187,7 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.daemon",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.start(ServiceStartCtx { label })?;
@@ -196,12 +196,7 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!(
-        "{}.{}.daemon",
-        kinetic_core::constants::TLD,
-        kinetic_core::constants::NETWORK_ID
-    )
-    .parse()?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -253,9 +248,10 @@ async fn run_daemon() -> Result<()> {
     info!("VDF Engine initialized");
 
     let daemon_keypair = load_keypair("identity.key")?;
+    use ml_dsa::{KeyExport, Keypair};
     info!(
         "Daemon identity loaded: {:?}",
-        hex::encode(daemon_keypair.verifying_key().as_bytes())
+        hex::encode(daemon_keypair.verifying_key().to_bytes())
     );
 
     let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(Some(storage.clone())));
@@ -271,6 +267,13 @@ async fn run_daemon() -> Result<()> {
         }
     };
     let initial_drand_pulse = initial_pulse.round;
+
+    // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately 
+    // without having to wait for the 30-40 second PoW mining loop to finish.
+    if let Err(e) = kinetic_daemon::api::ensure_api_token() {
+        tracing::error!("Failed to generate or read API token: {}", e);
+        std::process::exit(1);
+    }
 
     let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
     let local_key = kinetic_network::pow::mine_sybil_keypair(
@@ -289,6 +292,7 @@ async fn run_daemon() -> Result<()> {
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.daemon_port)
             .parse()
             .unwrap(),
+        quic_listen_addr: Some(format!("/ip4/0.0.0.0/udp/{}/quic-v1", config.network.daemon_quic_port).parse().unwrap()),
         bootstrap_nodes: config
             .network
             .bootstrap_nodes
@@ -317,7 +321,60 @@ async fn run_daemon() -> Result<()> {
     let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
-    let gov_state_path = std::sync::Arc::new(base_config_dir.join("governance_state.bin"));
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_KINETIC_GOVERNANCE_PATH)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| base_config_dir.join("governance.key"));
+
+    if !gov_state_path.exists() {
+        tracing::info!("Governance state file not found locally. Attempting to bootstrap from seed nodes...");
+        
+        let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap_or_default();
+        let mut success = false;
+        
+        let mut target_ips = Vec::new();
+        for addr in &config.network.bootstrap_nodes {
+            if let Some(ip) = addr.split('/').nth(2) {
+                target_ips.push(ip.to_string());
+            }
+        }
+        
+        for domain in &config.network.seed_domains {
+            let addrs = kinetic_network::dns_tree::resolve_dns_tree(domain.as_str()).await;
+            for multiaddr in addrs {
+                if let Some(ip) = multiaddr.to_string().split('/').nth(2) {
+                    target_ips.push(ip.to_string());
+                }
+            }
+        }
+        
+        for ip in target_ips {
+            let url = format!("http://{}:{}/api/governance", ip, kinetic_core::config::ports::API_DAEMON);
+            tracing::info!("Trying to fetch governance state from {}...", url);
+            if let Ok(resp) = client.get(&url).send().await {
+                if resp.status().is_success() {
+                    if let Ok(bytes) = resp.bytes().await {
+                        if let Ok(downloaded_state) = bincode::deserialize::<kinetic_core::governance::GovernanceState>(&bytes) {
+                            if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
+                                tracing::warn!("Failed to save downloaded governance state to disk: {}", e);
+                            } else {
+                                tracing::info!("Successfully bootstrapped governance state from seed node.");
+                                success = true;
+                                break;
+                            }
+                        } else {
+                            tracing::warn!("Seed node provided invalid governance state bytes.");
+                        }
+                    }
+                }
+            }
+        }
+        
+        if !success {
+            tracing::warn!("Failed to fetch governance state from any bootstrap node. Initializing a default genesis state.");
+        }
+    }
+
+    let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
@@ -340,7 +397,7 @@ async fn run_daemon() -> Result<()> {
 
     // Subscribe to Quicknet Pulse Gossip
     let _ = network_client
-        .subscribe_gossip("drand_pulse_quicknet")
+        .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
         .await;
     info!("P2P Network architecture wired");
 
@@ -428,13 +485,13 @@ async fn run_daemon() -> Result<()> {
     );
 
     tokio::spawn(async move {
-        if let Err(e) = pac::start_pac_server(16001, config.daemon.proxy_port).await {
+        if let Err(e) = pac::start_pac_server(config.daemon.pac_port, config.daemon.proxy_port).await {
             tracing::error!("PAC server crashed: {}", e);
         }
     });
 
     let pac_manager = pac::PacManager::new(&base_config_dir);
-    if let Err(e) = pac_manager.install("http://127.0.0.1:16001/proxy.pac") {
+    if let Err(e) = pac_manager.install(&format!("http://127.0.0.1:{}/proxy.pac", config.daemon.pac_port)) {
         tracing::error!("Failed to install OS proxy configuration: {}", e);
     }
 
@@ -477,12 +534,19 @@ async fn run_daemon() -> Result<()> {
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    rustls::crypto::ring::default_provider()
-        .install_default()
-        .ok();
+fn main() -> anyhow::Result<()> {
+    if let Err(e) = rustls::crypto::ring::default_provider().install_default() {
+        eprintln!("Rustls crypto provider already installed or failed: {:?}", e);
+    }
 
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to build tokio runtime")
+        .block_on(async_main())
+}
+
+async fn async_main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
