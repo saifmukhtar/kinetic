@@ -1,3 +1,5 @@
+//! New .kin domain name registration engine featuring Drand entropy, two-phase commitment, and VDF proof generation.
+
 use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::traits::VdfEngine;
