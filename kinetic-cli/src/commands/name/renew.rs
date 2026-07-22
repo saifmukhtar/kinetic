@@ -1,3 +1,5 @@
+//! Domain name renewal engine with cryptographic proof chaining and owner VDF difficulty discounts.
+
 use crate::utils::parse_and_format_api_error;
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::traits::VdfEngine;
