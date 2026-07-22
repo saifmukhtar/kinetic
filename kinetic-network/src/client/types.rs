@@ -1,3 +1,5 @@
+//! Type definitions and configuration structures for network client operations and P2P proxying.
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

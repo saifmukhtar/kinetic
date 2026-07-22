@@ -1,3 +1,5 @@
+//! Thread-safe `NetworkClient` handle for sending commands to the background P2P event loop.
+
 use crate::client::command::Command;
 use crate::client::types::{ProxyError, ProxyRequest, ProxyResponse};
 use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};

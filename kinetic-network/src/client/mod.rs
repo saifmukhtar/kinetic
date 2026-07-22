@@ -1,3 +1,5 @@
+//! Thread-safe network client handle, command channel definitions, and configuration types.
+
 /// Commands for the network event loop.
 pub mod command;
 /// Core client implementation.

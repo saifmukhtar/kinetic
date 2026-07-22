@@ -1,3 +1,5 @@
+//! Asynchronous commands sent from client tasks to the background network event loop.
+
 use crate::client::types::{ProxyError, ProxyRequest, ProxyResponse};
 use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};
 use std::sync::Arc;
