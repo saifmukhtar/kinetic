@@ -18,7 +18,7 @@ impl GovernanceEngine for MonarchyEngine {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds [`MAX_AGE_SECONDS`](crate::constants::MAX_AGE_SECONDS).
+    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds [`crate::constants::MAX_AGE_SECONDS`].
     /// - Returns [`GovernanceError::NotPendingOrVetoed`] if the target action hash is not pending in timelock queue.
     /// - Returns [`GovernanceError::TimelockNotExpired`] if mandatory timelocks have not elapsed.
     /// - Returns [`GovernanceError::InvalidPremiumNameLength`] if a premium name is not 1 character.

@@ -122,7 +122,7 @@ pub struct Reveal {
     pub vdf_proof: VdfProof,
     /// ML-DSA-65 public key of the domain owner.
     pub pubkey: Vec<u8>,
-    /// ML-DSA-65 post-quantum signature over [`signable_bytes`](Reveal::signable_bytes).
+    /// ML-DSA-65 post-quantum signature over `signable_bytes`.
     pub signature: Vec<u8>,
     /// Optional chained proof for domain renewal operations.
     pub previous_proof: Option<PreviousProof>,
@@ -135,9 +135,9 @@ impl Reveal {
     ///
     /// # Errors
     ///
-    /// - Returns [`KineticError::Internal`](crate::KineticError::Internal) if `protocol_version != 1`.
-    /// - Returns [`KineticError::InvalidName`](crate::KineticError::InvalidName) (wrapping [`NamesError`](crate::error::NamesError)) if the domain fails apex validation rules.
-    /// - Returns [`KineticError::Internal`](crate::KineticError::Internal) if the payload size exceeds [`MAX_PAYLOAD_SIZE`].
+    /// - Returns [`crate::error::KineticError::Internal`] if `protocol_version != 1`.
+    /// - Returns [`crate::error::KineticError::InvalidName`] (wrapping [`crate::error::NamesError`]) if the domain fails apex validation rules.
+    /// - Returns [`crate::error::KineticError::Internal`] if the payload size exceeds [`crate::constants::MAX_PAYLOAD_SIZE`].
     pub fn validate(&self) -> Result<(), crate::error::KineticError> {
         if self.protocol_version != 1 {
             return Err(crate::error::KineticError::Internal(format!(

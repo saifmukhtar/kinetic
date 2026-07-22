@@ -104,9 +104,9 @@ impl AuthorizedManifest {
 ///
 /// # Errors
 ///
-/// - Returns [`IdentityError::IdentityNotFound`] (`KIN-IDN-003`) if the key file does not exist.
-/// - Returns [`IdentityError::CorruptedIdentityFile`] (`KIN-IDN-002`) if the file is not exactly 32 bytes.
-/// - Returns [`IdentityError::Io`] (`KIN-IDN-001`) if a filesystem read error occurs.
+/// - Returns [`crate::error::IdentityError::IdentityNotFound`] (`KIN-IDN-003`) if the key file does not exist.
+/// - Returns [`crate::error::IdentityError::CorruptedIdentityFile`] (`KIN-IDN-002`) if the file is not exactly 32 bytes.
+/// - Returns [`crate::error::IdentityError::Io`] (`KIN-IDN-001`) if a filesystem read error occurs.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_keypair(
     filename: &str,
@@ -152,8 +152,8 @@ pub fn load_keypair(
 ///
 /// # Errors
 ///
-/// - Returns [`IdentityError::InvalidSeedPhrase`] (`KIN-IDN-004`) if the mnemonic fails BIP-39 parsing.
-/// - Returns [`IdentityError::Io`] (`KIN-IDN-001`) if directory creation or atomic file write fails.
+/// - Returns [`crate::error::IdentityError::InvalidSeedPhrase`] (`KIN-IDN-004`) if the mnemonic fails BIP-39 parsing.
+/// - Returns [`crate::error::IdentityError::Io`] (`KIN-IDN-001`) if directory creation or atomic file write fails.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_keypair_from_mnemonic(
     filename: &str,

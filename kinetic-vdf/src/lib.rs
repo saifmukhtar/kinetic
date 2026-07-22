@@ -1,3 +1,4 @@
+#![allow(rustdoc::redundant_explicit_links)]
 //! # kinetic-vdf
 //!
 //! Verifiable Delay Function (VDF) implementation for the Kinetic network,

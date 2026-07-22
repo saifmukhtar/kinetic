@@ -65,13 +65,13 @@ pub const PUBLIC_NAMES: &[&str] = &[
 ///
 /// # Errors
 ///
-/// - Returns [`NamesError::InvalidTLD`](crate::error::NamesError::InvalidTLD) if the name does not end with the network TLD suffix.
-/// - Returns [`NamesError::NameTooLong`](crate::error::NamesError::NameTooLong) if the total domain length exceeds 253 characters or is empty.
-/// - Returns [`NamesError::LabelTooLong`](crate::error::NamesError::LabelTooLong) if any individual dot-separated label exceeds 63 characters.
-/// - Returns [`NamesError::InvalidCharacter`](crate::error::NamesError::InvalidCharacter) if a label contains non-LDH characters or invalid hyphen/digit placements.
-/// - Returns [`NamesError::NotAnApexDomain`](crate::error::NamesError::NotAnApexDomain) if the input is a subdomain (e.g. `blog.saif.kin`) instead of an apex domain (`saif.kin`).
-/// - Returns [`NamesError::ReservedName`](crate::error::NamesError::ReservedName) if the label matches a Category 1 public utility name.
-/// - Returns [`NamesError::InfrastructureName`](crate::error::NamesError::InfrastructureName) if the label is a locked Category 2 network infrastructure name.
+/// - Returns [`crate::error::NamesError::InvalidTLD`] if the name does not end with the network TLD suffix.
+/// - Returns [`crate::error::NamesError::NameTooLong`] if the total domain length exceeds 253 characters or is empty.
+/// - Returns [`crate::error::NamesError::LabelTooLong`] if any individual dot-separated label exceeds 63 characters.
+/// - Returns [`crate::error::NamesError::InvalidCharacter`] if a label contains non-LDH characters or invalid hyphen/digit placements.
+/// - Returns [`crate::error::NamesError::NotAnApexDomain`] if the input is a subdomain (e.g. `blog.saif.kin`) instead of an apex domain (`saif.kin`).
+/// - Returns [`crate::error::NamesError::ReservedName`] if the label matches a Category 1 public utility name.
+/// - Returns [`crate::error::NamesError::InfrastructureName`] if the label is a locked Category 2 network infrastructure name.
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     let name_lower = name.to_lowercase();
     if !name_lower.ends_with(crate::constants::TLD_SUFFIX) {

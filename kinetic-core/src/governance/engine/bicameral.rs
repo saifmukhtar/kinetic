@@ -16,16 +16,11 @@ impl GovernanceEngine for BicameralEngine {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp is older than [`MAX_AGE_SECONDS`](crate::constants::MAX_AGE_SECONDS).
-    /// - Returns [`GovernanceError::NotPendingOrVetoed`] if the target action hash is not pending.
-    /// - Returns [`GovernanceError::TimelockNotExpired`] if mandatory timelocks have not elapsed.
-    /// - Returns [`GovernanceError::CouncilSizeMismatch`] if claimed council size is less than actual active count.
-    /// - Returns [`GovernanceError::RevokeRequiresCouncilMode`] if name revocation is attempted in Founder mode.
-    /// - Returns [`GovernanceError::MissingGuardKey`] if Council lock or key rotation is attempted without a configured Guard key.
     /// - Returns [`GovernanceError::FounderPremiumLimitReached`] if Founder attempts to grant more than 5 premium names.
     /// - Returns [`GovernanceError::InvalidGuardSignature`] if a Guard veto signature fails verification.
     /// - Returns [`GovernanceError::RotateRequiresGuard`] if Root key rotation lacks Guard co-signature.
     /// - Returns [`GovernanceError::InsufficientSignatures`] if signatures do not meet phase threshold bounds.
+    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp is older than [`crate::constants::MAX_AGE_SECONDS`].
     fn verify_action(
         &self,
         state: &mut GovernanceState,

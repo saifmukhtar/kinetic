@@ -43,11 +43,11 @@ pub struct Release {
 ///
 /// # Errors
 ///
-/// - Returns [`UpdaterError::NoMirrorsProvided`](crate::error::UpdaterError::NoMirrorsProvided) if the mirror vector is empty.
-/// - Returns [`UpdaterError::NetworkError`](crate::error::UpdaterError::NetworkError) if all mirrors fail or return invalid hashes.
-/// - Returns [`UpdaterError::ReqwestError`](crate::error::UpdaterError::ReqwestError) if HTTP client setup or request execution fails.
-/// - Returns [`UpdaterError::SelfReplaceError`](crate::error::UpdaterError::SelfReplaceError) if file swapping fails (e.g. permission denied).
-/// - Returns [`UpdaterError::SpawnFailed`](crate::error::UpdaterError::SpawnFailed) if process re-execution fails.
+/// - Returns [`crate::error::UpdaterError::NoMirrorsProvided`] if the mirror vector is empty.
+/// - Returns [`crate::error::UpdaterError::NetworkError`] if all mirrors fail or return invalid HTTP responses.
+/// - Returns [`crate::error::UpdaterError::ReqwestError`] if HTTP client setup or request building fails.
+/// - Returns [`crate::error::UpdaterError::SelfReplaceError`] if file swapping fails (e.g. permission denied or active execution lock).
+/// - Returns [`crate::error::UpdaterError::SpawnFailed`] if process re-execution fails.
 pub async fn perform_ota_update(
     self_id: &str,
     expected_manifest_hash: [u8; 32],
