@@ -1,3 +1,5 @@
+//! CLI query handlers for listing, inspecting, and resolving .kin domain names.
+
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::types::Reveal;
 use reqwest::Client;
