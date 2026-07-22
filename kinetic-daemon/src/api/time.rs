@@ -1,3 +1,5 @@
+//! HTTP REST API handler for retrieving verified Kinetic network time.
+
 use crate::api::ApiState;
 use axum::{extract::State, http::StatusCode, Json};
 use kinetic_core::types::clock::KineticTime;
