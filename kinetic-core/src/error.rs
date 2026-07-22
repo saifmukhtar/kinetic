@@ -23,15 +23,15 @@
 //! | `KIN-RES-NNN` | [`ResolutionError`] | DHT name resolution |
 //! | `KIN-PUB-NNN` | [`PublishError`] | DHT record publishing |
 //! | `KIN-REG-NNN` | [`RegistrationError`] | Name registration flow |
-//! | `KIN-VDF-NNN` | [`VdfError`] | VDF engine operations |
-//! | `KIN-GOV-NNN` | [`GovernanceError`] | Council governance |
-//! | `KIN-DNS-NNN` | [`DnsError`] | DNS zone parsing |
-//! | `KIN-DRA-NNN` | [`DrandError`] | Drand beacon |
-//! | `KIN-IDN-NNN` | [`IdentityError`] | Node identity keys |
-//! | `KIN-NAM-NNN` | [`NamesError`] | Domain name validation |
-//! | `KIN-STO-NNN` | [`StorageError`] | Sled storage engine |
-//! | `KIN-OTA-NNN` | [`UpdaterError`] | OTA self-updater |
-//! | `KIN-NET-NNN` | [`NetworkClientError`] + [`KineticStoreError`](kinetic_network::error::KineticStoreError) | P2P network client and store layer |
+//! | `KIN-VDF-NNN` | `VdfError` | VDF engine operations |
+//! | `KIN-GOV-NNN` | `GovernanceError` | Council governance |
+//! | `KIN-DNS-NNN` | `DnsError` | DNS zone parsing |
+//! | `KIN-DRA-NNN` | `DrandError` | Drand beacon |
+//! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
+//! | `KIN-NAM-NNN` | `NamesError` | Domain name validation |
+//! | `KIN-STO-NNN` | `StorageError` | Sled storage engine |
+//! | `KIN-OTA-NNN` | `UpdaterError` | OTA self-updater |
+//! | `KIN-NET-NNN` | `NetworkClientError` + `KineticStoreError` | P2P network client and store layer |
 
 use thiserror::Error;
 
@@ -166,7 +166,7 @@ pub enum KineticError {
 ///
 /// Every domain error type implements a `severity()` method returning one of
 /// these variants. The severity drives log level selection in
-/// [`KineticStoreError::log_warning`] and alert routing in monitoring pipelines.
+/// `KineticStoreError::log_warning` and alert routing in monitoring pipelines.
 ///
 /// # Operational Meaning
 ///
@@ -177,7 +177,7 @@ pub enum KineticError {
 /// | `Error` | `tracing::error!` | Unexpected failure; investigate |
 /// | `Critical` | `tracing::error!` | Security or liveness threat; page on-call |
 ///
-/// [`KineticStoreError::log_warning`]: kinetic_network::error::KineticStoreError::log_warning
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
     /// Expected protocol outcome — not a system problem.

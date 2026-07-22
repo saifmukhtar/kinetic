@@ -2,13 +2,13 @@
 //!
 //! Defines the abstract contracts for Kinetic's three primary pluggable backends:
 //!
-//! - [`VdfEngine`]: CPU-bound Wesolowski VDF proof evaluation and verification (chiavdf).
-//! - [`StorageEngine`]: Key-value persistence and prefix scanning (Sled B-tree).
-//! - [`GovernanceEngine`]: Protocol proposal verification and state transitions.
+//! - `VdfEngine`: CPU-bound Wesolowski VDF proof evaluation and verification (chiavdf).
+//! - `StorageEngine`: Key-value persistence and prefix scanning (Sled B-tree).
+//! - `GovernanceEngine`: Protocol proposal verification and state transitions.
 //!
 //! These traits enable `kinetic-core` to be network-agnostic. The concrete implementations
 //! live in `kinetic-vdf`, `kinetic-storage`, and `kinetic-core/src/governance/engine/`
-//! respectively. The active [`GovernanceEngine`] is selected at compile time from `network.json`
+//! respectively. The active `GovernanceEngine` is selected at compile time from `network.json`
 //! via the `GOVERNANCE_MODEL` constant.
 
 use crate::error::{GovernanceError, StorageError, VdfError};

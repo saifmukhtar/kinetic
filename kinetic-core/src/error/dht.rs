@@ -4,7 +4,7 @@
 //! protocol (commit → reveal) and the DHT name resolution flow:
 //!
 //! - [`RecordRejectReason`] — fine-grained reasons a DHT `PUT` was rejected by
-//!   the local [`KineticRecordStore`](kinetic_network::store::KineticRecordStore).
+//!   the local `KineticRecordStore`.
 //! - [`ResolutionError`] — errors during DHT name lookup (`KIN-RES-NNN`).
 //! - [`PublishError`] — errors when pushing records to the DHT (`KIN-PUB-NNN`).
 //! - [`RegistrationError`] — errors in the full name registration flow (`KIN-REG-NNN`).

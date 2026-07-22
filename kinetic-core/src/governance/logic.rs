@@ -43,7 +43,7 @@ pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
 impl GovernanceState {
     /// Initializes a new [`GovernanceState`] at network genesis.
     ///
-    /// The state starts in [`GovernanceMode::Founder`] with an empty council, no vetoes,
+    /// The state starts in `GovernanceMode::Founder` with an empty council, no vetoes,
     /// no pending updates, and no premium grants.
     ///
     /// # Returns

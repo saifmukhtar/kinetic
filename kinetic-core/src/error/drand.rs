@@ -10,7 +10,7 @@
 //! the current pulse round as a salt, and every reveal must include the Drand randomness
 //! at the time of commitment. An invalid or stale pulse breaks the time-lock guarantee.
 //!
-//! The daemon falls back to cached pulses ([`DrandError::NoCachedPulse`]) and gossipsub
+//! The daemon falls back to cached pulses (`DrandError::NoCachedPulse`) and gossipsub
 //! P2P propagation if all HTTP endpoints fail.
 use super::Severity;
 use thiserror::Error;

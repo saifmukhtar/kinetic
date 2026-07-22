@@ -329,8 +329,8 @@ impl DrandClient {
     ///
     /// # Errors
     ///
-    /// - Returns [`DrandError::JsonError`](crate::error::DrandError::JsonError) if JSON serialization fails.
-    /// - Returns [`DrandError::Storage`](crate::error::DrandError::Storage) if writing to disk fails.
+    /// - Returns `JsonError` if JSON serialization fails.
+    /// - Returns [`crate::error::DrandError::Storage`] if writing to disk fails.
     pub fn cache_pulse(&self, pulse: &DrandPulse) -> Result<(), DrandError> {
         if let Some(storage) = &self.storage {
             let bytes = serde_json::to_vec(pulse)?;

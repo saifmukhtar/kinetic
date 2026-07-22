@@ -1,7 +1,7 @@
 //! OTA self-updater error types (`KIN-OTA-NNN`).
 //!
 //! [`UpdaterError`] is returned by the daemon's OTA update handler when a
-//! [`GovernanceAction::OtaSoftwareUpdate`] triggers a binary download and replacement.
+//! `GovernanceAction::OtaSoftwareUpdate` triggers a binary download and replacement.
 //!
 //! ## Protocol Context
 //!
