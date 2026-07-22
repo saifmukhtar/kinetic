@@ -1,3 +1,5 @@
+//! SSRF risk evaluation utilities and IP address safety verification.
+
 pub(crate) fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
     !kinetic_core::net::is_ssrf_safe(ip)
 }
