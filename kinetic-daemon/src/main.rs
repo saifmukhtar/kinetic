@@ -204,6 +204,18 @@ fn stop_background_service() -> Result<()> {
     Ok(())
 }
 
+/// Executes the main logic for the Kinetic Daemon.
+///
+/// This function is responsible for:
+/// - Validating the governance key state.
+/// - Initializing Sled storage and the VDF engine.
+/// - Starting the Drand heartbeat and PoW sybil mining loop.
+/// - Establishing the Kademlia P2P Swarm.
+/// - Starting the API server, PAC server, DNS proxy, and HTTP proxy.
+///
+/// # Errors
+///
+/// Returns an `anyhow::Error` if any fundamental networking or storage components fail to bind/initialize.
 async fn run_daemon() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
         tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");

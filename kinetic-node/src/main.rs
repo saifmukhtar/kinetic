@@ -133,6 +133,17 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Executes the main logic for the Kinetic Infrastructure Node.
+///
+/// Unlike the daemon, the infrastructure node does not run the HTTP proxy, PAC server, or local DNS.
+/// Instead, it focuses on:
+/// - Maintaining a stable Kademlia DHT peer identity (using a static key on disk).
+/// - Providing high-availability routing for the `.kin` namespace.
+/// - Relaying and persisting governance state updates.
+///
+/// # Errors
+///
+/// Returns an `anyhow::Error` if fundamental networking, storage, or key generation fails.
 async fn run_node() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
         tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");
