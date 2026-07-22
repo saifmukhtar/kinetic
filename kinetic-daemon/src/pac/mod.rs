@@ -1,3 +1,5 @@
+//! Proxy Auto-Configuration (PAC) server and cross-platform system proxy manager.
+
 use axum::{routing::get, Router};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
