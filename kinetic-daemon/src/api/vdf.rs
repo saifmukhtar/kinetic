@@ -1,3 +1,5 @@
+//! HTTP REST API endpoints and background task workers for VDF registration, renewal, and task progress tracking.
+
 use super::*;
 use axum::{
     extract::{Path, State},
