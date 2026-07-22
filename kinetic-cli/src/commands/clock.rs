@@ -14,6 +14,9 @@ pub struct ClockArgs {
 }
 
 /// Executes the `clock` command to display Kinetic Network Time.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if the API client cannot connect to the daemon (when fallback is disabled) or if internal parsing fails.
 pub async fn handle_clock_command(
     args: ClockArgs,
     config: &KineticConfig,

@@ -21,8 +21,9 @@ pub enum SeedCommands {
 /// Handles initialization of new seed phrases and restoration of identities from existing phrases.
 ///
 /// # Errors
-/// Returns an `anyhow::Error` if entropy generation fails, the mnemonic cannot be created/parsed,
-/// or writing the resulting identity to disk fails.
+/// Returns an `anyhow::Error` if:
+/// - (Init) Entropy generation fails, the mnemonic cannot be created, or writing the identity to disk fails.
+/// - (Restore) Reading the password interactively fails, or the mnemonic is invalid and fails to restore the identity.
 pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
     let identity_path = get_base_dir().join("identity.key");
     match cmd {

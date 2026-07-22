@@ -87,6 +87,15 @@ pub enum GovernanceCommands {
     },
 }
 
+/// Processes a governance CLI command, signs the action, and publishes it to the network.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if:
+/// - Target keys cannot be parsed or decoded from hex.
+/// - Pre-flight validation against mirror manifest files fails.
+/// - The local governance identity keypair cannot be loaded.
+/// - The daemon API cannot be reached or returns an error.
+/// - The governance message signature fails to generate.
 pub async fn handle_governance_command(
     cmd: GovernanceCommands,
     config: &KineticConfig,

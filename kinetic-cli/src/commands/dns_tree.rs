@@ -23,6 +23,8 @@ pub enum DnsTreeCommands {
     },
 }
 
+/// # Errors
+/// Returns an `anyhow::Error` if the input file cannot be read, if no valid multiaddrs are found, or if the output zone file cannot be written to disk.
 pub async fn handle_dns_tree_command(cmd: DnsTreeCommands) -> anyhow::Result<()> {
     match cmd {
         DnsTreeCommands::Generate { input, output, domain } => {

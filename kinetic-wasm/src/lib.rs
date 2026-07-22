@@ -33,9 +33,6 @@ impl KineticNode {
     /// Creates a new uninitialized `KineticNode` instance.
     ///
     /// Accepts a JavaScript callback function to emit status events back to the browser.
-    ///
-    /// # Errors
-    /// Returns a `JsValue` error if initialization fails.
     #[wasm_bindgen(constructor)]
     pub fn new(on_event: Function) -> Result<KineticNode, JsValue> {
         console_error_panic_hook::set_once();
@@ -119,7 +116,8 @@ impl KineticNode {
     ///
     /// # Errors
     /// Returns a `JsValue` error if the node is not started, the domain resolution fails,
-    /// the payload is invalid, or the zone format cannot be parsed/serialized.
+    /// the payload is invalid, the reveal signature is invalid, the reveal name is mismatched,
+    /// or the zone format cannot be parsed/serialized.
     #[wasm_bindgen]
     pub async fn resolve_domain(&self, name: String) -> Result<JsValue, JsValue> {
         let client = self

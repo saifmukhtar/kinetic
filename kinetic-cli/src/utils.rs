@@ -26,6 +26,7 @@ pub fn parse_and_format_api_error(
 /// This creates a JSON file in the configured zones directory using the given FQDN as the filename.
 ///
 /// # Errors
+/// Returns an `std::io::Error` with `InvalidInput` if the FQDN apex name is invalid.
 /// Returns an `std::io::Error` if the directory cannot be created or the file cannot be written.
 pub fn save_zone_file(
     fqdn: &str,

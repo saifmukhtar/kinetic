@@ -54,6 +54,11 @@ pub async fn start_dynamic_routing_publisher(
     }
 }
 
+/// Starts a continuous heartbeat loop that monitors the Drand randomness beacon and hot-swaps the ephemeral PoW identity when the epoch advances.
+///
+/// This function listens for new pulses and uses them to verify the validity of the current PoW identity.
+/// If the identity is found to be expired based on the staggered epoch progression, it terminates the existing
+/// network loop, mines a new identity, and restarts the P2P swarm asynchronously to ensure seamless connectivity.
 #[allow(clippy::too_many_arguments)]
 pub async fn start_drand_heartbeat(
     hb_drand: Arc<DrandClient>,

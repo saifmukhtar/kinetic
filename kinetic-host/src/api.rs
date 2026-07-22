@@ -6,6 +6,9 @@ use std::net::SocketAddr;
 use tracing::info;
 
 /// Starts the Axum REST API server for host health checks and static Peer ID queries.
+///
+/// # Errors
+/// Returns a `Result::Err` if the TCP listener fails to bind to port 16004 or if the HTTP server crashes.
 pub async fn start_health_api(host_peer_id: libp2p::PeerId) -> Result<()> {
     let app = Router::new()
         .route("/health", get(|| async { "OK" }))

@@ -10,8 +10,13 @@
 //!
 //! - **`identity`** — Display the local node's Peer ID and network identity.
 //! - **`name`** — Register, renew, update, and transfer `.kin` domain names.
-//! - **`service`** — Install, uninstall, start, and stop the daemon as a
-//!   system service.
+//! - **`service`** — Install, uninstall, start, and stop the daemon as a system service.
+//! - **`setup`** — Interactive setup wizard for initial node configuration.
+//! - **`seed`** — Generate or restore the node's seed phrase identity.
+//! - **`governance`** — Submit and manage post-quantum governance proposals.
+//! - **`dns-tree`** — Generate Merkle DNS tree zone files for P2P bootstrapping.
+//! - **`clock`** — Display the Kinetic Network Time and sync status.
+//! - **`daemon` / `host` / `node` / `dns`** — Process management commands for individual Kinetic subsystems.
 
 mod commands;
 mod utils;

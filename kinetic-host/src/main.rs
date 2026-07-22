@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![deny(missing_docs)]
 //! # kinetic-host
 //!
 //! The Kinetic host binary (`kinetic-host`).

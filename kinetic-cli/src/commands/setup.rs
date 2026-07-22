@@ -7,6 +7,9 @@ use clap::Parser;
 pub struct SetupCommand;
 
 /// Executes the interactive setup wizard for initial node configuration.
+///
+/// # Errors
+/// Returns an `anyhow::Error` if the underlying seed phrase generation or identity writing fails.
 pub async fn handle_setup_command(_cmd: SetupCommand) -> anyhow::Result<()> {
     println!("\n========================================================");
     println!("🌌 Welcome to Kinetic!");

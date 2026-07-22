@@ -7,7 +7,8 @@
 //! using the [hickory-dns](https://crates.io/crates/hickory-server) library.
 //! It intercepts DNS queries for `.kin` domains, resolves them against the
 //! Kinetic daemon's HTTP API (which in turn queries the Kademlia DHT), and
-//! proxies all other queries to Cloudflare 1.1.1.1 via DNS-over-HTTPS.
+//! proxies all other queries to the host OS's native DNS configuration (with
+//! a fallback to Cloudflare 1.1.1.1).
 //!
 //! ## Caching
 //!
@@ -18,8 +19,6 @@
 //! - **Negative hits** (NXDOMAIN): cached for 30 seconds.
 //!
 //! Cache stampede protection is provided natively by moka's `try_get_with`.
-//! The [`KineticDnsHandler::invalidate_cache`] method allows the daemon to
-//! proactively evict a domain after a successful local update.
 
 pub mod cache;
 pub mod handler;
