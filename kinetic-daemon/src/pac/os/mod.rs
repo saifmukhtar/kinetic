@@ -1,3 +1,5 @@
+//! Operating system-specific proxy configurator modules for Linux, macOS, and Windows.
+
 /// Linux proxy configuration implementation.
 pub mod linux;
 #[cfg(target_os = "macos")]
