@@ -52,6 +52,13 @@ impl Default for ChiaVdfEngine {
 
 #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
 impl VdfEngine for ChiaVdfEngine {
+    /// Evaluates a Verifiable Delay Function for a given challenge and iteration count.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`VdfError::ProofGenerationError`](kinetic_core::error::VdfError::ProofGenerationError) if `iterations > 400_000_000_000` or chiavdf fails.
+    /// - Returns [`VdfError::LockFileError`](kinetic_core::error::VdfError::LockFileError) if the system lock file cannot be created.
+    /// - Returns [`VdfError::LockAcquireError`](kinetic_core::error::VdfError::LockAcquireError) if acquiring exclusive lock fails.
     fn evaluate(&self, challenge: &Commitment, iterations: u64) -> Result<VdfProof, VdfError> {
         // Bound max iterations to 400 Billion to prevent DoS lock contention (allows up to ~30 days of CPU time)
         if iterations > 400_000_000_000 {
@@ -97,6 +104,12 @@ impl VdfEngine for ChiaVdfEngine {
         result
     }
 
+    /// Verifies a Wesolowski VDF proof against the target commitment and iteration count.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`VdfError::InvalidProof`](kinetic_core::error::VdfError::InvalidProof) if `proof.proof_bytes.len() > 1024`.
+    /// - Returns [`VdfError::DiscriminantError`](kinetic_core::error::VdfError::DiscriminantError) if discriminant derivation fails.
     fn verify(
         &self,
         challenge: &Commitment,

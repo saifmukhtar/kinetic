@@ -1,3 +1,8 @@
+//! Command-line hardware benchmark utility for calibrating VDF iteration speeds.
+//!
+//! Measures CPU execution rate over 60-second rounds to determine the optimal
+//! `benchmark_base_iterations` parameter for `network.json`.
+
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::Commitment;
 use kinetic_vdf::ChiaVdfEngine;
