@@ -1,4 +1,8 @@
 //! Pure council threshold multi-signature governance engine driver.
+//!
+//! In pure Council mode, the Founder Root key and Guard keys have no special authority.
+//! All governance actions require a decentralized supermajority vote from the active
+//! council members.
 
 use std::collections::HashSet;
 

@@ -1,4 +1,8 @@
 //! Single-key Founder governance engine driver.
+//!
+//! In Monarchy mode, the network relies entirely on the offline Root key for all decisions.
+//! Council member signatures are ignored, and threshold logic is bypassed. Used primarily
+//! for private deployments or the earliest stages of bootstrap.
 
 use crate::error::GovernanceError;
 use crate::governance::types::{

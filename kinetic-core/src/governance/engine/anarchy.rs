@@ -1,14 +1,19 @@
-//! Immutable protocol engine driver.
+//! Anarchy (development) protocol engine driver.
+//!
+//! Used for local testing and simulation where the network runs without any central
+//! governance, timelocks, or update authorities. All privileged actions are universally rejected.
 
 use crate::error::GovernanceError;
 use crate::governance::types::{GovernanceEffect, GovernanceState, SignedGovernanceMessage};
 use crate::traits::GovernanceEngine;
 
-/// Immutable protocol engine driver where all governance modifications are rejected.
+/// Development-only engine driver where all governance modifications are rejected.
+///
+/// Represents a pure decentralized state with no Root or Council keys.
 pub struct AnarchyEngine;
 
 impl GovernanceEngine for AnarchyEngine {
-    /// Rejects all governance actions, preserving absolute protocol immutability.
+    /// Universally rejects all governance actions.
     ///
     /// # Errors
     ///
