@@ -1,3 +1,5 @@
+"""Kinetic Swarm Intelligence simulation orchestrator and Flask SSE real-time dashboard server."""
+
 import os
 import sys
 import json
