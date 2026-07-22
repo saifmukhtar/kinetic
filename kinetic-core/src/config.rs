@@ -1,17 +1,17 @@
 //! Global configuration models, default values, and port definitions for Kinetic.
 //!
-//! This module defines [`KineticConfig`], which represents the complete runtime
+//! This module defines `KineticConfig`, which represents the complete runtime
 //! configuration loaded from disk (`config.toml`) or environment variables.
 //!
 //! ## Configuration Resolution Order
 //!
 //! 1. **Explicit file path**: `KINETIC_CONFIG_PATH` environment variable.
-//! 2. **Default user path**: `~/.local/share/{NETWORK_ID}/config.toml` (or platform equivalent via [`get_base_dir`]).
+//! 2. **Default user path**: `~/.local/share/{NETWORK_ID}/config.toml` (or platform equivalent via `get_base_dir`).
 //! 3. **Fallback defaults**: If the file does not exist, a clean default config is automatically written to disk.
 //!
 //! ## Port Allocation Strategy
 //!
-//! All default port assignments are centralized in the [`ports`] submodule to ensure
+//! All default port assignments are centralized in the `ports` submodule to ensure
 //! zero collisions between `kinetic-daemon`, `kinetic-node`, and `kinetic-host`.
 
 use serde::{Deserialize, Serialize};
