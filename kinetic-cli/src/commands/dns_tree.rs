@@ -1,3 +1,5 @@
+//! Merkle DNS tree zone file generator for P2P bootstrap node discovery.
+
 use clap::Subcommand;
 use data_encoding::BASE32_NOPAD;
 use sha2::{Digest, Sha256};
