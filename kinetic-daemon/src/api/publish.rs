@@ -1,3 +1,5 @@
+//! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Governance actions.
+
 use super::*;
 use axum::{extract::State, http::StatusCode, Json};
 
