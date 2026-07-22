@@ -129,6 +129,6 @@ By encoding governance as a cryptographic primitive involving threshold signatur
 
 ## References
 
-[1] Gennaro, R., & Goldfeder, S. (2018). *Fast multiparty threshold ECDSA with fast trustless setup.* In Proceedings of the 2018 ACM SIGSAC Conference on Computer and Communications Security (pp. 1179-1194).
+[1] National Institute of Standards and Technology (NIST). (2024). *FIPS 204: Module-Lattice-Based Digital Signature Standard (ML-DSA).* U.S. Department of Commerce.
 
 [2] Boneh, D., Lynn, B., & Shacham, H. (2001). *Short signatures from the Weil pairing.* In Advances in Cryptology — ASIACRYPT 2001. LNCS, vol. 2248. Springer, Berlin, Heidelberg.
