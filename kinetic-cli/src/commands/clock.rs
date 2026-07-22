@@ -1,3 +1,5 @@
+//! Real-time Kinetic Network Time clock display and daemon sync monitor.
+
 use clap::Args;
 use kinetic_core::config::KineticConfig;
 use kinetic_core::constants::{DRAND_GENESIS_TIME, DRAND_PERIOD};
@@ -11,6 +13,7 @@ pub struct ClockArgs {
     pub listen: bool,
 }
 
+/// Executes the `clock` command to display Kinetic Network Time.
 pub async fn handle_clock_command(
     args: ClockArgs,
     config: &KineticConfig,
