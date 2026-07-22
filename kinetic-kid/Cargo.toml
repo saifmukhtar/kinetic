@@ -11,7 +11,6 @@ simulation = []
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_jcs = "0.1"
-ed25519-dalek = { version = "2.0", features = ["rand_core"] }
 sha2 = "0.10"
 base64 = "0.22"
 thiserror = "1.0"

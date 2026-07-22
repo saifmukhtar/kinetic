@@ -43,13 +43,17 @@ pub struct CapabilityManifest {
     /// Ordered list of service endpoints this DID owner is advertising.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_50")]
     pub services: Vec<ServiceEntry>,
-    /// Base64url-encoded Ed25519 signature over the JCS-canonical manifest (excluding this field).
+    /// Base64url-encoded ML-DSA-65 signature over the JCS-canonical manifest (excluding this field).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
 }
 
 impl CapabilityManifest {
-    /// Returns the canonical JCS serialization of the manifest without the signature.
+    /// Returns the canonical JCS serialization of the manifest without the signature field.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::CanonicalizationError`](crate::error::KidError::CanonicalizationError) if JSON serialization fails.
     pub fn canonicalize(&self) -> Result<String, KidError> {
         let mut unsigned_manifest = self.clone();
         unsigned_manifest.signature = None; // Omit signature for canonicalization
@@ -59,6 +63,15 @@ impl CapabilityManifest {
     }
 
     /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::TooManyKeys`](crate::error::KidError::TooManyKeys) if key count, service count, or URI bounds are exceeded.
+    /// - Returns [`KidError::UnauthorizedManifestSignature`](crate::error::KidError::UnauthorizedManifestSignature) if manifest DID does not match document DID or signature is invalid.
+    /// - Returns [`KidError::InvalidValidFrom`](crate::error::KidError::InvalidValidFrom) if `valid_from` is in the future beyond 5 minutes skew.
+    /// - Returns [`KidError::ManifestExpired`](crate::error::KidError::ManifestExpired) if `expires_at` timestamp has passed.
+    /// - Returns [`KidError::MissingSignature`](crate::error::KidError::MissingSignature) if the signature field is absent.
+    /// - Returns [`KidError::Base64Error`](crate::error::KidError::Base64Error) if signature decoding fails.
     pub fn verify(&self, kid_document: &KidDocument) -> Result<(), KidError> {
         if kid_document.controller_keys.len() > 20 {
             return Err(KidError::TooManyKeys);
@@ -117,7 +130,12 @@ impl CapabilityManifest {
 
         Err(KidError::UnauthorizedManifestSignature)
     }
-    /// Helper to sign the manifest with a given keypair and return the signed manifest.
+
+    /// Helper to sign the manifest with an ML-DSA-65 keypair and return the signed manifest.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::CanonicalizationError`](crate::error::KidError::CanonicalizationError) if JCS canonicalization fails.
     pub fn sign(mut self, keypair: &ml_dsa::SigningKey<ml_dsa::MlDsa65>) -> Result<Self, KidError> {
         use ml_dsa::signature::Signer;
         use ml_dsa::SignatureEncoding;

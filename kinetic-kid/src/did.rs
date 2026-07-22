@@ -9,7 +9,14 @@ pub struct KineticDid {
 }
 
 impl KineticDid {
-    /// Creates a new KineticDid, validating the prefix.
+    /// Creates a new `KineticDid`, validating the scheme prefix and hex-encoded SHA-256 method-specific ID.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::InvalidDidPrefix`](crate::error::KidError::InvalidDidPrefix) if the string does not start with `did:kin:`.
+    /// - Returns [`KidError::InvalidDidFormat`](crate::error::KidError::InvalidDidFormat) if the method-specific ID is empty.
+    /// - Returns [`KidError::InvalidDidHexLength`](crate::error::KidError::InvalidDidHexLength) if the method-specific ID is not 64 characters long.
+    /// - Returns [`KidError::InvalidDidHexCharacters`](crate::error::KidError::InvalidDidHexCharacters) if the method-specific ID contains uppercase hex or non-hex characters.
     pub fn new(id_str: &str) -> Result<Self, KidError> {
         if !id_str.starts_with("did:kin:") {
             return Err(KidError::InvalidDidPrefix);

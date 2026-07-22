@@ -63,7 +63,11 @@ pub struct KidDocument {
 }
 
 impl KidDocument {
-    /// Returns the canonical JCS serialization of the document without the signature.
+    /// Returns the canonical JCS serialization of the document without the signature field.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::CanonicalizationError`](crate::error::KidError::CanonicalizationError) if JSON serialization fails.
     pub fn canonicalize(&self) -> Result<String, KidError> {
         let mut unsigned_doc = self.clone();
         unsigned_doc.signature = None; // Omit signature for canonicalization
@@ -72,9 +76,14 @@ impl KidDocument {
             .map_err(|e| KidError::CanonicalizationError(e.to_string()))
     }
 
-    /// Verifies the signature of the document using the listed controller keys.
-    /// This requires parsing the signature, canonicalizing the doc, and trying the controller keys.
-    /// In v1, it must be signed by at least one valid ML-DSA-65 controller key.
+    /// Verifies the signature of the document against listed controller or revocation keys.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::TooManyKeys`](crate::error::KidError::TooManyKeys) if key count or URL bounds are exceeded.
+    /// - Returns [`KidError::MissingSignature`](crate::error::KidError::MissingSignature) if the signature field is absent.
+    /// - Returns [`KidError::Base64Error`](crate::error::KidError::Base64Error) if signature or public key base64url decoding fails.
+    /// - Returns [`KidError::InvalidSignature`](crate::error::KidError::InvalidSignature) if no listed key produces a valid ML-DSA-65 signature.
     pub fn verify(&self) -> Result<(), KidError> {
         if self.controller_keys.len() > 20 || self.revocation_keys.len() > 20 {
             return Err(KidError::TooManyKeys);
@@ -146,7 +155,11 @@ impl KidDocument {
         Err(KidError::InvalidSignature)
     }
 
-    /// Helper to sign the document with a given keypair and return the signed document.
+    /// Signs the document with an ML-DSA-65 signing keypair and populates the Base64url signature field.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::CanonicalizationError`](crate::error::KidError::CanonicalizationError) if JCS canonicalization fails.
     pub fn sign(mut self, keypair: &ml_dsa::SigningKey<ml_dsa::MlDsa65>) -> Result<Self, KidError> {
         use ml_dsa::SignatureEncoding;
         let msg_str = self.canonicalize()?;

@@ -1,8 +1,11 @@
+//! Bounded Serde deserialization helpers to defend against OOM memory bomb attacks.
+
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, SeqAccess, Visitor};
 use std::fmt;
 use std::marker::PhantomData;
 
+/// Custom Serde visitor enforcing maximum sequence element bounds.
 struct BoundedVecVisitor<T> {
     max: usize,
     marker: PhantomData<fn() -> Vec<T>>,
@@ -55,7 +58,11 @@ where
     }
 }
 
-/// Helper for serde to deserialize a Vec with a maximum length of 20 elements.
+/// Helper for Serde to deserialize a `Vec` with a strict upper bound of 20 elements.
+///
+/// # Errors
+///
+/// Returns a Serde deserialization error if the input array contains more than 20 items.
 pub fn deserialize_max_20<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -64,7 +71,11 @@ where
     deserializer.deserialize_seq(BoundedVecVisitor::new(20))
 }
 
-/// Helper for serde to deserialize a Vec with a maximum length of 50 elements.
+/// Helper for Serde to deserialize a `Vec` with a strict upper bound of 50 elements.
+///
+/// # Errors
+///
+/// Returns a Serde deserialization error if the input array contains more than 50 items.
 pub fn deserialize_max_50<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,

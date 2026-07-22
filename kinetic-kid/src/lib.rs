@@ -11,7 +11,7 @@
 //! - **[`KineticDid`]** — A validated `did:kin:<hex>` string. The hex suffix
 //!   is the SHA-256 hash of the controller's primary public key.
 //! - **[`KidDocument`]** — The identity document that binds a DID to one or
-//!   more [`ControllerKey`]s. It is signed with Ed25519.
+//!   more [`ControllerKey`]s. It is signed with ML-DSA-65 post-quantum signatures.
 //! - **[`CapabilityManifest`]** — An optional extension signed by the
 //!   controller that lists services (websites, APIs, etc.) associated with
 //!   the identity.
