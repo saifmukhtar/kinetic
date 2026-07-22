@@ -1,3 +1,5 @@
+//! HTTP REST API handlers for managing local DNS zone files and re-signing/publishing updated records to the DHT.
+
 use super::*;
 use axum::{
     extract::{Path, State},
