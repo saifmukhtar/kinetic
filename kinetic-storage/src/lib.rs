@@ -30,8 +30,8 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::DatabaseLocked`](kinetic_core::error::StorageError::DatabaseLocked) if the database directory is already opened by another process.
-        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if IO errors occur or corruption backup fails.
+        /// - Returns [`StorageError::DatabaseLocked`](kinetic_core::error::StorageError::DatabaseLocked) (`KIN-STO-001`) if the database directory is already opened by another process.
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) (`KIN-STO-002`) if IO errors occur or corruption backup fails.
         pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
             let path = path.as_ref();
             match sled::open(path) {
@@ -89,7 +89,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if temporary storage creation fails.
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) (`KIN-STO-002`) if temporary storage creation fails.
         pub fn new_temp() -> Result<Self, StorageError> {
             let db = sled::Config::new()
                 .temporary(true)
@@ -104,7 +104,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if iteration fails.
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) (`KIN-STO-002`) if iteration fails.
         fn scan_prefix(
             &self,
             prefix: &[u8],
@@ -128,7 +128,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if insertion fails.
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) (`KIN-STO-002`) if insertion fails.
         fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
             self.db
                 .insert(key, value)
@@ -140,7 +140,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if lookup fails.
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) (`KIN-STO-002`) if lookup fails.
         fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError> {
             let res = self
                 .db
@@ -153,7 +153,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if deletion fails.
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) (`KIN-STO-002`) if deletion fails.
         fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
             self.db
                 .remove(key)

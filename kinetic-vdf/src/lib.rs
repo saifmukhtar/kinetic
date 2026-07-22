@@ -56,9 +56,9 @@ impl VdfEngine for ChiaVdfEngine {
     ///
     /// # Errors
     ///
-    /// - Returns [`VdfError::ProofGenerationError`](kinetic_core::error::VdfError::ProofGenerationError) if `iterations > 400_000_000_000` or chiavdf fails.
-    /// - Returns [`VdfError::LockFileError`](kinetic_core::error::VdfError::LockFileError) if the system lock file cannot be created.
-    /// - Returns [`VdfError::LockAcquireError`](kinetic_core::error::VdfError::LockAcquireError) if acquiring exclusive lock fails.
+    /// - Returns [`VdfError::ProofGenerationError`](kinetic_core::error::VdfError::ProofGenerationError) (`KIN-VDF-004`) if `iterations > 400_000_000_000` or chiavdf fails.
+    /// - Returns [`VdfError::LockFileError`](kinetic_core::error::VdfError::LockFileError) (`KIN-VDF-001`) if the system lock file cannot be created.
+    /// - Returns [`VdfError::LockAcquireError`](kinetic_core::error::VdfError::LockAcquireError) (`KIN-VDF-002`) if acquiring exclusive lock fails.
     fn evaluate(&self, challenge: &Commitment, iterations: u64) -> Result<VdfProof, VdfError> {
         // Bound max iterations to 400 Billion to prevent DoS lock contention (allows up to ~30 days of CPU time)
         if iterations > 400_000_000_000 {
@@ -108,8 +108,8 @@ impl VdfEngine for ChiaVdfEngine {
     ///
     /// # Errors
     ///
-    /// - Returns [`VdfError::InvalidProof`](kinetic_core::error::VdfError::InvalidProof) if `proof.proof_bytes.len() > 1024`.
-    /// - Returns [`VdfError::DiscriminantError`](kinetic_core::error::VdfError::DiscriminantError) if discriminant derivation fails.
+    /// - Returns [`VdfError::InvalidProof`](kinetic_core::error::VdfError::InvalidProof) (`KIN-VDF-006`) if `proof.proof_bytes.len() > 1024`.
+    /// - Returns [`VdfError::DiscriminantError`](kinetic_core::error::VdfError::DiscriminantError) (`KIN-VDF-003`) if discriminant derivation fails.
     fn verify(
         &self,
         challenge: &Commitment,
