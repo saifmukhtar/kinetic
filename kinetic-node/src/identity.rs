@@ -1,3 +1,5 @@
+//! Static infrastructure node identity loading, Ed25519 key generation, and secure atomic persistence.
+
 use libp2p::identity::Keypair;
 use std::path::Path;
 
