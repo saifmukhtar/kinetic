@@ -1,4 +1,5 @@
-#![allow(missing_docs)]
+//! End-to-end integration testing harness for Kinetic P2P networking, DHT resolution, and resilience.
+
 #[cfg(test)]
 mod tests {
     use kinetic_core::types::Commitment;
