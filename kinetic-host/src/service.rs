@@ -1,3 +1,5 @@
+//! Native OS service management (systemd, launchd, Windows Services) for Kinetic Host.
+
 use anyhow::Result;
 use service_manager::{
     ServiceInstallCtx, ServiceLabel, ServiceManager, ServiceStartCtx, ServiceStopCtx,
