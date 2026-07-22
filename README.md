@@ -277,6 +277,19 @@ cargo build --release --workspace
 
 ---
 
+## 📖 Developer Experience & Documentation
+
+The Kinetic codebase adheres to a strict and robust inline documentation standard to ensure that the code and the documentation never drift apart. 
+
+- **100% Documented:** Every public struct, enum, trait, and function is fully documented.
+- **Robust Error Taxonomy:** We use a domain-specific error hierarchy (e.g., `KIN-RES-001`, `KIN-PUB-003`). Every `# Errors` section in the docs explicitly cites these taxonomy codes alongside the exact error variants returned.
+- **Compilable Examples:** All `# Examples` blocks are strictly tested and guaranteed to compile.
+- **Zero Warnings:** The entire workspace generates docs (`cargo doc --no-deps --workspace`) with exactly **0 warnings**.
+
+Developers can read the rustdocs to fully understand the protocol constraints, the network architecture, and the precise failure modes of every component.
+
+---
+
 ## 📖 Documentation & Whitepapers
 
 | Resource | Link |
