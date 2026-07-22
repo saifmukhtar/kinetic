@@ -1,3 +1,5 @@
+//! P2P reverse proxy ping diagnostic CLI utility for Kinetic host nodes.
+
 use anyhow::Result;
 use clap::Parser;
 use kinetic_network::{client::ProxyRequest, NetworkConfig, NetworkEventLoop, NetworkMode};
