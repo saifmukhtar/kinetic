@@ -1,3 +1,21 @@
+//! VDF engine error types (`KIN-VDF-NNN`).
+//!
+//! Two complementary enums cover the full VDF error surface:
+//!
+//! - [`VdfRejectReason`] — proof-level rejection; used by the DHT store verifier
+//!   when a submitted proof cannot be verified against its challenge.
+//! - [`VdfError`] — engine-level failure; used by the VDF prover when generating
+//!   a new proof for the local node's own registrations.
+//!
+//! ## Protocol Context
+//!
+//! Kinetic uses a Wesolowski VDF (chiavdf library) where the challenge is derived
+//! from the Drand randomness at commitment time:
+//! `challenge = SHA-256(network_id || name || salt || drand_randomness_hex)`.
+//!
+//! The VDF prover is serialized via a filesystem lock file to prevent parallel
+//! proof generation from exhausting CPU resources. [`VdfError::LockAcquireError`]
+//! is the only retryable variant (`KIN-VDF-002`).
 use super::Severity;
 use thiserror::Error;
 

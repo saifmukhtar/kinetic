@@ -1,3 +1,22 @@
+//! Governance action verification and voting error types (`KIN-GOV-NNN`).
+//!
+//! [`GovernanceError`] is returned by the active [`GovernanceEngine`](crate::traits::GovernanceEngine)
+//! when a [`SignedGovernanceMessage`](crate::governance::types::SignedGovernanceMessage) fails
+//! signature verification, threshold checks, or timelock constraints.
+//!
+//! ## Protocol Context
+//!
+//! Kinetic governance is pluggable: `network.json` selects one of four engines
+//! (`bicameral`, `monarchy`, `council`, `anarchy`) at compile time. Each engine
+//! runs `verify_action()` before any state mutation occurs.
+//!
+//! Key roles:
+//! - **Root key**: Ultimate authority; can ratify any action in Founder phase.
+//! - **Guard key**: Emergency veto key for OTA updates and root key rotation.
+//! - **Council members**: Vote on proposals; majority/supermajority required.
+//!
+//! > Note: `KIN-GOV-010`, `KIN-GOV-011`, and `KIN-GOV-012` are intentionally
+//! > skipped in the stable code registry to allow for future expansion.
 use super::Severity;
 use thiserror::Error;
 

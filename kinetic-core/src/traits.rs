@@ -1,32 +1,54 @@
-//! Core trait abstractions and dependency inversion interfaces.
+//! Core trait abstractions and dependency inversion interfaces for the Kinetic engine.
 //!
-//! Defines the abstract contracts for Kinetic's primary operational backends:
-//! - [`VdfEngine`]: Proof evaluation and verification.
-//! - [`StorageEngine`]: Key-value persistence and prefix scanning.
+//! Defines the abstract contracts for Kinetic's three primary pluggable backends:
+//!
+//! - [`VdfEngine`]: CPU-bound Wesolowski VDF proof evaluation and verification (chiavdf).
+//! - [`StorageEngine`]: Key-value persistence and prefix scanning (Sled B-tree).
 //! - [`GovernanceEngine`]: Protocol proposal verification and state transitions.
+//!
+//! These traits enable `kinetic-core` to be network-agnostic. The concrete implementations
+//! live in `kinetic-vdf`, `kinetic-storage`, and `kinetic-core/src/governance/engine/`
+//! respectively. The active [`GovernanceEngine`] is selected at compile time from `network.json`
+//! via the `GOVERNANCE_MODEL` constant.
 
 use crate::error::{GovernanceError, StorageError, VdfError};
 use crate::governance::types::{GovernanceEffect, GovernanceState, SignedGovernanceMessage};
 use crate::types::{Commitment, VdfProof};
 
 /// Abstract interface for Verifiable Delay Function (VDF) computation engines.
+///
+/// The canonical implementation in `kinetic-vdf` wraps the `chiavdf` Wesolowski
+/// VDF library. The challenge is always a 32-byte SHA-256 hash derived from
+/// `network_id || name || salt || drand_randomness_hex`.
 pub trait VdfEngine: Send + Sync {
-    /// Evaluates the VDF sequentially for a given number of iterations.
+    /// Evaluates the VDF sequentially for the given number of iterations.
     ///
-    /// # Computational Note
-    ///
-    /// This is a CPU-intensive, sequential operation that blocks the executing thread.
+    /// This is a **CPU-intensive, sequential operation** that blocks the calling
+    /// thread for the full duration (seconds to minutes depending on hardware
+    /// and iteration count). It must not be called on an async executor thread.
     ///
     /// # Errors
     ///
-    /// Returns [`VdfError`](crate::error::VdfError) if evaluation fails or is interrupted.
+    /// - Returns [`VdfError::LockFileError`] (`KIN-VDF-001`) if the serialization lock file cannot be created.
+    /// - Returns [`VdfError::LockAcquireError`] (`KIN-VDF-002`) if the lock cannot be acquired (retryable).
+    /// - Returns [`VdfError::DiscriminantError`] (`KIN-VDF-003`) if discriminant generation fails.
+    /// - Returns [`VdfError::ProofGenerationError`] (`KIN-VDF-004`) if chiavdf prover panics or fails.
+    /// - Returns [`VdfError::UnsupportedPlatform`] (`KIN-VDF-005`) if the platform is not supported.
     fn evaluate(&self, challenge: &Commitment, iterations: u64) -> Result<VdfProof, VdfError>;
 
-    /// Instantly verifies a provided VDF proof against a challenge hash and target iteration count.
+    /// Instantly verifies a provided VDF proof against a challenge and target iteration count.
+    ///
+    /// Unlike [`evaluate`](Self::evaluate), verification is O(log n) and non-blocking.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(true)` if the proof is valid for the given challenge and iteration count.
+    /// `Ok(false)` if the proof is structurally valid but does not verify.
     ///
     /// # Errors
     ///
-    /// Returns [`VdfError`](crate::error::VdfError) if the proof is malformed or invalid.
+    /// - Returns [`VdfError::DiscriminantError`] (`KIN-VDF-003`) if discriminant creation from the challenge fails.
+    /// - Returns [`VdfError::InvalidProof`] (`KIN-VDF-006`) if the proof bytes are malformed or too large.
     fn verify(
         &self,
         challenge: &Commitment,
@@ -36,37 +58,50 @@ pub trait VdfEngine: Send + Sync {
 }
 
 /// Abstract interface for local embedded database storage engines.
+///
+/// The canonical implementation in `kinetic-storage` wraps a Sled B-tree database.
+/// All keys in Kinetic are namespaced with a `{NETWORK_ID}_` prefix so that multiple
+/// TLD networks can share a physical database file without key collisions.
 pub trait StorageEngine: Send + Sync {
     /// Stores a key-value byte pair, overwriting any existing entry.
     ///
     /// # Errors
     ///
-    /// Returns [`StorageError`](crate::error::StorageError) if the write operation fails.
+    /// - Returns [`StorageError::OperationFailed`] (`KIN-STO-003`) if the write fails.
     fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError>;
 
-    /// Retrieves the stored value byte vector for a given key.
+    /// Retrieves the stored value for a given key.
     ///
     /// # Returns
     ///
-    /// `Ok(Some(Bytes))` if found, `Ok(None)` if missing.
+    /// - `Ok(Some(bytes))` if the key exists.
+    /// - `Ok(None)` if the key has never been written.
     ///
     /// # Errors
     ///
-    /// Returns [`StorageError`](crate::error::StorageError) if the database query fails.
+    /// - Returns [`StorageError::OperationFailed`] (`KIN-STO-003`) if the read fails.
     fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError>;
 
-    /// Removes an entry by key. A no-op if the key does not exist.
+    /// Removes an entry by key.
+    ///
+    /// This is a no-op if the key does not exist — no error is returned for
+    /// missing keys.
     ///
     /// # Errors
     ///
-    /// Returns [`StorageError`](crate::error::StorageError) if the deletion fails.
+    /// - Returns [`StorageError::OperationFailed`] (`KIN-STO-003`) if the deletion fails.
     fn delete(&self, key: &[u8]) -> Result<(), StorageError>;
 
-    /// Iterates over all key-value pairs matching a prefix byte slice up to an optional limit.
+    /// Iterates over all key-value pairs whose keys begin with `prefix`, up to an optional `limit`.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec` of `(key_bytes, value_bytes)` pairs. Returns an empty Vec if no
+    /// keys match the prefix.
     ///
     /// # Errors
     ///
-    /// Returns [`StorageError`](crate::error::StorageError) if prefix iteration encounters an error.
+    /// - Returns [`StorageError::OperationFailed`] (`KIN-STO-003`) if prefix iteration fails.
     #[allow(clippy::type_complexity)]
     fn scan_prefix(
         &self,
@@ -76,12 +111,31 @@ pub trait StorageEngine: Send + Sync {
 }
 
 /// Abstract interface for protocol governance state verification and action execution.
+///
+/// Four concrete engines are available (selected at compile time via `GOVERNANCE_MODEL`):
+/// `bicameral`, `monarchy`, `council`, `anarchy`. See `kinetic-core/src/governance/engine/`.
+///
+/// The engine is always called in a two-step sequence:
+/// 1. [`verify_action`](Self::verify_action) — validates signatures, thresholds, and timelocks.
+/// 2. [`execute_action`](Self::execute_action) — mutates state and returns side effects.
 pub trait GovernanceEngine: Send + Sync {
     /// Verifies whether a signed governance message meets threshold and timelock requirements.
     ///
+    /// Does **not** mutate `state` on its own — state changes only happen in
+    /// [`execute_action`](Self::execute_action).
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Some(effect))` if the message is valid and immediately executable (no timelock).
+    /// - `Ok(None)` if the message is valid but waiting in a timelock queue.
+    ///
     /// # Errors
     ///
-    /// Returns [`GovernanceError`](crate::error::GovernanceError) if signatures are invalid or proposal constraints fail.
+    /// - Returns [`GovernanceError::InvalidGuardSignature`] (`KIN-GOV-009`) if the Guard co-signature is required but fails.
+    /// - Returns [`GovernanceError::InsufficientSignatures`] (`KIN-GOV-016`) if council threshold is not met.
+    /// - Returns [`GovernanceError::StaleProposal`] (`KIN-GOV-004`) if the proposal timestamp is outside the replay window.
+    /// - Returns [`GovernanceError::TimelockNotExpired`] (`KIN-GOV-005`) if the mandatory delay has not elapsed.
+    /// - Returns [`GovernanceError::CouncilSizeMismatch`] (`KIN-GOV-008`) if the claimed denominator is artificially low.
     fn verify_action(
         &self,
         state: &mut GovernanceState,
@@ -89,7 +143,15 @@ pub trait GovernanceEngine: Send + Sync {
         current_time_sec: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError>;
 
-    /// Executes a verified governance action, applying state changes and returning effects.
+    /// Executes a previously verified governance action, applying state changes.
+    ///
+    /// Must only be called after [`verify_action`](Self::verify_action) returns `Ok(_)`.
+    /// The `wait_time` parameter is the remaining timelock seconds to apply for deferred effects.
+    ///
+    /// # Returns
+    ///
+    /// `Some(effect)` if a state-changing side effect was produced (e.g. key rotation,
+    /// council change). `None` if the action was enqueued for a future timelock.
     fn execute_action(
         &self,
         state: &mut GovernanceState,

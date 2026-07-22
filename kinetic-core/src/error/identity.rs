@@ -1,3 +1,11 @@
+//! Node identity key errors (`KIN-IDN-NNN`).
+//!
+//! [`IdentityError`] is returned by [`load_keypair`](crate::types::load_keypair) and
+//! [`save_keypair`](crate::types::save_keypair) when the ML-DSA-65 identity file is
+//! missing, truncated, or the BIP-39 seed phrase is malformed.
+//!
+//! The identity file at `{base_dir}/identity.key` stores the raw ML-DSA-65 signing
+//! key bytes and is required for daemon startup. If it is absent, a new key is generated.
 use super::Severity;
 use thiserror::Error;
 

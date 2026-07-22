@@ -1,3 +1,16 @@
+//! DHT record rejection, resolution, publish, and registration error types.
+//!
+//! Defines three primary error enums used in the two-phase name registration
+//! protocol (commit → reveal) and the DHT name resolution flow:
+//!
+//! - [`RecordRejectReason`] — fine-grained reasons a DHT `PUT` was rejected by
+//!   the local [`KineticRecordStore`](kinetic_network::store::KineticRecordStore).
+//! - [`ResolutionError`] — errors during DHT name lookup (`KIN-RES-NNN`).
+//! - [`PublishError`] — errors when pushing records to the DHT (`KIN-PUB-NNN`).
+//! - [`RegistrationError`] — errors in the full name registration flow (`KIN-REG-NNN`).
+//!
+//! All three rich error types expose `code()`, `error_type_uri()`, `is_retryable()`,
+//! `severity()`, `user_message()`, and `details()` to satisfy the Kinetic error taxonomy.
 use super::vdf::VdfRejectReason;
 use super::Severity;
 use thiserror::Error;

@@ -1,3 +1,10 @@
+//! DNS zone payload validation error types (`KIN-DNS-NNN`).
+//!
+//! Errors produced during [`DnsZone`](crate::types::dns::DnsZone) parsing and record-level
+//! validation. A DNS zone is the JSON payload embedded inside a Kinetic reveal record;
+//! every field must pass these checks before the zone is stored in the DHT.
+//!
+//! The 50-record limit and JSON nesting depth cap enforce the 80 KB DHT record size ceiling.
 use super::Severity;
 use thiserror::Error;
 

@@ -1,3 +1,13 @@
+//! Domain name validation error types (`KIN-NAM-NNN`).
+//!
+//! [`NamesError`] is returned by [`is_valid_apex_name`](crate::types::names::is_valid_apex_name)
+//! when a submitted domain name fails any of the Kinetic naming rules:
+//!
+//! - **LDH rule** (RFC 5891): only lowercase letters, digits, and internal hyphens.
+//! - **Length limits**: total ≤253 chars; each label ≤63 chars (RFC 1035).
+//! - **Apex-only**: subdomains are managed by the apex owner, not the DHT directly.
+//! - **Category 1 reserved** (RFC 2606/6761): `localhost`, `test`, `example`, etc.
+//! - **Category 2 infrastructure**: `seed`, `explorer`, `docs`, etc. locked until Phase 2.
 use super::Severity;
 use thiserror::Error;
 

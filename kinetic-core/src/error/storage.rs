@@ -1,3 +1,11 @@
+//! Sled embedded storage engine error types (`KIN-STO-NNN`).
+//!
+//! [`StorageError`] is returned by the [`StorageEngine`](crate::traits::StorageEngine)
+//! implementation in `kinetic-storage` when the Sled B-tree database encounters
+//! lock contention, structural corruption, or a failed read/write operation.
+//!
+//! `KIN-STO-001` (`DatabaseLocked`) is `Severity::Critical` — it means a second
+//! daemon instance is competing for the same database file, which is a fatal condition.
 use super::Severity;
 use thiserror::Error;
 

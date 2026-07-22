@@ -1,3 +1,17 @@
+//! Drand Quicknet pulse acquisition and verification error types (`KIN-DRA-NNN`).
+//!
+//! [`DrandError`] is returned by [`DrandClient::fetch_latest`](crate::drand::DrandClient::fetch_latest)
+//! when the Quicknet randomness beacon cannot be reached, returns an invalid pulse, or the
+//! BLS threshold signature fails mathematical verification.
+//!
+//! ## Protocol Context
+//!
+//! Drand pulses are the heartbeat of the Kinetic protocol. Every VDF commitment encodes
+//! the current pulse round as a salt, and every reveal must include the Drand randomness
+//! at the time of commitment. An invalid or stale pulse breaks the time-lock guarantee.
+//!
+//! The daemon falls back to cached pulses ([`DrandError::NoCachedPulse`]) and gossipsub
+//! P2P propagation if all HTTP endpoints fail.
 use super::Severity;
 use thiserror::Error;
 

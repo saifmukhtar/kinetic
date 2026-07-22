@@ -1,3 +1,19 @@
+//! OTA self-updater error types (`KIN-OTA-NNN`).
+//!
+//! [`UpdaterError`] is returned by the daemon's OTA update handler when a
+//! [`GovernanceAction::OtaSoftwareUpdate`] triggers a binary download and replacement.
+//!
+//! ## Protocol Context
+//!
+//! OTA updates are governed by a 48-hour mandatory timelock (`KIN-GOV-006`).
+//! After the timelock expires, the daemon:
+//! 1. Downloads the binary from the governance-approved mirrors.
+//! 2. Verifies SHA-256 hash (`HashMismatch` → `KIN-OTA-007` if mismatched).
+//! 3. Replaces the running executable in-place via `self_replace`.
+//! 4. Spawns the new process and terminates the old one.
+//!
+//! `HashMismatch` is the most security-critical variant: it may indicate a
+//! supply-chain attack and is surfaced as `Severity::Error`.
 use super::Severity;
 use thiserror::Error;
 
