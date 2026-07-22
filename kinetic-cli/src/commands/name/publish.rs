@@ -1,3 +1,5 @@
+//! Domain name zone routing updates and commit-reveal network publishing logic.
+
 use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::types::{load_keypair, Commitment, Reveal};
