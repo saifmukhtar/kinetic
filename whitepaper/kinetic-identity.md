@@ -48,15 +48,15 @@ A Kinetic name does not resolve to an IP address. It resolves to a **Kinetic Ide
 example.kin  →  did:kin:kid1abc9f7...
 ```
 
-The KID is the permanent cryptographic root of trust, bound to a high-speed, high-security **Ed25519** keypair [1]. It represents the actual entity. If `example.kin` changes ownership, the DHT payload is updated to point to a different KID, preventing semantic masquerading.
+The KID is the permanent cryptographic root of trust, bound to a high-speed, post-quantum **ML-DSA-65** keypair [1]. It represents the actual entity. If `example.kin` changes ownership, the DHT payload is updated to point to a different KID, preventing semantic masquerading.
 
 **KID Document Schema** (as implemented in `kinetic-kid/`):
 ```json
 {
   "kid": "did:kin:kid1abc9f7...",
-  "pubkey": "ed25519:8b3a...",
+  "pubkey": "mldsa65:8b3a...",
   "created_at": 1750000000,
-  "revocation_key": "ed25519:4f2c..."
+  "revocation_key": "mldsa65:4f2c..."
 }
 ```
 
@@ -87,7 +87,7 @@ A KID points to a **Capability Manifest**. The manifest cryptographically declar
 }
 ```
 
-The manifest is signed by the KID's Ed25519 private key. Any peer in the network can independently verify the signature without contacting a trusted authority.
+The manifest is signed by the KID's ML-DSA-65 private key. Any peer in the network can independently verify the signature without contacting a trusted authority.
 
 **Why this matters for forks:** A university running `.uni` can define custom service types in their Capability Manifests — for example, a `type: "research-endpoint"` or `type: "hpc-cluster"`. The base protocol is service-type agnostic by design.
 
@@ -112,7 +112,7 @@ These responsibilities belong to parallel infrastructure: object storage, IPFS, 
 Because ownership state is perfectly encapsulated inside self-authenticating, mathematically verifiable payloads, Kinetic supports **trust-minimized light clients**.
 
 A light client (such as a standard web browser or mobile application via the Kinetic client) requests lease records via standard HTTPS from an untrusted gateway. The client locally verifies:
-1. The **Ed25519 cryptographic signatures** on the KID and Capability Manifest
+1. The **ML-DSA-65 cryptographic signatures** on the KID and Capability Manifest
 2. The **`drand` heartbeat timestamps** to confirm the record is not stale
 3. The **VDF proof** to confirm the name was legitimately registered
 
@@ -138,6 +138,6 @@ By forcefully decoupling names from cryptographic identity documents, the Kineti
 
 ## References
 
-[1] Bernstein, D. J., Duif, N., Lange, T., Schwabe, P., & Yang, B.-Y. (2012). *High-speed high-security signatures.* Journal of Cryptographic Engineering, 2(2), 77–89.
+[1] National Institute of Standards and Technology (NIST). (2024). *FIPS 204: Module-Lattice-Based Digital Signature Standard (ML-DSA).* U.S. Department of Commerce.
 
 [2] W3C. (2022). *Decentralized Identifiers (DIDs) v1.0.* W3C Recommendation. Retrieved from https://www.w3.org/TR/did-core/
