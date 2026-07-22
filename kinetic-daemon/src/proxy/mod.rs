@@ -51,6 +51,7 @@ pub enum ProxyError {
     /// Generic HTTP error.
     #[error("HTTP error: {0}")]
     Http(#[from] hyper::http::Error),
+    /// Unclassified or internal proxy error.
     #[error("Other Error: {0}")]
     Other(String),
 }
