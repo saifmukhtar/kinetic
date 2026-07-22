@@ -1,3 +1,5 @@
+//! Node health-check and status REST API router.
+
 use axum::{routing::get, Router};
 use libp2p::PeerId;
 
