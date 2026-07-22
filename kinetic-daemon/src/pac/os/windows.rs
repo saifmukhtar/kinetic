@@ -1,6 +1,9 @@
+//! Windows-specific proxy configurator using PowerShell registry manipulation.
+
 use super::super::*;
 use std::process::Command;
 
+/// Proxy configurator implementation for Windows using PowerShell registry modification.
 #[cfg(target_os = "windows")]
 pub struct WindowsConfigurator;
 
@@ -62,6 +65,7 @@ impl ProxyConfigurator for WindowsConfigurator {
         Ok(SavedState {
             previous_pac_url: pac_url,
             proxy_type: None, // ProxyEnable isn't restored currently, but we could if needed
+            macos_services: None,
         })
     }
 
