@@ -1,3 +1,5 @@
+//! CLI commands for Kinetic Identity Document (KID) creation, post-quantum key rotation, revocation, and DHT publishing.
+
 use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
 use reqwest::Client;
