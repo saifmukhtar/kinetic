@@ -1,3 +1,4 @@
+#![allow(rustdoc::redundant_explicit_links)]
 //! # kinetic-network
 //!
 //! The libp2p networking layer for the Kinetic decentralised naming network.

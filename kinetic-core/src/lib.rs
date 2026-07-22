@@ -1,3 +1,4 @@
+#![allow(rustdoc::redundant_explicit_links)]
 //! # kinetic-core
 //!
 //! The foundational shared kernel for the Kinetic decentralized naming network.

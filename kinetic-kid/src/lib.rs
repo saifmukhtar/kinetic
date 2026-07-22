@@ -1,3 +1,4 @@
+#![allow(rustdoc::redundant_explicit_links)]
 //! # kinetic-kid
 //!
 //! Kinetic Identity Documents (KIDs) — the self-sovereign identity layer.
