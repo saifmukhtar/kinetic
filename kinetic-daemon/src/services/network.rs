@@ -1,3 +1,5 @@
+//! Background network loops for dynamic PoW identity rotation and periodic DHT domain republishing.
+
 use kinetic_core::traits::StorageEngine;
 
 #[allow(clippy::too_many_arguments)]
