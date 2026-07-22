@@ -9,6 +9,8 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+hickory-proto = "0.24"
+kinetic-core = { path = "../../kinetic-core" }
 kinetic-dns = { path = ".." }
 
 # Prevent this from interfering with workspaces
