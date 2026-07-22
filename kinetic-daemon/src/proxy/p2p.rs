@@ -1,3 +1,5 @@
+//! Inbound P2P proxy request processor, security validator, and local backend forwarder.
+
 use super::*;
 
 /// Handles incoming P2P proxy requests from other nodes and forwards them to a local port.
