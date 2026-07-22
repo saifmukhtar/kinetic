@@ -1,3 +1,5 @@
+//! CLI wizard for bootstrapping and scaffolding isolated private Kinetic networks (`network.json`).
+
 use anyhow::{Context, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input};
 use serde::{Deserialize, Serialize};
