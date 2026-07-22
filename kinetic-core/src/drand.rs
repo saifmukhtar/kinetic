@@ -8,7 +8,7 @@
 //! 1. Try each HTTP endpoint (from `config.toml` and DNS TXT records) with up to 3 attempts and 500ms/1s/2s backoff.
 //! 2. For each successful response: verify BLS signature + SHA-256 binding + staleness (≤200 rounds / 10 minutes).
 //! 3. If all endpoints fail: fall back to local storage cache (may be stale but still usable for heartbeats).
-//! 4. If no cache exists: return [`DrandError::NoCachedPulse`] (`KIN-DRA-004`).
+//! 4. If no cache exists: return `DrandError::NoCachedPulse` (`KIN-DRA-004`).
 //!
 //! ## Dev Mode Behavior
 //!
