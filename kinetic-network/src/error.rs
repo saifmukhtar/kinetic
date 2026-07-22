@@ -75,6 +75,68 @@ pub enum KineticStoreError {
 }
 
 impl KineticStoreError {
+    /// Stable protocol error code.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::PayloadTooLarge => "KIN-NET-001",
+            Self::VdfExpired { .. } => "KIN-NET-002",
+            Self::InvalidVdf => "KIN-NET-003",
+            Self::VdfEngineError(_) => "KIN-NET-004",
+            Self::InvalidSignature => "KIN-NET-005",
+            Self::InvalidPublicKey => "KIN-NET-006",
+            Self::MalformedSignature => "KIN-NET-007",
+            Self::TieBroken => "KIN-NET-008",
+            Self::InsufficientIterations => "KIN-NET-009",
+            Self::RevealNotFound => "KIN-NET-010",
+            Self::InvalidKidSignature => "KIN-NET-011",
+            Self::InvalidManifestSignature => "KIN-NET-012",
+            Self::UnknownRecordType => "KIN-NET-013",
+            Self::InvalidDrandHex => "KIN-NET-014",
+            Self::StaleHeartbeat => "KIN-NET-015",
+            Self::InvalidHostRouteSignature => "KIN-NET-016",
+            Self::RateLimited => "KIN-NET-017",
+            Self::StaleReveal => "KIN-NET-018",
+            Self::MissingCommitment => "KIN-NET-019",
+            Self::InvalidName => "KIN-NET-020",
+        }
+    }
+
+    /// RFC 7807 type URI for this error.
+    pub fn error_type_uri(&self) -> String {
+        format!("https://kinetic.network/errors/{}", self.code())
+    }
+
+    /// Returns whether this error is transient and retryable.
+    pub fn is_retryable(&self) -> bool {
+        matches!(self, Self::RateLimited | Self::VdfEngineError(_))
+    }
+
+    /// Human-friendly explanation of the error.
+    pub fn user_message(&self) -> String {
+        match self {
+            Self::PayloadTooLarge => "Record payload exceeds maximum allowed size".to_string(),
+            Self::VdfExpired { age } => format!("VDF proof is expired ({} rounds old)", age),
+            Self::InvalidVdf => "VDF proof verification failed".to_string(),
+            Self::VdfEngineError(err) => format!("VDF engine error: {}", err),
+            Self::InvalidSignature => "Signature verification failed".to_string(),
+            Self::InvalidPublicKey => "Public key format is invalid".to_string(),
+            Self::MalformedSignature => "Signature format is invalid".to_string(),
+            Self::TieBroken => "Record lost XOR tie-break against existing DHT entry".to_string(),
+            Self::InsufficientIterations => "Insufficient VDF iterations to override existing record".to_string(),
+            Self::RevealNotFound => "No reveal record found for domain".to_string(),
+            Self::InvalidKidSignature => "KID document signature verification failed".to_string(),
+            Self::InvalidManifestSignature => "Manifest signature verification failed".to_string(),
+            Self::UnknownRecordType => "Record payload prefix is unrecognized".to_string(),
+            Self::InvalidDrandHex => "Drand randomness hex string is invalid".to_string(),
+            Self::StaleHeartbeat => "Heartbeat pulse is not newer than stored record".to_string(),
+            Self::InvalidHostRouteSignature => "Host routing record signature verification failed".to_string(),
+            Self::RateLimited => "Rate limit exceeded for submission".to_string(),
+            Self::StaleReveal => "Reveal commitment is too recent".to_string(),
+            Self::MissingCommitment => "No prior commitment found in DHT for this reveal".to_string(),
+            Self::InvalidName => "Name is not a valid Kinetic apex domain".to_string(),
+        }
+    }
+
     /// Returns the severity level of this error.
     pub fn severity(&self) -> Severity {
         match self {

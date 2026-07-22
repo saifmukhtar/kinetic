@@ -1,3 +1,5 @@
+//! Cryptographic verification rules for Reveals, HostRoutingRecords, AuthorizedKids, and AuthorizedManifests.
+
 use crate::error::KineticStoreError;
 
 /// Finding 13 (Critical): Verify a HostRoutingRecord's signature and timestamp freshness.

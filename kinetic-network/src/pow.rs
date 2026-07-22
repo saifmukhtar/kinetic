@@ -1,3 +1,5 @@
+//! Argon2id Proof-of-Work (PoW) mining and validation for S/Kademlia anti-Sybil peer identity protection.
+
 use argon2::{Algorithm, Argon2, Params, Version};
 use libp2p::{identity::Keypair, PeerId};
 use tracing::info;

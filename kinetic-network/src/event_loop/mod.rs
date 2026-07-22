@@ -1,3 +1,5 @@
+//! Event loop driving the libp2p swarm, handling network commands, and processing inbound events.
+
 /// Outbound command handlers.
 pub mod command_handler;
 /// The core event loop definition.

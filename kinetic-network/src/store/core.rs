@@ -1,3 +1,5 @@
+//! Custom Kademlia `RecordStore` implementation managing persistent Sled storage, LRU caching, and validation dispatching.
+
 use libp2p::{kad, PeerId};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -10,7 +12,11 @@ use lru::LruCache;
 use std::num::NonZeroUsize;
 
 use crate::store::constants::*;
+
 /// Custom Kademlia record store for Kinetic name records.
+///
+/// Implements `libp2p::kad::store::RecordStore` to provide domain validation,
+/// commit-reveal timelocks, heartbeat liveness tracking, and sled persistence.
 pub struct KineticRecordStore {
     inner: kad::store::MemoryStore,
     /// Persistent storage backend.

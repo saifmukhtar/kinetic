@@ -1,3 +1,5 @@
+//! Libp2p Swarm initialization logic and protocol behavior configuration.
+
 use libp2p::kad;
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};

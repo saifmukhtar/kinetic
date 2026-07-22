@@ -1,3 +1,5 @@
+//! Utility data structures, async task spawners, and the XOR distance tie-breaker conflict resolver.
+
 use kinetic_core::error::{NetworkClientError, ResolutionError};
 use tokio::sync::oneshot;
 

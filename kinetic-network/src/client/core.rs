@@ -84,7 +84,8 @@ impl NetworkClient {
     ///
     /// # Errors
     ///
-    /// Returns a `ProxyError` if the channel is closed or the request times out.
+    /// - Returns [`ProxyError::ChannelClosed`](crate::client::types::ProxyError::ChannelClosed) if the event loop task has terminated.
+    /// - Returns [`ProxyError::Timeout`](crate::client::types::ProxyError::Timeout) if the request times out.
     pub async fn send_proxy_request(
         &self,
         peer: libp2p::PeerId,
@@ -111,7 +112,7 @@ impl NetworkClient {
     ///
     /// # Errors
     ///
-    /// Returns a `NetworkClientError` if the response channel cannot be sent to.
+    /// - Returns [`NetworkClientError::ChannelClosed`](kinetic_core::error::NetworkClientError::ChannelClosed) if the response channel cannot be sent to.
     pub async fn send_proxy_response(
         &self,
         channel: libp2p::request_response::ResponseChannel<ProxyResponse>,
@@ -136,7 +137,7 @@ impl NetworkClient {
     ///
     /// # Errors
     ///
-    /// Returns a `PublishError` if the payload exceeds size limits or the network channel fails.
+    /// - Returns [`PublishError::Internal`](kinetic_core::error::PublishError::Internal) if the payload exceeds the 80 KB P2P network limit or the channel is closed.
     pub async fn publish_redundant_payload(
         &self,
         name: &str,
@@ -180,7 +181,7 @@ impl NetworkClient {
     ///
     /// # Errors
     ///
-    /// Returns a `PublishError` if the network channel is closed or communication fails.
+    /// - Returns [`PublishError::Internal`](kinetic_core::error::PublishError::Internal) if the network channel is closed or communication fails.
     pub async fn publish_heartbeat(
         &self,
         name: &str,

@@ -1,3 +1,5 @@
+//! Outbound command handling for publishing, resolving, and proxying requests across the swarm.
+
 use crate::client::Command;
 
 use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};

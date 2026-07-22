@@ -1,3 +1,5 @@
+//! Custom Kinetic DNS Tree protocol (`kintree`) for discovering bootstrap peer addresses via DNS TXT records.
+
 use hickory_resolver::AsyncResolver;
 use std::collections::HashSet;
 use libp2p::Multiaddr;

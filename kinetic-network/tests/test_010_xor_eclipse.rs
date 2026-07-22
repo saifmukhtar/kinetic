@@ -9,8 +9,7 @@ use sha2::{Digest, Sha256};
 #[test]
 #[ignore = "Slow cryptographic test: takes >60s to compute VDF proof"]
 fn test_010_xor_eclipse() {
-    let mut csprng = OsRng;
-    let keypair = SigningKey::generate(&mut csprng);
+    let keypair = SigningKey::from_bytes(&[1u8; 32]);
     let pubkey = keypair.verifying_key();
 
     let drand_pulse = 50u64;

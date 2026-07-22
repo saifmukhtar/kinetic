@@ -1,3 +1,5 @@
+//! Core `NetworkEventLoop` definition and main event loop execution thread.
+
 use libp2p::{kad, PeerId, Swarm};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::{mpsc, oneshot, watch};

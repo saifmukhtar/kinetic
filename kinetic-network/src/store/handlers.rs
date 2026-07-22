@@ -1,3 +1,5 @@
+//! Handler logic for processing domain reveals and liveness heartbeats.
+
 use crate::error::KineticStoreError;
 use crate::store::constants::*;
 use crate::store::core::KineticRecordStore;

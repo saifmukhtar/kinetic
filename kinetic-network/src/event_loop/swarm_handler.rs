@@ -1,3 +1,5 @@
+//! Inbound libp2p swarm event handling, peer validation, and protocol dispatching.
+
 use crate::behavior::KineticBehaviorEvent;
 use crate::event_loop::utils::*;
 use kinetic_core::error::ResolutionError;

@@ -1,3 +1,5 @@
+//! Custom Kademlia record store for Kinetic domain state, reveals, commitments, and verification rules.
+
 /// Store constants.
 pub(crate) mod constants;
 /// The core store implementation.

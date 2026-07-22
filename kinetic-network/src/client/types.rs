@@ -71,13 +71,13 @@ pub enum NetworkMode {
 pub struct NetworkConfig {
     /// Operating mode (FullNode or LightClient).
     pub mode: NetworkMode,
-    /// The multiaddr to listen on.
+    /// The multiaddr to listen on for TCP/IP traffic.
     pub listen_addr: libp2p::Multiaddr,
-    /// The multiaddr to listen on over QUIC.
+    /// The multiaddr to listen on over QUIC transport.
     pub quic_listen_addr: Option<libp2p::Multiaddr>,
     /// Known bootstrap nodes to connect to at startup.
     pub bootstrap_nodes: Vec<libp2p::Multiaddr>,
-    /// Pre-known domain seeds.
+    /// Pre-known domain seeds for DNS tree resolution.
     pub seed_domains: Vec<std::sync::Arc<str>>,
     /// Whether to enable local mDNS discovery.
     pub enable_mdns: bool,
