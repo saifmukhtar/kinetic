@@ -67,7 +67,7 @@ impl KidDocument {
     ///
     /// # Errors
     ///
-    /// - Returns [`KidError::CanonicalizationError`](crate::error::KidError::CanonicalizationError) if JSON serialization fails.
+    /// - Returns [`KidError::CanonicalizationError`] if JSON serialization fails.
     pub fn canonicalize(&self) -> Result<String, KidError> {
         let mut unsigned_doc = self.clone();
         unsigned_doc.signature = None; // Omit signature for canonicalization
@@ -80,10 +80,10 @@ impl KidDocument {
     ///
     /// # Errors
     ///
-    /// - Returns [`KidError::TooManyKeys`](crate::error::KidError::TooManyKeys) if key count or URL bounds are exceeded.
-    /// - Returns [`KidError::MissingSignature`](crate::error::KidError::MissingSignature) if the signature field is absent.
-    /// - Returns [`KidError::Base64Error`](crate::error::KidError::Base64Error) if signature or public key base64url decoding fails.
-    /// - Returns [`KidError::InvalidSignature`](crate::error::KidError::InvalidSignature) if no listed key produces a valid ML-DSA-65 signature.
+    /// - Returns [`KidError::TooManyKeys`] if key count or URL bounds are exceeded.
+    /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
+    /// - Returns [`KidError::Base64Error`] if signature or public key base64url decoding fails.
+    /// - Returns [`KidError::InvalidSignature`] if no listed key produces a valid ML-DSA-65 signature.
     pub fn verify(&self) -> Result<(), KidError> {
         if self.controller_keys.len() > 20 || self.revocation_keys.len() > 20 {
             return Err(KidError::TooManyKeys);
@@ -159,7 +159,7 @@ impl KidDocument {
     ///
     /// # Errors
     ///
-    /// - Returns [`KidError::CanonicalizationError`](crate::error::KidError::CanonicalizationError) if JCS canonicalization fails.
+    /// - Returns [`KidError::CanonicalizationError`] if JCS canonicalization fails.
     pub fn sign(mut self, keypair: &ml_dsa::SigningKey<ml_dsa::MlDsa65>) -> Result<Self, KidError> {
         use ml_dsa::SignatureEncoding;
         let msg_str = self.canonicalize()?;

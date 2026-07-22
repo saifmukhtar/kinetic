@@ -23,11 +23,17 @@
 //!   restarts the loop without any downtime.
 //! - **Health API**: Exposed on port 16004.
 
+/// Health-check REST API.
 pub mod api;
+/// P2P Gossipsub network handlers.
 pub mod gossip;
+/// Drand heartbeat and dynamic routing publisher.
 pub mod heartbeat;
+/// Host identity key management.
 pub mod identity;
+/// P2P reverse proxy logic.
 pub mod proxy;
+/// Background system service installer.
 pub mod service;
 
 #[cfg(test)]
