@@ -1,5 +1,10 @@
 //! Custom Kademlia `RecordStore` implementation managing persistent Sled storage, LRU caching, and validation dispatching.
-
+//!
+//! This module defines the [`KineticRecordStore`], which implements libp2p's
+//! [`RecordStore`](libp2p::kad::store::RecordStore) trait. It intercepts DHT
+//! `put` requests to strictly enforce Kinetic protocol rules, such as VDF proof
+//! validation, Ed25519 signature checks, and heartbeat timestamp progression,
+//! before persisting records to the underlying `sled` database.
 use libp2p::{kad, PeerId};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -39,6 +44,23 @@ pub struct KineticRecordStore {
 
 impl KineticRecordStore {
     /// Creates a new `KineticRecordStore` instance and restores existing state from sled storage.
+    ///
+    /// This initialization phase scans the persistent storage for existing reveals and heartbeats,
+    /// re-verifying their validity (including VDF proofs and Ed25519 signatures) before
+    /// repopulating the memory caches. Invalid or stale records are discarded.
+    ///
+    /// # Arguments
+    ///
+    /// * `local_peer_id` - The libp2p [`PeerId`] of the local node.
+    /// * `storage` - A thread-safe reference to the underlying sled database wrapper.
+    /// * `initial_drand_round` - The starting drand pulse round to initialize the store.
+    /// * `lru_cache_size` - The maximum number of reveals to cache in memory.
+    /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per domain name.
+    /// * `vdf_engine` - The backend engine used to verify VDF proofs.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `storage` fails to parse basic numbers or during unwrap in fallback scenarios.
     pub fn new(
         local_peer_id: PeerId,
         storage: Arc<dyn StorageEngine>,
@@ -154,6 +176,10 @@ impl KineticRecordStore {
         }
     }
     /// Prunes expired records based on Drand pulse progression.
+    ///
+    /// This removes `Commitment` records that are older than 100 rounds,
+    /// `Reveal` records older than the resquaring epoch, and idle heartbeats
+    /// older than 7 days (where applicable for infrastructure).
     pub fn prune(&mut self) {
         let current_round = self.current_drand_round;
         let mut keys_to_delete = Vec::new();
@@ -240,12 +266,35 @@ impl KineticRecordStore {
 }
 
 impl KineticRecordStore {
-    /// Attempts to put a record, returning a typed KineticStoreError on failure.
+    /// Attempts to put a record, returning a typed [`KineticStoreError`] on failure.
+    ///
+    /// This method enforces all Kinetic validation rules dynamically based on the payload type
+    /// (e.g., `Commitment`, `Reveal`, `Heartbeat`, `AuthorizedKid`, `AuthorizedManifest`, `HostRoutingRecord`).
+    ///
+    /// # Arguments
+    ///
+    /// * `r` - The Kademlia record attempting to be stored.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`KineticStoreError`] if the record payload is malformed, cryptographic proofs fail,
+    /// the heartbeat is stale, or the payload size exceeds the 80 KB limit (`KIN-NET-001`).
     pub fn put_record(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         self.put_record_internal(r, false)
     }
 
     /// Attempts to put a record directly, bypassing VDF verification (for offloaded validation).
+    ///
+    /// This is used internally when an offloaded VDF verification task succeeds, allowing
+    /// the record to be stored without duplicating the expensive validation.
+    ///
+    /// # Arguments
+    ///
+    /// * `r` - The pre-verified Kademlia record to be stored.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`KineticStoreError`] if the payload size exceeds the maximum 80 KB limit (`KIN-NET-001`).
     pub fn put_verified_record(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         self.put_record_internal(r, true)
     }

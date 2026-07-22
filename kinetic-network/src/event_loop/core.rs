@@ -1,4 +1,8 @@
 //! Core `NetworkEventLoop` definition and main event loop execution thread.
+//!
+//! This module houses the primary async reactor for all libp2p P2P networking in Kinetic.
+//! It maintains the Kademlia DHT, Gossipsub mesh, AutoNAT traversals, and background 
+//! verification workers for inbound blocks.
 
 use libp2p::{kad, PeerId, Swarm};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -10,6 +14,7 @@ use crate::client::Command;
 
 use crate::event_loop::utils::*;
 
+/// Internal identifier mapping a Kademlia query ID back to the requested domain name and intent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum QueryType {
     Get(std::sync::Arc<str>),
@@ -17,6 +22,7 @@ pub(crate) enum QueryType {
     Put(std::sync::Arc<str>),
 }
 
+/// Internal loopback messages sent from spawned blocking tasks back to the main event loop thread.
 pub(crate) enum LoopbackCommand {
     CommitVerifiedRecord {
         source: libp2p::PeerId,
@@ -32,6 +38,10 @@ pub(crate) enum LoopbackCommand {
 }
 
 /// The central event loop that drives the libp2p swarm and handles networking events.
+///
+/// This struct holds the state of all ongoing network operations, handles inbound RPCs,
+/// processes DHT records, maintains connection limits, and enforces Proof-of-Work checks
+/// against connecting peers to thwart Sybil attacks.
 pub struct NetworkEventLoop {
     pub(crate) swarm: Swarm<KineticBehavior>,
     pub(crate) command_receiver: mpsc::Receiver<Command>,
@@ -70,6 +80,12 @@ pub struct NetworkEventLoop {
 
 impl NetworkEventLoop {
     /// Starts the event loop. Blocks indefinitely until the command channel is closed.
+    ///
+    /// The event loop continuously multiplexes between:
+    /// - Periodic background tasks (e.g., pruning Sled storage, redialing bootstraps).
+    /// - External commands coming from the `NetworkClient` (e.g., publish, resolve).
+    /// - Loopback results from CPU-intensive cryptographic validations (e.g., VDF, PoW).
+    /// - Raw network events surfaced by `libp2p::Swarm`.
     pub async fn run(mut self) {
         info!("Starting Kinetic P2P event loop");
 

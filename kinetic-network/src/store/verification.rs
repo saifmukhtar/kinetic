@@ -1,10 +1,25 @@
 //! Cryptographic verification rules for Reveals, HostRoutingRecords, AuthorizedKids, and AuthorizedManifests.
+//!
+//! This module acts as the strict gatekeeper for the Kademlia DHT. It enforces
+//! Ed25519 signature checks, VDF iteration verification (including loyalty discounts),
+//! and timestamp freshness checks to prevent sybil attacks and namespace hijacking.
 
 use crate::error::KineticStoreError;
 
 /// Finding 13 (Critical): Verify a HostRoutingRecord's signature and timestamp freshness.
-/// This lives in kinetic-network (not kinetic-core) because it requires the libp2p dependency
+/// 
+/// This lives in `kinetic-network` (not `kinetic-core`) because it requires the libp2p dependency
 /// to extract the Ed25519 public key from the PeerId multihash.
+///
+/// # Arguments
+///
+/// * `record` - The host routing record to be verified.
+///
+/// # Errors
+///
+/// * Returns `KineticStoreError::InvalidHostRouteSignature` if the timestamp is stale (older than 10 mins) or from the future.
+/// * Returns `KineticStoreError::InvalidPublicKey` if the `host_id` cannot be parsed as a valid `PeerId` containing an Ed25519 key.
+/// * Returns `KineticStoreError::MalformedSignature` if the signature bytes are structurally invalid.
 pub(crate) fn verify_host_routing_record(
     record: &kinetic_core::types::HostRoutingRecord,
 ) -> Result<(), KineticStoreError> {
@@ -85,6 +100,18 @@ fn get_u64_from_sled(
     }
 }
 
+/// Computes the required VDF iterations for a reveal, considering potential loyalty discounts.
+///
+/// # Arguments
+///
+/// * `reveal` - The proposed reveal to compute iterations for.
+/// * `current_drand_round` - The current global drand pulse round.
+/// * `engine` - The VDF engine reference used to verify any `previous_proof` attached for a discount.
+///
+/// # Errors
+///
+/// * Returns `KineticStoreError::InvalidName` if the apex name is malformed.
+/// * Returns `KineticStoreError::InvalidDrandHex` if the Drand randomness is not valid hex.
 pub(crate) fn compute_required_iterations(
     reveal: &kinetic_core::types::Reveal,
     current_drand_round: u64,
@@ -180,6 +207,26 @@ pub(crate) fn compute_required_iterations(
     Ok(required_iterations)
 }
 
+/// Verifies a Reveal commitment payload completely.
+///
+/// This checks the Ed25519 signature, ensures a prior `Commitment` exists in the local DHT shard
+/// (unless in dev mode), enforces the required VDF iteration threshold, and verifies the VDF proof itself.
+///
+/// # Arguments
+///
+/// * `reveal` - The Reveal payload.
+/// * `storage` - The local sled storage engine (to look up the commitment).
+/// * `current_drand_round` - The current drand pulse round.
+/// * `engine` - The VDF engine used to verify the proof.
+///
+/// # Errors
+///
+/// * Returns `KineticStoreError::InvalidName` if the name is invalid.
+/// * Returns `KineticStoreError::InvalidPublicKey` or `KineticStoreError::InvalidSignature` if Ed25519 checks fail.
+/// * Returns `KineticStoreError::StaleReveal` if the commitment is too recent (age < 10 rounds).
+/// * Returns `KineticStoreError::MissingCommitment` if no prior commitment is found in the DHT.
+/// * Returns `KineticStoreError::InsufficientIterations` if the iterations do not meet the consensus threshold.
+/// * Returns `KineticStoreError::InvalidVdf` if the VDF proof fails verification.
 pub(crate) fn verify_reveal(
     reveal: &kinetic_core::types::Reveal,
     storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
@@ -339,6 +386,17 @@ pub(crate) fn verify_reveal(
     }
 }
 
+/// Verifies an `AuthorizedKid` payload by checking the domain owner's signature.
+///
+/// # Arguments
+///
+/// * `auth_kid` - The AuthorizedKid payload to verify.
+/// * `active_reveal` - The currently active `Reveal` for this domain, which provides the public key.
+///
+/// # Errors
+///
+/// Returns `KineticStoreError::InvalidKidSignature` if the reveal is missing, the signature is invalid,
+/// or the inner KID document fails self-verification.
 pub(crate) fn verify_authorized_kid(
     auth_kid: &kinetic_core::types::AuthorizedKid,
     active_reveal: Option<&kinetic_core::types::Reveal>,
@@ -378,6 +436,21 @@ pub(crate) fn verify_authorized_kid(
     }
 }
 
+/// Verifies an `AuthorizedManifest` payload.
+///
+/// Ensures that the manifest is signed by the domain owner and prevents rollback attacks
+/// by ensuring the manifest version is strictly greater than any existing version.
+///
+/// # Arguments
+///
+/// * `auth_manifest` - The AuthorizedManifest payload to verify.
+/// * `active_reveal` - The currently active `Reveal` for this domain.
+/// * `existing_record` - The pre-existing DHT record for this manifest, if any, used for version anti-rollback.
+///
+/// # Errors
+///
+/// Returns `KineticStoreError::InvalidManifestSignature` if the reveal is missing, the owner signature is invalid,
+/// the KID document is missing/invalid, or a version rollback is detected.
 pub(crate) fn verify_authorized_manifest(
     auth_manifest: &kinetic_core::types::AuthorizedManifest,
     active_reveal: Option<&kinetic_core::types::Reveal>,
