@@ -1,3 +1,5 @@
+//! Helper CLI utility extracting public key bytes from the Kinetic host identity file.
+
 use ed25519_dalek::SigningKey;
 use std::fs;
 
