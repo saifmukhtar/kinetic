@@ -1,3 +1,5 @@
+//! libFuzzer target testing `ChiaVdfEngine::verify` against arbitrary proof byte streams and malformed FFI inputs.
+
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;

@@ -1,3 +1,5 @@
+//! libFuzzer target testing `ChiaVdfEngine::evaluate` against randomized challenge hashes and iteration counts.
+
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
