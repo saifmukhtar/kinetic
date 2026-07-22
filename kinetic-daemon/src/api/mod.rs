@@ -1,3 +1,5 @@
+//! HTTP REST API router, authentication middleware, state management, and server bootstrap.
+
 use axum::{extract::State, http::StatusCode, routing::post, Router};
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Reveal;
