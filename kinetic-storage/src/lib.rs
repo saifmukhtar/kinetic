@@ -29,7 +29,9 @@ mod native {
         /// Opens or creates the Sled database at the specified directory path.
         ///
         /// # Errors
-        /// Returns a `StorageError` if the database cannot be opened, is locked by another process, or encounters corruption.
+        ///
+        /// - Returns [`StorageError::DatabaseLocked`](kinetic_core::error::StorageError::DatabaseLocked) if the database directory is already opened by another process.
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if IO errors occur or corruption backup fails.
         pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
             let path = path.as_ref();
             match sled::open(path) {
@@ -86,7 +88,8 @@ mod native {
         /// Opens an in-memory temporary database.
         ///
         /// # Errors
-        /// Returns a `StorageError` if the temporary database cannot be created or opened.
+        ///
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if temporary storage creation fails.
         pub fn new_temp() -> Result<Self, StorageError> {
             let db = sled::Config::new()
                 .temporary(true)
@@ -97,6 +100,11 @@ mod native {
     }
 
     impl StorageEngine for SledStorage {
+        /// Scans all keys starting with the specified prefix, up to an optional count limit.
+        ///
+        /// # Errors
+        ///
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if iteration fails.
         fn scan_prefix(
             &self,
             prefix: &[u8],
@@ -116,6 +124,11 @@ mod native {
             Ok(results)
         }
 
+        /// Inserts or overwrites a key-value pair in Sled.
+        ///
+        /// # Errors
+        ///
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if insertion fails.
         fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
             self.db
                 .insert(key, value)
@@ -123,6 +136,11 @@ mod native {
             Ok(())
         }
 
+        /// Retrieves the value associated with a key from Sled.
+        ///
+        /// # Errors
+        ///
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if lookup fails.
         fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError> {
             let res = self
                 .db
@@ -131,6 +149,11 @@ mod native {
             Ok(res.map(|ivec| bytes::Bytes::copy_from_slice(&ivec)))
         }
 
+        /// Removes a key-value pair from Sled.
+        ///
+        /// # Errors
+        ///
+        /// - Returns [`StorageError::OperationFailed`](kinetic_core::error::StorageError::OperationFailed) if deletion fails.
         fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
             self.db
                 .remove(key)

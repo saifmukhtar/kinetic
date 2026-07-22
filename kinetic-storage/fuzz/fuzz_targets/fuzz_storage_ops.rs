@@ -1,3 +1,5 @@
+//! libFuzzer target testing `SledStorage` operations against arbitrary key/value payloads and random operation sequences.
+
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
