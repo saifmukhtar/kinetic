@@ -75,8 +75,8 @@ impl DnsZone {
     /// # Errors
     ///
     /// - Returns [`DnsError::NestedTooDeeply`](crate::error::DnsError::NestedTooDeeply) if JSON bracket nesting exceeds 10 levels.
-    /// - Returns [`DnsError::JsonError`](crate::error::DnsError::JsonError) if JSON deserialization fails.
-    /// - Returns [`DnsError`] variants from [`validate`](DnsZone::validate) if record validation rules fail.
+    /// - Returns `JsonError` if JSON deserialization fails.
+    /// - Returns `DnsError` variants from `validate` if the logical payload validation rules fail.
     pub fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError> {
         let mut depth = 0;
         let mut in_string = false;
