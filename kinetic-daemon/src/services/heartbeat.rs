@@ -1,3 +1,5 @@
+//! Periodic domain heartbeat generator and Drand pulse synchronization worker loop.
+
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Heartbeat;
 use ml_dsa::signature::Signer;
