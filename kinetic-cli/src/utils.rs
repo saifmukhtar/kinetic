@@ -1,3 +1,5 @@
+//! CLI utility functions for Bearer token loading, HTTP client configuration, and API error formatting.
+
 use kinetic_core::config::get_zones_dir;
 use reqwest::Client;
 use std::time::Duration;
