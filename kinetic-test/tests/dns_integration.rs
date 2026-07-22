@@ -6,7 +6,6 @@ mod tests {
     use hickory_server::ServerFuture;
     use kinetic_core::types::{DnsRecord, DnsZone, Reveal, VdfProof};
     use kinetic_dns::KineticDnsHandler;
-    use libp2p::identity::Keypair;
     use std::collections::HashMap;
     use std::net::SocketAddr;
     use std::str::FromStr;
