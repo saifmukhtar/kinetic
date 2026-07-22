@@ -56,7 +56,7 @@ Traditional namespace architectures face a trilemma — Zooko's Triangle — whi
 The mathematical foundation. Sequential VDF linking anchored to the global `drand` Quicknet beacon (3-second pulse interval). Dynamic difficulty scaling by name length. The Hybrid Lease System that automatically recycles abandoned names via Grace-Period Escalation.
 
 ### [Pillar II: The Identity Architecture (KID)](./kinetic-identity.md)
-The structural separation of Name from Identity. A human-readable alias resolves not to an IP address but to a permanent Kinetic Identity Document (KID) — an Ed25519 cryptographic anchor that cannot be forged or transferred without explicit consent. The KID resolves to a Capability Manifest, making the protocol a generalized service discovery engine rather than a legacy domain registry.
+The structural separation of Name from Identity. A human-readable alias resolves not to an IP address but to a permanent Kinetic Identity Document (KID) — an ML-DSA-65 post-quantum cryptographic anchor that cannot be forged or transferred without explicit consent. The KID resolves to a Capability Manifest, making the protocol a generalized service discovery engine rather than a legacy domain registry.
 
 ### [Pillar III: Networking & Execution Environment](./kinetic-network.md)
 The local client environment. OS-level Split-DNS loopback interception transparently routes `.kin` (or any fork TLD) queries through the Kademlia DHT, passing all other traffic to standard resolvers untouched. Dynamic on-the-fly Certificate Authority generation ensures `.kin` domains display the TLS padlock in standard browsers. Epoch-Bound ephemeral transport identities on `kinetic-host` neutralize targeted DoS attacks at every beacon tick.
