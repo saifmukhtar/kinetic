@@ -1,9 +1,12 @@
+//! Interactive setup wizard for onboarding new Kinetic nodes and identities.
+
 use clap::Parser;
 
 /// Interactive setup wizard for new Kinetic users.
 #[derive(Parser)]
 pub struct SetupCommand;
 
+/// Executes the interactive setup wizard for initial node configuration.
 pub async fn handle_setup_command(_cmd: SetupCommand) -> anyhow::Result<()> {
     println!("\n========================================================");
     println!("🌌 Welcome to Kinetic!");
