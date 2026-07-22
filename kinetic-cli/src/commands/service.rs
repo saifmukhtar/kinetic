@@ -1,3 +1,5 @@
+//! System service lifecycle manager delegating execution to kinetic-daemon, kinetic-host, kinetic-node, and kinetic-dns.
+
 use clap::Subcommand;
 
 /// Lifecycle operations shared by all managed services.
