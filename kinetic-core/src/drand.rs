@@ -2,6 +2,18 @@
 //!
 //! Fetches 3-second public randomness pulses from Drand HTTP endpoints and DNS seed TXT records,
 //! verifies BLS12-381 G2 signatures, binds SHA-256 randomness output, and caches valid pulses to storage.
+//!
+//! ## Pulse Acquisition Strategy
+//!
+//! 1. Try each HTTP endpoint (from `config.toml` and DNS TXT records) with up to 3 attempts and 500ms/1s/2s backoff.
+//! 2. For each successful response: verify BLS signature + SHA-256 binding + staleness (≤200 rounds / 10 minutes).
+//! 3. If all endpoints fail: fall back to local storage cache (may be stale but still usable for heartbeats).
+//! 4. If no cache exists: return [`DrandError::NoCachedPulse`] (`KIN-DRA-004`).
+//!
+//! ## Dev Mode Behavior
+//!
+//! In dev mode ([`is_dev_mode()`](crate::config::is_dev_mode)), all signature verification is bypassed
+//! and a synthetic mock pulse with `round: 5,000,000` is returned if no cache exists.
 
 use crate::error::DrandError;
 use crate::traits::StorageEngine;
@@ -238,6 +250,19 @@ impl DrandClient {
             .map_err(|_| last_error.unwrap_or(DrandError::AllEndpointsFailed))
     }
 
+    /// Attempts to fetch a single Drand pulse from a URL with up to 3 attempts and exponential backoff.
+    ///
+    /// Attempt delays: 500ms → 1s → 2s. Per-request HTTP timeout: 5 seconds.
+    /// Response body size is capped at 64 KB to prevent memory exhaustion from malicious endpoints.
+    ///
+    /// This is a `pub(crate)` helper called by [`fetch_latest`](Self::fetch_latest).
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`DrandError::HttpError`] (`KIN-DRA-002`) if the final attempt returns a non-2xx HTTP status.
+    /// - Returns [`DrandError::Network`] (`KIN-DRA-003`) on connection failure or response body exceeds 64 KB.
+    /// - Returns [`DrandError::JsonError`] (`KIN-DRA-006`) if the response body fails JSON deserialization.
+    /// - Returns [`DrandError::AllEndpointsFailed`] (`KIN-DRA-005`) if all 3 attempts are exhausted without success.
     async fn fetch_with_backoff(&self, url: &str) -> Result<DrandPulse, DrandError> {
         let mut delay = Duration::from_millis(500);
         let max_attempts = 3;
