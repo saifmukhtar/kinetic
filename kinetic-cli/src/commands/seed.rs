@@ -1,3 +1,5 @@
+//! Seed phrase generation, interactive backup verification, and identity restoration CLI commands.
+
 use bip39::{Language, Mnemonic};
 use clap::Subcommand;
 use getrandom::fill;
