@@ -1,6 +1,9 @@
+//! macOS-specific proxy configurator using system `networksetup` commands.
+
 use super::super::*;
 use std::process::Command;
 
+/// Proxy configurator implementation for macOS network services using `networksetup`.
 #[cfg(target_os = "macos")]
 pub struct MacosConfigurator;
 
