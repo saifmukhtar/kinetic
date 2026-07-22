@@ -1,6 +1,9 @@
+//! Static host identity key loader and atomic disk persistence engine.
+
 use libp2p::identity::Keypair;
 use std::path::PathBuf;
 
+/// Loads static Ed25519 host identity from disk, or generates a new one if missing or corrupted.
 pub fn load_or_generate_host_key(key_path: &PathBuf) -> Keypair {
     if let Some(parent) = key_path.parent() {
         let _ = std::fs::create_dir_all(parent);
