@@ -1,3 +1,5 @@
+//! Background pub/sub gossip message processor for governance updates and Drand time pulses.
+
 /// Starts the background task that processes incoming pubsub gossip messages.
 pub fn start_gossip_processor(
     mut gossip_rx: tokio::sync::mpsc::Receiver<(String, Vec<u8>)>,
