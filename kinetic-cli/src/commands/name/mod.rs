@@ -1,3 +1,5 @@
+//! Domain name management subcommands for registering, publishing, renewing, and querying .kin names.
+
 use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
 use reqwest::Client;
