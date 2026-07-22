@@ -1,3 +1,5 @@
+//! Governance gossip message handler, state update processor, and disk persistence engine.
+
 use kinetic_core::governance::{
     process_governance_message, SignedGovernanceMessage, GLOBAL_GOVERNANCE_STATE,
 };
