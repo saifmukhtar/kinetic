@@ -1,4 +1,12 @@
 //! Core governance state transitions, message signature aggregation, and timelock management.
+//!
+//! Implements the `GovernanceState` mutating operations that are called by the
+//! active [`GovernanceEngine`](crate::traits::GovernanceEngine) after signature verification:
+//! - [`GovernanceState::new`] — genesis state initialization
+//! - [`GovernanceState::hash_action`] — deterministic SHA-256 action hash derivation
+//! - [`GovernanceState::merge_signatures`] — threshold signature aggregation
+//! - [`GovernanceState::prune`] — stale proposal garbage collection
+//! - Key getters: `get_root_key`, `get_guard_key`, `is_council_member`
 
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
@@ -33,7 +41,14 @@ pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
 }
 
 impl GovernanceState {
-    /// Initializes a new governance state starting in the Founder phase.
+    /// Initializes a new [`GovernanceState`] at network genesis.
+    ///
+    /// The state starts in [`GovernanceMode::Founder`] with an empty council, no vetoes,
+    /// no pending updates, and no premium grants.
+    ///
+    /// # Returns
+    ///
+    /// A new `GovernanceState` ready for genesis block processing.
     pub fn new(genesis_timestamp_sec: u64) -> Self {
         Self {
             genesis_timestamp_sec,
@@ -52,7 +67,14 @@ impl GovernanceState {
         }
     }
 
-    /// Computes the SHA-256 hash of a signed governance message based on its canonical byte representation.
+    /// Computes the SHA-256 action hash for a signed governance message.
+    ///
+    /// The hash is derived from `SHA-256(msg.to_canonical_bytes())` and is used as the
+    /// stable key for all subsequent state operations (timelock map, veto set, partial proposal map).
+    ///
+    /// # Returns
+    ///
+    /// A deterministic 32-byte `[u8; 32]` SHA-256 hash of the canonical message bytes.
     pub fn hash_action(msg: &SignedGovernanceMessage) -> Hash256 {
         let mut hasher = Sha256::new();
         hasher.update(msg.to_canonical_bytes());
@@ -62,7 +84,11 @@ impl GovernanceState {
         array
     }
 
-    /// Prunes expired timelocks and old partial proposals to prevent memory leaks over long-term operation.
+    /// Removes expired timelocks and stale partial proposals to prevent unbounded memory growth.
+    ///
+    /// Items are pruned if they have been executable (or created) for more than 30 days
+    /// (`30 * 24 * 60 * 60 = 2,592,000` seconds). This ensures the in-memory governance
+    /// state remains bounded even across long-running daemon processes.
     pub fn prune(&mut self, current_time_sec: u64) {
         let thirty_days_sec = 30 * 24 * 60 * 60;
 

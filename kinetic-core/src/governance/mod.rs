@@ -2,6 +2,19 @@
 //!
 //! Controls Founder-phase bootstrap rules, Council multi-signature voting,
 //! emergency vetos via the Guard key, and Over-The-Air (OTA) software update timelocks.
+//!
+//! ## Engine Variants
+//!
+//! The active engine is selected at compile time via `GOVERNANCE_MODEL` from `network.json`:
+//!
+//! | Engine | Signing Rule |
+//! |---|---|
+//! | `monarchy` | Root key signs alone |
+//! | `council` | ≥50% of council |
+//! | `bicameral` | Founder mode: Root; Council mode: ≥50% + Guard co-sign for sensitive actions |
+//! | `anarchy` | No signing required (development only) |
+//!
+//! See `kinetic-core/src/governance/engine/` for concrete implementations.
 
 pub mod engine;
 pub mod logic;

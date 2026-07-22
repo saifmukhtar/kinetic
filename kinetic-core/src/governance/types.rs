@@ -1,15 +1,29 @@
 //! Data structures and serialized action types for network governance.
+//!
+//! Defines the complete set of [`GovernanceAction`] variants, the persistent [`GovernanceState`],
+//! the [`SignedGovernanceMessage`] proposal envelope, and canonical byte serialization.
+//!
+//! ## Protocol Context
+//!
+//! All governance state changes follow a two-phase commit protocol:
+//! 1. A [`SignedGovernanceMessage`] is broadcast with one or more ML-DSA-65 signatures.
+//! 2. Threshold verification by the active [`GovernanceEngine`](crate::traits::GovernanceEngine)
+//!    determines whether the action is immediately executed or enters a timelock queue.
+//!
+//! In **Founder mode** ([`GovernanceMode::Founder`]), the Root key acts as single-signer authority
+//! (no council threshold required). The `LockCouncil` action permanently transitions the network
+//! to **Council mode** ([`GovernanceMode::Council`]), after which Root key authority is removed.
 
 use ml_dsa::signature::Verifier;
 use ml_dsa::KeyInit;
 use ml_dsa::MlDsa65;
 use std::collections::{HashMap, HashSet};
 
-/// 32-byte SHA-256 hash array.
+/// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
 pub type Hash256 = [u8; 32];
-/// Base64url-encoded or raw public key byte vector.
+/// Raw ML-DSA-65 public key bytes (typically 1952 bytes for ML-DSA-65).
 pub type PublicKeyBytes = Vec<u8>;
-/// Signature byte vector.
+/// Raw ML-DSA-65 signature bytes (typically 3309 bytes for ML-DSA-65).
 pub type SignatureBytes = Vec<u8>;
 
 /// Verifies an ML-DSA-65 post-quantum signature over a message byte slice.
@@ -174,7 +188,32 @@ pub struct GovernanceState {
 }
 
 impl SignedGovernanceMessage {
-    /// Serializes the governance message into a canonical byte vector for hashing and signature verification.
+    /// Serializes the governance message into a canonical byte vector for SHA-256 hashing and ML-DSA-65 signature verification.
+    ///
+    /// Each [`GovernanceAction`] variant is prefixed with a 1-byte opcode:
+    ///
+    /// | Opcode | Action Variant |
+    /// |---|---|
+    /// | `0x00` | `AppointMember` |
+    /// | `0x01` | `UpdateBinary` |
+    /// | `0x02` | `LockCouncil` |
+    /// | `0x03` | `VetoUpdate` |
+    /// | `0x04` | `RotateRootKey` |
+    /// | `0x05` | `RotateGuardKey` |
+    /// | `0x06` | `SelfAppointCouncilMember` |
+    /// | `0x07` | `RemoveCouncilMember` |
+    /// | `0x08` | *(reserved — intentionally skipped)* |
+    /// | `0x09` | `ExecuteTimelock` |
+    /// | `0x0A` | `GrantPremiumName` |
+    /// | `0x0B` | `RevokePremiumName` |
+    ///
+    /// All variable-length fields are prefixed with `u32_be(len)` to prevent canonicalization ambiguity.
+    /// The message closes with `u32_be(council_size_at_proposal)` and `u64_be(timestamp_sec)`.
+    ///
+    /// # Returns
+    ///
+    /// A deterministic `Vec<u8>` suitable for SHA-256 hashing to derive the action hash,
+    /// or for ML-DSA-65 signature verification.
     pub fn to_canonical_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
