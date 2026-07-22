@@ -1,3 +1,5 @@
+//! Certificate Authority (CA) generation, file locking, leaf certificate signing, and TLS cache management.
+
 use rcgen::{
     BasicConstraints, Certificate, CertificateParams, DistinguishedName, DnType, GeneralSubtree,
     IsCa, KeyPair, NameConstraints,
