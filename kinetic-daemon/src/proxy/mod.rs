@@ -1,3 +1,5 @@
+//! Local HTTP/HTTPS MITM proxy server and P2P routing engine for `.kin` domain resolution.
+
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
@@ -57,10 +59,6 @@ pub enum ProxyError {
 ///
 /// # Errors
 /// Returns an error if the server fails to bind to the specified port.
-/// Starts the proxy server and listens for incoming connections.
-///
-/// # Errors
-/// Returns an error if the server fails to bind to the port.
 pub async fn start_proxy_server(
     client: NetworkClient,
     port: u16,
