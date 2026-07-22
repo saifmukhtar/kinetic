@@ -1,3 +1,9 @@
+//! Command-line service and daemon for the Kinetic DNS server.
+//!
+//! Intercepts `.kin` queries and resolves them via the local Kinetic daemon HTTP API,
+//! while proxying all standard internet queries to upstream resolvers. Includes service management
+//! (`install`, `uninstall`, `start`, `stop`) and automatic POSIX privilege dropping (`privdrop`).
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use hickory_server::ServerFuture;

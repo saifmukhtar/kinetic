@@ -1,3 +1,5 @@
+//! Resolution pipeline for .kin domains, including reserved name interception, reveal verification, KID authentication, and SSRF filtering.
+
 use hickory_proto::rr::{Name, RData, Record};
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, ResponseHandler, ResponseInfo};

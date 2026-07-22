@@ -1,3 +1,5 @@
+//! Asymmetric TTL cache configuration and eviction policies for DNS responses.
+
 use moka::future::Cache;
 use moka::Expiry;
 use std::time::{Duration, Instant};

@@ -1,3 +1,5 @@
+//! Upstream OS DNS resolver creation and DoH fallback resolution proxy.
+
 use hickory_proto::rr::{Name, Record};
 use hickory_resolver::system_conf::read_system_conf;
 use hickory_resolver::{
@@ -9,8 +11,9 @@ use hickory_server::server::{Request, ResponseHandler, ResponseInfo};
 use std::str::FromStr;
 use tracing::{error, warn};
 
-/// Creates a new `TokioAsyncResolver` using the system's DNS configuration,
-/// falling back to Cloudflare DNS-over-HTTPS if the system config cannot be read.
+/// Creates a new [`TokioAsyncResolver`] initialized with the operating system's native DNS configuration.
+///
+/// If reading the OS `/etc/resolv.conf` or Windows registry fails, it gracefully falls back to Cloudflare DNS-over-HTTPS (`1.1.1.1`).
 pub fn create_resolver() -> TokioAsyncResolver {
     let (config, opts) = read_system_conf().unwrap_or_else(|e| {
         tracing::warn!(
@@ -22,7 +25,9 @@ pub fn create_resolver() -> TokioAsyncResolver {
     TokioAsyncResolver::tokio(config, opts)
 }
 
-/// Proxies a DNS request to the upstream resolver and streams the response back to the client.
+/// Proxies a non-`.kin` DNS query (e.g. `.com`, `.org`) to the upstream resolver.
+///
+/// Sends the resolved record set or appropriate RCode (`NXDomain`, `FormErr`, `ServFail`) back to the client.
 pub async fn resolve_upstream<R: ResponseHandler>(
     resolver: &TokioAsyncResolver,
     request: &Request,

@@ -1,3 +1,5 @@
+//! Hickory DNS RequestHandler implementation routing .kin queries to the DHT and standard queries to upstream resolvers.
+
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 

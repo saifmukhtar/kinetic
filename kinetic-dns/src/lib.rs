@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![deny(missing_docs)]
 //! # kinetic-dns
 //!
 //! DNS resolution layer for the Kinetic `.kin` naming network.
@@ -35,9 +35,13 @@ use tracing::info;
 /// Standard queries (e.g., .com, .org) are passed through to upstream resolvers.
 #[derive(Clone)]
 pub struct KineticDnsHandler {
+    /// URL of the Kinetic daemon REST API (e.g. `http://127.0.0.1:8080`).
     pub(crate) api_url: String,
+    /// Shared HTTP client for querying the daemon REST API.
     pub(crate) http_client: reqwest::Client,
+    /// Upstream TokioAsyncResolver instance for forwarding non-.kin queries.
     pub(crate) resolver: Arc<RwLock<TokioAsyncResolver>>,
+    /// Asymmetric Moka cache storing DNS wire format responses.
     pub(crate) cache: Cache<String, Option<Vec<u8>>>,
 }
 
