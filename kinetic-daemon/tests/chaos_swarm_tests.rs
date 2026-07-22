@@ -1,3 +1,5 @@
+//! Large-scale daemon swarm chaos integration tests under Turmoil network simulation.
+
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::body::Incoming;
@@ -18,7 +20,7 @@ fn test_chaos_swarm_nodes() {
         .build();
     let num_daemons = 100;
 
-    // 1. Spawn 500 Backend Daemons
+    // 1. Spawn 100 Backend Daemons
     for i in 0..num_daemons {
         let hostname = format!("daemon-{}", i);
         sim.host(hostname, || async {
