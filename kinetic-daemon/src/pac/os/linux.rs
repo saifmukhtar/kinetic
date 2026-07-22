@@ -1,3 +1,5 @@
+//! Linux-specific proxy configurators for KDE Plasma (`kwriteconfig5`) and GNOME (`gsettings`).
+
 use super::super::*;
 use std::process::Command;
 
