@@ -1,6 +1,9 @@
+//! Governance gossip message handler and disk persistence listener for Kinetic host nodes.
+
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// Starts an async loop to listen for governance gossip messages, update global state, and save to disk.
 pub async fn start_gossip_listener(
     mut gossip_rx: tokio::sync::mpsc::Receiver<(String, Vec<u8>)>,
     gov_state_path: Arc<PathBuf>,
