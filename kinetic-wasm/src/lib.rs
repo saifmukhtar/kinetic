@@ -1,4 +1,12 @@
-#![allow(missing_docs)]
+#![deny(missing_docs)]
+//! # kinetic-wasm
+//!
+//! WebAssembly browser bindings for the Kinetic P2P network client.
+//!
+//! Exposes the [`KineticNode`] interface to JavaScript environments via `wasm-bindgen`,
+//! allowing web browsers to instantiate lightweight nodes, resolve `.kin` domains asynchronously,
+//! verify post-quantum signatures, and proxy HTTP requests over P2P streams.
+
 use js_sys::Function;
 use kinetic_network::client::{NetworkConfig, NetworkMode};
 use kinetic_network::NetworkEventLoop;
@@ -14,6 +22,7 @@ use wasm_bindgen::prelude::*;
 /// Kinetic network node, resolve domains, and proxy requests through the P2P network.
 #[wasm_bindgen]
 pub struct KineticNode {
+    /// Optional reference to the underlying active P2P network client.
     #[wasm_bindgen(skip)]
     pub client: Option<kinetic_network::client::NetworkClient>,
     on_event: Function,
