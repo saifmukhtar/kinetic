@@ -1,3 +1,5 @@
+//! HTTP REST API handlers for resolving .kin domain names and Kinetic Identifiers (KIDs).
+
 use super::*;
 use axum::{
     extract::{Path, State},
