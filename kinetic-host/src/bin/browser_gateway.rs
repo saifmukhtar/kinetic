@@ -1,3 +1,5 @@
+//! HTTP-to-P2P gateway utility for testing Kinetic host services in standard web browsers.
+
 use anyhow::Result;
 use axum::{
     body::Body,
