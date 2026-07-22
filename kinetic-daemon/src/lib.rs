@@ -1,3 +1,4 @@
+#![deny(missing_docs)]
 //! The Kinetic daemon library provides the core runtime for a Kinetic node,
 //! including the HTTP API, local proxy, PAC server, and background services.
 
