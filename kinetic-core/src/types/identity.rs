@@ -2,6 +2,20 @@
 //!
 //! This module handles ML-DSA-65 post-quantum signing keypairs, PBKDF2-HMAC-SHA512 key derivation
 //! (600,000 iterations), atomic file writes with strict POSIX `0o600` permissions, and memory zeroization.
+//!
+//! ## Key File Format
+//!
+//! The identity file stores exactly **32 bytes** — the raw ML-DSA-65 seed (not the full
+//! expanded signing key). On load, the 32-byte seed is passed to `SigningKey::from_seed()`
+//! to reconstruct the full keypair deterministically. This means the identity file is
+//! fully reproducible from a BIP-39 mnemonic via `save_keypair_from_mnemonic`.
+//!
+//! ## Signable Byte Format
+//!
+//! All `signable_bytes()` methods produce a network-scoped byte string:
+//! `[network_id_prefix][u32_be(name.len())][name_bytes][u32_be(payload.len())][payload_bytes]`
+//!
+//! The `KINETIC_NETWORK_ID` prefix prevents cross-network replay attacks.
 
 use serde::{Deserialize, Serialize};
 
@@ -17,11 +31,17 @@ pub struct AuthorizedKid {
 }
 
 impl AuthorizedKid {
-    /// Serializes the KID document into length-prefixed bytes for signing.
+    /// Serializes this KID authorization into a canonical byte string for owner signature verification.
+    ///
+    /// The byte layout is:
+    /// `{NETWORK_ID}-auth-kid-v1` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
+    ///
+    /// The `{NETWORK_ID}` prefix prevents a signature produced on one Kinetic network (e.g. `.kin`)
+    /// from being replayed on another (e.g. `.corp`).
     ///
     /// # Returns
     ///
-    /// Concatenated byte vector prefixed with the network KID authorization header.
+    /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-kid-v1").as_bytes();
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
@@ -50,11 +70,14 @@ pub struct AuthorizedManifest {
 }
 
 impl AuthorizedManifest {
-    /// Serializes the capability manifest into length-prefixed bytes for signing.
+    /// Serializes this manifest authorization into a canonical byte string for owner signature verification.
+    ///
+    /// The byte layout is:
+    /// `{NETWORK_ID}-auth-manifest-v1` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
     ///
     /// # Returns
     ///
-    /// Concatenated byte vector prefixed with the network manifest authorization header.
+    /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-manifest-v1").as_bytes();
         let canon_bytes = self.manifest.canonicalize().unwrap_or_default();
@@ -71,13 +94,19 @@ impl AuthorizedManifest {
 
 /// Loads an ML-DSA-65 post-quantum signing keypair from disk.
 ///
-/// Looks up the file at `KINETIC_KEY_PATH` or the default base directory path.
+/// Reads the 32-byte seed from the identity file at `KINETIC_KEY_PATH` or
+/// `{base_dir}/{filename}` and reconstructs the full ML-DSA-65 signing key
+/// deterministically via `SigningKey::from_seed()`.
+///
+/// # Returns
+///
+/// The reconstructed [`ml_dsa::SigningKey<ml_dsa::MlDsa65>`] on success.
 ///
 /// # Errors
 ///
-/// - Returns [`IdentityError::IdentityNotFound`](crate::error::IdentityError::IdentityNotFound) if the key file does not exist.
-/// - Returns [`IdentityError::CorruptedIdentityFile`](crate::error::IdentityError::CorruptedIdentityFile) if the key file byte length is not 32 bytes (seed length).
-/// - Returns [`IdentityError::Io`](crate::error::IdentityError::Io) if a filesystem read error occurs.
+/// - Returns [`IdentityError::IdentityNotFound`] (`KIN-IDN-003`) if the key file does not exist.
+/// - Returns [`IdentityError::CorruptedIdentityFile`] (`KIN-IDN-002`) if the file is not exactly 32 bytes.
+/// - Returns [`IdentityError::Io`] (`KIN-IDN-001`) if a filesystem read error occurs.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_keypair(
     filename: &str,
@@ -107,15 +136,24 @@ pub fn load_keypair(
     Err(crate::error::IdentityError::IdentityNotFound("Identity file not found. Please run 'kinetic seed init' or use the Desktop app to create one.".to_string()))
 }
 
-/// Derives an ML-DSA-65 post-quantum signing keypair from a 24-word BIP39 seed phrase and saves it to disk.
+/// Derives an ML-DSA-65 signing keypair from a BIP-39 mnemonic and saves the 32-byte seed to disk.
 ///
-/// Uses PBKDF2-HMAC-SHA512 (600,000 iterations) with a dynamic SHA-256 seed salt.
-/// Writes to disk atomically with strict POSIX `0o600` user-only permissions.
+/// Key derivation steps:
+/// 1. Parse the 24-word English BIP-39 mnemonic.
+/// 2. Convert to the BIP-39 raw entropy seed (64 bytes, no passphrase).
+/// 3. Compute `salt = SHA-256(seed)`.
+/// 4. Derive a 32-byte key via PBKDF2-HMAC-SHA512 (600,000 iterations, NIST SP 800-132).
+/// 5. Write the 32-byte derived seed atomically to `{base_dir}/{filename}` with `0o600` permissions.
+/// 6. Zeroize all intermediate buffers before returning.
+///
+/// # Returns
+///
+/// The derived [`ml_dsa::SigningKey<ml_dsa::MlDsa65>`] on success.
 ///
 /// # Errors
 ///
-/// - Returns [`IdentityError::InvalidSeedPhrase`](crate::error::IdentityError::InvalidSeedPhrase) if the mnemonic string fails BIP39 parsing.
-/// - Returns [`IdentityError::Io`](crate::error::IdentityError::Io) if directory creation or atomic file writing fails.
+/// - Returns [`IdentityError::InvalidSeedPhrase`] (`KIN-IDN-004`) if the mnemonic fails BIP-39 parsing.
+/// - Returns [`IdentityError::Io`] (`KIN-IDN-001`) if directory creation or atomic file write fails.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_keypair_from_mnemonic(
     filename: &str,

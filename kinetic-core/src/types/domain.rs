@@ -1,7 +1,15 @@
 //! Domain heartbeat payloads and DHT storage key derivation.
 //!
-//! Provides structures for domain heartbeats and SHA-256 key derivation algorithms
-//! for redundant DHT storage assignment ($M=32$ redundancy).
+//! Provides structures for domain heartbeats and SHA-256-based DHT key derivation
+//! that implements M=32 redundant storage assignment.
+//!
+//! ## DHT Key Derivation
+//!
+//! Every domain is stored at `M_REDUNDANCY` (32) distinct DHT keys to improve availability
+//! and resist single-peer failures. Each key is derived as:
+//! `SHA-256(name_bytes || [i] || "{NETWORK_ID}-dht-v1")`
+//!
+//! The `{NETWORK_ID}` suffix prevents key collisions between different Kinetic TLD networks.
 
 use super::names::normalize_name;
 use crate::constants::M_REDUNDANCY;
@@ -20,11 +28,17 @@ pub struct Heartbeat {
 }
 
 impl Heartbeat {
-    /// Serializes the heartbeat payload into length-prefixed bytes for signing.
+    /// Serializes this heartbeat payload into a canonical byte string for owner signature verification.
+    ///
+    /// The byte layout is:
+    /// `{NETWORK_ID}-heartbeat-v1` + `u32_be(name.len())` + `name_bytes` + `u64_be(latest_drand_pulse)`
+    ///
+    /// The `{NETWORK_ID}` prefix prevents heartbeat signatures from being replayed
+    /// across different Kinetic TLD networks.
     ///
     /// # Returns
     ///
-    /// Concatenated byte vector prefixed with the network heartbeat header string.
+    /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-heartbeat-v1").as_bytes();
         let mut bytes = Vec::with_capacity(prefix.len() + 4 + self.name.len() + 8);
@@ -36,8 +50,18 @@ impl Heartbeat {
     }
 }
 
-/// Derives a set of storage keys from a given domain name.
-/// Returns a vector of 32-byte arrays representing the keys.
+/// Derives the set of DHT storage keys for a given domain name.
+///
+/// Produces exactly [`M_REDUNDANCY`](crate::constants::M_REDUNDANCY) (32) distinct 32-byte keys
+/// via `SHA-256(name_bytes || [i] || "{NETWORK_ID}-dht-v1")` for `i in 0..32`.
+/// The name is normalized (lowercased, TLD-suffixed) before hashing.
+///
+/// The `{NETWORK_ID}` suffix ensures keys are unique per TLD network even if the same
+/// domain name exists on multiple Kinetic-derived networks.
+///
+/// # Returns
+///
+/// A `Vec<[u8; 32]>` of length 32, each element being a unique Kademlia DHT key.
 pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
     use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);
@@ -57,8 +81,17 @@ pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
     keys
 }
 
-/// Derives a set of heartbeat keys from a given domain name.
-/// Returns a vector of 32-byte arrays representing the keys.
+/// Derives the set of DHT heartbeat keys for a given domain name.
+///
+/// Produces exactly [`M_REDUNDANCY`](crate::constants::M_REDUNDANCY) (32) distinct 32-byte keys
+/// via `SHA-256("{NETWORK_ID}-hb-v1" || name_bytes || [i])` for `i in 0..32`.
+///
+/// Heartbeat keys are intentionally in a different namespace from storage keys
+/// (the prefix ordering differs) to prevent store/heartbeat key collisions.
+///
+/// # Returns
+///
+/// A `Vec<[u8; 32]>` of length 32, each element being a unique Kademlia heartbeat key.
 pub fn derive_heartbeat_keys(name: &str) -> Vec<[u8; 32]> {
     use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);

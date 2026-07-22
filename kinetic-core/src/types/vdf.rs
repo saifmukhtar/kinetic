@@ -59,11 +59,17 @@ pub struct PreviousProof {
 }
 
 impl PreviousProof {
-    /// Serializes the previous proof fields into length-prefixed bytes for signing or hashing.
+    /// Serializes this previous proof into canonical bytes for chained renewal proof inclusion.
+    ///
+    /// The byte layout is:
+    /// `{NETWORK_ID}-vdf-prev-v1` + `salt[32]` + `u64_be(drand_pulse)` +
+    /// `u32_be(drand_randomness.len())` + `drand_randomness_bytes` +
+    /// `u64_be(iterations)` + `u32_be(vdf_proof.len())` + `vdf_proof_bytes` +
+    /// `u32_be(signature.len())` + `signature_bytes`
     ///
     /// # Returns
     ///
-    /// Concatenated byte vector prefixed with the network VDF identifier string.
+    /// A `Vec<u8>` containing the fully serialized previous proof for canonical signing.
     pub fn proof_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-vdf-prev-v1").as_bytes();
         let capacity = prefix.len()
@@ -173,8 +179,24 @@ impl Reveal {
         false
     }
 
-    /// Serializes the reveal payload into a byte vector for cryptographic signing.
-    /// Returns the length-prefixed serialized fields.
+    /// Serializes the reveal payload into a canonical byte string for ML-DSA-65 signature.
+    ///
+    /// All variable-length fields are length-prefixed with `u32_be` to prevent
+    /// canonicalization ambiguity attacks. The byte layout is:
+    /// `{NETWORK_ID}-vdf-reveal-v1` + `u8(protocol_version)` +
+    /// `u32_be(name.len())` + `name_bytes` +
+    /// `u32_be(payload.len())` + `payload_bytes` +
+    /// `salt[32]` + `u64_be(drand_pulse)` +
+    /// `u32_be(drand_randomness.len())` + `drand_randomness_bytes` +
+    /// `u64_be(iterations)` +
+    /// `u32_be(vdf_proof.len())` + `vdf_proof_bytes` +
+    /// `u32_be(pubkey.len())` + `pubkey_bytes` +
+    /// `u8(has_previous_proof)` + optional previous_proof_bytes +
+    /// `u8(has_miner_pubkey)` + optional miner_pubkey_bytes
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<u8>` containing the fully serialized signable payload.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-vdf-reveal-v1").as_bytes();
         let prev_proof_bytes = self
