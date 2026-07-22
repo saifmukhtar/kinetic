@@ -1,3 +1,5 @@
+//! Chaos network partition tests for proxy disconnect handling using Turmoil simulation.
+
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::body::Incoming;
