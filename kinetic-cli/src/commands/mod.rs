@@ -1,3 +1,5 @@
+//! Command modules and CLI subcommand structure definitions.
+
 pub mod identity;
 pub mod name;
 pub mod seed;
