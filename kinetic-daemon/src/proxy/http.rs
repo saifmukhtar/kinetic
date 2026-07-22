@@ -1,3 +1,5 @@
+//! HTTP request routing, CNAME recursion, IPFS gateway proxying, P2P peer forwarding, and SSRF loop protection.
+
 use super::*;
 /// Handles an incoming HTTP or HTTPS (CONNECT) proxy request, determining how to route it.
 pub async fn handle_proxy_request(
