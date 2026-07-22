@@ -1,8 +1,11 @@
+//! Host health-check and static Peer ID REST API listener.
+
 use anyhow::Result;
 use axum::{routing::get, Router};
 use std::net::SocketAddr;
 use tracing::info;
 
+/// Starts the Axum REST API server for host health checks and static Peer ID queries.
 pub async fn start_health_api(host_peer_id: libp2p::PeerId) -> Result<()> {
     let app = Router::new()
         .route("/health", get(|| async { "OK" }))
