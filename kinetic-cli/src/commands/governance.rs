@@ -1,3 +1,5 @@
+//! CLI commands for submitting, signing, and managing post-quantum Kinetic network governance proposals.
+
 use clap::Subcommand;
 use reqwest::Client;
 use std::path::PathBuf;
