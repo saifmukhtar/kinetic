@@ -1,3 +1,5 @@
+//! TLS termination handler and inner HTTP connection dispatcher for CONNECT proxy tunnels.
+
 use super::*;
 
 /// Handles an HTTP CONNECT request, upgrading the connection, performing TLS termination,
