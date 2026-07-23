@@ -24,7 +24,7 @@ During Phase 1 (the first 12 months after genesis), the Founder holds two critic
 The Council is a dynamic group of up to `N` core maintainers whose public keys are registered on the network.
 - They have voting rights on architectural changes and protocol upgrades (Over-The-Air updates).
 - A **69% supermajority** is required for the Council to ratify a binary OTA update.
-- If an update is ratified, it enters a **24-hour timelock** before nodes apply it, allowing the Guard Key to veto if necessary.
+- If an update is ratified, it enters a **48-hour timelock** before nodes apply it, allowing the Guard Key to veto if necessary.
 
 ### Contributors and Users
 - **Users:** Community members who engage via issues, discussions, or running standard non-validating nodes.
@@ -48,7 +48,7 @@ Minor bug fixes, documentation updates, and standard refactoring can be merged b
 Significant changes (e.g., modifying VDF parameters, altering the DHT routing logic) require an official network update.
 1. **Proposal:** A new binary is compiled, hashed, and proposed to the network alongside mirrors for downloading.
 2. **Ratification:** The Council must achieve a 69% supermajority by signing the proposal.
-3. **Timelock:** Once ratified, the update enters a 24-hour timelock.
+3. **Timelock:** Once ratified, the update enters a 48-hour timelock.
 4. **Execution:** If not vetoed by the Guard Key, the network automatically downloads, verifies the hash, and hot-swaps the running binary via `self_replace`.
 
 ### Phase 1 vs Phase 2
