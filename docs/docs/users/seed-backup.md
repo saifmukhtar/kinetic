@@ -8,16 +8,16 @@ Your **24-word seed phrase** is the master key to your Kinetic identity. Every n
 
 **Only once** — during initial setup, when you run `kinetic setup` (CLI) or click **Generate Master Seed** (desktop app).
 
-There is no "show my seed" command or button. The daemon stores the derived private key (`identity.key`) — not the seed phrase itself. The seed phrase is written to `identity.mnemonic` at setup time, but if you delete that file or lose the machine, there is no way to recover it from the daemon.
+There is no "show my seed" command or button. The daemon stores the derived private key (`identity.key`) — not the seed phrase itself. The seed phrase is **never saved to your computer**.
 
 ---
 
 ## Back up your seed phrase
 
-Write down all 24 words, in order, on paper. Verify each word against the screen carefully.
+Write down all 24 words, in order, on paper. During CLI setup, you will be asked to re-type two random words to verify your backup.
 
 ::: danger Do this before closing the setup screen
-Once you dismiss the seed display, it does not appear again. The `identity.mnemonic` file contains it, but that file is on the machine you're trying to protect.
+Once you dismiss the seed display, it does not appear again.
 :::
 
 **Good backup practices:**
@@ -26,22 +26,6 @@ Once you dismiss the seed display, it does not appear again. The `identity.mnemo
 - Store it somewhere physically secure (safe, safety deposit box)
 - Consider making two copies and storing them in different locations
 - Never share it digitally — anyone who has these 24 words controls your names
-
----
-
-## Where is the seed phrase file?
-
-The daemon writes the seed to disk at:
-
-| OS | Path |
-|---|---|
-| Linux | `~/.local/share/kinetic/identity.mnemonic` |
-| macOS | `~/Library/Application Support/kinetic/identity.mnemonic` |
-| Windows | `%LOCALAPPDATA%\kinetic\identity.mnemonic` |
-
-::: warning This file is not your backup
-`identity.mnemonic` is a convenience copy. If your machine fails, the file is gone with it. Your paper backup is your real backup.
-:::
 
 ---
 
@@ -74,7 +58,6 @@ For reference, the complete set of important files:
 | File | Contents | Sensitivity |
 |---|---|---|
 | `identity.key` | 32-byte Ed25519 private key | 🔴 Never share — full account control |
-| `identity.mnemonic` | 24-word BIP-39 seed phrase | 🔴 Never share — derives the private key |
 | `api.token` | Local API bearer token | 🟡 Safe within your machine; regenerated on daemon restart |
 | `zones/yourname.kin.json` | DNS zone records | 🟢 Not sensitive |
 
@@ -82,6 +65,6 @@ For reference, the complete set of important files:
 
 ## What is the seed phrase exactly?
 
-It is a **BIP-39 mnemonic** — 24 words from a standardized English word list, encoding 256 bits of entropy. From this seed, an Ed25519 keypair is derived deterministically. The same 24 words always produce the same keypair, on any machine, using any compatible BIP-39 tool.
+It is a **BIP-39 mnemonic** — 24 words from a standardized English word list, encoding 256 bits of entropy. From this seed, an Ed25519 keypair is derived deterministically using PBKDF2-HMAC-SHA512 with 600,000 iterations. The same 24 words always produce the same keypair, on any machine, using any compatible BIP-39 tool.
 
 The seed is generated using `getrandom` (cryptographically secure OS randomness) — not a user password, not a clock-based seed.

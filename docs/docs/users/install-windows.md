@@ -92,7 +92,6 @@ Your data is stored at:
 ```
 %LOCALAPPDATA%\kinetic\
 ├── identity.key          # Private key — never share this
-├── identity.mnemonic     # 24-word BIP-39 seed backup
 ├── api.token             # Local API bearer token
 └── zones\
     └── yourname.kin.json # DNS zone for each registered name

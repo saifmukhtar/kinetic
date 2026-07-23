@@ -82,7 +82,6 @@ Your identity, zones, and API token are stored at:
 ```
 ~/.local/share/kinetic/
 ├── identity.key          # Ed25519 private key — never share this
-├── identity.mnemonic     # BIP-39 24-word seed backup
 ├── api.token             # Bearer token for the local API (regenerated on restart)
 └── zones/
     └── yourname.kin.json # DNS zone file for each registered name
