@@ -1,3 +1,10 @@
+---
+title: Introduction — What Kinetic Actually Is
+next:
+  text: 'The Mathematical Engine'
+  link: '/cryptography'
+---
+
 # Introduction
 
 *A sovereign namespace engine secured purely by math and time.*

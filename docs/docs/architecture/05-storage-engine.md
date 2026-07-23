@@ -1,3 +1,13 @@
+---
+title: '05 — Storage Engine'
+prev:
+  text: '04 — Network Routing'
+  link: '/architecture/04-network-routing'
+next:
+  text: '06 — Daemon & DNS'
+  link: '/architecture/06-daemon-and-dns'
+---
+
 # Architecture & Motivation: Storage and State
 
 Kinetic nodes must persist massive amounts of data: their own identities, governance state, their local configuration, and a cache of the global DHT routing table and records. 

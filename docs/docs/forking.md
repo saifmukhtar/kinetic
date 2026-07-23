@@ -1,3 +1,13 @@
+---
+title: Deploy Your Own Network with kinetic-forge
+prev:
+  text: 'Fork Operators Overview'
+  link: '/operators/'
+next:
+  text: 'VDF Hardware Calibration'
+  link: '/vdf-calibration'
+---
+
 # Deploy Your Own Network with `kinetic-forge`
 
 > *Kinetic is not a single product. It is an engine. This chapter is for anyone who wants to run their own sovereign namespace — a university, a company, a government, a community, or a developer who wants a private sandbox.*

@@ -1,3 +1,13 @@
+---
+title: '02 — Cryptography & Identity'
+prev:
+  text: '01 — Philosophy'
+  link: '/architecture/01-philosophy'
+next:
+  text: '03 — VDF & Cost'
+  link: '/architecture/03-vdf-and-cost'
+---
+
 # Architecture & Motivation: Cryptography and Identity
 
 Kinetic's identity layer is the foundation upon which all naming, data portability, and network operations rest. The cryptographic choices made here prioritize long-term security, deterministic verification, and post-quantum readiness.

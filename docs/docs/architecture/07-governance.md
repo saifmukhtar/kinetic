@@ -1,3 +1,13 @@
+---
+title: '07 — Governance'
+prev:
+  text: '06 — Daemon & DNS'
+  link: '/architecture/06-daemon-and-dns'
+next:
+  text: '08 — Client Architecture'
+  link: '/architecture/08-client-architecture'
+---
+
 # Architecture & Motivation: Bicameral Governance
 
 How does a decentralized protocol upgrade itself without relying on centralized auto-updaters, yet avoid the gridlock and plutocracy of DAO token-voting?

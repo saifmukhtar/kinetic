@@ -1,3 +1,10 @@
+---
+title: '01 — Philosophy: Why Not a Blockchain?'
+next:
+  text: '02 — Cryptography & Identity'
+  link: '/architecture/02-cryptography-and-identity'
+---
+
 # Architecture & Motivation: The Kinetic Philosophy
 
 ## Why Not a Blockchain?

@@ -10,7 +10,7 @@
 - [The Mathematical Engine (VDFs, Ed25519, Drand)](./cryptography.md)
 - [VDF Hardware Calibration](./vdf-calibration.md)
 - [P2P Routing & The Immunological DHT](./network_architecture.md)
-- [VDF Delegation, Heartbeats & Lease System](./hybrid_lease_system.md)
+- [VDF Delegation, Heartbeats & Lease System](./heartbeat.md)
 - [The Kinetic Simulation Sandbox](./kinetic_sim.md)
 
 ---

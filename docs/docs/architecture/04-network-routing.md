@@ -1,3 +1,13 @@
+---
+title: '04 — Network Routing'
+prev:
+  text: '03 — VDF & Cost'
+  link: '/architecture/03-vdf-and-cost'
+next:
+  text: '05 — Storage Engine'
+  link: '/architecture/05-storage-engine'
+---
+
 # Architecture & Motivation: Network and Sybil Resistance
 
 At its core, Kinetic is a peer-to-peer (P2P) network. We use **libp2p** to handle low-level transport, multiplexing, NAT traversal, and peer discovery. The state of the network (DNS records, KID identities, manifests) is stored entirely in a distributed hash table (DHT) using the **Kademlia** protocol.

@@ -1,3 +1,13 @@
+---
+title: The Mathematical Engine — VDFs, Ed25519, and Drand
+prev:
+  text: 'Introduction'
+  link: '/introduction'
+next:
+  text: 'P2P Routing & The Immunological DHT'
+  link: '/network_architecture'
+---
+
 # Chapter 2: The Mathematical Engine - VDFs, Ed25519, and Drand
 
 The Kinetic Protocol is, at its core, a system of applied cryptography. Unlike traditional Web2 registries that rely on trusted databases, or registries that rely on global consensus ledgers, Kinetic relies exclusively on deterministic mathematical proofs evaluated by the local client.

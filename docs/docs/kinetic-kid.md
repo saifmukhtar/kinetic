@@ -1,3 +1,13 @@
+---
+title: Kinetic Identity Architecture (KID)
+prev:
+  text: 'The Zero-Dollar Split-DNS Gateway'
+  link: '/dns_loopback'
+next:
+  text: 'Adversarial Analysis'
+  link: '/adversarial_analysis'
+---
+
 # Kinetic Identity Architecture (KID)
 ## Beyond DNS: Human Names, Permanent Identities, and Verifiable Services
 

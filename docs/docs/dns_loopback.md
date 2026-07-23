@@ -1,3 +1,13 @@
+---
+title: The Zero-Dollar Gateway — Split-DNS Routing
+prev:
+  text: 'Name Lifecycle & Heartbeats'
+  link: '/heartbeat'
+next:
+  text: 'Identity Architecture (KID)'
+  link: '/kinetic-kid'
+---
+
 # Chapter 5: The Zero-Dollar Gateway (Split-DNS Routing)
 
 The cryptography and peer-to-peer networking discussed in previous chapters guarantee that the Kinetic Protocol is secure, decentralized, and mathematically robust. However, cryptographic purity is useless if it exists in a vacuum. To function as a practical public good, Kinetic cannot remain an isolated academic experiment; it must seamlessly integrate with the existing, legacy web browser ecosystem.

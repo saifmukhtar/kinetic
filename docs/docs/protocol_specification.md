@@ -1,3 +1,13 @@
+---
+title: Kinetic Protocol Specification v1
+prev:
+  text: 'Adversarial Analysis'
+  link: '/adversarial_analysis'
+next:
+  text: 'Future Horizons'
+  link: '/future_horizons'
+---
+
 # Kinetic Protocol Specification v1
 ## A Decentralized, Identity-Centric Service Discovery Network
 

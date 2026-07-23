@@ -1,3 +1,13 @@
+---
+title: '09 — Forks & Compilation'
+prev:
+  text: '08 — Client Architecture'
+  link: '/architecture/08-client-architecture'
+next:
+  text: '10 — Threat & Trust Model'
+  link: '/architecture/10-threat-and-trust-model'
+---
+
 # Architecture & Motivation: The Engine, Forks, and Compilation
 
 Kinetic is not just a single network; it is an **Engine**. While there is a primary public network, the protocol is explicitly designed to be instantiated as private campus networks, corporate intranet naming systems, or community-specific TLDs.

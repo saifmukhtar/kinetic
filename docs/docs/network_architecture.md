@@ -1,3 +1,13 @@
+---
+title: P2P Routing & The Immunological DHT
+prev:
+  text: 'The Mathematical Engine'
+  link: '/cryptography'
+next:
+  text: 'Name Lifecycle & Heartbeats'
+  link: '/heartbeat'
+---
+
 # Chapter 3: P2P Routing and The Immunological DHT
 
 While the cryptography described in Chapter 2 establishes the rules of the Kinetic Protocol, the network layer is the physical battleground where those rules are enforced. Kinetic operates without a central server, global ledger, or master database. Instead, it utilizes a **Distributed Hash Table (DHT)** to route and store data across a fluid, constantly shifting swarm of peer-to-peer nodes.

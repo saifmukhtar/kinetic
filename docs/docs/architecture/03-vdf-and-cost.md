@@ -1,3 +1,13 @@
+---
+title: '03 — VDF & Cost'
+prev:
+  text: '02 — Cryptography & Identity'
+  link: '/architecture/02-cryptography-and-identity'
+next:
+  text: '04 — Network Routing'
+  link: '/architecture/04-network-routing'
+---
+
 # Architecture & Motivation: Replacing Money with Time (VDFs)
 
 In traditional naming systems, preventing "squatting" (registering every dictionary word to hoard them) relies on **financial friction**. You pay ICANN/registrars an annual fee, or you pay gas/tokens on a blockchain. 

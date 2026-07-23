@@ -1,3 +1,13 @@
+---
+title: '06 — Daemon & DNS'
+prev:
+  text: '05 — Storage Engine'
+  link: '/architecture/05-storage-engine'
+next:
+  text: '07 — Governance'
+  link: '/architecture/07-governance'
+---
+
 # Architecture & Motivation: Daemon, DNS, and Proxy Interfaces
 
 Kinetic is not a cloud service; it runs on the user's local machine. The `kinetic-daemon` is the beating heart of the system, acting as the bridge between legacy internet protocols (HTTP/DNS) and the P2P network.

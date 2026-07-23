@@ -1,3 +1,13 @@
+---
+title: '10 — Threat & Trust Model'
+prev:
+  text: '09 — Forks & Compilation'
+  link: '/architecture/09-forks-and-compilation'
+next:
+  text: 'Adversarial Analysis (Red-Team Audit)'
+  link: '/adversarial_analysis'
+---
+
 # Architecture & Motivation: Threat and Trust Model
 
 To trust a decentralized system, you must know exactly what it assumes to be true, and what threats it considers out-of-scope. Kinetic's threat model is highly pragmatic.

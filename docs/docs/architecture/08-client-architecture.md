@@ -1,3 +1,13 @@
+---
+title: '08 — Client Architecture'
+prev:
+  text: '07 — Governance'
+  link: '/architecture/07-governance'
+next:
+  text: '09 — Forks & Compilation'
+  link: '/architecture/09-forks-and-compilation'
+---
+
 # Architecture & Motivation: Client Architecture
 
 The success of a decentralized protocol depends on its accessibility. If only Linux systems administrators can run a node, the network will never achieve mainstream decentralization.

@@ -1,3 +1,13 @@
+---
+title: Adversarial Analysis — Red-Team Audit
+prev:
+  text: 'Identity Architecture (KID)'
+  link: '/kinetic-kid'
+next:
+  text: 'Protocol Specification v1'
+  link: '/protocol_specification'
+---
+
 # Kinetic Adversarial Analysis
 ## A Red-Team Audit of Stateless Name Resolution
 

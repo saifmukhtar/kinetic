@@ -1,3 +1,13 @@
+---
+title: Name Lifecycle & Heartbeats
+prev:
+  text: 'P2P Routing & The Immunological DHT'
+  link: '/network_architecture'
+next:
+  text: 'The Zero-Dollar Split-DNS Gateway'
+  link: '/dns_loopback'
+---
+
 # Chapter 4: Name Lifecycle & Heartbeats
 
 The central dilemma of any free, permissionless registry is **Dead State**. 
