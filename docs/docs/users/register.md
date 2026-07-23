@@ -1,75 +1,134 @@
 # Registering a Name
 
-This guide explains how to claim your own `.kin` name on the Kinetic network.
+A `.kin` name is yours forever once registered. There are no annual renewals, no fees, and no central authority. Ownership is proven by a **Verifiable Delay Function (VDF)** — a computation your CPU must run for a fixed amount of real clock time. There is no shortcut.
 
-## How it Works
+---
 
-Kinetic names are completely free, but they require a computational investment. To register a name, your computer must perform a Verifiable Delay Function (VDF). Think of it as cryptographic proof that your computer spent a specific amount of time working on the name.
+## Name format rules
 
-The shorter the name, the longer it takes to compute. This prevents bots from instantly claiming all the short, desirable names.
+Valid `.kin` names follow DNS LDH rules:
 
-| Name Length | Approximate Time Required |
-| :--- | :--- |
+- **Allowed:** lowercase letters (`a–z`), digits (`0–9`), hyphens (`-`)
+- **Not allowed:** uppercase letters, spaces, underscores, dots in the label, special characters
+- **Cannot start or end with a hyphen**: `-name.kin` and `name-.kin` are rejected
+- **Cannot start with a digit**: `007.kin` is rejected
+- **Must end in `.kin`**: only this TLD is supported
+- **Subdomains cannot be registered directly**: `blog.myname.kin` is not a registerable apex name — you register `myname.kin` and add `blog` as a subdomain label in your zone file
+
+| Name | Valid? | Reason |
+|---|---|---|
+| `myapp.kin` | ✅ | |
+| `my-cool-site.kin` | ✅ | |
+| `saif123.kin` | ✅ | |
+| `MyApp.kin` | ❌ | Uppercase not allowed |
+| `my_app.kin` | ❌ | Underscores not allowed |
+| `-name.kin` | ❌ | Cannot start with hyphen |
+| `007.kin` | ❌ | Cannot start with digit |
+| `blog.myname.kin` | ❌ | Not an apex name |
+
+### Reserved names
+
+These names are permanently locked and cannot be registered:
+
+`test`, `example`, `invalid`, `localhost`, `local`, `onion`, `arpa`, `null`, `none`, `zero`, `corp`, `lan`, `internal`
+
+Additionally, certain infrastructure names (`docs.kin`, `seed.kin`, etc.) are reserved for network use until Phase 2.
+
+---
+
+## How long does registration take?
+
+Registration time depends on your name's length. Shorter names require more VDF iterations to prevent squatting:
+
+| Name length | Approximate time |
+|---|---|
 | 8+ characters | ~2 hours |
 | 6 characters | ~12 hours |
 | 4 characters | ~15 days |
 | 2 characters | ~5 months |
 
-## Rules for Names
-
-Names must follow strict formatting rules:
-- Must use only lowercase letters (`a-z`), numbers (`0-9`), and hyphens (`-`).
-- No spaces or special characters.
-- Must end with `.kin`.
-- Must not be reserved (e.g., `localhost.kin`, `test.kin`).
-
-**Valid:** `alice.kin`, `my-project.kin`, `hello123.kin`
-**Invalid:** `Alice.kin` (uppercase), `my name.kin` (space), `hello_world.kin` (underscore)
-
-## Step 1: Start the Registration
-
-Make sure your `kinetic daemon` is running in the background. Then, in a new terminal, run:
-
-```bash
-kinetic name register myname.kin
-```
-
-*(Replace `myname.kin` with your desired name)*
-
-**What happens next?**
-1. The daemon fetches a random challenge from the internet.
-2. It starts the heavy VDF computation. Your CPU usage will increase, and the daemon will work silently in the background.
-3. Once the time is up, the daemon will automatically secure the name for you.
-
-::: tip
-You can check on the progress at any time by running:
-`kinetic name info myname.kin`
+::: warning Your CPU runs at full load during VDF
+This is normal and expected. The computation is single-threaded and will saturate one CPU core for the entire duration. Do not close the daemon.
 :::
 
-## Step 2: Configure Your DNS Records
+---
 
-When the registration finishes, Kinetic creates a zone file on your computer. This file tells the network where to route your name.
+## Option A: Register via the Desktop App
 
-You must edit this file to add your IP addresses or websites. See the [DNS Records Guide](/users/dns-records) for instructions on how to edit this file.
+1. Open Kinetic Desktop → **Names** section
+2. Type your name in the **Register** field (e.g. `myapp.kin`)
+3. Click **Register**
+4. A progress bar appears showing VDF computation in real time
+5. When progress reaches 100%, your name is live — the daemon has already broadcast it to the network
+6. Go to the **Names** section, select your name, and add your DNS records
+7. Click **Save & Publish** to push the records live
 
-## Step 3: Publish Your Name
+---
 
-Once your name is registered and you have edited your zone file, you must publish it to the global network so everyone else can see it.
-
-```bash
-kinetic name publish myname.kin
-```
-
-## Step 4: Verify
-
-You can verify that your name is live and resolving correctly by using standard command-line tools:
+## Option B: Register via the CLI
 
 ```bash
-dig @127.0.0.1 myname.kin A
+kinetic name register myapp.kin
 ```
 
-If it returns the IP address you set in your zone file, congratulations! Your `.kin` name is officially live on the network.
+Check progress:
 
-## What if someone else takes it first?
+```bash
+kinetic name info myapp.kin
+```
 
-Kinetic enforces a strict first-to-finish rule. Only one VDF task per name is permitted concurrently on your machine. If someone else finishes the VDF computation and publishes the name to the network before you do, your attempt will be rejected by the network.
+When registration completes, add DNS records by editing the zone file:
+
+```
+~/.local/share/kinetic/zones/myapp.kin.json        # Linux
+~/Library/Application Support/kinetic/zones/myapp.kin.json  # macOS
+%LOCALAPPDATA%\kinetic\zones\myapp.kin.json         # Windows
+```
+
+Then publish:
+
+```bash
+kinetic name publish myapp.kin
+```
+
+Verify it is live:
+
+```bash
+dig @127.0.0.1 myapp.kin A
+```
+
+---
+
+## What happens during registration
+
+The daemon runs the full pipeline automatically:
+
+1. **Fetches drand randomness** — a public randomness beacon used to seed the VDF computation
+2. **Generates a commitment** — a blind hash of your name + randomness, published to the DHT before the VDF is done (prevents front-running)
+3. **Computes the VDF** — CPU-intensive, takes hours depending on name length
+4. **Broadcasts the commitment** — announces to the network that you've started
+5. **Waits 32 seconds** — a mandatory maturation window for the commitment
+6. **Publishes the registration** — submits the full signed proof to the DHT
+
+Only step 3 takes a long time. Everything else is fast.
+
+---
+
+## If someone else registers the same name first
+
+The commitment system protects against front-running: your commitment is published before anyone can see your full proof. If two users commit to the same name simultaneously, the network resolves the conflict by VDF difficulty — the proof with more iterations wins.
+
+In practice, conflicts on names longer than 4 characters are extremely rare.
+
+---
+
+## After registration
+
+Once registered, your name appears in `kinetic name list` (CLI) or in the **Names** dropdown (desktop app). Registration leaves an empty zone — no DNS records are published yet.
+
+To make your name actually resolve to something:
+1. Edit your zone file or use the desktop app's Names editor
+2. Add at least one record (e.g. an `A` record pointing to your server's IP)
+3. Publish the zone
+
+See [DNS Records](/users/dns-records) for the full record format reference.

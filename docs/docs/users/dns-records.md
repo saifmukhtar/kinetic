@@ -1,78 +1,187 @@
 # DNS Records
 
-Once you own a `.kin` name, you manage its DNS records using a local zone file. This file dictates where traffic for your domain (and subdomains) should go.
+After registering a name, you control what it resolves to by editing its **DNS zone**. A zone maps labels (like `@` for the root, `www`, `api`) to records like IP addresses, text strings, or Kinetic-native types.
 
-## Where is the Zone File?
+---
 
-The zone file is created automatically when your name registration finishes. It is named `YOURNAME.kin.json`.
+## Where is the zone file?
 
-- **Linux:** `~/.local/share/kinetic/zones/YOURNAME.kin.json`
-- **macOS:** `~/Library/Application Support/kinetic/zones/YOURNAME.kin.json`
-- **Windows:** `%APPDATA%\kinetic\zones\YOURNAME.kin.json`
+| OS | Path |
+|---|---|
+| Linux | `~/.local/share/kinetic/zones/yourname.kin.json` |
+| macOS | `~/Library/Application Support/kinetic/zones/yourname.kin.json` |
+| Windows | `%LOCALAPPDATA%\kinetic\zones\yourname.kin.json` |
 
-## Zone File Format
+The file is plain JSON. You can edit it with any text editor.
 
-The file is written in standard JSON. Here is an example of what it looks like:
+---
+
+## Zone file format
 
 ```json
 {
   "records": {
     "@": [
       { "type": "A", "value": "1.2.3.4" },
-      { "type": "TXT", "value": "v=spf1 include:example.com" }
+      { "type": "TXT", "value": "v=spf1 include:example.com ~all" }
     ],
     "www": [
-      { "type": "CNAME", "value": "myname.kin." }
+      { "type": "CNAME", "value": "myapp.kin." }
     ],
-    "p2p": [
-      { "type": "PeerId", "value": "12D3KooWD...xyz" }
+    "api": [
+      { "type": "A", "value": "5.6.7.8" }
     ]
   }
 }
 ```
 
-- `@` represents the apex (root) of your domain (e.g., just `myname.kin`).
-- `www` and `p2p` are subdomains (e.g., `www.myname.kin`, `p2p.myname.kin`).
+- `"@"` is the **apex** — the root of your name (`myapp.kin` itself)
+- Other keys are **labels** — they become subdomains (`www.myapp.kin`, `api.myapp.kin`)
+- Each label maps to an array of record objects, each with a `"type"` and `"value"`
+- Labels are **case-insensitive** — the daemon lowercases them on parse
+- Wildcard label `"*"` is supported — matches any unresolved subdomain
 
-::: warning
-Subdomains can only be managed by the apex name owner. You cannot register a `.kin` subdomain directly using the `kinetic name register` command.
+---
+
+## Record types
+
+### `A` — IPv4 address
+
+```json
+{ "type": "A", "value": "1.2.3.4" }
+```
+
+Points your name to an IPv4 address. Use for web servers, game servers, any TCP/UDP service.
+
+### `AAAA` — IPv6 address
+
+```json
+{ "type": "AAAA", "value": "2001:db8::1" }
+```
+
+Same as `A` but for IPv6.
+
+### `CNAME` — Canonical Name alias
+
+```json
+{ "type": "CNAME", "value": "myapp.kin." }
+```
+
+Aliases one label to another domain. The trailing dot is conventional DNS notation — it works with or without it.
+
+::: warning CNAME cannot coexist with other records
+If a label has a `CNAME`, it cannot have any other records (`A`, `TXT`, etc.) for the same label. This is a DNS protocol requirement enforced by the daemon. Attempting it will fail validation.
 :::
 
-## Supported Record Types
+### `TXT` — Text record
 
-Kinetic supports several standard and specialized record types:
-
-- **A**: Maps the name to an IPv4 address.
-  - `{"type": "A", "value": "1.2.3.4"}`
-- **AAAA**: Maps the name to an IPv6 address.
-  - `{"type": "AAAA", "value": "2001:db8::1"}`
-- **CNAME**: Aliases the name to another domain name. Must end with a dot if it's an absolute name.
-  - `{"type": "CNAME", "value": "example.com."}`
-  - *Rule:* A CNAME cannot exist on the same label alongside any other records.
-- **TXT**: Arbitrary text data, often used for verification or SPF rules.
-  - `{"type": "TXT", "value": "hello world"}`
-- **PeerId**: A libp2p Peer ID used for direct peer-to-peer application discovery.
-  - `{"type": "PeerId", "value": "12D3KooW..."}`
-- **KID**: A Kinetic Identity reference (`did:kin:...`).
-  - `{"type": "KID", "value": "did:kin:..."}`
-
-### Limits
-- You can have a maximum of **50 records** per zone file.
-- `TXT` records are limited to a maximum of **255 bytes**.
-
-## Applying Changes
-
-Editing the JSON file on your computer does not automatically update the global network. After saving your changes to the file, you must tell the Kinetic daemon to publish them:
-
-```bash
-kinetic name publish myname.kin
+```json
+{ "type": "TXT", "value": "any text up to 255 bytes" }
 ```
 
-## Verifying Changes
+Use for: domain verification strings, SPF records, metadata, application-specific data.
 
-You can verify your DNS records are working locally using the `dig` command:
+- Maximum **255 bytes** per TXT record value
+
+### `PeerId` — libp2p Peer ID
+
+```json
+{ "type": "PeerId", "value": "12D3KooWNvSVhMTBqYq5..." }
+```
+
+A libp2p peer ID pointing to a P2P node. Use this so applications can discover your node by resolving your `.kin` name. The value must be a valid libp2p PeerId string — the daemon validates it on save.
+
+### `KID` — Kinetic Identity reference
+
+```json
+{ "type": "KID", "value": "did:kin:abc123..." }
+```
+
+Links your name to a `did:kin:` decentralized identity document. The value must start with `did:kin:` — other DID methods are rejected.
+
+### `IPFS` — IPFS Content Identifier
+
+```json
+{ "type": "IPFS", "value": "QmYwAPJzv5CZsnA..." }
+```
+
+An IPFS CID pointing to content. Supports both CIDv0 (starts with `Qm`) and CIDv1 (starts with `b`). Maximum 100 characters.
+
+---
+
+## Limits
+
+| Constraint | Limit |
+|---|---|
+| Total records per zone | **50 maximum** |
+| TXT record value | **255 bytes maximum** |
+| CNAME target length | **253 characters maximum** |
+| Label length | **1–63 characters** |
+| IPFS CID length | **100 characters maximum** |
+| JSON nesting depth | **10 levels maximum** (DoS protection) |
+
+---
+
+## Managing records via the Desktop App
+
+1. Open **Kinetic Desktop** → **Names** section
+2. Select your name from the dropdown
+3. Add rows using the **+** button — choose the record type and enter the value
+4. Delete rows with the trash icon
+5. **Save Draft** — writes to local storage only (not visible on the network)
+6. **Save & Publish** — saves draft and signs + publishes to the DHT in one step
+
+Changes are not visible on the network until you publish.
+
+---
+
+## Managing records via the CLI
+
+Edit the zone file directly:
 
 ```bash
-dig @127.0.0.1 myname.kin A
+# Linux
+nano ~/.local/share/kinetic/zones/myapp.kin.json
 ```
-*(Replace `A` with the record type you are querying)*
+
+Then publish:
+
+```bash
+kinetic name publish myapp.kin
+```
+
+---
+
+## Verifying your records are live
+
+After publishing, test with `dig`:
+
+```bash
+# Query your local daemon
+dig @127.0.0.1 myapp.kin A
+
+# Query a specific subdomain
+dig @127.0.0.1 www.myapp.kin CNAME
+```
+
+Or use the **Resolver** section in the desktop app — type your name and click Resolve.
+
+---
+
+## Subdomains
+
+Subdomains are just labels in your zone file. You don't register them separately — they're part of your apex name's zone.
+
+```json
+{
+  "records": {
+    "@":    [{ "type": "A", "value": "1.2.3.4" }],
+    "www":  [{ "type": "CNAME", "value": "myapp.kin." }],
+    "api":  [{ "type": "A", "value": "1.2.3.5" }],
+    "blog": [{ "type": "A", "value": "1.2.3.6" }],
+    "*":    [{ "type": "A", "value": "1.2.3.4" }]
+  }
+}
+```
+
+The `"*"` wildcard entry catches any subdomain not explicitly listed. Only the apex name owner can add or change these records.

@@ -1,69 +1,141 @@
-# Install Kinetic on Windows
+# Install on Windows
 
-This guide will walk you through installing the Kinetic daemon on Windows.
+This guide covers installing Kinetic on Windows using the PowerShell installer.
 
-## Installation Steps
+::: tip Prefer a graphical interface?
+Download the **Tauri desktop app** instead — it handles installation with a GUI and no PowerShell required. See the [welcome page](/users/) for the download link.
+:::
 
-1. Open **PowerShell** as an Administrator. (Right-click the Start button, select "Windows PowerShell (Admin)" or "Terminal (Admin)").
-2. Run the following command to download and execute the installer:
+## Prerequisites
+
+- Windows 10 or later
+- PowerShell 5.1 or later (pre-installed)
+- Administrator account — the installer requests UAC elevation automatically
+
+## Run the installer
+
+Open **PowerShell** (no need to run as Administrator manually — the script self-elevates):
 
 ```powershell
-Invoke-WebRequest -Uri "https://kinetic.saifmukhtar.dev/install.ps1" -OutFile "install.ps1"; .\install.ps1
+irm https://kinetic.saifmukhtar.dev/install.ps1 | iex
 ```
 
-**What this does:**
-1. Installs the Kinetic binaries to `C:\Program Files\Kinetic\`.
-2. Adds the folder to your system `PATH` so you can run `kinetic` from anywhere.
-3. Creates the Kinetic data directory at `%APPDATA%\kinetic\`.
+If you get an execution policy error:
 
-### 1. Verify the Installation
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+irm https://kinetic.saifmukhtar.dev/install.ps1 | iex
+```
 
-Restart your PowerShell window (still as Administrator) so the new `PATH` takes effect, then run:
+A UAC prompt will appear. Accept it — the installer needs admin to write to `Program Files` and register system services.
+
+## Choose your profile
+
+The installer presents an interactive menu. Use `↑` / `↓` to navigate, `Enter` to select:
+
+| Profile | Installs | Best for |
+|---|---|---|
+| **Standard User** | Daemon + CLI | Registering names, resolving `.kin` |
+| **Power User** | Daemon + CLI + DNS Server | OS-level `.kin` resolution in your browser |
+| **Node Operator** | Node + CLI | Running a P2P infrastructure node |
+| **Host Operator** | Host + CLI | Hosting content on a `.kin` address |
+| **Custom** | You choose | Mixed setups |
+
+## What the installer does
+
+1. Downloads binaries from [GitHub Releases](https://github.com/saifmukhtar/kinetic/releases/latest) using `Invoke-WebRequest`
+2. Verifies SHA256 checksums — aborts if they don't match
+3. Copies binaries to `C:\Program Files\Kinetic\`
+4. Adds `C:\Program Files\Kinetic\` to the system `PATH`
+5. Runs `kinetic.exe setup` to generate your node identity (if none exists)
+6. Installs and starts each service via Windows Service Manager
+
+::: info Power User DNS on Windows
+The Power User profile adds a **Name Resolution Policy Table (NRPT)** rule via `Add-DnsClientNrptRule` — this routes all `.kin` queries to `127.0.0.1` system-wide, giving every browser and application native `.kin` resolution.
+:::
+
+## Verify the installation
+
+Open a **new** PowerShell window (to pick up the updated PATH), then:
 
 ```powershell
 kinetic --version
-kinetic daemon --help
+kinetic-daemon --version
 ```
 
-### 2. Start the Daemon
-
-The Kinetic daemon must be run in an Administrator PowerShell window.
+Check the daemon service is running:
 
 ```powershell
-kinetic daemon
+Get-Service kinetic-daemon
 ```
 
-Look for the message `"Connected to DHT"` in the output logs.
+Status should be `Running`.
 
-::: tip
-Windows Firewall may show a prompt asking if you want to allow `kinetic-daemon.exe` to communicate on the network. Make sure both Private and Public networks are checked and click **Allow access**.
+## First-time setup
+
+The installer runs `kinetic setup` automatically. To run it manually:
+
+```powershell
+kinetic setup
+```
+
+This generates your **24-word seed phrase**. Write it down immediately — it is shown once and never again.
+
+::: danger Back up your seed phrase
+Your 24-word seed is the only way to recover your identity and names. See [Seed Backup](/users/seed-backup).
 :::
 
-### 3. Initialize Your Identity
+## Data directory
 
-If this is your first time using Kinetic, generate your identity. Open a **new PowerShell window** (leave the daemon running) and run:
+Your data is stored at:
 
-```powershell
-kinetic seed init
+```
+%LOCALAPPDATA%\kinetic\
+├── identity.key          # Private key — never share this
+├── identity.mnemonic     # 24-word BIP-39 seed backup
+├── api.token             # Local API bearer token
+└── zones\
+    └── yourname.kin.json # DNS zone for each registered name
 ```
 
-::: danger
-This command generates your master seed phrase. Follow the instructions on screen to back it up immediately! See the [Seed Backup Guide](/users/seed-backup) for more details.
+::: info %LOCALAPPDATA% path
+`%LOCALAPPDATA%` is usually `C:\Users\YourName\AppData\Local`. You can type this path directly in File Explorer or `cd $env:LOCALAPPDATA\kinetic` in PowerShell.
 :::
 
-## Running Automatically
+## Windows Firewall
 
-To start the Kinetic daemon automatically when you log in, you can use the Windows Task Scheduler.
-Create a Basic Task that triggers "When I log on", set the action to "Start a program", and point it to `C:\Program Files\Kinetic\kinetic-daemon.exe`. Make sure to check "Run with highest privileges" in the task properties.
+On first run, Windows Firewall will ask if Kinetic can communicate on the network. Click **Allow Access** for both private and public networks if you're running a node.
 
-## Common Issues
+## Common issues
 
-### Execution Policy Error
-If you receive an error about running scripts being disabled when trying to run `install.ps1`, change your execution policy temporarily:
-```powershell
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+### Execution policy error
+
 ```
-Then run the installation command again.
+File cannot be loaded because running scripts is disabled on this system.
+```
 
-### Port 53 Conflicts
-If the daemon fails to start because port 53 is in use, it is likely the Windows "DNS Client" service or Internet Connection Sharing (ICS). You may need to stop the conflicting service using the `services.msc` panel.
+Fix:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+### Port 53 conflict — DNS Client service
+
+The **Windows DNS Client** service uses port 53. The Power User profile handles this via NRPT rules, which don't require binding port 53 directly. If you're seeing port conflicts, ensure you selected Power User (not a manual setup).
+
+### PATH not updated in current session
+
+The installer updates the **system PATH**, but your current PowerShell session won't see it. Open a new window.
+
+### Upgrading
+
+Re-run the installer. It detects existing binaries in `C:\Program Files\Kinetic\` and offers an upgrade or cleanup menu.
+
+### Full uninstall
+
+Re-run the installer and select **Full Cleanup**. This removes all binaries, services, NRPT rules, and local data.
+
+::: danger Full cleanup deletes your identity
+Ensure your 24-word seed phrase is backed up before running a full cleanup.
+:::

@@ -42,6 +42,7 @@ export default withMermaid(defineConfig({
           text: 'Getting Started',
           items: [
             { text: 'What is Kinetic?', link: '/users/' },
+            { text: 'Desktop App (Tauri)', link: '/users/desktop-app' },
             { text: 'Install on Linux', link: '/users/install-linux' },
             { text: 'Install on macOS', link: '/users/install-macos' },
             { text: 'Install on Windows', link: '/users/install-windows' }

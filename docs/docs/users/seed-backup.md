@@ -1,77 +1,87 @@
-# Seed Phrase & Backup
+# Seed Backup
 
-Your seed phrase is the ultimate master key to your Kinetic identity. If your computer crashes, your hard drive fails, or you move to a new machine, your seed phrase is the **only way** to recover your identity and the names you own.
+Your **24-word seed phrase** is the master key to your Kinetic identity. Every name you register is controlled by the cryptographic keypair derived from this phrase. If you lose both your device and your seed phrase, your names are unrecoverable.
 
-## What is a Seed Phrase?
+---
 
-A seed phrase is a human-readable list of **24 words** (following the BIP-39 standard). It looks like this:
+## When is the seed shown?
 
-```
-abandon zoo pizza cloud forest desert ocean signal window marble tower
-bridge circuit copper dawn eagle falcon grape harbor iron jungle kite lamp
-```
-*(Example only — never use this.)*
+**Only once** — during initial setup, when you run `kinetic setup` (CLI) or click **Generate Master Seed** (desktop app).
 
-These 24 words mathematically generate your master private key (`identity.key`).
+There is no "show my seed" command or button. The daemon stores the derived private key (`identity.key`) — not the seed phrase itself. The seed phrase is written to `identity.mnemonic` at setup time, but if you delete that file or lose the machine, there is no way to recover it from the daemon.
 
-::: danger Never share your seed phrase
-Anyone who has your seed phrase can steal all of your names permanently. Kinetic support, developers, and community members will **never** ask for it. If someone does, it is a scam.
+---
+
+## Back up your seed phrase
+
+Write down all 24 words, in order, on paper. Verify each word against the screen carefully.
+
+::: danger Do this before closing the setup screen
+Once you dismiss the seed display, it does not appear again. The `identity.mnemonic` file contains it, but that file is on the machine you're trying to protect.
 :::
 
-## When Does the Seed Appear?
+**Good backup practices:**
 
-Your seed phrase is shown **exactly once** — when you run `kinetic seed init` or `kinetic setup` for the first time. The CLI prints all 24 words, then prompts you to verify two random words before it continues.
+- Write it on paper — not in a notes app, not in a screenshot, not in cloud storage
+- Store it somewhere physically secure (safe, safety deposit box)
+- Consider making two copies and storing them in different locations
+- Never share it digitally — anyone who has these 24 words controls your names
 
-**There is no `kinetic seed show` command.** If you did not write down your seed phrase at creation time, and you no longer have the `identity.key` file, your identity is not recoverable.
+---
 
-::: tip If your daemon is still running
-If your `identity.key` file still exists on disk, your identity is fine — you just cannot view the seed phrase again. Your names are accessible as long as your `identity.key` is intact.
+## Where is the seed phrase file?
+
+The daemon writes the seed to disk at:
+
+| OS | Path |
+|---|---|
+| Linux | `~/.local/share/kinetic/identity.mnemonic` |
+| macOS | `~/Library/Application Support/kinetic/identity.mnemonic` |
+| Windows | `%LOCALAPPDATA%\kinetic\identity.mnemonic` |
+
+::: warning This file is not your backup
+`identity.mnemonic` is a convenience copy. If your machine fails, the file is gone with it. Your paper backup is your real backup.
 :::
 
-## How to Back It Up
+---
 
-During `kinetic seed init`, you have one window to write it down. Here is the right way:
+## Restoring from your seed phrase
 
-1. **Write on paper** — use a pen, not a printer. Check spelling and order carefully.
-2. **Make two copies** — store them in separate locations.
-3. **Keep it offline** — never in a plain text file, email, photo, or cloud document.
-4. **Secure location** — a fireproof safe, lockbox, or safety deposit box.
+If you install Kinetic on a new machine and need to restore your identity:
 
-The 24 words must be in the correct order. Word 1 written in the wrong position = unrecoverable.
+### Desktop app
 
-## How to Restore Your Identity
+1. Open **Kinetic Desktop** → **Identity** section
+2. In the **Restore Identity** panel, paste your 24 words (space-separated)
+3. Click **Restore & Restart**
 
-If you need to recover your identity on a new machine:
+The daemon restarts and your identity is restored. Your registered names are tied to the cryptographic keypair — once the identity is restored, you can manage them again.
 
-1. Install Kinetic (see [Install on Linux](/users/install-linux), [macOS](/users/install-macos), or [Windows](/users/install-windows))
-2. Run the restore command:
+### CLI
 
 ```bash
-kinetic seed restore
+kinetic setup
 ```
 
-The CLI will prompt for your 24-word phrase (input is hidden, like a password). Type all 24 words separated by spaces and press Enter.
+When prompted, choose to restore from an existing phrase and enter your 24 words.
 
-Once your `identity.key` is restored:
-- Start the daemon: `kinetic daemon start`
-- Your names become accessible again once the daemon reconnects to the DHT network
+---
 
-::: warning After restoring on a new machine
-Copy your `zones/*.reveal.json` proof files from your old machine (or backup) to the zones directory on the new machine. Without them, you cannot publish DNS updates.
-:::
+## Full data directory
 
-## Critical: VDF Proof Files
+For reference, the complete set of important files:
 
-Your seed phrase recovers your **identity key** — but it does **not** recover your VDF proof files.
+| File | Contents | Sensitivity |
+|---|---|---|
+| `identity.key` | 32-byte Ed25519 private key | 🔴 Never share — full account control |
+| `identity.mnemonic` | 24-word BIP-39 seed phrase | 🔴 Never share — derives the private key |
+| `api.token` | Local API bearer token | 🟡 Safe within your machine; regenerated on daemon restart |
+| `zones/yourname.kin.json` | DNS zone records | 🟢 Not sensitive |
 
-When you register a name, the daemon saves:
+---
 
-```
-~/.local/share/kinetic/zones/myname.kin.reveal.json
-```
+## What is the seed phrase exactly?
 
-This file contains the cryptographic proof of the computational work you did to register the name. Without it, you cannot publish DNS updates for that name, even if you have a perfectly intact `identity.key`.
+It is a **BIP-39 mnemonic** — 24 words from a standardized English word list, encoding 256 bits of entropy. From this seed, an Ed25519 keypair is derived deterministically. The same 24 words always produce the same keypair, on any machine, using any compatible BIP-39 tool.
 
-**Back up the entire `zones/` directory**, not just your seed phrase.
-
-See [File Paths Reference](/users/file-paths) for exact directory locations on each OS.
+The seed is generated using `getrandom` (cryptographically secure OS randomness) — not a user password, not a clock-based seed.

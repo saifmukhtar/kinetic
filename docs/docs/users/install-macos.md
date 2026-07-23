@@ -1,97 +1,130 @@
-# Install Kinetic on macOS
+# Install on macOS
 
-This guide will walk you through installing the Kinetic daemon on macOS.
+This guide covers installing Kinetic on macOS using the interactive terminal installer.
+
+::: tip Prefer a graphical interface?
+Download the **Tauri desktop app** instead — it handles installation for you with a GUI. See the [welcome page](/users/) for the download link.
+:::
 
 ## Prerequisites
-- You need Administrator privileges on your Mac, as the Kinetic daemon requires `sudo` to listen on port 53 for DNS resolution.
-- Terminal app (or iTerm2).
 
-## Installation Steps
+- `curl` (pre-installed on macOS)
+- Administrator password — the installer writes to `/usr/local/bin/` and registers system services
+- macOS 12 (Monterey) or later recommended
 
-Open your Terminal and run the following command to download and execute the installer:
+## Run the installer
+
+Open **Terminal** and run:
 
 ```bash
 curl -sSL https://kinetic.saifmukhtar.dev/install.sh | bash
 ```
 
-**What this does:**
-1. Downloads the latest Kinetic binaries (`kinetic` and `kinetic-daemon`) and installs them to `/usr/local/bin`.
-2. Creates the Kinetic data directory at `~/Library/Application Support/kinetic/`.
+The installer is **interactive**. Use `↑` / `↓` to navigate, `Enter` to select.
 
-### 1. Verify the Installation
+## Choose your profile
 
-To verify that the CLI was installed correctly, run:
+| Profile | Installs | Best for |
+|---|---|---|
+| **Standard User** | Daemon + CLI | Registering names, resolving `.kin` |
+| **Power User** | Daemon + CLI + DNS Server | OS-level `.kin` resolution in your browser |
+| **Node Operator** | Node + CLI | Running a P2P infrastructure node |
+| **Host Operator** | Host + CLI | Hosting content on a `.kin` address |
+| **Custom** | You choose | Mixed setups |
+
+## What the installer does
+
+1. Downloads binaries from [GitHub Releases](https://github.com/saifmukhtar/kinetic/releases/latest)
+2. Verifies SHA256 checksums before installing
+3. Copies binaries to `/usr/local/bin/` and sets permissions
+4. Runs `kinetic setup` to generate your node identity (if none exists)
+5. Installs services via `launchd` and starts them
+
+::: info Power User DNS on macOS
+The Power User profile creates `/etc/resolver/kin` — a macOS resolver stub file that routes all `.kin` queries to `127.0.0.1:53`. This gives your entire system native `.kin` resolution.
+:::
+
+## Verify the installation
 
 ```bash
 kinetic --version
-kinetic daemon --help
+kinetic-daemon --version
 ```
 
-### 2. Start the Daemon
-
-The Kinetic daemon must be run with `sudo` to bind to port 53.
+Check the daemon is running:
 
 ```bash
-sudo kinetic daemon
+launchctl list | grep kinetic
 ```
 
-Look for the message `"Connected to DHT"` in the output logs.
+You should see `kinetic-daemon` in the list with a PID.
 
-::: tip
-macOS might prompt you with a dialog asking: **"kinetic-daemon would like to receive connections from the network"**. Be sure to click **Allow**.
+## First-time setup
+
+The installer runs `kinetic setup` automatically on first install. To run it manually:
+
+```bash
+kinetic setup
+```
+
+This generates your **24-word seed phrase**. Write it down immediately — it is shown once and never again.
+
+::: danger Back up your seed phrase
+Your 24-word seed is the only way to recover your identity and names if you lose your machine. See [Seed Backup](/users/seed-backup).
 :::
 
-### 3. Initialize Your Identity
+## Data directory
 
-If this is your first time running Kinetic, you need to generate a new identity. Open a **new terminal window** (leaving the daemon running) and run:
+Your data is stored at:
 
-```bash
-kinetic seed init
+```
+~/Library/Application Support/kinetic/
+├── identity.key          # Private key — never share this
+├── identity.mnemonic     # 24-word BIP-39 seed backup
+├── api.token             # Local API bearer token
+└── zones/
+    └── yourname.kin.json # DNS zone for each registered name
 ```
 
-::: danger
-This command generates your master seed phrase. Follow the instructions on the screen to back it up immediately! See the [Seed Backup Guide](/users/seed-backup) for more details.
+## macOS-specific issues
+
+### "Cannot be opened because the developer cannot be verified"
+
+macOS Gatekeeper may block the binary on first run. Remove the quarantine attribute:
+
+```bash
+xattr -c /usr/local/bin/kinetic-daemon
+xattr -c /usr/local/bin/kinetic
+```
+
+Or allow it in **System Settings → Privacy & Security → Allow Anyway**.
+
+### Network access permission prompt
+
+macOS will ask if Kinetic can accept incoming network connections. Click **Allow**. The daemon needs this for P2P communication.
+
+### Port 53 conflict
+
+If you have another local DNS service running, the DNS server may fail to bind. Check:
+
+```bash
+sudo lsof -i :53
+```
+
+Stop the conflicting service, then restart kinetic-dns:
+
+```bash
+sudo launchctl kickstart -k system/kinetic-dns
+```
+
+### Upgrading
+
+Re-run the installer. It detects the existing installation and prompts for an upgrade or cleanup.
+
+### Full uninstall
+
+Re-run the installer and select **Full Cleanup** when prompted. This removes all binaries, services, and data including your identity.
+
+::: warning Full cleanup deletes your identity
+Ensure your 24-word seed is backed up before running a full cleanup.
 :::
-
-## Running Automatically (launchd)
-
-To run the Kinetic daemon automatically in the background, you can use macOS `launchd`.
-
-1. Create a file at `~/Library/LaunchAgents/dev.saifmukhtar.kinetic.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>dev.saifmukhtar.kinetic</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/bin/sudo</string>
-        <string>/usr/local/bin/kinetic-daemon</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>
-```
-
-2. Load the agent:
-```bash
-launchctl load ~/Library/LaunchAgents/dev.saifmukhtar.kinetic.plist
-```
-
-## Common Issues
-
-### "Developer Cannot Be Verified" Error
-macOS Gatekeeper may block the binary from running because it was downloaded from the internet. To bypass this, run:
-```bash
-sudo xattr -cr /usr/local/bin/kinetic
-sudo xattr -cr /usr/local/bin/kinetic-daemon
-```
-
-### Port 53 Conflicts
-If you have other DNS tools installed (like `dnsmasq`), they may conflict with Kinetic. You must stop them before running `kinetic daemon`.

@@ -1,95 +1,122 @@
-# Install Kinetic on Linux
+# Install on Linux
 
-This guide will walk you through installing the Kinetic daemon on your Linux machine.
+This guide covers installing Kinetic on Linux using the interactive terminal installer.
+
+::: tip Prefer a graphical interface?
+Download the **Tauri desktop app** instead — it handles installation for you with a GUI. See the [welcome page](/users/) for the download link.
+:::
 
 ## Prerequisites
-- You need `sudo` or root access on your machine, as the Kinetic daemon must listen on port 53 to resolve DNS queries.
-- `curl` should be installed on your system.
 
-## Installation Steps
+- `curl` installed (standard on all major distros)
+- `sudo` access — the installer writes binaries to `/usr/local/bin/` and registers system services
+- Port 53 available if you choose the Power User profile (DNS server)
 
-Open your terminal and run the following command to download and execute the installer script:
+## Run the installer
 
 ```bash
 curl -sSL https://kinetic.saifmukhtar.dev/install.sh | bash
 ```
 
-**What this does:**
-1. Downloads the latest Kinetic binaries (`kinetic` and `kinetic-daemon`) and installs them to `/usr/local/bin`.
-2. Creates the Kinetic data directory at `~/.local/share/kinetic/`.
+The installer is **interactive**. It presents an arrow-key menu — use `↑` / `↓` to navigate, `Enter` to select.
 
-### 1. Verify the Installation
+## Choose your profile
 
-To verify that the CLI was installed correctly, run:
+When prompted, pick the profile that fits your use case:
+
+| Profile | Installs | Best for |
+|---|---|---|
+| **Standard User** | Daemon + CLI | Registering names, resolving `.kin` |
+| **Power User** | Daemon + CLI + DNS Server | OS-level `.kin` resolution in your browser |
+| **Node Operator** | Node + CLI | Running a P2P infrastructure node |
+| **Host Operator** | Host + CLI | Hosting content on a `.kin` address |
+| **Custom** | You choose | Mixed setups |
+
+For most users, **Standard User** or **Power User** is the right choice.
+
+::: info What is the DNS Server profile?
+The Power User profile installs `kinetic-dns` and configures `systemd-resolved` to forward `.kin` queries to it. This means your browser and all apps on your system can resolve `.kin` names natively without extra configuration.
+:::
+
+## What the installer does
+
+1. Downloads binaries from [GitHub Releases](https://github.com/saifmukhtar/kinetic/releases/latest)
+2. Verifies SHA256 checksums before installing anything
+3. Copies binaries to `/usr/local/bin/`
+4. Runs `kinetic setup` to generate your node identity (if no identity exists yet)
+5. Installs and starts each service via `systemd`
+
+## Verify the installation
 
 ```bash
 kinetic --version
-kinetic daemon --help
+kinetic-daemon --version
 ```
 
-### 2. Start the Daemon
-
-The Kinetic daemon handles name resolution and background tasks. You must run it with `sudo` so it can access port 53.
+Check that the daemon service is running:
 
 ```bash
-sudo kinetic daemon
+systemctl status kinetic-daemon
 ```
 
-Look for the message `"Connected to DHT"` in the output logs. This confirms your daemon has successfully joined the network.
+You should see `active (running)`.
 
-### 3. Initialize Your Identity
+## First-time setup
 
-If this is your first time running Kinetic, you must generate a new identity. Open a **new terminal window** (leave the daemon running) and execute:
+The installer runs `kinetic setup` automatically if no identity exists. If you need to re-run it:
 
 ```bash
-kinetic seed init
+kinetic setup
 ```
 
-::: danger
-This command generates your master seed phrase. Follow the instructions on the screen to back it up immediately! See the [Seed Backup Guide](/users/seed-backup) for more details.
+This generates your **24-word seed phrase** — write it down immediately. It is shown once and never again.
+
+::: danger Back up your seed phrase
+The seed phrase is shown **once** during setup. If you lose it and lose your machine, you lose your names permanently. Write it down on paper and store it somewhere safe. See [Seed Backup](/users/seed-backup).
 :::
 
-## Running as a Service (systemd)
+## Data directory
 
-To keep the Kinetic daemon running in the background and automatically start it on boot, you can create a `systemd` service.
+Your identity, zones, and API token are stored at:
 
-1. Create a file at `/etc/systemd/system/kinetic.service`:
-
-```ini
-[Unit]
-Description=Kinetic Network Daemon
-After=network.target
-
-[Service]
-ExecStart=/usr/local/bin/kinetic-daemon
-Restart=always
-User=root
-Environment=HOME=/root
-
-[Install]
-WantedBy=multi-user.target
+```
+~/.local/share/kinetic/
+├── identity.key          # Ed25519 private key — never share this
+├── identity.mnemonic     # BIP-39 24-word seed backup
+├── api.token             # Bearer token for the local API (regenerated on restart)
+└── zones/
+    └── yourname.kin.json # DNS zone file for each registered name
 ```
 
-2. Enable and start the service:
+## Common issues
 
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now kinetic.service
-```
+### Port 53 already in use
 
-## Common Issues
+On Ubuntu 22.04+, `systemd-resolved` listens on port 53 by default. The installer handles this automatically for the Power User profile by configuring `resolved.conf.d/kinetic.conf`. If you installed the Standard User profile and later want DNS resolution, upgrade by re-running the installer and selecting Power User.
 
-### Port 53 Already in Use
-On Ubuntu, `systemd-resolved` often occupies port 53.
-To fix this, disable the stub listener:
+If you see a conflict manually:
+
 ```bash
 sudo systemctl disable --now systemd-resolved
-```
-Then, update your `/etc/resolv.conf` to point to localhost:
-```bash
-sudo rm /etc/resolv.conf
-echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf
+sudo systemctl restart kinetic-dns
 ```
 
-### Permission Denied
-If you see a permission denied error when starting the daemon, ensure you are using `sudo kinetic daemon`. Port 53 is a privileged port on Linux.
+### "Permission denied" on `/usr/local/bin`
+
+The installer requires `sudo`. Run with:
+
+```bash
+sudo bash -c "$(curl -sSL https://kinetic.saifmukhtar.dev/install.sh)"
+```
+
+### Upgrading
+
+Re-run the installer. It detects an existing installation and offers an upgrade path.
+
+### Full uninstall
+
+Re-run the installer, select **Full Cleanup** when prompted. This removes binaries, services, and data including your identity keys.
+
+::: danger Full cleanup is irreversible
+Full cleanup deletes your identity key and all registered name data. Ensure you have your 24-word seed backed up before doing this.
+:::
