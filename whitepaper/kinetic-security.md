@@ -85,11 +85,13 @@ The resulting pseudo-random 2-digit number maps to a difficulty tier ranging fro
 | 11–20 | `base × 126` | ~63 hours |
 | 21–30 | `base × 3,024` | ~63 days |
 | 31–40 | `base × 21,168` | ~63 weeks |
-| 41–50 | `base × 92,043` | ~63 months |
-| 51–62, 64–70 | `base × 1,104,516` | ~63 years |
-| 71–80 | `base × 11,045,160` | ~63 decades |
-| 81–90 | `base × 110,451,600` | ~63 centuries |
-| 91–99 | `base × 1,104,516,000` | ~63 millennia |
+| 41–50 | `base × 90,720` | ~63 months |
+| 51–62, 64–70 | `base × 1,103,760` | ~63 years |
+| 71–80 | `base × 11,037,600` | ~63 decades |
+| 81–90 | `base × 110,376,000` | ~63 centuries |
+| 91–99 | `base × 1,103,760,000` | ~63 millennia |
+
+*(Source: kinetic-core/src/consensus_math.rs:109)*
 
 The round-dependent difficulty hash means an attacker cannot pre-compute which 63-character name will land on the Jackpot tier in a given round. The lottery is fair, un-gameable, and changes every 3 seconds.
 
