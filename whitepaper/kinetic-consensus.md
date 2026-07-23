@@ -63,8 +63,8 @@ To make mass dictionary squatting physically impossible, the number of required 
 | Label Length | Multiplier | Approximate Time |
 |---|---|---|
 | 1 character | × 1,753,200 | ~100 years |
-| 2 characters | × 7,200 | ~5 months |
-| 3 characters | × 4,320 | ~3 months |
+| 2 characters | × 1,440 | ~30 days |
+| 3 characters | × 1,152 | ~24 days |
 | 4 characters | × 720 | ~15 days |
 | 5 characters | × 48 | ~1 day |
 | 6 characters | × 24 | ~12 hours |
@@ -76,6 +76,8 @@ To make mass dictionary squatting physically impossible, the number of required 
 | 63 characters | Random lottery | 63 seconds to 63 millennia |
 
 The 63-character case is a special cryptographic lottery (the "Jackpot"). The difficulty for a 63-character name is derived by hashing the label against the current `drand` round, producing a pseudo-random difficulty tier. See Section 4 of `kinetic-security.md` for details on the Jackpot tie-breaker.
+
+*(Source: kinetic-core/src/consensus_math.rs:83)*
 
 ---
 
