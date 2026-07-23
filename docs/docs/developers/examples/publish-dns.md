@@ -12,7 +12,7 @@ Kinetic DNS zones support a maximum of 50 records in total. `TXT` records have a
 
 ```typescript
 import * as fs from 'fs';
-import { Configuration, AuthenticatedApi } from 'kinetic-sdk';
+import { Configuration, AuthenticatedApi } from '@kinetic/sdk-ts';
 
 const token = fs.readFileSync(`${process.env.HOME}/.local/share/kinetic/api.token`, 'utf8').trim();
 const config = new Configuration({ basePath: 'http://127.0.0.1:16002/api', accessToken: token });

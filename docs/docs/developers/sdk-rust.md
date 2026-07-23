@@ -4,13 +4,15 @@ The Kinetic Rust SDK provides a strongly-typed, asynchronous client for the Kine
 
 ## Installation
 
-Add the SDK to your `Cargo.toml`. If you are developing locally, you can use a path dependency:
+Add the SDK to your `Cargo.toml` as a path dependency, pointing to the `rust/` folder inside the `kinetic-sdk` repository:
 
 ```toml
 [dependencies]
-kinetic-sdk = { path = "/home/saif/kinetic-sdk/rust" }
+kinetic-sdk = { path = "../kinetic-sdk/rust" }
 tokio = { version = "1", features = ["full"] }
 ```
+
+Adjust the path to match where you have the `kinetic-sdk` repository cloned relative to your project.
 
 ## Initialization & Authentication
 

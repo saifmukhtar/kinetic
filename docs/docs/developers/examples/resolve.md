@@ -11,7 +11,7 @@ In a production app, you should cache the resolved IP addresses to avoid hitting
 ## TypeScript Example
 
 ```typescript
-import { Configuration, PublicApi } from 'kinetic-sdk';
+import { Configuration, PublicApi } from '@kinetic/sdk-ts';
 
 async function resolveIpAddress(name: string): Promise<string | null> {
   const config = new Configuration({ basePath: 'http://127.0.0.1:16002/api' });
