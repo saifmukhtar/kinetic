@@ -30,7 +30,7 @@ Every fork uses the same battle-tested Rust engine. The only thing that changes 
 
 The `.kin` network is the canonical public deployment — the reference implementation that no operator can reset, no administrator can censor, and no government can seize. It is a living proof that the protocol works in the hardest possible mode: permissionless, leaderless, and globally distributed.
 
-`.kin` does not compete with `.com`. It serves a fundamentally different population: open-source developers, privacy advocates, and builders who need a name that belongs to no institution. On `.kin`, the only protection against squatters is the VDF difficulty curve — and the curve is deliberately brutal for short, premium names. A 2-character name takes 5 months of continuous CPU time. A 1-character name takes 100 years. Mass squatting is not merely expensive; it is physically impossible at scale.
+`.kin` does not compete with `.com`. It serves a fundamentally different population: open-source developers, privacy advocates, and builders who need a name that belongs to no institution. On `.kin`, the only protection against squatters is the VDF difficulty curve — and the curve is deliberately brutal for short, premium names. A 2-character name takes 30 days of continuous CPU time. A 1-character name takes 100 years. Mass squatting is not merely expensive; it is physically impossible at scale.
 
 As the fork ecosystem grows, `.kin` gains a secondary role: the global trust anchor. Fork operators can optionally peer their bootstrap nodes with `.kin` nodes, inheriting proven network topology and DHT stability without surrendering sovereignty.
 
@@ -62,10 +62,10 @@ The structural separation of Name from Identity. A human-readable alias resolves
 The local client environment. OS-level Split-DNS loopback interception transparently routes `.kin` (or any fork TLD) queries through the Kademlia DHT, passing all other traffic to standard resolvers untouched. Dynamic on-the-fly Certificate Authority generation ensures `.kin` domains display the TLS padlock in standard browsers. Epoch-Bound ephemeral transport identities on `kinetic-host` neutralize targeted DoS attacks at every beacon tick.
 
 ### [Pillar IV: Security & Attack Mitigation](./kinetic-security.md)
-The adversarial reality. Redundant Deterministic Storage across M independent DHT keys makes Eclipse attacks statistically impossible (probability ≈ 10⁻⁷⁰ for M=5, f=0.2). Competitive Gossip validation rejects invalid VDF proofs at the network edge. The Jackpot XOR tie-breaker resolves name collisions without grinding.
+The adversarial reality. Redundant Deterministic Storage across M independent DHT keys makes Eclipse attacks statistically impossible (probability ≈ 10⁻⁴⁴⁸ for M=32, f=0.2). Competitive Gossip validation rejects invalid VDF proofs at the network edge. The Jackpot XOR tie-breaker resolves name collisions without grinding.
 
 ### [Pillar V: Cryptographic Governance](./kinetic-governance.md)
-The upgrade mechanism. A Bicameral Rule Book with a 69% supermajority threshold signature Council, mandatory 24-hour timelocks on OTA binary updates, and a deterministic Phase 2 auto-lock that permanently surrenders founder authority once 7 independent Council members are registered. Governance is not social — it is cryptographic.
+The upgrade mechanism. A Bicameral Rule Book with a 69% supermajority threshold signature Council, mandatory 48-hour timelocks on OTA binary updates, and a deterministic Phase 2 auto-lock that permanently surrenders founder authority once 7 independent Council members are registered. Governance is not social — it is cryptographic.
 
 ---
 
