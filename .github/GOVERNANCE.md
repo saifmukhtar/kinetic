@@ -16,15 +16,15 @@ The governance structure is designed to:
 ## 2. Project Roles and Responsibilities
 
 ### The Founder (Saif Mukhtar)
-During Phase 1 (the first 12 months after genesis), the Founder holds two critical cryptographic keys:
+During Phase 1 (the first 12 months after genesis, defined as `AUTO_LOCK_SECONDS = 365 * 24 * 60 * 60` in `kinetic-core/src/constants.rs:36`), the Founder holds two critical cryptographic keys:
 - **The Root Key:** Acts as a benevolent dictator key capable of bypassing standard voting thresholds for rapid iteration and emergency fixes.
 - **The Guard Key (Veto Key):** A protective key that can instantly veto any proposed malicious updates and trigger a 30-day emergency timelock. 
 
 ### The Council (Multisig Core Maintainers)
-The Council is a dynamic group of up to `N` core maintainers whose public keys are registered on the network.
+The Council is a dynamic group of up to 21 core maintainers (`MAX_COUNCIL_SIZE` in `kinetic-core/src/constants.rs:24`) whose public keys are registered on the network.
 - They have voting rights on architectural changes and protocol upgrades (Over-The-Air updates).
-- A **69% supermajority** is required for the Council to ratify a binary OTA update.
-- If an update is ratified, it enters a **48-hour timelock** before nodes apply it, allowing the Guard Key to veto if necessary.
+- A **69% supermajority** is required for the Council to ratify a binary OTA update or appoint a new member (Source: `kinetic-core/src/governance/engine/bicameral.rs:162`). Premium names require 90%, and key rotations require 95%.
+- If an update is ratified, it enters a **48-hour timelock** (`OTA_TIMELOCK_SECONDS` in `kinetic-core/src/constants.rs:39`) before nodes apply it, allowing the Guard Key to veto if necessary.
 
 ### Contributors and Users
 - **Users:** Community members who engage via issues, discussions, or running standard non-validating nodes.
@@ -53,11 +53,11 @@ Significant changes (e.g., modifying VDF parameters, altering the DHT routing lo
 
 ### Phase 1 vs Phase 2
 - **Phase 1 (Incubation):** For the first 12 months, the Founder (Saif Mukhtar) can use the Root Key to bypass the Council for emergency fixes.
-- **Phase 2 (Decentralization):** After 12 months, if there are at least 7 active Council members, the network **auto-locks**. The Root Key loses its bypass authority, and the network becomes permanently decentralized, governed entirely by the Council.
+- **Phase 2 (Decentralization):** After 12 months, if there are at least 7 active Council members (`MIN_ACTIVE_COUNCIL` in `kinetic-core/src/constants.rs:21`), the network **auto-locks**. The Root Key loses its bypass authority, and the network becomes permanently decentralized, governed entirely by the Council.
 
 ## 5. Conflict Resolution & Emergencies
 
 - **Guard Veto:** If a malicious update is ratified by a compromised Council, the Guard Key can veto the update.
-- **Emergency Reset:** If the network is catastrophically compromised, the Founder can issue an Emergency Reset to rotate keys, which triggers a strict 30-day timelock before taking effect. 
+- **Emergency Reset:** If the network is catastrophically compromised, the Founder can issue an Emergency Reset to rotate keys, which triggers a strict 30-day timelock (`TIMELOCK_SECONDS` in `kinetic-core/src/constants.rs:30`) before taking effect. 
 
 For interpersonal conflicts or Code of Conduct violations, refer to the `CODE_OF_CONDUCT.md`.
