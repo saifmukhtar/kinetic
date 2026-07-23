@@ -317,7 +317,7 @@ export default withMermaid(defineConfig({
     },
 
     footer: {
-      message: 'Released under the Apache 2.0 License.',
+      message: 'Released under the CC BY 4.0 License.',
       copyright: 'Copyright © 2026-present Saif Mukhtar | <a href="/privacy_policy">Privacy Policy</a> | <a href="/terms_of_service">Terms of Service</a>'
     }
   }
