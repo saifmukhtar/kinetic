@@ -2,7 +2,7 @@
 
 This document describes the governance model for the Kinetic Protocol. It details how decisions are made, how the network is secured via cryptographic rules, and how leadership roles are structured. 
 
-Unlike many open-source projects where governance is purely social, Kinetic's governance is **cryptographically enforced on-chain** through the "Bicameral Rule Book." This ensures that the network remains decentralized, mathematically rigorous, and secure.
+Unlike many open-source projects where governance is purely social, Kinetic's governance is **cryptographically enforced at the protocol level** through the "Bicameral Rule Book." This ensures that the network remains decentralized, mathematically rigorous, and secure.
 
 ## 1. Project Overview & Mission
 
@@ -32,7 +32,7 @@ The Council is a dynamic group of up to `N` core maintainers whose public keys a
 
 ## 3. The Path to Leadership (Meritocracy)
 
-Maintainership and Council membership are granted through a strict **merit-based appointment** process. To be nominated to the On-Chain Council, a community member must:
+Maintainership and Council membership are granted through a strict **merit-based appointment** process. To be nominated to the Network Council, a community member must:
 1. Demonstrate **sustained technical contributions** (3-6 months) to the core protocol.
 2. Run a **stable network node** (Daemon or Infrastructure Node).
 3. Be formally **nominated by existing Council members**.
