@@ -4,41 +4,90 @@ layout: home
 hero:
   name: "Kinetic"
   text: "The Sovereign Namespace Engine"
-  tagline: "Deploy your own cryptographically secured naming network in minutes. Or use the public .kin network — no fees, no central authorities, no global ledgers."
+  tagline: "Register names secured by math, not money. Deploy your own naming network in minutes. No fees. No central authority. No global ledger."
   actions:
     - theme: brand
-      text: Fork Your Own Network
+      text: I'm a User →
+      link: /users/
+    - theme: alt
+      text: I'm a Developer →
+      link: /developers/
+    - theme: alt
+      text: Fork the Engine →
       link: /forking
-    - theme: alt
-      text: Get Started with .kin
-      link: /getting_started
-    - theme: alt
-      text: View on GitHub
-      link: https://github.com/saifmukhtar/kinetic
 
 features:
-  - title: "🍴 Fully Forkable"
-    details: "Any university, company, or community can deploy their own sovereign namespace with a single config file. Change the TLD, difficulty, and bootstrap nodes — compile and ship."
-  - title: "🔐 Zero Fees. Zero Gas. Zero Central Authorities."
-    details: "Names are secured by Verifiable Delay Functions — un-parallelizable sequential computation. No recurring fees. No token. No central authority."
-  - title: "🔄 Swappable Engines"
-    details: "VdfEngine and StorageEngine are abstract Rust traits. Swap Chia's chiavdf for any VDF construction. Swap Sled for RocksDB, SQLite, or a distributed store."
-  - title: "🛡️ Squatter-Proof by Design"
-    details: "A 2-character name takes 5 months of continuous CPU. Mass dictionary squatting is physically impossible at scale — not just economically discouraged."
-  - title: "🌐 Transparent Browser Integration"
-    details: "OS-level Split-DNS loopback intercepts your TLD queries. Browsers see a standard DNS response. No extensions. No configuration. No breakage of legacy traffic."
-  - title: "⚡ Epoch-Bound DoS Resistance"
-    details: "kinetic-host rotates its libp2p transport identity every drand pulse (3 seconds). Attackers targeting the transport layer are invalidated before their packets land."
+  - icon: 🌐
+    title: For Users
+    details: "Register a .kin name from your terminal in 30 minutes. No account. No credit card. No corporation in the middle. Your name is secured by cryptographic proof stored across a global network."
+    link: /users/
+    linkText: Get started →
+
+  - icon: 🛠️
+    title: For Developers
+    details: "Build applications on top of Kinetic using the REST API or the TypeScript and Rust SDKs. Resolve names, register programmatically, publish DNS zones — all from your code."
+    link: /developers/
+    linkText: Read the API docs →
+
+  - icon: 🍴
+    title: Fork the Engine
+    details: "Any university, company, or community can deploy their own sovereign namespace. Configure one file, run kinetic-forge, and walk away with your own TLD and governance keys."
+    link: /forking
+    linkText: Learn how →
 ---
 
-<CardGrid>
-  <FeatureCard title="Fork in 10 Minutes" icon="CodeBracketIcon">
-    Run `kinetic-forge`, answer a few questions about your TLD and hardware, and walk away with a fully compiled network binary suite. No Rust expertise required.
-  </FeatureCard>
-  <FeatureCard title="Identity-Centric Architecture" icon="FingerPrintIcon">
-    Names resolve to permanent KID identity documents — not IP addresses. Ownership changes never compromise identity. Capability Manifests declare services, not locations.
-  </FeatureCard>
-  <FeatureCard title="The .kin Public Network" icon="GlobeAltIcon">
-    The canonical reference deployment. Permissionless, leaderless, and globally distributed. No operator can reset it. No government can seize it. Only math governs it.
-  </FeatureCard>
-</CardGrid>
+<div class="home-details">
+
+## Why Kinetic?
+
+Every previous attempt at decentralized naming made the same mistake: replacing one gatekeeper with another.
+
+- **Legacy DNS** → Corporate and government control. Names can be seized with a phone call.
+- **Crypto naming (ENS, Unstoppable)** → Capital replaces authority. Wealthy speculators hoard short names.
+- **Proof of Personhood** → Biometric surveillance replaces money. One name per body, forever.
+
+**Kinetic uses a different friction mechanism: computational time.**
+
+A [Verifiable Delay Function (VDF)](/cryptography) is a mathematical puzzle that takes a provably specific amount of time to solve and cannot be parallelized. A billionaire with 10,000 servers cannot register a name faster than a developer on a laptop. Mass squatting is physically impossible, not just economically discouraged.
+
+| Name Length | Registration Time | Cost |
+|---|---|---|
+| 8+ characters | ~2 hours | $0 |
+| 6 characters | ~12 hours | $0 |
+| 4 characters | ~15 days | $0 |
+| 2 characters | ~5 months | $0 |
+
+**One CPU. Zero dollars. Permanent ownership secured by math.**
+
+</div>
+
+<style>
+.home-details {
+  max-width: 960px;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+}
+
+.home-details h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+
+.home-details table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+
+.home-details th,
+.home-details td {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--vp-c-divider);
+  text-align: left;
+}
+
+.home-details th {
+  background: var(--vp-c-bg-soft);
+  font-weight: 600;
+}
+</style>
