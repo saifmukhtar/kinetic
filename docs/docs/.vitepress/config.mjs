@@ -20,7 +20,11 @@ export default withMermaid(defineConfig({
   ],
   appearance: 'force-auto',
   markdown: {
-    math: true
+    math: true,
+    theme: {
+      light: 'github-light',
+      dark: 'github-dark'
+    }
   },
   themeConfig: {
     logo: '/favicon.svg',

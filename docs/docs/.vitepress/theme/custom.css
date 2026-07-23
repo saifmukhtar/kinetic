@@ -75,9 +75,9 @@
   --vp-layout-max-width:       1440px;
 
   /* Code blocks */
-  --vp-code-bg:                #F0EDE5;
-  --vp-code-block-bg:          #1A1714;
-  --vp-code-color:             var(--amber);
+  --vp-code-bg:                #EAE6DC;
+  --vp-code-block-bg:          #EEEBE1;
+  --vp-code-color:             var(--amber-dark);
   --vp-c-selection-bg:         rgba(196, 120, 26, 0.20);
 
   /* Home hero */
@@ -120,7 +120,9 @@
   --vp-c-text-1:    var(--ink);
   --vp-c-text-2:    var(--ink-secondary);
   --vp-c-text-3:    var(--ink-muted);
-  --vp-code-bg:     rgba(242, 239, 232, 0.06);
+  --vp-code-bg:     rgba(242, 239, 232, 0.08);
+  --vp-code-block-bg: #1C1916;
+  --vp-code-color:  var(--amber);
   --vp-sidebar-bg-color: var(--bg-subtle);
   --vp-nav-bg-color: rgba(20, 18, 16, 0.92);
 }
@@ -358,22 +360,36 @@ html, body {
 /* Code blocks */
 .vp-doc div[class*="language-"] {
   border-radius: 6px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border-strong) !important;
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  background-color: var(--vp-code-block-bg) !important;
 }
 
 .vp-doc div[class*="language-"] pre {
-  background: #1A1714 !important;
+  background-color: var(--vp-code-block-bg) !important;
+  color: var(--ink) !important;
 }
 
 .vp-doc div[class*="language-"] code {
   background: transparent !important;
   border: none !important;
-  color: #D4C9B8 !important;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   line-height: 1.7;
   padding: 0;
+  color: var(--ink) !important;
+}
+
+/* Ensure code comments and text tokens have strong, clear contrast */
+.vp-doc div[class*="language-"] .comment,
+.vp-doc div[class*="language-"] .token.comment {
+  color: #6E685E !important;
+  font-style: italic;
+}
+
+.dark .vp-doc div[class*="language-"] .comment,
+.dark .vp-doc div[class*="language-"] .token.comment {
+  color: #9E978C !important;
 }
 
 /* Language label */
@@ -382,8 +398,9 @@ html, body {
   font-size: 0.6875rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-muted);
-  opacity: 0.8;
+  color: var(--ink-secondary);
+  font-weight: 500;
+  opacity: 0.9;
 }
 
 /* ── Blockquote ────────────────────────────────────────────── */
