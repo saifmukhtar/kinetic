@@ -11,13 +11,13 @@ your scrutiny.
  
 | Primitive | Library | Used for |
 |-----------|---------|----------|
-| **Ed25519** | `ed25519-dalek` | All identity keys, name-ownership signatures, governance signatures, KID/manifest signatures |
-| **SHA-256** | `sha2` | DID derivation, action hashing, commit hashes, randomness binding |
-| **BLS (drand)** | drand Quicknet (verify pinned public key) | Verifying the external randomness beacon |
-| **VDF** | Chia VDF (C++ via FFI in `kinetic-vdf`) | Proof-of-time cost for registration/renewal |
+| **Ed25519** | `ed25519-dalek` | All identity keys, name-ownership signatures, governance signatures, KID/manifest signatures `(Source: kinetic-core/src/types/)` |
+| **SHA-256** | `sha2` | DID derivation, action hashing, commit hashes, randomness binding `(Source: kinetic-core/src/types/)` |
+| **BLS (drand)** | drand Quicknet (verify pinned public key) | Verifying the external randomness beacon `(Source: kinetic-core/src/drand.rs)` |
+| **VDF** | Chia VDF (C++ via FFI in `kinetic-vdf`) | Proof-of-time cost for registration/renewal `(Source: kinetic-vdf/src/lib.rs)` |
 | **CSPRNG** | `getrandom` / `OsRng` | All key and entropy generation |
 | **BIP-39** | `bip39` | 24-word mnemonic seed for node identity backup |
-| **JCS** | JSON Canonicalization Scheme | Deterministic serialization of KID docs/manifests before signing |
+| **JCS** | JSON Canonicalization Scheme | Deterministic serialization of KID docs/manifests before signing `(Source: kinetic-kid/src/)` |
 | **PBKDF2 + zeroize** | — | Encrypting keypairs at rest; wiping secrets from memory |
  
 ---
@@ -77,7 +77,7 @@ your scrutiny.
 - **Critical invariant — randomness must be bound to the signature.** Verifying
   the BLS signature over the round is necessary but **not sufficient**: the
   resolver must also verify that the delivered `randomness` equals the beacon's
-  defined derivation from the signature (for Quicknet, `randomness = SHA-256(sig)`).
+  defined derivation from the signature (for Quicknet, `randomness = SHA-256(sig)` `Source: kinetic-core/src/drand.rs:121`).
   Otherwise a MITM/malicious endpoint could supply a valid signature alongside
   attacker-chosen randomness, steering every VDF challenge.
 - **Endpoint authenticity:** only fetch over HTTPS; never accept beacon endpoints

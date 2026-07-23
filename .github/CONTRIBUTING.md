@@ -5,10 +5,10 @@ Thank you for your interest in contributing to the Kinetic Protocol! We are buil
 ## 1. How to Contribute
 
 There are many ways to contribute to Kinetic:
-- **Core Rust Development:** Fixing bugs, optimizing the VDF engine, or enhancing the Kademlia DHT logic.
+- **Core Rust Development:** Fixing bugs, optimizing the VDF engine `(kinetic-vdf/)`, or enhancing the Kademlia DHT logic `(kinetic-network/)`.
 - **Documentation:** Improving the mdBook, writing tutorials, or updating the IETF Internet-Drafts.
 - **Testing:** Writing end-to-end tests for the DHT swarm or finding edge cases in the deterministic XOR tie-breaker.
-- **UI/UX:** Enhancing the embedded `kinetic-ui` React frontend or the Flutter `kinetic-client`.
+- **UI/UX:** Enhancing the Tauri desktop app `(kinetic-client/desktop/src-tauri)`.
 
 ## 2. Reporting Issues
 

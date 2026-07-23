@@ -136,7 +136,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
 ## 5. Clients & SDKs
  
 - **Desktop / mobile / browser-extension client** (Tauri): one-click install of
-  the daemon + CLI + `kinetic-dns` for normal users. Company/infra operators are
+  the daemon + CLI + `kinetic-dns` for normal users `(Source: /home/saif/kinetic-client/desktop/src-tauri)`. Company/infra operators are
   expected to run their own setup.
 - **SDKs** (Rust + TypeScript) are generated from a hand-written OpenAPI spec
   (~17 endpoints) via openapi-generator — kept hand-written to avoid polluting the
@@ -159,8 +159,8 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
  
 1. `kinetic-network/src/event_loop/` and `kinetic-network/src/store/` — the
    untrusted-input → accepted-state boundary.
-2. `kinetic-core/src/drand.rs` — randomness binding.
-3. `kinetic-core/src/governance/` — the state machine + engines.
+2. `kinetic-core/src/drand.rs` — randomness binding `(Source: kinetic-core/src/drand.rs:121)`.
+3. `kinetic-core/src/governance/` — the state machine + engines `(Source: kinetic-core/src/governance/engine/bicameral.rs)`.
 4. `kinetic-daemon/src/proxy/` and `kinetic-dns/` — SSRF/rebinding surface.
 5. `kinetic-kid/` — identity + manifest verification.
-6. `kinetic-vdf/` — the only significant `unsafe`/FFI surface.
+6. `kinetic-vdf/` — the only significant `unsafe`/FFI surface `(Source: kinetic-vdf/src/lib.rs)`.

@@ -56,10 +56,10 @@ best-effort, not contractual:
  
 ## Scope
  
-**In scope:** the Rust workspace crates (`kinetic-core`, `kinetic-network`,
-`kinetic-daemon`, `kinetic-vdf`, `kinetic-dns`, `kinetic-kid`, `kinetic-storage`,
-`kinetic-cli`, `kinetic-host`, `kinetic-node`, `kinetic-wasm`, `kinetic-forge`,
-`kinetic-keygen`), the SDKs, and the desktop/mobile/extension client.
+**In scope:** the Rust workspace crates (`kinetic-core/`, `kinetic-network/`,
+`kinetic-daemon/`, `kinetic-vdf/`, `kinetic-dns/`, `kinetic-kid/`, `kinetic-storage/`,
+`kinetic-cli/`, `kinetic-host/`, `kinetic-node/`, `kinetic-wasm/`, `kinetic-forge/`,
+`kinetic-keygen/`), the SDKs, and the Tauri desktop client (`kinetic-client/desktop/`).
  
 Representative concerns: DHT record poisoning, Sybil/eclipse, reactor-starvation
 DoS, signature/verification bypass, drand randomness binding, governance quorum /
