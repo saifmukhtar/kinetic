@@ -63,7 +63,7 @@ A new binary is compiled from the updated codebase, cryptographically hashed (SH
 The Council achieves a 69% supermajority by independently signing the binary hash with their registered Council keys. Signatures are aggregated into a `ThresholdSignature` and published to the DHT as a `SignedGovernanceMessage`.
 
 ### Step 3: Timelock
-Once the threshold signature is verified by network nodes, the update enters a mandatory **24-hour timelock**. This window exists specifically to allow the Guard Key holder to review the binary and veto if necessary.
+Once the threshold signature is verified by network nodes, the update enters a mandatory **48-hour timelock** *(Source: kinetic-core/src/constants.rs:39)*. This window exists specifically to allow the Guard Key holder to review the binary and veto if necessary.
 
 ### Step 4: Execution
 If not vetoed during the timelock, network nodes automatically:
@@ -113,7 +113,7 @@ Fork operators using `kinetic-forge` can customize the governance parameters for
 | Phase 1 duration | 12 months | Yes |
 | Phase 2 auto-lock threshold | 7 council members | Yes |
 | Emergency timelock duration | 30 days | Yes |
-| OTA binary timelock | 24 hours | Yes |
+| OTA binary timelock | 48 hours | Yes |
 
 A **university fork** might eliminate Phase 2 entirely, retaining permanent operator control over their internal namespace. A **multi-organization consortium fork** might set a higher threshold (80%) and shorter timelocks. A **fully decentralized community fork** might skip Phase 1 entirely and launch directly in Phase 2 mode.
 
