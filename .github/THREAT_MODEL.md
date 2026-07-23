@@ -93,8 +93,8 @@ We assume the adversary **cannot**:
 - **Bootstrap nodes / seed domains are reachable and not fully compromised.**
   These are a known centralization point (see §7).
 - **The root/guard governance keys are generated offline and kept air-gapped.**
-  The shipped `network.json` build must replace the
-  `REPLACE_ME_OFFLINE_GENERATED_*` placeholders before any real T0 deployment.
+  The `kinetic-core/src/constants.rs` file must replace the
+  `REPLACE_ME_*` placeholders in `ROOT_PUBLIC_KEY_HEX` and `GUARD_PUBLIC_KEY_HEX` before any real T0 deployment.
 - **The local machine is not already compromised.** Kinetic protects key files
   with `0o600`, but cannot defend against a local attacker who is already root.
 - **In T1/T2, the human members controlling reset/governance are honest.**
@@ -139,12 +139,12 @@ them explicitly is part of the threat model:
  
 | Component | Primary threats | Notes |
 |-----------|-----------------|-------|
-| `kinetic-network` (swarm/DHT) | Reactor starvation (sync VDF/PoW on the event loop), Sybil, eclipse, record poisoning, unbounded maps | Highest-risk crate on T0. Offload CPU/crypto to `spawn_blocking` with bounded concurrency. |
-| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. |
-| `kinetic-vdf` (Chia FFI) | `unsafe` FFI invariants, discriminant integrity, timing | Verify all invariants before raw pointer use. |
+| `kinetic-network` (swarm/DHT) | Reactor starvation (sync VDF/PoW on the event loop), Sybil, eclipse, record poisoning, unbounded maps | Highest-risk crate on T0. Offload CPU/crypto to `spawn_blocking` with bounded concurrency. Enforces 16 MiB Argon2id PoW. |
+| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces 69% council supermajority and 48-hour OTA timelocks. |
+| `kinetic-vdf` (Chia FFI) | `unsafe` FFI invariants, discriminant integrity, timing | Verify all invariants before raw pointer use. Discriminant derivation must match exactly between evaluate and verify. |
 | `kinetic-daemon` (DNS/proxy/CA/API) | SSRF, DNS-rebinding, path traversal, local-CA name-constraints, host-header validation, API auth/permissions | Local CA must be name-constrained so it can never MITM non-`.kin` traffic. |
-| `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. |
-| `kinetic-kid` | DID hijack, manifest rollback, revocation enforcement | DID↔pubkey binding is strong; manifest version/`valid_from` and revocation need enforcement. |
+| `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. Enforces max 50 records per zone, 255 bytes TXT. |
+| `kinetic-kid` | DID hijack, manifest rollback, revocation enforcement | DID↔pubkey binding is strong; manifest version/`valid_from` and revocation (via explicit revocation keys) need enforcement. Max 20 keys. |
 | `kinetic-wasm` / mobile light client | Accepting records without VDF verification, frozen drand clock | Light clients must not accept "N identical payloads" as proof. |
 | `kinetic-storage` | Fail-open corruption recovery, unbounded storage | Separate cache (safe to reset) from authoritative local state (fail closed). |
 | `kinetic-cli` / `kinetic-forge` | Key lifecycle (discarded controller keys), plaintext beacon defaults, path handling | User-facing footguns. |
