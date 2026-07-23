@@ -16,7 +16,7 @@ public randomness beacon (drand). Names, identity documents (KIDs), and capabili
 manifests live in a libp2p Kademlia DHT and are resolved through a local daemon
 that also serves split-DNS and an HTTP proxy for `.kin` traffic. The cost
 function, governance model, and TLD are **compile-time configurable** (see
-`network.json` + `build.rs`), so forks can trade security for simplicity.
+`network.json` + `kinetic-core/build.rs`), so forks can trade security for simplicity.
  
 ---
  
@@ -31,7 +31,7 @@ before reasoning about any threat.
 | **T1 — Community / campus fork** | `.uni` on a campus network | Known, semi-trusted | Hashcash or light VDF | Low — social reset covers it | Small council or single operator |
 | **T2 — Personal / experimental** | A developer's laptop / lab | Single operator | Trivial / disabled | No | Operator is root |
  
-**Key consequence:** most of the heavyweight defenses (16 MiB Argon2 PoW,
+**Key consequence:** most of the heavyweight defenses (16 MiB Argon2id PoW `Source: kinetic-network/src/pow.rs:62`,
 long VDFs, quorum math) exist for **T0**. In **T1/T2** the intended defense is
 *social* — a trusted group can press a "reset" and re-register their known names,
 making squatting economically pointless. In those tiers, the security-critical
@@ -139,14 +139,15 @@ them explicitly is part of the threat model:
  
 | Component | Primary threats | Notes |
 |-----------|-----------------|-------|
-| `kinetic-network` (swarm/DHT) | Reactor starvation (sync VDF/PoW on the event loop), Sybil, eclipse, record poisoning, unbounded maps | Highest-risk crate on T0. Offload CPU/crypto to `spawn_blocking` with bounded concurrency. Enforces 16 MiB Argon2id PoW. |
-| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces 69% council supermajority and 48-hour OTA timelocks. |
+| `kinetic-network` (swarm/DHT) | Reactor starvation (sync VDF/PoW on the event loop), Sybil, eclipse, record poisoning, unbounded maps | Highest-risk crate on T0. Offload CPU/crypto to `spawn_blocking` with bounded concurrency. Enforces 16 MiB Argon2id PoW `(Source: kinetic-network/src/pow.rs:62)`. |
+| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces 69% council supermajority `(Source: kinetic-core/src/governance/engine/bicameral.rs:162)` and 48-hour OTA timelocks `(Source: kinetic-core/src/constants.rs:39)`. |
 | `kinetic-vdf` (Chia FFI) | `unsafe` FFI invariants, discriminant integrity, timing | Verify all invariants before raw pointer use. Discriminant derivation must match exactly between evaluate and verify. |
 | `kinetic-daemon` (DNS/proxy/CA/API) | SSRF, DNS-rebinding, path traversal, local-CA name-constraints, host-header validation, API auth/permissions | Local CA must be name-constrained so it can never MITM non-`.kin` traffic. |
-| `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. Enforces max 50 records per zone, 255 bytes TXT. |
+| `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. Enforces max 50 records per zone `(Source: kinetic-core/src/types/dns.rs:135)`. |
 | `kinetic-kid` | DID hijack, manifest rollback, revocation enforcement | DID↔pubkey binding is strong; manifest version/`valid_from` and revocation (via explicit revocation keys) need enforcement. Max 20 keys. |
 | `kinetic-wasm` / mobile light client | Accepting records without VDF verification, frozen drand clock | Light clients must not accept "N identical payloads" as proof. |
 | `kinetic-storage` | Fail-open corruption recovery, unbounded storage | Separate cache (safe to reset) from authoritative local state (fail closed). |
+| `kinetic-client/desktop` (Tauri App) | IPC compromise, Webview XSS, unauthorized local key/token access | Tauri architecture places frontend webview in untrusted scope and Rust backend in trusted scope. IPC messages must be heavily sanitized `(Source: kinetic-client/desktop/src-tauri)`. |
 | `kinetic-cli` / `kinetic-forge` | Key lifecycle (discarded controller keys), plaintext beacon defaults, path handling | User-facing footguns. |
  
 ---
