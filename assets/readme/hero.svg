@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="100%">
+  <!-- Background -->
+  <rect width="1200" height="400" fill="#0A0A0A" rx="12"/>
+  
+  <!-- Subtle Grid -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-opacity="0.03" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="400" fill="url(#grid)" rx="12"/>
+  
+  <!-- Logo / Graphic -->
+  <g transform="translate(100, 100)">
+    <circle cx="40" cy="40" r="40" fill="none" stroke="#00E5FF" stroke-width="4"/>
+    <circle cx="40" cy="40" r="25" fill="none" stroke="#B400FF" stroke-width="4" stroke-dasharray="10 5"/>
+    <circle cx="40" cy="40" r="10" fill="#00E5FF"/>
+  </g>
+
+  <!-- Typography -->
+  <text x="220" y="150" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="64" font-weight="900" fill="#FFFFFF" letter-spacing="4">KINETIC</text>
+  <text x="220" y="200" font-family="ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="24" fill="#4F5B66">The open-source, non-blockchain namespace engine.</text>
+  
+  <!-- Terminal Window Motif -->
+  <g transform="translate(700, 80)">
+    <rect width="400" height="240" fill="#141414" rx="8" stroke="#333" stroke-width="1"/>
+    <!-- Terminal Header -->
+    <path d="M 0 8 Q 0 0 8 0 L 392 0 Q 400 0 400 8 L 400 30 L 0 30 Z" fill="#222"/>
+    <circle cx="20" cy="15" r="5" fill="#FF5F56"/>
+    <circle cx="40" cy="15" r="5" fill="#FFBD2E"/>
+    <circle cx="60" cy="15" r="5" fill="#27C93F"/>
+    <!-- Terminal Content -->
+    <text x="20" y="70" font-family="monospace" font-size="14" fill="#00E5FF">$ kinetic register myname.kin</text>
+    <text x="20" y="110" font-family="monospace" font-size="14" fill="#4F5B66">&gt; Fetching Drand Quicknet pulse...</text>
+    <text x="20" y="140" font-family="monospace" font-size="14" fill="#4F5B66">&gt; Initializing VDF Engine (Class Groups)</text>
+    <text x="20" y="170" font-family="monospace" font-size="14" fill="#B400FF">&gt; Grinding proof for difficulty 200,000... █</text>
+    <text x="20" y="210" font-family="monospace" font-size="14" fill="#27C93F">✓ Success: Name registered!</text>
+  </g>
+</svg>
