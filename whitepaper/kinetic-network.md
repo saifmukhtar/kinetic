@@ -27,7 +27,7 @@ When the Kinetic Daemon initializes, it binds a local DNS proxy to the operating
 The daemon enforces the following Split-DNS policy:
 
 - **Legacy Pass-Through:** If an application requests a standard TLD (e.g., `github.com`), the daemon instantly forwards the raw byte buffer to the upstream resolver (`1.1.1.1` or `8.8.8.8`). This incurs zero latency overhead for normal internet use.
-- **Sovereign Interception:** If a query targets the network's configured TLD (e.g., `.kin` on the canonical network), the daemon traps the request, queries the Kinetic DHT, validates the VDF proofs and Ed25519 signatures locally, and synthesizes a standard DNS `A` record containing the decentralized IP. The browser natively resolves the endpoint with no awareness that a DHT was involved.
+- **Sovereign Interception:** If a query targets the network's configured TLD (e.g., `.kin` on the canonical network), the daemon traps the request, queries the Kinetic DHT, validates the VDF proofs and ML-DSA-65 signatures locally, and synthesizes a standard DNS `A` record containing the decentralized IP. The browser natively resolves the endpoint with no awareness that a DHT was involved.
 
 **Fork Note:** A university fork configured with TLD `.uni` will intercept `.uni` queries and pass everything else through identically. The TLD is compiled from `network.json` — there is no TLD-specific logic in the daemon binary.
 
@@ -55,16 +55,16 @@ To prevent targeted Denial of Service (DoS) attacks and network-layer tracking, 
 
 ### 4.1 Static Host Identity
 
-A permanent Ed25519 keypair uniquely identifies the host across time. This key is strictly used to cryptographically sign `HostRoutingRecords` that are published to the global DHT. The signed record tells clients: *"This is the current ephemeral peer ID to connect to for `example.kin`."* This key never touches the libp2p transport layer directly.
+A permanent ML-DSA-65 keypair uniquely identifies the host across time. This key is strictly used to cryptographically sign `HostRoutingRecords` that are published to the global DHT. The signed record tells clients: *"This is the current ephemeral peer ID to connect to for `example.kin`."* This key never touches the libp2p transport layer directly.
 
 ### 4.2 Epoch-Bound PoW Transport Identity
 
 On the libp2p transport layer, the host uses a completely ephemeral identity. The host continuously mines a new Proof-of-Work network keypair bound specifically to the current `drand` Quicknet pulse. This PoW keypair is used for all raw TCP/UDP connections from peers.
 
-When the `drand` epoch advances (every 3 seconds), the host:
+When the network epoch advances (every 1440 `drand` pulses, approx. 1.2 hours), the host:
 1. Aborts the old network event loop
 2. Sheds the old ephemeral peer ID entirely
-3. Mines a new PoW keypair for the new epoch
+3. Mines a new PoW (Argon2id 16MiB) keypair for the new epoch
 4. Hot-swaps to the new identity with zero downtime
 5. Publishes the updated `HostRoutingRecord` to the DHT
 
