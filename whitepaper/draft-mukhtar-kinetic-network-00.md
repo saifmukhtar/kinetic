@@ -110,9 +110,8 @@ Name:
 : A human-readable Kinetic name, such as "example.kin".
 
 Owner key:
-: A public key that controls a Kinetic name.  This document assumes Ed25519
-  {{RFC8032}} unless another signature algorithm is explicitly negotiated by a
-  future specification.
+: A public key that controls a Kinetic name.  This document mandates ML-DSA-65
+  (FIPS 204) for name ownership and identity signatures.
 
 Commitment:
 : A digest that hides the requested name until the corresponding VDF has been
@@ -167,13 +166,16 @@ Implementations MUST use SHA-256 as the default digest algorithm for commitment
 construction, DHT key derivation, and record identifiers unless a future
 version of this specification defines an algorithm agility mechanism.
 
-All signed structured records MUST be canonicalized before signing.  JSON
-encodings MUST use the JSON Canonicalization Scheme (JCS) {{RFC8785}}.
+All signed structured identity records (KIDs) MUST be canonicalized before signing
+using the JSON Canonicalization Scheme (JCS) {{RFC8785}}. However, core network
+records (Reveals and Heartbeats) MUST be signed over a strict, length-prefixed
+binary serialization to eliminate canonicalization ambiguity attacks.
 
 ## Signatures
 
-The initial signature profile for Kinetic is Ed25519 {{RFC8032}}.
-Implementations conforming to this document MUST support Ed25519 signatures.
+The primary identity and reveal signature profile for Kinetic is ML-DSA-65.
+Implementations conforming to this document MUST support ML-DSA-65 signatures.
+Ed25519 is strictly reserved for S/Kademlia peer routing identities.
 
 Signatures bind the owner key to each reveal, heartbeat, and challenge response.
 A record with an invalid signature MUST be rejected and MUST NOT be stored or
@@ -212,12 +214,12 @@ To register a name, the claimant first obtains a valid beacon value for round
 The claimant computes:
 
 ~~~
-commitment = SHA256("KINETIC-COMMIT-v1" ||
-                    name ||
-                    salt ||
-                    beacon_round ||
-                    beacon_randomness ||
-                    owner_public_key)
+commitment = SHA256("{NETWORK_ID}-vdf-reveal-v1" ||
+                    strict_binary_serialization(name,
+                                                salt,
+                                                beacon_round,
+                                                beacon_randomness,
+                                                owner_public_key))
 ~~~
 
 The domain separation string is REQUIRED.  Implementations MUST NOT reuse this
@@ -252,20 +254,16 @@ After the VDF completes, the claimant publishes a reveal record:
   "salt": "base64url...",
   "beacon_round": 1234567,
   "beacon_randomness": "base64url...",
-  "owner_public_key": "ed25519:base64url...",
+  "owner_public_key": "ml-dsa-65:base64url...",
+  "iterations": 10000000,
   "vdf": {
-    "suite": "vdf-wesolowski-classgroup-v1",
-    "difficulty": 10000000,
-    "input": "base64url...",
-    "output": "base64url...",
-    "proof": "base64url..."
+    "proof_bytes": "base64url..."
   },
   "signature": "base64url..."
 }
 ~~~
 
-The signature covers the canonicalized reveal record with the `signature`
-member omitted.
+The signature covers the strict binary length-prefixed serialization of the reveal record.
 
 A validator MUST reject a reveal record unless all of the following are true:
 
@@ -338,7 +336,7 @@ To reduce single-key censorship risk, a lease record SHOULD be stored at
 multiple deterministic keys:
 
 ~~~
-dht_key_i = SHA256("KINETIC-DHT-v1" || name || i)
+dht_key_i = SHA256(name || i || "{NETWORK_ID}-dht-v1")
 ~~~
 
 where `i` is an integer in the range `0..M-1`.  The replication count `M` is a

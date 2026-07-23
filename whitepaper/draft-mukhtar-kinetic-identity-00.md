@@ -174,7 +174,7 @@ An example KID document is shown below:
   "controller_keys": [
     {
       "id": "did:kin:kid1abc9f7#primary",
-      "type": "Ed25519",
+      "type": "ML-DSA-65",
       "public_key": "base64url..."
     }
   ],
@@ -186,7 +186,7 @@ An example KID document is shown below:
     ]
   },
   "revocation_keys": [
-    "ed25519:base64url..."
+    "ml-dsa-65:base64url..."
   ],
   "signature": "base64url..."
 }
@@ -209,7 +209,7 @@ A KID document MUST contain:
 
 ## Controller Keys
 
-Implementations conforming to this document MUST support Ed25519 {{RFC8032}}.
+Implementations conforming to this document MUST support ML-DSA-65 (FIPS 204).
 
 A KID document MAY contain multiple controller keys.  Applications SHOULD allow
 key rotation, but MUST verify that any updated KID document is authorized by a
