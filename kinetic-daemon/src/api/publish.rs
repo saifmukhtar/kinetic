@@ -12,9 +12,16 @@ use tracing::{error, info};
 /// Returns a tuple containing a `StatusCode` and an error JSON payload if the domain name is invalid,
 /// the `Reveal` validation fails, or if publishing to the DHT fails.
 pub async fn handle_publish(
+    axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<PublishRequest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_publish() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+        ));
+    }
     info!("Received API publish request for name: {}", req.reveal.name);
 
     // Normalize to canonical format
@@ -189,9 +196,16 @@ pub async fn handle_publish(
 /// Returns an error if the domain name is invalid, the commitment hash is all-zeros,
 /// serialization fails, or DHT publishing fails.
 pub async fn handle_commit(
+    axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<kinetic_core::types::CommitRequest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_publish() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+        ));
+    }
     info!("Received API commit request for name: {}", req.name);
 
     // Normalize to canonical format
@@ -287,9 +301,13 @@ pub async fn handle_commit(
 ///
 /// Returns an error if the KID signature is invalid, the owner authorization fails, or publishing fails.
 pub async fn handle_publish_kid(
+    axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    if !role.can_publish() {
+        return Err((StatusCode::FORBIDDEN, "Insufficient privileges: Requires Publish or Admin role".to_string()));
+    }
     info!(
         "Received API publish request for KID: {}",
         auth_kid.kid_doc.kid.as_str()
@@ -386,9 +404,13 @@ pub async fn handle_publish_kid(
 /// Returns an error if the local owner signature check fails, the corresponding KID Document
 /// cannot be resolved or verified, or if publishing to the DHT fails.
 pub async fn handle_publish_manifest(
+    axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    if !role.can_publish() {
+        return Err((StatusCode::FORBIDDEN, "Insufficient privileges: Requires Publish or Admin role".to_string()));
+    }
     let did_str = auth_manifest.manifest.kid.as_str();
     info!(
         "Received API publish request for Manifest of KID: {}",
@@ -519,9 +541,13 @@ pub async fn handle_publish_manifest(
 /// Returns an error if the governance message is invalid, quorum checks fail prematurely,
 /// or publishing to the Gossipsub network fails.
 pub async fn handle_publish_governance(
+    axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(msg): Json<kinetic_core::governance::SignedGovernanceMessage>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    if !role.can_govern() {
+        return Err((StatusCode::FORBIDDEN, "Insufficient privileges: Requires Governance or Admin role".to_string()));
+    }
     tracing::info!("Received API publish request for Governance action");
 
     // Process the message locally to ensure it is mathematically valid before gossiping.

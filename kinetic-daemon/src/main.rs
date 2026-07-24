@@ -282,8 +282,8 @@ async fn run_daemon() -> Result<()> {
 
     // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately 
     // without having to wait for the 30-40 second PoW mining loop to finish.
-    if let Err(e) = kinetic_daemon::api::ensure_api_token() {
-        tracing::error!("Failed to generate or read API token: {}", e);
+    if let Err(e) = kinetic_daemon::api::ensure_api_tokens() {
+        tracing::error!("Failed to generate or read API tokens: {}", e);
         std::process::exit(1);
     }
 

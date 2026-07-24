@@ -40,6 +40,51 @@ pub struct VdfTaskStatus {
     pub error: Option<String>,
 }
 
+/// The access role granted by the provided token.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Role {
+    /// Administrator access (all capabilities).
+    Admin,
+    /// Permission to publish records (e.g. zones, kids).
+    Publish,
+    /// Permission to perform VDF proofs and renewals.
+    Vdf,
+    /// Permission to trigger governance updates.
+    Governance,
+}
+
+impl Role {
+    /// Returns whether this role can publish records.
+    pub fn can_publish(&self) -> bool {
+        matches!(self, Role::Admin | Role::Publish)
+    }
+    /// Returns whether this role can perform VDF operations.
+    pub fn can_vdf(&self) -> bool {
+        matches!(self, Role::Admin | Role::Vdf)
+    }
+    /// Returns whether this role can trigger governance updates.
+    pub fn can_govern(&self) -> bool {
+        matches!(self, Role::Admin | Role::Governance)
+    }
+    /// Returns whether this role is a full administrator.
+    pub fn is_admin(&self) -> bool {
+        matches!(self, Role::Admin)
+    }
+}
+
+/// The set of generated scoped API tokens for this daemon.
+#[derive(Clone)]
+pub struct ApiTokens {
+    /// The admin token.
+    pub admin: String,
+    /// The publish token.
+    pub publish: String,
+    /// The VDF token.
+    pub vdf: String,
+    /// The governance token.
+    pub governance: String,
+}
+
 /// Holds the global state for the API server, including network, storage, and authentication.
 #[derive(Clone)]
 pub struct ApiState {
@@ -50,8 +95,8 @@ pub struct ApiState {
     /// Map of background VDF tasks.
     pub vdf_tasks: Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
 
-    /// API authentication token to restrict access.
-    pub auth_token: String,
+    /// API authentication tokens to restrict access by role.
+    pub tokens: Arc<ApiTokens>,
     /// Semaphore to restrict concurrent VDF computations.
     pub vdf_semaphore: Arc<tokio::sync::Semaphore>,
 }
@@ -134,6 +179,8 @@ pub fn app(state: ApiState) -> Router {
         ));
 
     let public_api_routes = Router::new()
+        .route("/health", axum::routing::get(handle_health))
+        .route("/peer_id", axum::routing::get(handle_peer_id))
         .route("/network-status", axum::routing::get(handle_network_status))
         .route("/governance", axum::routing::get(handle_get_governance))
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
@@ -185,20 +232,31 @@ fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<Stri
     Ok(token)
 }
 
-/// Ensures the API token is generated and returned.
-pub fn ensure_api_token() -> anyhow::Result<String> {
-    let token_path = kinetic_core::config::get_api_token_path();
-    let token = if let Ok(existing) = std::fs::read_to_string(&token_path) {
+fn get_or_generate_token(token_path: &std::path::Path) -> anyhow::Result<String> {
+    if let Ok(existing) = std::fs::read_to_string(token_path) {
         let trimmed = existing.trim().to_string();
         if trimmed.len() == 64 {
-            trimmed
-        } else {
-            generate_and_write_token(&token_path)?
+            return Ok(trimmed);
         }
-    } else {
-        generate_and_write_token(&token_path)?
-    };
-    Ok(token)
+    }
+    generate_and_write_token(token_path)
+}
+
+/// Ensures all API tokens are generated and returns them.
+pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
+    let tokens_dir = kinetic_core::config::get_api_tokens_dir();
+    
+    let admin = get_or_generate_token(&tokens_dir.join("admin.token"))?;
+    let publish = get_or_generate_token(&tokens_dir.join("publish.token"))?;
+    let vdf = get_or_generate_token(&tokens_dir.join("vdf.token"))?;
+    let governance = get_or_generate_token(&tokens_dir.join("governance.token"))?;
+    
+    Ok(ApiTokens {
+        admin,
+        publish,
+        vdf,
+        governance,
+    })
 }
 
 /// Starts the HTTP API server on the specified port.
@@ -211,13 +269,13 @@ pub async fn start_server(
     storage: Arc<dyn StorageEngine>,
     port: u16,
 ) -> anyhow::Result<()> {
-    let token = ensure_api_token()?;
+    let tokens = ensure_api_tokens()?;
 
     let state = ApiState {
         network,
         storage,
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
-        auth_token: token,
+        tokens: Arc::new(tokens),
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
     };
 
@@ -254,7 +312,7 @@ pub async fn start_server(
 
 async fn auth_middleware(
     State(state): State<ApiState>,
-    req: axum::extract::Request,
+    mut req: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> Result<axum::response::Response, StatusCode> {
     let auth_header = req
@@ -262,35 +320,50 @@ async fn auth_middleware(
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|h| h.to_str().ok());
 
-    let expected_token = state.auth_token.clone();
-    let expected_header = format!("Bearer {}", expected_token);
-
-    match auth_header {
-        Some(header) => {
-            use subtle::ConstantTimeEq;
-            let header_bytes = header.as_bytes();
-            let expected_bytes = expected_header.as_bytes();
-
-            // Note: ct_eq requires equal lengths. If lengths differ, we must fail gracefully.
-            let is_valid = if header_bytes.len() == expected_bytes.len() {
-                header_bytes.ct_eq(expected_bytes).unwrap_u8() == 1
-            } else {
-                false
-            };
-
-            if is_valid {
-                Ok(next.run(req).await)
-            } else {
-                tracing::warn!(
-                    "Rejecting unauthorized API request. Expected token length: {}, Presented header length: {}",
-                    expected_token.len(),
-                    header.len()
-                );
-                Err(StatusCode::UNAUTHORIZED)
-            }
-        }
+    let header = match auth_header {
+        Some(h) => h,
         None => {
             tracing::warn!("Rejecting API request: Missing Authorization header");
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
+    
+    if !header.starts_with("Bearer ") {
+        tracing::warn!("Rejecting API request: Authorization header is not a Bearer token");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    
+    let provided_token = header.trim_start_matches("Bearer ");
+    
+    let role = {
+        use subtle::ConstantTimeEq;
+        let provided_bytes = provided_token.as_bytes();
+        
+        let mut matched_role = None;
+        let mut check_token = |expected: &str, r: Role| {
+            let expected_bytes = expected.as_bytes();
+            if provided_bytes.len() == expected_bytes.len() {
+                if provided_bytes.ct_eq(expected_bytes).unwrap_u8() == 1 {
+                    matched_role = Some(r);
+                }
+            }
+        };
+        
+        check_token(&state.tokens.admin, Role::Admin);
+        check_token(&state.tokens.publish, Role::Publish);
+        check_token(&state.tokens.vdf, Role::Vdf);
+        check_token(&state.tokens.governance, Role::Governance);
+        
+        matched_role
+    };
+
+    match role {
+        Some(r) => {
+            req.extensions_mut().insert(r);
+            Ok(next.run(req).await)
+        }
+        None => {
+            tracing::warn!("Rejecting API request: Invalid API token");
             Err(StatusCode::UNAUTHORIZED)
         }
     }

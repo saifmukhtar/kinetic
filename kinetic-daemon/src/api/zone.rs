@@ -2,7 +2,7 @@
 
 use super::*;
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Extension},
     http::StatusCode,
     Json,
 };
@@ -48,9 +48,16 @@ pub async fn handle_get_zone(
 ///
 /// Returns an error if serialization fails or if the daemon lacks filesystem write permissions.
 pub async fn handle_post_zone(
+    Extension(role): Extension<Role>,
     Path(name): Path<String>,
     Json(zone): Json<kinetic_core::types::DnsZone>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_publish() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+        ));
+    }
     let fqdn = kinetic_core::types::normalize_name(&name);
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
@@ -87,9 +94,16 @@ pub async fn handle_post_zone(
 /// Returns an error if the zone file or the local registration record is missing/corrupted,
 /// if the daemon identity key cannot be loaded, or if the DHT publish operation fails.
 pub async fn handle_publish_zone(
+    Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_publish() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+        ));
+    }
     let fqdn = kinetic_core::types::normalize_name(&name);
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((

@@ -2,7 +2,7 @@
 
 use super::*;
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Extension},
     http::StatusCode,
     Json,
 };
@@ -36,9 +36,16 @@ pub struct VdfRegisterRequest {
 ///
 /// Returns an error if a VDF task is already running.
 pub async fn handle_vdf_register(
+    Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<VdfRegisterRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_vdf() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires VDF or Admin role"})),
+        ));
+    }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
@@ -349,9 +356,16 @@ pub async fn handle_vdf_register(
 ///
 /// Returns an error if there are issues finding the previous reveal or scheduling the VDF task.
 pub async fn handle_vdf_renew(
+    Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<NameRenewRequest>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+    if !role.can_vdf() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires VDF or Admin role"})),
+        ));
+    }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
@@ -639,28 +653,36 @@ pub(crate) fn update_task_error(
 
 /// Retrieves the current progress and status of a VDF task by ID.
 pub async fn handle_vdf_status(
+    Extension(role): Extension<Role>,
     Path(task_id): Path<String>,
     State(state): State<ApiState>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    if !role.can_vdf() {
+        return Err(StatusCode::FORBIDDEN);
+    }
     let task = {
         let tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
         tasks.get(&task_id).cloned()
     };
 
     match task {
-        Some(t) => Json(serde_json::to_value(t).unwrap_or_default()),
-        None => Json(serde_json::json!({"error": "Task not found"})),
+        Some(t) => Ok(Json(serde_json::to_value(t).unwrap_or_default())),
+        None => Ok(Json(serde_json::json!({"error": "Task not found"}))),
     }
 }
 
 /// Deletes a VDF task's status record from memory. Useful to clear completed or failed tasks.
 pub async fn handle_vdf_status_delete(
+    Extension(role): Extension<Role>,
     Path(task_id): Path<String>,
     State(state): State<ApiState>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    if !role.can_vdf() {
+        return Err(StatusCode::FORBIDDEN);
+    }
     let removed = {
         let mut tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
         tasks.remove(&task_id).is_some()
     };
-    Json(serde_json::json!({ "success": removed }))
+    Ok(Json(serde_json::json!({ "success": removed })))
 }

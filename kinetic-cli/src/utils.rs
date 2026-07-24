@@ -3,6 +3,7 @@
 use kinetic_core::config::get_zones_dir;
 use reqwest::Client;
 use std::time::Duration;
+use anyhow::Context;
 
 /// Parses and formats an API error from an HTTP response.
 ///
@@ -49,16 +50,12 @@ pub fn save_zone_file(
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if the token file cannot be read, which likely indicates
-/// the kinetic-daemon is not running or properly initialized.
+/// Reads the admin API token from the `tokens/admin.token` file.
 pub fn get_api_token() -> anyhow::Result<String> {
-    let path = kinetic_core::config::get_api_token_path();
-    std::fs::read_to_string(&path).map_err(|e| {
-        anyhow::anyhow!(
-            "Failed to read API token from {}: {}. Is kinetic-daemon running?",
-            path.display(),
-            e
-        )
-    })
+    let path = kinetic_core::config::get_api_tokens_dir().join("admin.token");
+    let token = std::fs::read_to_string(&path)
+        .with_context(|| format!("Failed to read admin API token from {:?}", path))?;
+    Ok(token.trim().to_string())
 }
 
 /// Builds an HTTP `reqwest::Client` with the default authorization headers.

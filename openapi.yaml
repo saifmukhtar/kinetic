@@ -280,6 +280,28 @@ components:
         - owner_signature
 
 paths:
+  /health:
+    get:
+      summary: Get daemon health status
+      tags: [Public]
+      responses:
+        '200':
+          description: Health status object
+          content:
+            application/json:
+              schema:
+                type: object
+  /peer_id:
+    get:
+      summary: Get local peer ID
+      tags: [Public]
+      responses:
+        '200':
+          description: Peer ID string
+          content:
+            text/plain:
+              schema:
+                type: string
   /network-status:
     get:
       summary: Get network status
@@ -287,6 +309,29 @@ paths:
       responses:
         '200':
           description: Network status object
+          content:
+            application/json:
+              schema:
+                type: object
+  /governance:
+    get:
+      summary: Get current governance state
+      tags: [Public]
+      responses:
+        '200':
+          description: Governance state binary data
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+  /time:
+    get:
+      summary: Get verified Kinetic network time
+      tags: [Public]
+      responses:
+        '200':
+          description: Kinetic time object
           content:
             application/json:
               schema:
@@ -349,7 +394,8 @@ paths:
                 $ref: '#/components/schemas/DnsZone'
     post:
       summary: Save local DNS zone file
-      tags: [Authenticated]
+      description: Requires Publish or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       parameters:
@@ -370,7 +416,8 @@ paths:
   /zone/{name}/publish:
     post:
       summary: Cryptographically sign and publish local zone to DHT
-      tags: [Authenticated]
+      description: Requires Publish or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       parameters:
@@ -385,7 +432,8 @@ paths:
   /commit:
     post:
       summary: Commit a name hash to DHT
-      tags: [Authenticated]
+      description: Requires Publish or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       requestBody:
@@ -404,7 +452,8 @@ paths:
   /publish:
     post:
       summary: Publish a name reveal to DHT
-      tags: [Authenticated]
+      description: Requires Publish or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       requestBody:
@@ -423,7 +472,8 @@ paths:
   /publish-kid:
     post:
       summary: Publish a KID to DHT
-      tags: [Authenticated]
+      description: Requires Publish or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       requestBody:
@@ -442,7 +492,8 @@ paths:
   /publish-manifest:
     post:
       summary: Publish a Capability Manifest to DHT
-      tags: [Authenticated]
+      description: Requires Publish or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       requestBody:
@@ -458,10 +509,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
+  /publish-governance:
+    post:
+      summary: Publish a Governance action to DHT
+      description: Requires Governance or Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
   /config:
     get:
       summary: Get config
-      tags: [Authenticated]
+      description: Requires Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       responses:
@@ -469,7 +541,8 @@ paths:
           description: Config Object
     post:
       summary: Update config
-      tags: [Authenticated]
+      description: Requires Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       requestBody:
@@ -487,7 +560,8 @@ paths:
   /owned-names:
     get:
       summary: Get list of locally owned names
-      tags: [Authenticated]
+      description: Requires Publish or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       responses:
@@ -502,7 +576,8 @@ paths:
   /vdf/register:
     post:
       summary: Start VDF name registration task
-      tags: [Authenticated]
+      description: Requires VDF or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       requestBody:
@@ -526,7 +601,8 @@ paths:
   /vdf/renew:
     post:
       summary: Start VDF name renewal task
-      tags: [Authenticated]
+      description: Requires VDF or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       requestBody:
@@ -550,7 +626,8 @@ paths:
   /vdf/status/{task_id}:
     get:
       summary: Get status of a VDF task
-      tags: [Authenticated]
+      description: Requires VDF or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       parameters:
@@ -568,7 +645,8 @@ paths:
                 $ref: '#/components/schemas/VdfTaskStatus'
     delete:
       summary: Delete a VDF task from memory
-      tags: [Authenticated]
+      description: Requires VDF or Admin role.
+      tags: [Private]
       security:
         - bearerAuth: []
       parameters:
