@@ -25,16 +25,16 @@ Our current scaling coefficients (implemented in `calculate_required_iterations`
 
 Based on this, the required iterations and their estimated wall-clock times are defined on a steep "Squatter Cliff" curve:
 
-- **0–1 chars:** Reserved/Impossible (100 years / ~418 trillion iterations)
-- **2 chars:** 5 months (~1.71 trillion iterations)
-- **3 chars:** 3 months (~1.03 trillion iterations)
-- **4 chars:** 15 days (~171 billion iterations)
-- **5 chars:** 1 day (~11.4 billion iterations)
-- **6 chars:** 12 hours (~5.7 billion iterations)
+- **0–1 chars:** Reserved/Impossible (100 years / ~418.89 trillion iterations)
+- **2 chars:** 30 days (~343.90 billion iterations)
+- **3 chars:** 24 days (~275.12 billion iterations)
+- **4 chars:** 15 days (~171.95 billion iterations)
+- **5 chars:** 1 day (~11.46 billion iterations)
+- **6 chars:** 12 hours (~5.73 billion iterations)
 - **7 chars:** 2.5 hours (~1.19 billion iterations)
-- **8–10 chars:** 2 hours (~955 million iterations)
-- **11–17 chars:** 1.5 hours (~716 million iterations)
-- **18–20 chars:** 1 hour (~477 million iterations)
+- **8–10 chars:** 2 hours (~955.27 million iterations)
+- **11–17 chars:** 1.5 hours (~716.45 million iterations)
+- **18–20 chars:** 1 hour (~477.63 million iterations)
 - **21–62 chars:** 30 minutes (238,819,830 iterations - Baseline)
 
 ### The "Jackpot" Length (63 Characters)

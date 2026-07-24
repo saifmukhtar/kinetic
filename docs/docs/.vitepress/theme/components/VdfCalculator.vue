@@ -2,7 +2,7 @@
   <div class="vdf-widget">
     <div class="widget-header">
       <span class="widget-title">🎛️ Interactive VDF Time Calculator</span>
-      <span class="widget-subtitle">Drag slider to test exact protocol Squatter Cliff scaling</span>
+      <span class="widget-subtitle">Evaluates <code>consensus_math.rs</code> required iterations & delay formula</span>
     </div>
 
     <div class="slider-row">
@@ -36,7 +36,8 @@
 
     <div class="widget-footer">
       <span class="footer-note">
-        💡 <strong>Squatter Cliff Curve:</strong> Short names (2-4 chars) require up to 5 months of CPU squarings; standard names (21-62 chars) require 30 mins; 63-char names use a probabilistic hash roll!
+        💡 <strong>Rust Source (<code>kinetic-core/src/consensus_math.rs</code>):</strong> 
+        Calculates <code>(BENCHMARK_BASE_ITERATIONS * target_minutes) / BENCHMARK_TARGET_MINUTES</code>. 2-char labels require 30 days of CPU squarings (343.9B iterations); 21-62 char labels require 30 mins (238.8M iterations).
       </span>
     </div>
   </div>
@@ -46,33 +47,84 @@
 import { ref, computed } from 'vue'
 
 const charLength = ref(8)
+const BASE = 238819830
+const TM = 30
 
 const stats = computed(() => {
   const len = charLength.value
-  if (len <= 2) {
-    return { time: '~5 months', iterations: '1.71 Trillion', badge: '⚠️ Ultra Squatter Cliff' }
+  
+  if (len === 63) {
+    return {
+      time: '63s – 63 Millennia',
+      iterations: 'Probabilistic Hash Roll',
+      badge: '🎰 63-Char Jackpot Roll'
+    }
+  }
+
+  let minutes = 30
+  let badge = 'Baseline Delay (30m)'
+
+  if (len <= 1) {
+    minutes = 52596000
+    badge = '⛔ 100 Years (Reserved)'
+  } else if (len === 2) {
+    minutes = 43200
+    badge = '⚠️ 30 Days (Ultra Cliff)'
   } else if (len === 3) {
-    return { time: '~3 months', iterations: '1.03 Trillion', badge: '⚠️ High Friction Cliff' }
+    minutes = 34560
+    badge = '⚠️ 24 Days (High Cliff)'
   } else if (len === 4) {
-    return { time: '~15 days', iterations: '171 Billion', badge: '⏱️ Heavy Time Lock' }
+    minutes = 21600
+    badge = '⏱️ 15 Days (Time Lock)'
   } else if (len === 5) {
-    return { time: '~1 day', iterations: '11.4 Billion', badge: '⏱️ Moderate Time Lock' }
+    minutes = 1440
+    badge = '⏱️ 1 Day (Time Lock)'
   } else if (len === 6) {
-    return { time: '~12 hours', iterations: '5.7 Billion', badge: '⚡ Standard Cliff' }
+    minutes = 720
+    badge = '⚡ 12 Hours (Standard Cliff)'
   } else if (len === 7) {
-    return { time: '~2.5 hours', iterations: '1.19 Billion', badge: '⚡ Fast Registration' }
+    minutes = 150
+    badge = '⚡ 2.5 Hours (Fast)'
   } else if (len >= 8 && len <= 10) {
-    return { time: '~2 hours', iterations: '955 Million', badge: '⚡ Fast Registration' }
+    minutes = 120
+    badge = '⚡ 2 Hours (Fast)'
   } else if (len >= 11 && len <= 17) {
-    return { time: '~1.5 hours', iterations: '716 Million', badge: '⚡ Standard Registration' }
+    minutes = 90
+    badge = '⚡ 1.5 Hours (Fast)'
   } else if (len >= 18 && len <= 20) {
-    return { time: '~1 hour', iterations: '477 Million', badge: '⚡ Standard Registration' }
+    minutes = 60
+    badge = '⚡ 1 Hour (Standard)'
   } else if (len >= 21 && len <= 62) {
-    return { time: '~30 minutes', iterations: '238.8 Million', badge: '✅ Baseline Delay (Default)' }
-  } else if (len === 63) {
-    return { time: '63s – 63 days', iterations: 'Hash Roll', badge: '🎰 63-Char Jackpot Roll' }
-  } else {
-    return { time: '~30 minutes', iterations: '238.8 Million', badge: 'Baseline Delay' }
+    minutes = 30
+    badge = '✅ 30 Mins (Baseline Target)'
+  }
+
+  const iterations = Math.round((BASE * minutes) / TM)
+  
+  let iterStr = iterations.toLocaleString()
+  if (iterations >= 1e12) {
+    iterStr = `${(iterations / 1e12).toFixed(2)} Trillion`
+  } else if (iterations >= 1e9) {
+    iterStr = `${(iterations / 1e9).toFixed(2)} Billion`
+  } else if (iterations >= 1e6) {
+    iterStr = `${(iterations / 1e6).toFixed(1)} Million`
+  }
+
+  let timeStr = `${minutes} mins`
+  if (minutes >= 52596000) {
+    timeStr = '100 Years'
+  } else if (minutes >= 1440) {
+    const days = Math.round(minutes / 1440)
+    timeStr = `~${days} Day${days > 1 ? 's' : ''}`
+  } else if (minutes >= 60) {
+    const hours = (minutes / 60).toFixed(1)
+    timeStr = `~${hours} Hours`
+  }
+
+  return {
+    time: timeStr,
+    iterations: iterStr,
+    badge
   }
 })
 </script>
