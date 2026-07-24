@@ -4,7 +4,8 @@
   </picture>
   <p>
     <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0"/></a>
-    <a href="https://kinetic.saifmukhtar.dev"><img src="https://img.shields.io/badge/docs-kinetic.saifmukhtar.dev-green.svg" alt="Documentation"/></a>
+    <a href="https://creativecommons.org/licenses/by/4.0/"><img src="https://img.shields.io/badge/Docs%20License-CC%20BY%204.0-lightgrey.svg" alt="License: CC BY 4.0"/></a>
+    <a href="https://kinetic.saifmukhtar.dev"><img src="https://img.shields.io/badge/docs-kinetic.saifmukhtar.dev-gold.svg" alt="Documentation"/></a>
     <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.80%2B-orange.svg" alt="Rust"/></a>
     <a href="https://github.com/saifmukhtar/kinetic"><img src="https://img.shields.io/github/stars/saifmukhtar/kinetic?style=social" alt="GitHub stars"/></a>
   </p>
@@ -16,22 +17,26 @@
 
 ---
 
-## What is Kinetic?
-
-Kinetic is a **decentralized naming and identity engine** written in Rust. It solves the domain naming problem without using centralized authorities (like ICANN) and without blockchains or crypto tokens.
-
-Instead of paying money for a name, you pay with **time**. By solving a mathematical puzzle called a Verifiable Delay Function (VDF), you prove you spent un-parallelizable computation time to register a name. 
-- **Zero Cost:** Registering a name costs exactly $0.
-- **Squatter-Resistant:** A 1-character name takes ~100 years of CPU time. A 6-character name takes ~12 hours. Mass squatting is physically impossible.
-- **True Ownership:** Your name is bound to a post-quantum cryptographic identity (ML-DSA-65) that only you control.
-
-You can use Kinetic in two ways: **Join the global `.kin` network**, or **Fork the engine** to deploy a sovereign network for your organization.
+### 🌐 [Official Website & Live Documentation](https://kinetic.saifmukhtar.dev) | 📜 [Read the Whitepapers](./whitepaper/kinetic-vision.md) | 🏛️ [Governance Specs](./.github/GOVERNANCE.md)
 
 ---
 
-## 🏗️ How It Works (High-Level)
+## ⚡ What is Kinetic?
 
-Kinetic integrates directly into your operating system. It acts as a lightweight, transparent DNS router:
+**Kinetic** is a **decentralized, zero-cost, sovereign namespace and identity engine** written in Rust. It solves the domain naming problem without relying on centralized corporate registries (like ICANN) and without blockchains, gas fees, or speculative crypto tokens.
+
+Instead of paying money to registrars, you pay with **sequential computational time**. By evaluating a **Verifiable Delay Function (VDF)** over imaginary quadratic class groups, your machine proves it expended un-parallelizable time to claim a name.
+
+- 💎 **Zero Cost:** Domain registrations require exactly **$0.00**.
+- 🛡️ **Squatter-Resistant:** Short names scale on a steep mathematical "Squatter Cliff" (a 2-char domain requires 30 days of CPU squarings; 21–62 char domains take 30 minutes). Mass domain squatting and bot sniper farms are physically impossible.
+- 🔐 **Post-Quantum Ownership:** Names are cryptographically bound to an **ML-DSA-65 (FIPS 204)** quantum-resistant identity key.
+- 🌍 **Native Split-DNS Interception:** Integrates transparently into your OS network stack, resolving `.kin` names natively in any Web2 browser while passing standard internet queries through unaffected.
+
+---
+
+## 🏗️ Architecture & How It Works
+
+Kinetic acts as a local, transparent **Split-DNS gateway** running on port 53:
 
 <div align="center">
   <picture>
@@ -39,120 +44,185 @@ Kinetic integrates directly into your operating system. It acts as a lightweight
   </picture>
 </div>
 
-When you type a `.kin` address into your browser, the Kinetic Daemon intercepts it, verifies the cryptographic proof on the P2P network, and routes you to the content securely. All standard internet traffic passes through untouched.
+1. **Query Interception:** When you type `alice.kin` into Firefox, Chrome, or `curl`, the OS resolver sends the request to the Kinetic Daemon listening on `127.0.0.1:53`.
+2. **DHT Lookup:** The daemon checks its local Kademlia DHT routing table (`libp2p`) to resolve the zone payload signed by Alice's post-quantum key.
+3. **Transparent Passthrough:** Standard internet queries (e.g. `google.com` or `github.com`) are immediately forwarded to your upstream OS resolver without latency overhead.
 
 ---
 
-## 🌐 Use the `.kin` Network (Quick Start)
+## 🌐 Quick Start — Use the `.kin` Network
 
-The `.kin` network is the public, permissionless deployment of the Kinetic engine. 
+The `.kin` network is the canonical public commons running on the Kinetic engine.
 
-### 1. Install the CLI
+### 📥 1. Install via One-Line Script
 
 **Linux & macOS:**
 ```bash
-curl -sL https://kinetic.saifmukhtar.dev/install.sh | bash
+curl -sSL https://kinetic.saifmukhtar.dev/install.sh | bash
 ```
 
 **Windows (PowerShell as Admin):**
 ```powershell
-Invoke-WebRequest -Uri "https://kinetic.saifmukhtar.dev/install.ps1" -OutFile "install.ps1"; .\install.ps1
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
-
-### 2. Register Your First Name
-
-Once the daemon is running, you can register a name right from your terminal:
-
-```bash
-# Register a name (grinds a VDF on your CPU)
-kinetic register myname.kin
-
-# Once complete, publish it to the global network
-kinetic publish myname.kin
+```powershell
+irm https://kinetic.saifmukhtar.dev/install.ps1 | iex
 ```
-
-You can now use `myname.kin` to host a website, build a decentralized app, or establish your digital identity!
-
-> **Want the Desktop App?** Check out the graphical client at [saifmukhtar/kinetic-client](https://github.com/saifmukhtar/kinetic-client).
 
 ---
 
-## 🍴 Fork Your Own Network
+### 🔑 2. Initialize Your Post-Quantum Identity
 
-Kinetic is designed to be forked. If you are a university, enterprise, or community, you don't have to share the `.kin` namespace. You can deploy your own sovereign network (e.g., `.uni`, `.corp`) in minutes.
+Generate your 24-word master seed phrase and post-quantum keys:
 
-Using the built-in `kinetic-forge` wizard, you can generate a custom network configuration that gets compiled directly into your binaries. You set your own TLD, adjust the VDF difficulty to your liking, and retain full cryptographic governance over your network's future. 
-
-Because you control the governance keys on a fork, automated squatters face absolute risk: you can reset the network at any time.
-
-→ **[Read the Forking Guide](https://kinetic.saifmukhtar.dev/forking.html) to learn how to deploy your own Kinetic engine.**
+```bash
+kinetic seed init
+```
 
 ---
 
-## 👩‍💻 Building from Source
+### 📝 3. Claim Your `.kin` Name
 
-Kinetic requires Rust 1.80+ and a few C++ dependencies for the VDF engine.
+Compute the un-parallelizable VDF proof and publish your name to the global P2P network:
 
-**1. Install Prerequisites:**
 ```bash
-# Ubuntu / Debian
-sudo apt install build-essential cmake libgmp-dev
+kinetic name register mywebsite.kin
+```
 
-# macOS
+Once the VDF proof completes, publish the zone record:
+
+```bash
+kinetic name publish mywebsite.kin
+```
+
+You can now visit `mywebsite.kin` natively in your browser or host services on it!
+
+> 🖥️ **Prefer a Graphical GUI?** Try the cross-platform desktop application at [saifmukhtar/kinetic-client](https://github.com/saifmukhtar/kinetic-client).
+
+---
+
+## 🍴 Deploy Your Own Sovereign Network (`kinetic-forge`)
+
+Kinetic is designed from the ground up to be fully engine-swappable and engine-forkable. Any university, enterprise, government, or private community can deploy their own independent, cryptographically isolated namespace (e.g., `.uni`, `.corp`, `.dev`) in minutes.
+
+Using the interactive `kinetic-forge` wizard:
+
+```bash
+cargo run --release --bin kinetic-forge
+```
+
+1. **Configure Network Constants:** Define custom TLDs, bootstrap nodes, and target VDF delay parameters in `network.json`.
+2. **Compile Engine:** Constants are compiled directly into the binary suite via `build.rs` for maximum performance and zero config drift.
+3. **Bicameral Governance:** Maintain sovereign governance keys with emergency timelocks and 69% maintenance council ratifications.
+
+📖 **[Read the Complete Engine Forking & Custom Network Guide](https://kinetic.saifmukhtar.dev/vdf-calibration.html)**
+
+---
+
+## 💻 Building from Source
+
+Kinetic requires **Rust 1.80+** and C++ build tools for the `chiavdf` FFI engine.
+
+### 📦 Prerequisites
+
+**Ubuntu / Debian:**
+```bash
+sudo apt update && sudo apt install -y build-essential cmake libgmp-dev
+```
+
+**macOS (Homebrew):**
+```bash
 brew install cmake gmp
 ```
 
-**2. Clone and Build:**
+### 🔨 Compilation
+
 ```bash
 git clone https://github.com/saifmukhtar/kinetic.git
+```
+```bash
 cd kinetic
-
-# ALWAYS build in release mode. The VDF math is unplayably slow in debug mode.
+```
+```bash
 cargo build --release --workspace
+```
+
+> ⚠️ **CRITICAL:** Always compile with `--release`. Debug builds lack compiler SIMD/LTO optimizations, making VDF squarings unplayably slow.
+
+---
+
+## 🧪 50-Node Simulation Sandbox
+
+The repository includes an autonomous multi-node simulation environment (`kinetic-sim/`) testing network resiliency, DHT lookup, VDF anti-squatting, and CDN web hosting failovers across 50 containerized nodes.
+
+```bash
+cd kinetic-sim
+```
+```bash
+python3 setup_sim.py
+```
+```bash
+./deploy.sh
+```
+
+Run the Python orchestrator:
+```bash
+sudo python3 orchestrator.py
+```
+
+Launch the real-time visual web dashboard:
+```bash
+cd kinetic-dashboard && npm install && npm run dev
 ```
 
 ---
 
-## 📚 Documentation & Whitepapers
+## 📚 Complete Whitepapers & Specifications
 
-Dive deeper into the math, security, and architecture of Kinetic:
+Explore the mathematical proofs, RFC drafts, and security models powering Kinetic:
 
-- **[Full Documentation](https://kinetic.saifmukhtar.dev)**
-- **[Vision Overview](./whitepaper/kinetic-vision.md)**
-- **[Consensus & Proof of Patience](./whitepaper/kinetic-consensus.md)**
-- **[Identity Architecture (KID)](./whitepaper/kinetic-identity.md)**
-- **[Network & Execution](./whitepaper/kinetic-network.md)**
-- **[Security & Mitigation](./whitepaper/kinetic-security.md)**
+### 📜 Official Whitepapers (`whitepaper/`)
+- 📄 **[1. Vision & Executive Summary](./whitepaper/kinetic-vision.md):** The case for sovereign time-secured namespaces.
+- ⚡ **[2. Consensus & Proof of Patience](./whitepaper/kinetic-consensus.md):** Squatter Cliff mathematical proofs & VDF class group squarings.
+- 🆔 **[3. Decentralized Identity Architecture (KID)](./whitepaper/kinetic-identity.md):** Post-quantum ML-DSA-65 identity documents.
+- 🌐 **[4. Network & Execution Spec](./whitepaper/kinetic-network.md):** libp2p Kademlia DHT, gossip subtopics, and Split-DNS.
+- 🛡️ **[5. Security & Threat Mitigation](./whitepaper/kinetic-security.md):** Formal resistance to Sybil, Eclipse, and Front-Running attacks.
+- 🏛️ **[6. Bicameral Governance Engine](./whitepaper/kinetic-governance.md):** Council multisig rules and timelock emergency resets.
+- 🔨 **[7. Kinetic Engine Forking (`kinetic-forge`)](./whitepaper/kinetic-forge.md):** Custom TLD network deployment guide.
 
----
-
-## 🤝 Contributing & Security
-
-Kinetic is built by the community. We prioritize extreme technical rigor and objective engineering. 
-
-- **[CONTRIBUTING.md](./.github/CONTRIBUTING.md):** Learn how to submit PRs, run the 50-node simulation sandbox, and adhere to our strict inline documentation standards.
-- **[THREAT_MODEL.md](./.github/THREAT_MODEL.md):** Read our comprehensive adversarial analysis, detailing what we protect against and our trust assumptions.
-- **[GOVERNANCE.md](./.github/GOVERNANCE.md):** Understand the Bicameral Rule Book, the 69% council supermajority, and how to become a core maintainer.
-- **[SECURITY.md](./.github/SECURITY.md):** Instructions for disclosing vulnerabilities securely.
+### 📜 IETF Internet-Draft Specifications
+- 📑 **[draft-mukhtar-kinetic-network-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-network-00.html):** The Kinetic Network Protocol Specification.
+- 📑 **[draft-mukhtar-kinetic-identity-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-identity-00.html):** The Kinetic Identity (KID) Specification.
 
 ---
 
-## 🙏 Built On
+## 🏛️ Technical Specifications & Repository Guides (`.github/`)
 
-Kinetic stands on the shoulders of incredible open-source infrastructure:
+- 🏗️ **[ARCHITECTURE.md](./.github/ARCHITECTURE.md):** Deep-dive workspace topology, binary boundaries, and trait abstractions.
+- 🔐 **[CRYPTO.md](./.github/CRYPTO.md):** Cryptographic primitive choices (Ed25519, ML-DSA-65, Chia VDF, Drand).
+- 🛡️ **[THREAT_MODEL.md](./.github/THREAT_MODEL.md):** Adversarial threat vectors, security boundaries, and non-goals.
+- 🏛️ **[GOVERNANCE.md](./.github/GOVERNANCE.md):** Maintenance council supermajority, Bicameral keys, and emergency procedure.
+- 🤝 **[CONTRIBUTING.md](./.github/CONTRIBUTING.md):** Contribution guidelines, commit rules, and PR checklist.
+- 🔒 **[SECURITY.md](./.github/SECURITY.md):** Responsible disclosure policy and security contacts.
+- 📜 **[CODE_OF_CONDUCT.md](./.github/CODE_OF_CONDUCT.md):** Community engagement standards.
 
-- **[rust-libp2p](https://github.com/libp2p/rust-libp2p):** The core P2P networking stack. Kinetic implements a custom `kad::store::RecordStore` (`KineticRecordStore`) for the Kademlia DHT to enforce strict VDF proof validation and signature checks before any payload is stored. Also utilizes Gossipsub, Noise, Yamux, and DCUtR for NAT traversal.
-- **[chiavdf (Chia Network)](https://github.com/Chia-Network/chiavdf):** C++ VDF engine utilizing Class Groups of Imaginary Quadratic Fields.
-- **[drand Quicknet](https://drand.love/):** Distributed randomness beacon for ungameable challenges.
-- **[sled](https://github.com/spacejam/sled):** The pure-Rust embedded B-tree database.
-- **[hickory-dns](https://github.com/hickory-dns/hickory-dns):** Powering the Sovereign Split-DNS interception layer.
-- **[axum](https://github.com/tokio-rs/axum):** The high-performance async REST API engine.
-- **[rustls](https://github.com/rustls/rustls) & [rcgen](https://github.com/rustls/rcgen):** For dynamic, on-the-fly Certificate Authority generation and HTTPS proxying.
-- **[ml-dsa](https://github.com/RustCrypto/signatures/tree/master/ml-dsa):** Providing FIPS 204 post-quantum cryptographic identities.
+---
+
+## 🛠️ Open-Source Foundation & Acknowledgments
+
+Kinetic is built upon world-class open-source infrastructure:
+
+- 🦀 **[rust-libp2p](https://github.com/libp2p/rust-libp2p):** Peer-to-peer networking, Kademlia DHT, Gossipsub, and NAT traversal.
+- 🧮 **[chiavdf](https://github.com/Chia-Network/chiavdf):** High-speed Class Group VDF repeated squarings engine.
+- 🎲 **[drand](https://drand.love/):** Ungameable threshold randomness beacon for VDF commitment challenges.
+- ⚡ **[hickory-dns](https://github.com/hickory-dns/hickory-dns):** Sovereign Split-DNS server interception framework.
+- 🔑 **[ml-dsa](https://github.com/RustCrypto/signatures/tree/master/ml-dsa):** FIPS 204 post-quantum digital signature algorithms.
+- 💾 **[sled](https://github.com/spacejam/sled):** Embedded pure-Rust high-concurrency database.
+- 🚀 **[axum](https://github.com/tokio-rs/axum):** Modern async web framework powering local daemon REST APIs.
 
 ---
 
 <div align="center">
-  <p><strong>Codebase License:</strong> <a href="LICENSE">Apache 2.0</a> | <strong>Whitepapers:</strong> <a href="./docs/LICENSE">CC BY 4.0</a></p>
-  <p><em>Created by <a href="https://saifmukhtar.dev">Saif Mukhtar</a></em></p>
+  <p><strong>Code License:</strong> <a href="LICENSE">Apache License 2.0</a> &nbsp;|&nbsp; <strong>Documentation & Specs:</strong> <a href="./docs/LICENSE">Creative Commons Attribution 4.0 International (CC BY 4.0)</a></p>
+  <p><em>Created & Maintained by <a href="https://saifmukhtar.dev">Saif Mukhtar</a></em> &nbsp;•&nbsp; 🌐 <a href="https://kinetic.saifmukhtar.dev">kinetic.saifmukhtar.dev</a></p>
 </div>
