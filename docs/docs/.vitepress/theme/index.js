@@ -1,4 +1,5 @@
 import DefaultTheme from 'vitepress/theme'
+import { h } from 'vue'
 import './custom.css'
 
 // Import components
@@ -19,6 +20,11 @@ import DeepDive from './components/DeepDive.vue'
 
 export default {
   extends: DefaultTheme,
+  Layout() {
+    return h(DefaultTheme.Layout, null, {
+      'layout-bottom': () => h(ZenToggle)
+    })
+  },
   enhanceApp({ app }) {
     // Register components globally
     app.component('CardGrid', CardGrid)

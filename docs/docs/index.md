@@ -47,6 +47,10 @@ features:
 
 <div class="home-details">
 
+<QuickSummary time="3 min">
+Kinetic is a zero-cost, permissionless naming network. Instead of paying money to registrars or gas fees on blockchains, domain registrations require computational time via <Term name="VDF">Verifiable Delay Functions</Term>, making mass domain squatting mathematically impossible.
+</QuickSummary>
+
 ## Why Kinetic?
 
 Every previous attempt at decentralized naming made the same mistake: replacing one gatekeeper with another.
@@ -59,12 +63,17 @@ Every previous attempt at decentralized naming made the same mistake: replacing 
 
 A [Verifiable Delay Function (VDF)](/cryptography) is a mathematical puzzle that takes a provably specific amount of time to solve and cannot be parallelized. A billionaire with 10,000 servers cannot register a name faster than a developer on a laptop. Mass squatting is physically impossible, not just economically discouraged.
 
-| Name Length | Registration Time | Cost |
-|---|---|---|
-| 8+ characters | ~2 hours | $0 |
-| 6 characters | ~12 hours | $0 |
-| 4 characters | ~15 days | $0 |
-| 2 characters | ~5 months | $0 |
+<VdfCalculator />
+
+<DnsRouterWidget />
+
+<DeepDive title="How VDF Proofs Prevent Front-Running & Speculation">
+
+When you register a name on Kinetic, your client broadcasts a cryptographic commitment (Phase 1) containing `H(name || salt || drand_beacon || pubkey)`. Because the hash hides the name, no sniper bot can see what domain you are registering. 
+
+Once your commitment is acknowledged by the peer-to-peer network, your local node computes the sequential VDF proof (Phase 2). Only when the mathematical wait time has elapsed do you publish the reveal. Because VDF computation cannot be parallelized across GPUs or server clusters, no wealthy attacker can out-compute your registration.
+
+</DeepDive>
 
 **One CPU. Zero dollars. Permanent ownership secured by math.**
 
