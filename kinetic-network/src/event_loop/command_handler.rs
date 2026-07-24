@@ -229,6 +229,7 @@ impl super::core::NetworkEventLoop {
 
                 let _ = responder.send(Ok(serde_json::json!({
                     "status": status,
+                    "peer_id": self.swarm.local_peer_id().to_string(),
                     "connected_peers": peers,
                     "listen_addrs": self.swarm.listeners().map(|a| a.to_string()).collect::<Vec<_>>(),
                     "nat_status": self.nat_status,

@@ -27,6 +27,9 @@ pub enum IdentityError {
     /// The provided BIP-39 mnemonic seed phrase is invalid.
     #[error("Invalid seed phrase: {0}")]
     InvalidSeedPhrase(String),
+    /// Failed to decrypt the identity file.
+    #[error("Failed to decrypt identity file: {0}")]
+    DecryptionFailed(String),
 }
 
 impl PartialEq for IdentityError {
@@ -36,6 +39,7 @@ impl PartialEq for IdentityError {
             (Self::CorruptedIdentityFile(a), Self::CorruptedIdentityFile(b)) => a == b,
             (Self::IdentityNotFound(a), Self::IdentityNotFound(b)) => a == b,
             (Self::InvalidSeedPhrase(a), Self::InvalidSeedPhrase(b)) => a == b,
+            (Self::DecryptionFailed(a), Self::DecryptionFailed(b)) => a == b,
             _ => false,
         }
     }
@@ -51,6 +55,7 @@ impl IdentityError {
             Self::CorruptedIdentityFile(_) => "KIN-IDN-002",
             Self::IdentityNotFound(_) => "KIN-IDN-003",
             Self::InvalidSeedPhrase(_) => "KIN-IDN-004",
+            Self::DecryptionFailed(_) => "KIN-IDN-005",
         }
     }
 
@@ -62,7 +67,7 @@ impl IdentityError {
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
         match self {
-            Self::Io(_) | Self::CorruptedIdentityFile(_) | Self::IdentityNotFound(_) => {
+            Self::Io(_) | Self::CorruptedIdentityFile(_) | Self::IdentityNotFound(_) | Self::DecryptionFailed(_) => {
                 Severity::Error
             }
             Self::InvalidSeedPhrase(_) => Severity::Warning,
@@ -85,6 +90,7 @@ impl IdentityError {
             }
             Self::IdentityNotFound(_) => "The identity file could not be found.".to_string(),
             Self::InvalidSeedPhrase(_) => "The provided seed phrase is invalid.".to_string(),
+            Self::DecryptionFailed(_) => "Failed to decrypt the identity file. Incorrect password or corrupted payload.".to_string(),
         }
     }
 }

@@ -212,12 +212,18 @@ pub async fn handle_governance_command(
         signer_key_path
     };
 
-    let keypair = kinetic_core::types::load_keypair(expanded_path.to_str().unwrap())?;
+    let keypair = if expanded_path.extension().and_then(|e| e.to_str()) == Some("aes") {
+        let password = rpassword::prompt_password(format!("Enter AES decryption password for {}: ", expanded_path.display()))
+            .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
+        kinetic_core::types::load_encrypted_keypair(&expanded_path, &password)?
+    } else {
+        kinetic_core::types::load_keypair(expanded_path.to_str().unwrap())?
+    };
 
     // Fetch the current governance state from Daemon API to get council size
     let port = config.daemon.api_port;
     let url = format!("http://127.0.0.1:{}/governance", port);
-    let token = std::fs::read_to_string(kinetic_core::config::get_api_token_path())?;
+    let token = std::fs::read_to_string(kinetic_core::config::get_api_tokens_dir().join("admin.token"))?;
 
     let response = client
         .get(&url)

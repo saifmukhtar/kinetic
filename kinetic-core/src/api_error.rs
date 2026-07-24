@@ -327,6 +327,7 @@ impl From<IdentityError> for ApiError {
             }
             IdentityError::IdentityNotFound(_) => (404, "Not Found"),
             IdentityError::InvalidSeedPhrase(_) => (400, "Bad Request"),
+            IdentityError::DecryptionFailed(_) => (401, "Unauthorized"),
         };
         ApiError {
             error_type: e.error_type_uri(),

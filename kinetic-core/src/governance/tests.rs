@@ -151,7 +151,6 @@ mod tests {
             .as_secs();
         let mut state = GovernanceState::new(current_time);
         state.mode = crate::governance::types::GovernanceMode::Council;
-
         let action_hash = [3u8; 32];
         state.pending_updates.insert(
             action_hash,
@@ -175,6 +174,7 @@ mod tests {
         assert!(!state.pending_updates.contains_key(&action_hash));
         assert!(state.vetoed_hashes.contains(&action_hash));
     }
+
 
     #[test]
     fn test_founder_premium_grants() {
@@ -312,76 +312,7 @@ mod tests {
         assert!(state.grace_period_start_sec.is_none());
     }
 
-    #[test]
-    fn test_auto_lock_grace_period() {
-        let genesis_time = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let current_time = genesis_time + crate::constants::AUTO_LOCK_SECONDS + 10;
-        let mut state = GovernanceState::new(genesis_time);
 
-        // Less than 7 members
-        let (_, pk) = generate_key(1);
-        state.active_council.push(pk.clone());
-        state.last_signature_timestamps.insert(pk, current_time);
-
-        let root_sk = get_root_sk();
-        let mut msg = SignedGovernanceMessage {
-            action: GovernanceAction::UpdateBinary {
-                manifest_hash: [0u8; 32],
-                version_nonce: 1,
-                github_username: "saifmukhtar".to_string(),
-                git_commit: "deadbeef".to_string(),
-                git_branch: "main".to_string(),
-                mirrors: vec![],
-            },
-            council_size_at_proposal: 7,
-            timestamp_sec: current_time,
-            signatures: vec![],
-        };
-        msg.signatures.push(sign_action(&msg, &root_sk));
-
-        let _ = state.verify_action(&msg, current_time);
-
-        // Should transition directly to council mode
-        assert_eq!(
-            state.mode,
-            crate::governance::types::GovernanceMode::Council
-        );
-        assert_eq!(state.lock_timestamp_sec, Some(current_time));
-        assert!(state.grace_period_start_sec.is_none());
-    }
-
-    #[test]
-    fn test_13_month_deadman_switch() {
-        let genesis_time = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut state = GovernanceState::new(genesis_time);
-
-        // At exactly 1 year + 10 seconds, the grace period should start
-        let year_time = genesis_time + crate::constants::AUTO_LOCK_SECONDS + 10;
-        let root_sk = get_root_sk();
-        let mut msg = SignedGovernanceMessage {
-            action: GovernanceAction::LockCouncil,
-            council_size_at_proposal: 0,
-            timestamp_sec: year_time,
-            signatures: vec![],
-        };
-        msg.signatures.push(sign_action(&msg, &root_sk));
-
-        let _ = state.verify_action(&msg, year_time);
-
-        // Should transition directly to council mode
-        assert_eq!(
-            state.mode,
-            crate::governance::types::GovernanceMode::Council
-        );
-        assert_eq!(state.lock_timestamp_sec, Some(year_time));
-        assert!(state.grace_period_start_sec.is_none());
-    }
 
     use proptest::prelude::*;
     use proptest::collection::vec;

@@ -48,10 +48,8 @@ impl GovernanceEngine for BicameralEngine {
         if state.mode == crate::governance::types::GovernanceMode::Founder {
             let instant_lock = actual_active_count >= crate::constants::MIN_ACTIVE_COUNCIL
                 && guard_key_opt.is_some();
-            let year_passed = current_time_sec
-                >= state.genesis_timestamp_sec + crate::constants::AUTO_LOCK_SECONDS;
 
-            if instant_lock || year_passed {
+            if instant_lock {
                 state.mode = crate::governance::types::GovernanceMode::Council;
                 state.lock_timestamp_sec = Some(current_time_sec);
                 state.grace_period_start_sec = None;

@@ -35,6 +35,7 @@ zeroize = { version = "1", features = ["zeroize_derive"] }
 rand_chacha = "0.10.0"
 rand_core = "0.10.1"
 ml-dsa = "0.1.1"
+aes-gcm = "0.10.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 directories = "6.0.0"

@@ -384,9 +384,9 @@ pub fn get_base_dir() -> PathBuf {
     }
 }
 
-/// Returns the path to the secret CLI API token file (`{base_dir}/api.token`).
-pub fn get_api_token_path() -> PathBuf {
-    get_base_dir().join("api.token")
+/// Returns the path to the directory where the scoped CLI API token files are stored (`{base_dir}/tokens/`).
+pub fn get_api_tokens_dir() -> PathBuf {
+    get_base_dir().join("tokens")
 }
 
 #[cfg(test)]

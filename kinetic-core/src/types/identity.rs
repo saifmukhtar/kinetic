@@ -136,6 +136,51 @@ pub fn load_keypair(
     Err(crate::error::IdentityError::IdentityNotFound("Identity file not found. Please run 'kinetic seed init' or use the Desktop app to create one.".to_string()))
 }
 
+/// Loads an ML-DSA-65 post-quantum signing keypair from an AES-256-GCM encrypted file on disk.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn load_encrypted_keypair(
+    path: &std::path::Path,
+    password: &str,
+) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
+    use std::fs;
+    use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce};
+    use pbkdf2::pbkdf2_hmac;
+    use sha2::Sha256;
+
+    if path.exists() {
+        let bytes = fs::read(path)?;
+        if bytes.len() < 16 + 12 + 16 { // salt + nonce + mac
+            return Err(crate::error::IdentityError::CorruptedIdentityFile("Encrypted file too short".into()));
+        }
+
+        let salt = &bytes[0..16];
+        let nonce_bytes = &bytes[16..28];
+        let ciphertext = &bytes[28..];
+
+        let mut key = [0u8; 32];
+        pbkdf2_hmac::<Sha256>(password.as_bytes(), salt, 600_000, &mut key);
+
+        let cipher = Aes256Gcm::new((&key).into());
+        let nonce = Nonce::from_slice(nonce_bytes);
+
+        let decrypted = cipher.decrypt(nonce, ciphertext).map_err(|_| crate::error::IdentityError::DecryptionFailed("Incorrect password or corrupted file".into()))?;
+
+        if decrypted.len() == 32 {
+            let mut array = [0u8; 32];
+            array.copy_from_slice(&decrypted);
+            return Ok(ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed(
+                (&array).into(),
+            ));
+        } else {
+            return Err(crate::error::IdentityError::CorruptedIdentityFile(
+                format!("Expected 32 bytes from decryption, found {}.", decrypted.len())
+            ));
+        }
+    }
+
+    Err(crate::error::IdentityError::IdentityNotFound(format!("Encrypted identity file not found at {:?}", path)))
+}
+
 /// Derives an ML-DSA-65 signing keypair from a BIP-39 mnemonic and saves the 32-byte seed to disk.
 ///
 /// Key derivation steps:
@@ -314,6 +359,42 @@ mod tests {
         let loaded_key = load_keypair("test.bin").unwrap();
         use ml_dsa::KeyExport;
         assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());
+
+        // 5. Encrypted Keypair logic (manual encryption simulation)
+        let encrypted_path = dir.path().join("encrypted.aes");
+        use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce};
+        use pbkdf2::pbkdf2_hmac;
+        use sha2::Sha256;
+        use std::fs::File;
+        use std::io::Read;
+        
+        let mut salt = [0u8; 16];
+        let mut nonce_bytes = [0u8; 12];
+        let mut urandom = File::open("/dev/urandom").expect("Failed to open /dev/urandom");
+        urandom.read_exact(&mut salt).expect("RNG failure");
+        urandom.read_exact(&mut nonce_bytes).expect("RNG failure");
+        
+        let mut derived_key = [0u8; 32];
+        pbkdf2_hmac::<Sha256>(b"strong_password", &salt, 600_000, &mut derived_key);
+        
+        let cipher = Aes256Gcm::new((&derived_key).into());
+        let nonce = Nonce::from_slice(&nonce_bytes);
+        let mut raw_seed = [5u8; 32]; // dummy seed
+        
+        let ciphertext = cipher.encrypt(nonce, raw_seed.as_ref()).unwrap();
+        
+        let mut final_payload = Vec::new();
+        final_payload.extend_from_slice(&salt);
+        final_payload.extend_from_slice(&nonce_bytes);
+        final_payload.extend_from_slice(&ciphertext);
+        
+        fs::write(&encrypted_path, final_payload).unwrap();
+        
+        let loaded_encrypted = load_encrypted_keypair(&encrypted_path, "strong_password").unwrap();
+        assert_eq!(loaded_encrypted.to_bytes(), ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&raw_seed).into()).to_bytes());
+        
+        let bad_pass = load_encrypted_keypair(&encrypted_path, "wrong_password");
+        assert!(matches!(bad_pass, Err(crate::error::IdentityError::DecryptionFailed(_))));
 
         // Clean up env var
         std::env::remove_var(crate::constants::ENV_KINETIC_KEY_PATH);
