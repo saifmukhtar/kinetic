@@ -1,4 +1,14 @@
-# Chapter 13: Kinetic Simulation Sandbox
+---
+title: Kinetic Simulation Sandbox
+prev:
+  text: 'VDF Hardware Calibration'
+  link: '/vdf-calibration'
+next:
+  text: 'Governance Engine'
+  link: '/architecture/07-governance'
+---
+
+# Kinetic Simulation Sandbox
 
 This directory contains the full local simulation environment for **Kinetic**, a decentralized DNS and web hosting network built on Kademlia DHT. It orchestrates 50 autonomous nodes running inside isolated containers to test real-world network conditions, domain registration, and hosting failovers.
 

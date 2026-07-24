@@ -1,3 +1,13 @@
+---
+title: Future Horizons
+prev:
+  text: 'Protocol Specification v1'
+  link: '/protocol_specification'
+next:
+  text: 'Fork Operators Overview'
+  link: '/operators/'
+---
+
 # Future Horizons
 
 The Kinetic Protocol, in its current v1 implementation, achieves the primary goal of creating a zero-cost, un-squattable, and fully forkable sovereign namespace engine. However, the naming layer is only the foundation.

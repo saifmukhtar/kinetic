@@ -4,7 +4,7 @@ The Kinetic daemon exposes a local REST API that you can interact with using sta
 
 - **Base URL:** `http://127.0.0.1:16002/api`
 - **Content-Type:** `application/json` (for all request bodies and responses)
-- **Authentication:** Bearer token (see [Authentication](../auth.md) for details).
+- **Authentication:** Bearer token (see [Authentication](/developers/auth) for details).
 
 ## Endpoints Summary
 

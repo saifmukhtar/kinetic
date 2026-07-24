@@ -10,37 +10,43 @@ next:
 
 # Architecture & Motivation: Client Architecture
 
-The success of a decentralized protocol depends on its accessibility. If only Linux systems administrators can run a node, the network will never achieve mainstream decentralization.
+The success and resilience of a decentralized protocol depend entirely on its accessibility. If running a node requires a degree in systems administration or a dedicated cloud server, the network will inevitably centralize around a few hobbyists and corporations.
 
-Kinetic solves this with two distinct client models: The **Tauri Desktop Client** for full nodes, and **WebAssembly (Wasm)** for light clients.
+Kinetic solves this accessibility problem by providing two distinct client models: The **Tauri Desktop Client** for running robust full nodes, and **WebAssembly (Wasm)** compilation for zero-trust browser light clients.
 
 ## The Tauri Desktop App (Full Node)
 
-To provide a seamless "one-click install" for Windows, macOS, and Linux users, Kinetic bundles the daemon, the UI, and the local DNS resolver into a **Tauri Desktop Application** (`kinetic-client/desktop/src-tauri`).
+To provide a seamless, non-technical "one-click install" for Windows, macOS, and Linux users, Kinetic bundles the core daemon, the UI dashboard, and the local split-DNS resolver into a single **Tauri Desktop Application** (`kinetic-client/desktop/src-tauri`).
 
 ### Why Tauri instead of Electron?
-Electron bundles an entire Chromium browser and Node.js runtime into every application. This results in massive binaries (hundreds of megabytes) and heavy RAM consumption. 
+Historically, most cross-platform desktop apps (like Slack, Discord, or early crypto wallets) were built using Electron. Electron works by bundling an entire Chromium web browser and a complete Node.js runtime into every application. This results in massive binary sizes (often 200MB+) and heavy idle RAM consumption. 
 
-A Kinetic node is expected to run quietly in the background 24/7 to maintain the DHT and provide local DNS resolution. Using Electron would drain laptop batteries and hog system resources.
+A Kinetic node is fundamentally different from a chat app. It is expected to run quietly in the background 24/7 to maintain the DHT routing table, seed data, and provide local DNS resolution for the OS. If Kinetic used Electron, it would continuously drain laptop batteries and hog system memory just sitting idle.
 
-Tauri solves this by:
-1. **Rust Backend:** The heavy lifting (the P2P DHT, the Argon2id PoW, the VDF, the DNS server) is compiled to highly optimized, memory-safe native Rust.
-2. **OS Webviews:** Instead of bundling Chromium, Tauri uses the operating system's native webview (Edge on Windows, WebKit on macOS, WebKitGTK on Linux) to render the UI. 
+Tauri solves this architectural dilemma:
+1. **Rust Backend:** The heavy cryptographic lifting—maintaining the P2P DHT, performing the 16 MiB Argon2id PoW checks, verifying ML-DSA signatures, and running the UDP DNS server—is compiled to highly optimized, memory-safe native Rust.
+2. **OS Webviews:** Instead of shipping a bundled Chromium binary, Tauri intelligently hooks into the operating system's native webview engine (Edge WebView2 on Windows, WebKit on macOS, WebKitGTK on Linux) to render the UI. 
 
-This results in a tiny binary footprint and near-zero idle resource consumption.
+This hybrid approach results in a tiny binary footprint (often under 20MB) and near-zero resource consumption when the UI is closed or minimized to the system tray, making it perfectly suited for an always-on decentralized node.
 
-### IPC Isolation
-In Tauri, the React frontend runs in the webview, while the Kinetic daemon runs in the Rust core. They communicate via Inter-Process Communication (IPC). This provides a massive security boundary. If the React frontend is compromised via a cross-site scripting (XSS) attack, the attacker is trapped in the webview sandbox and cannot easily access the user's `identity.key` or `reveal.json` proofs stored securely in the Rust backend.
+### IPC Isolation and the Security Boundary
+In Tauri, the React/TypeScript frontend runs inside the restricted webview sandbox, while the Kinetic daemon and core logic run in the native Rust backend process. They communicate exclusively via strongly-typed Inter-Process Communication (IPC) messages. 
+
+This architecture provides a massive security boundary. If the React frontend were somehow compromised via a complex cross-site scripting (XSS) attack or a malicious NPM dependency, the attacker would be trapped inside the OS webview sandbox. They cannot use `fs.readFileSync` to steal the user's `identity.key` or maliciously modify the VDF `reveal.json` proofs, because the webview has absolutely no access to the local filesystem. All sensitive cryptographic material remains strictly guarded by the Rust backend, which validates every incoming IPC command before executing it.
 
 ## WebAssembly (Wasm) Light Clients
 
-While the desktop app acts as a full node, web developers need a way to verify Kinetic identities (`did:kin`) and names natively inside web browsers without asking the user to install a desktop app.
+While the Tauri desktop app acts as a full participant (Full Node) on the DHT, third-party web developers need a way to verify Kinetic identities (`did:kin`) and names natively inside web browsers without asking their users to install a desktop app.
 
-To support this, the `kinetic-kid` (identity) and `kinetic-core` crates are compiled to **WebAssembly (Wasm)**.
+To support this ubiquitous web integration, the `kinetic-kid` (identity protocol) and `kinetic-core` crates are specifically designed to compile to `wasm32-unknown-unknown` **WebAssembly (Wasm)**.
 
 ### The Light-Client Trust Model
-In many blockchains, a "light client" just sends an API request to a centralized server (like Infura or Alchemy) and blindly trusts the JSON response. This is essentially centralized Web2.
 
-With Kinetic Wasm clients, the browser might ask a random gateway for the records of `alice.kin`. But the browser does not trust the gateway. The gateway must return the raw data *and the cryptographic VDF/Ed25519 proofs*. 
+In the Web3 ecosystem, a "light client" often just refers to a Javascript library that sends an API request to a centralized RPC provider (like Infura or Alchemy) and blindly trusts the JSON response. This completely breaks the security model, devolving the system back into centralized Web2.
 
-The Wasm module running in the user's browser then executes the VDF verification and signature math locally. If the gateway lies, the math fails, and the Wasm client rejects the data. This allows browser-based apps to maintain cryptographically guaranteed zero-trust security without needing to sync the entire DHT.
+Kinetic enforces a **Zero-Trust Wasm Architecture**. 
+With Kinetic Wasm clients, the browser application might ask a random public DHT gateway for the records of `alice.kin`. Crucially, the browser does not trust the gateway. The gateway must return the raw data payload *alongside all accompanying cryptographic VDF proofs and ML-DSA-65 signatures*. 
+
+The Wasm module running locally inside the user's browser takes over. It executes the VDF verification algorithms and the ML-DSA signature math directly on the client's CPU. If the gateway lies, attempts to censor, or provides forged data, the mathematical verification fails. The Wasm client immediately rejects the payload. 
+
+This elegant architecture allows browser-based applications to maintain cryptographically guaranteed zero-trust security without needing to sync the entire massive DHT, ensuring Kinetic's identity layer remains uncompromisingly secure even on lightweight devices.

@@ -1,3 +1,13 @@
+---
+title: Developer Overview
+prev:
+  text: 'Home'
+  link: '/'
+next:
+  text: 'Authentication'
+  link: '/developers/auth'
+---
+
 # Developer Overview
 
 Welcome to the Kinetic Developer Documentation. Kinetic provides a decentralized naming and identity system built on a DHT and cryptographic proofs. As a developer, you can integrate Kinetic to build powerful applications on top of this infrastructure.
@@ -23,9 +33,9 @@ By default, the daemon exposes its REST API at `http://127.0.0.1:16002/api`.
 
 We provide SDKs generated from our OpenAPI specification, as well as the raw REST API for direct interaction.
 
-1. **[TypeScript SDK](./sdk-typescript.md):** Best for Node.js, web apps, and scripts.
-2. **[Rust SDK](./sdk-rust.md):** Best for high-performance systems and native integrations.
-3. **[REST API](./api/index.md):** For custom integrations using standard HTTP clients.
+1. **[TypeScript SDK](/developers/sdk-typescript):** Best for Node.js, web apps, and scripts.
+2. **[Rust SDK](/developers/sdk-rust):** Best for high-performance systems and native integrations.
+3. **[REST API](/developers/api/):** For custom integrations using standard HTTP clients.
 
 ## Quick Start: Hello World
 
@@ -41,4 +51,4 @@ console.log('Resolved:', result);
 
 To access authenticated endpoints (like registering a name or publishing DNS records), you'll need the daemon's API token. 
 
-👉 **[Read the Authentication Guide](./auth.md) next to learn how to authenticate your requests.**
+👉 **[Read the Authentication Guide](/developers/auth) next to learn how to authenticate your requests.**

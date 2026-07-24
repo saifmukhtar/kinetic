@@ -1,3 +1,13 @@
+---
+title: CLI Reference
+prev:
+  text: 'Error Handbook'
+  link: '/error_handbook'
+next:
+  text: 'Protocol Specification v1'
+  link: '/protocol_specification'
+---
+
 # CLI Reference
 
 The `kinetic` command is the primary interface for managing your Kinetic node, registering names, and handling your cryptographic identity. It communicates with the locally running `kinetic-daemon` via the REST API, authenticating every request using the bearer token stored in your data directory.

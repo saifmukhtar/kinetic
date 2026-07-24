@@ -1,3 +1,13 @@
+---
+title: Kinetic Error Handbook
+prev:
+  text: 'CLI Reference'
+  link: '/reference/cli'
+next:
+  text: 'Protocol Specification v1'
+  link: '/protocol_specification'
+---
+
 # Kinetic Error Handbook
 
 This document serves as the official reference for the Kinetic protocol's error codes (`KIN-*`). The daemon and API use these stable error codes to communicate problems to clients in an RFC 7807-compatible JSON format.

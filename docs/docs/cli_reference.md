@@ -1,3 +1,13 @@
+---
+title: CLI Reference Overview
+prev:
+  text: 'Error Handbook'
+  link: '/error_handbook'
+next:
+  text: 'Full CLI Reference'
+  link: '/reference/cli'
+---
+
 # CLI Reference
 
 The `kinetic` command-line tool provides a unified interface for managing names, identities, and background daemons on the Kinetic network.

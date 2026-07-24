@@ -1,5 +1,8 @@
 ---
 title: Introduction — What Kinetic Actually Is
+prev:
+  text: 'Home'
+  link: '/'
 next:
   text: 'The Mathematical Engine'
   link: '/cryptography'
@@ -32,29 +35,29 @@ The canonical public deployment of this engine is the **`.kin` network** — a p
 | **TLD** | Whatever you configure (`.uni`, `.acme`, `.internal`) | `.kin` |
 | **Control** | You hold the governance keys. You can reset. | No operator. Math governs it. |
 | **Squatters** | VDF cliff + you can restart the network | VDF cliff alone |
-| **Entry point** | [`kinetic-forge`](./forking.md) | [`Getting Started`](./getting_started.md) |
+| **Entry point** | [`kinetic-forge`](/operators/) | [`Getting Started`](/users/) |
 
 ---
 
 ## Choose Your Path
 
 ### 🍴 I want to deploy my own network
-→ Start with **[Fork Your Own Network](./forking.md)**
+→ Start with **[Fork Your Own Network](/operators/)**
 
 This covers `kinetic-forge`, `network.json`, swappable `VdfEngine` and `StorageEngine` backends, bootstrap node setup, and the fork squatter economics that make private networks self-defending.
 
 ### 🌐 I want to register a `.kin` name
-→ Start with **[Getting Started](./getting_started.md)**
+→ Start with **[Getting Started](/users/)**
 
 This covers installing the daemon, the two-phase commit/reveal registration, configuring your Capability Manifest, and keeping your name alive with the heartbeat system.
 
 ### 🔐 I want to understand the cryptography
-→ Start with **[The Mathematical Engine](./cryptography.md)**
+→ Start with **[The Mathematical Engine](/cryptography)**
 
 This covers VDFs over Class Groups, the Wesolowski proof protocol, the `drand` Quicknet beacon, and Ed25519 identity binding. No prior cryptography knowledge assumed.
 
 ### 📡 I want to run infrastructure or contribute
-→ Start with **[Network Architecture](./network_architecture.md)**
+→ Start with **[Network Architecture](/network_architecture)**
 
 This covers the Immunological DHT, Redundant Deterministic Storage, Competitive Gossip validation, and the `kinetic-node` headless infrastructure binary.
 

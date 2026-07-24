@@ -1,3 +1,13 @@
+---
+title: Getting Started
+prev:
+  text: 'Home'
+  link: '/'
+next:
+  text: 'User Overview'
+  link: '/users/'
+---
+
 # Getting Started
 
 > **Two paths. Pick yours.**
@@ -89,7 +99,7 @@ Update `bootstrap_nodes` in your `network.json` with these addresses, recompile,
 
 Users on your network install `kinetic-daemon` and `kinetic-cli` built from your `network.json`. They run the daemon, register names under your TLD, and resolve them natively in their browser — same workflow as the `.kin` network, but entirely under your control.
 
-→ **Full details:** [Fork Your Own Network](./forking.md)
+→ **Full details:** [Fork Your Own Network](/operators/)
 
 ---
 
@@ -188,7 +198,7 @@ Ownership is maintained by a continuous cryptographic heartbeat — a signature 
 
 If your daemon goes offline for an extended period, the name enters **Grace-Period Escalation** — attackers must compute an exponentially harder VDF to challenge it, and you can reclaim it instantly by bringing your daemon back online during the challenge window.
 
-→ **Full details:** [Heartbeats & Stealing](./heartbeat.md)
+→ **Full details:** [Heartbeats & Stealing](/heartbeat)
 
 
 

@@ -1,3 +1,13 @@
+---
+title: VDF Hardware Calibration
+prev:
+  text: 'Deploy with kinetic-forge'
+  link: '/forking'
+next:
+  text: 'Simulation Sandbox'
+  link: '/kinetic_sim'
+---
+
 # VDF Hardware Calibration
 
 This document outlines the hardware baseline assumptions used to calibrate the Proof-of-Patience delay curves in `kinetic-core`.

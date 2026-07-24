@@ -3,7 +3,7 @@
 These endpoints require the `Authorization: Bearer <token>` header. They are used for managing names, identities, DNS zones, and daemon configuration.
 
 ::: tip Getting the Token
-See the [Authentication](../auth.md) guide for details on where to find the local API token.
+See the [Authentication](/developers/auth) guide for details on where to find the local API token.
 :::
 
 ## 1. Commit Name Hash
