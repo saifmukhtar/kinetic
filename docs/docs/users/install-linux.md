@@ -48,8 +48,13 @@ The Power User profile installs `kinetic-dns` and configures `systemd-resolved` 
 
 ## Verify the installation
 
+Check the installed versions:
+
 ```bash
 kinetic --version
+```
+
+```bash
 kinetic-daemon --version
 ```
 
@@ -97,6 +102,9 @@ If you see a conflict manually:
 
 ```bash
 sudo systemctl disable --now systemd-resolved
+```
+
+```bash
 sudo systemctl restart kinetic-dns
 ```
 

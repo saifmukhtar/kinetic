@@ -46,8 +46,13 @@ The Power User profile creates `/etc/resolver/kin` — a macOS resolver stub fil
 
 ## Verify the installation
 
+Check the installed versions:
+
 ```bash
 kinetic --version
+```
+
+```bash
 kinetic-daemon --version
 ```
 
@@ -93,6 +98,9 @@ macOS Gatekeeper may block the binary on first run. Remove the quarantine attrib
 
 ```bash
 xattr -c /usr/local/bin/kinetic-daemon
+```
+
+```bash
 xattr -c /usr/local/bin/kinetic
 ```
 

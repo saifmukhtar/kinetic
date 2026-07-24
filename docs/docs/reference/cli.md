@@ -253,15 +253,13 @@ Manages the `kinetic-host` process — for serving websites or services reachabl
 
 All lifecycle subcommands are identical to [`kinetic daemon`](#kinetic-daemon):
 
-```bash
-kinetic host run
-kinetic host install
-kinetic host start
-kinetic host stop
-kinetic host status
-kinetic host logs
-kinetic host uninstall
-```
+- `kinetic host run` — Run process in foreground
+- `kinetic host install` — Install as system service
+- `kinetic host start` — Start background service
+- `kinetic host stop` — Stop background service
+- `kinetic host status` — Check service status
+- `kinetic host logs` — Stream service logs
+- `kinetic host uninstall` — Uninstall system service
 
 ---
 
@@ -269,15 +267,13 @@ kinetic host uninstall
 
 Manages the `kinetic-node` process — a full DHT node that contributes to network health without hosting content. Run this if you want to support the Kinetic network beyond your own names.
 
-```bash
-kinetic node run
-kinetic node install
-kinetic node start
-kinetic node stop
-kinetic node status
-kinetic node logs
-kinetic node uninstall
-```
+- `kinetic node run` — Run process in foreground
+- `kinetic node install` — Install as system service
+- `kinetic node start` — Start background service
+- `kinetic node stop` — Stop background service
+- `kinetic node status` — Check service status
+- `kinetic node logs` — Stream service logs
+- `kinetic node uninstall` — Uninstall system service
 
 ---
 
@@ -360,11 +356,16 @@ kinetic name publish <name>
 | `<name>` | ✅ | The name to publish (e.g. `mywebsite.kin`) |
 
 **Example:**
-```bash
-# 1. Edit your zone file
-nano ~/.local/share/kinetic/zones/mywebsite.kin.json
 
-# 2. Publish the updated zone
+1. Edit your zone file:
+
+```bash
+nano ~/.local/share/kinetic/zones/mywebsite.kin.json
+```
+
+2. Publish the updated zone:
+
+```bash
 kinetic name publish mywebsite.kin
 ```
 

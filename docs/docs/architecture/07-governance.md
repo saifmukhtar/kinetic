@@ -34,11 +34,11 @@ This model provides the immense agility of a centralized startup while the netwo
 
 ## The Auto-Lock Transition
 
-To prevent the Founders from clinging to power indefinitely, the protocol contains an unalterable, ticking cryptographic clock. 
+To prevent the Founders from clinging to power indefinitely, the protocol contains a size-based trigger mechanism.
 
-According to `kinetic-core/src/constants.rs`, there is an `AUTO_LOCK_SECONDS` constant (typically set to 365 days) and a `MIN_ACTIVE_COUNCIL` limit (typically 7 members). 
+According to `kinetic-core/src/constants.rs`, there is a `MIN_ACTIVE_COUNCIL` limit (typically 7 members). 
 
-If the network has existed for 365 days since the Genesis block, OR if the Founders have successfully recruited and added 7 independent community members to the Council before that deadline, **Phase 1 permanently and irreversibly terminates**. 
+If the Founders successfully recruit and add 7 independent community members to the Council, and configure a Guard Key, **Phase 1 permanently and irreversibly terminates**. 
 
 The network transitions to Phase 2. The Root key is cryptographically stripped of its unilateral power; any signatures it produces for OTA updates are now immediately rejected by all nodes on the network as invalid. The Founders are reduced to standard Council members.
 

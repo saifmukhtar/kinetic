@@ -20,10 +20,15 @@ Open **PowerShell** (no need to run as Administrator manually — the script sel
 irm https://kinetic.saifmukhtar.dev/install.ps1 | iex
 ```
 
-If you get an execution policy error:
+If you get an execution policy error, enable script execution first:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+Then run the installer:
+
+```powershell
 irm https://kinetic.saifmukhtar.dev/install.ps1 | iex
 ```
 
@@ -56,10 +61,13 @@ The Power User profile adds a **Name Resolution Policy Table (NRPT)** rule via `
 
 ## Verify the installation
 
-Open a **new** PowerShell window (to pick up the updated PATH), then:
+Open a **new** PowerShell window (to pick up the updated PATH), then check the installed versions:
 
 ```powershell
 kinetic --version
+```
+
+```powershell
 kinetic-daemon --version
 ```
 

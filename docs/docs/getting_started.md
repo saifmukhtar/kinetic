@@ -82,14 +82,15 @@ All binaries now have your network's constants compiled in. Every node your user
 
 ### Step 3: Launch Your Bootstrap Nodes
 
-Run `kinetic-node` on at least two stable servers. These are the DHT entry points for everyone on your network:
+Run `kinetic-node` on your server:
 
 ```bash
-# On your server:
 sudo ./target/release/kinetic-node
+```
 
-# The peer ID is printed to stdout when kinetic-node starts.
-# You can also retrieve it from the node's local API:
+The peer ID is printed to stdout when `kinetic-node` starts. You can also retrieve it from the node's local API:
+
+```bash
 curl http://127.0.0.1:<node_api_port>/peer_id
 ```
 

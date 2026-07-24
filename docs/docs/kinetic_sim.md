@@ -35,26 +35,37 @@ Because we are simulating a massive decentralized system purely using local cont
 The simulation is located in the `kinetic-sim/` directory.
 
 ### Pre-flight Setup & Build
-Generate the simulation keys and deploy the containerlab topology:
-```bash
-# Ensure you are in the kinetic-sim directory
-python3 setup_sim.py
+Generate the simulation keys:
 
-# Build the images and deploy the 50 containers
+```bash
+python3 setup_sim.py
+```
+
+Build the images and deploy the containers:
+
+```bash
 ./deploy.sh
 ```
 
 ### Start the Orchestrator
-Launch the brain of the simulation. This will boot the nodes and start the lifecycle phases:
+Launch the brain of the simulation:
+
 ```bash
 sudo PYTHONPATH="/$HOME/$USER/.local/lib/python3.14/site-packages" python3 orchestrator.py
 ```
 
 ### Start the Dashboard
 In a separate terminal, launch the frontend to watch the simulation unfold:
+
+Install dependencies:
+
 ```bash
-cd kinetic-dashboard
-npm install
+cd kinetic-dashboard && npm install
+```
+
+Start dev server:
+
+```bash
 npm run dev
 ```
 

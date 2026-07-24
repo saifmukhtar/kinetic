@@ -157,10 +157,14 @@ The app is a **control panel** for the daemon — it does not run the daemon its
 
 To start the daemon after installing it through the Engine section, it runs as a system service automatically. If you need to start it manually:
 
-```bash
-# Linux / macOS
-sudo kinetic-daemon start-service
+Linux / macOS:
 
-# Windows (PowerShell as Admin)
+```bash
+sudo kinetic-daemon start-service
+```
+
+Windows (PowerShell as Admin):
+
+```powershell
 kinetic-daemon.exe start-service
 ```

@@ -140,7 +140,6 @@ Changes are not visible on the network until you publish.
 Edit the zone file directly:
 
 ```bash
-# Linux
 nano ~/.local/share/kinetic/zones/myapp.kin.json
 ```
 
@@ -154,13 +153,17 @@ kinetic name publish myapp.kin
 
 ## Verifying your records are live
 
-After publishing, test with `dig`:
+After publishing, test with `dig`.
+
+Query your local daemon:
 
 ```bash
-# Query your local daemon
 dig @127.0.0.1 myapp.kin A
+```
 
-# Query a specific subdomain
+Query a specific subdomain:
+
+```bash
 dig @127.0.0.1 www.myapp.kin CNAME
 ```
 
