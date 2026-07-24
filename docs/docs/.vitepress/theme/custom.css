@@ -665,6 +665,39 @@ html, body {
   border-radius: 4px;
 }
 
+/* ── Zen Reading Mode Layout Overrides ─────────────────────── */
+html.zen-mode .VPSidebar {
+  display: none !important;
+}
+
+html.zen-mode .VPDocAside {
+  display: none !important;
+}
+
+html.zen-mode .VPNav {
+  backdrop-filter: blur(4px) !important;
+  opacity: 0.7;
+  transition: opacity 200ms ease;
+}
+
+html.zen-mode .VPNav:hover {
+  opacity: 1;
+}
+
+html.zen-mode .VPDoc .content-container {
+  max-width: 820px !important;
+  margin: 0 auto !important;
+  padding-left: 1.5rem !important;
+  padding-right: 1.5rem !important;
+  transition: max-width 300ms var(--ease-spring);
+}
+
+html.zen-mode .vp-doc p,
+html.zen-mode .vp-doc li {
+  line-height: 1.85 !important;
+  font-size: 1rem !important;
+}
+
 /* ── Reduced motion ────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

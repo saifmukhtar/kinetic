@@ -8,7 +8,15 @@ next:
   link: '/kinetic-kid'
 ---
 
+<ZenToggle />
+
 # Chapter 5: The Zero-Dollar Gateway (Split-DNS Routing)
+
+<QuickSummary time="3 min">
+Kinetic uses a local Split-DNS gateway running on port 53. It transparently intercepts `.kin` domain requests for the P2P network while passing standard web traffic (`.com`, `.org`) straight through to your OS resolver unaffected.
+</QuickSummary>
+
+<DnsRouterWidget />
 
 The cryptography and peer-to-peer networking discussed in previous chapters guarantee that the Kinetic Protocol is secure, decentralized, and mathematically robust. However, cryptographic purity is useless if it exists in a vacuum. To function as a practical public good, Kinetic cannot remain an isolated academic experiment; it must seamlessly integrate with the existing, legacy web browser ecosystem.
 

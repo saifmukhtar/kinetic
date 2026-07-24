@@ -8,9 +8,17 @@ next:
   link: '/network_architecture'
 ---
 
+<ZenToggle />
+
 # Chapter 2: The Mathematical Engine - VDFs, Ed25519, and Drand
 
+<QuickSummary time="5 min">
+Kinetic uses <Term name="VDF">Verifiable Delay Functions</Term> over imaginary quadratic class groups to enforce sequential time delays. A single CPU core computes millions of squarings sequentially, rendering multi-server bot farms useless for squatting.
+</QuickSummary>
+
 The Kinetic Protocol is, at its core, a system of applied cryptography. Unlike traditional Web2 registries that rely on trusted databases, or registries that rely on global consensus ledgers, Kinetic relies exclusively on deterministic mathematical proofs evaluated by the local client.
+
+<VdfCalculator />
 
 This chapter dissects the three primary cryptographic engines that power the protocol:
 1. **Verifiable Delay Functions (VDFs)**: The mechanism for un-parallelizable computational friction.

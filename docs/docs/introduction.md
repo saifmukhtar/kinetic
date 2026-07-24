@@ -8,10 +8,16 @@ next:
   link: '/cryptography'
 ---
 
+<ZenToggle />
+
 # Introduction
 
 *A sovereign namespace engine secured purely by math and time.*
 *Created by [Saif Mukhtar](https://saifmukhtar.dev)*
+
+<QuickSummary time="2 min">
+Kinetic is a zero-cost, permissionless naming network. Instead of paying money to registrars or gas fees on blockchains, registrations require computational time via <Term name="VDF">Verifiable Delay Functions</Term>, making mass domain squatting mathematically impossible.
+</QuickSummary>
 
 > **Official IETF Internet-Drafts:**
 > - [draft-mukhtar-kinetic-network-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-network-00.html)
@@ -23,7 +29,7 @@ next:
 
 Kinetic is not a domain registrar. It is a sovereign namespace engine.
 
-**Kinetic is an open-source namespace engine** — a Rust binary suite that any university, company, government, or community can deploy to run their own cryptographically secured naming network. You configure one file (`network.json`), run `kinetic-forge`, and walk away with a complete, self-contained network with your own TLD, your own bootstrap nodes, and your own governance keys.
+**Kinetic is an open-source namespace engine** — a Rust binary suite that any university, company, government, or community can deploy to run their own cryptographically secured naming network. You configure one file (`network.json`), run `kinetic-forge`, and walk away with a complete, self-contained network with your own <Term name="TLD">TLD</Term>, your own bootstrap nodes, and your own governance keys.
 
 The canonical public deployment of this engine is the **`.kin` network** — a permissionless global commons where no single entity holds administrative authority. `.kin` is the proof that the engine works without any operator at all.
 
