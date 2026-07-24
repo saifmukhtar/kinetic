@@ -101,7 +101,7 @@ kinetic name publish myapp.kin
 Verify it is live:
 
 ```bash
-dig @127.0.0.1 myapp.kin A
+dig @127.0.0.2 myapp.kin A
 ```
 
 ---

@@ -34,7 +34,7 @@ In enterprise networking, a "Split-DNS" setup is commonly used to resolve intern
 
 Kinetic weaponizes this concept to establish a completely sovereign namespace directly on the user's laptop.
 
-When a user installs the Kinetic client, the installer deploys the `kinetic-daemon` to run continuously in the background as a system service (e.g., via `systemd` on Linux). One of the primary jobs of the daemon is to bind to the operating system's local loopback interface on the standard DNS port: `127.0.0.1:53`.
+When a user installs the Kinetic client, the installer deploys the `kinetic-daemon` to run continuously in the background as a system service (e.g., via `systemd` on Linux). One of the primary jobs of the daemon is to bind to the operating system's local loopback interface on the standard DNS port: `127.0.0.2:53`.
 
 The OS networking stack is automatically updated (e.g., modifying `/etc/resolv.conf`) to prioritize this local proxy for all outgoing DNS queries. 
 
@@ -71,7 +71,7 @@ Because the browser speaks standard DNS and the `kinetic-dns` proxy speaks stand
 graph LR
     subgraph User OS
         App[Chrome / Firefox]
-        Daemon((Kinetic Daemon<br/>127.0.0.1:53))
+        Daemon((Kinetic Daemon<br/>127.0.0.2:53))
         App -->|DNS Query| Daemon
     end
 

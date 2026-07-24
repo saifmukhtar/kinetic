@@ -34,7 +34,7 @@ The global DNS protocol operates on port 53 (UDP/TCP). Modern UNIX-like networki
 
 ### The Split-DNS Architecture
 When the daemon takes over port 53, it acts as a **Split-DNS proxy**:
-- When the user's OS asks `127.0.0.1:53` to resolve `google.com`, the Kinetic daemon recognizes it is a standard ICANN TLD. It acts as a transparent proxy, seamlessly forwarding the request to Cloudflare (`1.1.1.1`), Google (`8.8.8.8`), or the system's previously configured default upstream resolver.
+- When the user's OS asks `127.0.0.2:53` to resolve `google.com`, the Kinetic daemon recognizes it is a standard ICANN TLD. It acts as a transparent proxy, seamlessly forwarding the request to Cloudflare (`1.1.1.1`), Google (`8.8.8.8`), or the system's previously configured default upstream resolver.
 - When the OS asks for `myname.kin`, the daemon intercepts the request. It halts the upstream query, queries the local Kinetic DHT cache, verifies the cryptographic signature of the `.kin` record, and returns the resulting IP address back to the OS.
 
 ### The Rebinding Threat

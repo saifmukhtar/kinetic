@@ -13,7 +13,7 @@ sudo systemctl disable --now systemd-resolved
 Then edit `/etc/resolv.conf` to point to `127.0.0.1`:
 ```bash
 sudo rm /etc/resolv.conf
-echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf
+echo "nameserver 127.0.0.2" | sudo tee /etc/resolv.conf
 ```
 
 ### Permission denied on port 53
@@ -42,7 +42,7 @@ If you see errors like **KIN-NET-003** (routing table empty) or **KIN-RES-001** 
 
 If your browser shows "site not found" for `.kin` names:
 - Make sure the daemon is actually running in a terminal or as a service.
-- Check if DNS is working locally by running `dig @127.0.0.1 myname.kin A`.
+- Check if DNS is working locally by running `dig @127.0.0.2 myname.kin A`.
 - **macOS:** Verify the daemon is listening on port 53 by running `sudo lsof -i :53`.
 - **Windows:** Ensure the Windows DNS Client service isn't blocking port 53.
 - Ensure the name has been published: run `kinetic name resolve myname.kin`. If it isn't found, you may need to run `kinetic name publish myname.kin`.

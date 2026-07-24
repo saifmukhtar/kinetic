@@ -41,7 +41,7 @@ The installer is **interactive**. Use `↑` / `↓` to navigate, `Enter` to sele
 5. Installs services via `launchd` and starts them
 
 ::: info Power User DNS on macOS
-The Power User profile creates `/etc/resolver/kin` — a macOS resolver stub file that routes all `.kin` queries to `127.0.0.1:53`. This gives your entire system native `.kin` resolution.
+The Power User profile creates `/etc/resolver/kin` — a macOS resolver stub file that routes all `.kin` queries to `127.0.0.2:53`. This gives your entire system native `.kin` resolution.
 :::
 
 ## Verify the installation

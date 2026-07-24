@@ -158,13 +158,13 @@ After publishing, test with `dig`.
 Query your local daemon:
 
 ```bash
-dig @127.0.0.1 myapp.kin A
+dig @127.0.0.2 myapp.kin A
 ```
 
 Query a specific subdomain:
 
 ```bash
-dig @127.0.0.1 www.myapp.kin CNAME
+dig @127.0.0.2 www.myapp.kin CNAME
 ```
 
 Or use the **Resolver** section in the desktop app — type your name and click Resolve.

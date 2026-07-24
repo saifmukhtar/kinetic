@@ -22,7 +22,7 @@ A decentralized namespace has no utility if it cannot be natively accessed by st
 
 The primary engineering challenge is integrating natively into user applications without central Top-Level Domain (TLD) authorities. Kinetic solves this via a strictly deterministic Split-DNS loopback architecture.
 
-When the Kinetic Daemon initializes, it binds a local DNS proxy to the operating system's loopback interface (`127.0.0.1:53`). The OS networking stack is configured to prioritize this proxy for all outbound DNS queries — using `systemd-resolved` on Linux, `/etc/resolver` on macOS, and NRPT (Name Resolution Policy Table) on Windows.
+When the Kinetic Daemon initializes, it binds a local DNS proxy to the operating system's loopback interface (`127.0.0.2:53`). The OS networking stack is configured to prioritize this proxy for all outbound DNS queries — using `systemd-resolved` on Linux, `/etc/resolver` on macOS, and NRPT (Name Resolution Policy Table) on Windows.
 
 The daemon enforces the following Split-DNS policy:
 

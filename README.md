@@ -44,7 +44,7 @@ Kinetic acts as a local, transparent **Split-DNS gateway** running on port 53:
   </picture>
 </div>
 
-1. **Query Interception:** When you type `alice.kin` into Firefox, Chrome, or `curl`, the OS resolver sends the request to the Kinetic Daemon listening on `127.0.0.1:53`.
+1. **Query Interception:** When you type `alice.kin` into Firefox, Chrome, or `curl`, the OS resolver sends the request to the Kinetic Daemon listening on `127.0.0.2:53`.
 2. **DHT Lookup:** The daemon checks its local Kademlia DHT routing table (`libp2p`) to resolve the zone payload signed by Alice's post-quantum key.
 3. **Transparent Passthrough:** Standard internet queries (e.g. `google.com` or `github.com`) are immediately forwarded to your upstream OS resolver without latency overhead.
 

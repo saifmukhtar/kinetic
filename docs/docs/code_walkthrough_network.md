@@ -55,7 +55,7 @@ The `kinetic-dns` crate leverages the `hickory-dns` framework to intercept the u
 
 ### 2.1 Split-DNS Traffic Handling
 
-The DNS server intercepts traffic directly on `127.0.0.1:53` and makes an immediate routing decision based on the Top-Level Domain (TLD).
+The DNS server intercepts traffic directly on `127.0.0.2:53` and makes an immediate routing decision based on the Top-Level Domain (TLD).
 
 ```mermaid
 graph LR

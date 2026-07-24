@@ -32,7 +32,7 @@
 
       <div class="flow-step highlight">
         <span class="step-num">2</span>
-        <span class="step-desc"><strong>Local `kinetic-daemon` (Port 53)</strong> intercepts query</span>
+        <span class="step-desc"><strong>Local `kinetic-daemon` (127.0.0.2:53)</strong> intercepts query</span>
       </div>
 
       <div class="flow-arrow">↓</div>

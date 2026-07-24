@@ -178,7 +178,7 @@ Your name is live globally. Any device running the Kinetic daemon can now resolv
 
 **Via `dig`:**
 ```bash
-dig @127.0.0.1 example.kin A
+dig @127.0.0.2 example.kin A
 ```
 You should get an instant response with your `A` record.
 
@@ -187,7 +187,7 @@ Open `http://example.kin` directly in Chrome or Firefox. The daemon intercepts t
 
 **Verify legacy traffic still works:**
 ```bash
-dig @127.0.0.1 github.com A
+dig @127.0.0.2 github.com A
 ```
 The daemon recognizes `github.com` does not end in `.kin` and forwards it to your **OS system DNS resolver** (read from your system config via `read_system_conf()`). If the system config cannot be read, it falls back to Cloudflare DNS. Normal internet is unaffected.
 
