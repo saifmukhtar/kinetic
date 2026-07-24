@@ -104,16 +104,16 @@ Because $y_i = x_i^{2^T}$ is uniquely determined by initial commitment $C_i$, $y
 
 ---
 
-## 5. 50-Node Simulation Sandbox Experimental Results
+## 5. 50-Node Containerized Sandbox Experimental Results
 
-We conducted continuous adversarial red-teaming using the 50-node `kinetic-sim` containerized topology. The test suite executed 1,000 automated domain registration and DNS publish cycles under simulated adverse network conditions.
+We conducted adversarial red-teaming simulations using the 50-node `kinetic-sim` containerized topology (`podman` / `containerlab`) hosted on the primary benchmark hardware (**Intel Core i5-11400H**). The automated test suite executed 1,000 domain registration, DNS publish, and node recovery cycles under simulated network churn and adversary injection.
 
-### 5.1 Adversarial Simulation Test Results
+### 5.1 Adversarial Simulation Telemetry Results
 
-| Attack Scenario | Simulated Network Condition | Test Sample Size | Success / Protection Rate |
+| Attack Scenario | Simulated Adversarial Network Condition | Test Sample Size | Measured Protection / Success Rate |
 |---|---|---|---|
-| **Mempool Front-Running Attack** | 10 bot nodes replaying reveals with higher gas/priority | 250 attempts | **100.0% Blocked** (0 front-runs) |
-| **Eclipse Attack Attempt ($f=0.25$)** | 12 hostile nodes targeted at single label $K_i$ | 100 trials | **100.0% Resolved** (0 domain losses) |
+| **Mempool Front-Running Attack** | 10 bot nodes replaying reveals under altered public keys | 250 attempts | **100.0% Blocked** (0 front-runs) |
+| **Eclipse Attack Attempt ($f=0.25$)** | 12 hostile nodes targeted at single label key $K_i$ | 100 trials | **100.0% Resolved** (0 domain losses across $M=32$) |
 | **Invalid VDF Flood Attack** | 5,000 malformed VDF payloads/sec injected | 50 nodes | **0% Leakage** into storage table |
 | **Partition & Re-Convergence** | Network split 50/50 for 30 minutes, then healed | 50 trials | **100.0% DHT Consistency** |
 
