@@ -11,7 +11,8 @@ your scrutiny.
  
 | Primitive | Library | Used for |
 |-----------|---------|----------|
-| **Ed25519** | `ed25519-dalek` | All identity keys, name-ownership signatures, governance signatures, KID/manifest signatures `(Source: kinetic-core/src/types/)` |
+| **ML-DSA-65** | `ml-dsa` | Post-quantum identity keys, name-ownership signatures, governance signatures, KID/manifest signatures (NIST FIPS 204 Level 3) `(Source: kinetic-core/src/types/)` |
+| **Ed25519** | `ed25519-dalek` | Ephemeral P2P node identities and Noise transport handshake `(Source: libp2p)` |
 | **SHA-256** | `sha2` | DID derivation, action hashing, commit hashes, randomness binding `(Source: kinetic-core/src/types/)` |
 | **BLS (drand)** | drand Quicknet (verify pinned public key) | Verifying the external randomness beacon `(Source: kinetic-core/src/drand.rs)` |
 | **VDF** | Chia VDF (C++ via FFI in `kinetic-vdf`) | Proof-of-time cost for registration/renewal `(Source: kinetic-vdf/src/lib.rs)` |
@@ -22,9 +23,11 @@ your scrutiny.
  
 ---
  
-## 2. Identity keys (Ed25519)
+## 2. Post-Quantum Identity Keys (ML-DSA-65)
  
+- Kinetic exclusively uses **ML-DSA-65** (Module-Lattice-Based Digital Signature Algorithm, NIST FIPS 204) for all identity, name ownership, and governance keys.
 - Generated with `OsRng` / `getrandom` — never a seeded or predictable RNG.
+- Public keys are 1,952 bytes; signatures are 3,309 bytes.
 - The seed workflow derives the node identity from a **BIP-39 24-word mnemonic**;
   the mnemonic is shown once and never recoverable, and the derived keypair is
   written with `0o600` permissions via a temp-file + atomic-rename helper.
@@ -35,14 +38,14 @@ your scrutiny.
  
 ---
  
-## 3. DID derivation & KID verification
+## 3. DID Derivation & KID Verification (ML-DSA-65)
  
-- `did:kin:<hex>` where `hex = sha256(controller_ed25519_pubkey)` (lowercase,
+- `did:kin:<hex>` where `hex = sha256(controller_mldsa65_pubkey)` (lowercase,
   64 hex chars, strictly validated).
 - **Verification** (`kinetic-kid`): for a signed KID document, the verifier
-  recomputes `sha256(pubkey)` for each controller key and requires it to equal the
+  recomputes `sha256(pubkey)` for each ML-DSA-65 controller key and requires it to equal the
   DID's method-specific id *before* accepting a signature. This means **only the
-  holder of the private key whose public key hashes to the DID can control it** —
+  holder of the ML-DSA-65 private key whose public key hashes to the DID can control it** —
   the classic DID-hijack (swapping in an attacker's controller key) is blocked.
 - Signatures are over the **JCS-canonical** document with the `signature` field
   omitted, so signing is deterministic and canonicalization-independent.
@@ -54,7 +57,14 @@ your scrutiny.
  
 ---
  
-## 4. Name ownership: commit / reveal + VDF
+## 4. Ephemeral Transport Identities (Ed25519)
+ 
+- Ephemeral Ed25519 keys are used strictly at the `libp2p` networking layer for Noise transport handshakes and Kademlia routing.
+- This isolates the underlying ML-DSA-65 post-quantum user identity: even if an attacker compromises a transient node's Ed25519 PeerID, they can **never** hijack `.kin` domains or forge KID capability signatures.
+ 
+---
+ 
+## 5. Name Ownership: Commit / Reveal + VDF
  
 - **Commit/reveal** prevents front-running: a hash commitment is published first,
   so an observer cannot steal the plaintext name before the reveal.
@@ -70,7 +80,7 @@ your scrutiny.
  
 ---
  
-## 5. Randomness beacon (drand Quicknet)
+## 6. Randomness Beacon (drand Quicknet)
  
 - Kinetic pins the Quicknet chain (public key + chain hash in `network.json`) and
   fetches pulses over HTTPS from multiple providers.
@@ -88,13 +98,13 @@ your scrutiny.
  
 ---
  
-## 6. Governance signatures
+## 7. Governance Signatures (ML-DSA-65)
  
 - Actions are serialized to **canonical, domain-separated bytes**
   (`SignedGovernanceMessage::to_canonical_bytes`): a 1-byte action tag followed by
   length-prefixed fields, then `council_size_at_proposal` and `timestamp_sec`.
   This prevents cross-action signature reuse and ambiguity.
-- Signatures are Ed25519 by the root key, guard key, or council members. Council
+- Signatures are post-quantum **ML-DSA-65** by the root key, guard key, or council members. Council
   quorum counts signatures **deduplicated per member index**, so one key cannot be
   counted multiple times.
 - **Invariants:** (a) OTA/reset timelocks must verify *elapsed time* before
@@ -105,7 +115,7 @@ your scrutiny.
  
 ---
  
-## 7. Canonicalization (JCS)
+## 8. Canonicalization (JCS)
  
 - KID documents and manifests are signed over their **JCS** form with the
   signature field omitted. JCS gives a single deterministic byte string for a
@@ -115,7 +125,7 @@ your scrutiny.
  
 ---
  
-## 8. Storage at rest
+## 9. Storage at Rest
  
 - Keypairs encrypted with **PBKDF2**-derived keys; secrets **zeroized** after use.
 - Sled KV store on native. **Invariant:** distinguish the *record cache* (safe to
@@ -125,7 +135,7 @@ your scrutiny.
  
 ---
  
-## 9. Things reviewers should specifically try to break
+## 10. Things Reviewers Should Specifically Try to Break
  
 1. Feed a valid drand signature with mismatched `randomness` — is it rejected?
 2. Submit a Reveal whose VDF challenge is derived from a *different* round/name —
