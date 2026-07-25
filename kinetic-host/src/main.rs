@@ -166,16 +166,20 @@ async fn run_host() -> Result<()> {
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", p2p_port)
             .parse()
             .map_err(|e| anyhow::anyhow!("Failed to parse listen_addr: {}", e))?,
-        quic_listen_addr: Some(format!("/ip4/0.0.0.0/udp/{}/quic-v1", p2p_port).parse().unwrap()),
+        quic_listen_addr: Some(
+            format!("/ip4/0.0.0.0/udp/{}/quic-v1", p2p_port)
+                .parse()
+                .unwrap(),
+        ),
         bootstrap_nodes: config
             .network
             .bootstrap_nodes
             .iter()
             .filter_map(|s| s.parse().ok())
             .collect(),
-        seed_domains: config
+        seed_domain: config
             .network
-            .seed_domains
+            .seed_domain
             .clone()
             .into_iter()
             .map(Into::into)
@@ -205,10 +209,8 @@ async fn run_host() -> Result<()> {
             .map_err(|e| anyhow::anyhow!("Poison error: {}", e))?;
         *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
     }
-
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
-    let (gossip_tx, gossip_rx) = tokio::sync::mpsc::channel(100);
-
+    let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
         Arc::new(kinetic_vdf::ChiaVdfEngine::new());
 
@@ -237,7 +239,7 @@ async fn run_host() -> Result<()> {
         .parse::<u16>()
         .unwrap_or(80);
     let backend_host = std::env::var(kinetic_core::constants::ENV_KINETIC_HOST_BACKEND_HOST)
-        .unwrap_or_else(|_| "127.0.0.1".to_string());
+        .unwrap_or_else(|_| config.daemon.bind_ip.clone());
 
     tokio::spawn(proxy::handle_incoming_proxy_requests(
         network_client.clone(),
@@ -276,7 +278,12 @@ async fn run_host() -> Result<()> {
     ));
 
     // 7. Start Health-check API
-    api::start_health_api(host_peer_id).await?;
+    let bind_ip = config
+        .daemon
+        .bind_ip
+        .parse::<std::net::IpAddr>()
+        .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
+    api::start_health_api(host_peer_id, bind_ip).await?;
 
     Ok(())
 }

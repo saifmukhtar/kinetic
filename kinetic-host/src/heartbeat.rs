@@ -74,7 +74,7 @@ pub async fn start_drand_heartbeat(
         kinetic_network::ProxyRequest,
         libp2p::request_response::ResponseChannel<kinetic_network::ProxyResponse>,
     )>,
-    hc_gossip_tx: tokio::sync::mpsc::Sender<(String, Vec<u8>)>,
+    hc_gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>)>,
     hc_vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(3));

@@ -56,7 +56,10 @@ pub fn start_heartbeat_loop(
                             if !p2p_only {
                                 if let Ok(payload) = serde_json::to_vec(&p) {
                                     let _ = hb_network
-                                        .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND, payload)
+                                        .broadcast_gossip(
+                                            kinetic_core::constants::GOSSIP_TOPIC_DRAND,
+                                            payload,
+                                        )
                                         .await;
                                 }
                             }

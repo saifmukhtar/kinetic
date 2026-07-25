@@ -300,7 +300,9 @@ impl super::core::NetworkEventLoop {
                     }
 
                     let challenge_cmt = kinetic_core::types::Commitment { hash };
-                    match tokio::task::block_in_place(|| engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)) {
+                    match tokio::task::block_in_place(|| {
+                        engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)
+                    }) {
                         Ok(true) => return Some(p),
                         Ok(false) => {
                             tracing::warn!(

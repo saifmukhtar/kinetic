@@ -175,7 +175,6 @@ mod tests {
         assert!(state.vetoed_hashes.contains(&action_hash));
     }
 
-
     #[test]
     fn test_founder_premium_grants() {
         let root_sk = get_root_sk();
@@ -312,10 +311,8 @@ mod tests {
         assert!(state.grace_period_start_sec.is_none());
     }
 
-
-
-    use proptest::prelude::*;
     use proptest::collection::vec;
+    use proptest::prelude::*;
     use proptest::string::string_regex;
 
     proptest! {
@@ -338,7 +335,7 @@ mod tests {
                 git_branch,
                 mirrors,
             };
-            
+
             let msg = SignedGovernanceMessage {
                 action: action.clone(),
                 council_size_at_proposal: council_size,
@@ -349,11 +346,11 @@ mod tests {
             // Ensure we don't panic on serialization of randomized but valid structure
             let bytes = msg.to_canonical_bytes();
             prop_assert!(!bytes.is_empty());
-            
+
             // Ensure identical inputs produce identical bytes
             let msg_clone = msg.clone();
             prop_assert_eq!(&bytes, &msg_clone.to_canonical_bytes());
-            
+
             // Ensure hash computation does not panic
             let hash = GovernanceState::hash_action(&msg);
             prop_assert_eq!(hash.len(), 32);
@@ -367,11 +364,15 @@ mod tests {
 
         // Add a pending update that expired 31 days ago
         let expired_time = current_time - (31 * 24 * 60 * 60);
-        state.pending_updates.insert([1u8; 32], (expired_time, 1, vec![]));
+        state
+            .pending_updates
+            .insert([1u8; 32], (expired_time, 1, vec![]));
 
         // Add a pending update that expired 29 days ago (should stay)
         let fresh_time = current_time - (29 * 24 * 60 * 60);
-        state.pending_updates.insert([2u8; 32], (fresh_time, 1, vec![]));
+        state
+            .pending_updates
+            .insert([2u8; 32], (fresh_time, 1, vec![]));
 
         state.prune(current_time);
 

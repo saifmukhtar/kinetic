@@ -10,23 +10,29 @@ use std::sync::{Arc, Mutex};
 
 /// API endpoints for configuration management.
 pub mod config;
+/// API endpoints for streaming Gossip.
+pub mod gossip;
 /// API endpoints for publishing names and content.
 pub mod publish;
 /// API endpoints for resolving names to payloads.
 pub mod resolve;
+/// API endpoints for streaming Kinetic time.
+pub mod time;
 /// API endpoints for Verifiable Delay Function tasks.
 pub mod vdf;
 /// API endpoints for DNS zone management.
 pub mod zone;
-/// API endpoints for streaming Kinetic time.
-pub mod time;
+/// API endpoints for Atlas TLD sync.
+pub mod atlas;
 
 use config::*;
+use gossip::*;
 use publish::*;
 use resolve::*;
+use time::*;
 use vdf::*;
 use zone::*;
-use time::*;
+use atlas::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
@@ -41,16 +47,18 @@ pub struct VdfTaskStatus {
 }
 
 /// The access role granted by the provided token.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
-    /// Administrator access (all capabilities).
+    /// Full administrator access.
     Admin,
-    /// Permission to publish records (e.g. zones, kids).
+    /// Permission to publish zones.
     Publish,
-    /// Permission to perform VDF proofs and renewals.
+    /// Permission to register/renew VDF proofs.
     Vdf,
-    /// Permission to trigger governance updates.
+    /// Permission to participate in governance.
     Governance,
+    /// Permission for the Atlas bridge.
+    Atlas,
 }
 
 impl Role {
@@ -83,6 +91,8 @@ pub struct ApiTokens {
     pub vdf: String,
     /// The governance token.
     pub governance: String,
+    /// The atlas token.
+    pub atlas: String,
 }
 
 /// Holds the global state for the API server, including network, storage, and authentication.
@@ -99,6 +109,12 @@ pub struct ApiState {
     pub tokens: Arc<ApiTokens>,
     /// Semaphore to restrict concurrent VDF computations.
     pub vdf_semaphore: Arc<tokio::sync::Semaphore>,
+    /// The IP address this daemon is bound to.
+    pub bind_ip: String,
+    /// Gossip channel sender for SSE streams.
+    pub gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>)>,
+    /// Set of foreign TLDs registered by the kinetic-atlas bridge.
+    pub atlas_tlds: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
 }
 
 /// Payload for publishing a direct reveal configuration.
@@ -121,15 +137,18 @@ pub struct PublishResponse {
 pub fn app(state: ApiState) -> Router {
     use tower_http::cors::CorsLayer;
 
+    let bind_ip = state.bind_ip.clone();
     let cors = CorsLayer::new()
         .allow_origin(tower_http::cors::AllowOrigin::predicate(
-            |origin: &axum::http::HeaderValue, _request_parts| {
+            move |origin: &axum::http::HeaderValue, _request_parts| {
                 if let Ok(o) = origin.to_str() {
                     o.starts_with("http://localhost:")
                         || o.starts_with("http://127.0.0.1:")
+                        || o.starts_with(&format!("http://{}:", bind_ip))
                         || o.starts_with("http://[::1]:")
                         || o == "http://localhost"
                         || o == "http://127.0.0.1"
+                        || o == format!("http://{}", bind_ip)
                         || o == "http://[::1]"
                         || o.starts_with("chrome-extension://")
                         || o.starts_with("moz-extension://")
@@ -173,6 +192,11 @@ pub fn app(state: ApiState) -> Router {
         )
         .route("/vdf/register", axum::routing::post(handle_vdf_register))
         .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
+        .route(
+            "/gossip/publish/{topic}",
+            axum::routing::post(handle_gossip_publish),
+        )
+        .route("/internal/atlas/sync", axum::routing::post(handle_atlas_sync))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
@@ -186,7 +210,11 @@ pub fn app(state: ApiState) -> Router {
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
-        .route("/time", axum::routing::get(handle_get_time));
+        .route("/time", axum::routing::get(handle_get_time))
+        .route(
+            "/gossip/subscribe/{topic}",
+            axum::routing::get(handle_gossip_subscribe),
+        );
 
     // Expose all routes under /api (for the UI) and at bare paths (for the CLI).
     // auth_routes is defined with .layer() so the middleware is preserved in both cases.
@@ -232,30 +260,27 @@ fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<Stri
     Ok(token)
 }
 
-fn get_or_generate_token(token_path: &std::path::Path) -> anyhow::Result<String> {
-    if let Ok(existing) = std::fs::read_to_string(token_path) {
-        let trimmed = existing.trim().to_string();
-        if trimmed.len() == 64 {
-            return Ok(trimmed);
-        }
-    }
+fn rotate_token_on_boot(token_path: &std::path::Path) -> anyhow::Result<String> {
+    tracing::info!("Rotating API token: {:?}", token_path.file_name().unwrap_or_default());
     generate_and_write_token(token_path)
 }
 
 /// Ensures all API tokens are generated and returns them.
 pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
     let tokens_dir = kinetic_core::config::get_api_tokens_dir();
-    
-    let admin = get_or_generate_token(&tokens_dir.join("admin.token"))?;
-    let publish = get_or_generate_token(&tokens_dir.join("publish.token"))?;
-    let vdf = get_or_generate_token(&tokens_dir.join("vdf.token"))?;
-    let governance = get_or_generate_token(&tokens_dir.join("governance.token"))?;
-    
+
+    let admin = rotate_token_on_boot(&tokens_dir.join("admin.token"))?;
+    let publish = rotate_token_on_boot(&tokens_dir.join("publish.token"))?;
+    let vdf = rotate_token_on_boot(&tokens_dir.join("vdf.token"))?;
+    let governance = rotate_token_on_boot(&tokens_dir.join("governance.token"))?;
+    let atlas = rotate_token_on_boot(&tokens_dir.join("atlas.token"))?;
+
     Ok(ApiTokens {
         admin,
         publish,
         vdf,
         governance,
+        atlas,
     })
 }
 
@@ -267,7 +292,10 @@ pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
 pub async fn start_server(
     network: NetworkClient,
     storage: Arc<dyn StorageEngine>,
+    gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>)>,
+    bind_ip: String,
     port: u16,
+    atlas_tlds: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
 ) -> anyhow::Result<()> {
     let tokens = ensure_api_tokens()?;
 
@@ -277,6 +305,9 @@ pub async fn start_server(
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
         tokens: Arc::new(tokens),
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
+        bind_ip: bind_ip.clone(),
+        gossip_tx,
+        atlas_tlds,
     };
 
     // Start background VDF Mempool worker
@@ -285,18 +316,25 @@ pub async fn start_server(
 
     let mut listener = None;
     for _ in 0..10 {
-        if let Ok(l) = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await {
+        if let Ok(l) = tokio::net::TcpListener::bind(format!("{}:{}", bind_ip, port)).await {
             listener = Some(l);
             break;
         } else if let Ok(l) = tokio::net::TcpListener::bind(format!("[::1]:{}", port)).await {
-            tracing::warn!("Failed to bind API to 127.0.0.1, successfully bound to IPv6 loopback [::1] (Case 198)");
+            tracing::warn!(
+                "Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
+                bind_ip
+            );
             listener = Some(l);
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
     let listener = listener.ok_or_else(|| {
-        anyhow::anyhow!("Failed to bind API to 127.0.0.1 or [::1] on port {}", port)
+        anyhow::anyhow!(
+            "Failed to bind API to {} or [::1] on port {}",
+            bind_ip,
+            port
+        )
     })?;
 
     let local_addr = listener.local_addr()?;
@@ -327,33 +365,34 @@ async fn auth_middleware(
             return Err(StatusCode::UNAUTHORIZED);
         }
     };
-    
+
     if !header.starts_with("Bearer ") {
         tracing::warn!("Rejecting API request: Authorization header is not a Bearer token");
         return Err(StatusCode::UNAUTHORIZED);
     }
-    
+
     let provided_token = header.trim_start_matches("Bearer ");
-    
+
     let role = {
         use subtle::ConstantTimeEq;
         let provided_bytes = provided_token.as_bytes();
-        
+
         let mut matched_role = None;
         let mut check_token = |expected: &str, r: Role| {
             let expected_bytes = expected.as_bytes();
-            if provided_bytes.len() == expected_bytes.len() {
-                if provided_bytes.ct_eq(expected_bytes).unwrap_u8() == 1 {
-                    matched_role = Some(r);
-                }
+            if provided_bytes.len() == expected_bytes.len()
+                && provided_bytes.ct_eq(expected_bytes).unwrap_u8() == 1
+            {
+                matched_role = Some(r);
             }
         };
-        
+
         check_token(&state.tokens.admin, Role::Admin);
         check_token(&state.tokens.publish, Role::Publish);
         check_token(&state.tokens.vdf, Role::Vdf);
         check_token(&state.tokens.governance, Role::Governance);
-        
+        check_token(&state.tokens.atlas, Role::Atlas);
+
         matched_role
     };
 

@@ -80,7 +80,7 @@ pub struct NetworkConfig {
     /// Known bootstrap nodes to connect to at startup.
     pub bootstrap_nodes: Vec<libp2p::Multiaddr>,
     /// Pre-known domain seeds for DNS tree resolution.
-    pub seed_domains: Vec<std::sync::Arc<str>>,
+    pub seed_domain: Vec<std::sync::Arc<str>>,
     /// Whether to enable local mDNS discovery.
     pub enable_mdns: bool,
     /// The initial drand pulse round to use for VDF verification.

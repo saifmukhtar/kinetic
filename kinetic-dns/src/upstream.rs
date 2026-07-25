@@ -25,6 +25,26 @@ pub fn create_resolver() -> TokioAsyncResolver {
     TokioAsyncResolver::tokio(config, opts)
 }
 
+/// Creates a new [`TokioAsyncResolver`] configured strictly to query the local kinetic-atlas bridge daemon.
+pub fn create_atlas_resolver(port: u16) -> TokioAsyncResolver {
+    let mut config = ResolverConfig::new();
+    let socket = std::net::SocketAddr::new(
+        std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+        port,
+    );
+    config.add_name_server(hickory_resolver::config::NameServerConfig::new(
+        socket,
+        hickory_resolver::config::Protocol::Udp,
+    ));
+    config.add_name_server(hickory_resolver::config::NameServerConfig::new(
+        socket,
+        hickory_resolver::config::Protocol::Tcp,
+    ));
+    
+    let opts = ResolverOpts::default();
+    TokioAsyncResolver::tokio(config, opts)
+}
+
 /// Proxies a non-`.kin` DNS query (e.g. `.com`, `.org`) to the upstream resolver.
 ///
 /// Sends the resolved record set or appropriate RCode (`NXDomain`, `FormErr`, `ServFail`) back to the client.

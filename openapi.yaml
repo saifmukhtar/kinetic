@@ -665,3 +665,46 @@ paths:
                 properties:
                   success:
                     type: boolean
+  /gossip/subscribe/{topic}:
+    get:
+      summary: Subscribe to a Gossipsub topic via Server-Sent Events (SSE)
+      tags: [Public]
+      parameters:
+        - in: path
+          name: topic
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE Stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /gossip/publish/{topic}:
+    post:
+      summary: Broadcast a payload to a Gossipsub topic
+      description: Requires Publish or Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: topic
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'

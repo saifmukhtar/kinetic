@@ -97,7 +97,11 @@ impl CapabilityManifest {
             return Err(KidError::TooManyKeys);
         }
         for svc in &self.services {
-            if svc.id.len() > 256 || svc.service_type.len() > 256 || svc.protocol.len() > 64 || svc.endpoint.len() > 2048 {
+            if svc.id.len() > 256
+                || svc.service_type.len() > 256
+                || svc.protocol.len() > 64
+                || svc.endpoint.len() > 2048
+            {
                 return Err(KidError::TooManyKeys);
             }
         }

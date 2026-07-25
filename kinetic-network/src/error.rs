@@ -122,17 +122,23 @@ impl KineticStoreError {
             Self::InvalidPublicKey => "Public key format is invalid".to_string(),
             Self::MalformedSignature => "Signature format is invalid".to_string(),
             Self::TieBroken => "Record lost XOR tie-break against existing DHT entry".to_string(),
-            Self::InsufficientIterations => "Insufficient VDF iterations to override existing record".to_string(),
+            Self::InsufficientIterations => {
+                "Insufficient VDF iterations to override existing record".to_string()
+            }
             Self::RevealNotFound => "No reveal record found for domain".to_string(),
             Self::InvalidKidSignature => "KID document signature verification failed".to_string(),
             Self::InvalidManifestSignature => "Manifest signature verification failed".to_string(),
             Self::UnknownRecordType => "Record payload prefix is unrecognized".to_string(),
             Self::InvalidDrandHex => "Drand randomness hex string is invalid".to_string(),
             Self::StaleHeartbeat => "Heartbeat pulse is not newer than stored record".to_string(),
-            Self::InvalidHostRouteSignature => "Host routing record signature verification failed".to_string(),
+            Self::InvalidHostRouteSignature => {
+                "Host routing record signature verification failed".to_string()
+            }
             Self::RateLimited => "Rate limit exceeded for submission".to_string(),
             Self::StaleReveal => "Reveal commitment is too recent".to_string(),
-            Self::MissingCommitment => "No prior commitment found in DHT for this reveal".to_string(),
+            Self::MissingCommitment => {
+                "No prior commitment found in DHT for this reveal".to_string()
+            }
             Self::InvalidName => "Name is not a valid Kinetic apex domain".to_string(),
         }
     }

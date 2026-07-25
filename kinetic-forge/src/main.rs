@@ -2,31 +2,13 @@
 
 use anyhow::{Context, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input};
-use serde::{Deserialize, Serialize};
+
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-#[derive(Serialize, Deserialize)]
-struct NetworkConfig {
-    tld: String,
-    tld_suffix: String,
-    did_prefix: String,
-    base_domain: String,
-    network_id: String,
-    benchmark_base_iterations: u64,
-    steal_target_rounds: u64,
-    drand_genesis_time: u64,
-    drand_period: u64,
-    kinetic_genesis_drand_round: u64,
-    drand_public_key: String,
-    drand_http_endpoints: Vec<String>,
-    docs_url: String,
-    bootstrap_nodes: Vec<String>,
-    m_redundancy: u64,
-    governance_model: String,
-}
+// We use a dynamic `serde_json::Value` so we don't drop fields we don't actively modify.
 
 fn main() -> Result<()> {
     println!("========================================");
@@ -120,7 +102,7 @@ fn main() -> Result<()> {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    
+
     let kinetic_genesis_drand_round = if now > drand_genesis {
         (now - drand_genesis) / drand_period
     } else {
@@ -203,44 +185,27 @@ fn patch_constants(
 ) -> Result<()> {
     let path = PathBuf::from("network.json");
 
-    let mut config: NetworkConfig = if path.exists() {
+    let mut config: serde_json::Value = if path.exists() {
         let content = fs::read_to_string(&path).context(
             "Failed to read network.json. Are you running this from the workspace root?",
         )?;
         serde_json::from_str(&content).context("Failed to parse existing network.json")?
     } else {
-        NetworkConfig {
-            tld: String::new(),
-            tld_suffix: String::new(),
-            did_prefix: String::new(),
-            base_domain: String::new(),
-            network_id: String::new(),
-            benchmark_base_iterations: 238819830,
-            steal_target_rounds: 7884000,
-            drand_genesis_time: 0,
-            drand_period: 0,
-            kinetic_genesis_drand_round: 0,
-            drand_public_key: String::new(),
-            drand_http_endpoints: vec![],
-            docs_url: String::new(),
-            bootstrap_nodes: vec![],
-            m_redundancy: 32,
-            governance_model: "bicameral".to_string(),
-        }
+        anyhow::bail!("network.json not found in the current directory! You must run kinetic-forge from the repository root.");
     };
 
-    config.tld = tld.to_string();
-    config.tld_suffix = tld_suffix.to_string();
-    config.did_prefix = did_prefix.to_string();
-    config.base_domain = base_domain.to_string();
-    config.network_id = network_id.to_string();
-    config.drand_genesis_time = drand_genesis;
-    config.drand_period = drand_period;
-    config.kinetic_genesis_drand_round = kinetic_genesis_drand_round;
-    config.drand_public_key = drand_pubkey.to_string();
-    config.drand_http_endpoints = vec![drand_http.to_string()];
-    config.docs_url = docs_url.to_string();
-    config.bootstrap_nodes = bootstrap_nodes.to_vec();
+    config["network"]["tld"] = serde_json::json!(tld);
+    config["network"]["tld_suffix"] = serde_json::json!(tld_suffix);
+    config["network"]["did_prefix"] = serde_json::json!(did_prefix);
+    config["network"]["base_domain"] = serde_json::json!(base_domain);
+    config["network"]["network_id"] = serde_json::json!(network_id);
+    config["drand"]["drand_genesis_time"] = serde_json::json!(drand_genesis);
+    config["drand"]["drand_period"] = serde_json::json!(drand_period);
+    config["drand"]["kinetic_genesis_drand_round"] = serde_json::json!(kinetic_genesis_drand_round);
+    config["drand"]["drand_public_key"] = serde_json::json!(drand_pubkey);
+    config["drand"]["drand_http_endpoints"] = serde_json::json!(vec![drand_http.to_string()]);
+    config["network"]["docs_url"] = serde_json::json!(docs_url);
+    config["network"]["bootstrap_nodes"] = serde_json::json!(bootstrap_nodes);
 
     let new_content =
         serde_json::to_string_pretty(&config).context("Failed to serialize network config")?;

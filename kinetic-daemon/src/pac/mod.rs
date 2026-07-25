@@ -3,7 +3,7 @@
 use axum::{routing::get, Router};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::net::SocketAddr;
+
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 
@@ -208,19 +208,20 @@ impl PacManager {
 /// # Errors
 ///
 /// Returns an error if the server fails to bind to the specified port.
-pub async fn start_pac_server(port: u16, proxy_port: u16) -> anyhow::Result<()> {
+pub async fn start_pac_server(bind_ip: String, port: u16, proxy_port: u16) -> anyhow::Result<()> {
     let pac_script = format!(
         r#"
 function FindProxyForURL(url, host) {{
-    if (shExpMatch(host, "*.kin")) return "PROXY 127.0.0.1:{0}; PROXY [::1]:{0}; DIRECT";
-    if (shExpMatch(host, "*.kin.")) return "PROXY 127.0.0.1:{0}; PROXY [::1]:{0}; DIRECT";
+    if (shExpMatch(host, "*.kin")) return "PROXY {1}:{0}; PROXY [::1]:{0}; DIRECT";
+    if (shExpMatch(host, "*.kin.")) return "PROXY {1}:{0}; PROXY [::1]:{0}; DIRECT";
     return "DIRECT";
 }}"#,
-        proxy_port
+        proxy_port, bind_ip
     )
     .trim()
     .to_string();
 
+    let bind_ip_clone = bind_ip.clone();
     let app = Router::new().route(
         "/proxy.pac",
         get(move |headers: axum::http::HeaderMap| async move {
@@ -229,7 +230,11 @@ function FindProxyForURL(url, host) {{
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("");
             let host_only = host.split(':').next().unwrap_or("");
-            if host_only == "localhost" || host_only == "127.0.0.1" || host_only == "[::1]" {
+            if host_only == "localhost"
+                || host_only == "127.0.0.1"
+                || host_only == "[::1]"
+                || host_only == bind_ip_clone
+            {
                 axum::response::Response::builder()
                     .header("Content-Type", "application/x-ns-proxy-autoconfig")
                     .body(pac_script.clone())
@@ -243,10 +248,10 @@ function FindProxyForURL(url, host) {{
         }),
     );
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let addr = format!("{}:{}", bind_ip, port);
     let mut listener = None;
     for _ in 0..10 {
-        if let Ok(l) = tokio::net::TcpListener::bind(addr).await {
+        if let Ok(l) = tokio::net::TcpListener::bind(&addr).await {
             listener = Some(l);
             break;
         }

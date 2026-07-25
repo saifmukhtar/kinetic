@@ -27,32 +27,38 @@ pub enum DnsTreeCommands {
 /// Returns an `anyhow::Error` if the input file cannot be read, if no valid multiaddrs are found, or if the output zone file cannot be written to disk.
 pub async fn handle_dns_tree_command(cmd: DnsTreeCommands) -> anyhow::Result<()> {
     match cmd {
-        DnsTreeCommands::Generate { input, output, domain } => {
+        DnsTreeCommands::Generate {
+            input,
+            output,
+            domain,
+        } => {
             let file = File::open(&input)?;
             let reader = BufReader::new(file);
             let mut leaves = Vec::new();
-            
+
             for line in reader.lines() {
                 let addr = line?.trim().to_string();
-                if addr.is_empty() { continue; }
-                
+                if addr.is_empty() {
+                    continue;
+                }
+
                 let leaf_content = format!("kintree-leaf:{}", addr);
                 let hash = hash_content(&leaf_content);
                 leaves.push((hash, leaf_content));
             }
-            
+
             if leaves.is_empty() {
                 anyhow::bail!("No valid multiaddrs found in input file");
             }
-            
+
             let mut tree_records = Vec::new();
             let mut leaf_hashes = Vec::new();
-            
+
             for (hash, content) in &leaves {
                 tree_records.push((format!("{}.{}", hash, domain), content.clone()));
                 leaf_hashes.push(hash.clone());
             }
-            
+
             let mut current_level = leaf_hashes;
             while current_level.len() > 1 {
                 let mut next_level = Vec::new();
@@ -64,18 +70,24 @@ pub async fn handle_dns_tree_command(cmd: DnsTreeCommands) -> anyhow::Result<()>
                 }
                 current_level = next_level;
             }
-            
+
             let root_hash = current_level[0].clone();
             let root_content = format!("kintree-root:v1 e={} seq=1", root_hash);
             tree_records.push((domain.clone(), root_content));
-            
+
             let mut out_file = File::create(&output)?;
             for (subdomain, content) in tree_records.iter().rev() {
                 writeln!(out_file, "{}\tIN\tTXT\t\"{}\"", subdomain, content)?;
             }
-            
-            println!("✅ Successfully generated DNS Tree with {} records!", tree_records.len());
-            println!("Output saved to {}. You can import this zone file into your DNS provider.", output);
+
+            println!(
+                "✅ Successfully generated DNS Tree with {} records!",
+                tree_records.len()
+            );
+            println!(
+                "Output saved to {}. You can import this zone file into your DNS provider.",
+                output
+            );
         }
     }
     Ok(())

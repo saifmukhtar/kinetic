@@ -27,6 +27,7 @@ pub mod upstream;
 
 use hickory_resolver::TokioAsyncResolver;
 use moka::future::Cache;
+use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use tracing::info;
 
@@ -42,14 +43,23 @@ pub struct KineticDnsHandler {
     pub(crate) resolver: Arc<RwLock<TokioAsyncResolver>>,
     /// Asymmetric Moka cache storing DNS wire format responses.
     pub(crate) cache: Cache<String, Option<Vec<u8>>>,
+    /// Set of foreign TLDs registered by the kinetic-atlas bridge.
+    pub(crate) atlas_tlds: Arc<RwLock<HashSet<String>>>,
+    /// Upstream TokioAsyncResolver specifically pointing to the local kinetic-atlas bridge.
+    pub(crate) atlas_resolver: Arc<RwLock<TokioAsyncResolver>>,
 }
 
 impl KineticDnsHandler {
     /// Creates a new `KineticDnsHandler` with the specified API URL.
     ///
     /// This initializes the upstream DNS resolver, internal caches, and background tasks for config reloading.
-    pub fn new(api_url: String) -> Self {
+    pub fn new(
+        api_url: String,
+        atlas_tlds: Arc<RwLock<HashSet<String>>>,
+        atlas_port: u16,
+    ) -> Self {
         let resolver = Arc::new(RwLock::new(upstream::create_resolver()));
+        let atlas_resolver = Arc::new(RwLock::new(upstream::create_atlas_resolver(atlas_port)));
         let cache = cache::create_cache();
 
         let http_client = reqwest::Client::builder()
@@ -82,6 +92,8 @@ impl KineticDnsHandler {
             http_client,
             resolver,
             cache,
+            atlas_tlds,
+            atlas_resolver,
         }
     }
 

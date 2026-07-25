@@ -94,7 +94,7 @@ impl GovernanceEngine for BicameralEngine {
                         }
                     }
                     let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
-                        Some(1 * 24 * 60 * 60) // 1 day
+                        Some(24 * 60 * 60) // 1 day
                     } else {
                         None
                     };
@@ -157,16 +157,24 @@ impl GovernanceEngine for BicameralEngine {
                 let required_signatures = match &msg.action {
                     GovernanceAction::AppointMember { .. }
                     | GovernanceAction::UpdateBinary { .. } => {
-                        (msg.council_size_at_proposal as usize * 69) / 100 + 1
+                        (msg.council_size_at_proposal as usize
+                            * crate::constants::GOVERNANCE_SUPERMAJORITY_PERCENT as usize)
+                            / 100
+                            + 1
                     }
                     GovernanceAction::SelfAppointCouncilMember { .. }
                     | GovernanceAction::GrantPremiumName { .. }
                     | GovernanceAction::RevokePremiumName { .. } => {
-                        (msg.council_size_at_proposal as usize * 90) / 100 + 1
+                        (msg.council_size_at_proposal as usize
+                            * crate::constants::GOVERNANCE_MAJORITY_PERCENT as usize)
+                            / 100
+                            + 1
                     }
                     GovernanceAction::RemoveCouncilMember { .. } => {
                         let target_active = msg.council_size_at_proposal.saturating_sub(1) as usize;
-                        (target_active * 90) / 100 + 1
+                        (target_active * crate::constants::GOVERNANCE_MAJORITY_PERCENT as usize)
+                            / 100
+                            + 1
                     }
                     GovernanceAction::RotateRootKey { .. } => {
                         let guard_signed = if let Some(guard_key) = guard_key_opt {
@@ -183,7 +191,10 @@ impl GovernanceEngine for BicameralEngine {
                         if !guard_signed {
                             return Err(GovernanceError::RotateRequiresGuard);
                         }
-                        (msg.council_size_at_proposal as usize * 95) / 100 + 1
+                        (msg.council_size_at_proposal as usize
+                            * crate::constants::GOVERNANCE_STRICT_MAJORITY_PERCENT as usize)
+                            / 100
+                            + 1
                     }
                     GovernanceAction::RotateGuardKey { .. } | GovernanceAction::LockCouncil => {
                         if let GovernanceAction::LockCouncil = &msg.action {
@@ -191,7 +202,10 @@ impl GovernanceEngine for BicameralEngine {
                                 return Err(GovernanceError::MissingGuardKey);
                             }
                         }
-                        (msg.council_size_at_proposal as usize * 95) / 100 + 1
+                        (msg.council_size_at_proposal as usize
+                            * crate::constants::GOVERNANCE_STRICT_MAJORITY_PERCENT as usize)
+                            / 100
+                            + 1
                     }
                     _ => return Err(GovernanceError::UnhandledThresholdMath),
                 };

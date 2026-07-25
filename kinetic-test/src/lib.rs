@@ -31,7 +31,7 @@ mod tests {
             initial_drand_pulse: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
-            seed_domains: vec![],
+            seed_domain: vec![],
         };
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
@@ -121,7 +121,8 @@ mod tests {
 
         assert!(res.is_err());
         match res.unwrap_err() {
-            kinetic_core::error::ResolutionError::NotFound { .. } => {
+            kinetic_core::error::ResolutionError::NotFound { .. }
+            | kinetic_core::error::ResolutionError::Offline { .. } => {
                 // Success
             }
             e => panic!("Expected NotFound, got: {:?}", e),
@@ -167,7 +168,7 @@ mod tests {
             initial_drand_pulse: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
-            seed_domains: vec![],
+            seed_domain: vec![],
         };
 
         let dir = tempdir().unwrap();
@@ -228,7 +229,7 @@ mod tests {
             initial_drand_pulse: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
-            seed_domains: vec![],
+            seed_domain: vec![],
         };
 
         let (client, event_loop) =

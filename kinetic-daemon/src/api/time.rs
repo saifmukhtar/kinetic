@@ -9,7 +9,7 @@ pub async fn handle_get_time(
     State(state): State<ApiState>,
 ) -> Result<Json<KineticTime>, (StatusCode, String)> {
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
-    
+
     // Fetch the latest verified Drand pulse
     match drand_client.fetch_latest().await {
         Ok(drand_data) => {
@@ -18,8 +18,8 @@ pub async fn handle_get_time(
         }
         Err(e) => {
             tracing::error!("Failed to fetch Drand round for /api/time: {}", e);
-            // If offline, we could fallback mathematically here as well, 
-            // but since it's the daemon, returning an error ensures consumers 
+            // If offline, we could fallback mathematically here as well,
+            // but since it's the daemon, returning an error ensures consumers
             // know the node isn't synced. The CLI implements the offline fallback.
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,

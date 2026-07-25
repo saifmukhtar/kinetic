@@ -1,10 +1,10 @@
 //! CLI commands for submitting, signing, and managing post-quantum Kinetic network governance proposals.
 
 use clap::Subcommand;
-use reqwest::Client;
-use std::path::PathBuf;
 use kinetic_core::config::KineticConfig;
 use kinetic_core::governance::{GovernanceAction, SignedGovernanceMessage};
+use reqwest::Client;
+use std::path::PathBuf;
 
 #[derive(Subcommand)]
 pub enum GovernanceCommands {
@@ -106,12 +106,18 @@ pub async fn handle_governance_command(
         GovernanceCommands::AppointMember { key, signer_key } => {
             let mut key_bytes = [0u8; 1952];
             hex::decode_to_slice(key, &mut key_bytes)?;
-            (signer_key, GovernanceAction::AppointMember { key: key_bytes.into() })
+            (
+                signer_key,
+                GovernanceAction::AppointMember {
+                    key: key_bytes.into(),
+                },
+            )
         }
         GovernanceCommands::UpdateBinary { file, signer_key } => {
-            let json_str = std::fs::read_to_string(&file)
-                .map_err(|e| anyhow::anyhow!("Failed to read release JSON file {}: {}", file.display(), e))?;
-            
+            let json_str = std::fs::read_to_string(&file).map_err(|e| {
+                anyhow::anyhow!("Failed to read release JSON file {}: {}", file.display(), e)
+            })?;
+
             #[derive(serde::Deserialize)]
             struct ReleaseJson {
                 version: u64,
@@ -121,83 +127,160 @@ pub async fn handle_governance_command(
                 git_branch: String,
                 mirrors: Vec<String>,
             }
-            
-            let release: ReleaseJson = serde_json::from_str(&json_str)
-                .map_err(|e| anyhow::anyhow!("Failed to parse JSON in {}: {}", file.display(), e))?;
-                
+
+            let release: ReleaseJson = serde_json::from_str(&json_str).map_err(|e| {
+                anyhow::anyhow!("Failed to parse JSON in {}: {}", file.display(), e)
+            })?;
+
             let mut hash_bytes = [0u8; 32];
             hex::decode_to_slice(&release.manifest_hash, &mut hash_bytes)
                 .map_err(|e| anyhow::anyhow!("Invalid hex in manifest_hash: {}", e))?;
-                
+
             // Pre-flight validation: check that the manifest on the mirror matches our version
             if let Some(mirror) = release.mirrors.first() {
                 let manifest_url = format!("{}/manifest.json", mirror.trim_end_matches('/'));
-                let response = client.get(&manifest_url).send().await
-                    .map_err(|e| anyhow::anyhow!("Pre-flight validation failed: could not fetch manifest from {}: {}", manifest_url, e))?;
+                let response = client.get(&manifest_url).send().await.map_err(|e| {
+                    anyhow::anyhow!(
+                        "Pre-flight validation failed: could not fetch manifest from {}: {}",
+                        manifest_url,
+                        e
+                    )
+                })?;
                 if !response.status().is_success() {
-                    return Err(anyhow::anyhow!("Pre-flight validation failed: HTTP {} from {}", response.status(), manifest_url));
+                    return Err(anyhow::anyhow!(
+                        "Pre-flight validation failed: HTTP {} from {}",
+                        response.status(),
+                        manifest_url
+                    ));
                 }
-                
+
                 #[derive(serde::Deserialize)]
                 struct ManifestJson {
                     version: u64,
                 }
-                let manifest: ManifestJson = response.json().await
-                    .map_err(|e| anyhow::anyhow!("Pre-flight validation failed: could not parse manifest JSON: {}", e))?;
-                
+                let manifest: ManifestJson = response.json().await.map_err(|e| {
+                    anyhow::anyhow!(
+                        "Pre-flight validation failed: could not parse manifest JSON: {}",
+                        e
+                    )
+                })?;
+
                 if manifest.version != release.version {
                     return Err(anyhow::anyhow!("Pre-flight validation failed: release.json specifies version {}, but mirror manifest.json specifies version {}. Aborting proposal.", release.version, manifest.version));
                 }
             } else {
-                return Err(anyhow::anyhow!("Pre-flight validation failed: no mirrors specified in release.json"));
+                return Err(anyhow::anyhow!(
+                    "Pre-flight validation failed: no mirrors specified in release.json"
+                ));
             }
-                
-            (signer_key, GovernanceAction::UpdateBinary {
-                manifest_hash: hash_bytes.into(),
-                version_nonce: release.version,
-                github_username: release.github_username,
-                git_commit: release.git_commit,
-                git_branch: release.git_branch,
-                mirrors: release.mirrors,
-            })
+
+            (
+                signer_key,
+                GovernanceAction::UpdateBinary {
+                    manifest_hash: hash_bytes,
+                    version_nonce: release.version,
+                    github_username: release.github_username,
+                    git_commit: release.git_commit,
+                    git_branch: release.git_branch,
+                    mirrors: release.mirrors,
+                },
+            )
         }
         GovernanceCommands::LockCouncil { signer_key } => {
             (signer_key, GovernanceAction::LockCouncil)
         }
-        GovernanceCommands::VetoUpdate { target_hash, signer_key } => {
+        GovernanceCommands::VetoUpdate {
+            target_hash,
+            signer_key,
+        } => {
             let mut hash_bytes = [0u8; 32];
             hex::decode_to_slice(target_hash, &mut hash_bytes)?;
-            (signer_key, GovernanceAction::VetoUpdate { target_hash: hash_bytes.into() })
+            (
+                signer_key,
+                GovernanceAction::VetoUpdate {
+                    target_hash: hash_bytes,
+                },
+            )
         }
-        GovernanceCommands::RotateRootKey { new_key, signer_key } => {
+        GovernanceCommands::RotateRootKey {
+            new_key,
+            signer_key,
+        } => {
             let mut key_bytes = [0u8; 1952];
             hex::decode_to_slice(new_key, &mut key_bytes)?;
-            (signer_key, GovernanceAction::RotateRootKey { new_key: key_bytes.into() })
+            (
+                signer_key,
+                GovernanceAction::RotateRootKey {
+                    new_key: key_bytes.into(),
+                },
+            )
         }
-        GovernanceCommands::RotateGuardKey { new_key, signer_key } => {
+        GovernanceCommands::RotateGuardKey {
+            new_key,
+            signer_key,
+        } => {
             let mut key_bytes = [0u8; 1952];
             hex::decode_to_slice(new_key, &mut key_bytes)?;
-            (signer_key, GovernanceAction::RotateGuardKey { new_key: key_bytes.into() })
+            (
+                signer_key,
+                GovernanceAction::RotateGuardKey {
+                    new_key: key_bytes.into(),
+                },
+            )
         }
-        GovernanceCommands::SelfAppointCouncilMember { candidate_key, signer_key } => {
+        GovernanceCommands::SelfAppointCouncilMember {
+            candidate_key,
+            signer_key,
+        } => {
             let mut key_bytes = [0u8; 1952];
             hex::decode_to_slice(candidate_key, &mut key_bytes)?;
-            (signer_key, GovernanceAction::SelfAppointCouncilMember { candidate_key: key_bytes.into() })
+            (
+                signer_key,
+                GovernanceAction::SelfAppointCouncilMember {
+                    candidate_key: key_bytes.into(),
+                },
+            )
         }
-        GovernanceCommands::RemoveCouncilMember { target_key, signer_key } => {
+        GovernanceCommands::RemoveCouncilMember {
+            target_key,
+            signer_key,
+        } => {
             let mut key_bytes = [0u8; 1952];
             hex::decode_to_slice(target_key, &mut key_bytes)?;
-            (signer_key, GovernanceAction::RemoveCouncilMember { target_key: key_bytes.into() })
+            (
+                signer_key,
+                GovernanceAction::RemoveCouncilMember {
+                    target_key: key_bytes.into(),
+                },
+            )
         }
-        GovernanceCommands::ExecuteTimelock { target_hash, signer_key } => {
+        GovernanceCommands::ExecuteTimelock {
+            target_hash,
+            signer_key,
+        } => {
             let mut hash_bytes = [0u8; 32];
             hex::decode_to_slice(target_hash, &mut hash_bytes)?;
-            (signer_key, GovernanceAction::ExecuteTimelock { target_hash: hash_bytes.into() })
+            (
+                signer_key,
+                GovernanceAction::ExecuteTimelock {
+                    target_hash: hash_bytes,
+                },
+            )
         }
-        GovernanceCommands::GrantPremiumName { name, target_pubkey, signer_key } => {
+        GovernanceCommands::GrantPremiumName {
+            name,
+            target_pubkey,
+            signer_key,
+        } => {
             let mut key_bytes = [0u8; 1952];
             hex::decode_to_slice(target_pubkey, &mut key_bytes)?;
-            (signer_key, GovernanceAction::GrantPremiumName { name, target_pubkey: key_bytes.into() })
+            (
+                signer_key,
+                GovernanceAction::GrantPremiumName {
+                    name,
+                    target_pubkey: key_bytes.into(),
+                },
+            )
         }
         GovernanceCommands::RevokePremiumName { name, signer_key } => {
             (signer_key, GovernanceAction::RevokePremiumName { name })
@@ -206,15 +289,19 @@ pub async fn handle_governance_command(
 
     // Replace ~ with home dir
     let expanded_path = if signer_key_path.to_string_lossy().starts_with('~') {
-        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+        let home =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
         home.join(signer_key_path.to_string_lossy().trim_start_matches("~/"))
     } else {
         signer_key_path
     };
 
     let keypair = if expanded_path.extension().and_then(|e| e.to_str()) == Some("aes") {
-        let password = rpassword::prompt_password(format!("Enter AES decryption password for {}: ", expanded_path.display()))
-            .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
+        let password = rpassword::prompt_password(format!(
+            "Enter AES decryption password for {}: ",
+            expanded_path.display()
+        ))
+        .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
         kinetic_core::types::load_encrypted_keypair(&expanded_path, &password)?
     } else {
         kinetic_core::types::load_keypair(expanded_path.to_str().unwrap())?
@@ -222,8 +309,9 @@ pub async fn handle_governance_command(
 
     // Fetch the current governance state from Daemon API to get council size
     let port = config.daemon.api_port;
-    let url = format!("http://127.0.0.1:{}/governance", port);
-    let token = std::fs::read_to_string(kinetic_core::config::get_api_tokens_dir().join("admin.token"))?;
+    let url = format!("http://{}:{}/governance", config.daemon.bind_ip, port);
+    let token =
+        std::fs::read_to_string(kinetic_core::config::get_api_tokens_dir().join("admin.token"))?;
 
     let response = client
         .get(&url)
@@ -232,11 +320,15 @@ pub async fn handle_governance_command(
         .await?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!("Failed to fetch governance state: HTTP {}", response.status()));
+        return Err(anyhow::anyhow!(
+            "Failed to fetch governance state: HTTP {}",
+            response.status()
+        ));
     }
 
     let state_bytes = response.bytes().await?;
-    let state: kinetic_core::governance::GovernanceState = bincode::deserialize(&state_bytes).map_err(|e| anyhow::anyhow!("Bincode error: {}", e))?;
+    let state: kinetic_core::governance::GovernanceState =
+        bincode::deserialize(&state_bytes).map_err(|e| anyhow::anyhow!("Bincode error: {}", e))?;
 
     let timestamp_sec = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
@@ -256,7 +348,10 @@ pub async fn handle_governance_command(
     msg.signatures.push(sig.to_bytes().to_vec());
 
     // Publish to the daemon
-    let publish_url = format!("http://127.0.0.1:{}/publish-governance", port);
+    let publish_url = format!(
+        "http://{}:{}/publish-governance",
+        config.daemon.bind_ip, port
+    );
     let publish_resp = client
         .post(&publish_url)
         .header("Authorization", format!("Bearer {}", token.trim()))
@@ -284,61 +379,29 @@ mod tests {
     #[tokio::test]
     async fn test_preflight_validation_success() {
         let mut server = mockito::Server::new_async().await;
-        
-        let _m = server.mock("GET", "/manifest.json")
+
+        let _m = server
+            .mock("GET", "/manifest.json")
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(r#"{"version": 2}"#)
-            .create_async().await;
+            .create_async()
+            .await;
 
         let temp_dir = tempfile::tempdir().unwrap();
         let release_path = temp_dir.path().join("release.json");
-        let release_json = format!(r#"{{
+        let release_json = format!(
+            r#"{{
             "version": 2,
             "manifest_hash": "671ecf284c7ade56078f3e9d187bfa579d98bf0dd2ea2f923bb10aa8abe1375b",
             "github_username": "saifmukhtar",
             "git_commit": "e4a5b6c7d8e9f0e1d2c3b4a5f6e7d8c9b0a1f2e3",
             "git_branch": "main",
             "mirrors": ["{}"]
-        }}"#, server.url());
-        
-        let mut file = File::create(&release_path).await.unwrap();
-        file.write_all(release_json.as_bytes()).await.unwrap();
+        }}"#,
+            server.url()
+        );
 
-        let cmd = GovernanceCommands::UpdateBinary {
-            file: release_path,
-            signer_key: PathBuf::from("dummy_key.json"), 
-        };
-
-        let client = reqwest::Client::new();
-        let config = kinetic_core::config::KineticConfig::default();
-        let res = handle_governance_command(cmd, &config, &client).await;
-        
-        let err_str = res.unwrap_err().to_string();
-        assert!(!err_str.contains("Pre-flight validation failed"), "Pre-flight validation should have passed, but got error: {}", err_str);
-    }
-
-    #[tokio::test]
-    async fn test_preflight_validation_mismatch() {
-        let mut server = mockito::Server::new_async().await;
-        
-        let _m = server.mock("GET", "/manifest.json")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(r#"{"version": 1}"#)
-            .create_async().await;
-
-        let temp_dir = tempfile::tempdir().unwrap();
-        let release_path = temp_dir.path().join("release.json");
-        let release_json = format!(r#"{{
-            "version": 2,
-            "manifest_hash": "671ecf284c7ade56078f3e9d187bfa579d98bf0dd2ea2f923bb10aa8abe1375b",
-            "github_username": "saifmukhtar",
-            "git_commit": "e4a5b6c7d8e9f0e1d2c3b4a5f6e7d8c9b0a1f2e3",
-            "git_branch": "main",
-            "mirrors": ["{}"]
-        }}"#, server.url());
-        
         let mut file = File::create(&release_path).await.unwrap();
         file.write_all(release_json.as_bytes()).await.unwrap();
 
@@ -350,10 +413,57 @@ mod tests {
         let client = reqwest::Client::new();
         let config = kinetic_core::config::KineticConfig::default();
         let res = handle_governance_command(cmd, &config, &client).await;
-        
+
+        let err_str = res.unwrap_err().to_string();
+        assert!(
+            !err_str.contains("Pre-flight validation failed"),
+            "Pre-flight validation should have passed, but got error: {}",
+            err_str
+        );
+    }
+
+    #[tokio::test]
+    async fn test_preflight_validation_mismatch() {
+        let mut server = mockito::Server::new_async().await;
+
+        let _m = server
+            .mock("GET", "/manifest.json")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"version": 1}"#)
+            .create_async()
+            .await;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let release_path = temp_dir.path().join("release.json");
+        let release_json = format!(
+            r#"{{
+            "version": 2,
+            "manifest_hash": "671ecf284c7ade56078f3e9d187bfa579d98bf0dd2ea2f923bb10aa8abe1375b",
+            "github_username": "saifmukhtar",
+            "git_commit": "e4a5b6c7d8e9f0e1d2c3b4a5f6e7d8c9b0a1f2e3",
+            "git_branch": "main",
+            "mirrors": ["{}"]
+        }}"#,
+            server.url()
+        );
+
+        let mut file = File::create(&release_path).await.unwrap();
+        file.write_all(release_json.as_bytes()).await.unwrap();
+
+        let cmd = GovernanceCommands::UpdateBinary {
+            file: release_path,
+            signer_key: PathBuf::from("dummy_key.json"),
+        };
+
+        let client = reqwest::Client::new();
+        let config = kinetic_core::config::KineticConfig::default();
+        let res = handle_governance_command(cmd, &config, &client).await;
+
         let err_str = res.unwrap_err().to_string();
         assert!(err_str.contains("Pre-flight validation failed"));
-        assert!(err_str.contains("specifies version 2, but mirror manifest.json specifies version 1"));
+        assert!(
+            err_str.contains("specifies version 2, but mirror manifest.json specifies version 1")
+        );
     }
 }
-

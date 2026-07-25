@@ -76,8 +76,8 @@ pub async fn handle(
     };
     let commit_res = client
         .post(format!(
-            "http://127.0.0.1:{}/commit",
-            config.daemon.api_port
+            "http://{}:{}/commit",
+            config.daemon.bind_ip, config.daemon.api_port
         ))
         .json(&commit_req)
         .send()
@@ -105,6 +105,7 @@ pub async fn handle(
     let refresh_fqdn = fqdn.clone();
     let refresh_port = config.daemon.api_port;
     let refresh_client = client.clone();
+    let refresh_bind_ip = config.daemon.bind_ip.clone();
     let refresh_handle = tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(3600)); // Every hour
         loop {
@@ -114,7 +115,10 @@ pub async fn handle(
                 commitment: refresh_challenge.clone(),
             };
             let _ = refresh_client
-                .post(format!("http://127.0.0.1:{}/commit", refresh_port))
+                .post(format!(
+                    "http://{}:{}/commit",
+                    refresh_bind_ip, refresh_port
+                ))
                 .json(&commit_req)
                 .send()
                 .await;
@@ -162,8 +166,8 @@ pub async fn handle(
     });
     let res = client
         .post(format!(
-            "http://127.0.0.1:{}/publish",
-            config.daemon.api_port
+            "http://{}:{}/publish",
+            config.daemon.bind_ip, config.daemon.api_port
         ))
         .json(&req_body)
         .send()

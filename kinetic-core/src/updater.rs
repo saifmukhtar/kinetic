@@ -127,28 +127,34 @@ pub async fn perform_ota_update(
         info!("Manifest hash verified for mirror: {}", mirror);
 
         // 3. Parse Manifest and lookup target hash
-        let manifest: Manifest =
-            match serde_json::from_slice(&manifest_bytes) {
-                Ok(m) => m,
-                Err(e) => {
-                    warn!(
-                        "Failed to parse strict JSON manifest from mirror {}: {}",
-                        mirror, e
-                    );
-                    continue;
-                }
-            };
+        let manifest: Manifest = match serde_json::from_slice(&manifest_bytes) {
+            Ok(m) => m,
+            Err(e) => {
+                warn!(
+                    "Failed to parse strict JSON manifest from mirror {}: {}",
+                    mirror, e
+                );
+                continue;
+            }
+        };
 
         // Fetch release.json and verify version matches strictly
         let release_url = format!("{}/release.json", mirror);
         let release_res = match client.get(&release_url).send().await {
             Ok(res) if res.status().is_success() => res,
             Ok(res) => {
-                warn!("Mirror {} returned status {} for release.json", mirror, res.status());
+                warn!(
+                    "Mirror {} returned status {} for release.json",
+                    mirror,
+                    res.status()
+                );
                 continue;
             }
             Err(e) => {
-                warn!("Mirror {} failed to connect for release.json: {}", mirror, e);
+                warn!(
+                    "Mirror {} failed to connect for release.json: {}",
+                    mirror, e
+                );
                 continue;
             }
         };
@@ -156,7 +162,10 @@ pub async fn perform_ota_update(
         let release_bytes = match release_res.bytes().await {
             Ok(b) => b,
             Err(e) => {
-                warn!("Failed to read release.json bytes from mirror {}: {}", mirror, e);
+                warn!(
+                    "Failed to read release.json bytes from mirror {}: {}",
+                    mirror, e
+                );
                 continue;
             }
         };
@@ -164,7 +173,10 @@ pub async fn perform_ota_update(
         let release: Release = match serde_json::from_slice(&release_bytes) {
             Ok(r) => r,
             Err(e) => {
-                warn!("Failed to parse strict JSON release.json from mirror {}: {}", mirror, e);
+                warn!(
+                    "Failed to parse strict JSON release.json from mirror {}: {}",
+                    mirror, e
+                );
                 continue;
             }
         };
@@ -393,24 +405,24 @@ mod tests {
     fn test_strict_version_matching_logic() {
         let manifest_json = r#"{ "version": "1.2.3", "binaries": {} }"#;
         let release_json = r#"{ "version": "1.2.3", "notes": "foo" }"#;
-        
+
         let manifest: Manifest = serde_json::from_str(manifest_json).unwrap();
         let release: Release = serde_json::from_str(release_json).unwrap();
-        
+
         assert_eq!(manifest.version, release.version);
     }
-    
+
     #[test]
     fn test_strict_version_mismatch_logic() {
         let manifest_json = r#"{ "version": "1.2.3", "binaries": {} }"#;
         let release_json = r#"{ "version": "1.2.4" }"#;
-        
+
         let manifest: Manifest = serde_json::from_str(manifest_json).unwrap();
         let release: Release = serde_json::from_str(release_json).unwrap();
-        
+
         assert_ne!(manifest.version, release.version);
     }
-    
+
     use proptest::prelude::*;
 
     proptest! {
@@ -423,7 +435,7 @@ mod tests {
         fn doesnt_crash_release_parsing(s in any::<String>()) {
             let _ = serde_json::from_str::<Release>(&s);
         }
-        
+
         #[test]
         fn valid_manifest_versions_parse(version in "[a-zA-Z0-9.-]+") {
             let json = format!(r#"{{ "version": "{}", "binaries": {{}} }}"#, version);

@@ -94,17 +94,23 @@ impl KidDocument {
             }
         }
         for rk in &self.revocation_keys {
-            if rk.len() > 8192 { return Err(KidError::TooManyKeys); }
+            if rk.len() > 8192 {
+                return Err(KidError::TooManyKeys);
+            }
         }
         if let Some(manifest) = &self.manifest {
             if manifest.locations.len() > 20 {
                 return Err(KidError::TooManyKeys);
             }
             for loc in &manifest.locations {
-                if loc.len() > 2048 { return Err(KidError::TooManyKeys); }
+                if loc.len() > 2048 {
+                    return Err(KidError::TooManyKeys);
+                }
             }
             if let Some(hash) = &manifest.hash {
-                if hash.len() > 256 { return Err(KidError::TooManyKeys); }
+                if hash.len() > 256 {
+                    return Err(KidError::TooManyKeys);
+                }
             }
         }
 
@@ -141,7 +147,9 @@ impl KidDocument {
                 if key.key_type.eq_ignore_ascii_case("MlDsa65") {
                     if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
                         if let Ok(public_key) =
-                            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
+                            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
+                                pk_bytes.as_slice(),
+                            )
                         {
                             if public_key.verify(&msg_bytes, &signature).is_ok() {
                                 return Ok(());

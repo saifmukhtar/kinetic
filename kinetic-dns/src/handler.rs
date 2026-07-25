@@ -43,21 +43,49 @@ impl RequestHandler for KineticDnsHandler {
             )
             .await
         } else {
-            let upstream_resolver = {
-                self.resolver
-                    .read()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner())
-                    .clone()
-            };
-            resolve_upstream(
-                &upstream_resolver,
-                request,
-                response_handle,
-                &query_name,
-                header,
-                builder,
-            )
-            .await
+            let mut is_atlas = false;
+            if let Ok(tlds) = self.atlas_tlds.read() {
+                for tld in tlds.iter() {
+                    if clean_name.ends_with(tld) {
+                        is_atlas = true;
+                        break;
+                    }
+                }
+            }
+            
+            if is_atlas {
+                let atlas_resolver = {
+                    self.atlas_resolver
+                        .read()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner())
+                        .clone()
+                };
+                resolve_upstream(
+                    &atlas_resolver,
+                    request,
+                    response_handle,
+                    &query_name,
+                    header,
+                    builder,
+                )
+                .await
+            } else {
+                let upstream_resolver = {
+                    self.resolver
+                        .read()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner())
+                        .clone()
+                };
+                resolve_upstream(
+                    &upstream_resolver,
+                    request,
+                    response_handle,
+                    &query_name,
+                    header,
+                    builder,
+                )
+                .await
+            }
         }
     }
 }

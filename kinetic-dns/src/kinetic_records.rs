@@ -147,17 +147,25 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 for record in records {
                                     if let kinetic_core::types::DnsRecord::KID(did) = record {
                                         info!("E2E Auth: Domain specifies KID: {}. Fetching from daemon...", did);
-                                        let kid_url = format!("{}/api/resolve-kid/{}", api_url, did);
+                                        let kid_url =
+                                            format!("{}/api/resolve-kid/{}", api_url, did);
                                         match http_client.get(&kid_url).send().await {
                                             Ok(kid_resp) if kid_resp.status().is_success() => {
-                                                if let Ok(kid_json) = kid_resp.json::<serde_json::Value>().await {
+                                                if let Ok(kid_json) =
+                                                    kid_resp.json::<serde_json::Value>().await
+                                                {
                                                     let mut matched = false;
                                                     use base64::Engine;
                                                     let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&reveal.pubkey);
-                                                    
-                                                    if let Some(keys) = kid_json["kid_document"]["controller_keys"].as_array() {
+
+                                                    if let Some(keys) = kid_json["kid_document"]
+                                                        ["controller_keys"]
+                                                        .as_array()
+                                                    {
                                                         for key in keys {
-                                                            if key["public_key"].as_str() == Some(&expected_pubkey) {
+                                                            if key["public_key"].as_str()
+                                                                == Some(&expected_pubkey)
+                                                            {
                                                                 matched = true;
                                                                 break;
                                                             }
@@ -166,7 +174,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                     if !matched {
                                                         warn!("E2E Auth Failed: Reveal pubkey does not match authorized KID {}", did);
                                                         let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
-                                                        let _ = response_handle.send_response(response).await;
+                                                        let _ = response_handle
+                                                            .send_response(response)
+                                                            .await;
                                                         header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
                                                         return header.into();
                                                     } else {
@@ -175,17 +185,33 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 }
                                             }
                                             Ok(resp) => {
-                                                warn!("E2E Auth: Daemon returned {} for KID {}", resp.status(), did);
-                                                let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
-                                                let _ = response_handle.send_response(response).await;
-                                                header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
+                                                warn!(
+                                                    "E2E Auth: Daemon returned {} for KID {}",
+                                                    resp.status(),
+                                                    did
+                                                );
+                                                let response = builder.error_msg(
+                                                    request.header(),
+                                                    hickory_proto::op::ResponseCode::ServFail,
+                                                );
+                                                let _ =
+                                                    response_handle.send_response(response).await;
+                                                header.set_response_code(
+                                                    hickory_proto::op::ResponseCode::ServFail,
+                                                );
                                                 return header.into();
                                             }
                                             Err(e) => {
                                                 warn!("E2E Auth Request failed: {}", e);
-                                                let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
-                                                let _ = response_handle.send_response(response).await;
-                                                header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
+                                                let response = builder.error_msg(
+                                                    request.header(),
+                                                    hickory_proto::op::ResponseCode::ServFail,
+                                                );
+                                                let _ =
+                                                    response_handle.send_response(response).await;
+                                                header.set_response_code(
+                                                    hickory_proto::op::ResponseCode::ServFail,
+                                                );
                                                 return header.into();
                                             }
                                         }
@@ -278,7 +304,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             }
                                         }
                                         kinetic_core::types::DnsRecord::TXT(txt)
-                                            if q_type == hickory_proto::rr::RecordType::TXT || q_type == hickory_proto::rr::RecordType::ANY =>
+                                            if q_type == hickory_proto::rr::RecordType::TXT
+                                                || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
                                             response_records.push(Record::from_rdata(
                                                 name.clone(),
@@ -289,7 +316,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             ));
                                         }
                                         kinetic_core::types::DnsRecord::PeerId(pid)
-                                            if q_type == hickory_proto::rr::RecordType::TXT || q_type == hickory_proto::rr::RecordType::ANY =>
+                                            if q_type == hickory_proto::rr::RecordType::TXT
+                                                || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
                                             response_records.push(Record::from_rdata(
                                                 name.clone(),
@@ -300,7 +328,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             ));
                                         }
                                         kinetic_core::types::DnsRecord::KID(kid)
-                                            if q_type == hickory_proto::rr::RecordType::TXT || q_type == hickory_proto::rr::RecordType::ANY =>
+                                            if q_type == hickory_proto::rr::RecordType::TXT
+                                                || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
                                             response_records.push(Record::from_rdata(
                                                 name.clone(),
@@ -311,7 +340,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             ));
                                         }
                                         kinetic_core::types::DnsRecord::IPFS(cid)
-                                            if q_type == hickory_proto::rr::RecordType::TXT || q_type == hickory_proto::rr::RecordType::ANY =>
+                                            if q_type == hickory_proto::rr::RecordType::TXT
+                                                || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
                                             response_records.push(Record::from_rdata(
                                                 name.clone(),

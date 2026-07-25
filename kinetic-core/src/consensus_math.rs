@@ -50,11 +50,7 @@ impl ConsensusParams {
     /// let iterations = params.required_iterations("saif.kin", &[0u8; 32]);
     /// assert!(iterations > 0);
     /// ```
-    pub fn required_iterations(
-        &self,
-        name: &str,
-        drand_randomness: &[u8],
-    ) -> u64 {
+    pub fn required_iterations(&self, name: &str, drand_randomness: &[u8]) -> u64 {
         let normalized_name = crate::types::names::normalize_name(name);
         let apex = crate::types::names::extract_apex_domain(&normalized_name);
         let label = apex
@@ -66,11 +62,7 @@ impl ConsensusParams {
     /// Calculates required VDF iterations for a raw domain label based on the Squatter Cliff curve.
     ///
     /// In dev mode (`is_dev_mode()`), returns a fixed low iteration count ([`DEV_MODE_ITERATIONS`](crate::constants::DEV_MODE_ITERATIONS)).
-    pub fn required_iterations_by_label(
-        &self,
-        label: &str,
-        drand_randomness: &[u8],
-    ) -> u64 {
+    pub fn required_iterations_by_label(&self, label: &str, drand_randomness: &[u8]) -> u64 {
         if crate::config::is_dev_mode() {
             return crate::constants::DEV_MODE_ITERATIONS;
         }
@@ -81,17 +73,17 @@ impl ConsensusParams {
 
         // "Squatter Cliff" curve dynamically adjusting to the hardware time target
         match len {
-            0 | 1 => (base * 52_596_000) / tm, // 100 years (Reserved/Impossible)
-            2 => (base * 43_200) / tm,         // 30 days
-            3 => (base * 34_560) / tm,         // 24 days
-            4 => (base * 21_600) / tm,         // 15 days
-            5 => (base * 1_440) / tm,          // 1 day
-            6 => (base * 720) / tm,            // 12 hours
-            7 => (base * 150) / tm,            // 2.5 hours
-            8..=10 => (base * 120) / tm,       // 2 hours
-            11..=17 => (base * 90) / tm,       // 1.5 hours
-            18..=20 => (base * 60) / tm,       // 1 hour
-            21..=62 => base,                   // Baseline (always takes exactly `tm` minutes)
+            0 | 1 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_0_TO_1) / tm, // 100 years (Reserved/Impossible)
+            2 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_2) / tm,          // 30 days
+            3 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_3) / tm,          // 24 days
+            4 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_4) / tm,          // 15 days
+            5 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_5) / tm,          // 1 day
+            6 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_6) / tm,          // 12 hours
+            7 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_7) / tm,          // 2.5 hours
+            8..=10 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_8_TO_10) / tm, // 2 hours
+            11..=17 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_11_TO_17) / tm, // 1.5 hours
+            18..=20 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_18_TO_20) / tm, // 1 hour
+            21..=62 => base, // Baseline (always takes exactly `tm` minutes)
             63 => {
                 use sha2::{Digest, Sha256};
                 let mut hasher = Sha256::new();
@@ -106,16 +98,21 @@ impl ConsensusParams {
                 let num = (val % 100) as u8;
 
                 match num {
-                    63 => (base * 63) / (tm * 60),                  // 63 Seconds (Jackpot!)
-                    0..=10 => (base * 63) / tm,                     // 63 Minutes
-                    11..=20 => (base * 63 * 60) / tm,               // 63 Hours
-                    21..=30 => (base * 63 * 60 * 24) / tm,          // 63 Days
-                    31..=40 => (base * 63 * 60 * 24 * 7) / tm,      // 63 Weeks
-                    41..=50 => (base * 63 * 60 * 24 * 30) / tm,     // 63 Months
-                    51..=62 | 64..=70 => (base * 63 * 60 * 24 * 365) / tm, // 63 Years
-                    71..=80 => (base * 63 * 60 * 24 * 3650) / tm,   // 63 Decades
-                    81..=90 => (base * 63 * 60 * 24 * 36500) / tm,  // 63 Centuries
-                    _ => (base * 63 * 60 * 24 * 365000) / tm,       // 63 Millennia
+                    63 => {
+                        (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_JACKPOT_SECONDS)
+                            / (tm * 60)
+                    } // 63 Seconds (Jackpot!)
+                    0..=10 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_MINUTES) / tm, // 63 Minutes
+                    11..=20 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_HOURS) / tm, // 63 Hours
+                    21..=30 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_DAYS) / tm, // 63 Days
+                    31..=40 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_WEEKS) / tm, // 63 Weeks
+                    41..=50 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_MONTHS) / tm, // 63 Months
+                    51..=62 | 64..=70 => {
+                        (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_YEARS) / tm
+                    } // 63 Years
+                    71..=80 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_DECADES) / tm, // 63 Decades
+                    81..=90 => (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_CENTURIES) / tm, // 63 Centuries
+                    _ => (base * crate::constants::CONSENSUS_SQUATTER_LEN_63_MILLENNIA) / tm, // 63 Millennia
                 }
             }
             _ => base, // Fallback

@@ -19,7 +19,9 @@ pub async fn handle_publish(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
     info!("Received API publish request for name: {}", req.reveal.name);
@@ -203,7 +205,9 @@ pub async fn handle_commit(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
     info!("Received API commit request for name: {}", req.name);
@@ -306,7 +310,10 @@ pub async fn handle_publish_kid(
     Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
     if !role.can_publish() {
-        return Err((StatusCode::FORBIDDEN, "Insufficient privileges: Requires Publish or Admin role".to_string()));
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Insufficient privileges: Requires Publish or Admin role".to_string(),
+        ));
     }
     info!(
         "Received API publish request for KID: {}",
@@ -409,7 +416,10 @@ pub async fn handle_publish_manifest(
     Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
     if !role.can_publish() {
-        return Err((StatusCode::FORBIDDEN, "Insufficient privileges: Requires Publish or Admin role".to_string()));
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Insufficient privileges: Requires Publish or Admin role".to_string(),
+        ));
     }
     let did_str = auth_manifest.manifest.kid.as_str();
     info!(
@@ -546,23 +556,38 @@ pub async fn handle_publish_governance(
     Json(msg): Json<kinetic_core::governance::SignedGovernanceMessage>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
     if !role.can_govern() {
-        return Err((StatusCode::FORBIDDEN, "Insufficient privileges: Requires Governance or Admin role".to_string()));
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Insufficient privileges: Requires Governance or Admin role".to_string(),
+        ));
     }
     tracing::info!("Received API publish request for Governance action");
 
     // Process the message locally to ensure it is mathematically valid before gossiping.
     // We lock the global state, process it, and optionally save it.
     let is_valid = {
-        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+            .lock()
+            .unwrap();
         match kinetic_core::governance::process_governance_message(&mut gov, &msg) {
             Ok(effect_opt) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");
                 if let Err(e) = gov.save_to_disk(&path) {
                     tracing::error!("Failed to save modified governance state to disk: {}", e);
                 }
-                if let Some(kinetic_core::governance::GovernanceEffect::TriggerOTA { manifest_hash, mirrors }) = effect_opt {
+                if let Some(kinetic_core::governance::GovernanceEffect::TriggerOTA {
+                    manifest_hash,
+                    mirrors,
+                }) = effect_opt
+                {
                     tokio::spawn(async move {
-                        if let Err(e) = kinetic_core::updater::perform_ota_update("kinetic-daemon", manifest_hash, mirrors).await {
+                        if let Err(e) = kinetic_core::updater::perform_ota_update(
+                            "kinetic-daemon",
+                            manifest_hash,
+                            mirrors,
+                        )
+                        .await
+                        {
                             tracing::error!("Daemon OTA update failed: {}", e);
                         }
                     });
@@ -599,7 +624,10 @@ pub async fn handle_publish_governance(
 
     match state
         .network
-        .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE, payload_bytes)
+        .broadcast_gossip(
+            kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE,
+            payload_bytes,
+        )
         .await
     {
         Ok(_) => {

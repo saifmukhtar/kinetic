@@ -1,12 +1,16 @@
 //! HTTP REST API endpoints for daemon configuration, node status, owned domains, and governance state.
 
 use super::*;
-use axum::{extract::{State, Extension}, Json, http::StatusCode};
+use axum::{
+    extract::{Extension, State},
+    http::StatusCode,
+    Json,
+};
 
 /// Handles requests to retrieve the current daemon configuration.
 pub async fn handle_config(
     Extension(role): Extension<Role>,
-    State(_state): State<ApiState>
+    State(_state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     if !role.is_admin() {
         return Err(StatusCode::FORBIDDEN);
@@ -21,7 +25,7 @@ pub async fn handle_config(
 /// Handles requests to retrieve a list of names owned by this node.
 pub async fn handle_owned_names(
     Extension(role): Extension<Role>,
-    State(state): State<ApiState>
+    State(state): State<ApiState>,
 ) -> Result<Json<Vec<String>>, StatusCode> {
     if !role.can_publish() {
         return Err(StatusCode::FORBIDDEN);
@@ -86,7 +90,10 @@ pub async fn handle_health(State(state): State<ApiState>) -> Json<serde_json::Va
     // Check if network channel is responsive
     let network_ok = state.network.get_network_status().await.is_ok();
     // Check if storage is accessible by reading a known key
-    let storage_ok = state.storage.get(kinetic_core::constants::DB_PREFIX_LAST_DRAND).is_ok();
+    let storage_ok = state
+        .storage
+        .get(kinetic_core::constants::DB_PREFIX_LAST_DRAND)
+        .is_ok();
 
     if network_ok && storage_ok {
         Json(serde_json::json!({
@@ -110,9 +117,15 @@ pub async fn handle_peer_id(State(state): State<ApiState>) -> impl axum::respons
             if let Some(peer_id) = status.get("peer_id").and_then(|p| p.as_str()) {
                 (axum::http::StatusCode::OK, peer_id.to_string())
             } else {
-                (axum::http::StatusCode::SERVICE_UNAVAILABLE, "Peer ID unknown (Node offline)".to_string())
+                (
+                    axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    "Peer ID unknown (Node offline)".to_string(),
+                )
             }
-        },
-        Err(_) => (axum::http::StatusCode::SERVICE_UNAVAILABLE, "Network channel closed".to_string()),
+        }
+        Err(_) => (
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            "Network channel closed".to_string(),
+        ),
     }
 }

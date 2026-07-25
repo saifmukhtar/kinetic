@@ -136,9 +136,7 @@ impl DnsError {
             Self::InvalidKid(_) => {
                 "A KID string is invalid or missing the 'did:kin:' prefix.".to_string()
             }
-            Self::InvalidIpfsCid(_) => {
-                "An IPFS CID string is invalid.".to_string()
-            }
+            Self::InvalidIpfsCid(_) => "An IPFS CID string is invalid.".to_string(),
         }
     }
 }

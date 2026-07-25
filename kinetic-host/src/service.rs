@@ -28,7 +28,9 @@ pub fn install_service() -> Result<()> {
             .parse()
             .map_err(|_| anyhow::anyhow!("Failed to parse run"))?],
         contents: None,
-        username: std::env::var("SUDO_USER").ok().or_else(|| Some("nobody".to_string())),
+        username: std::env::var("SUDO_USER")
+            .ok()
+            .or_else(|| Some("nobody".to_string())),
         working_directory: None,
         environment: None,
         autostart: true,

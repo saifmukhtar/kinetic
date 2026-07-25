@@ -36,6 +36,8 @@
 pub mod behavior;
 /// The high-level asynchronous client for interacting with the network event loop.
 pub mod client;
+/// DNS tree structures for name resolution.
+pub mod dns_tree;
 /// Error types for storage and network operations.
 pub mod error;
 /// The central background task that drives the libp2p swarm.
@@ -44,8 +46,6 @@ pub mod event_loop;
 pub mod pow;
 /// The in-memory Kademlia record store implementation.
 pub mod store;
-/// DNS tree structures for name resolution.
-pub mod dns_tree;
 
 pub use client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, ProxyResponse};
 pub use error::KineticStoreError;

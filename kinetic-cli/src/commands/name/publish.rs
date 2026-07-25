@@ -41,8 +41,8 @@ pub async fn update_zone_logic(
             .map_err(|e| anyhow::anyhow!("Local reveal file corrupted: {}", e))?
     } else {
         let resolve_url = format!(
-            "http://127.0.0.1:{}/resolve/{}",
-            config.daemon.api_port, fqdn
+            "http://{}:{}/resolve/{}",
+            config.daemon.bind_ip, config.daemon.api_port, fqdn
         );
         let resolve_res = client.get(&resolve_url).send().await?;
         if !resolve_res.status().is_success() {
@@ -69,8 +69,8 @@ pub async fn update_zone_logic(
     hash.copy_from_slice(&hasher.finalize());
     let commit_res = client
         .post(format!(
-            "http://127.0.0.1:{}/commit",
-            config.daemon.api_port
+            "http://{}:{}/commit",
+            config.daemon.bind_ip, config.daemon.api_port
         ))
         .json(&kinetic_core::types::CommitRequest {
             name: fqdn.clone(),
@@ -92,8 +92,8 @@ pub async fn update_zone_logic(
     existing_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
     let response = client
         .post(format!(
-            "http://127.0.0.1:{}/publish",
-            config.daemon.api_port
+            "http://{}:{}/publish",
+            config.daemon.bind_ip, config.daemon.api_port
         ))
         .json(&json!({"reveal": existing_reveal}))
         .send()

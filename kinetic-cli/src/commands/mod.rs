@@ -1,12 +1,12 @@
 //! Command modules and CLI subcommand structure definitions.
 
+pub mod clock;
+pub mod dns_tree;
+pub mod governance;
 pub mod identity;
 pub mod name;
 pub mod seed;
 pub mod service;
-pub mod clock;
-pub mod dns_tree;
-pub mod governance;
 pub mod setup;
 
 use clap::Subcommand;

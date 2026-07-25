@@ -143,7 +143,10 @@ pub async fn handle_identity_command(
                 use ml_dsa::SignatureEncoding;
                 auth_kid.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
 
-                let daemon_url = format!("http://127.0.0.1:{}/publish-kid", config.daemon.api_port);
+                let daemon_url = format!(
+                    "http://{}:{}/publish-kid",
+                    config.daemon.bind_ip, config.daemon.api_port
+                );
                 info!(
                     "Publishing AuthorizedKID {} to local daemon...",
                     auth_kid.kid_doc.kid.as_str()
@@ -175,8 +178,8 @@ pub async fn handle_identity_command(
                 auth_manifest.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
 
                 let daemon_url = format!(
-                    "http://127.0.0.1:{}/publish-manifest",
-                    config.daemon.api_port
+                    "http://{}:{}/publish-manifest",
+                    config.daemon.bind_ip, config.daemon.api_port
                 );
                 info!(
                     "Publishing Authorized Capability Manifest for KID {}...",
@@ -196,8 +199,8 @@ pub async fn handle_identity_command(
         }
         IdentityCommands::Resolve { did } => {
             let daemon_url = format!(
-                "http://127.0.0.1:{}/resolve-kid/{}",
-                config.daemon.api_port, did
+                "http://{}:{}/resolve-kid/{}",
+                config.daemon.bind_ip, config.daemon.api_port, did
             );
             info!("Resolving {} via local daemon...", did);
             let response = client.get(daemon_url).send().await;
@@ -237,7 +240,11 @@ pub async fn handle_identity_command(
             std::fs::write(&output, json_data)?;
             info!("Successfully revoked KID and wrote to {}", output);
         }
-        IdentityCommands::RotateKey { kid, old_key, output } => {
+        IdentityCommands::RotateKey {
+            kid,
+            old_key,
+            output,
+        } => {
             info!("Rotating controller key for KID {}...", kid);
             let kid_data = std::fs::read_to_string(&kid)
                 .map_err(|e| anyhow::anyhow!("Failed to read KID file: {}", e))?;
@@ -362,7 +369,10 @@ mod tests {
         let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
         use ml_dsa::KeyExport;
         std::fs::write(temp_dir.join("identity.key"), keypair.to_bytes()).unwrap();
-        env::set_var(kinetic_core::constants::ENV_KINETIC_DATA_DIR, temp_dir.to_str().expect("valid utf-8 path"));
+        env::set_var(
+            kinetic_core::constants::ENV_KINETIC_DATA_DIR,
+            temp_dir.to_str().expect("valid utf-8 path"),
+        );
         let app = Router::new()
             .route(
                 "/publish-kid",

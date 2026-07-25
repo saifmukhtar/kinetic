@@ -1,43 +1,43 @@
 {
-  "tld": "kin",
-  "tld_suffix": ".kin",
-  "did_prefix": "did:kin:",
-  "base_domain": "saifmukhtar.dev",
-  "network_id": "kinetic",
-  "benchmark_base_iterations": 238819830,
-  "benchmark_target_minutes": 30.0,
-  "steal_target_rounds": 7884000,
-  "m_redundancy": 32,
-  "governance_model": "bicameral",
-  "default_bind_ip": "127.0.0.2",
-  "dns_ip": "127.0.0.2",
-  "min_active_council": 7,
-  "max_council_size": 21,
-  "max_age_seconds": 1209600,
-  "timelock_seconds": 2592000,
-  "active_window_seconds": 2592000,
-  "ota_timelock_seconds": 172800,
-  "dev_mode_iterations": 1000,
-  "prod_root_public_key_hex": "75013e2180ea112511e0dd3ca607da0a941934856b6dacf8e3fd5f897a0934cf220ffcc4ff54d79b126e8c957b46a9a9336dd227f3644375eba1ac6c0ef4207250974301baa27340a253698cfa6a80ae9622cf7f7d07c0c5d178133b414012536ad13bc074fda7dcc22bc76c1602eed80359bba28b588b29f9a9aa5d855a7157171fc7e13605a7753d507dad9f34f3c251edb08ebbc70b95138b7d22c4d2cce48b9389ec7811a2160211809dd9fa616b020910bc60c231f98c81fa4bff22763481442c178a41276d5d88efc42d8cb8b6cb8b6fc188ffd4bd6347cf270c196bf6f7925ae8d7c1c97133d9e10434eac5351b9c14279e652459f6497ca6db2a8cd31cf6a19ee4b4c95d73460918108fa1268df102d62827d1dffe34063ad422e68309ba50fe0297f06426c36a8e2fbb7cb11711059e9913b61a887586ef913c8e4c9ebb6b3f832f7162ac00d4cf22cbd4f778e1e804c859a0402f443f046136bf937923a8a0902e4942efa85cb9da3640d968ea8a4a892b05a108c3b518d7bf0de23eb24378de7e3bf2e45ada4a773093bf3fcc915bb2745d4eaf8b67ea9e5a91967509d0a47400e88ea49af1bda2211677c19fc710d23610f6fd24c030354451a367eda71b7adc94f4fc82cc4bf2e93bf94fa32961a4c5a2484a9eb8e34830e790867517920f620578188c11a60f1e9bd1f547e316c3fb11395cdfe8839f9ebe87ab8cdb9ab85d63a504a99fb9cf08840e1c8e3d03ad00fbf655cce431193521a64a0ed48264203dfe84154746265b2d388ecb61e90318bcd4e40dbd2172b4c242c7263b5081a4821988e94aed44e087ebc306328d270794c45a32e7c8d508753a43f9800899834e88e8caf5c6844a0a970c5451f5b5a34477bc9b608cc59168230c8f627a2a8145debb5f066e3dabf96361070b53fe6636f9dbb08a243a96f1b89acbe6980f2a911f391a81f356c294489ae4de273e655012ec70b6d53be931deddbacdeaff207c43818f6b8821a0651bfaa6f421559f3e2bacede854950c8edc2bcfb7ad2ed39bd35aa517025cc8da5483ea7dd24da49d0079c8b81a14f667463553c18fb178f88ff7f710e54c97b596a1bbcf18680d36a9d62de77c248fd080cff89c234ed36de0404dc1776acb3631723c244daded46b133cb2908ca6e6ed16a0fc02557a3e64f1a7f2d5d651f19494ba9b03c624defbc00315a2a3e263dcd63e523124056086df1862200208e1115eb88ed10f1757bcf5a1812eb933192fe3a829ac02111162ea3a56a666f4a59c2e19dd0a3f1ae7597706712890a26f429b8e0ecae2fc47cbf88d05482d0b1e970c33834ef05c363dfb067bdbf5cf0c8e0c70c86e306d2be5e1a5de386bce0f7c4660891c5a04bc3c95ef2ab8a5230c9700ca659e3a0f7ae23afd69a1551d0425fd076985eed9b341e2ecac5be72f9fdb0249a3d50845618c520c0efa427cec20e4608c06ff769fe8102abb6bf7985a968c127a98d66d8b376613f55bb548c3efb8f21cef6fb15220754f41427d0686d7eb6e8bae70b1681c071260f2dc35fdf790244581505558f3529a0c62d9b485f0875c07c4b9a0f52e78719a1c758600e34299e1d7c4e8dcf6a2650f2d7c0ea5ad123319311bbcca269be42d031bcc58c4957b4bc81d366d9e2e26150d409e0d0fc3192309ed4a0242dd0e5befaa2e71097b8a45a830f92f3bc906ac7f6747b50af207e12f64a73c64ff3b3a47158043dd2d9d91b69df24e676c0f22ca5352247071fa2d0543e4a0b79003487930ad2a8143d32b345e59df55ec27c3c69d5a41696805d3648fe971010d6c8e99f80a3f37cfec810232e4f00e34557022b4916c79dc4cc25ec2e1bd3001972d31c1dbf6872c3c5a05a255d8b4add3df679c26906ae051210c958f304a08d41d60fcaef04de3acc409305a2cb7ae1350dbc684aa0d5c7940b27680a4ce5fefd5d2ed15953d658e8ca4f7aa8a3ae0ac589988364196a02952006ac73d831e9a0b932d0fa359f09c45715f802e1078aea10a15a964c58dd0b8429ef90fd04d8a42736aa993ba7aa06bf04e9d68f20b7370307dcdbca8c2366abb2d7887750e5402388683f921d8ba3486b595aa39b7dd0e57df995838d69eb71cf0d3b73826ca0b3df60a41dda4b8fc20793f57f8f67f50fdbf9b38f902ba83f750dd1c2bb121817680f844ecab047d4fcd6ebbc74bdd83e95881e4d3fbd29b6f6ab6e7e7517072f898d24254722e780ea081936506389a7588f5ac071918ebe0a7b56b3dd15796c1d4061820367204da0179dc5143c30744415a808339b97ecd186fdc79c89fbff7ce840e2d721a729680a144dfb0ca5d15d1e1e65b37d26bb8ed6eb671ba1fbcc48b35e6a811ea5d1df2dcdb02c79960c2da21bd30de91ee9fb7e91804019be4b653a9cd0edf005409659310158aaf1c0c1847cfbaeb7add046ab2e144b50b1fc2454483cc47081b844a41c145b05c619baf21cfcb9d655ef5516a443ccbecd2746818d7249852147a06b401e7b2b572f8702c86d7daca22f28ab28ed26b2b6c0903fc3895be817292576a54b8001e33c5b427eb08b3e2b3c23f97eddce86fd855401d01af2c3fcead9dd44dc1f62c5a2a19f91c9a23bd6995f1d9271c44168eb263bddaafed1bcffad0f136c7c359438439288a218d4c90129e5e9be7f6fe9d78007c77628406f776b0964fddf0ba3a84b9cdbfd10b84f6e0e9fa7e423bc7946cc26ea6aaaebfa9fd4c67933b94c57f12830d59b99",
-  "prod_guard_public_key_hex": "411224170772af5859e36572422d0e8db8142c9ecba069b9a83c14bd82a6208b2dd68e01b18acfb2869d2639da8bdf23e01ed98d95a6e9c7d92a7e80290b64861349ecf35d4b858d5ad89b48745ebc401cfaf0bed6bbf010dbf3ca94c9b040fc00375cd3e1052e6cf0465ee65627232a1a0a84eb129bdff9a767a837af1ed318f9f6db0152aaebab774f84d7a9757d82fa5bba4fe3489051f297c5b7e101d4db567cb2f16fb2c66af8460bf7b16980bc45a145b15e4384cc41488f9648bff5e77d246a5aa8d2deb571f320c2862d581351f6e9966c0d3422e35766e4ee4bcdda177b3093604a66aa5f6d6743845d3232caf4a44ad9bededf36cf068fa85578f38178cba62b218ad8c5c739a8b305aa241e251aa1a346d1508a0e7471489a6d41ff9cd2debea613acfefaecec781d18bd72f49e860972c440de4e36ef526f3744f5637e9975157129785567ed9b5e62ede1b103e6b03e82998457579a40717296a528edbe9357000928d07dbf1c4084fbcb4e865dec51067d7e8400b88aa887cb5a3ac7f1d469e8cb96ac565d4e504a66a7230664cb3974f7b86137301e72faec98226ae3092ebfbeb5a5fd544a28f9a3be1c58b8b5af30ce25c376b2d689ca32c00ecb03603717cb0c4f8aa7de381d07462d685ce535ec6dace92e65b4be58f308ab27e2eec6dc74f16fc9753c257a6a39a969ad79f3bdd24ff92001b36b699ae632a739e1fa601d4687b358abacb4bd9a153de8582d1882e24c07772cfd98512e7212f2be28f8f1d64ae1be0c0c1cf9c58670aaf38a2094b9dd737942835058f1956b9fbecef94c018a88b88c07739e5b5126478a4c7ede585eb57ebb310dc8a68aed6ac480cb258365920113eb242e1bba3dc955aef9dda64f714dc01f790fa74a4868d2089b0011597467175de1c7860180c8a52dd4e3445c4aba86b636cf5986df75f2f4fd268629c61e1d0d61d7d6a4cb60e1d5a8ca98c7a9ec76ee2ab927dacd41aa3e14836300c9acdbbcd86c2153585e8fa35f8e06b1375efc78101d95e84210e6ba4d607d039bcfca72ca5f3b3b1e97bc5b6215a4ab28cb3010284fbf8c57eb2488947b0fddd07b1ddff13137a5dcc9f6b3cebbfabcc57290c70cff11f2d6b097a2a2c84d8d57a5e3bd1ce7d9aff6ce5008ee1e759ec7dd3ae376edccfa063d5e83121ef2fe477a9f1d7acb8f6c67938429c08291a610343c98ea6b790ebf49984aca091e1dc1c871dffbc6f8a83d5a2fde1767d4b3dbcf5cf4fbe13e39e0245698779693295ff6293b3485edc1a10a84d83e7a30eaa0295256a24b0d182d2f971930566326538c29d3b6c78916954809b4f24781e8bbe839e829e84b05786b733813c5ee1e9454ad7f46da19ae53d20778fe62cf3150d1eb9ea8b98b6bdb0385f14c73064285f1c46dfbff400373d9fe8d4cd69d14313e70c41a594083bfe3aa3579ba5087864dfb9435ebdb9c2414ab6200db803a70be4c97b0a028faab3b5e039cc710ccce863e30567ea97f8122467e7ad85d24071e83f78db37abc1b62ad9e4479f83b091f364667e457095eff7e2c6f7ac8b5e7b2f33c04897df5753e40def8b79bd2b168a0827ad1cfa9776cf3dca0f011ddc7349ef2e67677b97bae6451c0a499412f2f313c9b477131bfa139ef3481db26d03c31654c3785c51687630c4ec0c07a7fe977f8e3ac7916cf35198152d443aaded20561db49f0d9cd9d46c10f4f63631cb40b88b5c3d17c88cfc575714af5253002ba1630d81eb72555c829f97d20a50fcdeabe595493d71182885bb4aa6eaee4d57e4f9e384821a08930ce0bb0c033bed855d29ef16a7d3df2a817657e6469ae37f092e0b6e0e7c8fbbdbe10aa321bc1a1c6eff10481ffdf10fbc9098c8d4bf66edb050d8983fbf38db74e570b5878fa6d4ea15479795db0324461380d0c5098c6802a5544f5137ef1a9241993708264344d1ba332a5749592df94a7addb1e405820c55ac42ca8294b5c6349fa5cc29131c02f59a593bd38f7e74c4f092d756176121f38f32908c2b7dcfde56ddc8122095aa51c1c67a04a31994abc7d9a7eff94cabd408fbdd74f85cbbbca97c90daed3e96116002206a8de45e23548a443dc80cee34ff522a1fee8d7aaa28f485a0a744b7b24f2739c60354891bb5039e730ad83b4a3606895b580e7058a6626f444f6229c7a94a96543d58da3a0b95a613b412ed9568b5a5731d318d0ceb3d14cea23ee414260947adbdbb88398b4c56342da53934f853bcd3687d9b4fe9635f86d96c075af7ed70e35c3bd6a3105a4ac2fc2437e0e1b0ba5f98b49492c77b0ad6635609c63ec5e4d9e80f48c59b60a85fecb3198151e46d7a2806374ae0392d5a536dfee711e784f3362ad215ef21ccfd0cdf6ba6d73e9082a711cb9c0d861f3867d81f6a080982b3305c8d1fdd03818f942716c8b75e1b23b6a6df482a8cd2d28857aede7020ae4cffee28c331e1ba0d45ce52008b588868485e98badbc3499409192a415ac5092a7c55a245d33965587bed103aab3939253877ce8b4986e54fe7b526096f0565a027cfa854de3fc6850eebf69b61ccdbd7213e03e6f8c8c13d27ccea00e06975ecf46a796ee4399cf2856aad4a12ed485e7e962e4e5c0c28a7f04157a5b1033f3123da563b96fe0d0431fbd1ada31033045d231abed72a22d8e38f85b8431013077776b1e6793607bfd883070830f65d7c251499397a146d046f5eb35e65f34409b4af97ed93ed93e3eec9ba1d0e2",
-  "pow_difficulty_bits": 15,
-  "drand_genesis_time": 1692803367,
-  "drand_period": 3,
-  "kinetic_genesis_drand_round": 30579969,
-  "drand_public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
-  "drand_http_endpoints": [
-    "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://api2.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
-    "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest"
-  ],
-  "docs_url": "https://kinetic.saifmukhtar.dev",
-  "bootstrap_nodes": [
-    "/ip4/44.219.188.204/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs",
-    "/ip4/44.219.155.172/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D",
-    "/ip4/100.60.156.241/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc"
-  ],
-  "ipfs_gateway": "https://ipfs.io/ipfs/",
+  "network": {
+    "network_id": "kinetic",
+    "tld": "kin",
+    "tld_suffix": ".kin",
+    "did_prefix": "did:kin:",
+    "base_domain": "saifmukhtar.dev",
+    "docs_url": "https://kinetic.saifmukhtar.dev",
+    "ipfs_gateway": "https://ipfs.io/ipfs/",
+    "local_bind_ip": "127.0.0.2",
+    "bootstrap_nodes": [
+      "/ip4/44.219.188.204/tcp/6070/p2p/12D3KooWJkn8Dgb33N2p9sLBNX9Eg8W8whgdjLs2YJxWuTme7ZSs",
+      "/ip4/44.219.155.172/tcp/6070/p2p/12D3KooWMrtadRYuXxSgQaNJ2PyXqWTamJmEeMvCHbstczbKu69D",
+      "/ip4/100.60.156.241/tcp/6070/p2p/12D3KooWRTeUzuRyiwhoxoMD14r7C2jyem5agpmzrVvcnnSDVNsc"
+    ]
+  },
+  "drand": {
+    "drand_genesis_time": 1692803367,
+    "drand_period": 3,
+    "kinetic_genesis_drand_round": 30579969,
+    "drand_public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
+    "drand_http_endpoints": [
+      "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
+      "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
+      "https://api2.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
+      "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest"
+    ]
+  },
+  "governance": {
+    "governance_model": "bicameral",
+    "min_active_council": 7,
+    "max_council_size": 21,
+    "max_age_seconds": 1209600,
+    "timelock_seconds": 2592000,
+    "active_window_seconds": 2592000,
+    "ota_timelock_seconds": 172800,
+    "supermajority_percent": 69,
+    "majority_percent": 90,
+    "strict_majority_percent": 95
+  },
   "consensus": {
     "vdf_squatter_multipliers": {
       "len_0_to_1": 52596000,
@@ -66,33 +66,30 @@
     "vdf_max_iterations": 400000000000,
     "vdf_max_proof_bytes": 1024
   },
-  "governance": {
-    "supermajority_percent": 69,
-    "majority_percent": 90,
-    "strict_majority_percent": 95
-  },
-  "crypto": {
-    "wallet_pbkdf2_iterations": 600000,
-    "keygen_pbkdf2_iterations": 2048,
-    "argon2_memory_cost_kb": 16384
-  },
-  "limits": {
-    "p2p_max_packet_size": 102400,
-    "p2p_max_circuit_bytes": 4194304,
-    "proxy_max_body_bytes": 5242880,
-    "storage_max_value_bytes": 81920,
-    "kid_max_public_key_bytes": 8192,
-    "kid_max_location_bytes": 2048,
-    "kid_max_endpoint_bytes": 256,
-    "drand_max_response_bytes": 65536,
-    "lru_cache_size": 100000
-  },
-  "timeouts": {
-    "idle_timeout_seconds": 201600,
-    "heartbeat_age_warning_seconds": 43200,
-    "heartbeat_age_critical_seconds": 86400,
-    "dns_cache_ttl_seconds": 300,
-    "network_prune_interval_seconds": 3600,
-    "host_route_max_age_seconds": 600
+  "advanced": {
+    "benchmark_base_iterations": 238819830,
+    "benchmark_target_minutes": 30.0,
+    "steal_target_rounds": 7884000,
+    "m_redundancy": 32,
+    "dev_mode_iterations": 1000,
+    "limits": {
+      "p2p_max_packet_size": 102400,
+      "p2p_max_circuit_bytes": 4194304,
+      "proxy_max_body_bytes": 5242880,
+      "storage_max_value_bytes": 81920,
+      "kid_max_public_key_bytes": 8192,
+      "kid_max_location_bytes": 2048,
+      "kid_max_endpoint_bytes": 256,
+      "drand_max_response_bytes": 65536,
+      "lru_cache_size": 100000
+    },
+    "timeouts": {
+      "idle_timeout_seconds": 201600,
+      "heartbeat_age_warning_seconds": 43200,
+      "heartbeat_age_critical_seconds": 86400,
+      "dns_cache_ttl_seconds": 300,
+      "network_prune_interval_seconds": 3600,
+      "host_route_max_age_seconds": 600
+    }
   }
 }

@@ -63,7 +63,16 @@ impl PartialEq for DrandError {
             (Self::Storage(a), Self::Storage(b)) => a == b,
             (Self::Reqwest(a), Self::Reqwest(b)) => a.to_string() == b.to_string(),
             (Self::InvalidSignature, Self::InvalidSignature) => true,
-            (Self::StalePulse { expected: e1, got: g1 }, Self::StalePulse { expected: e2, got: g2 }) => e1 == e2 && g1 == g2,
+            (
+                Self::StalePulse {
+                    expected: e1,
+                    got: g1,
+                },
+                Self::StalePulse {
+                    expected: e2,
+                    got: g2,
+                },
+            ) => e1 == e2 && g1 == g2,
             _ => false,
         }
     }
@@ -108,7 +117,11 @@ impl DrandError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::AllEndpointsFailed | Self::Network(_) | Self::HttpError(_) | Self::Reqwest(_) | Self::StalePulse { .. }
+            Self::AllEndpointsFailed
+                | Self::Network(_)
+                | Self::HttpError(_)
+                | Self::Reqwest(_)
+                | Self::StalePulse { .. }
         )
     }
 

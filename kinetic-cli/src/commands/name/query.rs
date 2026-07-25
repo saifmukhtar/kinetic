@@ -13,7 +13,10 @@ use tracing::{info, warn};
 /// # Errors
 /// Returns an `anyhow::Error` if network or file system operations fail unexpectedly.
 pub async fn handle_list(config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
-    let daemon_url = format!("http://127.0.0.1:{}/owned-names", config.daemon.api_port);
+    let daemon_url = format!(
+        "http://{}:{}/owned-names",
+        config.daemon.bind_ip, config.daemon.api_port
+    );
     let response = client.get(&daemon_url).send().await;
     match response {
         Ok(res) if res.status().is_success() => {
@@ -58,8 +61,8 @@ pub async fn handle_info(
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     let daemon_url = format!(
-        "http://127.0.0.1:{}/resolve/{}",
-        config.daemon.api_port, fqdn
+        "http://{}:{}/resolve/{}",
+        config.daemon.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
 
@@ -105,8 +108,8 @@ pub async fn handle_resolve(
     let fqdn = kinetic_core::types::normalize_name(&name);
     info!("Resolving {} via local daemon...", fqdn);
     let daemon_url = format!(
-        "http://127.0.0.1:{}/resolve/{}",
-        config.daemon.api_port, fqdn
+        "http://{}:{}/resolve/{}",
+        config.daemon.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
     match resolve_res {

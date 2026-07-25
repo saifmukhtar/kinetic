@@ -68,14 +68,18 @@ pub async fn start_proxy_server(
     config: Arc<kinetic_core::config::KineticConfig>,
 ) -> anyhow::Result<()> {
     // Case 198: IPv6 Only Network Support
-    let addr = format!("127.0.0.1:{}", port);
+    let bind_ip = &config.daemon.bind_ip;
+    let addr = format!("{}:{}", bind_ip, port);
     let mut listener = None;
     for _ in 0..10 {
         if let Ok(l) = TcpListener::bind(&addr).await {
             listener = Some(l);
             break;
         } else if let Ok(l) = TcpListener::bind(format!("[::1]:{}", port)).await {
-            tracing::warn!("Failed to bind Proxy to 127.0.0.1, successfully bound to IPv6 loopback [::1] (Case 198)");
+            tracing::warn!(
+                "Failed to bind Proxy to {}, successfully bound to IPv6 loopback [::1] (Case 198)",
+                bind_ip
+            );
             listener = Some(l);
             break;
         }
@@ -83,7 +87,8 @@ pub async fn start_proxy_server(
     }
     let listener = listener.ok_or_else(|| {
         anyhow::anyhow!(
-            "Failed to bind Proxy to 127.0.0.1 or [::1] on port {}",
+            "Failed to bind Proxy to {} or [::1] on port {}",
+            bind_ip,
             port
         )
     })?;

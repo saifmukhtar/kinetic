@@ -291,8 +291,14 @@ impl super::core::NetworkEventLoop {
                     if let Err(e) = put_result {
                         if e.severity() == kinetic_core::error::Severity::Error {
                             let now = web_time::Instant::now();
-                            let (count, last_time) = self.bad_vdf_counts.get(&source).copied().unwrap_or((0, now));
-                            let new_val = if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
+                            let (count, last_time) = self
+                                .bad_vdf_counts
+                                .get(&source)
+                                .copied()
+                                .unwrap_or((0, now));
+                            let new_val = if now.duration_since(last_time)
+                                > web_time::Duration::from_secs(60)
+                            {
                                 (1, now)
                             } else {
                                 (count + 1, now)
@@ -386,7 +392,7 @@ impl super::core::NetworkEventLoop {
                 libp2p::gossipsub::Event::Message { message, .. },
             )) => {
                 if let Some(tx) = &self.gossip_tx {
-                    let _ = tx.try_send((message.topic.into_string(), message.data));
+                    let _ = tx.send((message.topic.into_string(), message.data));
                 }
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(_)) => {}

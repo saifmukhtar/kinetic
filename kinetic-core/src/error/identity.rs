@@ -67,9 +67,10 @@ impl IdentityError {
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
         match self {
-            Self::Io(_) | Self::CorruptedIdentityFile(_) | Self::IdentityNotFound(_) | Self::DecryptionFailed(_) => {
-                Severity::Error
-            }
+            Self::Io(_)
+            | Self::CorruptedIdentityFile(_)
+            | Self::IdentityNotFound(_)
+            | Self::DecryptionFailed(_) => Severity::Error,
             Self::InvalidSeedPhrase(_) => Severity::Warning,
         }
     }
@@ -90,7 +91,10 @@ impl IdentityError {
             }
             Self::IdentityNotFound(_) => "The identity file could not be found.".to_string(),
             Self::InvalidSeedPhrase(_) => "The provided seed phrase is invalid.".to_string(),
-            Self::DecryptionFailed(_) => "Failed to decrypt the identity file. Incorrect password or corrupted payload.".to_string(),
+            Self::DecryptionFailed(_) => {
+                "Failed to decrypt the identity file. Incorrect password or corrupted payload."
+                    .to_string()
+            }
         }
     }
 }

@@ -17,9 +17,10 @@ pub async fn handle_proxy_request(
             // Reject non-.kin CONNECT — we are not a general proxy
             return Ok(Response::builder()
                 .status(StatusCode::FORBIDDEN)
-                .body(axum::body::Body::from(
-                    format!("Kinetic proxy only handles {} domains", kinetic_core::constants::TLD_SUFFIX)
-                ))
+                .body(axum::body::Body::from(format!(
+                    "Kinetic proxy only handles {} domains",
+                    kinetic_core::constants::TLD_SUFFIX
+                )))
                 .unwrap_or_else(|_| {
                     Response::new(axum::body::Body::from("Internal Proxy Error"))
                 }));
@@ -192,7 +193,10 @@ pub async fn forward_to_backend_direct(
                 current_domain = target;
                 continue;
             } else {
-                tracing::warn!("CNAME points to external domain {} which proxy cannot resolve", target);
+                tracing::warn!(
+                    "CNAME points to external domain {} which proxy cannot resolve",
+                    target
+                );
                 return Err(ProxyError::NameNotFound(current_domain.clone()));
             }
         }
@@ -215,7 +219,7 @@ pub async fn forward_to_backend_direct(
             .map(|pq| pq.as_str())
             .unwrap_or("/")
             .trim_start_matches('/');
-            
+
         let ipfs_url = if path.is_empty() {
             format!("{}/{}", gateway, cid)
         } else {
@@ -230,7 +234,7 @@ pub async fn forward_to_backend_direct(
             .build()?;
 
         let mut out_req = client.request(req.method().clone(), &ipfs_url);
-        
+
         for (name, value) in req.headers() {
             // Strip HOST so the gateway handles it properly
             if name != hyper::header::HOST {

@@ -77,9 +77,9 @@ impl GovernanceState {
                     panic!("Governance state at {} is corrupt; manual recovery required (backup at {}).", path.display(), corrupt_path.display());
                 }
             },
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Self::new(
-                crate::constants::KINETIC_GENESIS_TIME
-            ),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Self::new(crate::constants::KINETIC_GENESIS_TIME)
+            }
             Err(e) => {
                 tracing::error!("CRITICAL: Failed to read Governance state file: {}.", e);
                 panic!(

@@ -1,8 +1,8 @@
 //! Custom Kinetic DNS Tree protocol (`kintree`) for discovering bootstrap peer addresses via DNS TXT records.
 
 use hickory_resolver::AsyncResolver;
-use std::collections::HashSet;
 use libp2p::Multiaddr;
+use std::collections::HashSet;
 
 /// Resolves a domain using the Custom Kinetic DNS Tree protocol (kintree).
 /// It first checks the domain for a `kintree-root` TXT record. If found, it traverses
@@ -17,7 +17,7 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
             return addrs;
         }
     };
-    
+
     let root_records = match resolver.txt_lookup(domain).await {
         Ok(res) => res,
         Err(e) => {
@@ -25,9 +25,9 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
             return addrs;
         }
     };
-    
+
     let mut root_hash = None;
-    
+
     for record in root_records {
         for raw_txt in record.txt_data() {
             if let Ok(txt_str) = std::str::from_utf8(raw_txt) {
@@ -44,15 +44,15 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
             }
         }
     }
-    
+
     if let Some(hash) = root_hash {
         tracing::info!("Found DNS tree root at {}. Traversing...", domain);
         let mut branches_to_visit = vec![hash];
         let mut visited = HashSet::new();
-        
-        let max_lookups = 20; 
+
+        let max_lookups = 20;
         let mut lookups = 0;
-        
+
         while let Some(branch_hash) = branches_to_visit.pop() {
             if lookups >= max_lookups || addrs.len() >= 50 {
                 break;
@@ -61,7 +61,7 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
                 continue;
             }
             lookups += 1;
-            
+
             let branch_domain = format!("{}.{}", branch_hash, domain);
             if let Ok(response) = resolver.txt_lookup(branch_domain.as_str()).await {
                 for record in response {
@@ -86,6 +86,6 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
             }
         }
     }
-    
+
     addrs
 }

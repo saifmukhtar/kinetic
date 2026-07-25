@@ -15,34 +15,25 @@ include!(concat!(env!("OUT_DIR"), "/network_constants.rs"));
 // ============================================================================
 // 2. GOVERNANCE CONSENSUS TIMINGS & LIMITS
 // Used by: `kinetic-core/src/governance/logic.rs` and engines
+// (Now dynamically injected from network.json via build.rs)
 // ============================================================================
-
-/// The minimum number of active council members required to ratify actions.
-pub const MIN_ACTIVE_COUNCIL: usize = 7;
-
-/// The hard limit on the total size of the active council.
-pub const MAX_COUNCIL_SIZE: usize = 21;
-
-/// The maximum time (in seconds) a governance proposal is valid before it expires.
-pub const MAX_AGE_SECONDS: u64 = 14 * 24 * 60 * 60;
-
-/// The mandatory timelock (in seconds) before an executed action (like Emergency Reset) becomes permanent.
-pub const TIMELOCK_SECONDS: u64 = 30 * 24 * 60 * 60;
-
-/// The rolling window (in seconds) during which a council member must have signed something to be considered "active".
-pub const ACTIVE_WINDOW_SECONDS: u64 = 30 * 24 * 60 * 60;
-
-
-/// The specific timelock (in seconds) for Over-The-Air (OTA) binary updates.
-pub const OTA_TIMELOCK_SECONDS: u64 = 48 * 60 * 60;
 
 // ============================================================================
 // 3. GOVERNANCE CRYPTOGRAPHY
 // Used by: `kinetic-core/src/governance/logic.rs` and engines
 // ============================================================================
 
-/// The default number of iterations used during development and simulation mode.
-pub const DEV_MODE_ITERATIONS: u64 = 1000;
+/// The target number of leading zero bits required for PoW mining.
+pub const POW_DIFFICULTY_BITS: u32 = 15;
+
+/// PBKDF2 iterations for wallet derived keys
+pub const CRYPTO_WALLET_PBKDF2_ITERATIONS: u32 = 600000;
+
+/// PBKDF2 iterations for key generation
+pub const CRYPTO_KEYGEN_PBKDF2_ITERATIONS: u32 = 2048;
+
+/// Argon2 memory cost in KB
+pub const CRYPTO_ARGON2_MEMORY_COST_KB: u32 = 16384;
 
 // --- PRODUCTION KEYS ---
 /// Production keys
@@ -72,11 +63,13 @@ pub use test_keys::*;
 // ============================================================================
 
 /// Purpose domain string used in PBKDF2 for deriving ML-DSA-65 deterministic governance keys.
-pub const KINETIC_GOVERNANCE_KEY_PURPOSE: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_GOVERNANCE_KEY_v1_PQC");
+pub const KINETIC_GOVERNANCE_KEY_PURPOSE: &str =
+    concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_GOVERNANCE_KEY_v1_PQC");
 
 /// Prefix for storing registered `.kin` domains in local Sled/DB storage.
 /// Dynamically namespaced with `NETWORK_ID` to prevent cross-network key collisions.
-pub const DB_PREFIX_OWNED_NAMES: &[u8] = concat!("n:", env!("KINETIC_NETWORK_ID"), "_owned_names").as_bytes();
+pub const DB_PREFIX_OWNED_NAMES: &[u8] =
+    concat!("n:", env!("KINETIC_NETWORK_ID"), "_owned_names").as_bytes();
 
 /// Key prefix for storing VDF reveal proof payloads in local Sled/DB storage.
 pub const DB_PREFIX_REVEAL: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_reveal:");
@@ -85,7 +78,8 @@ pub const DB_PREFIX_REVEAL: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_r
 pub const DB_PREFIX_BANNED_PEER: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_banned_peer:");
 
 /// Storage key for persisting the latest processed Drand round number.
-pub const DB_PREFIX_LAST_DRAND: &[u8] = concat!("n:", env!("KINETIC_NETWORK_ID"), "_last_drand_round").as_bytes();
+pub const DB_PREFIX_LAST_DRAND: &[u8] =
+    concat!("n:", env!("KINETIC_NETWORK_ID"), "_last_drand_round").as_bytes();
 
 /// Database namespace for the P2P ping proxy subsystem.
 pub const DB_NAME_PING: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_ping_db");
@@ -109,13 +103,17 @@ pub const ENV_KINETIC_CONFIG_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER
 /// Environment variable string to override the identity key file path (e.g. `KINETIC_MAINNET_KEY_PATH`).
 pub const ENV_KINETIC_KEY_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_KEY_PATH");
 /// Environment variable string to override the P2P host listen port (e.g. `KINETIC_MAINNET_HOST_P2P_PORT`).
-pub const ENV_KINETIC_HOST_P2P_PORT: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_P2P_PORT");
+pub const ENV_KINETIC_HOST_P2P_PORT: &str =
+    concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_P2P_PORT");
 /// Environment variable string to override the backend proxy port for the host (e.g. `KINETIC_MAINNET_HOST_BACKEND_PORT`).
-pub const ENV_KINETIC_HOST_BACKEND_PORT: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_BACKEND_PORT");
+pub const ENV_KINETIC_HOST_BACKEND_PORT: &str =
+    concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_BACKEND_PORT");
 /// Environment variable string to override the backend proxy host IP (e.g. `KINETIC_MAINNET_HOST_BACKEND_HOST`).
-pub const ENV_KINETIC_HOST_BACKEND_HOST: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_BACKEND_HOST");
+pub const ENV_KINETIC_HOST_BACKEND_HOST: &str =
+    concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_BACKEND_HOST");
 /// Environment variable string to override the governance state file path (e.g. `KINETIC_MAINNET_GOVERNANCE_PATH`).
-pub const ENV_KINETIC_GOVERNANCE_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_GOVERNANCE_PATH");
+pub const ENV_KINETIC_GOVERNANCE_PATH: &str =
+    concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_GOVERNANCE_PATH");
 
 #[cfg(test)]
 mod tests {
@@ -135,7 +133,8 @@ mod tests {
         let hash_hex = hex::encode(hash);
 
         // The expected SHA-256 fingerprint of the officially generated ML-DSA-65 root key.
-        let expected_fingerprint = "8b8b8ca511b8aec64accac035802a55f1674201eed1f8e54547a275af56124d7";
+        let expected_fingerprint =
+            "8b8b8ca511b8aec64accac035802a55f1674201eed1f8e54547a275af56124d7";
 
         assert_eq!(
             hash_hex, expected_fingerprint,

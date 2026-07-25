@@ -1,7 +1,7 @@
 //! Core `NetworkEventLoop` definition and main event loop execution thread.
 //!
 //! This module houses the primary async reactor for all libp2p P2P networking in Kinetic.
-//! It maintains the Kademlia DHT, Gossipsub mesh, AutoNAT traversals, and background 
+//! It maintains the Kademlia DHT, Gossipsub mesh, AutoNAT traversals, and background
 //! verification workers for inbound blocks.
 
 use libp2p::{kad, PeerId, Swarm};
@@ -61,12 +61,12 @@ pub struct NetworkEventLoop {
             libp2p::request_response::ResponseChannel<crate::client::ProxyResponse>,
         )>,
     >,
-    pub(crate) gossip_tx: Option<tokio::sync::mpsc::Sender<(String, Vec<u8>)>>,
+    pub(crate) gossip_tx: Option<tokio::sync::broadcast::Sender<(String, Vec<u8>)>>,
     pub(crate) bad_vdf_counts: lru::LruCache<PeerId, (u32, web_time::Instant)>,
     pub(crate) current_drand_pulse: u64,
     pub(crate) drand_pulse_rx: watch::Receiver<u64>,
     pub(crate) bootstrap_nodes: Vec<libp2p::Multiaddr>,
-    pub(crate) seed_domains: Vec<std::sync::Arc<str>>,
+    pub(crate) seed_domain: Vec<std::sync::Arc<str>>,
     pub(crate) bootstrap_peers: FxHashSet<libp2p::PeerId>,
     pub(crate) startup_time: web_time::Instant,
     pub(crate) disable_pow: bool,
@@ -93,10 +93,13 @@ impl NetworkEventLoop {
         self.loopback_tx = Some(loopback_tx);
 
         #[cfg(not(target_arch = "wasm32"))]
-        for domain in &self.seed_domains {
+        for domain in &self.seed_domain {
             let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
             if addrs.is_empty() {
-                tracing::warn!("Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
+                tracing::warn!(
+                    "Failed to resolve DNS TXT seed domain or found no multiaddrs: {}",
+                    domain
+                );
             }
             for multiaddr in addrs {
                 if self.swarm.dial(multiaddr.clone()).is_ok() {
@@ -110,8 +113,9 @@ impl NetworkEventLoop {
             .unwrap_or_default()
             .as_millis()
             % 60) as u64;
-        let mut prune_delay =
-            futures_timer::Delay::new(web_time::Duration::from_secs(kinetic_core::constants::TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS + initial_prune_jitter));
+        let mut prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(
+            kinetic_core::constants::TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS + initial_prune_jitter,
+        ));
         let initial_redial_jitter = (web_time::SystemTime::now()
             .duration_since(web_time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -138,11 +142,11 @@ impl NetworkEventLoop {
                         for addr in &self.bootstrap_nodes {
                             let _ = self.swarm.dial(addr.clone());
                         }
-                        
+
                         #[cfg(not(target_arch = "wasm32"))]
                         if let Some(tx) = &self.loopback_tx {
                             let tx_clone = tx.clone();
-                            let domains = self.seed_domains.clone();
+                            let domains = self.seed_domain.clone();
                             tokio::spawn(async move {
                                 for domain in &domains {
                                     let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
@@ -204,12 +208,17 @@ impl NetworkEventLoop {
                 if let Err(e) = verdict {
                     if e.severity() == kinetic_core::error::Severity::Error {
                         let now = web_time::Instant::now();
-                        let (count, last_time) = self.bad_vdf_counts.get(&source).copied().unwrap_or((0, now));
-                        let new_val = if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
-                            (1, now)
-                        } else {
-                            (count + 1, now)
-                        };
+                        let (count, last_time) = self
+                            .bad_vdf_counts
+                            .get(&source)
+                            .copied()
+                            .unwrap_or((0, now));
+                        let new_val =
+                            if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
+                                (1, now)
+                            } else {
+                                (count + 1, now)
+                            };
                         self.bad_vdf_counts.put(source, new_val);
 
                         if new_val.0 >= 3 {
@@ -252,10 +261,10 @@ impl NetworkEventLoop {
                 }
             }
             LoopbackCommand::DialResolvedSeed(multiaddr) => {
-                if self.swarm.network_info().num_peers() < 20 {
-                    if self.swarm.dial(multiaddr.clone()).is_ok() {
-                        tracing::info!("Dialing resolved fallback DNS seed node: {}", multiaddr);
-                    }
+                if self.swarm.network_info().num_peers() < 20
+                    && self.swarm.dial(multiaddr.clone()).is_ok()
+                {
+                    tracing::info!("Dialing resolved fallback DNS seed node: {}", multiaddr);
                 }
             }
         }

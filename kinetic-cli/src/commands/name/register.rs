@@ -77,8 +77,8 @@ pub async fn handle(
     };
     let commit_res = client
         .post(format!(
-            "http://127.0.0.1:{}/commit",
-            config.daemon.api_port
+            "http://{}:{}/commit",
+            config.daemon.bind_ip, config.daemon.api_port
         ))
         .json(&commit_req)
         .send()
@@ -96,9 +96,13 @@ pub async fn handle(
     let actual_iterations = std::cmp::max(iterations, required_iterations);
 
     let label = kinetic_core::types::names::extract_apex_domain(&fqdn);
-    let label = label.strip_suffix(kinetic_core::constants::TLD_SUFFIX).unwrap_or(&label);
+    let label = label
+        .strip_suffix(kinetic_core::constants::TLD_SUFFIX)
+        .unwrap_or(&label);
 
-    let expected_minutes = (actual_iterations as f64 / kinetic_core::constants::BENCHMARK_BASE_ITERATIONS as f64) * kinetic_core::constants::BENCHMARK_TARGET_MINUTES;
+    let expected_minutes = (actual_iterations as f64
+        / kinetic_core::constants::BENCHMARK_BASE_ITERATIONS as f64)
+        * kinetic_core::constants::BENCHMARK_TARGET_MINUTES;
     let time_str = if expected_minutes >= 1440.0 {
         format!("{:.1} days", expected_minutes / 1440.0)
     } else if expected_minutes >= 60.0 {
@@ -107,24 +111,36 @@ pub async fn handle(
         format!("{:.0} minutes", expected_minutes)
     };
 
-    if label.len() >= 1 && label.len() <= 6 {
+    if !label.is_empty() && label.len() <= 6 {
         warn!("================================================================");
-        warn!("CRITICAL WARNING: You are attempting to register a {}-letter domain.", label.len());
+        warn!(
+            "CRITICAL WARNING: You are attempting to register a {}-letter domain.",
+            label.len()
+        );
         warn!("Short domains require massive VDF computations to prevent squatting.");
-        warn!("This requires {} iterations and will take approximately {} of continuous CPU time.", actual_iterations, time_str);
-        warn!("(Note: This expected time assumes an Intel Core i5-11400H equivalent CPU or better).");
+        warn!(
+            "This requires {} iterations and will take approximately {} of continuous CPU time.",
+            actual_iterations, time_str
+        );
+        warn!(
+            "(Note: This expected time assumes an Intel Core i5-11400H equivalent CPU or better)."
+        );
         warn!("If your computer sleeps, restarts, or loses power during this process, ALL PROGRESS WILL BE LOST.");
         warn!("================================================================");
         info!("Starting in 15 seconds. Press Ctrl+C NOW to cancel...");
         tokio::time::sleep(Duration::from_secs(15)).await;
     } else {
-        info!("This domain requires {} iterations and will take approximately {}.", actual_iterations, time_str);
+        info!(
+            "This domain requires {} iterations and will take approximately {}.",
+            actual_iterations, time_str
+        );
     }
 
     let refresh_challenge = challenge.clone();
     let refresh_fqdn = fqdn.clone();
     let refresh_port = config.daemon.api_port;
     let refresh_client = client.clone();
+    let refresh_bind_ip = config.daemon.bind_ip.clone();
 
     // Phase 4.1.5: Spawn a background task to refresh the commitment periodically
     let refresh_handle = tokio::spawn(async move {
@@ -136,7 +152,10 @@ pub async fn handle(
                 commitment: refresh_challenge.clone(),
             };
             let _ = refresh_client
-                .post(format!("http://127.0.0.1:{}/commit", refresh_port))
+                .post(format!(
+                    "http://{}:{}/commit",
+                    refresh_bind_ip, refresh_port
+                ))
                 .json(&commit_req)
                 .send()
                 .await;
@@ -285,7 +304,10 @@ pub async fn handle(
 
     // 4. Submit to local Daemon via REST API
     info!("Submitting fully signed Reveal tuple to local Kinetic Daemon...");
-    let daemon_url = format!("http://127.0.0.1:{}/publish", config.daemon.api_port);
+    let daemon_url = format!(
+        "http://{}:{}/publish",
+        config.daemon.bind_ip, config.daemon.api_port
+    );
 
     let req_body = json!({
         "reveal": reveal,

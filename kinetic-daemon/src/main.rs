@@ -280,7 +280,7 @@ async fn run_daemon() -> Result<()> {
     };
     let initial_drand_pulse = initial_pulse.round;
 
-    // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately 
+    // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately
     // without having to wait for the 30-40 second PoW mining loop to finish.
     if let Err(e) = kinetic_daemon::api::ensure_api_tokens() {
         tracing::error!("Failed to generate or read API tokens: {}", e);
@@ -304,16 +304,23 @@ async fn run_daemon() -> Result<()> {
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.daemon_port)
             .parse()
             .unwrap(),
-        quic_listen_addr: Some(format!("/ip4/0.0.0.0/udp/{}/quic-v1", config.network.daemon_quic_port).parse().unwrap()),
+        quic_listen_addr: Some(
+            format!(
+                "/ip4/0.0.0.0/udp/{}/quic-v1",
+                config.network.daemon_quic_port
+            )
+            .parse()
+            .unwrap(),
+        ),
         bootstrap_nodes: config
             .network
             .bootstrap_nodes
             .iter()
             .filter_map(|s| s.parse().ok())
             .collect(),
-        seed_domains: config
+        seed_domain: config
             .network
-            .seed_domains
+            .seed_domain
             .clone()
             .into_iter()
             .map(Into::into)
@@ -338,19 +345,24 @@ async fn run_daemon() -> Result<()> {
         .unwrap_or_else(|_| base_config_dir.join("governance.key"));
 
     if !gov_state_path.exists() {
-        tracing::info!("Governance state file not found locally. Attempting to bootstrap from seed nodes...");
-        
-        let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap_or_default();
+        tracing::info!(
+            "Governance state file not found locally. Attempting to bootstrap from seed nodes..."
+        );
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_default();
         let mut success = false;
-        
+
         let mut target_ips = Vec::new();
         for addr in &config.network.bootstrap_nodes {
             if let Some(ip) = addr.split('/').nth(2) {
                 target_ips.push(ip.to_string());
             }
         }
-        
-        for domain in &config.network.seed_domains {
+
+        for domain in &config.network.seed_domain {
             let addrs = kinetic_network::dns_tree::resolve_dns_tree(domain.as_str()).await;
             for multiaddr in addrs {
                 if let Some(ip) = multiaddr.to_string().split('/').nth(2) {
@@ -358,18 +370,30 @@ async fn run_daemon() -> Result<()> {
                 }
             }
         }
-        
+
         for ip in target_ips {
-            let url = format!("http://{}:{}/api/governance", ip, kinetic_core::config::ports::API_DAEMON);
+            let url = format!(
+                "http://{}:{}/api/governance",
+                ip,
+                kinetic_core::config::ports::API_DAEMON
+            );
             tracing::info!("Trying to fetch governance state from {}...", url);
             if let Ok(resp) = client.get(&url).send().await {
                 if resp.status().is_success() {
                     if let Ok(bytes) = resp.bytes().await {
-                        if let Ok(downloaded_state) = bincode::deserialize::<kinetic_core::governance::GovernanceState>(&bytes) {
+                        if let Ok(downloaded_state) = bincode::deserialize::<
+                            kinetic_core::governance::GovernanceState,
+                        >(&bytes)
+                        {
                             if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
-                                tracing::warn!("Failed to save downloaded governance state to disk: {}", e);
+                                tracing::warn!(
+                                    "Failed to save downloaded governance state to disk: {}",
+                                    e
+                                );
                             } else {
-                                tracing::info!("Successfully bootstrapped governance state from seed node.");
+                                tracing::info!(
+                                    "Successfully bootstrapped governance state from seed node."
+                                );
                                 success = true;
                                 break;
                             }
@@ -380,7 +404,7 @@ async fn run_daemon() -> Result<()> {
                 }
             }
         }
-        
+
         if !success {
             tracing::warn!("Failed to fetch governance state from any bootstrap node. Initializing a default genesis state.");
         }
@@ -395,7 +419,7 @@ async fn run_daemon() -> Result<()> {
     }
 
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
-    let (gossip_tx, gossip_rx) = tokio::sync::mpsc::channel(100);
+    let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);
     let current_local_key = local_key;
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config.clone(),
@@ -407,15 +431,15 @@ async fn run_daemon() -> Result<()> {
         vdf_engine.clone(),
     )?;
 
+    let network_loop_handle = tokio::spawn(async move {
+        network_loop.run().await;
+    });
+
     // Subscribe to Quicknet Pulse Gossip
     let _ = network_client
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
         .await;
     info!("P2P Network architecture wired");
-
-    let network_loop_handle = tokio::spawn(async move {
-        network_loop.run().await;
-    });
 
     kinetic_daemon::services::network::start_pow_miner_loop(
         network_client.clone(),
@@ -467,19 +491,26 @@ async fn run_daemon() -> Result<()> {
     });
 
     let handler_client = network_client.clone();
+    let handler_bind_ip = config.daemon.bind_ip.clone();
     tokio::spawn(async move {
         proxy::handle_incoming_proxy_requests(
             handler_client,
             incoming_rx,
+            handler_bind_ip,
             config.daemon.backend_port,
         )
         .await;
     });
 
+    let atlas_tlds = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new()));
+
     let api_future = api::start_server(
         network_client.clone(),
         storage.clone(),
+        gossip_tx.clone(),
+        config.daemon.bind_ip.clone(),
         config.daemon.api_port,
+        atlas_tlds.clone(),
     );
 
     info!("Kinetic Daemon architecture successfully bootstrapped. Spawning loops...");
@@ -496,28 +527,47 @@ async fn run_daemon() -> Result<()> {
         drand_pulse_tx.clone(),
     );
 
+    let pac_bind_ip = config.daemon.bind_ip.clone();
     tokio::spawn(async move {
-        if let Err(e) = pac::start_pac_server(config.daemon.pac_port, config.daemon.proxy_port).await {
+        if let Err(e) = pac::start_pac_server(
+            pac_bind_ip,
+            config.daemon.pac_port,
+            config.daemon.proxy_port,
+        )
+        .await
+        {
             tracing::error!("PAC server crashed: {}", e);
         }
     });
 
     let pac_manager = pac::PacManager::new(&base_config_dir);
-    if let Err(e) = pac_manager.install(&format!("http://127.0.0.1:{}/proxy.pac", config.daemon.pac_port)) {
+    if let Err(e) = pac_manager.install(&format!(
+        "http://{}:{}/proxy.pac",
+        config.daemon.bind_ip, config.daemon.pac_port
+    )) {
         tracing::error!("Failed to install OS proxy configuration: {}", e);
     }
 
     if config.daemon.enable_dns {
-        let api_url = format!("http://127.0.0.1:{}", config.daemon.api_port);
-        let dns_handler = kinetic_dns::KineticDnsHandler::new(api_url);
+        let api_url = format!(
+            "http://{}:{}",
+            config.daemon.bind_ip, config.daemon.api_port
+        );
+        let dns_handler = kinetic_dns::KineticDnsHandler::new(api_url, atlas_tlds.clone(), config.daemon.atlas_port);
         let mut server = hickory_server::ServerFuture::new(dns_handler);
 
-        let udp_socket =
-            tokio::net::UdpSocket::bind(format!("127.0.0.1:{}", config.daemon.dns_port)).await?;
+        let udp_socket = tokio::net::UdpSocket::bind(format!(
+            "{}:{}",
+            config.daemon.bind_ip, config.daemon.dns_port
+        ))
+        .await?;
         server.register_socket(udp_socket);
 
-        let tcp_listener =
-            tokio::net::TcpListener::bind(format!("127.0.0.1:{}", config.daemon.dns_port)).await?;
+        let tcp_listener = tokio::net::TcpListener::bind(format!(
+            "{}:{}",
+            config.daemon.bind_ip, config.daemon.dns_port
+        ))
+        .await?;
         server.register_listener(tcp_listener, std::time::Duration::from_secs(5));
 
         tokio::spawn(async move {
@@ -548,7 +598,10 @@ async fn run_daemon() -> Result<()> {
 
 fn main() -> anyhow::Result<()> {
     if let Err(e) = rustls::crypto::ring::default_provider().install_default() {
-        eprintln!("Rustls crypto provider already installed or failed: {:?}", e);
+        eprintln!(
+            "Rustls crypto provider already installed or failed: {:?}",
+            e
+        );
     }
 
     tokio::runtime::Builder::new_multi_thread()

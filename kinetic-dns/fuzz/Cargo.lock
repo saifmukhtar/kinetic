@@ -2185,6 +2185,7 @@ dependencies = [
 name = "kinetic-core"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "anyhow",
  "bincode",
  "bip39",

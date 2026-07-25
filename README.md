@@ -199,6 +199,7 @@ Explore the mathematical proofs, RFC drafts, and security models powering Kineti
 ## 🏛️ Technical Specifications & Repository Guides (`.github/`)
 
 - 🏗️ **[ARCHITECTURE.md](./.github/ARCHITECTURE.md):** Deep-dive workspace topology, binary boundaries, and trait abstractions.
+- ⚙️ **[CONFIG.md](./.github/CONFIG.md):** Comprehensive configuration guide for daemon, P2P networking, and Drand settings.
 - 🔐 **[CRYPTO.md](./.github/CRYPTO.md):** Cryptographic primitive choices (Ed25519, ML-DSA-65, Chia VDF, Drand).
 - 🛡️ **[THREAT_MODEL.md](./.github/THREAT_MODEL.md):** Adversarial threat vectors, security boundaries, and non-goals.
 - 🏛️ **[GOVERNANCE.md](./.github/GOVERNANCE.md):** Maintenance council supermajority, Bicameral keys, and emergency procedure.

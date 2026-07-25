@@ -14,7 +14,7 @@ pub fn start_pow_miner_loop(
         kinetic_network::ProxyRequest,
         libp2p::request_response::ResponseChannel<kinetic_network::ProxyResponse>,
     )>,
-    hc_gossip_tx: tokio::sync::mpsc::Sender<(String, Vec<u8>)>,
+    hc_gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>)>,
     mut network_loop_handle: tokio::task::JoinHandle<()>,
     mut current_local_key: libp2p::identity::Keypair,
     hc_vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
@@ -116,7 +116,9 @@ pub fn start_republisher(
     republish_storage: std::sync::Arc<dyn StorageEngine>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(kinetic_core::constants::TIMEOUTS_HEARTBEAT_AGE_WARNING_SECONDS)); // 12 hours
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(
+            kinetic_core::constants::TIMEOUTS_HEARTBEAT_AGE_WARNING_SECONDS,
+        )); // 12 hours
         loop {
             interval.tick().await;
             let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;

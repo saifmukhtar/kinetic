@@ -97,9 +97,9 @@ impl KidError {
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
         match self {
-            Self::InvalidSignature
-            | Self::UnauthorizedManifestSignature
-            | Self::TooManyKeys => Severity::Error,
+            Self::InvalidSignature | Self::UnauthorizedManifestSignature | Self::TooManyKeys => {
+                Severity::Error
+            }
             _ => Severity::Warning,
         }
     }
@@ -112,19 +112,38 @@ impl KidError {
     /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
         match self {
-            Self::InvalidDidPrefix => "The DID string does not start with the 'did:kin:' prefix.".to_string(),
+            Self::InvalidDidPrefix => {
+                "The DID string does not start with the 'did:kin:' prefix.".to_string()
+            }
             Self::InvalidDidFormat => "The DID method-specific ID is malformed.".to_string(),
-            Self::InvalidDidHexLength => "The DID method-specific ID must be exactly 64 hexadecimal characters long.".to_string(),
-            Self::InvalidDidHexCharacters => "The DID method-specific ID must contain only lowercase hex characters.".to_string(),
+            Self::InvalidDidHexLength => {
+                "The DID method-specific ID must be exactly 64 hexadecimal characters long."
+                    .to_string()
+            }
+            Self::InvalidDidHexCharacters => {
+                "The DID method-specific ID must contain only lowercase hex characters.".to_string()
+            }
             Self::JsonParseError(_) => "Failed to parse identity document JSON.".to_string(),
-            Self::CanonicalizationError(_) => "Failed to canonicalize identity document JSON.".to_string(),
-            Self::InvalidSignature => "The cryptographic signature on the identity document is invalid.".to_string(),
-            Self::MissingSignature => "The identity document is missing a required signature.".to_string(),
+            Self::CanonicalizationError(_) => {
+                "Failed to canonicalize identity document JSON.".to_string()
+            }
+            Self::InvalidSignature => {
+                "The cryptographic signature on the identity document is invalid.".to_string()
+            }
+            Self::MissingSignature => {
+                "The identity document is missing a required signature.".to_string()
+            }
             Self::Base64Error(_) => "Failed to decode key or signature data.".to_string(),
             Self::KeyParseError(_) => "Failed to parse ML-DSA-65 verification key.".to_string(),
-            Self::UnauthorizedManifestSignature => "The capability manifest was signed by an unauthorized key.".to_string(),
-            Self::TooManyKeys => "Identity document exceeds maximum key or endpoint bounds.".to_string(),
-            Self::InvalidValidFrom => "Capability manifest valid_from timestamp is set in the future.".to_string(),
+            Self::UnauthorizedManifestSignature => {
+                "The capability manifest was signed by an unauthorized key.".to_string()
+            }
+            Self::TooManyKeys => {
+                "Identity document exceeds maximum key or endpoint bounds.".to_string()
+            }
+            Self::InvalidValidFrom => {
+                "Capability manifest valid_from timestamp is set in the future.".to_string()
+            }
             Self::ManifestExpired => "Capability manifest has expired.".to_string(),
         }
     }

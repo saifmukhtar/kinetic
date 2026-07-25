@@ -2,7 +2,7 @@
 
 use super::*;
 use axum::{
-    extract::{Path, State, Extension},
+    extract::{Extension, Path, State},
     http::StatusCode,
     Json,
 };
@@ -43,7 +43,9 @@ pub async fn handle_vdf_register(
     if !role.can_vdf() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires VDF or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires VDF or Admin role"}),
+            ),
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
@@ -363,7 +365,9 @@ pub async fn handle_vdf_renew(
     if !role.can_vdf() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires VDF or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires VDF or Admin role"}),
+            ),
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&req.name);

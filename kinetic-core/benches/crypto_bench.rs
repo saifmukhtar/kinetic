@@ -28,7 +28,8 @@ fn bench_ed25519(c: &mut Criterion) {
 fn bench_mldsa65(c: &mut Criterion) {
     let signing_key = MlSigningKey::<MlDsa65>::generate();
     let verifying_key = signing_key.verifying_key();
-    let message: &[u8] = b"This is a dummy heartbeat payload for benchmarking post-quantum ML-DSA-65";
+    let message: &[u8] =
+        b"This is a dummy heartbeat payload for benchmarking post-quantum ML-DSA-65";
 
     let mut group = c.benchmark_group("mldsa65_crypto");
 

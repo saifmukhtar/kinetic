@@ -25,8 +25,10 @@ mod tests {
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let network = NetworkClient::new_mock(cmd_tx);
 
+        let (gossip_tx, _) = tokio::sync::broadcast::channel(100);
         let state = ApiState {
             network,
+            gossip_tx,
             storage: storage.clone(),
             tokens: Arc::new(crate::api::ApiTokens {
                 admin: "test-token-123".to_string(),
@@ -37,6 +39,7 @@ mod tests {
             vdf_tasks: Arc::new(Mutex::new(std::collections::HashMap::new())),
             vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
             bind_ip: "127.0.0.1".to_string(),
+            atlas_tlds: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         };
 
         let router = app(state);

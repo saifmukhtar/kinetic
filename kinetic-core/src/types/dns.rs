@@ -54,8 +54,9 @@ impl HostRoutingRecord {
     /// Concatenated byte vector prefixed with the network routing header string.
     pub fn signable_bytes(&self) -> Vec<u8> {
         let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-routing-v1").as_bytes();
-        let mut bytes =
-            Vec::with_capacity(prefix.len() + 4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8);
+        let mut bytes = Vec::with_capacity(
+            prefix.len() + 4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8,
+        );
         bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&(self.host_id.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.host_id.as_bytes());

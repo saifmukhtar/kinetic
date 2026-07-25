@@ -22,7 +22,7 @@ impl super::core::NetworkEventLoop {
                 libp2p::request_response::ResponseChannel<ProxyResponse>,
             )>,
         >,
-        gossip_tx: Option<tokio::sync::mpsc::Sender<(String, Vec<u8>)>>,
+        gossip_tx: Option<tokio::sync::broadcast::Sender<(String, Vec<u8>)>>,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
         info!("Initializing Kinetic P2P Swarm on {}", config.listen_addr);
@@ -201,7 +201,8 @@ impl super::core::NetworkEventLoop {
                                 max_circuits_per_peer: 2,
                                 circuit_src_rate_limiters: vec![],
                                 max_circuit_duration: std::time::Duration::from_secs(2 * 60),
-                                max_circuit_bytes: kinetic_core::constants::LIMITS_P2P_MAX_CIRCUIT_BYTES as u64,
+                                max_circuit_bytes:
+                                    kinetic_core::constants::LIMITS_P2P_MAX_CIRCUIT_BYTES as u64,
                                 reservation_rate_limiters: vec![],
                                 max_reservations: 1024,
                                 max_reservations_per_peer: 2,
@@ -251,7 +252,11 @@ impl super::core::NetworkEventLoop {
                 if !quic_addr.is_empty() {
                     match swarm.listen_on(quic_addr.clone()) {
                         Ok(_) => tracing::info!("Listening on QUIC: {}", quic_addr),
-                        Err(e) => tracing::warn!("Failed to bind QUIC on {}: {}. Falling back to TCP only.", quic_addr, e),
+                        Err(e) => tracing::warn!(
+                            "Failed to bind QUIC on {}: {}. Falling back to TCP only.",
+                            quic_addr,
+                            e
+                        ),
                     }
                 }
             }
@@ -346,7 +351,7 @@ impl super::core::NetworkEventLoop {
                 }
                 peers
             },
-            seed_domains: config.seed_domains.clone(),
+            seed_domain: config.seed_domain.clone(),
 
             bootstrap_connection_time: rustc_hash::FxHashMap::default(),
             nat_status: "Unknown".to_string(),
@@ -485,7 +490,7 @@ impl super::core::NetworkEventLoop {
             startup_time: web_time::Instant::now(),
             disable_pow: config.disable_pow,
             banned_peers: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
-            seed_domains: vec![],
+            seed_domain: vec![],
 
             bootstrap_connection_time: Default::default(),
             nat_status: "Unknown".to_string(),

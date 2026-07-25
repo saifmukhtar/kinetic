@@ -93,14 +93,12 @@ impl GovernanceState {
         let thirty_days_sec = 30 * 24 * 60 * 60;
 
         // Remove pending updates that have been executable for more than 30 days
-        self.pending_updates.retain(|_, (exec_time, _, _)| {
-            current_time_sec <= *exec_time + thirty_days_sec
-        });
+        self.pending_updates
+            .retain(|_, (exec_time, _, _)| current_time_sec <= *exec_time + thirty_days_sec);
 
         // Remove partial proposals older than 30 days
-        self.partial_proposals.retain(|_, msg| {
-            current_time_sec <= msg.timestamp_sec + thirty_days_sec
-        });
+        self.partial_proposals
+            .retain(|_, msg| current_time_sec <= msg.timestamp_sec + thirty_days_sec);
     }
 
     /// Merges signatures from an incoming message into the existing state's partial proposal for the same action.

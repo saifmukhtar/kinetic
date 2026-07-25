@@ -9,7 +9,10 @@ use tracing::info;
 ///
 /// # Errors
 /// Returns a `Result::Err` if the TCP listener fails to bind to port 16004 or if the HTTP server crashes.
-pub async fn start_health_api(host_peer_id: libp2p::PeerId) -> Result<()> {
+pub async fn start_health_api(
+    host_peer_id: libp2p::PeerId,
+    bind_ip: std::net::IpAddr,
+) -> Result<()> {
     let app = Router::new()
         .route("/health", get(|| async { "OK" }))
         .route(
@@ -18,10 +21,10 @@ pub async fn start_health_api(host_peer_id: libp2p::PeerId) -> Result<()> {
         );
 
     let api_port = 16004;
-    let addr = SocketAddr::from(([127, 0, 0, 1], api_port));
+    let addr = SocketAddr::from((bind_ip, api_port));
     info!(
-        "Host Health-check API listening on http://127.0.0.1:{}",
-        api_port
+        "Host Health-check API listening on http://{}:{}",
+        bind_ip, api_port
     );
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app)

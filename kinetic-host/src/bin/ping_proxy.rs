@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .iter()
             .filter_map(|s| s.parse().ok())
             .collect(),
-        seed_domains: vec![],
+        seed_domain: vec![],
         enable_mdns: false,
         initial_drand_pulse: 0,
         external_address: None,

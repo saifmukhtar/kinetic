@@ -44,10 +44,7 @@ impl KineticRecordStore {
                 let hb_age = self.current_drand_round.saturating_sub(last_hb_round);
                 let drand_rand =
                     hex::decode(&reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
-                let base_diff = consensus_math.required_iterations(
-                    &reveal.name,
-                    &drand_rand,
-                );
+                let base_diff = consensus_math.required_iterations(&reveal.name, &drand_rand);
                 let steal_threshold = consensus_math.steal_difficulty(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
@@ -130,7 +127,8 @@ impl KineticRecordStore {
         }
         deque.push_back(now);
 
-        if let Some((evicted_name, _)) = self.reveals_by_name
+        if let Some((evicted_name, _)) = self
+            .reveals_by_name
             .push(reveal.name.clone(), reveal.clone())
         {
             if evicted_name != reveal.name {

@@ -7,7 +7,7 @@
 use crate::error::KineticStoreError;
 
 /// Finding 13 (Critical): Verify a HostRoutingRecord's signature and timestamp freshness.
-/// 
+///
 /// This lives in `kinetic-network` (not `kinetic-core`) because it requires the libp2p dependency
 /// to extract the Ed25519 public key from the PeerId multihash.
 ///
@@ -31,7 +31,9 @@ pub(crate) fn verify_host_routing_record(
         .duration_since(web_time::UNIX_EPOCH)
         .map_err(|_| KineticStoreError::InvalidHostRouteSignature)?
         .as_secs();
-    if now.saturating_sub(record.timestamp) > kinetic_core::constants::TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS {
+    if now.saturating_sub(record.timestamp)
+        > kinetic_core::constants::TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS
+    {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-023",
@@ -142,8 +144,7 @@ pub(crate) fn compute_required_iterations(
         err
     })?;
 
-    let base_required_iterations =
-        consensus_math.required_iterations(&reveal.name, &drand_rand);
+    let base_required_iterations = consensus_math.required_iterations(&reveal.name, &drand_rand);
     let required_iterations = if let Some(prev) = &reveal.previous_proof {
         // Verify previous proof
         let mut prev_hasher = Sha256::new();
@@ -169,8 +170,7 @@ pub(crate) fn compute_required_iterations(
             Ok(true)
         );
 
-        let prev_req =
-            consensus_math.required_iterations(&reveal.name, &prev_drand_rand);
+        let prev_req = consensus_math.required_iterations(&reveal.name, &prev_drand_rand);
         let is_not_too_old = current_drand_round.saturating_sub(prev.drand_pulse)
             <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
 
@@ -181,11 +181,15 @@ pub(crate) fn compute_required_iterations(
                 .unwrap_or(&normalized_name)
                 .len();
             let discount_iterations = match name_len {
-                1 => kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS,                                  // 100% discount (minimum iterations)
-                63 => base_required_iterations,             // 0% discount (forces lottery re-roll)
-                2..=6 => base_required_iterations / 2,      // 50% discount
-                7..=10 => base_required_iterations / 5,     // 80% discount
-                _ => (base_required_iterations * kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_PERCENTAGE) / 100, // 85% discount for 11+
+                1 => kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS, // 100% discount (minimum iterations)
+                63 => base_required_iterations, // 0% discount (forces lottery re-roll)
+                2..=6 => base_required_iterations / 2, // 50% discount
+                7..=10 => base_required_iterations / 5, // 80% discount
+                _ => {
+                    (base_required_iterations
+                        * kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_PERCENTAGE)
+                        / 100
+                } // 85% discount for 11+
             };
 
             tracing::info!(
@@ -193,7 +197,10 @@ pub(crate) fn compute_required_iterations(
                 reveal.name,
                 name_len
             );
-            std::cmp::max(kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS, discount_iterations)
+            std::cmp::max(
+                kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS,
+                discount_iterations,
+            )
         } else {
             tracing::warn!(
                 "Invalid PreviousProof attached for {}. Falling back to full difficulty.",

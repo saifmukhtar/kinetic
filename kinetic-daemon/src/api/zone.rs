@@ -2,7 +2,7 @@
 
 use super::*;
 use axum::{
-    extract::{Path, State, Extension},
+    extract::{Extension, Path, State},
     http::StatusCode,
     Json,
 };
@@ -55,7 +55,9 @@ pub async fn handle_post_zone(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&name);
@@ -101,7 +103,9 @@ pub async fn handle_publish_zone(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&name);

@@ -18,10 +18,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 use std::path::PathBuf;
-
 /// Maximum age in seconds (10 minutes) for cached host routing records in proxy forwarding.
-
-
 /// Well-known default network port assignments for Kinetic binaries.
 ///
 /// Centralizing port assignments here prevents accidental conflicts
@@ -69,11 +66,14 @@ pub struct KineticConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrandConfig {
     /// Drand HTTP endpoints to query for Quicknet pulses.
-    #[serde(default = "default_drand_endpoints")]
+    #[serde(
+        default = "default_drand_endpoints",
+        skip_serializing_if = "is_default_drand_endpoints"
+    )]
     pub endpoints: Vec<String>,
     /// Domains to query via DNS TXT records for dynamic Drand endpoints.
-    #[serde(default = "default_drand_seed_domains")]
-    pub seed_domains: Vec<String>,
+    #[serde(default = "default_drand_seed_domain")]
+    pub drand_domain: Vec<String>,
     /// If true, the node will only listen to P2P gossipsub for Drand pulses
     /// and will not query the internet via HTTP/DNS.
     #[serde(default)]
@@ -87,7 +87,11 @@ fn default_drand_endpoints() -> Vec<String> {
         .collect()
 }
 
-fn default_drand_seed_domains() -> Vec<String> {
+fn is_default_drand_endpoints(val: &Vec<String>) -> bool {
+    val == &default_drand_endpoints()
+}
+
+fn default_drand_seed_domain() -> Vec<String> {
     vec![format!("drand.{}", crate::constants::BASE_DOMAIN)]
 }
 
@@ -95,7 +99,7 @@ impl Default for DrandConfig {
     fn default() -> Self {
         Self {
             endpoints: default_drand_endpoints(),
-            seed_domains: default_drand_seed_domains(),
+            drand_domain: default_drand_seed_domain(),
             p2p_only: false,
         }
     }
@@ -105,22 +109,31 @@ impl Default for DrandConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonConfig {
     /// Local IP address to bind to for daemon services.
-    #[serde(default = "default_bind_ip")]
+    #[serde(default = "local_bind_ip", skip_serializing_if = "is_default_bind_ip")]
     pub bind_ip: String,
     /// Port for the daemon's authenticated HTTP API (default: [`ports::API_DAEMON`]).
-    #[serde(default = "default_api_port")]
+    #[serde(
+        default = "default_api_port",
+        skip_serializing_if = "is_default_api_port"
+    )]
     pub api_port: u16,
     /// Port for the built-in DNS resolver (default: [`ports::DNS`]).
     #[serde(default = "default_dns_port")]
     pub dns_port: u16,
     /// Port for the built-in HTTP reverse proxy (default: [`ports::PROXY`]).
-    #[serde(default = "default_proxy_port")]
+    #[serde(
+        default = "default_proxy_port",
+        skip_serializing_if = "is_default_proxy_port"
+    )]
     pub proxy_port: u16,
     /// Port for the local backend HTTP server (default: [`ports::BACKEND`]).
-    #[serde(default = "default_backend_port")]
+    #[serde(
+        default = "default_backend_port",
+        skip_serializing_if = "is_default_backend_port"
+    )]
     pub backend_port: u16,
-    /// Whether to start the built-in UDP DNS resolver on boot (default: `false`).
-    #[serde(default)]
+    /// Whether to start the built-in UDP DNS resolver on boot (default: `true`).
+    #[serde(default = "default_true")]
     pub enable_dns: bool,
     /// Path to the directory where the embedded storage database is persisted.
     pub storage_dir: PathBuf,
@@ -132,15 +145,29 @@ pub struct DaemonConfig {
     #[serde(default = "default_auto_update")]
     pub auto_update: bool,
     /// Port for the PAC (Proxy Auto-Config) server (default: [`ports::PAC`]).
-    #[serde(default = "default_pac_port")]
+    #[serde(
+        default = "default_pac_port",
+        skip_serializing_if = "is_default_pac_port"
+    )]
     pub pac_port: u16,
     /// IPFS gateway URL used to resolve `IPFS(cid)` records in the HTTP Proxy.
     #[serde(default = "default_ipfs_gateway")]
     pub ipfs_gateway: String,
+    /// UDP port for querying the Kinetic Atlas Bridge daemon (default: `34291`).
+    #[serde(default = "default_atlas_port")]
+    pub atlas_port: u16,
 }
 
-fn default_bind_ip() -> String {
-    crate::constants::DEFAULT_BIND_IP.to_string()
+fn local_bind_ip() -> String {
+    crate::constants::LOCAL_BIND_IP.to_string()
+}
+
+fn is_default_bind_ip(val: &String) -> bool {
+    val == crate::constants::LOCAL_BIND_IP
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_auto_update() -> bool {
@@ -171,6 +198,23 @@ fn default_pac_port() -> u16 {
     ports::PAC
 }
 
+fn is_default_api_port(val: &u16) -> bool {
+    *val == ports::API_DAEMON
+}
+fn is_default_proxy_port(val: &u16) -> bool {
+    *val == ports::PROXY
+}
+fn is_default_backend_port(val: &u16) -> bool {
+    *val == ports::BACKEND
+}
+fn is_default_pac_port(val: &u16) -> bool {
+    *val == ports::PAC
+}
+
+fn default_atlas_port() -> u16 {
+    34291
+}
+
 fn default_ipfs_gateway() -> String {
     crate::constants::IPFS_GATEWAY.to_string()
 }
@@ -179,33 +223,51 @@ fn default_ipfs_gateway() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2pConfig {
     /// P2P listen port for the daemon (default: [`ports::P2P_DAEMON`]).
-    #[serde(default = "default_p2p_daemon")]
+    #[serde(
+        default = "default_p2p_daemon",
+        skip_serializing_if = "is_default_p2p_daemon"
+    )]
     pub daemon_port: u16,
     /// P2P listen port for the daemon over QUIC (default: [`ports::P2P_DAEMON`]).
-    #[serde(default = "default_p2p_daemon_quic")]
+    #[serde(
+        default = "default_p2p_daemon_quic",
+        skip_serializing_if = "is_default_p2p_daemon_quic"
+    )]
     pub daemon_quic_port: u16,
     /// P2P listen port for the node (default: [`ports::P2P_NODE`]).
-    #[serde(default = "default_p2p_node")]
+    #[serde(
+        default = "default_p2p_node",
+        skip_serializing_if = "is_default_p2p_node"
+    )]
     pub node_port: u16,
     /// P2P listen port for the node over QUIC (default: [`ports::P2P_NODE`]).
-    #[serde(default = "default_p2p_node_quic")]
+    #[serde(
+        default = "default_p2p_node_quic",
+        skip_serializing_if = "is_default_p2p_node_quic"
+    )]
     pub node_quic_port: u16,
     /// P2P listen port for the host (default: [`ports::P2P_HOST`]).
-    #[serde(default = "default_p2p_host")]
+    #[serde(
+        default = "default_p2p_host",
+        skip_serializing_if = "is_default_p2p_host"
+    )]
     pub host_port: u16,
     /// P2P listen port for the host over QUIC (default: [`ports::P2P_HOST`]).
-    #[serde(default = "default_p2p_host_quic")]
+    #[serde(
+        default = "default_p2p_host_quic",
+        skip_serializing_if = "is_default_p2p_host_quic"
+    )]
     pub host_quic_port: u16,
     /// Multiaddr strings for the initial bootstrap peers.
     pub bootstrap_nodes: Vec<String>,
     /// `.kin` domain names used to discover additional bootstrap peers via DNS.
     #[serde(default)]
-    pub seed_domains: Vec<String>,
+    pub seed_domain: Vec<String>,
     /// Whether to enable mDNS peer discovery on the local network.
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub enable_mdns: bool,
     /// Optional externally reachable multiaddr (e.g. for nodes behind NAT).
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_address: Option<String>,
 }
 
@@ -233,6 +295,25 @@ fn default_p2p_host_quic() -> u16 {
     ports::P2P_HOST
 }
 
+fn is_default_p2p_daemon(val: &u16) -> bool {
+    *val == ports::P2P_DAEMON
+}
+fn is_default_p2p_daemon_quic(val: &u16) -> bool {
+    *val == ports::P2P_DAEMON
+}
+fn is_default_p2p_node(val: &u16) -> bool {
+    *val == ports::P2P_NODE
+}
+fn is_default_p2p_node_quic(val: &u16) -> bool {
+    *val == ports::P2P_NODE
+}
+fn is_default_p2p_host(val: &u16) -> bool {
+    *val == ports::P2P_HOST
+}
+fn is_default_p2p_host_quic(val: &u16) -> bool {
+    *val == ports::P2P_HOST
+}
+
 impl Default for KineticConfig {
     fn default() -> Self {
         #[cfg(not(target_arch = "wasm32"))]
@@ -243,17 +324,18 @@ impl Default for KineticConfig {
 
         Self {
             daemon: DaemonConfig {
-                bind_ip: crate::constants::DEFAULT_BIND_IP.to_string(),
+                bind_ip: crate::constants::LOCAL_BIND_IP.to_string(),
                 api_port: ports::API_DAEMON,
                 dns_port: ports::DNS,
                 proxy_port: ports::PROXY,
                 backend_port: ports::BACKEND,
-                enable_dns: false,
+                enable_dns: true,
                 storage_dir,
                 network_mode: "FullNode".to_string(),
                 auto_update: true,
                 pac_port: ports::PAC,
                 ipfs_gateway: crate::constants::IPFS_GATEWAY.to_string(),
+                atlas_port: 34291,
             },
             network: P2pConfig {
                 daemon_port: ports::P2P_DAEMON,
@@ -266,8 +348,8 @@ impl Default for KineticConfig {
                     .iter()
                     .map(|s| s.to_string())
                     .collect(),
-                seed_domains: vec![format!("seed.{}", crate::constants::BASE_DOMAIN)],
-                enable_mdns: false,
+                seed_domain: vec![format!("seed.{}", crate::constants::BASE_DOMAIN)],
+                enable_mdns: true,
                 external_address: None,
             },
             drand: DrandConfig::default(),
@@ -406,6 +488,7 @@ mod tests {
         let config = KineticConfig::default();
         assert_eq!(config.daemon.api_port, ports::API_DAEMON);
         assert_eq!(config.network.daemon_port, ports::P2P_DAEMON);
-        assert!(!config.network.enable_mdns);
+        assert!(config.network.enable_mdns);
+        assert!(config.daemon.enable_dns);
     }
 }

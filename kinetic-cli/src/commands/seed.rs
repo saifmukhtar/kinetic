@@ -57,7 +57,7 @@ pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
                 std::io::stdout().flush().unwrap();
                 let mut input1 = String::new();
                 std::io::stdin().read_line(&mut input1).unwrap();
-                
+
                 print!("Please enter word #{}: ", idx2 + 1);
                 std::io::stdout().flush().unwrap();
                 let mut input2 = String::new();

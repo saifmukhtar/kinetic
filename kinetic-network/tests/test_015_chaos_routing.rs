@@ -27,7 +27,7 @@ async fn spawn_test_node(
         enable_mdns: false,
         lru_cache_size: std::num::NonZeroUsize::new(100).unwrap(),
         max_reveals_per_hour: 100,
-        seed_domains: vec![],
+        seed_domain: vec![],
         disable_pow: true,
     };
 

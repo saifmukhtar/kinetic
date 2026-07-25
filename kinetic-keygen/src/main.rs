@@ -51,7 +51,12 @@ struct ExportArgs {
 
 fn derive_key(seed: &[u8], purpose: &str) -> ml_dsa::SigningKey<MlDsa65> {
     let mut derived_seed = [0u8; 32];
-    pbkdf2_hmac::<Sha512>(seed, purpose.as_bytes(), 2048, &mut derived_seed);
+    pbkdf2_hmac::<Sha512>(
+        seed,
+        purpose.as_bytes(),
+        kinetic_core::constants::CRYPTO_KEYGEN_PBKDF2_ITERATIONS,
+        &mut derived_seed,
+    );
     ml_dsa::SigningKey::<MlDsa65>::from_seed((&derived_seed).into())
 }
 
@@ -85,7 +90,6 @@ fn print_and_export_keys(
     identity: &str,
     export_path: &Path,
     encrypt_pass: &str,
-    _luks_pass: &str,
 ) -> Result<()> {
     let seed = mnemonic.to_seed(passphrase);
     let key = derive_key(
@@ -94,8 +98,8 @@ fn print_and_export_keys(
     );
     let pubkey_bytes = key.verifying_key().to_bytes();
 
-    let pubkey_hex = hex::encode(&pubkey_bytes);
-    let pubkey_b64 = b64.encode(&pubkey_bytes);
+    let pubkey_hex = hex::encode(pubkey_bytes);
+    let pubkey_b64 = b64.encode(pubkey_bytes);
     let v_data = calculate_verification_data(&pubkey_bytes);
 
     println!("\n========================================================");
@@ -134,10 +138,16 @@ fn print_and_export_keys(
     fs::write(export_path.join("manifest.txt"), &manifest)
         .context("Failed to write manifest file")?;
 
-    println!("✅ Successfully exported key files to: {}", export_path.display());
+    println!(
+        "✅ Successfully exported key files to: {}",
+        export_path.display()
+    );
 
     if !encrypt_pass.is_empty() {
-        use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce};
+        use aes_gcm::{
+            aead::{Aead, KeyInit},
+            Aes256Gcm, Nonce,
+        };
         use pbkdf2::pbkdf2_hmac;
         use sha2::{Sha256, Sha512};
         use std::fs::File;
@@ -156,9 +166,15 @@ fn print_and_export_keys(
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         let mut raw_seed = [0u8; 32];
-        pbkdf2_hmac::<Sha512>(&mnemonic.to_seed(passphrase), kinetic_core::constants::KINETIC_GOVERNANCE_KEY_PURPOSE.as_bytes(), 2048, &mut raw_seed);
+        pbkdf2_hmac::<Sha512>(
+            &mnemonic.to_seed(passphrase),
+            kinetic_core::constants::KINETIC_GOVERNANCE_KEY_PURPOSE.as_bytes(),
+            kinetic_core::constants::CRYPTO_KEYGEN_PBKDF2_ITERATIONS,
+            &mut raw_seed,
+        );
 
-        let ciphertext = cipher.encrypt(nonce, raw_seed.as_ref())
+        let ciphertext = cipher
+            .encrypt(nonce, raw_seed.as_ref())
             .map_err(|e| anyhow::anyhow!("Encryption failed: {}", e))?;
 
         let mut final_payload = Vec::new();
@@ -168,7 +184,10 @@ fn print_and_export_keys(
 
         fs::write(export_path.join("private_key.aes"), final_payload)
             .context("Failed to write AES file")?;
-        println!("🔒 Encrypted private key saved to: {}/private_key.aes\n", export_path.display());
+        println!(
+            "🔒 Encrypted private key saved to: {}/private_key.aes\n",
+            export_path.display()
+        );
     }
 
     Ok(())
@@ -181,8 +200,9 @@ fn verify_file(file_path: &str) -> Result<()> {
             .interact()
             .context("Failed to read password")?;
 
-        let key = kinetic_core::types::identity::load_encrypted_keypair(Path::new(file_path), &password)
-            .map_err(|e| anyhow::anyhow!("Failed to decrypt AES key: {}", e))?;
+        let key =
+            kinetic_core::types::identity::load_encrypted_keypair(Path::new(file_path), &password)
+                .map_err(|e| anyhow::anyhow!("Failed to decrypt AES key: {}", e))?;
 
         let mut priv_hasher = Sha256::new();
         priv_hasher.update(key.to_bytes());
@@ -249,16 +269,10 @@ fn main() -> Result<()> {
                 .interact()
                 .context("Failed to read AES password")?;
 
-            let luks_pass = Password::new()
-                .with_prompt("LUKS USB Password")
-                .allow_empty_password(true)
-                .interact()
-                .context("Failed to read LUKS password")?;
-
             let base_dir = args.export.unwrap_or_else(|| ".".to_string());
             let export_path = PathBuf::from(base_dir).join(&identity);
 
-            print_and_export_keys(&mnemonic, &passphrase, &identity, &export_path, &aes_pass, &luks_pass)?;
+            print_and_export_keys(&mnemonic, &passphrase, &identity, &export_path, &aes_pass)?;
         }
         Commands::Restore(args) => {
             let phrase = Password::new()
@@ -286,15 +300,9 @@ fn main() -> Result<()> {
                 .interact()
                 .context("Failed to read AES password")?;
 
-            let luks_pass = Password::new()
-                .with_prompt("LUKS USB Password")
-                .allow_empty_password(true)
-                .interact()
-                .context("Failed to read LUKS password")?;
-
             let base_dir = args.export.unwrap_or_else(|| ".".to_string());
             let export_path = PathBuf::from(base_dir).join(&identity);
-            print_and_export_keys(&mnemonic, &passphrase, &identity, &export_path, &aes_pass, &luks_pass)?;
+            print_and_export_keys(&mnemonic, &passphrase, &identity, &export_path, &aes_pass)?;
         }
         Commands::Verify { file } => {
             verify_file(&file)?;
@@ -356,11 +364,17 @@ mod tests {
 
     #[test]
     fn test_verification_data_calculation() {
-        let pubkey_bytes = vec![0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13];
+        let pubkey_bytes = vec![
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13,
+        ];
         let v_data = calculate_verification_data(&pubkey_bytes);
-        
+
         assert_eq!(v_data.length, 20);
-        assert_eq!(v_data.sha256, "e7aebf577f60412f0312d442c70a1fa6148c090bf5bab404caec29482ae779e8");
+        assert_eq!(
+            v_data.sha256,
+            "e7aebf577f60412f0312d442c70a1fa6148c090bf5bab404caec29482ae779e8"
+        );
         assert_eq!(v_data.first_16, "000102030405060708090a0b0c0d0e0f");
         assert_eq!(v_data.last_16, "0405060708090a0b0c0d0e0f10111213");
     }
@@ -369,22 +383,22 @@ mod tests {
     fn test_verify_file_length_validation() {
         let tmp_dir = std::env::temp_dir().join("kinetic-keygen-test");
         let _ = fs::create_dir_all(&tmp_dir);
-        
+
         let too_short = vec![0x00; 1951];
         let short_path = tmp_dir.join("short.hex");
         fs::write(&short_path, hex::encode(&too_short)).unwrap();
         assert!(verify_file(short_path.to_str().unwrap()).is_err());
-        
+
         let too_long = vec![0x00; 1953];
         let long_path = tmp_dir.join("long.hex");
         fs::write(&long_path, hex::encode(&too_long)).unwrap();
         assert!(verify_file(long_path.to_str().unwrap()).is_err());
-        
+
         let exact = vec![0x00; 1952];
         let exact_path = tmp_dir.join("exact.hex");
         fs::write(&exact_path, hex::encode(&exact)).unwrap();
         assert!(verify_file(exact_path.to_str().unwrap()).is_ok());
-        
+
         fs::remove_dir_all(tmp_dir).unwrap();
     }
 }

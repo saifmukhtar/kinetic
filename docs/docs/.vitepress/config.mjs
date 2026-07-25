@@ -167,6 +167,7 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'Overview',                link: '/operators/' },
             { text: 'Deploy with kinetic-forge', link: '/forking' },
+            { text: 'Configuration Guide',      link: '/operators/configuration' },
             { text: 'VDF Hardware Calibration', link: '/vdf-calibration' },
             { text: 'Simulation Sandbox',       link: '/kinetic_sim' }
           ]

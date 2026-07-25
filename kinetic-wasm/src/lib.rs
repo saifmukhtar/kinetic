@@ -72,7 +72,7 @@ impl KineticNode {
             quic_listen_addr: None,
             bootstrap_nodes: vec![],
             initial_drand_pulse: 0,
-            seed_domains: vec![],
+            seed_domain: vec![],
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),

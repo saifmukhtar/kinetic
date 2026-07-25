@@ -1,9 +1,9 @@
 //! CLI utility functions for Bearer token loading, HTTP client configuration, and API error formatting.
 
+use anyhow::Context;
 use kinetic_core::config::get_zones_dir;
 use reqwest::Client;
 use std::time::Duration;
-use anyhow::Context;
 
 /// Parses and formats an API error from an HTTP response.
 ///

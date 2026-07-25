@@ -1,7 +1,7 @@
 //! Bounded Serde deserialization helpers to defend against OOM memory bomb attacks.
 
-use serde::{Deserialize, Deserializer};
 use serde::de::{Error, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -39,10 +39,10 @@ where
                 return Err(A::Error::invalid_length(size, &self));
             }
         }
-        
+
         let mut vec = Vec::with_capacity(seq.size_hint().unwrap_or(0).min(self.max));
         let mut count = 0;
-        
+
         while let Some(element) = seq.next_element()? {
             if count >= self.max {
                 return Err(A::Error::custom(format!(

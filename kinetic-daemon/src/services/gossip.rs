@@ -2,13 +2,18 @@
 
 /// Starts the background task that processes incoming pubsub gossip messages.
 pub fn start_gossip_processor(
-    mut gossip_rx: tokio::sync::mpsc::Receiver<(String, Vec<u8>)>,
+    mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>)>,
     gossip_gov_path: std::sync::Arc<std::path::PathBuf>,
     drand_client_gossip: std::sync::Arc<kinetic_core::drand::DrandClient>,
     drand_pulse_tx_gossip: tokio::sync::watch::Sender<u64>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        while let Some((topic, payload)) = gossip_rx.recv().await {
+        loop {
+            let (topic, payload) = match gossip_rx.recv().await {
+                Ok(msg) => msg,
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            };
             if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
                 if let Ok(signed_msg) = serde_json::from_slice::<
                     kinetic_core::governance::SignedGovernanceMessage,
@@ -27,9 +32,19 @@ pub fn start_gossip_processor(
                                 "Governance state updated via gossip. Effect: {:?}",
                                 effect
                             );
-                            if let kinetic_core::governance::GovernanceEffect::TriggerOTA { manifest_hash, mirrors } = effect {
+                            if let kinetic_core::governance::GovernanceEffect::TriggerOTA {
+                                manifest_hash,
+                                mirrors,
+                            } = effect
+                            {
                                 tokio::spawn(async move {
-                                    if let Err(e) = kinetic_core::updater::perform_ota_update("kinetic-daemon", manifest_hash, mirrors).await {
+                                    if let Err(e) = kinetic_core::updater::perform_ota_update(
+                                        "kinetic-daemon",
+                                        manifest_hash,
+                                        mirrors,
+                                    )
+                                    .await
+                                    {
                                         tracing::error!("Daemon OTA update failed: {}", e);
                                     }
                                 });

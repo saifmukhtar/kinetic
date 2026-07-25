@@ -133,7 +133,7 @@ pub struct DrandClient {
     http: reqwest::Client,
     storage: Option<Arc<dyn StorageEngine>>,
     endpoints: Vec<String>,
-    seed_domains: Vec<String>,
+    drand_domain: Vec<String>,
     #[cfg(not(target_arch = "wasm32"))]
     resolver: hickory_resolver::TokioAsyncResolver,
 }
@@ -148,7 +148,7 @@ impl DrandClient {
             http: reqwest::Client::new(),
             storage,
             endpoints: config.drand.endpoints,
-            seed_domains: config.drand.seed_domains,
+            drand_domain: config.drand.drand_domain,
             #[cfg(not(target_arch = "wasm32"))]
             resolver: hickory_resolver::TokioAsyncResolver::tokio(
                 ResolverConfig::default(),
@@ -180,7 +180,7 @@ impl DrandClient {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut injected_count = 0;
-            for domain in &self.seed_domains {
+            for domain in &self.drand_domain {
                 if injected_count >= 5 {
                     break;
                 }
@@ -219,15 +219,20 @@ impl DrandClient {
                         .duration_since(web_time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    let estimated_round = (now.saturating_sub(crate::constants::DRAND_GENESIS_TIME)) / crate::constants::DRAND_PERIOD;
+                    let estimated_round = (now
+                        .saturating_sub(crate::constants::DRAND_GENESIS_TIME))
+                        / crate::constants::DRAND_PERIOD;
                     let age = estimated_round.saturating_sub(pulse.round);
-                    
+
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
                         warn!(
                             "Drand endpoint {} returned an unacceptably stale pulse (round {}, expected ~{}).",
                             endpoint, pulse.round, estimated_round
                         );
-                        last_error = Some(DrandError::StalePulse { expected: estimated_round, got: pulse.round });
+                        last_error = Some(DrandError::StalePulse {
+                            expected: estimated_round,
+                            got: pulse.round,
+                        });
                         continue;
                     }
 
@@ -278,9 +283,14 @@ impl DrandClient {
                 Ok(mut resp) if resp.status().is_success() => {
                     #[cfg(target_arch = "wasm32")]
                     {
-                        let bytes = resp.bytes().await.map_err(|e| DrandError::Network(e.to_string()))?;
+                        let bytes = resp
+                            .bytes()
+                            .await
+                            .map_err(|e| DrandError::Network(e.to_string()))?;
                         if bytes.len() > 64 * 1024 {
-                            return Err(DrandError::Network("Drand response exceeded 64 KB limit".to_string()));
+                            return Err(DrandError::Network(
+                                "Drand response exceeded 64 KB limit".to_string(),
+                            ));
                         }
                         return Ok(serde_json::from_slice::<DrandPulse>(&bytes)?);
                     }

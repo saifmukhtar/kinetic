@@ -26,7 +26,7 @@ use service_manager::{
     ServiceUninstallCtx,
 };
 use std::env;
-use std::net::SocketAddr;
+
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
@@ -70,7 +70,9 @@ fn install_service() -> Result<()> {
         program: current_exe.clone(),
         args: vec!["run".into()],
         contents: None,
-        username: std::env::var("SUDO_USER").ok().or_else(|| Some("nobody".to_string())),
+        username: std::env::var("SUDO_USER")
+            .ok()
+            .or_else(|| Some("nobody".to_string())),
         working_directory: None,
         environment: None,
         autostart: true,
@@ -207,16 +209,20 @@ async fn run_node() -> Result<()> {
         listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port)
             .parse()
             .map_err(|e| anyhow::anyhow!("Failed to parse listen_addr: {}", e))?,
-        quic_listen_addr: Some(format!("/ip4/0.0.0.0/udp/{}/quic-v1", config.network.node_quic_port).parse().unwrap()),
+        quic_listen_addr: Some(
+            format!("/ip4/0.0.0.0/udp/{}/quic-v1", config.network.node_quic_port)
+                .parse()
+                .unwrap(),
+        ),
         bootstrap_nodes: config
             .network
             .bootstrap_nodes
             .iter()
             .filter_map(|s| s.parse().ok())
             .collect(),
-        seed_domains: config
+        seed_domain: config
             .network
-            .seed_domains
+            .seed_domain
             .clone()
             .into_iter()
             .map(Into::into)
@@ -248,7 +254,7 @@ async fn run_node() -> Result<()> {
     }
 
     let (incoming_tx, _incoming_rx) = tokio::sync::mpsc::channel(32);
-    let (gossip_tx, mut gossip_rx) = tokio::sync::mpsc::channel(100);
+    let (gossip_tx, mut gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
         Arc::new(kinetic_vdf::ChiaVdfEngine::new());
     let (network_client, network_loop) = NetworkEventLoop::new(
@@ -275,7 +281,7 @@ async fn run_node() -> Result<()> {
     let drand_client_gossip = drand_client.clone();
     let drand_pulse_tx_gossip = drand_pulse_tx.clone();
     tokio::spawn(async move {
-        while let Some((topic, payload)) = gossip_rx.recv().await {
+        while let Ok((topic, payload)) = gossip_rx.recv().await {
             if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
                 gossip::handle_kinetic_governance_gossip(&payload, gossip_gov_path.clone());
             } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
@@ -335,7 +341,10 @@ async fn run_node() -> Result<()> {
                         if !p2p_only {
                             if let Ok(payload) = serde_json::to_vec(&pulse) {
                                 let _ = hb_network
-                                    .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND, payload)
+                                    .broadcast_gossip(
+                                        kinetic_core::constants::GOSSIP_TOPIC_DRAND,
+                                        payload,
+                                    )
                                     .await;
                             }
                         }
@@ -348,10 +357,15 @@ async fn run_node() -> Result<()> {
     // 7. Start Health-check API
     let app = api::build_router(local_peer_id);
     let api_port = 16003;
-    let addr = SocketAddr::from(([127, 0, 0, 1], api_port));
+    let bind_ip = config
+        .daemon
+        .bind_ip
+        .parse::<std::net::IpAddr>()
+        .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
+    let addr = std::net::SocketAddr::new(bind_ip, api_port);
     info!(
-        "Node Health-check API listening on http://127.0.0.1:{}",
-        api_port
+        "Node Health-check API listening on http://{}:{}",
+        bind_ip, api_port
     );
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app)

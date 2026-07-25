@@ -3,7 +3,7 @@ use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::{Commitment, Reveal};
 use kinetic_network::event_loop::NetworkEventLoop;
 use kinetic_vdf::ChiaVdfEngine;
-use rand_core::OsRng;
+
 use sha2::{Digest, Sha256};
 
 #[test]

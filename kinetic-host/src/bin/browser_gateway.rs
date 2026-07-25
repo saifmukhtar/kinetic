@@ -115,7 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .iter()
             .filter_map(|s| s.parse().ok())
             .collect(),
-        seed_domains: vec![],
+        seed_domain: vec![],
         enable_mdns: false,
         initial_drand_pulse: 0,
         external_address: None,
@@ -154,7 +154,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/*path", any(handle_request))
         .with_state(state);
 
-    let addr = "127.0.0.1:9999";
+    let kinetic_config = kinetic_core::config::KineticConfig::load();
+    let addr = format!("{}:9999", kinetic_config.daemon.bind_ip);
     println!("============================================================");
     println!("🌐 HTTP to P2P Gateway is running!");
     println!(
@@ -165,7 +166,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut listener = None;
     for _ in 0..10 {
-        if let Ok(l) = tokio::net::TcpListener::bind(addr).await {
+        if let Ok(l) = tokio::net::TcpListener::bind(&addr).await {
             listener = Some(l);
             break;
         }
