@@ -116,7 +116,7 @@ pub fn start_republisher(
     republish_storage: std::sync::Arc<dyn StorageEngine>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(43200)); // 12 hours
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(kinetic_core::constants::TIMEOUTS_HEARTBEAT_AGE_WARNING_SECONDS)); // 12 hours
         loop {
             interval.tick().await;
             let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;

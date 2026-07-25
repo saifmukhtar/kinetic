@@ -310,7 +310,7 @@ impl KineticRecordStore {
         // This store limit is deliberately set higher (80 KB) to safely accommodate
         // the 64 KB payload plus any cryptographic proofs (VDFs, signatures) and
         // structural serialization overhead without rejecting valid payloads.
-        if r.value.len() > 80 * 1024 {
+        if r.value.len() > kinetic_core::constants::LIMITS_STORAGE_MAX_VALUE_BYTES {
             let err = KineticStoreError::PayloadTooLarge;
             tracing::warn!(
                 error_code = "KIN-STORE-016",

@@ -4,6 +4,76 @@ use std::fs;
 use std::path::PathBuf;
 
 #[derive(Deserialize)]
+struct SquatterMultipliers {
+    len_0_to_1: u64,
+    len_2: u64,
+    len_3: u64,
+    len_4: u64,
+    len_5: u64,
+    len_6: u64,
+    len_7: u64,
+    len_8_to_10: u64,
+    len_11_to_17: u64,
+    len_18_to_20: u64,
+    len_63_jackpot_seconds: u64,
+    len_63_minutes: u64,
+    len_63_hours: u64,
+    len_63_days: u64,
+    len_63_weeks: u64,
+    len_63_months: u64,
+    len_63_years: u64,
+    len_63_decades: u64,
+    len_63_centuries: u64,
+    len_63_millennia: u64,
+}
+
+#[derive(Deserialize)]
+struct ConsensusConfig {
+    vdf_squatter_multipliers: SquatterMultipliers,
+    vdf_discount_min_iterations: u64,
+    vdf_discount_percentage: u64,
+    vdf_max_iterations: u64,
+    vdf_max_proof_bytes: usize,
+}
+
+#[derive(Deserialize)]
+struct GovernanceConfig {
+    supermajority_percent: u64,
+    majority_percent: u64,
+    strict_majority_percent: u64,
+}
+
+#[derive(Deserialize)]
+struct CryptoConfig {
+    wallet_pbkdf2_iterations: u32,
+    keygen_pbkdf2_iterations: u32,
+    argon2_memory_cost_kb: u32,
+}
+
+#[derive(Deserialize)]
+struct LimitsConfig {
+    p2p_max_packet_size: usize,
+    p2p_max_circuit_bytes: usize,
+    proxy_max_body_bytes: usize,
+    storage_max_value_bytes: usize,
+    kid_max_public_key_bytes: usize,
+    kid_max_location_bytes: usize,
+    kid_max_endpoint_bytes: usize,
+    drand_max_response_bytes: usize,
+    lru_cache_size: usize,
+}
+
+#[derive(Deserialize)]
+struct TimeoutsConfig {
+    idle_timeout_seconds: u64,
+    heartbeat_age_warning_seconds: u64,
+    heartbeat_age_critical_seconds: u64,
+    dns_cache_ttl_seconds: u64,
+    network_prune_interval_seconds: u64,
+    host_route_max_age_seconds: u64,
+}
+
+#[derive(Deserialize)]
 struct NetworkConfig {
     tld: String,
     tld_suffix: String,
@@ -23,8 +93,23 @@ struct NetworkConfig {
     docs_url: String,
     bootstrap_nodes: Vec<String>,
     governance_model: String,
-    dns_ip: Option<String>,
+    default_bind_ip: String,
+    dns_ip: String,
     ipfs_gateway: Option<String>,
+    min_active_council: usize,
+    max_council_size: usize,
+    max_age_seconds: u64,
+    timelock_seconds: u64,
+    active_window_seconds: u64,
+    ota_timelock_seconds: u64,
+    dev_mode_iterations: u64,
+    prod_root_public_key_hex: String,
+    prod_guard_public_key_hex: String,
+    consensus: ConsensusConfig,
+    governance: GovernanceConfig,
+    crypto: CryptoConfig,
+    limits: LimitsConfig,
+    timeouts: TimeoutsConfig,
 }
 
 fn main() {
@@ -109,7 +194,16 @@ fn main() {
         config.governance_model
     ));
 
-    let dns_ip = config.dns_ip.as_deref().unwrap_or("127.0.0.2");
+    let default_bind_ip = &config.default_bind_ip;
+    out.push_str(
+        "/// The loopback IP address this network's daemon should bind to by default.\n"
+    );
+    out.push_str(&format!(
+        "pub const DEFAULT_BIND_IP: &str = \"{}\";\n\n",
+        default_bind_ip
+    ));
+
+    let dns_ip = &config.dns_ip;
     out.push_str(
         "/// The loopback IP address this network's DNS server should bind to on Linux/Windows.\n"
     );
@@ -122,6 +216,41 @@ fn main() {
         "/// The target number of leading zero bits required for PoW mining.\n\
          pub const POW_DIFFICULTY_BITS: u32 = {};\n\n",
         config.pow_difficulty_bits
+    ));
+
+    out.push_str(&format!(
+        "/// The minimum number of active council members required to ratify actions.\npub const MIN_ACTIVE_COUNCIL: usize = {};\n\n",
+        config.min_active_council
+    ));
+
+    out.push_str(&format!(
+        "/// The hard limit on the total size of the active council.\npub const MAX_COUNCIL_SIZE: usize = {};\n\n",
+        config.max_council_size
+    ));
+
+    out.push_str(&format!(
+        "/// The maximum time (in seconds) a governance proposal is valid before it expires.\npub const MAX_AGE_SECONDS: u64 = {};\n\n",
+        config.max_age_seconds
+    ));
+
+    out.push_str(&format!(
+        "/// The mandatory timelock (in seconds) before an executed action (like Emergency Reset) becomes permanent.\npub const TIMELOCK_SECONDS: u64 = {};\n\n",
+        config.timelock_seconds
+    ));
+
+    out.push_str(&format!(
+        "/// The rolling window (in seconds) during which a council member must have signed something to be considered \"active\".\npub const ACTIVE_WINDOW_SECONDS: u64 = {};\n\n",
+        config.active_window_seconds
+    ));
+
+    out.push_str(&format!(
+        "/// The specific timelock (in seconds) for Over-The-Air (OTA) binary updates.\npub const OTA_TIMELOCK_SECONDS: u64 = {};\n\n",
+        config.ota_timelock_seconds
+    ));
+
+    out.push_str(&format!(
+        "/// The default number of iterations used during development and simulation mode.\npub const DEV_MODE_ITERATIONS: u64 = {};\n\n",
+        config.dev_mode_iterations
     ));
 
     out.push_str(&format!(
@@ -178,6 +307,107 @@ fn main() {
         "/// The default public IPFS gateway used by the network proxy.\npub const IPFS_GATEWAY: &str = \"{}\";\n\n",
         default_ipfs_gateway
     ));
+
+    out.push_str(&format!(
+        "/// The offline, air-gapped ML-DSA-65 post-quantum root of trust key (hex-encoded).\npub const PROD_ROOT_PUBLIC_KEY_HEX: &str = \"{}\";\n\n",
+        config.prod_root_public_key_hex
+    ));
+
+    out.push_str(&format!(
+        "/// The offline, air-gapped ML-DSA-65 guard key (optional fallback).\npub const PROD_GUARD_PUBLIC_KEY_HEX: &str = \"{}\";\n\n",
+        config.prod_guard_public_key_hex
+    ));
+
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 0 to 1\npub const CONSENSUS_SQUATTER_LEN_0_TO_1: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_0_to_1
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 2\npub const CONSENSUS_SQUATTER_LEN_2: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_2
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 3\npub const CONSENSUS_SQUATTER_LEN_3: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_3
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 4\npub const CONSENSUS_SQUATTER_LEN_4: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_4
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 5\npub const CONSENSUS_SQUATTER_LEN_5: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_5
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 6\npub const CONSENSUS_SQUATTER_LEN_6: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_6
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 7\npub const CONSENSUS_SQUATTER_LEN_7: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_7
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 8 to 10\npub const CONSENSUS_SQUATTER_LEN_8_TO_10: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_8_to_10
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 11 to 17\npub const CONSENSUS_SQUATTER_LEN_11_TO_17: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_11_to_17
+    ));
+    out.push_str(&format!(
+        "/// Multiplier for squatter cliff length 18 to 20\npub const CONSENSUS_SQUATTER_LEN_18_TO_20: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_18_to_20
+    ));
+    out.push_str(&format!(
+        "/// Jackpot seconds for length 63\npub const CONSENSUS_SQUATTER_LEN_63_JACKPOT_SECONDS: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_jackpot_seconds
+    ));
+    out.push_str(&format!(
+        "/// Minutes for length 63\npub const CONSENSUS_SQUATTER_LEN_63_MINUTES: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_minutes
+    ));
+    out.push_str(&format!(
+        "/// Hours for length 63\npub const CONSENSUS_SQUATTER_LEN_63_HOURS: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_hours
+    ));
+    out.push_str(&format!(
+        "/// Days for length 63\npub const CONSENSUS_SQUATTER_LEN_63_DAYS: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_days
+    ));
+    out.push_str(&format!(
+        "/// Weeks for length 63\npub const CONSENSUS_SQUATTER_LEN_63_WEEKS: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_weeks
+    ));
+    out.push_str(&format!(
+        "/// Months for length 63\npub const CONSENSUS_SQUATTER_LEN_63_MONTHS: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_months
+    ));
+    out.push_str(&format!(
+        "/// Years for length 63\npub const CONSENSUS_SQUATTER_LEN_63_YEARS: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_years
+    ));
+    out.push_str(&format!(
+        "/// Decades for length 63\npub const CONSENSUS_SQUATTER_LEN_63_DECADES: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_decades
+    ));
+    out.push_str(&format!(
+        "/// Centuries for length 63\npub const CONSENSUS_SQUATTER_LEN_63_CENTURIES: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_centuries
+    ));
+    out.push_str(&format!(
+        "/// Millennia for length 63\npub const CONSENSUS_SQUATTER_LEN_63_MILLENNIA: u64 = {};\n\n", config.consensus.vdf_squatter_multipliers.len_63_millennia
+    ));
+    
+    out.push_str(&format!("/// Minimum iterations for VDF discount\npub const CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS: u64 = {};\n", config.consensus.vdf_discount_min_iterations));
+    out.push_str(&format!("/// Discount percentage for VDF iterations\npub const CONSENSUS_VDF_DISCOUNT_PERCENTAGE: u64 = {};\n", config.consensus.vdf_discount_percentage));
+    out.push_str(&format!("/// Maximum iterations for VDF\npub const CONSENSUS_VDF_MAX_ITERATIONS: u64 = {};\n", config.consensus.vdf_max_iterations));
+    out.push_str(&format!("/// Maximum bytes for a VDF proof\npub const CONSENSUS_VDF_MAX_PROOF_BYTES: usize = {};\n\n", config.consensus.vdf_max_proof_bytes));
+    
+    out.push_str(&format!("/// Supermajority percentage threshold\npub const GOVERNANCE_SUPERMAJORITY_PERCENT: u64 = {};\n", config.governance.supermajority_percent));
+    out.push_str(&format!("/// Majority percentage threshold\npub const GOVERNANCE_MAJORITY_PERCENT: u64 = {};\n", config.governance.majority_percent));
+    out.push_str(&format!("/// Strict majority percentage threshold\npub const GOVERNANCE_STRICT_MAJORITY_PERCENT: u64 = {};\n\n", config.governance.strict_majority_percent));
+    
+    out.push_str(&format!("/// PBKDF2 iterations for wallet derived keys\npub const CRYPTO_WALLET_PBKDF2_ITERATIONS: u32 = {};\n", config.crypto.wallet_pbkdf2_iterations));
+    out.push_str(&format!("/// PBKDF2 iterations for key generation\npub const CRYPTO_KEYGEN_PBKDF2_ITERATIONS: u32 = {};\n", config.crypto.keygen_pbkdf2_iterations));
+    out.push_str(&format!("/// Argon2 memory cost in KB\npub const CRYPTO_ARGON2_MEMORY_COST_KB: u32 = {};\n\n", config.crypto.argon2_memory_cost_kb));
+    
+    out.push_str(&format!("/// Maximum P2P packet size\npub const LIMITS_P2P_MAX_PACKET_SIZE: usize = {};\n", config.limits.p2p_max_packet_size));
+    out.push_str(&format!("/// Maximum P2P circuit bytes\npub const LIMITS_P2P_MAX_CIRCUIT_BYTES: usize = {};\n", config.limits.p2p_max_circuit_bytes));
+    out.push_str(&format!("/// Maximum proxy body bytes\npub const LIMITS_PROXY_MAX_BODY_BYTES: usize = {};\n", config.limits.proxy_max_body_bytes));
+    out.push_str(&format!("/// Maximum storage value bytes\npub const LIMITS_STORAGE_MAX_VALUE_BYTES: usize = {};\n", config.limits.storage_max_value_bytes));
+    out.push_str(&format!("/// Maximum KID public key bytes\npub const LIMITS_KID_MAX_PUBLIC_KEY_BYTES: usize = {};\n", config.limits.kid_max_public_key_bytes));
+    out.push_str(&format!("/// Maximum KID location bytes\npub const LIMITS_KID_MAX_LOCATION_BYTES: usize = {};\n", config.limits.kid_max_location_bytes));
+    out.push_str(&format!("/// Maximum KID endpoint bytes\npub const LIMITS_KID_MAX_ENDPOINT_BYTES: usize = {};\n", config.limits.kid_max_endpoint_bytes));
+    out.push_str(&format!("/// Maximum Drand response bytes\npub const LIMITS_DRAND_MAX_RESPONSE_BYTES: usize = {};\n", config.limits.drand_max_response_bytes));
+    out.push_str(&format!("/// Size of LRU caches\npub const LIMITS_LRU_CACHE_SIZE: usize = {};\n\n", config.limits.lru_cache_size));
+    
+    out.push_str(&format!("/// Idle timeout in seconds\npub const TIMEOUTS_IDLE_TIMEOUT_SECONDS: u64 = {};\n", config.timeouts.idle_timeout_seconds));
+    out.push_str(&format!("/// Heartbeat age warning threshold in seconds\npub const TIMEOUTS_HEARTBEAT_AGE_WARNING_SECONDS: u64 = {};\n", config.timeouts.heartbeat_age_warning_seconds));
+    out.push_str(&format!("/// Heartbeat age critical threshold in seconds\npub const TIMEOUTS_HEARTBEAT_AGE_CRITICAL_SECONDS: u64 = {};\n", config.timeouts.heartbeat_age_critical_seconds));
+    out.push_str(&format!("/// DNS cache TTL in seconds\npub const TIMEOUTS_DNS_CACHE_TTL_SECONDS: u64 = {};\n", config.timeouts.dns_cache_ttl_seconds));
+    out.push_str(&format!("/// Network prune interval in seconds\npub const TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS: u64 = {};\n", config.timeouts.network_prune_interval_seconds));
+    out.push_str(&format!("/// Maximum age of a host route in seconds\npub const TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS: u64 = {};\n", config.timeouts.host_route_max_age_seconds));
 
     fs::write(&dest_path, out).expect("Failed to write network_constants.rs");
 }

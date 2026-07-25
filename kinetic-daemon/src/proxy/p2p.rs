@@ -9,17 +9,19 @@ pub async fn handle_incoming_proxy_requests(
         ProxyRequest,
         libp2p::request_response::ResponseChannel<ProxyResponse>,
     )>,
+    bind_ip: String,
     local_port: u16,
 ) {
     let reqwest_client = reqwest::Client::new();
     info!(
-        "Listening for incoming P2P Proxy requests, forwarding to 127.0.0.1:{}",
-        local_port
+        "Listening for incoming P2P Proxy requests, forwarding to {}:{}",
+        bind_ip, local_port
     );
 
     while let Some((req, channel)) = rx.recv().await {
         let reqwest_client = reqwest_client.clone();
         let client_clone = client.clone();
+        let bind_ip_clone = bind_ip.clone();
 
         tokio::spawn(async move {
             // Path traversal protection
@@ -41,7 +43,7 @@ pub async fn handle_incoming_proxy_requests(
             };
 
             // Limit body size to 5MB to prevent OOM
-            if req.body.len() > 5 * 1024 * 1024 {
+            if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                 tracing::warn!(
                     "Blocked oversized P2P proxy request ({} bytes)",
                     req.body.len()
@@ -59,7 +61,7 @@ pub async fn handle_incoming_proxy_requests(
                 return;
             }
 
-            let url = format!("http://127.0.0.1:{}{}", local_port, safe_path);
+            let url = format!("http://{}:{}{}", bind_ip_clone, local_port, safe_path);
 
             let method = match req.method.parse::<reqwest::Method>() {
                 Ok(m) => m,
@@ -87,7 +89,7 @@ pub async fn handle_incoming_proxy_requests(
                 } // Never forward remote Host header
                 builder = builder.header(k.as_ref(), v.as_ref());
             }
-            builder = builder.header("Host", format!("127.0.0.1:{}", local_port));
+            builder = builder.header("Host", format!("{}:{}", bind_ip_clone, local_port));
             builder = builder.body(req.body);
 
             let proxy_res = match builder.send().await {
@@ -105,7 +107,7 @@ pub async fn handle_incoming_proxy_requests(
                     while let Some(chunk_res) = stream.next().await {
                         if let Ok(chunk) = chunk_res {
                             body.extend_from_slice(&chunk);
-                            if body.len() > 5 * 1024 * 1024 {
+                            if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                                 tracing::warn!("Blocked oversized P2P backend response (>5MB)");
                                 body.clear();
                                 body.extend_from_slice(b"Payload Too Large");

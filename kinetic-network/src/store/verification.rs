@@ -31,7 +31,7 @@ pub(crate) fn verify_host_routing_record(
         .duration_since(web_time::UNIX_EPOCH)
         .map_err(|_| KineticStoreError::InvalidHostRouteSignature)?
         .as_secs();
-    if now.saturating_sub(record.timestamp) > kinetic_core::config::HOST_ROUTE_MAX_AGE_SECS {
+    if now.saturating_sub(record.timestamp) > kinetic_core::constants::TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-023",
@@ -181,11 +181,11 @@ pub(crate) fn compute_required_iterations(
                 .unwrap_or(&normalized_name)
                 .len();
             let discount_iterations = match name_len {
-                1 => 1000,                                  // 100% discount (minimum 1000 iterations)
+                1 => kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS,                                  // 100% discount (minimum iterations)
                 63 => base_required_iterations,             // 0% discount (forces lottery re-roll)
                 2..=6 => base_required_iterations / 2,      // 50% discount
                 7..=10 => base_required_iterations / 5,     // 80% discount
-                _ => (base_required_iterations * 15) / 100, // 85% discount for 11+
+                _ => (base_required_iterations * kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_PERCENTAGE) / 100, // 85% discount for 11+
             };
 
             tracing::info!(
@@ -193,7 +193,7 @@ pub(crate) fn compute_required_iterations(
                 reveal.name,
                 name_len
             );
-            std::cmp::max(1000, discount_iterations)
+            std::cmp::max(kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS, discount_iterations)
         } else {
             tracing::warn!(
                 "Invalid PreviousProof attached for {}. Falling back to full difficulty.",

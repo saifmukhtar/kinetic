@@ -111,7 +111,7 @@ impl NetworkEventLoop {
             .as_millis()
             % 60) as u64;
         let mut prune_delay =
-            futures_timer::Delay::new(web_time::Duration::from_secs(3600 + initial_prune_jitter));
+            futures_timer::Delay::new(web_time::Duration::from_secs(kinetic_core::constants::TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS + initial_prune_jitter));
         let initial_redial_jitter = (web_time::SystemTime::now()
             .duration_since(web_time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -124,7 +124,7 @@ impl NetworkEventLoop {
             tokio::select! {
                 _ = &mut prune_delay => {
                     let jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 60) as u64;
-                    prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(3600 + jitter));
+                    prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(kinetic_core::constants::TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS + jitter));
                     tracing::info!("Running periodic Sled pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                 }

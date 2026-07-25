@@ -20,7 +20,7 @@ use std::fs;
 use std::path::PathBuf;
 
 /// Maximum age in seconds (10 minutes) for cached host routing records in proxy forwarding.
-pub const HOST_ROUTE_MAX_AGE_SECS: u64 = 600;
+
 
 /// Well-known default network port assignments for Kinetic binaries.
 ///
@@ -104,6 +104,9 @@ impl Default for DrandConfig {
 /// Daemon-specific configuration: API ports, storage paths, and operating mode.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonConfig {
+    /// Local IP address to bind to for daemon services.
+    #[serde(default = "default_bind_ip")]
+    pub bind_ip: String,
     /// Port for the daemon's authenticated HTTP API (default: [`ports::API_DAEMON`]).
     #[serde(default = "default_api_port")]
     pub api_port: u16,
@@ -134,6 +137,10 @@ pub struct DaemonConfig {
     /// IPFS gateway URL used to resolve `IPFS(cid)` records in the HTTP Proxy.
     #[serde(default = "default_ipfs_gateway")]
     pub ipfs_gateway: String,
+}
+
+fn default_bind_ip() -> String {
+    crate::constants::DEFAULT_BIND_IP.to_string()
 }
 
 fn default_auto_update() -> bool {
@@ -236,6 +243,7 @@ impl Default for KineticConfig {
 
         Self {
             daemon: DaemonConfig {
+                bind_ip: crate::constants::DEFAULT_BIND_IP.to_string(),
                 api_port: ports::API_DAEMON,
                 dns_port: ports::DNS,
                 proxy_port: ports::PROXY,

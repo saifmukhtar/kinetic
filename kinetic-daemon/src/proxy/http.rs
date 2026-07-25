@@ -409,7 +409,7 @@ pub async fn forward_to_backend_direct(
             let frame = chunk.map_err(|_| ProxyError::InvalidPayload)?;
             if let Ok(data) = frame.into_data() {
                 body_bytes.extend_from_slice(&data);
-                if body_bytes.len() > 5 * 1024 * 1024 {
+                if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                     tracing::warn!("Blocked P2P proxy request payload exceeding 5MB limit");
                     return Err(ProxyError::InvalidPayload);
                 }

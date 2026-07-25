@@ -93,9 +93,9 @@ impl super::core::NetworkEventLoop {
                     ))
                     .unwrap()])
                     // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
-                    // This limit is deliberately set higher (100 KB) to safely accommodate
+                    // This limit is deliberately set higher to safely accommodate
                     // the 64 KB payload plus Kademlia/protobuf network routing overhead.
-                    .set_max_packet_size(100 * 1024);
+                    .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE);
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 if mode == NetworkMode::LightClient {
                     kademlia.set_mode(Some(kad::Mode::Client));
@@ -118,7 +118,7 @@ impl super::core::NetworkEventLoop {
                         // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
                         // This limit is deliberately set higher (100 KB) to safely accommodate
                         // the 64 KB payload plus Gossipsub/protobuf network routing overhead.
-                        .max_transmit_size(100 * 1024)
+                        .max_transmit_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
                         .build()
                         .expect("Valid gossipsub config")
                 } else {
@@ -128,7 +128,7 @@ impl super::core::NetworkEventLoop {
                         // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
                         // This limit is deliberately set higher (100 KB) to safely accommodate
                         // the 64 KB payload plus Gossipsub/protobuf network routing overhead.
-                        .max_transmit_size(100 * 1024)
+                        .max_transmit_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
                         .build()
                         .expect("Valid gossipsub config")
                 };
@@ -201,7 +201,7 @@ impl super::core::NetworkEventLoop {
                                 max_circuits_per_peer: 2,
                                 circuit_src_rate_limiters: vec![],
                                 max_circuit_duration: std::time::Duration::from_secs(2 * 60),
-                                max_circuit_bytes: 1024 * 1024 * 4,
+                                max_circuit_bytes: kinetic_core::constants::LIMITS_P2P_MAX_CIRCUIT_BYTES as u64,
                                 reservation_rate_limiters: vec![],
                                 max_reservations: 1024,
                                 max_reservations_per_peer: 2,

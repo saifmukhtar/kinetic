@@ -13,7 +13,7 @@ mod tests {
             .duration_since(web_time::UNIX_EPOCH)
             .unwrap()
             .as_secs()
-            - kinetic_core::config::HOST_ROUTE_MAX_AGE_SECS
+            - kinetic_core::constants::TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS
             - 10;
 
         let record = HostRoutingRecord {

@@ -28,9 +28,15 @@ mod tests {
         let state = ApiState {
             network,
             storage: storage.clone(),
-            auth_token: "test-token-123".to_string(),
+            tokens: Arc::new(crate::api::ApiTokens {
+                admin: "test-token-123".to_string(),
+                publish: "publish-token".to_string(),
+                vdf: "vdf-token".to_string(),
+                governance: "gov-token".to_string(),
+            }),
             vdf_tasks: Arc::new(Mutex::new(std::collections::HashMap::new())),
             vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
+            bind_ip: "127.0.0.1".to_string(),
         };
 
         let router = app(state);

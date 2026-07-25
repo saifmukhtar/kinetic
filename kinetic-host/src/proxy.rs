@@ -43,7 +43,7 @@ pub async fn forward_request(
             while let Some(chunk_res) = stream.next().await {
                 if let Ok(chunk) = chunk_res {
                     body.extend_from_slice(&chunk);
-                    if body.len() > 5 * 1024 * 1024 {
+                    if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                         warn!("Blocked oversized backend response (>5MB) from local web server");
                         body.clear();
                         body.extend_from_slice(b"Payload Too Large");
@@ -116,7 +116,7 @@ pub async fn handle_incoming_proxy_requests(
                 return;
             }
 
-            if req.body.len() > 5 * 1024 * 1024 {
+            if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                 warn!(
                     "Blocked oversized P2P proxy request ({} bytes)",
                     req.body.len()
