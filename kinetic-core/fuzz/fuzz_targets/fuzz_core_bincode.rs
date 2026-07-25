@@ -2,9 +2,9 @@
 
 use libfuzzer_sys::fuzz_target;
 use kinetic_core::types::vdf::VdfProof;
-use kinetic_core::types::domain::HeartbeatRecord;
+use kinetic_core::types::domain::Heartbeat;
 
 fuzz_target!(|data: &[u8]| {
     let _ = bincode::deserialize::<VdfProof>(data);
-    let _ = bincode::deserialize::<HeartbeatRecord>(data);
+    let _ = bincode::deserialize::<Heartbeat>(data);
 });
