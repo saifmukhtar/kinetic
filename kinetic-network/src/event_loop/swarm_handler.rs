@@ -242,6 +242,18 @@ impl super::core::NetworkEventLoop {
                             ..
                         },
                 } => {
+                    if self.light_clients.contains(&source) {
+                        tracing::warn!("Light client {} attempted to PutRecord (Write). Rejecting and disconnecting.", source);
+                        let _ = self.swarm.disconnect_peer_id(source);
+                        let expire_time = web_time::SystemTime::now()
+                            .duration_since(web_time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs()
+                            + 86400;
+                        self.banned_peers.put(source, expire_time);
+                        return;
+                    }
+
                     // Offload VDF verification for Reveals
                     if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&record.value) {
                         if parsed.get("vdf_proof").is_some() {
@@ -509,6 +521,7 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 tracing::debug!("Connection closed for peer {:?}: {:?}", peer_id, cause);
                 self.bootstrap_connection_time.remove(&peer_id);
+                self.light_clients.remove(&peer_id);
 
                 // Case 189: Mass Peer Disconnect
                 let active_peers = self.swarm.network_info().num_peers();

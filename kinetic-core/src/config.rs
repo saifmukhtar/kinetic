@@ -38,8 +38,8 @@ pub mod ports {
     /// Default HTTP health-check port for `kinetic-host` (16004).
     pub const API_HOST: u16 = 16004;
 
-    /// Default HTTP reverse-proxy port for intercepting `.kin` requests (5463).
-    pub const PROXY: u16 = 5463;
+    /// Default HTTP reverse-proxy port for intercepting `.kin` requests (17001).
+    pub const PROXY: u16 = 17001;
     /// Default UDP DNS resolver port for native OS queries (53).
     pub const DNS: u16 = 53;
     /// Default local backend HTTP port (80).
@@ -111,6 +111,9 @@ pub struct DaemonConfig {
     /// Local IP address to bind to for daemon services.
     #[serde(default = "local_bind_ip", skip_serializing_if = "is_default_bind_ip")]
     pub bind_ip: String,
+    /// IP address used by the PAC script and the proxy.
+    #[serde(default = "default_pac_bind_ip")]
+    pub pac_bind_ip: String,
     /// Port for the daemon's authenticated HTTP API (default: [`ports::API_DAEMON`]).
     #[serde(
         default = "default_api_port",
@@ -121,10 +124,7 @@ pub struct DaemonConfig {
     #[serde(default = "default_dns_port")]
     pub dns_port: u16,
     /// Port for the built-in HTTP reverse proxy (default: [`ports::PROXY`]).
-    #[serde(
-        default = "default_proxy_port",
-        skip_serializing_if = "is_default_proxy_port"
-    )]
+    #[serde(default = "default_proxy_port")]
     pub proxy_port: u16,
     /// Port for the local backend HTTP server (default: [`ports::BACKEND`]).
     #[serde(
@@ -159,6 +159,10 @@ pub struct DaemonConfig {
 }
 
 fn local_bind_ip() -> String {
+    crate::constants::LOCAL_BIND_IP.to_string()
+}
+
+fn default_pac_bind_ip() -> String {
     crate::constants::LOCAL_BIND_IP.to_string()
 }
 
@@ -200,9 +204,6 @@ fn default_pac_port() -> u16 {
 
 fn is_default_api_port(val: &u16) -> bool {
     *val == ports::API_DAEMON
-}
-fn is_default_proxy_port(val: &u16) -> bool {
-    *val == ports::PROXY
 }
 fn is_default_backend_port(val: &u16) -> bool {
     *val == ports::BACKEND
@@ -325,6 +326,7 @@ impl Default for KineticConfig {
         Self {
             daemon: DaemonConfig {
                 bind_ip: crate::constants::LOCAL_BIND_IP.to_string(),
+                pac_bind_ip: crate::constants::LOCAL_BIND_IP.to_string(),
                 api_port: ports::API_DAEMON,
                 dns_port: ports::DNS,
                 proxy_port: ports::PROXY,

@@ -43,7 +43,7 @@ use std::env;
 use std::sync::Arc;
 use tokio::sync::watch;
 
-use kinetic_daemon::{api, ca, pac, proxy};
+use kinetic_daemon::{api, ca, proxy};
 
 #[derive(Parser)]
 #[command(
@@ -527,25 +527,26 @@ async fn run_daemon() -> Result<()> {
         drand_pulse_tx.clone(),
     );
 
-    let pac_bind_ip = config.daemon.bind_ip.clone();
-    tokio::spawn(async move {
-        if let Err(e) = pac::start_pac_server(
-            pac_bind_ip,
-            config.daemon.pac_port,
-            config.daemon.proxy_port,
-        )
-        .await
-        {
-            tracing::error!("PAC server crashed: {}", e);
-        }
-    });
 
-    let pac_manager = pac::PacManager::new(&base_config_dir);
-    if let Err(e) = pac_manager.install(&format!(
-        "http://{}:{}/proxy.pac",
-        config.daemon.bind_ip, config.daemon.pac_port
-    )) {
-        tracing::error!("Failed to install OS proxy configuration: {}", e);
+    // Register with kinetic-pac by dropping our proxy config into the global proxies directory
+    let global_base = dirs::data_local_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("kinetic_global");
+    let proxies_dir = global_base.join("proxies");
+    let _ = std::fs::create_dir_all(&proxies_dir);
+    
+    let tld_clean = kinetic_core::constants::TLD_SUFFIX.trim_start_matches('.');
+    let proxy_json_path = proxies_dir.join(format!("{}.json", tld_clean));
+    
+    let proxy_info = serde_json::json!({
+        "tld": kinetic_core::constants::TLD_SUFFIX,
+        "proxy_ip": config.daemon.pac_bind_ip,
+        "proxy_port": config.daemon.proxy_port,
+    });
+    
+    if let Ok(file) = std::fs::File::create(&proxy_json_path) {
+        let _ = serde_json::to_writer(file, &proxy_info);
+        tracing::info!("Registered proxy port {} with kinetic-pac", config.daemon.proxy_port);
     }
 
     if config.daemon.enable_dns {
@@ -587,9 +588,7 @@ async fn run_daemon() -> Result<()> {
         },
         _ = kinetic_core::shutdown::shutdown_signal() => {
             info!("Shutdown signal received. Commencing graceful shutdown...");
-            if let Err(e) = pac_manager.uninstall() {
-                tracing::error!("Failed to uninstall OS proxy configuration: {}", e);
-            }
+            let _ = std::fs::remove_file(&proxy_json_path);
         }
     }
 

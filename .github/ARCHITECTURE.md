@@ -17,7 +17,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
    user / app           │                kinetic-daemon              │
   ┌───────────┐  HTTP   │  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
   │  client   │────────▶│  │ local API│  │ split-DNS│  │  proxy   │  │
-  │ (Tauri /  │  :API   │  │ (Axum)   │  │  :53     │  │  :5463   │  │
+  │ (Tauri /  │  :API   │  │ (Axum)   │  │  :53     │  │  :17001  │  │
   │  ext/CLI) │         │  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
   └───────────┘         │       │             │             │        │
                         │       ▼             ▼             ▼        │
@@ -150,7 +150,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
 |---------|--------|------|------|
 | P2P | 6070 | 6071 | 6072 |
 | Local API | 16002 | 16003 | 16004 |
-| Proxy | 5463 | — | — |
+| Proxy | 17001 | — | — |
 | DNS | 53 | — | — |
  
 ---

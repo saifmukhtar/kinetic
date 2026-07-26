@@ -76,6 +76,7 @@ pub struct NetworkEventLoop {
     pub(crate) nat_status: String,
     pub(crate) loopback_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopbackCommand>>,
     pub(crate) pow_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
+    pub(crate) light_clients: FxHashSet<libp2p::PeerId>,
 }
 
 impl NetworkEventLoop {
@@ -251,8 +252,13 @@ impl NetworkEventLoop {
                 is_bootstrap,
             } => {
                 if !valid && !is_bootstrap {
-                    tracing::debug!("Peer {} failed S/Kademlia PoW for epoch, disconnecting them to prevent connection slot exhaustion", peer_id);
-                    let _ = self.swarm.disconnect_peer_id(peer_id);
+                    if self.light_clients.len() >= 50 {
+                        tracing::warn!("Light Client limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion", peer_id);
+                        let _ = self.swarm.disconnect_peer_id(peer_id);
+                    } else {
+                        tracing::debug!("Peer {} failed PoW, classifying as Light Client.", peer_id);
+                        self.light_clients.insert(peer_id);
+                    }
                 } else if !valid && is_bootstrap {
                     tracing::debug!(
                         "Bootstrap peer {} failed PoW — permitted initially",

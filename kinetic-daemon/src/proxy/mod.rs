@@ -68,7 +68,7 @@ pub async fn start_proxy_server(
     config: Arc<kinetic_core::config::KineticConfig>,
 ) -> anyhow::Result<()> {
     // Case 198: IPv6 Only Network Support
-    let bind_ip = &config.daemon.bind_ip;
+    let bind_ip = &config.daemon.pac_bind_ip;
     let addr = format!("{}:{}", bind_ip, port);
     let mut listener = None;
     for _ in 0..10 {

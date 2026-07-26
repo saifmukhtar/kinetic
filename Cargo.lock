@@ -2953,6 +2953,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "kinetic-pac"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum 0.8.9",
+ "clap",
+ "dirs 6.0.0",
+ "kinetic-core",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "kinetic-storage"
 version = "0.1.0"
 dependencies = [

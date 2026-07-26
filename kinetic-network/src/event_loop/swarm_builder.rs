@@ -357,6 +357,7 @@ impl super::core::NetworkEventLoop {
             nat_status: "Unknown".to_string(),
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
+            light_clients: rustc_hash::FxHashSet::default(),
         };
 
         Ok((client, event_loop))
@@ -496,6 +497,7 @@ impl super::core::NetworkEventLoop {
             nat_status: "Unknown".to_string(),
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
+            light_clients: rustc_hash::FxHashSet::default(),
         };
 
         Ok((client, event_loop))
