@@ -25,6 +25,16 @@
 
 ---
 
+## Track 3: Developer Guide
+> *For developers building applications and clients on the Kinetic network.*
+
+- [TypeScript SDK](/developers/sdk-typescript)
+- [Rust SDK](/developers/sdk-rust)
+- [Authentication](/developers/auth)
+- [Tutorial: Build a Web3 Publishing App](/developers/examples/kinetic-article)
+
+---
+
 ## Reference
 
 - [CLI Reference (CLI Arguments Explained)](/reference/cli)
