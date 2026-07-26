@@ -4,21 +4,23 @@ The Kinetic TypeScript SDK is a strongly-typed client generated from the Kinetic
 
 ## Installation
 
-The SDK lives in the `kinetic-sdk` repository. It is not yet published to npm — install it directly as a local path dependency:
+The SDK lives in the `kinetic-sdk` repository and is published to npm. You can install it directly in your project:
 
 ```bash
-# From your project directory, point to the typescript SDK folder
-npm install /path/to/kinetic-sdk/typescript
-
-# Or if you cloned kinetic-sdk next to your project:
-npm install file:../kinetic-sdk/typescript
+npm install @kinetic-sdk/ts
 ```
 
-The package name is `@kinetic/sdk-ts`. Import from it:
+Import from it:
 
 ```typescript
-import { Configuration, PublicApi, AuthenticatedApi } from '@kinetic/sdk-ts';
+import { Configuration, PublicApi, AuthenticatedApi } from '@kinetic-sdk/ts';
 ```
+
+## Example Application
+
+If you'd like to see a full, production-ready React web application using the TypeScript SDK, check out the `kinetic-article` submodule in our examples folder:
+
+[View `kinetic-article` Example on GitHub](https://github.com/saifmukhtar/kinetic-article)
 
 ## Setup & Authentication
 
@@ -39,7 +41,7 @@ The bearer token is stored by the daemon in your data directory and is regenerat
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { Configuration, PublicApi, AuthenticatedApi } from '@kinetic/sdk-ts';
+import { Configuration, PublicApi, AuthenticatedApi } from '@kinetic-sdk/ts';
 
 function tokenPath(): string {
   switch (process.platform) {
