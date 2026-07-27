@@ -256,7 +256,10 @@ impl NetworkEventLoop {
                         tracing::warn!("Light Client limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion", peer_id);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
                     } else {
-                        tracing::debug!("Peer {} failed PoW, classifying as Light Client.", peer_id);
+                        tracing::debug!(
+                            "Peer {} failed PoW, classifying as Light Client.",
+                            peer_id
+                        );
                         self.light_clients.insert(peer_id);
                     }
                 } else if !valid && is_bootstrap {

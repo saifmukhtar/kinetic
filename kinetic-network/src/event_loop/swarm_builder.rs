@@ -25,7 +25,10 @@ impl super::core::NetworkEventLoop {
         gossip_tx: Option<tokio::sync::broadcast::Sender<(String, Vec<u8>)>>,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
-        info!("Initializing Kinetic P2P Swarm on {}", config.listen_addr);
+        info!(
+            "Initializing Kinetic P2P Swarm on {:?}",
+            config.listen_addrs
+        );
 
         #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
         let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
@@ -95,7 +98,13 @@ impl super::core::NetworkEventLoop {
                     // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
                     // This limit is deliberately set higher to safely accommodate
                     // the 64 KB payload plus Kademlia/protobuf network routing overhead.
-                    .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE);
+                    .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
+                    // Tighten provider records life for dynamic IPv6 / CGNAT rotations
+                    .set_provider_record_ttl(Some(std::time::Duration::from_secs(4 * 3600)))
+                    // Re-publish records before the 4 hour TTL expires to prevent network dropouts
+                    .set_provider_publication_interval(Some(std::time::Duration::from_secs(
+                        3 * 3600,
+                    )));
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 if mode == NetworkMode::LightClient {
                     kademlia.set_mode(Some(kad::Mode::Client));
@@ -245,10 +254,14 @@ impl super::core::NetworkEventLoop {
             .build();
 
         if config.mode == NetworkMode::FullNode {
-            if !config.listen_addr.is_empty() {
-                swarm.listen_on(config.listen_addr.clone())?;
+            for addr in &config.listen_addrs {
+                if !addr.is_empty() {
+                    if let Err(e) = swarm.listen_on(addr.clone()) {
+                        tracing::warn!("Failed to bind TCP on {}: {}", addr, e);
+                    }
+                }
             }
-            if let Some(quic_addr) = &config.quic_listen_addr {
+            for quic_addr in &config.quic_listen_addrs {
                 if !quic_addr.is_empty() {
                     match swarm.listen_on(quic_addr.clone()) {
                         Ok(_) => tracing::info!("Listening on QUIC: {}", quic_addr),
@@ -448,10 +461,12 @@ impl super::core::NetworkEventLoop {
 
         let (_, drand_pulse_rx) = watch::channel(0);
 
-        if !config.listen_addr.is_empty() {
-            swarm.listen_on(config.listen_addr.clone())?;
+        for addr in &config.listen_addrs {
+            if !addr.is_empty() {
+                let _ = swarm.listen_on(addr.clone());
+            }
         }
-        if let Some(quic_addr) = &config.quic_listen_addr {
+        for quic_addr in &config.quic_listen_addrs {
             if !quic_addr.is_empty() {
                 let _ = swarm.listen_on(quic_addr.clone());
             }
