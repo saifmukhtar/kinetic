@@ -70,7 +70,11 @@ mod tests {
         });
 
         // Start the DNS proxy server
-        let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+        let handler = KineticDnsHandler::new(
+            api_url,
+            std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+            5354,
+        );
         let mut server = ServerFuture::new(handler);
         let socket = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let dns_port = socket.local_addr().unwrap().port();
@@ -186,7 +190,11 @@ mod tests {
         });
 
         // Start the DNS proxy server
-        let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+        let handler = KineticDnsHandler::new(
+            api_url,
+            std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+            5354,
+        );
         let mut server = ServerFuture::new(handler);
         let socket = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let dns_port = socket.local_addr().unwrap().port();

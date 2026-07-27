@@ -18,8 +18,8 @@ mod tests {
         bootstrap_nodes: Vec<String>,
     ) -> (NetworkClient, tokio::task::JoinHandle<()>) {
         let config = NetworkConfig {
-            listen_addr: format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap(),
-            quic_listen_addr: None,
+            listen_addrs: vec![format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap()],
+            quic_listen_addrs: vec![],
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
@@ -158,8 +158,8 @@ mod tests {
         // Node with a cache size of exactly 1
         let key_a = Keypair::generate_ed25519();
         let config = NetworkConfig {
-            listen_addr: "/ip4/127.0.0.1/tcp/10020".parse().unwrap(),
-            quic_listen_addr: None,
+            listen_addrs: vec!["/ip4/127.0.0.1/tcp/10020".parse().unwrap()],
+            quic_listen_addrs: vec![],
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(1).unwrap(), // Size 1
@@ -219,8 +219,8 @@ mod tests {
             Arc::new(kinetic_vdf::ChiaVdfEngine::new());
 
         let config = NetworkConfig {
-            listen_addr: "/ip4/127.0.0.1/tcp/10021".parse().unwrap(),
-            quic_listen_addr: None,
+            listen_addrs: vec!["/ip4/127.0.0.1/tcp/10021".parse().unwrap()],
+            quic_listen_addrs: vec![],
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(1000).unwrap(),

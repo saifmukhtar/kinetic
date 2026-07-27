@@ -17,8 +17,8 @@ async fn setup_node_with_proxy(
     handle_proxy: bool,
 ) -> (NetworkClient, tokio::task::JoinHandle<()>) {
     let config = NetworkConfig {
-        listen_addr: format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap(),
-        quic_listen_addr: None,
+        listen_addrs: vec![format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap()],
+        quic_listen_addrs: vec![],
         external_address: None,
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),

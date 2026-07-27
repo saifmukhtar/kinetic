@@ -147,10 +147,13 @@ pub async fn handle_governance_command(
                     )
                 })?;
                 if !response.status().is_success() {
+                    let status = response.status();
+                    let text = response.text().await.unwrap_or_default();
                     return Err(anyhow::anyhow!(
-                        "Pre-flight validation failed: HTTP {} from {}",
-                        response.status(),
-                        manifest_url
+                        "Pre-flight validation failed: HTTP {} from {}: {}",
+                        status,
+                        manifest_url,
+                        text
                     ));
                 }
 
@@ -410,7 +413,7 @@ mod tests {
             signer_key: PathBuf::from("dummy_key.json"),
         };
 
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
         let config = kinetic_core::config::KineticConfig::default();
         let res = handle_governance_command(cmd, &config, &client).await;
 
@@ -456,7 +459,7 @@ mod tests {
             signer_key: PathBuf::from("dummy_key.json"),
         };
 
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
         let config = kinetic_core::config::KineticConfig::default();
         let res = handle_governance_command(cmd, &config, &client).await;
 
