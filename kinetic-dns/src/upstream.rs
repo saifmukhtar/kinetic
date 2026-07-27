@@ -40,7 +40,7 @@ pub fn create_atlas_resolver(port: u16) -> TokioAsyncResolver {
         socket,
         hickory_resolver::config::Protocol::Tcp,
     ));
-    
+
     let opts = ResolverOpts::default();
     TokioAsyncResolver::tokio(config, opts)
 }

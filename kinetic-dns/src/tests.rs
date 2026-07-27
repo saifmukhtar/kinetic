@@ -121,7 +121,11 @@ async fn build_request(name: &str, rtype: RecordType) -> Request {
 #[tokio::test]
 async fn test_resolve_standard_domain() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     let req = build_request("google.com.", RecordType::A).await;
     let responses = Arc::new(Mutex::new(Vec::new()));
@@ -140,7 +144,11 @@ async fn test_resolve_standard_domain() {
 #[tokio::test]
 async fn test_resolve_kin_success() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     let req = build_request("test1.kin.", RecordType::A).await;
     let responses = Arc::new(Mutex::new(Vec::new()));
@@ -159,7 +167,11 @@ async fn test_resolve_kin_success() {
 #[tokio::test]
 async fn test_resolve_kin_api_404_nxdomain() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     let req = build_request("missing.kin.", RecordType::A).await;
     let responses = Arc::new(Mutex::new(Vec::new()));
@@ -178,7 +190,11 @@ async fn test_resolve_kin_api_404_nxdomain() {
 #[tokio::test]
 async fn test_resolve_kin_api_500_servfail() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     let req = build_request("500.kin.", RecordType::A).await;
     let responses = Arc::new(Mutex::new(Vec::new()));
@@ -197,7 +213,11 @@ async fn test_resolve_kin_api_500_servfail() {
 #[tokio::test]
 async fn test_resolve_kin_invalid_payload() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     let req = build_request("invalid-payload.kin.", RecordType::A).await;
     let responses = Arc::new(Mutex::new(Vec::new()));
@@ -216,7 +236,11 @@ async fn test_resolve_kin_invalid_payload() {
 #[tokio::test]
 async fn test_resolve_kin_invalid_zone() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     let req = build_request("invalid-zone.kin.", RecordType::A).await;
     let responses = Arc::new(Mutex::new(Vec::new()));
@@ -235,7 +259,11 @@ async fn test_resolve_kin_invalid_zone() {
 #[tokio::test]
 async fn test_resolve_kin_subdomain_fallback() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     let req = build_request("www.test1.kin.", RecordType::A).await; // test1.kin has @ but no www
     let responses = Arc::new(Mutex::new(Vec::new()));
@@ -255,7 +283,11 @@ async fn test_resolve_kin_subdomain_fallback() {
 #[tokio::test]
 async fn test_resolve_kin_uppercase() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     // We send uppercase test1.KIN. It should normalize and still resolve
     let req = build_request("TEST1.KIN.", RecordType::A).await;
@@ -275,7 +307,11 @@ async fn test_resolve_kin_uppercase() {
 #[tokio::test]
 async fn test_resolve_kin_wrong_record_type() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     let req = build_request("test1.kin.", RecordType::AAAA).await; // only A exists
     let responses = Arc::new(Mutex::new(Vec::new()));
@@ -294,7 +330,11 @@ async fn test_resolve_kin_wrong_record_type() {
 #[tokio::test]
 async fn test_cache_invalidation() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
 
     // First it's empty
     handler.invalidate_cache("test1.kin").await;

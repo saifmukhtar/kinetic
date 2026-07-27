@@ -49,6 +49,28 @@ enum Commands {
     Stop,
 }
 
+#[cfg(target_os = "macos")]
+fn setup_macos_alias(ip: &str) {
+    let status = std::process::Command::new("ifconfig")
+        .args(["lo0", "alias", ip, "255.255.255.255", "up"])
+        .status();
+
+    if let Ok(s) = status {
+        if !s.success() {
+            tracing::warn!("Failed to create macOS loopback alias for {}", ip);
+        }
+    } else {
+        tracing::warn!("Failed to execute ifconfig for macOS alias setup");
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn teardown_macos_alias(ip: &str) {
+    let _ = std::process::Command::new("ifconfig")
+        .args(["lo0", "-alias", ip])
+        .status();
+}
+
 fn configure_os_dns(dns_port: u16) -> Result<()> {
     let os = std::env::consts::OS;
     let tld = kinetic_core::constants::TLD;
@@ -70,9 +92,8 @@ fn configure_os_dns(dns_port: u16) -> Result<()> {
                 .status();
         }
     } else if os == "macos" {
-        let _ = std::process::Command::new("ifconfig")
-            .args(["lo0", "alias", bind_ip, "up"])
-            .status();
+        #[cfg(target_os = "macos")]
+        setup_macos_alias(bind_ip);
 
         let conf_dir = std::path::Path::new("/etc/resolver");
         std::fs::create_dir_all(conf_dir).ok();
@@ -110,9 +131,8 @@ fn remove_os_dns() {
         let conf_path = format!("/etc/resolver/{}", tld);
         std::fs::remove_file(&conf_path).ok();
         let bind_ip = kinetic_core::constants::LOCAL_BIND_IP;
-        let _ = std::process::Command::new("ifconfig")
-            .args(["lo0", "-alias", bind_ip])
-            .status();
+        #[cfg(target_os = "macos")]
+        teardown_macos_alias(bind_ip);
     } else if os == "windows" {
         let _ = std::process::Command::new("powershell")
             .args([
@@ -196,16 +216,17 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
     info!("Starting Kinetic DNS Server");
     info!("Upstream Daemon API URL: {}", api_url);
 
-    let dns_handler = KineticDnsHandler::new(api_url, std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())), 5354);
+    let dns_handler = KineticDnsHandler::new(
+        api_url,
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+        5354,
+    );
     let mut server = ServerFuture::new(dns_handler);
 
     let bind_ip = kinetic_core::constants::LOCAL_BIND_IP;
 
-    if cfg!(target_os = "macos") {
-        let _ = std::process::Command::new("ifconfig")
-            .args(["lo0", "alias", bind_ip, "up"])
-            .status();
-    }
+    #[cfg(target_os = "macos")]
+    setup_macos_alias(bind_ip);
 
     match UdpSocket::bind(format!("{}:{}", bind_ip, dns_port)).await {
         Ok(socket) => {
@@ -243,6 +264,9 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
                     info!("Shutdown signal received. Commencing graceful shutdown...");
                 }
             }
+
+            #[cfg(target_os = "macos")]
+            teardown_macos_alias(bind_ip);
         }
         Err(e) => {
             warn!(
@@ -297,6 +321,9 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
                             info!("Shutdown signal received. Commencing graceful shutdown...");
                         }
                     }
+
+                    #[cfg(target_os = "macos")]
+                    teardown_macos_alias(bind_ip);
                 }
                 Err(e2) => {
                     warn!(

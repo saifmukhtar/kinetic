@@ -52,7 +52,7 @@ impl RequestHandler for KineticDnsHandler {
                     }
                 }
             }
-            
+
             if is_atlas {
                 let atlas_resolver = {
                     self.atlas_resolver

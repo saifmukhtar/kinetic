@@ -53,11 +53,7 @@ impl KineticDnsHandler {
     /// Creates a new `KineticDnsHandler` with the specified API URL.
     ///
     /// This initializes the upstream DNS resolver, internal caches, and background tasks for config reloading.
-    pub fn new(
-        api_url: String,
-        atlas_tlds: Arc<RwLock<HashSet<String>>>,
-        atlas_port: u16,
-    ) -> Self {
+    pub fn new(api_url: String, atlas_tlds: Arc<RwLock<HashSet<String>>>, atlas_port: u16) -> Self {
         let resolver = Arc::new(RwLock::new(upstream::create_resolver()));
         let atlas_resolver = Arc::new(RwLock::new(upstream::create_atlas_resolver(atlas_port)));
         let cache = cache::create_cache();
