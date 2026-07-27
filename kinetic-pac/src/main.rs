@@ -155,8 +155,7 @@ async fn main() -> anyhow::Result<()> {
             {
                 let mut pac_script = String::from("function FindProxyForURL(url, host) {\n");
                 
-                let mut proxy_map: std::collections::HashMap<String, RegisteredProxy> = std::collections::HashMap::new();
-                let mut is_atlas_map: std::collections::HashMap<String, bool> = std::collections::HashMap::new();
+                let mut proxy_map: std::collections::HashMap<String, (Option<RegisteredProxy>, Option<RegisteredProxy>)> = std::collections::HashMap::new();
 
                 // Scan proxies dir for JSON files
                 if let Ok(entries) = std::fs::read_dir(&proxies_dir) {
@@ -168,18 +167,12 @@ async fn main() -> anyhow::Result<()> {
                                         let tld = if proxy_info.tld.starts_with('.') { proxy_info.tld.clone() } else { format!(".{}", proxy_info.tld) };
                                         
                                         let is_atlas = entry.file_name().to_string_lossy().starts_with("atlas_");
-
-                                        // Conflict resolution: Native daemons ALWAYS override Atlas proxies
-                                        let should_insert = match is_atlas_map.get(&tld) {
-                                            Some(true) if !is_atlas => true, // Replace Atlas with Native
-                                            Some(false) if is_atlas => false, // Ignore Atlas if Native exists
-                                            Some(_) => false, // First come first serve for same types
-                                            None => true,
-                                        };
-
-                                        if should_insert {
-                                            is_atlas_map.insert(tld.clone(), is_atlas);
-                                            proxy_map.insert(tld, proxy_info);
+                                        let entry = proxy_map.entry(tld).or_insert((None, None));
+                                        
+                                        if is_atlas {
+                                            entry.1 = Some(proxy_info);
+                                        } else {
+                                            entry.0 = Some(proxy_info);
                                         }
                                     }
                                 }
@@ -188,17 +181,26 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
 
-                for (tld, proxy_info) in proxy_map {
-                    // Use proxy_ip for IPv4 and fallback to loopback for IPv6
-                    let ipv6 = if proxy_info.proxy_ip == "127.0.0.1" { "[::1]" } else { &proxy_info.proxy_ip };
+                for (tld, proxies) in proxy_map {
+                    let mut proxy_string = String::new();
+                    
+                    if let Some(native) = proxies.0 {
+                        let ipv6 = if native.proxy_ip == "127.0.0.1" { "[::1]" } else { &native.proxy_ip };
+                        proxy_string.push_str(&format!("PROXY {}:{}; PROXY {}:{}; ", native.proxy_ip, native.proxy_port, ipv6, native.proxy_port));
+                    }
+                    if let Some(atlas) = proxies.1 {
+                        let ipv6 = if atlas.proxy_ip == "127.0.0.1" { "[::1]" } else { &atlas.proxy_ip };
+                        proxy_string.push_str(&format!("PROXY {}:{}; PROXY {}:{}; ", atlas.proxy_ip, atlas.proxy_port, ipv6, atlas.proxy_port));
+                    }
+                    proxy_string.push_str("DIRECT");
                     
                     pac_script.push_str(&format!(
-                        "    if (shExpMatch(host, \"*{}\")) return \"PROXY {}:{}; PROXY {}:{}; DIRECT\";\n",
-                        tld, proxy_info.proxy_ip, proxy_info.proxy_port, ipv6, proxy_info.proxy_port
+                        "    if (shExpMatch(host, \"*{}\")) return \"{}\";\n",
+                        tld, proxy_string
                     ));
                     pac_script.push_str(&format!(
-                        "    if (shExpMatch(host, \"*{}.\")) return \"PROXY {}:{}; PROXY {}:{}; DIRECT\";\n",
-                        tld, proxy_info.proxy_ip, proxy_info.proxy_port, ipv6, proxy_info.proxy_port
+                        "    if (shExpMatch(host, \"*{}.\")) return \"{}\";\n",
+                        tld, proxy_string
                     ));
                 }
 
