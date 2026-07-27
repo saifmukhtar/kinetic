@@ -206,14 +206,22 @@ async fn run_node() -> Result<()> {
     // 5. Initialize P2P Network
     let network_config = NetworkConfig {
         mode: NetworkMode::FullNode,
-        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port)
-            .parse()
-            .map_err(|e| anyhow::anyhow!("Failed to parse listen_addr: {}", e))?,
-        quic_listen_addr: Some(
+        listen_addrs: vec![
+            format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port)
+                .parse()
+                .unwrap(),
+            format!("/ip6/::/tcp/{}", config.network.node_port)
+                .parse()
+                .unwrap(),
+        ],
+        quic_listen_addrs: vec![
             format!("/ip4/0.0.0.0/udp/{}/quic-v1", config.network.node_quic_port)
                 .parse()
                 .unwrap(),
-        ),
+            format!("/ip6/::/udp/{}/quic-v1", config.network.node_quic_port)
+                .parse()
+                .unwrap(),
+        ],
         bootstrap_nodes: config
             .network
             .bootstrap_nodes
