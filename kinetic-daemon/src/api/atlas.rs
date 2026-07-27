@@ -19,12 +19,14 @@ pub async fn handle_atlas_sync(
     if role != crate::api::Role::Atlas && !role.is_admin() {
         return axum::response::Response::builder()
             .status(axum::http::StatusCode::FORBIDDEN)
-            .body(axum::body::Body::from("Forbidden: Requires Atlas or Admin role"))
+            .body(axum::body::Body::from(
+                "Forbidden: Requires Atlas or Admin role",
+            ))
             .unwrap();
     }
 
     let mut clean_tlds = std::collections::HashSet::new();
-    
+
     // Normalize and add each TLD
     for tld in payload.tlds {
         let mut t = tld.trim().to_lowercase();
@@ -45,7 +47,7 @@ pub async fn handle_atlas_sync(
                 clean_tlds.len(),
                 clean_tlds
             );
-            
+
             // Return 200 OK
             axum::response::Response::builder()
                 .status(axum::http::StatusCode::OK)

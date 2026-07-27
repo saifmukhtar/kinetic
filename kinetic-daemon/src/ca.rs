@@ -42,8 +42,9 @@ pub struct RootCa {
 /// Returns a `CaError` if there are IO issues reading/writing the certificate files, or if there is an error
 /// generating the root CA certificates.
 pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaError> {
-    let cert_path = config_dir.join("ca_cert.pem");
-    let key_path = config_dir.join("ca_key.pem");
+    let network_id = kinetic_core::constants::NETWORK_ID;
+    let cert_path = config_dir.join(format!("{}.cert.pem", network_id));
+    let key_path = config_dir.join(format!("{}.key.pem", network_id));
     let lock_path = config_dir.join(".ca.lock");
 
     let mut retries = 0;
@@ -70,9 +71,25 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
 
     // Wrap the rest in a closure to ensure we delete the lock file on return/error
     let result = (|| -> Result<(RootCa, bool), CaError> {
-        if cert_path.exists() && key_path.exists() {
+        if cert_path.exists() {
             let cert_pem = std::fs::read_to_string(&cert_path)?;
-            let key_pem = std::fs::read_to_string(&key_path)?;
+
+            #[cfg(not(test))]
+            let key_pem_opt = keyring::Entry::new("kinetic_daemon", "root_ca_key").and_then(|e| e.get_password());
+            #[cfg(test)]
+            let key_pem_opt: Result<String, keyring::Error> = Err(keyring::Error::NoEntry);
+
+            let key_pem = match key_pem_opt {
+                Ok(k) => k,
+                Err(_) if key_path.exists() => std::fs::read_to_string(&key_path)?, // Fallback to disk
+                Err(_) => {
+                    return Err(CaError::Io(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "CA Private Key missing from both OS Keychain and disk.",
+                    )))
+                }
+            };
+
             let key_pair = KeyPair::from_pem(&key_pem)?;
             let params = CertificateParams::from_ca_cert_pem(&cert_pem)?;
             let cert = params.self_signed(&key_pair)?;
@@ -116,33 +133,57 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
 
         std::fs::write(&cert_path, &cert_pem)?;
 
-        #[cfg(unix)]
-        {
-            use std::io::Write;
-            use std::os::unix::fs::OpenOptionsExt;
-            let mut f = std::fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .mode(0o600)
-                .open(&key_path)?;
-            f.write_all(key_pem.as_bytes())?;
+        #[cfg(not(test))]
+        let keyring_success = {
+            let entry = keyring::Entry::new("kinetic_daemon", "root_ca_key");
+            match entry {
+                Ok(e) => e.set_password(&key_pem).is_ok(),
+                Err(_) => false,
+            }
+        };
+        #[cfg(test)]
+        let keyring_success = false;
+
+        if keyring_success {
+            tracing::info!("Root CA private key securely stored in OS Keychain.");
+            let _ = std::fs::remove_file(&key_path);
+        } else {
+            tracing::warn!(
+                "Failed to store Root CA key in OS Keychain. Falling back to disk storage."
+            );
+
+            #[cfg(unix)]
+            {
+                use std::io::Write;
+                use std::os::unix::fs::OpenOptionsExt;
+                let mut f = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .mode(0o600)
+                    .open(&key_path)?;
+                f.write_all(key_pem.as_bytes())?;
+            }
+            #[cfg(not(unix))]
+            {
+                std::fs::write(&key_path, &key_pem)?;
+            }
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("icacls")
+                    .args([
+                        key_path.to_str().unwrap_or_default(),
+                        "/inheritance:r",
+                        "/grant:r",
+                        &format!("{}:F", std::env::var("USERNAME").unwrap_or_default()),
+                    ])
+                    .status();
+            }
         }
-        #[cfg(not(unix))]
-        {
-            std::fs::write(&key_path, &key_pem)?;
-        }
-        #[cfg(windows)]
-        {
-            let _ = std::process::Command::new("icacls")
-                .args([
-                    key_path.to_str().unwrap_or_default(),
-                    "/inheritance:r",
-                    "/grant:r",
-                    &format!("{}:F", std::env::var("USERNAME").unwrap_or_default()),
-                ])
-                .status();
-        }
+
+        // Attempt to trust the newly generated CA locally.
+        // We do not fail the overall initialization if this fails, as users may reject the prompt.
+        trust_root_ca(&cert_path);
 
         Ok((
             RootCa {
@@ -157,6 +198,72 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
     let _ = std::fs::remove_file(&lock_path);
     result
 }
+
+/// Attempts to inject the provided Root CA certificate into the OS-level trust store.
+///
+/// This invokes native GUI permission dialogs (Windows UAC, macOS Touch ID/Password,
+/// or Linux Polkit) so the user can authorize the installation of the CA.
+///
+/// If the command fails or the user rejects the prompt, we log a warning but do not panic.
+#[cfg(not(test))]
+fn trust_root_ca(cert_path: &Path) {
+    #[cfg(windows)]
+    {
+        tracing::info!("Prompting Windows user to trust the Kinetic Root CA...");
+        let status = std::process::Command::new("certutil")
+            .args([
+                "-addstore",
+                "-user",
+                "root",
+                cert_path.to_str().unwrap_or_default(),
+            ])
+            .status();
+
+        match status {
+            Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on Windows."),
+            _ => tracing::warn!("Failed or rejected Root CA trust installation on Windows."),
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        tracing::info!("Prompting macOS user to trust the Kinetic Root CA...");
+        let script = format!(
+            "do shell script \"security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain {}\" with administrator privileges",
+            cert_path.display()
+        );
+        let status = std::process::Command::new("osascript")
+            .args(["-e", &script])
+            .status();
+
+        match status {
+            Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on macOS."),
+            _ => tracing::warn!("Failed or rejected Root CA trust installation on macOS."),
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        tracing::info!("Prompting Linux user (via pkexec) to trust the Kinetic Root CA...");
+        // This targets Debian/Ubuntu style CA stores. Arch/Fedora use different paths,
+        // but this covers the most common desktop setups (e.g. Ubuntu).
+        let cmd = format!(
+            "cp {} /usr/local/share/ca-certificates/kinetic.crt && update-ca-certificates",
+            cert_path.display()
+        );
+        let status = std::process::Command::new("pkexec")
+            .args(["sh", "-c", &cmd])
+            .status();
+
+        match status {
+            Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on Linux."),
+            _ => tracing::warn!("Failed or rejected Root CA trust installation on Linux."),
+        }
+    }
+}
+
+#[cfg(test)]
+fn trust_root_ca(_cert_path: &Path) {}
 
 /// Generates a leaf certificate for a specific domain, signed by the given root CA.
 ///

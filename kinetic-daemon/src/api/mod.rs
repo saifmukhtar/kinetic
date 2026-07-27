@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+/// API endpoints for Atlas TLD sync.
+pub mod atlas;
 /// API endpoints for configuration management.
 pub mod config;
 /// API endpoints for streaming Gossip.
@@ -22,9 +24,8 @@ pub mod time;
 pub mod vdf;
 /// API endpoints for DNS zone management.
 pub mod zone;
-/// API endpoints for Atlas TLD sync.
-pub mod atlas;
 
+use atlas::*;
 use config::*;
 use gossip::*;
 use publish::*;
@@ -32,7 +33,6 @@ use resolve::*;
 use time::*;
 use vdf::*;
 use zone::*;
-use atlas::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
@@ -196,7 +196,10 @@ pub fn app(state: ApiState) -> Router {
             "/gossip/publish/{topic}",
             axum::routing::post(handle_gossip_publish),
         )
-        .route("/internal/atlas/sync", axum::routing::post(handle_atlas_sync))
+        .route(
+            "/internal/atlas/sync",
+            axum::routing::post(handle_atlas_sync),
+        )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
@@ -261,7 +264,10 @@ fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<Stri
 }
 
 fn rotate_token_on_boot(token_path: &std::path::Path) -> anyhow::Result<String> {
-    tracing::info!("Rotating API token: {:?}", token_path.file_name().unwrap_or_default());
+    tracing::info!(
+        "Rotating API token: {:?}",
+        token_path.file_name().unwrap_or_default()
+    );
     generate_and_write_token(token_path)
 }
 

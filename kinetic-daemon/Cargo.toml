@@ -66,6 +66,7 @@ rand_core = "0.10.1"
 ml-dsa = "0.1.1"
 bincode = "1.3.3"
 hickory-resolver = "0.24.4"
+keyring = "3.6.2"
 
 [dev-dependencies]
 http = "1.4.2"

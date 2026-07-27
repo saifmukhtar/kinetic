@@ -35,11 +35,14 @@ mod tests {
                 publish: "publish-token".to_string(),
                 vdf: "vdf-token".to_string(),
                 governance: "gov-token".to_string(),
+                atlas: "atlas-token".to_string(),
             }),
             vdf_tasks: Arc::new(Mutex::new(std::collections::HashMap::new())),
             vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
             bind_ip: "127.0.0.1".to_string(),
-            atlas_tlds: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
+            atlas_tlds: std::sync::Arc::new(std::sync::RwLock::new(
+                std::collections::HashSet::new(),
+            )),
         };
 
         let router = app(state);
@@ -222,9 +225,10 @@ mod tests {
             .unwrap();
 
         let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let status = response.status();
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert_eq!(status, StatusCode::BAD_REQUEST, "Unexpected response: {}", body_str);
         assert!(body_str.contains("Reveal rejected: VDF pulse"));
     }
 

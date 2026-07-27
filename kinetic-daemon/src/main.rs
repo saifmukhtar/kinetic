@@ -301,17 +301,25 @@ async fn run_daemon() -> Result<()> {
     };
     let network_config = NetworkConfig {
         mode,
-        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", config.network.daemon_port)
-            .parse()
-            .unwrap(),
-        quic_listen_addr: Some(
+        listen_addrs: vec![
+            format!("/ip4/0.0.0.0/tcp/{}", config.network.daemon_port)
+                .parse()
+                .unwrap(),
+            format!("/ip6/::/tcp/{}", config.network.daemon_port)
+                .parse()
+                .unwrap(),
+        ],
+        quic_listen_addrs: vec![
             format!(
                 "/ip4/0.0.0.0/udp/{}/quic-v1",
                 config.network.daemon_quic_port
             )
             .parse()
             .unwrap(),
-        ),
+            format!("/ip6/::/udp/{}/quic-v1", config.network.daemon_quic_port)
+                .parse()
+                .unwrap(),
+        ],
         bootstrap_nodes: config
             .network
             .bootstrap_nodes
@@ -527,26 +535,28 @@ async fn run_daemon() -> Result<()> {
         drand_pulse_tx.clone(),
     );
 
-
     // Register with kinetic-pac by dropping our proxy config into the global proxies directory
     let global_base = dirs::data_local_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join("kinetic_global");
     let proxies_dir = global_base.join("proxies");
     let _ = std::fs::create_dir_all(&proxies_dir);
-    
+
     let tld_clean = kinetic_core::constants::TLD_SUFFIX.trim_start_matches('.');
     let proxy_json_path = proxies_dir.join(format!("{}.json", tld_clean));
-    
+
     let proxy_info = serde_json::json!({
         "tld": kinetic_core::constants::TLD_SUFFIX,
         "proxy_ip": config.daemon.pac_bind_ip,
         "proxy_port": config.daemon.proxy_port,
     });
-    
+
     if let Ok(file) = std::fs::File::create(&proxy_json_path) {
         let _ = serde_json::to_writer(file, &proxy_info);
-        tracing::info!("Registered proxy port {} with kinetic-pac", config.daemon.proxy_port);
+        tracing::info!(
+            "Registered proxy port {} with kinetic-pac",
+            config.daemon.proxy_port
+        );
     }
 
     if config.daemon.enable_dns {
@@ -554,7 +564,11 @@ async fn run_daemon() -> Result<()> {
             "http://{}:{}",
             config.daemon.bind_ip, config.daemon.api_port
         );
-        let dns_handler = kinetic_dns::KineticDnsHandler::new(api_url, atlas_tlds.clone(), config.daemon.atlas_port);
+        let dns_handler = kinetic_dns::KineticDnsHandler::new(
+            api_url,
+            atlas_tlds.clone(),
+            config.daemon.atlas_port,
+        );
         let mut server = hickory_server::ServerFuture::new(dns_handler);
 
         let udp_socket = tokio::net::UdpSocket::bind(format!(
