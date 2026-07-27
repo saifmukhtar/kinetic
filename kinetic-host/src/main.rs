@@ -163,14 +163,16 @@ async fn run_host() -> Result<()> {
 
     let network_config = NetworkConfig {
         mode: NetworkMode::FullNode,
-        listen_addr: format!("/ip4/0.0.0.0/tcp/{}", p2p_port)
-            .parse()
-            .map_err(|e| anyhow::anyhow!("Failed to parse listen_addr: {}", e))?,
-        quic_listen_addr: Some(
+        listen_addrs: vec![
+            format!("/ip4/0.0.0.0/tcp/{}", p2p_port).parse().unwrap(),
+            format!("/ip6/::/tcp/{}", p2p_port).parse().unwrap(),
+        ],
+        quic_listen_addrs: vec![
             format!("/ip4/0.0.0.0/udp/{}/quic-v1", p2p_port)
                 .parse()
                 .unwrap(),
-        ),
+            format!("/ip6/::/udp/{}/quic-v1", p2p_port).parse().unwrap(),
+        ],
         bootstrap_nodes: config
             .network
             .bootstrap_nodes

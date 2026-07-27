@@ -62,8 +62,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = NetworkConfig {
         mode: NetworkMode::LightClient,
-        listen_addr: "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
-        quic_listen_addr: None,
+        listen_addrs: vec![
+            "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
+            "/ip6/::/tcp/0".parse().unwrap(),
+        ],
+        quic_listen_addrs: vec![],
         bootstrap_nodes: kinetic_core::constants::BOOTSTRAP_NODES
             .iter()
             .filter_map(|s| s.parse().ok())

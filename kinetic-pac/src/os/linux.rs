@@ -7,7 +7,7 @@ use std::process::Command;
 pub struct KdeConfigurator;
 
 impl ProxyConfigurator for KdeConfigurator {
-    fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError> {
+    fn install(&self, pac_url: &str) -> Result<(), PacError> {
         Command::new("kwriteconfig5")
             .args([
                 "--file",
@@ -19,7 +19,7 @@ impl ProxyConfigurator for KdeConfigurator {
                 "2",
             ])
             .status()
-            .map_err(|e| ProxyConfigError::Command(format!("kwriteconfig5 failed: {}", e)))?;
+            .map_err(|e| PacError::Command(format!("kwriteconfig5 failed: {}", e)))?;
 
         Command::new("kwriteconfig5")
             .args([
@@ -32,7 +32,7 @@ impl ProxyConfigurator for KdeConfigurator {
                 pac_url,
             ])
             .status()
-            .map_err(|e| ProxyConfigError::Command(format!("kwriteconfig5 failed: {}", e)))?;
+            .map_err(|e| PacError::Command(format!("kwriteconfig5 failed: {}", e)))?;
 
         let _ = Command::new("dbus-send")
             .args([
@@ -46,7 +46,7 @@ impl ProxyConfigurator for KdeConfigurator {
         Ok(())
     }
 
-    fn uninstall(&self) -> Result<(), ProxyConfigError> {
+    fn uninstall(&self) -> Result<(), PacError> {
         // Fallback to "No proxy" (type 0)
         Command::new("kwriteconfig5")
             .args([
@@ -59,9 +59,7 @@ impl ProxyConfigurator for KdeConfigurator {
                 "0",
             ])
             .status()
-            .map_err(|e| {
-                ProxyConfigError::Command(format!("kwriteconfig5 uninstall failed: {}", e))
-            })?;
+            .map_err(|e| PacError::Command(format!("kwriteconfig5 uninstall failed: {}", e)))?;
 
         let _ = Command::new("dbus-send")
             .args([
@@ -75,7 +73,7 @@ impl ProxyConfigurator for KdeConfigurator {
         Ok(())
     }
 
-    fn save_previous_state(&self) -> Result<SavedState, ProxyConfigError> {
+    fn save_previous_state(&self) -> Result<SavedState, PacError> {
         let proxy_type = Command::new("kreadconfig5")
             .args([
                 "--file",
@@ -125,7 +123,7 @@ impl ProxyConfigurator for KdeConfigurator {
         })
     }
 
-    fn restore_state(&self, state: &SavedState) -> Result<(), ProxyConfigError> {
+    fn restore_state(&self, state: &SavedState) -> Result<(), PacError> {
         if let Some(ref proxy_type) = state.proxy_type {
             Command::new("kwriteconfig5")
                 .args([
@@ -138,9 +136,7 @@ impl ProxyConfigurator for KdeConfigurator {
                     proxy_type,
                 ])
                 .status()
-                .map_err(|e| {
-                    ProxyConfigError::Command(format!("kwriteconfig5 restore failed: {}", e))
-                })?;
+                .map_err(|e| PacError::Command(format!("kwriteconfig5 restore failed: {}", e)))?;
         }
 
         if let Some(ref pac_url) = state.previous_pac_url {
@@ -155,9 +151,7 @@ impl ProxyConfigurator for KdeConfigurator {
                     pac_url,
                 ])
                 .status()
-                .map_err(|e| {
-                    ProxyConfigError::Command(format!("kwriteconfig5 restore failed: {}", e))
-                })?;
+                .map_err(|e| PacError::Command(format!("kwriteconfig5 restore failed: {}", e)))?;
         }
 
         let _ = Command::new("dbus-send")
@@ -177,11 +171,11 @@ impl ProxyConfigurator for KdeConfigurator {
 pub struct GnomeConfigurator;
 
 impl ProxyConfigurator for GnomeConfigurator {
-    fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError> {
+    fn install(&self, pac_url: &str) -> Result<(), PacError> {
         Command::new("gsettings")
             .args(["set", "org.gnome.system.proxy", "mode", "'auto'"])
             .status()
-            .map_err(|e| ProxyConfigError::Command(format!("gsettings failed: {}", e)))?;
+            .map_err(|e| PacError::Command(format!("gsettings failed: {}", e)))?;
 
         Command::new("gsettings")
             .args([
@@ -191,21 +185,21 @@ impl ProxyConfigurator for GnomeConfigurator {
                 &format!("'{}'", pac_url),
             ])
             .status()
-            .map_err(|e| ProxyConfigError::Command(format!("gsettings failed: {}", e)))?;
+            .map_err(|e| PacError::Command(format!("gsettings failed: {}", e)))?;
 
         Ok(())
     }
 
-    fn uninstall(&self) -> Result<(), ProxyConfigError> {
+    fn uninstall(&self) -> Result<(), PacError> {
         Command::new("gsettings")
             .args(["set", "org.gnome.system.proxy", "mode", "'none'"])
             .status()
-            .map_err(|e| ProxyConfigError::Command(format!("gsettings uninstall failed: {}", e)))?;
+            .map_err(|e| PacError::Command(format!("gsettings uninstall failed: {}", e)))?;
 
         Ok(())
     }
 
-    fn save_previous_state(&self) -> Result<SavedState, ProxyConfigError> {
+    fn save_previous_state(&self) -> Result<SavedState, PacError> {
         let proxy_type = Command::new("gsettings")
             .args(["get", "org.gnome.system.proxy", "mode"])
             .output()
@@ -241,7 +235,7 @@ impl ProxyConfigurator for GnomeConfigurator {
         })
     }
 
-    fn restore_state(&self, state: &SavedState) -> Result<(), ProxyConfigError> {
+    fn restore_state(&self, state: &SavedState) -> Result<(), PacError> {
         if let Some(ref proxy_type) = state.proxy_type {
             let _ = Command::new("gsettings")
                 .args(["set", "org.gnome.system.proxy", "mode", proxy_type])

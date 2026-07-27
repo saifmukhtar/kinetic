@@ -7,9 +7,8 @@ use std::process::Command;
 #[cfg(target_os = "windows")]
 pub struct WindowsConfigurator;
 
-#[cfg(target_os = "windows")]
 impl ProxyConfigurator for WindowsConfigurator {
-    fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError> {
+    fn install(&self, pac_url: &str) -> Result<(), PacError> {
         // Set AutoConfigURL in the registry
         Command::new("powershell")
             .args([
@@ -17,7 +16,7 @@ impl ProxyConfigurator for WindowsConfigurator {
                 &format!("Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name AutoConfigURL -Value '{}'", pac_url),
             ])
             .status()
-            .map_err(|e| ProxyConfigError::Command(format!("powershell install failed: {}", e)))?;
+            .map_err(|e| PacError::Command(format!("powershell install failed: {}", e)))?;
 
         // Disable manual proxy if it was on (to ensure PAC is preferred)
         let _ = Command::new("powershell")
@@ -30,19 +29,19 @@ impl ProxyConfigurator for WindowsConfigurator {
         Ok(())
     }
 
-    fn uninstall(&self) -> Result<(), ProxyConfigError> {
+    fn uninstall(&self) -> Result<(), PacError> {
         Command::new("powershell")
             .args([
                 "-Command",
                 "Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name AutoConfigURL -ErrorAction SilentlyContinue",
             ])
             .status()
-            .map_err(|e| ProxyConfigError::Command(format!("powershell uninstall failed: {}", e)))?;
+            .map_err(|e| PacError::Command(format!("powershell uninstall failed: {}", e)))?;
 
         Ok(())
     }
 
-    fn save_previous_state(&self) -> Result<SavedState, ProxyConfigError> {
+    fn save_previous_state(&self) -> Result<SavedState, PacError> {
         let output = Command::new("powershell")
             .args([
                 "-Command",
@@ -69,7 +68,7 @@ impl ProxyConfigurator for WindowsConfigurator {
         })
     }
 
-    fn restore_state(&self, state: &SavedState) -> Result<(), ProxyConfigError> {
+    fn restore_state(&self, state: &SavedState) -> Result<(), PacError> {
         if let Some(ref pac_url) = state.previous_pac_url {
             let _ = Command::new("powershell")
                 .args([

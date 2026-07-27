@@ -7,9 +7,8 @@ use std::process::Command;
 #[cfg(target_os = "macos")]
 pub struct MacosConfigurator;
 
-#[cfg(target_os = "macos")]
 impl ProxyConfigurator for MacosConfigurator {
-    fn install(&self, pac_url: &str) -> Result<(), ProxyConfigError> {
+    fn install(&self, pac_url: &str) -> Result<(), PacError> {
         if let Ok(output) = Command::new("networksetup")
             .arg("-listallnetworkservices")
             .output()
@@ -27,7 +26,7 @@ impl ProxyConfigurator for MacosConfigurator {
         Ok(())
     }
 
-    fn uninstall(&self) -> Result<(), ProxyConfigError> {
+    fn uninstall(&self) -> Result<(), PacError> {
         if let Ok(output) = Command::new("networksetup")
             .arg("-listallnetworkservices")
             .output()
@@ -45,7 +44,7 @@ impl ProxyConfigurator for MacosConfigurator {
         Ok(())
     }
 
-    fn save_previous_state(&self) -> Result<SavedState, ProxyConfigError> {
+    fn save_previous_state(&self) -> Result<SavedState, PacError> {
         let mut macos_services = std::collections::HashMap::new();
         if let Ok(output) = Command::new("networksetup")
             .arg("-listallnetworkservices")
@@ -83,7 +82,7 @@ impl ProxyConfigurator for MacosConfigurator {
         })
     }
 
-    fn restore_state(&self, state: &SavedState) -> Result<(), ProxyConfigError> {
+    fn restore_state(&self, state: &SavedState) -> Result<(), PacError> {
         self.uninstall()?;
         if let Some(services) = &state.macos_services {
             for (service, url) in services {
