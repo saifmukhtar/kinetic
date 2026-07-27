@@ -31,6 +31,8 @@ jobs:
             keygen_asset: kinetic-keygen-linux
             dns_artifact: kinetic-dns
             dns_asset: kinetic-dns-server-linux
+            pac_artifact: kinetic-pac
+            pac_asset: kinetic-pac-linux
           - os: macos-latest
             artifact_name: kinetic-daemon
             asset_name: kinetic-daemon-macos
@@ -44,6 +46,8 @@ jobs:
             keygen_asset: kinetic-keygen-macos
             dns_artifact: kinetic-dns
             dns_asset: kinetic-dns-server-macos
+            pac_artifact: kinetic-pac
+            pac_asset: kinetic-pac-macos
           - os: windows-latest
             artifact_name: kinetic-daemon.exe
             asset_name: kinetic-daemon-windows.exe
@@ -57,6 +61,8 @@ jobs:
             keygen_asset: kinetic-keygen-windows.exe
             dns_artifact: kinetic-dns.exe
             dns_asset: kinetic-dns-server-windows.exe
+            pac_artifact: kinetic-pac.exe
+            pac_asset: kinetic-pac-windows.exe
 
     steps:
     - uses: actions/checkout@v4
@@ -98,6 +104,9 @@ jobs:
     - name: Build Kinetic DNS Server (Release)
       run: cargo build --release -p kinetic-dns --bin kinetic-dns
 
+    - name: Build Kinetic PAC (Release)
+      run: cargo build --release -p kinetic-pac
+
     - name: Rename Binaries for Release
       shell: bash
       run: |
@@ -107,15 +116,16 @@ jobs:
         cp target/release/${{ matrix.host_artifact }} target/release/${{ matrix.host_asset }}
         cp target/release/${{ matrix.keygen_artifact }} target/release/${{ matrix.keygen_asset }}
         cp target/release/${{ matrix.dns_artifact }} target/release/${{ matrix.dns_asset }}
+        cp target/release/${{ matrix.pac_artifact }} target/release/${{ matrix.pac_asset }}
 
     - name: Generate Checksums
       shell: bash
       run: |
         cd target/release
         if command -v sha256sum >/dev/null 2>&1; then
-          sha256sum ${{ matrix.asset_name }} ${{ matrix.cli_asset }} ${{ matrix.node_asset }} ${{ matrix.host_asset }} ${{ matrix.keygen_asset }} ${{ matrix.dns_asset }} > checksums-${{ matrix.os }}.txt
+          sha256sum ${{ matrix.asset_name }} ${{ matrix.cli_asset }} ${{ matrix.node_asset }} ${{ matrix.host_asset }} ${{ matrix.keygen_asset }} ${{ matrix.dns_asset }} ${{ matrix.pac_asset }} > checksums-${{ matrix.os }}.txt
         else
-          shasum -a 256 ${{ matrix.asset_name }} ${{ matrix.cli_asset }} ${{ matrix.node_asset }} ${{ matrix.host_asset }} ${{ matrix.keygen_asset }} ${{ matrix.dns_asset }} > checksums-${{ matrix.os }}.txt
+          shasum -a 256 ${{ matrix.asset_name }} ${{ matrix.cli_asset }} ${{ matrix.node_asset }} ${{ matrix.host_asset }} ${{ matrix.keygen_asset }} ${{ matrix.dns_asset }} ${{ matrix.pac_asset }} > checksums-${{ matrix.os }}.txt
         fi
 
     - name: Upload Binary to Release
@@ -128,6 +138,7 @@ jobs:
           target/release/${{ matrix.host_asset }}
           target/release/${{ matrix.keygen_asset }}
           target/release/${{ matrix.dns_asset }}
+          target/release/${{ matrix.pac_asset }}
           target/release/checksums-${{ matrix.os }}.txt
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
