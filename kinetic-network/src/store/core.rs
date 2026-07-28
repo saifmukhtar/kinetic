@@ -371,7 +371,12 @@ impl KineticRecordStore {
                 match serde_json::from_value::<kinetic_core::types::AuthorizedKid>(parsed) {
                     Ok(auth_kid) => {
                         let active_reveal = self.reveals_by_name.get(&auth_kid.name);
-                        super::verification::verify_authorized_kid(&auth_kid, active_reveal)?;
+                        let existing_record = self.inner.get(&r.key);
+                        super::verification::verify_authorized_kid(
+                            &auth_kid,
+                            active_reveal,
+                            existing_record.as_ref(),
+                        )?;
                     }
                     Err(_) => {
                         let err = KineticStoreError::UnknownRecordType;

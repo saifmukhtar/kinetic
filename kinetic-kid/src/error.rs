@@ -45,6 +45,14 @@ pub enum KidError {
     /// The manifest has expired based on its expires_at timestamp.
     #[error("Manifest has expired")]
     ManifestExpired,
+    /// The `kid` DID identifier does not match the SHA-256 hash of the primary controller key.
+    /// Returned by `verify_genesis()` when publishing a KID document for the first time.
+    #[error("KID document genesis binding failed: DID does not match SHA-256 of primary controller key (KIN-KID-015)")]
+    DidKeyMismatch,
+    /// A KID document update was rejected because it was not signed by a key
+    /// that appeared in the previously stored version of this document.
+    #[error("KID document update rejected: not authorized by any key in the existing document (KIN-KID-016)")]
+    UnauthorizedKidUpdate,
 }
 
 impl From<serde_json::Error> for KidError {
@@ -86,6 +94,8 @@ impl KidError {
             Self::TooManyKeys => "KIN-KID-012",
             Self::InvalidValidFrom => "KIN-KID-013",
             Self::ManifestExpired => "KIN-KID-014",
+            Self::DidKeyMismatch => "KIN-KID-015",
+            Self::UnauthorizedKidUpdate => "KIN-KID-016",
         }
     }
 
@@ -97,9 +107,11 @@ impl KidError {
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
         match self {
-            Self::InvalidSignature | Self::UnauthorizedManifestSignature | Self::TooManyKeys => {
-                Severity::Error
-            }
+            Self::InvalidSignature
+            | Self::UnauthorizedManifestSignature
+            | Self::TooManyKeys
+            | Self::DidKeyMismatch
+            | Self::UnauthorizedKidUpdate => Severity::Error,
             _ => Severity::Warning,
         }
     }
@@ -145,6 +157,12 @@ impl KidError {
                 "Capability manifest valid_from timestamp is set in the future.".to_string()
             }
             Self::ManifestExpired => "Capability manifest has expired.".to_string(),
+            Self::DidKeyMismatch => {
+                "DID identity mismatch: the document identifier does not correspond to the primary controller key.".to_string()
+            }
+            Self::UnauthorizedKidUpdate => {
+                "KID update rejected: the update must be signed by a key listed in the current identity document.".to_string()
+            }
         }
     }
 }

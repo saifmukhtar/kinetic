@@ -399,14 +399,28 @@ pub(crate) fn verify_reveal(
 ///
 /// * `auth_kid` - The AuthorizedKid payload to verify.
 /// * `active_reveal` - The currently active `Reveal` for this domain, which provides the public key.
+/// * `existing_record` - The pre-existing DHT record for this name, if any, used to enforce
+///   the key-rotation update chain and prevent DID hijacking.
+///
+/// # Behaviour
+///
+/// - **First publication** (`existing_record` is `None`): calls `verify_genesis()` to enforce
+///   that the `kid` DID is the SHA-256 hash of the primary controller key, preventing
+///   a domain owner from publishing a KID they have no cryptographic claim to.
+///
+/// - **Update** (`existing_record` is `Some`): verifies that the new document is signed by
+///   a key that appeared in the previously stored KID document, enforcing the authorised
+///   update chain and preventing key-hijacking after the genesis document is established.
 ///
 /// # Errors
 ///
-/// Returns `KineticStoreError::InvalidKidSignature` if the reveal is missing, the signature is invalid,
-/// or the inner KID document fails self-verification.
+/// Returns `KineticStoreError::InvalidKidSignature` if the reveal is missing, the domain
+/// owner signature is invalid, the inner KID document fails self-verification, the genesis
+/// binding fails on first publication, or the update is not authorised by a prior key.
 pub(crate) fn verify_authorized_kid(
     auth_kid: &kinetic_core::types::AuthorizedKid,
     active_reveal: Option<&kinetic_core::types::Reveal>,
+    existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let reveal = active_reveal.ok_or_else(|| {
         let err = KineticStoreError::InvalidKidSignature;
@@ -425,22 +439,58 @@ pub(crate) fn verify_authorized_kid(
     let sig = ed25519_dalek::Signature::from_slice(&auth_kid.owner_signature)
         .map_err(|_| KineticStoreError::InvalidKidSignature)?;
 
-    if pubkey.verify(&auth_kid.signable_bytes(), &sig).is_ok() && auth_kid.kid_doc.verify().is_ok()
-    {
-        tracing::info!(
-            "KineticRecordStore::put accepted AuthorizedKid for {}",
-            auth_kid.kid_doc.kid.as_str()
-        );
-        Ok(())
-    } else {
+    if pubkey.verify(&auth_kid.signable_bytes(), &sig).is_err() || auth_kid.kid_doc.verify().is_err() {
         let err = KineticStoreError::InvalidKidSignature;
         err.log_warning(
             "KIN-STORE-017",
             &auth_kid.name,
             "Rejecting AuthorizedKid: invalid signature or invalid document",
         );
-        Err(err)
+        return Err(err);
     }
+
+    match existing_record {
+        None => {
+            // First publication: enforce DID ↔ genesis key binding.
+            auth_kid.kid_doc.verify_genesis().map_err(|e| {
+                let err = KineticStoreError::InvalidKidSignature;
+                err.log_warning(
+                    "KIN-STORE-035",
+                    &auth_kid.name,
+                    &format!("Rejecting AuthorizedKid: genesis DID binding failed: {}", e),
+                );
+                err
+            })?;
+        }
+        Some(record) => {
+            // Update: new document must be signed by a key from the previous document.
+            if let Ok(old_auth_kid) =
+                serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&record.value)
+            {
+                if !auth_kid
+                    .kid_doc
+                    .is_authorized_update(&old_auth_kid.kid_doc)
+                {
+                    let err = KineticStoreError::InvalidKidSignature;
+                    err.log_warning(
+                        "KIN-STORE-037",
+                        &auth_kid.name,
+                        "Rejecting AuthorizedKid update: not signed by any key in the existing document",
+                    );
+                    return Err(err);
+                }
+            }
+            // If the existing record can't be parsed as an AuthorizedKid (e.g. corrupted),
+            // we fall back to allowing the update — the domain owner's Ed25519 signature
+            // already authenticated the submission above.
+        }
+    }
+
+    tracing::info!(
+        "KineticRecordStore::put accepted AuthorizedKid for {}",
+        auth_kid.kid_doc.kid.as_str()
+    );
+    Ok(())
 }
 
 /// Verifies an `AuthorizedManifest` payload.

@@ -124,9 +124,15 @@ impl KidDocument {
         let mut msg_bytes = b"kinetic-kid-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
-        // Note: We no longer enforce that did_hash_matched == true here.
-        // In a fully decentralized DID resolution system, key rotation means the
-        // current controller keys may no longer hash to the original DID identifier.
+        // `verify()` is stateless: it only checks that the document is internally
+        // self-consistent and that the signature was produced by one of the listed
+        // controller keys. It intentionally does NOT check whether the `kid` DID
+        // matches the hash of those keys, because after a key rotation the current
+        // controller keys will differ from the genesis key that seeded the DID.
+        //
+        // For first-time publication, call `verify_genesis()` to enforce the
+        // cryptographic DID↔key binding. For updates, the store layer checks that
+        // the new document is signed by a key from the previously stored document.
 
         if self.deactivated {
             // Document is deactivated (revoked), the signature MUST be from a revocation key
@@ -161,6 +167,97 @@ impl KidDocument {
         }
 
         Err(KidError::InvalidSignature)
+    }
+
+    /// Verifies the cryptographic genesis binding: that the `kid` DID identifier
+    /// is the SHA-256 hash of the primary (first) controller key's raw public bytes.
+    ///
+    /// This check MUST be called during **first publication** of a KID document,
+    /// before any document for this DID is stored. It ensures a DID cannot be
+    /// claimed by an arbitrary key that has no cryptographic relationship to it.
+    ///
+    /// It must NOT be called on subsequent updates, because key rotation legitimately
+    /// changes the controller keys while the DID stays the same.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::InvalidSignature`] if the document has no controller keys.
+    /// - Returns [`KidError::Base64Error`] if the primary key is not valid Base64url.
+    /// - Returns [`KidError::DidKeyMismatch`] if the DID hex suffix does not match
+    ///   `hex(SHA-256(primary_controller_key_bytes))`.
+    pub fn verify_genesis(&self) -> Result<(), KidError> {
+        use sha2::{Digest, Sha256};
+        use std::fmt::Write as FmtWrite;
+
+        let primary_key = self
+            .controller_keys
+            .first()
+            .ok_or(KidError::InvalidSignature)?;
+
+        let pk_bytes = b64_url.decode(&primary_key.public_key)?;
+        let hash = Sha256::digest(&pk_bytes);
+
+        let mut expected_hex = String::with_capacity(64);
+        for byte in hash {
+            let _ = write!(expected_hex, "{:02x}", byte);
+        }
+        let expected_did = format!("did:kin:{}", expected_hex);
+
+        if self.kid.as_str() != expected_did {
+            return Err(KidError::DidKeyMismatch);
+        }
+
+        Ok(())
+    }
+
+    /// Checks whether `self` (the incoming updated document) was signed by a key
+    /// that appeared in `previous_doc` (the currently stored document).
+    ///
+    /// Call this during **KID updates** (when a document already exists for the DID)
+    /// to enforce the authorised key-rotation chain and prevent hijacking.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the update is authorised by a prior controller key, `false` otherwise.
+    pub fn is_authorized_update(&self, previous_doc: &KidDocument) -> bool {
+        use ml_dsa::KeyInit;
+
+        let sig_b64 = match self.signature.as_ref() {
+            Some(s) => s,
+            None => return false,
+        };
+
+        let sig_bytes = match b64_url.decode(sig_b64) {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
+
+        let ml_sig = match ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(sig_bytes.as_slice()) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+
+        let msg_str = match self.canonicalize() {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+        let mut msg_bytes = b"kinetic-kid-v1\0".to_vec();
+        msg_bytes.extend_from_slice(msg_str.as_bytes());
+
+        previous_doc.controller_keys.iter().any(|ck| {
+            if !ck.key_type.eq_ignore_ascii_case("MlDsa65") {
+                return false;
+            }
+            if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
+                if let Ok(vk) =
+                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
+                {
+                    use ml_dsa::signature::Verifier;
+                    return vk.verify(&msg_bytes, &ml_sig).is_ok();
+                }
+            }
+            false
+        })
     }
 
     /// Signs the document with an ML-DSA-65 signing keypair and populates the Base64url signature field.

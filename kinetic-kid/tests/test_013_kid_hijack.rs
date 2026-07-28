@@ -57,11 +57,11 @@ fn test_013_kid_hijack() {
     };
     let signed_forgery = forged_doc.sign(&attacker_key).unwrap();
 
-    // This now passes because `KidDocument` allows stateless verification of rotated keys.
-    // The overarching KineticRecordStore is responsible for verifying the stateful update chain
-    // (i.e., that the new document is signed by a key authorized in the previous document).
+    // The forged document fails `verify_genesis()` on first publication:
+    // the attacker's public key does not hash to the victim's DID.
+    // (The store calls verify_genesis() when no existing record is found.)
     assert!(
-        signed_forgery.verify().is_ok(),
-        "Fix confirmed: Stateless document rotation is allowed"
+        signed_forgery.verify_genesis().is_err(),
+        "Security: forged KID with attacker key must not pass genesis DID binding"
     );
 }
