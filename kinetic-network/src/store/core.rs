@@ -263,6 +263,20 @@ impl KineticRecordStore {
             });
         }
     }
+
+    pub(crate) fn get_reveal_with_fallback(&mut self, name: &str) -> Option<kinetic_core::types::Reveal> {
+        if let Some(r) = self.reveals_by_name.get(name) {
+            return Some(r.clone());
+        }
+        let key = [crate::store::constants::KRS_REVEAL_PREFIX, name.as_bytes()].concat();
+        if let Ok(Some(bytes)) = self.storage.get(&key) {
+            if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {
+                self.reveals_by_name.put(name.to_string(), reveal.clone());
+                return Some(reveal);
+            }
+        }
+        None
+    }
 }
 
 impl KineticRecordStore {
@@ -370,11 +384,11 @@ impl KineticRecordStore {
             } else if parsed.get("delegation_signature").is_some() {
                 match serde_json::from_value::<kinetic_core::types::AuthorizedKid>(parsed) {
                     Ok(auth_kid) => {
-                        let active_reveal = self.reveals_by_name.get(&auth_kid.name);
+                        let active_reveal = self.get_reveal_with_fallback(&auth_kid.name);
                         let existing_record = self.inner.get(&r.key);
                         super::verification::verify_authorized_kid(
                             &auth_kid,
-                            active_reveal,
+                            active_reveal.as_ref(),
                             existing_record.as_ref(),
                         )?;
                     }
@@ -386,11 +400,11 @@ impl KineticRecordStore {
             } else if parsed.get("manifest").is_some() {
                 match serde_json::from_value::<kinetic_core::types::AuthorizedManifest>(parsed) {
                     Ok(auth_manifest) => {
-                        let active_reveal = self.reveals_by_name.get(&auth_manifest.name);
+                        let active_reveal = self.get_reveal_with_fallback(&auth_manifest.name);
                         let existing_record = self.inner.get(&r.key);
                         super::verification::verify_authorized_manifest(
                             &auth_manifest,
-                            active_reveal,
+                            active_reveal.as_ref(),
                             existing_record.as_ref(),
                         )?;
                     }

@@ -59,6 +59,7 @@ impl KineticDnsHandler {
         let cache = cache::create_cache();
 
         let http_client = reqwest::Client::builder()
+            .no_proxy()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_else(|e| {

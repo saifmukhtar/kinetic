@@ -32,7 +32,7 @@ impl KineticRecordStore {
             }
         }
 
-        if let Some(existing_reveal) = self.reveals_by_name.get(&reveal.name) {
+        if let Some(existing_reveal) = self.get_reveal_with_fallback(&reveal.name) {
             if existing_reveal.pubkey != reveal.pubkey {
                 let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
                 let last_hb_round = self
@@ -52,14 +52,14 @@ impl KineticRecordStore {
                     let dist_new: Vec<u8> = reveal
                         .pubkey
                         .iter()
-                        .zip(reveal.vdf_proof.proof_bytes.iter().cycle())
+                        .zip(reveal.vdf_proof.proof_bytes.iter().chain(std::iter::once(&0)).cycle())
                         .map(|(&a, &b)| a ^ b)
                         .collect();
 
                     let dist_existing: Vec<u8> = existing_reveal
                         .pubkey
                         .iter()
-                        .zip(existing_reveal.vdf_proof.proof_bytes.iter().cycle())
+                        .zip(existing_reveal.vdf_proof.proof_bytes.iter().chain(std::iter::once(&0)).cycle())
                         .map(|(&a, &b)| a ^ b)
                         .collect();
 
@@ -96,7 +96,7 @@ impl KineticRecordStore {
                     }
                 }
             } else {
-                if reveal.drand_pulse <= existing_reveal.drand_pulse {
+                if reveal.drand_pulse < existing_reveal.drand_pulse {
                     let err = KineticStoreError::StaleReveal;
                     err.log_warning("KIN-STORE-023", &reveal.name, "Rejecting Replayed Reveal:");
                     return Err(err);
@@ -168,7 +168,7 @@ impl KineticRecordStore {
         &mut self,
         heartbeat: &kinetic_core::types::Heartbeat,
     ) -> Result<(), KineticStoreError> {
-        let existing_reveal = match self.reveals_by_name.get(&heartbeat.name) {
+        let existing_reveal = match self.get_reveal_with_fallback(&heartbeat.name) {
             Some(r) => r,
             None => {
                 let err = KineticStoreError::RevealNotFound;

@@ -55,6 +55,13 @@ pub async fn handle_vdf_register(
             Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
         ));
     }
+    const MAX_USER_ITERATIONS: u64 = 10_000_000;
+    if req.iterations.unwrap_or(0) > MAX_USER_ITERATIONS {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Iteration count exceeds maximum"})),
+        ));
+    }
     let task_id = uuid::Uuid::new_v4().to_string();
 
     // Store initial task state, ensuring only 1 is active
@@ -316,18 +323,25 @@ pub async fn handle_vdf_register(
         }
 
         // Save to internal storage so Dashboard can see it
+        let fqdn_clone = fqdn.clone();
+        let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap();
         let mut owned = Vec::new();
         if let Ok(Some(bytes)) = storage_clone.get(kinetic_core::constants::DB_PREFIX_OWNED_NAMES) {
             if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
                 owned = names;
             }
         }
-        if !owned.contains(&fqdn) {
-            owned.push(fqdn.clone());
+        if !owned.contains(&fqdn_clone) {
+            owned.push(fqdn_clone.clone());
+            if owned.len() > 10_000 {
+                let skip_count = owned.len() - 10_000;
+                owned = owned.into_iter().skip(skip_count).collect();
+            }
             if let Ok(b) = serde_json::to_vec(&owned) {
                 let _ = storage_clone.put(kinetic_core::constants::DB_PREFIX_OWNED_NAMES, &b);
             }
         }
+        drop(_lock);
 
         // Save default zone file
         let zones_dir = kinetic_core::config::get_zones_dir();
@@ -375,6 +389,13 @@ pub async fn handle_vdf_renew(
         return Err((
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
+        ));
+    }
+    const MAX_USER_ITERATIONS: u64 = 10_000_000;
+    if req.iterations.unwrap_or(0) > MAX_USER_ITERATIONS {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Iteration count exceeds maximum"})),
         ));
     }
     let mut tasks = state.vdf_tasks.lock().unwrap();

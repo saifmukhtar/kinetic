@@ -95,6 +95,9 @@ pub struct ApiTokens {
     pub atlas: String,
 }
 
+/// Global lock to synchronize writes to the owned names storage list.
+pub static OWNED_NAMES_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Holds the global state for the API server, including network, storage, and authentication.
 #[derive(Clone)]
 pub struct ApiState {

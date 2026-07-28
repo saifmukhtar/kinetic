@@ -98,6 +98,31 @@ impl PreviousProof {
 
         bytes
     }
+    /// Returns the canonical byte string for signing the previous proof.
+    pub fn signable_bytes(&self) -> Vec<u8> {
+        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-vdf-prev-v1").as_bytes();
+        let capacity = prefix.len()
+            + 32 // salt
+            + 8 // drand_pulse
+            + 4 + self.drand_randomness.len()
+            + 8 // iterations
+            + 4 + self.vdf_proof.proof_bytes.len();
+
+        let mut bytes = Vec::with_capacity(capacity);
+        bytes.extend_from_slice(prefix);
+        bytes.extend_from_slice(&self.salt);
+        bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
+
+        bytes.extend_from_slice(&(self.drand_randomness.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.drand_randomness.as_bytes());
+
+        bytes.extend_from_slice(&self.iterations.to_be_bytes());
+
+        bytes.extend_from_slice(&(self.vdf_proof.proof_bytes.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&self.vdf_proof.proof_bytes);
+
+        bytes
+    }
 }
 
 /// Revealed domain registration payload submitted to the network during Phase 2.
@@ -173,7 +198,23 @@ impl Reveal {
             if let Ok(sig) =
                 ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(self.signature.as_slice())
             {
-                return pubkey.verify(&signable, &sig).is_ok();
+                if pubkey.verify(&signable, &sig).is_err() {
+                    return false;
+                }
+                
+                // Finding 7: Validate inner PreviousProof signature if present
+                if let Some(prev) = &self.previous_proof {
+                    if let Ok(prev_sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice()) {
+                        let prev_signable = prev.signable_bytes();
+                        if pubkey.verify(&prev_signable, &prev_sig).is_err() {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+                
+                return true;
             }
         }
         false

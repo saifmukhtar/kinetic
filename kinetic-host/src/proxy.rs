@@ -89,7 +89,10 @@ pub async fn handle_incoming_proxy_requests(
     local_port: u16,
     backend_host: String,
 ) {
-    let reqwest_client = reqwest::Client::new();
+    let reqwest_client = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .unwrap_or_default();
     info!(
         "Listening for incoming P2P Proxy requests, forwarding to {}:{}",
         backend_host, local_port
@@ -155,7 +158,7 @@ mod proptests {
             body in prop::collection::vec(any::<u8>(), 0..50)
         ) {
             let rt = tokio::runtime::Runtime::new().unwrap();
-            let client = reqwest::Client::new();
+            let client = reqwest::Client::builder().no_proxy().build().unwrap();
             let req = ProxyRequest {
                 method: method.into(),
                 path: path.into(),

@@ -142,6 +142,11 @@ impl super::core::NetworkEventLoop {
                     return;
                 }
 
+                if let Some(pending) = self.pending_gets.get_mut(&name) {
+                    pending.responders.push(responder);
+                    return;
+                }
+
                 let keys = kinetic_core::types::derive_storage_keys(&name);
                 let expected = self.dispatch_dht_queries(
                     name.clone(),
@@ -152,7 +157,7 @@ impl super::core::NetworkEventLoop {
                 self.pending_gets.insert(
                     name.clone(),
                     crate::event_loop::utils::PendingGet {
-                        responder,
+                        responders: vec![responder],
                         expected_responses: expected,
                         received_payloads: Vec::new(),
                         peers_queried: expected,

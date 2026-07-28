@@ -182,7 +182,6 @@ pub(crate) fn compute_required_iterations(
                 .len();
             let discount_iterations = match name_len {
                 1 => kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS, // 100% discount (minimum iterations)
-                63 => base_required_iterations, // 0% discount (forces lottery re-roll)
                 2..=6 => base_required_iterations / 2, // 50% discount
                 7..=10 => base_required_iterations / 5, // 80% discount
                 _ => {

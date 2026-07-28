@@ -4,7 +4,7 @@ use kinetic_core::error::{NetworkClientError, ResolutionError};
 use tokio::sync::oneshot;
 
 pub(crate) struct PendingGet {
-    pub(crate) responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
+    pub(crate) responders: Vec<oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>>,
     pub(crate) expected_responses: usize,
     pub(crate) received_payloads: Vec<Vec<u8>>,
     pub(crate) peers_queried: usize,

@@ -15,16 +15,6 @@ struct SquatterMultipliers {
     len_8_to_10: u64,
     len_11_to_17: u64,
     len_18_to_20: u64,
-    len_63_jackpot_seconds: u64,
-    len_63_minutes: u64,
-    len_63_hours: u64,
-    len_63_days: u64,
-    len_63_weeks: u64,
-    len_63_months: u64,
-    len_63_years: u64,
-    len_63_decades: u64,
-    len_63_centuries: u64,
-    len_63_millennia: u64,
 }
 
 #[derive(Deserialize)]
@@ -329,46 +319,7 @@ fn main() {
         "/// Multiplier for squatter cliff length 11 to 17\npub const CONSENSUS_SQUATTER_LEN_11_TO_17: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_11_to_17
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 18 to 20\npub const CONSENSUS_SQUATTER_LEN_18_TO_20: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_18_to_20
-    ));
-    out.push_str(&format!(
-        "/// Jackpot seconds for length 63\npub const CONSENSUS_SQUATTER_LEN_63_JACKPOT_SECONDS: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_63_jackpot_seconds
-    ));
-    out.push_str(&format!(
-        "/// Minutes for length 63\npub const CONSENSUS_SQUATTER_LEN_63_MINUTES: u64 = {};\n",
-        config.consensus.vdf_squatter_multipliers.len_63_minutes
-    ));
-    out.push_str(&format!(
-        "/// Hours for length 63\npub const CONSENSUS_SQUATTER_LEN_63_HOURS: u64 = {};\n",
-        config.consensus.vdf_squatter_multipliers.len_63_hours
-    ));
-    out.push_str(&format!(
-        "/// Days for length 63\npub const CONSENSUS_SQUATTER_LEN_63_DAYS: u64 = {};\n",
-        config.consensus.vdf_squatter_multipliers.len_63_days
-    ));
-    out.push_str(&format!(
-        "/// Weeks for length 63\npub const CONSENSUS_SQUATTER_LEN_63_WEEKS: u64 = {};\n",
-        config.consensus.vdf_squatter_multipliers.len_63_weeks
-    ));
-    out.push_str(&format!(
-        "/// Months for length 63\npub const CONSENSUS_SQUATTER_LEN_63_MONTHS: u64 = {};\n",
-        config.consensus.vdf_squatter_multipliers.len_63_months
-    ));
-    out.push_str(&format!(
-        "/// Years for length 63\npub const CONSENSUS_SQUATTER_LEN_63_YEARS: u64 = {};\n",
-        config.consensus.vdf_squatter_multipliers.len_63_years
-    ));
-    out.push_str(&format!(
-        "/// Decades for length 63\npub const CONSENSUS_SQUATTER_LEN_63_DECADES: u64 = {};\n",
-        config.consensus.vdf_squatter_multipliers.len_63_decades
-    ));
-    out.push_str(&format!(
-        "/// Centuries for length 63\npub const CONSENSUS_SQUATTER_LEN_63_CENTURIES: u64 = {};\n",
-        config.consensus.vdf_squatter_multipliers.len_63_centuries
-    ));
-    out.push_str(&format!(
-        "/// Millennia for length 63\npub const CONSENSUS_SQUATTER_LEN_63_MILLENNIA: u64 = {};\n\n",
-        config.consensus.vdf_squatter_multipliers.len_63_millennia
+        "/// Multiplier for squatter cliff length 18 to 20\npub const CONSENSUS_SQUATTER_LEN_18_TO_20: u64 = {};\n\n", config.consensus.vdf_squatter_multipliers.len_18_to_20
     ));
 
     out.push_str(&format!("/// Minimum iterations for VDF discount\npub const CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS: u64 = {};\n", config.consensus.vdf_discount_min_iterations));

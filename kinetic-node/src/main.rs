@@ -261,7 +261,6 @@ async fn run_node() -> Result<()> {
         *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
     }
 
-    let (incoming_tx, _incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, mut gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
         Arc::new(kinetic_vdf::ChiaVdfEngine::new());
@@ -270,7 +269,7 @@ async fn run_node() -> Result<()> {
         local_key,
         storage.clone(),
         drand_pulse_rx,
-        Some(incoming_tx),
+        None,
         Some(gossip_tx),
         vdf_engine.clone(),
     )?;
@@ -289,7 +288,12 @@ async fn run_node() -> Result<()> {
     let drand_client_gossip = drand_client.clone();
     let drand_pulse_tx_gossip = drand_pulse_tx.clone();
     tokio::spawn(async move {
-        while let Ok((topic, payload)) = gossip_rx.recv().await {
+        loop {
+            let (topic, payload) = match gossip_rx.recv().await {
+                Ok(msg) => msg,
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            };
             if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
                 gossip::handle_kinetic_governance_gossip(&payload, gossip_gov_path.clone());
             } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {

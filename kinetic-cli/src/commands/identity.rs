@@ -109,13 +109,10 @@ pub async fn handle_identity_command(
             use std::os::unix::fs::OpenOptionsExt;
             let mut opts = std::fs::OpenOptions::new();
             opts.write(true).create(true).truncate(true).mode(0o600);
-            if let Ok(mut file) = opts.open(&key_path) {
-                let _ = file.write_all(&keypair.to_bytes());
-                info!("Successfully generated KID and wrote to {}", output);
-                info!("Saved private controller key to {}", key_path.display());
-            } else {
-                anyhow::bail!("Failed to write private controller key securely");
-            }
+            let mut file = opts.open(&key_path)?;
+            file.write_all(&keypair.to_bytes())?;
+            info!("Successfully generated KID and wrote to {}", output);
+            info!("Saved private controller key to {}", key_path.display());
         }
         IdentityCommands::Publish {
             kid,
@@ -291,12 +288,9 @@ pub async fn handle_identity_command(
             use std::os::unix::fs::OpenOptionsExt;
             let mut opts = std::fs::OpenOptions::new();
             opts.write(true).create(true).truncate(true).mode(0o600);
-            if let Ok(mut file) = opts.open(&key_path) {
-                let _ = file.write_all(&new_keypair.to_bytes());
-                info!("Saved new private controller key to {}", key_path.display());
-            } else {
-                anyhow::bail!("Failed to write new private controller key securely");
-            }
+            let mut file = opts.open(&key_path)?;
+            file.write_all(&new_keypair.to_bytes())?;
+            info!("Saved new private controller key to {}", key_path.display());
         }
     }
     Ok(())

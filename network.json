@@ -49,17 +49,7 @@
       "len_7": 150,
       "len_8_to_10": 120,
       "len_11_to_17": 90,
-      "len_18_to_20": 60,
-      "len_63_jackpot_seconds": 63,
-      "len_63_minutes": 63,
-      "len_63_hours": 3780,
-      "len_63_days": 90720,
-      "len_63_weeks": 635040,
-      "len_63_months": 2721600,
-      "len_63_years": 33112800,
-      "len_63_decades": 331128000,
-      "len_63_centuries": 3311280000,
-      "len_63_millennia": 33112800000
+      "len_18_to_20": 60
     },
     "vdf_discount_min_iterations": 1000,
     "vdf_discount_percentage": 15,

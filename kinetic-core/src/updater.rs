@@ -308,6 +308,14 @@ pub async fn perform_ota_update(
         }
     };
 
+    let current_exe = match env::current_exe() {
+        Ok(exe) => exe,
+        Err(e) => {
+            error!("Failed to get current executable path: {}", e);
+            return Err(e.into());
+        }
+    };
+
     info!("Overwriting running binary...");
     if let Err(e) = self_replace::self_replace(&temp_path) {
         error!(
@@ -316,14 +324,6 @@ pub async fn perform_ota_update(
         );
         return Err(e.into());
     }
-
-    let current_exe = match env::current_exe() {
-        Ok(exe) => exe,
-        Err(e) => {
-            error!("Failed to get current executable path: {}", e);
-            return Err(e.into());
-        }
-    };
 
     let args: Vec<String> = env::args().skip(1).collect();
 

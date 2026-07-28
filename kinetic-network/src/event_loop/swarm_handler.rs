@@ -69,7 +69,9 @@ impl super::core::NetworkEventLoop {
                                 peers_queried = %peers_q,
                                 "DHT resolution succeeded"
                             );
-                            let _ = p.responder.send(Ok(payload));
+                            for responder in p.responders {
+                                let _ = responder.send(Ok(payload.clone()));
+                            }
                         }
                         None => {
                             if let Some(payload) = local_fallback {
@@ -77,7 +79,9 @@ impl super::core::NetworkEventLoop {
                                     "Resolved {} locally from own store after DHT network failure",
                                     name_clean
                                 );
-                                let _ = p.responder.send(Ok(payload));
+                                for responder in p.responders {
+                                    let _ = responder.send(Ok(payload.clone()));
+                                }
                             } else {
                                 tracing::warn!(
                                     error_code = "KIN-RES-002",
@@ -85,10 +89,12 @@ impl super::core::NetworkEventLoop {
                                     peers_queried = %peers_q,
                                     "DHT resolution: name not found in network or local cache"
                                 );
-                                let _ = p.responder.send(Err(ResolutionError::NotFound {
-                                    name: name_clean,
-                                    peers_queried: peers_q,
-                                }));
+                                for responder in p.responders {
+                                    let _ = responder.send(Err(ResolutionError::NotFound {
+                                        name: name_clean.clone(),
+                                        peers_queried: peers_q,
+                                    }));
+                                }
                             }
                         }
                     }

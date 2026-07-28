@@ -78,7 +78,19 @@ pub async fn handle_publish(
     };
 
     if current_round > 0 {
-        let age = current_round.saturating_sub(reveal.drand_pulse);
+        if reveal.drand_pulse > current_round {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": format!(
+                        "Reveal rejected: VDF pulse {} is in the future (current round: {}).",
+                        reveal.drand_pulse,
+                        current_round
+                    )
+                })),
+            ));
+        }
+        let age = current_round - reveal.drand_pulse;
         if age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -119,26 +131,27 @@ pub async fn handle_publish(
             );
 
             let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
+            let fqdn_clone = fqdn.clone();
+            
+            let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap();
             let mut owned = Vec::new();
             if let Ok(Some(bytes)) = state.storage.get(owned_key) {
                 if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
                     owned = names;
                 }
             }
-            if !owned.contains(&fqdn) {
-                owned.push(fqdn.clone());
+            if !owned.contains(&fqdn_clone) {
+                owned.push(fqdn_clone.clone());
                 if owned.len() > 10_000 {
                     let skip_count = owned.len() - 10_000;
                     owned = owned.into_iter().skip(skip_count).collect();
                 }
                 if let Ok(b) = serde_json::to_vec(&owned) {
                     let _ = state.storage.put(owned_key, &b);
-                    info!(
-                        "Persisted {} to daemon storage for automatic Heartbeats",
-                        fqdn
-                    );
                 }
             }
+            drop(_lock);
+            info!("Persisted {} to daemon storage for automatic Heartbeats", fqdn);
 
             // Persist the full Reveal so zone updates can re-sign without the original VDF params.
             let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);

@@ -15,6 +15,10 @@ mod tests {
 
     use std::collections::HashMap;
 
+    fn test_client() -> reqwest::Client {
+        reqwest::Client::builder().no_proxy().build().unwrap()
+    }
+
     async fn start_mock_backend() -> u16 {
         let app = Router::new()
             .route("/", get(|| async { "Hello, GET!" }))
@@ -61,7 +65,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_get_200() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/".into(),
             method: "GET".into(),
@@ -77,7 +81,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_post_200() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/post".into(),
             method: "POST".into(),
@@ -93,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_404() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/404".into(),
             method: "GET".into(),
@@ -109,7 +113,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_500() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/500".into(),
             method: "GET".into(),
@@ -128,7 +132,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_with_headers() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let headers = vec![("x-custom-header".into(), "custom-value".into())];
         let req = ProxyRequest {
             path: "/headers".into(),
@@ -153,7 +157,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_with_body() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/post".into(),
             method: "POST".into(),
@@ -169,7 +173,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_invalid_method_fallback_to_get() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/".into(),
             method: "INVALID_METHOD".into(), // Request will be parsed as a custom method by reqwest
@@ -183,7 +187,7 @@ mod tests {
     // 8
     #[tokio::test]
     async fn test_forward_request_backend_offline_502() {
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/".into(),
             method: "GET".into(),
@@ -202,7 +206,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_invalid_url_502() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/".into(),
             method: "GET".into(),
@@ -218,7 +222,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_large_payload() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let body = vec![0u8; 1024 * 1024]; // 1MB payload
         let req = ProxyRequest {
             path: "/post".into(),
@@ -235,7 +239,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_query_params() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/query?q=searchterm".into(),
             method: "GET".into(),
@@ -251,7 +255,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_put_method() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/put".into(),
             method: "PUT".into(),
@@ -267,7 +271,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_delete_method() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/delete".into(),
             method: "DELETE".into(),
@@ -286,7 +290,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_patch_method() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/patch".into(),
             method: "PATCH".into(),
@@ -305,7 +309,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_head_method() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/head".into(),
             method: "HEAD".into(),
@@ -321,7 +325,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_options_method() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/options".into(),
             method: "OPTIONS".into(),
@@ -343,7 +347,7 @@ mod tests {
         // but in HTTP you can have multiple. For our proxy, it just iterates HashMap which guarantees unique keys,
         // so we just test that inserting a single header is correctly passed and parsed.
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let headers = vec![("accept".into(), "application/json".into())];
         let req = ProxyRequest {
             path: "/headers".into(),
@@ -368,7 +372,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_empty_body() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/post".into(),
             method: "POST".into(),
@@ -384,7 +388,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_binary_body() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let body = vec![0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE];
         let req = ProxyRequest {
             path: "/post".into(),
@@ -401,7 +405,7 @@ mod tests {
     #[tokio::test]
     async fn test_forward_request_response_headers_are_proxied() {
         let port = start_mock_backend().await;
-        let client = reqwest::Client::new();
+        let client = test_client();
         let req = ProxyRequest {
             path: "/headers".into(),
             method: "GET".into(),
