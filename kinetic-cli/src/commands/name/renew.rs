@@ -132,14 +132,18 @@ pub async fn handle(
 
     refresh_handle.abort();
 
-    let previous_proof = kinetic_core::types::PreviousProof {
+    let mut previous_proof = kinetic_core::types::PreviousProof {
         salt: old_reveal.salt,
         drand_pulse: old_reveal.drand_pulse,
         drand_randomness: old_reveal.drand_randomness.clone(),
         iterations: old_reveal.iterations,
         vdf_proof: old_reveal.vdf_proof.clone(),
-        signature: old_reveal.signature.clone(),
+        signature: vec![],
     };
+    
+    use ml_dsa::signature::Signer;
+    let prev_signable = previous_proof.signable_bytes();
+    previous_proof.signature = keypair.sign(&prev_signable).to_bytes().to_vec();
 
     let mut new_reveal = kinetic_core::types::Reveal {
         protocol_version: 1,

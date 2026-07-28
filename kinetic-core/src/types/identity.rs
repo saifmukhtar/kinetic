@@ -255,10 +255,10 @@ pub fn save_keypair_from_mnemonic(
     }
 
     let tmp_path = key_path.with_extension("tmp");
+    let _ = fs::remove_file(&tmp_path);
     let mut file = OpenOptions::new()
         .write(true)
-        .create(true)
-        .truncate(true)
+        .create_new(true)
         .mode(0o600)
         .open(&tmp_path)?;
     use ml_dsa::KeyExport;

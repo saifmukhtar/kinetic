@@ -393,6 +393,22 @@ async fn run_daemon() -> Result<()> {
                             kinetic_core::governance::GovernanceState,
                         >(&bytes)
                         {
+                            // Enforce strict content validation to prevent MITM attacks over HTTP
+                            if downloaded_state.genesis_timestamp_sec
+                                != kinetic_core::constants::KINETIC_GENESIS_TIME
+                            {
+                                tracing::warn!("Seed node provided governance state for wrong network genesis.");
+                                continue;
+                            }
+                            if downloaded_state.dynamic_root_key.is_some() {
+                                tracing::warn!("Seed node provided untrusted rotated root key during cold bootstrap.");
+                                continue;
+                            }
+                            if downloaded_state.active_council.is_empty() {
+                                tracing::warn!("Seed node provided empty council.");
+                                continue;
+                            }
+
                             if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
                                 tracing::warn!(
                                     "Failed to save downloaded governance state to disk: {}",

@@ -190,11 +190,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_publish_drand_staleness() {
+        let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).try_init();
         let (app, _, storage) = setup_test_app().await;
 
-        // Mock current drand round to 1_000_000
+        // Mock current drand round to 10_000_000 (must be > RESQUARING_EPOCH_ROUNDS)
         let mut mock_pulse = [0u8; 8];
-        mock_pulse.copy_from_slice(&1_000_000u64.to_be_bytes());
+        mock_pulse.copy_from_slice(&10_000_000u64.to_be_bytes());
         storage
             .put(kinetic_core::constants::DB_PREFIX_LAST_DRAND, &mock_pulse)
             .unwrap();
