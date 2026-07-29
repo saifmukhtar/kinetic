@@ -20,6 +20,26 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  lint:
+    name: Lint & Format (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev clang libclang-dev
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+      - name: Run Clippy Lints
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
   test:
     name: Check & Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -58,14 +78,6 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-
-      - name: Check Formatting (Ubuntu only)
-        if: matrix.os == 'ubuntu-latest'
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy Lints (Ubuntu only)
-        if: matrix.os == 'ubuntu-latest'
-        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run Tests (Ubuntu only)
         if: matrix.os == 'ubuntu-latest'
