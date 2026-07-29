@@ -67,7 +67,7 @@ mod tests {
         assert!(effect.is_none());
         assert_eq!(state.pending_updates.len(), 1);
         let action_hash = GovernanceState::hash_action(&msg);
-        let (_, wait_time, _) = state.pending_updates.get(&action_hash).unwrap();
+        let (_, wait_time, _, _) = state.pending_updates.get(&action_hash).unwrap();
         assert_eq!(*wait_time, 24 * 60 * 60); // 1 day wait
     }
 
@@ -154,7 +154,12 @@ mod tests {
         let action_hash = [3u8; 32];
         state.pending_updates.insert(
             action_hash,
-            (current_time, crate::constants::OTA_TIMELOCK_SECONDS, vec![]),
+            (
+                current_time,
+                crate::constants::OTA_TIMELOCK_SECONDS,
+                [0u8; 32],
+                vec![],
+            ),
         );
 
         let veto_action = GovernanceAction::VetoUpdate {
@@ -366,13 +371,13 @@ mod tests {
         let expired_time = current_time - (31 * 24 * 60 * 60);
         state
             .pending_updates
-            .insert([1u8; 32], (expired_time, 1, vec![]));
+            .insert([1u8; 32], (expired_time, 1, [0u8; 32], vec![]));
 
         // Add a pending update that expired 29 days ago (should stay)
         let fresh_time = current_time - (29 * 24 * 60 * 60);
         state
             .pending_updates
-            .insert([2u8; 32], (fresh_time, 1, vec![]));
+            .insert([2u8; 32], (fresh_time, 1, [0u8; 32], vec![]));
 
         state.prune(current_time);
 

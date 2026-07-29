@@ -37,11 +37,12 @@ impl GovernanceEngine for CouncilEngine {
         }
 
         if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
-            let is_mature = if let Some((start, wait, _)) = state.pending_updates.get(target_hash) {
-                current_time_sec >= start.saturating_add(*wait)
-            } else {
-                return Err(GovernanceError::NotPendingOrVetoed);
-            };
+            let is_mature =
+                if let Some((start, wait, _, _)) = state.pending_updates.get(target_hash) {
+                    current_time_sec >= start.saturating_add(*wait)
+                } else {
+                    return Err(GovernanceError::NotPendingOrVetoed);
+                };
             if !is_mature {
                 return Err(GovernanceError::TimelockNotExpired);
             }
@@ -84,27 +85,35 @@ impl GovernanceEngine for CouncilEngine {
 
         let required_signatures = match &msg.action {
             GovernanceAction::AppointMember { .. } | GovernanceAction::UpdateBinary { .. } => {
-                (msg.council_size_at_proposal as usize
-                    * crate::constants::GOVERNANCE_SUPERMAJORITY_PERCENT as usize)
-                    / 100
+                ((msg.council_size_at_proposal as u64
+                    * crate::constants::GOVERNANCE_SUPERMAJORITY_PERCENT)
+                    / 100) as usize
                     + 1
             }
-            GovernanceAction::SelfAppointCouncilMember { .. }
-            | GovernanceAction::GrantPremiumName { .. }
+            GovernanceAction::ExecuteTimelock { .. } => 1,
+            GovernanceAction::SelfAppointCouncilMember { old_key, .. } => {
+                if !valid_signers.contains(old_key) {
+                    return Err(GovernanceError::InsufficientSignatures);
+                }
+                1
+            }
+            GovernanceAction::GrantPremiumName { .. }
             | GovernanceAction::RevokePremiumName { .. } => {
-                (msg.council_size_at_proposal as usize
-                    * crate::constants::GOVERNANCE_MAJORITY_PERCENT as usize)
-                    / 100
+                ((msg.council_size_at_proposal as u64
+                    * crate::constants::GOVERNANCE_MAJORITY_PERCENT)
+                    / 100) as usize
                     + 1
             }
             GovernanceAction::RemoveCouncilMember { .. } => {
-                let target_active = msg.council_size_at_proposal.saturating_sub(1) as usize;
-                (target_active * crate::constants::GOVERNANCE_MAJORITY_PERCENT as usize) / 100 + 1
+                let target_active = msg.council_size_at_proposal.saturating_sub(1);
+                ((target_active as u64 * crate::constants::GOVERNANCE_MAJORITY_PERCENT) / 100)
+                    as usize
+                    + 1
             }
             GovernanceAction::LockCouncil => {
-                (msg.council_size_at_proposal as usize
-                    * crate::constants::GOVERNANCE_STRICT_MAJORITY_PERCENT as usize)
-                    / 100
+                ((msg.council_size_at_proposal as u64
+                    * crate::constants::GOVERNANCE_STRICT_MAJORITY_PERCENT)
+                    / 100) as usize
                     + 1
             }
             _ => return Err(GovernanceError::UnhandledThresholdMath),
@@ -139,11 +148,18 @@ impl GovernanceEngine for CouncilEngine {
         wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
         let mut effect = None;
+        let action_hash = GovernanceState::hash_action(msg);
+        state.executed_hashes.insert(action_hash, current_time_sec);
+
         match &msg.action {
-            GovernanceAction::AppointMember { key }
-            | GovernanceAction::SelfAppointCouncilMember { candidate_key: key } => {
+            GovernanceAction::AppointMember { key } => {
                 if !state.active_council.contains(key) {
                     state.active_council.push(key.clone());
+                }
+            }
+            GovernanceAction::SelfAppointCouncilMember { old_key, new_key } => {
+                if let Some(pos) = state.active_council.iter().position(|k| k == old_key) {
+                    state.active_council[pos] = new_key.clone();
                 }
             }
             GovernanceAction::RemoveCouncilMember { target_key } => {
@@ -160,9 +176,10 @@ impl GovernanceEngine for CouncilEngine {
             } => {
                 if let Some(wait_sec) = wait_time {
                     let action_hash = GovernanceState::hash_action(msg);
-                    state
-                        .pending_updates
-                        .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
+                    state.pending_updates.insert(
+                        action_hash,
+                        (current_time_sec, wait_sec, *manifest_hash, mirrors.clone()),
+                    );
                 } else {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         manifest_hash: *manifest_hash,
@@ -171,9 +188,11 @@ impl GovernanceEngine for CouncilEngine {
                 }
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
-                if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
+                if let Some((_, _, manifest_hash, mirrors)) =
+                    state.pending_updates.remove(target_hash)
+                {
                     effect = Some(GovernanceEffect::TriggerOTA {
-                        manifest_hash: *target_hash,
+                        manifest_hash,
                         mirrors,
                     });
                 }

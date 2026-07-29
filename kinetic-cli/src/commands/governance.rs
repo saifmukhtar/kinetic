@@ -50,8 +50,10 @@ pub enum GovernanceCommands {
     },
     /// Self-Appoint to the Council (Requires genesis bootstrap privileges)
     SelfAppointCouncilMember {
-        /// Hex-encoded ML-DSA-65 public key
-        candidate_key: String,
+        /// Hex-encoded ML-DSA-65 public key of the existing member
+        old_key: String,
+        /// Hex-encoded ML-DSA-65 public key of the new member
+        new_key: String,
         #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
         signer_key: PathBuf,
     },
@@ -232,15 +234,19 @@ pub async fn handle_governance_command(
             )
         }
         GovernanceCommands::SelfAppointCouncilMember {
-            candidate_key,
+            old_key,
+            new_key,
             signer_key,
         } => {
-            let mut key_bytes = [0u8; 1952];
-            hex::decode_to_slice(candidate_key, &mut key_bytes)?;
+            let mut old_key_bytes = [0u8; 1952];
+            hex::decode_to_slice(old_key, &mut old_key_bytes)?;
+            let mut new_key_bytes = [0u8; 1952];
+            hex::decode_to_slice(new_key, &mut new_key_bytes)?;
             (
                 signer_key,
                 GovernanceAction::SelfAppointCouncilMember {
-                    candidate_key: key_bytes.into(),
+                    old_key: old_key_bytes.into(),
+                    new_key: new_key_bytes.into(),
                 },
             )
         }

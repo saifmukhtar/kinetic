@@ -142,6 +142,7 @@ impl From<GovernanceError> for ApiError {
             GovernanceError::FounderPremiumLimitReached
             | GovernanceError::RevokeRequiresCouncilMode
             | GovernanceError::RotateRequiresGuard
+            | GovernanceError::ProposalVetoed
             | GovernanceError::EmptyCouncil
             | GovernanceError::CouncilAtCapacity => (403, "Forbidden"),
             GovernanceError::InvalidPremiumNameLength => (400, "Bad Request"),

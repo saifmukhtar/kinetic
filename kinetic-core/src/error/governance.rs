@@ -75,6 +75,9 @@ pub enum GovernanceError {
     /// The council has reached its maximum physical size (21 members).
     #[error("The council has reached its maximum capacity")]
     CouncilAtCapacity,
+    /// The proposed binary update has been vetoed by the Guard.
+    #[error("The proposed binary update has been vetoed")]
+    ProposalVetoed,
 }
 
 impl GovernanceError {
@@ -98,6 +101,7 @@ impl GovernanceError {
             Self::InvalidPremiumNameLength => "KIN-GOV-019",
             Self::RevokeRequiresCouncilMode => "KIN-GOV-020",
             Self::CouncilAtCapacity => "KIN-GOV-021",
+            Self::ProposalVetoed => "KIN-GOV-022",
         }
     }
 
@@ -125,6 +129,7 @@ impl GovernanceError {
             | Self::InvalidPremiumNameLength
             | Self::RevokeRequiresCouncilMode
             | Self::CouncilAtCapacity => Severity::Warning,
+            Self::ProposalVetoed => Severity::Error,
         }
     }
 
@@ -156,6 +161,7 @@ impl GovernanceError {
             Self::InvalidPremiumNameLength => "Premium names governed by this action must be exactly 1 character long.".to_string(),
             Self::RevokeRequiresCouncilMode => "Premium names cannot be revoked while the network is in Founder mode. This action requires the network to be governed by the Council.".to_string(),
             Self::CouncilAtCapacity => "The council has reached its maximum capacity of 21 members. No new members can be appointed.".to_string(),
+            Self::ProposalVetoed => "This OTA binary update was previously vetoed by the Guard key and cannot be re-proposed.".to_string(),
         }
     }
 }

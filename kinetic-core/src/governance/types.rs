@@ -83,8 +83,10 @@ pub enum GovernanceAction {
     },
     /// Allow a council member to self-appoint an updated signing key.
     SelfAppointCouncilMember {
-        /// Replacement key of the existing member.
-        candidate_key: PublicKeyBytes,
+        /// Existing public key of the member.
+        old_key: PublicKeyBytes,
+        /// Replacement public key of the member.
+        new_key: PublicKeyBytes,
     },
     /// Remove an active member from the network Council.
     RemoveCouncilMember {
@@ -171,8 +173,11 @@ pub struct GovernanceState {
     pub last_signature_timestamps: HashMap<PublicKeyBytes, u64>,
     /// Set of action hashes that have been vetoed by the Guard key.
     pub vetoed_hashes: HashSet<Hash256>,
-    /// Timelocked pending updates: `HashMap<Hash256, (proposal_timestamp, timelock_expiration, mirrors)>`.
-    pub pending_updates: HashMap<Hash256, (u64, u64, Vec<String>)>,
+    /// Map of action hashes that have already been executed to their timestamp (prevents replay attacks).
+    #[serde(default)]
+    pub executed_hashes: HashMap<Hash256, u64>,
+    /// Timelocked pending updates: `HashMap<action_hash, (proposal_timestamp, timelock_expiration, manifest_hash, mirrors)>`.
+    pub pending_updates: HashMap<Hash256, (u64, u64, Hash256, Vec<String>)>,
     /// In-progress proposals aggregating threshold signatures.
     pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
     /// Counter tracking 1-character premium name grants issued by the Founder (max 5).
@@ -260,9 +265,10 @@ impl SignedGovernanceMessage {
                 buf.push(0x05);
                 buf.extend_from_slice(new_key.as_slice());
             }
-            GovernanceAction::SelfAppointCouncilMember { candidate_key } => {
+            GovernanceAction::SelfAppointCouncilMember { old_key, new_key } => {
                 buf.push(0x06);
-                buf.extend_from_slice(candidate_key.as_slice());
+                buf.extend_from_slice(old_key.as_slice());
+                buf.extend_from_slice(new_key.as_slice());
             }
             GovernanceAction::RemoveCouncilMember { target_key } => {
                 buf.push(0x07);

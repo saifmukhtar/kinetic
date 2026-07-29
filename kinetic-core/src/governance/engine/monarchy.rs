@@ -34,11 +34,12 @@ impl GovernanceEngine for MonarchyEngine {
         }
 
         if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
-            let is_mature = if let Some((start, wait, _)) = state.pending_updates.get(target_hash) {
-                current_time_sec >= start.saturating_add(*wait)
-            } else {
-                return Err(GovernanceError::NotPendingOrVetoed);
-            };
+            let is_mature =
+                if let Some((start, wait, _, _)) = state.pending_updates.get(target_hash) {
+                    current_time_sec >= start.saturating_add(*wait)
+                } else {
+                    return Err(GovernanceError::NotPendingOrVetoed);
+                };
             if !is_mature {
                 return Err(GovernanceError::TimelockNotExpired);
             }
@@ -80,6 +81,9 @@ impl GovernanceEngine for MonarchyEngine {
         wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
         let mut effect = None;
+        let action_hash = GovernanceState::hash_action(msg);
+        state.executed_hashes.insert(action_hash, current_time_sec);
+
         match &msg.action {
             GovernanceAction::UpdateBinary {
                 manifest_hash,
@@ -88,9 +92,10 @@ impl GovernanceEngine for MonarchyEngine {
             } => {
                 if let Some(wait_sec) = wait_time {
                     let action_hash = GovernanceState::hash_action(msg);
-                    state
-                        .pending_updates
-                        .insert(action_hash, (current_time_sec, wait_sec, mirrors.clone()));
+                    state.pending_updates.insert(
+                        action_hash,
+                        (current_time_sec, wait_sec, *manifest_hash, mirrors.clone()),
+                    );
                 } else {
                     effect = Some(GovernanceEffect::TriggerOTA {
                         manifest_hash: *manifest_hash,
@@ -103,9 +108,11 @@ impl GovernanceEngine for MonarchyEngine {
                 state.vetoed_hashes.insert(*target_hash);
             }
             GovernanceAction::ExecuteTimelock { target_hash } => {
-                if let Some((_, _, mirrors)) = state.pending_updates.remove(target_hash) {
+                if let Some((_, _, manifest_hash, mirrors)) =
+                    state.pending_updates.remove(target_hash)
+                {
                     effect = Some(GovernanceEffect::TriggerOTA {
-                        manifest_hash: *target_hash,
+                        manifest_hash,
                         mirrors,
                     });
                 }

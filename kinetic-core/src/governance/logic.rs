@@ -58,6 +58,7 @@ impl GovernanceState {
             last_signature_timestamps: HashMap::new(),
 
             vetoed_hashes: HashSet::new(),
+            executed_hashes: HashMap::new(),
             pending_updates: HashMap::new(),
             partial_proposals: HashMap::new(),
             founder_premium_grants: 0,
@@ -94,11 +95,15 @@ impl GovernanceState {
 
         // Remove pending updates that have been executable for more than 30 days
         self.pending_updates
-            .retain(|_, (exec_time, _, _)| current_time_sec <= *exec_time + thirty_days_sec);
+            .retain(|_, (exec_time, _, _, _)| current_time_sec <= *exec_time + thirty_days_sec);
 
         // Remove partial proposals older than 30 days
         self.partial_proposals
             .retain(|_, msg| current_time_sec <= msg.timestamp_sec + thirty_days_sec);
+
+        // Remove executed hashes older than 30 days
+        self.executed_hashes
+            .retain(|_, exec_time| current_time_sec <= *exec_time + thirty_days_sec);
     }
 
     /// Merges signatures from an incoming message into the existing state's partial proposal for the same action.
@@ -116,10 +121,41 @@ impl GovernanceState {
         };
 
         let mut changed = false;
+        let action_bytes = incoming_msg.to_canonical_bytes();
+        let root_key = self.get_root_key().ok();
+        let guard_key_opt = self.get_guard_key().unwrap_or(None);
+        let max_sigs = std::cmp::max(self.active_council.len() * 2, 10);
+
         for sig in &incoming_msg.signatures {
+            if msg_to_update.signatures.len() >= max_sigs {
+                break;
+            }
             if !msg_to_update.signatures.contains(sig) {
-                msg_to_update.signatures.push(sig.clone());
-                changed = true;
+                let mut is_authorized = false;
+                if let Some(root) = &root_key {
+                    if crate::governance::types::verify_signature(root, &action_bytes, sig) {
+                        is_authorized = true;
+                    }
+                }
+                if !is_authorized {
+                    if let Some(guard) = &guard_key_opt {
+                        if crate::governance::types::verify_signature(guard, &action_bytes, sig) {
+                            is_authorized = true;
+                        }
+                    }
+                }
+                if !is_authorized {
+                    for member in &self.active_council {
+                        if crate::governance::types::verify_signature(member, &action_bytes, sig) {
+                            is_authorized = true;
+                            break;
+                        }
+                    }
+                }
+                if is_authorized {
+                    msg_to_update.signatures.push(sig.clone());
+                    changed = true;
+                }
             }
         }
 
@@ -206,16 +242,16 @@ impl GovernanceState {
         let mut effects = Vec::new();
         let mut matured_hashes = Vec::new();
 
-        for (hash, (broadcast_time, wait_time, mirrors)) in &self.pending_updates {
+        for (hash, (broadcast_time, wait_time, manifest_hash, mirrors)) in &self.pending_updates {
             if current_time_sec >= broadcast_time.saturating_add(*wait_time) {
-                matured_hashes.push((*hash, mirrors.clone()));
+                matured_hashes.push((*hash, *manifest_hash, mirrors.clone()));
             }
         }
 
-        for (hash, mirrors) in matured_hashes {
+        for (hash, manifest_hash, mirrors) in matured_hashes {
             self.pending_updates.remove(&hash);
             effects.push(GovernanceEffect::TriggerOTA {
-                manifest_hash: hash,
+                manifest_hash,
                 mirrors,
             });
         }
@@ -241,6 +277,11 @@ pub fn process_governance_message(
     state.prune(current_time_sec);
 
     if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
+        return Err(crate::error::GovernanceError::StaleProposal);
+    }
+
+    let action_hash = GovernanceState::hash_action(msg);
+    if state.executed_hashes.contains_key(&action_hash) {
         return Err(crate::error::GovernanceError::StaleProposal);
     }
 
