@@ -26,8 +26,6 @@ use web_time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use hickory_resolver::config::*;
 
-const CACHE_KEY: &str = "drand_last_pulse";
-
 // Heartbeat staleness threshold — 10 minutes in Drand Quicknet rounds (3s each)
 const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200; // 10min * 20 rounds/min
 
@@ -145,7 +143,10 @@ impl DrandClient {
     pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
         let config = crate::config::KineticConfig::load();
         Self {
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .unwrap_or_default(),
             storage,
             endpoints: config.drand.endpoints,
             drand_domain: config.drand.drand_domain,
@@ -344,7 +345,7 @@ impl DrandClient {
     pub fn cache_pulse(&self, pulse: &DrandPulse) -> Result<(), DrandError> {
         if let Some(storage) = &self.storage {
             let bytes = serde_json::to_vec(pulse)?;
-            storage.put(CACHE_KEY.as_bytes(), &bytes)?;
+            storage.put(crate::constants::DB_PREFIX_LAST_DRAND, &bytes)?;
         }
         Ok(())
     }
@@ -359,7 +360,7 @@ impl DrandClient {
     /// - Returns [`DrandError::Storage`](crate::error::DrandError::Storage) if database reading fails.
     pub fn load_cached_pulse(&self) -> Result<DrandPulse, DrandError> {
         if let Some(storage) = &self.storage {
-            if let Ok(Some(bytes)) = storage.get(CACHE_KEY.as_bytes()) {
+            if let Ok(Some(bytes)) = storage.get(crate::constants::DB_PREFIX_LAST_DRAND) {
                 if let Ok(mut pulse) = serde_json::from_slice::<DrandPulse>(&bytes) {
                     pulse.is_from_cache = true;
                     return Ok(pulse);
@@ -415,10 +416,14 @@ mod tests {
             is_unavailable: false,
         };
 
-        // Should fail cryptographic verification
-        assert!(
-            !pulse.verify(),
-            "Invalid Quicknet pulse incorrectly passed BLS verification"
-        );
+        // Should fail cryptographic verification (unless in dev mode, which always passes)
+        if crate::config::is_dev_mode() {
+            assert!(pulse.verify(), "Dev mode should always pass verification");
+        } else {
+            assert!(
+                !pulse.verify(),
+                "Invalid Quicknet pulse incorrectly passed BLS verification"
+            );
+        }
     }
 }

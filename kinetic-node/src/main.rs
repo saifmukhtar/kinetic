@@ -328,9 +328,10 @@ async fn run_node() -> Result<()> {
                 if let Ok(latest) = hb_drand.load_cached_pulse() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
+                        .unwrap_or_default()
                         .as_secs();
-                    let estimated_round = (now - kinetic_core::constants::DRAND_GENESIS_TIME)
+                    let estimated_round = now
+                        .saturating_sub(kinetic_core::constants::DRAND_GENESIS_TIME)
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if estimated_round > latest.round + 5 {
