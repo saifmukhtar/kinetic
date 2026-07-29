@@ -13,10 +13,13 @@ fn main() {
     let path = &args[1];
     let keypair = Keypair::generate_ed25519();
     
-    // Save to file securely (0o600)
+    // Save to file securely (0o600 on unix)
+    #[cfg(unix)]
     use std::os::unix::fs::OpenOptionsExt;
     let mut opts = std::fs::OpenOptions::new();
-    opts.write(true).create(true).truncate(true).mode(0o600);
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    opts.mode(0o600);
     let mut file = opts.open(path).expect("Failed to open file with secure permissions");
     let encoded = keypair.to_protobuf_encoding().unwrap();
     file.write_all(&encoded).unwrap();

@@ -106,9 +106,12 @@ pub async fn handle_identity_command(
             // Also save the private key securely
             let key_path = std::path::Path::new(&output).with_extension("key");
             use std::io::Write;
+            #[cfg(unix)]
             use std::os::unix::fs::OpenOptionsExt;
             let mut opts = std::fs::OpenOptions::new();
-            opts.write(true).create(true).truncate(true).mode(0o600);
+            opts.write(true).create(true).truncate(true);
+            #[cfg(unix)]
+            opts.mode(0o600);
             let mut file = opts.open(&key_path)?;
             file.write_all(&keypair.to_bytes())?;
             info!("Successfully generated KID and wrote to {}", output);
@@ -285,9 +288,12 @@ pub async fn handle_identity_command(
             // Save the new private key securely
             let key_path = std::path::Path::new(&output).with_extension("key");
             use std::io::Write;
+            #[cfg(unix)]
             use std::os::unix::fs::OpenOptionsExt;
             let mut opts = std::fs::OpenOptions::new();
-            opts.write(true).create(true).truncate(true).mode(0o600);
+            opts.write(true).create(true).truncate(true);
+            #[cfg(unix)]
+            opts.mode(0o600);
             let mut file = opts.open(&key_path)?;
             file.write_all(&new_keypair.to_bytes())?;
             info!("Saved new private controller key to {}", key_path.display());

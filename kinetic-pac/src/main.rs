@@ -328,11 +328,19 @@ async fn main() -> anyhow::Result<()> {
 
     // Install signal handlers to gracefully uninstall PAC
     tokio::spawn(async move {
+        #[cfg(unix)]
         let mut sigterm =
             tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
+
+        #[cfg(unix)]
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {}
             _ = sigterm.recv() => {}
+        }
+
+        #[cfg(not(unix))]
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
         }
         info!("kinetic-pac shutting down, restoring OS proxy settings...");
         let _ = pac_manager.uninstall();
