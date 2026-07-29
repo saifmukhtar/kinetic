@@ -230,6 +230,7 @@ pub fn save_keypair_from_mnemonic(
     use sha2::Sha512;
     use std::fs::{self, OpenOptions};
     use std::io::Write;
+    #[cfg(unix)]
     use std::os::unix::fs::OpenOptionsExt;
     use std::path::PathBuf;
     use zeroize::Zeroize;
@@ -265,11 +266,13 @@ pub fn save_keypair_from_mnemonic(
 
     let tmp_path = key_path.with_extension("tmp");
     let _ = fs::remove_file(&tmp_path);
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(&tmp_path)?;
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+
+    #[cfg(unix)]
+    options.mode(0o600);
+
+    let mut file = options.open(&tmp_path)?;
     use ml_dsa::KeyExport;
     file.write_all(&signing_key.to_bytes())?;
     file.sync_all()?;
