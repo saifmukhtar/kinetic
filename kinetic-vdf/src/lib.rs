@@ -71,7 +71,24 @@ impl VdfEngine for ChiaVdfEngine {
 
         let mut lock_dir = kinetic_core::config::get_base_dir();
         if std::fs::create_dir_all(&lock_dir).is_err() {
-            lock_dir = std::env::temp_dir();
+            #[cfg(unix)]
+            {
+                let uid = unsafe { libc::getuid() };
+                lock_dir = std::env::temp_dir().join(format!("kinetic-{}", uid));
+                if let Err(e) = std::fs::create_dir_all(&lock_dir) {
+                    return Err(VdfError::LockFileError(format!(
+                        "Failed to create fallback lock dir: {}",
+                        e
+                    )));
+                }
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(&lock_dir, std::fs::Permissions::from_mode(0o700));
+            }
+            #[cfg(not(unix))]
+            {
+                lock_dir = std::env::temp_dir().join(format!("kinetic-{}", std::process::id()));
+                let _ = std::fs::create_dir_all(&lock_dir);
+            }
         }
         let lock_path = lock_dir.join("kinetic_vdf.lock");
 

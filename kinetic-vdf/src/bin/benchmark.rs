@@ -60,7 +60,7 @@ fn main() {
     println!("Average iterations per minute: {}", avg);
 
     let target_minutes = kinetic_core::constants::BENCHMARK_TARGET_MINUTES;
-    let target_iterations = avg * (target_minutes as u64);
+    let target_iterations = (avg as f64 * target_minutes) as u64;
 
     println!(
         "Based on your network.json target of {:.1} minutes:",
