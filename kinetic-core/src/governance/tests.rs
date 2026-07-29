@@ -274,8 +274,6 @@ mod tests {
         ));
     }
 
-
-
     use proptest::collection::vec;
     use proptest::prelude::*;
     use proptest::string::string_regex;
