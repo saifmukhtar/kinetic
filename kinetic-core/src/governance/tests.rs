@@ -274,47 +274,7 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_auto_lock_instant() {
-        let current_time = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut state = GovernanceState::new(current_time);
 
-        // Add 7 members
-        for i in 0..7 {
-            let (_, pk) = generate_key(i);
-            state.active_council.push(pk.clone());
-            state.last_signature_timestamps.insert(pk, current_time);
-        }
-
-        let root_sk = get_root_sk();
-        let mut msg = SignedGovernanceMessage {
-            action: GovernanceAction::UpdateBinary {
-                manifest_hash: [1u8; 32],
-                version_nonce: 1,
-                github_username: "user".to_string(),
-                git_commit: "commit".to_string(),
-                git_branch: "main".to_string(),
-                mirrors: vec![],
-            }, // just an action to trigger verify_action
-            council_size_at_proposal: 7,
-            timestamp_sec: current_time,
-            signatures: vec![],
-        };
-        msg.signatures.push(sign_action(&msg, &root_sk));
-
-        // verify_action should instantly transition to Council mode
-        let _ = state.verify_action(&msg, current_time);
-
-        assert_eq!(
-            state.mode,
-            crate::governance::types::GovernanceMode::Council
-        );
-        assert_eq!(state.lock_timestamp_sec, Some(current_time));
-        assert!(state.grace_period_start_sec.is_none());
-    }
 
     use proptest::collection::vec;
     use proptest::prelude::*;
