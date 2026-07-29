@@ -174,6 +174,16 @@ pub async fn handle_publish_zone(
         }
     };
 
+    use ml_dsa::KeyExport;
+    use ml_dsa::Keypair;
+    let pubkey_bytes = keypair.verifying_key().to_bytes().to_vec();
+    if reveal.pubkey != pubkey_bytes {
+        return Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "error": "Identity key mismatch with domain registration" })),
+        ));
+    }
+
     reveal.payload = match serde_json::to_vec(&zone) {
         Ok(v) => v,
         Err(e) => {

@@ -126,13 +126,13 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "drand_pulse": 100,
-                "drand_randomness": "randomness",
+                "drand_randomness": "0".repeat(64),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 32],
-                "signature": vec![2; 64]
+                "pubkey": vec![1; 1952],
+                "signature": vec![2; 4627]
             }
         });
 
@@ -163,13 +163,13 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "drand_pulse": 100,
-                "drand_randomness": "randomness",
+                "drand_randomness": "0".repeat(64),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 32],
-                "signature": vec![2; 64]
+                "pubkey": vec![1; 1952],
+                "signature": vec![2; 4627]
             }
         });
 
@@ -190,14 +190,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_publish_drand_staleness() {
-        let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).try_init();
+        let _ = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .try_init();
         let (app, _, storage) = setup_test_app().await;
 
         // Mock current drand round to 10_000_000 (must be > RESQUARING_EPOCH_ROUNDS)
-        let mut mock_pulse = [0u8; 8];
-        mock_pulse.copy_from_slice(&10_000_000u64.to_be_bytes());
+        let mock_pulse = kinetic_core::drand::DrandPulse {
+            round: 10_000_000,
+            randomness: "0".repeat(64),
+            signature: "0".repeat(192),
+            is_from_cache: true,
+            is_unavailable: false,
+        };
         storage
-            .put(kinetic_core::constants::DB_PREFIX_LAST_DRAND, &mock_pulse)
+            .put(
+                kinetic_core::constants::DB_PREFIX_LAST_DRAND,
+                &serde_json::to_vec(&mock_pulse).unwrap(),
+            )
             .unwrap();
 
         let req_body = serde_json::json!({
@@ -207,13 +217,13 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "drand_pulse": 100, // Very old
-                "drand_randomness": "randomness",
+                "drand_randomness": "0".repeat(64),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 32],
-                "signature": vec![2; 64]
+                "pubkey": vec![1; 1952],
+                "signature": vec![2; 4627]
             }
         });
 
@@ -229,7 +239,12 @@ mod tests {
         let status = response.status();
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
-        assert_eq!(status, StatusCode::BAD_REQUEST, "Unexpected response: {}", body_str);
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "Unexpected response: {}",
+            body_str
+        );
         assert!(body_str.contains("Reveal rejected: VDF pulse"));
     }
 
@@ -243,13 +258,13 @@ mod tests {
             payload: vec![1, 2, 3],
             salt: [0; 32],
             drand_pulse: 100,
-            drand_randomness: "random".to_string(),
+            drand_randomness: "0".repeat(64),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: vec![1; 32],
-            signature: vec![2; 64],
+            pubkey: vec![1; 1952],
+            signature: vec![2; 4627],
             previous_proof: None,
             miner_pubkey: None,
         };

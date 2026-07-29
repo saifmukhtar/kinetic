@@ -71,9 +71,8 @@ impl ConsensusParams {
         let base = self.calculate_hardware_anchor();
         let tm = crate::constants::BENCHMARK_TARGET_MINUTES as u64;
 
-        let calc = |multiplier: u64| -> u64 {
-            ((base as u128 * multiplier as u128) / tm as u128) as u64
-        };
+        let calc =
+            |multiplier: u64| -> u64 { ((base as u128 * multiplier as u128) / tm as u128) as u64 };
 
         // "Squatter Cliff" curve dynamically adjusting to the hardware time target
         match len {
@@ -88,7 +87,7 @@ impl ConsensusParams {
             11..=17 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_11_TO_17), // 1.5 hours
             18..=20 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_18_TO_20), // 1 hour
             21..=63 => base, // Baseline (always takes exactly `tm` minutes)
-            _ => base, // Fallback
+            _ => base,       // Fallback
         }
     }
 
@@ -142,8 +141,15 @@ mod tests {
         let a = params.required_iterations("a", &[0u8; 32]);
         let ab = params.required_iterations("ab", &[0u8; 32]);
         let abc = params.required_iterations("abc", &[0u8; 32]);
-        assert!(a > ab);
-        assert!(ab > abc);
+
+        if crate::config::is_dev_mode() {
+            assert_eq!(a, crate::constants::DEV_MODE_ITERATIONS);
+            assert_eq!(ab, crate::constants::DEV_MODE_ITERATIONS);
+            assert_eq!(abc, crate::constants::DEV_MODE_ITERATIONS);
+        } else {
+            assert!(a > ab);
+            assert!(ab > abc);
+        }
     }
 
     // Hardware drift is managed manually via network updates.

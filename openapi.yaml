@@ -708,3 +708,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
+  /internal/atlas/sync:
+    post:
+      summary: Trigger a synchronization of the foreign TLD bridge
+      description: Requires Atlas or Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sync triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'

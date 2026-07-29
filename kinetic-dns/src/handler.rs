@@ -46,7 +46,7 @@ impl RequestHandler for KineticDnsHandler {
             let mut is_atlas = false;
             if let Ok(tlds) = self.atlas_tlds.read() {
                 for tld in tlds.iter() {
-                    if clean_name.ends_with(tld) {
+                    if clean_name == **tld || clean_name.ends_with(&format!(".{}", tld)) {
                         is_atlas = true;
                         break;
                     }

@@ -149,7 +149,7 @@ fn print_and_export_keys(
             Aes256Gcm, Nonce,
         };
         use pbkdf2::pbkdf2_hmac;
-        use sha2::{Sha256, Sha512};
+        use sha2::Sha512;
         use std::fs::File;
         use std::io::Read;
 
@@ -160,7 +160,7 @@ fn print_and_export_keys(
         urandom.read_exact(&mut nonce_bytes).expect("RNG failure");
 
         let mut derived_key = [0u8; 32];
-        pbkdf2_hmac::<Sha256>(encrypt_pass.as_bytes(), &salt, 5_000_000, &mut derived_key);
+        pbkdf2_hmac::<Sha512>(encrypt_pass.as_bytes(), &salt, 5_000_000, &mut derived_key);
 
         let cipher = Aes256Gcm::new((&derived_key).into());
         let nonce = Nonce::from_slice(&nonce_bytes);

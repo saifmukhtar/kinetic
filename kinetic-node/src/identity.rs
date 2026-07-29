@@ -16,7 +16,13 @@ pub fn load_or_generate_key(key_path: &Path) -> Keypair {
         tracing::info!("Loaded static infrastructure identity from disk");
         Keypair::from_protobuf_encoding(&bytes).unwrap_or_else(|_| {
             tracing::warn!("Corrupted static identity found, generating new one");
-            Keypair::generate_ed25519()
+            let k = Keypair::generate_ed25519();
+            if let Ok(encoded) = k.to_protobuf_encoding() {
+                if let Err(e) = write_secret(key_path, &encoded) {
+                    tracing::warn!("Failed to save generated infrastructure identity: {}", e);
+                }
+            }
+            k
         })
     } else {
         let k = Keypair::generate_ed25519();
@@ -127,7 +133,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fallback_on_empty_file_does_not_overwrite() {
+    fn test_fallback_on_empty_file_overwrites() {
         let dir = tempdir().unwrap();
         let key_path = dir.path().join("empty_key.bin");
 
@@ -136,10 +142,8 @@ mod tests {
         let key = load_or_generate_key(&key_path);
         assert!(!key.public().to_peer_id().to_string().is_empty());
 
-        // It should have generated a new key in memory, but NOT overwritten the corrupted file.
-        // Therefore, the file should still be exactly 0 bytes.
         let bytes = std::fs::read(&key_path).unwrap();
-        assert_eq!(bytes.len(), 0);
+        assert!(!bytes.is_empty());
     }
 
     #[test]

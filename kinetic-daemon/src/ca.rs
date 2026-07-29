@@ -75,7 +75,8 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
             let cert_pem = std::fs::read_to_string(&cert_path)?;
 
             #[cfg(not(test))]
-            let key_pem_opt = keyring::Entry::new("kinetic_daemon", "root_ca_key").and_then(|e| e.get_password());
+            let key_pem_opt =
+                keyring::Entry::new("kinetic_daemon", "root_ca_key").and_then(|e| e.get_password());
             #[cfg(test)]
             let key_pem_opt: Result<String, keyring::Error> = Err(keyring::Error::NoEntry);
 
@@ -148,6 +149,7 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
             tracing::info!("Root CA private key securely stored in OS Keychain.");
             let _ = std::fs::remove_file(&key_path);
         } else {
+            #[cfg(not(test))]
             tracing::warn!(
                 "Failed to store Root CA key in OS Keychain. Falling back to disk storage."
             );

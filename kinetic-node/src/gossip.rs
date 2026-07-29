@@ -12,17 +12,26 @@ use std::sync::Arc;
 /// Any resulting updates to the governance state are then persisted to disk.
 pub fn handle_kinetic_governance_gossip(payload: &[u8], gossip_gov_path: Arc<PathBuf>) {
     if let Ok(signed_msg) = serde_json::from_slice::<SignedGovernanceMessage>(payload) {
-        let mut state = GLOBAL_GOVERNANCE_STATE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        match process_governance_message(&mut state, &signed_msg) {
+        let (state_snapshot, effect_result) = {
+            let mut state = GLOBAL_GOVERNANCE_STATE
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let result = process_governance_message(&mut state, &signed_msg);
+            (state.clone(), result)
+        };
+
+        match effect_result {
             Ok(Some(effect)) => {
                 tracing::info!("Governance state updated via gossip. Effect: {:?}", effect);
-                let _ = state.save_to_disk(&gossip_gov_path);
+                tokio::task::spawn_blocking(move || {
+                    let _ = state_snapshot.save_to_disk(&gossip_gov_path);
+                });
             }
             Ok(None) => {
                 tracing::info!("Governance state updated via gossip. No immediate effect.");
-                let _ = state.save_to_disk(&gossip_gov_path);
+                tokio::task::spawn_blocking(move || {
+                    let _ = state_snapshot.save_to_disk(&gossip_gov_path);
+                });
             }
             Err(e) => {
                 tracing::debug!("Governance gossip message rejected: {:?}", e);

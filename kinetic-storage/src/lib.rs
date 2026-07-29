@@ -61,13 +61,15 @@ mod native {
                         .map(|d| d.as_secs())
                         .unwrap_or(0);
 
-                    let mut bak_path = path.to_path_buf().into_os_string();
-                    bak_path.push(format!(
+                    let mut bak_path = path.to_path_buf();
+                    let mut new_name = bak_path.file_name().unwrap_or_default().to_os_string();
+                    new_name.push(format!(
                         ".corrupt.{}_{}_{}.bak",
                         ts,
                         std::process::id(),
                         count
                     ));
+                    bak_path.set_file_name(new_name);
 
                     tracing::error!(
                         "CRITICAL: Sled database corruption detected at {:?}. Backing up to {:?}",

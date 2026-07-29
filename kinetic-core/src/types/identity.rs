@@ -149,7 +149,7 @@ pub fn load_encrypted_keypair(
         Aes256Gcm, Nonce,
     };
     use pbkdf2::pbkdf2_hmac;
-    use sha2::Sha256;
+    use sha2::Sha512;
     use std::fs;
 
     if path.exists() {
@@ -166,7 +166,12 @@ pub fn load_encrypted_keypair(
         let ciphertext = &bytes[28..];
 
         let mut key = [0u8; 32];
-        pbkdf2_hmac::<Sha256>(password.as_bytes(), salt, 600_000, &mut key);
+        #[cfg(debug_assertions)]
+        let iterations = 1000;
+        #[cfg(not(debug_assertions))]
+        let iterations = 5_000_000;
+
+        pbkdf2_hmac::<Sha512>(password.as_bytes(), salt, iterations, &mut key);
 
         let cipher = Aes256Gcm::new((&key).into());
         let nonce = Nonce::from_slice(nonce_bytes);
@@ -222,7 +227,7 @@ pub fn save_keypair_from_mnemonic(
 ) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
     use bip39::{Language, Mnemonic};
     use pbkdf2::pbkdf2_hmac;
-    use sha2::{Digest, Sha256, Sha512};
+    use sha2::Sha512;
     use std::fs::{self, OpenOptions};
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
@@ -234,11 +239,15 @@ pub fn save_keypair_from_mnemonic(
 
     let mut seed = mnemonic.to_seed("");
 
-    // Use the SHA-256 hash of the seed itself as a dynamic salt
-    let salt = Sha256::digest(seed);
+    // Use a fixed, network-specific salt for deterministic PBKDF2
+    let salt = format!("{}-seed-key-v1", env!("KINETIC_NETWORK_ID"));
 
     let mut derived = [0u8; 32];
-    pbkdf2_hmac::<Sha512>(&seed, &salt, 600_000, &mut derived);
+    #[cfg(debug_assertions)]
+    let iterations = 1000;
+    #[cfg(not(debug_assertions))]
+    let iterations = 5_000_000;
+    pbkdf2_hmac::<Sha512>(&seed, salt.as_bytes(), iterations, &mut derived);
 
     let signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&derived).into());
 
@@ -383,18 +392,15 @@ mod tests {
             Aes256Gcm, Nonce,
         };
         use pbkdf2::pbkdf2_hmac;
-        use sha2::Sha256;
-        use std::fs::File;
-        use std::io::Read;
+        use sha2::Sha512;
 
         let mut salt = [0u8; 16];
         let mut nonce_bytes = [0u8; 12];
-        let mut urandom = File::open("/dev/urandom").expect("Failed to open /dev/urandom");
-        urandom.read_exact(&mut salt).expect("RNG failure");
-        urandom.read_exact(&mut nonce_bytes).expect("RNG failure");
+        getrandom::getrandom(&mut salt).expect("RNG failure");
+        getrandom::getrandom(&mut nonce_bytes).expect("RNG failure");
 
         let mut derived_key = [0u8; 32];
-        pbkdf2_hmac::<Sha256>(b"strong_password", &salt, 600_000, &mut derived_key);
+        pbkdf2_hmac::<Sha512>(b"strong_password", &salt, 1000, &mut derived_key);
 
         let cipher = Aes256Gcm::new((&derived_key).into());
         let nonce = Nonce::from_slice(&nonce_bytes);

@@ -237,10 +237,17 @@ impl NetworkClient {
                 message: "Network channel closed unexpectedly".to_string(),
                 source: None,
             })?;
-        rx.await.map_err(|_| ResolutionError::Internal {
-            message: "Network channel closed unexpectedly".to_string(),
-            source: None,
-        })?
+        match tokio::time::timeout(std::time::Duration::from_secs(10), rx).await {
+            Ok(Ok(res)) => res,
+            Ok(Err(_)) => Err(ResolutionError::Internal {
+                message: "Network channel closed unexpectedly".to_string(),
+                source: None,
+            }),
+            Err(_) => Err(ResolutionError::Internal {
+                message: "Resolution timed out".to_string(),
+                source: None,
+            }),
+        }
     }
 
     /// Verifies that a published record has reached a quorum of nodes.

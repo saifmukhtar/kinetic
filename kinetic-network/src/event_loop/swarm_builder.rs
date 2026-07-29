@@ -105,6 +105,10 @@ impl super::core::NetworkEventLoop {
                     .set_provider_publication_interval(Some(std::time::Duration::from_secs(
                         3 * 3600,
                     )));
+
+                #[cfg(test)]
+                kad_config.set_query_timeout(std::time::Duration::from_secs(5));
+
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 if mode == NetworkMode::LightClient {
                     kademlia.set_mode(Some(kad::Mode::Client));
@@ -340,8 +344,9 @@ impl super::core::NetworkEventLoop {
                     None,
                 ) {
                     for (key_bytes, val_bytes) in iter {
-                        if key_bytes.len() > 20 {
-                            if let Ok(peer_id_str) = std::str::from_utf8(&key_bytes[20..]) {
+                        let prefix_len = kinetic_core::constants::DB_PREFIX_BANNED_PEER.len();
+                        if key_bytes.len() > prefix_len {
+                            if let Ok(peer_id_str) = std::str::from_utf8(&key_bytes[prefix_len..]) {
                                 if let Ok(peer_id) = peer_id_str.parse::<libp2p::PeerId>() {
                                     if val_bytes.len() == 8 {
                                         let expire = u64::from_be_bytes(
@@ -371,6 +376,7 @@ impl super::core::NetworkEventLoop {
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
             light_clients: rustc_hash::FxHashSet::default(),
+            light_client_ips: rustc_hash::FxHashMap::default(),
         };
 
         Ok((client, event_loop))
@@ -413,6 +419,9 @@ impl super::core::NetworkEventLoop {
                     format!("/{}/kad/2.0.0", kinetic_core::constants::NETWORK_ID),
                 )
                 .unwrap()]);
+
+                kad_config.set_query_timeout(std::time::Duration::from_secs(5));
+
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
                 kademlia.set_mode(Some(kad::Mode::Server));
 
@@ -454,6 +463,9 @@ impl super::core::NetworkEventLoop {
                 }
             })
             .unwrap()
+            .with_swarm_config(|c| {
+                c.with_idle_connection_timeout(web_time::Duration::from_secs(300))
+            })
             .build();
 
         let (tx, rx) = mpsc::channel(32);
@@ -513,6 +525,7 @@ impl super::core::NetworkEventLoop {
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
             light_clients: rustc_hash::FxHashSet::default(),
+            light_client_ips: rustc_hash::FxHashMap::default(),
         };
 
         Ok((client, event_loop))

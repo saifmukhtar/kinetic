@@ -91,38 +91,35 @@ impl KineticRecordStore {
                         vdf_engine.as_ref(),
                     ) {
                         if reveal.iterations >= req {
-                            use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-                            if let Ok(pubkey) = VerifyingKey::try_from(reveal.pubkey.as_slice()) {
-                                if let Ok(sig) = Signature::from_slice(&reveal.signature) {
-                                    if pubkey.verify(&reveal.signable_bytes(), &sig).is_ok() {
-                                        use kinetic_core::types::Commitment;
-                                        use sha2::{Digest, Sha256};
-                                        let drand_rand = hex::decode(&reveal.drand_randomness)
-                                            .unwrap_or_else(|_| vec![0u8; 32]);
-                                        let mut hasher = Sha256::new();
-                                        hasher.update(reveal.name.as_bytes());
-                                        hasher.update(reveal.salt);
-                                        hasher.update(&drand_rand);
-                                        hasher.update(&reveal.pubkey);
-                                        let mut hash = [0u8; 32];
-                                        hash.copy_from_slice(&hasher.finalize());
-                                        let challenge = Commitment { hash };
+                            let dev_mode = kinetic_core::config::is_dev_mode();
+                            if dev_mode || reveal.verify_signature() {
+                                use kinetic_core::types::Commitment;
+                                use sha2::{Digest, Sha256};
+                                let drand_rand = hex::decode(&reveal.drand_randomness)
+                                    .unwrap_or_else(|_| vec![0u8; 32]);
+                                let mut hasher = Sha256::new();
+                                hasher.update(reveal.name.as_bytes());
+                                hasher.update(reveal.salt);
+                                hasher.update(&drand_rand);
+                                hasher.update(&reveal.pubkey);
+                                let mut hash = [0u8; 32];
+                                hash.copy_from_slice(&hasher.finalize());
+                                let challenge = Commitment { hash };
 
-                                        if matches!(
-                                            tokio::task::block_in_place(|| vdf_engine.verify(
-                                                &challenge,
-                                                &reveal.vdf_proof,
-                                                reveal.iterations
-                                            )),
-                                            Ok(true)
-                                        ) {
-                                            is_valid = true;
-                                        }
-                                    }
+                                if matches!(
+                                    tokio::task::block_in_place(|| vdf_engine.verify(
+                                        &challenge,
+                                        &reveal.vdf_proof,
+                                        reveal.iterations
+                                    )),
+                                    Ok(true)
+                                ) {
+                                    is_valid = true;
                                 }
                             }
                         }
                     }
+
                     if is_valid {
                         tracing::info!("[KRS restore] Reveal for {}", name);
                         reveals_by_name.put(name, reveal);
@@ -264,7 +261,10 @@ impl KineticRecordStore {
         }
     }
 
-    pub(crate) fn get_reveal_with_fallback(&mut self, name: &str) -> Option<kinetic_core::types::Reveal> {
+    pub(crate) fn get_reveal_with_fallback(
+        &mut self,
+        name: &str,
+    ) -> Option<kinetic_core::types::Reveal> {
         if let Some(r) = self.reveals_by_name.get(name) {
             return Some(r.clone());
         }

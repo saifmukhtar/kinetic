@@ -8,13 +8,13 @@ fn test_protocol_downgrade_prevention() {
         payload: vec![1, 2, 3],
         salt: [0u8; 32],
         drand_pulse: 100,
-        drand_randomness: "random".to_string(),
+        drand_randomness: "0".repeat(64),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![4, 5, 6],
         },
-        pubkey: vec![7, 8, 9],
-        signature: vec![],
+        pubkey: vec![0; 1952],
+        signature: vec![0; 4627],
         previous_proof: None,
         miner_pubkey: None,
     };

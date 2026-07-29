@@ -234,10 +234,19 @@ async fn main() -> anyhow::Result<()> {
                     for entry in entries.flatten() {
                         if let Some(ext) = entry.path().extension() {
                             if ext == "json" {
-                                if let Ok(file) = File::open(entry.path()) {
+                                if let Ok(contents) = std::fs::read_to_string(entry.path()) {
                                     if let Ok(proxy_info) =
-                                        serde_json::from_reader::<_, RegisteredProxy>(file)
+                                        serde_json::from_str::<RegisteredProxy>(&contents)
                                     {
+                                        if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err()
+                                        {
+                                            tracing::warn!(
+                                                "Invalid IP address in proxy config: {}",
+                                                proxy_info.proxy_ip
+                                            );
+                                            continue;
+                                        }
+
                                         let tld = if proxy_info.tld.starts_with('.') {
                                             proxy_info.tld.clone()
                                         } else {

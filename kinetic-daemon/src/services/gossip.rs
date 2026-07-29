@@ -66,7 +66,11 @@ pub fn start_gossip_processor(
                 if let Ok(pulse) =
                     serde_json::from_slice::<kinetic_core::drand::DrandPulse>(&payload)
                 {
-                    if pulse.verify() {
+                    let pulse_clone = pulse.clone();
+                    let is_valid = tokio::task::spawn_blocking(move || pulse_clone.verify())
+                        .await
+                        .unwrap_or(false);
+                    if is_valid {
                         if let Ok(latest) = drand_client_gossip.load_cached_pulse() {
                             if (pulse.round > latest.round || latest.is_unavailable)
                                 && drand_client_gossip.cache_pulse(&pulse).is_ok()

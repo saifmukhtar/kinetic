@@ -105,7 +105,9 @@ impl super::core::NetworkEventLoop {
 
     pub(crate) async fn handle_swarm_event(&mut self, event: SwarmEvent<KineticBehaviorEvent>) {
         match event {
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+            SwarmEvent::ConnectionEstablished {
+                peer_id, endpoint, ..
+            } => {
                 let now = web_time::SystemTime::now()
                     .duration_since(web_time::UNIX_EPOCH)
                     .unwrap_or_default()
@@ -150,6 +152,7 @@ impl super::core::NetworkEventLoop {
                     let current_pulse = self.current_drand_pulse;
                     let peer_id_clone = peer_id;
                     let pow_semaphore = self.pow_semaphore.clone();
+                    let remote_addr = endpoint.get_remote_address().clone();
                     crate::event_loop::utils::spawn(async move {
                         let _permit = pow_semaphore.acquire().await;
                         let valid = crate::event_loop::utils::spawn_blocking(move || {
@@ -165,6 +168,7 @@ impl super::core::NetworkEventLoop {
                                 peer_id: peer_id_clone,
                                 valid,
                                 is_bootstrap,
+                                remote_addr,
                             },
                         );
                     });
@@ -173,6 +177,7 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::Behaviour(KineticBehaviorEvent::Kademlia(e)) => match e {
                 kad::Event::OutboundQueryProgressed { id, result, .. } => match result {
                     kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))) => {
+                        tracing::debug!("GetRecord Ok FoundRecord for query {:?}", id);
                         if let Some(mapped_name) = self.query_id_to_name.get(&id) {
                             match mapped_name {
                                 crate::event_loop::core::QueryType::Quorum(name) => {
@@ -195,6 +200,7 @@ impl super::core::NetworkEventLoop {
                         kad::GetRecordOk::FinishedWithNoAdditionalRecord { .. },
                     ))
                     | kad::QueryResult::GetRecord(Err(_)) => {
+                        tracing::debug!("GetRecord Finished/Err for query {:?}", id);
                         if let Some(mapped_name) = self.query_id_to_name.remove(&id) {
                             match mapped_name {
                                 crate::event_loop::core::QueryType::Quorum(name) => {
@@ -472,7 +478,7 @@ impl super::core::NetworkEventLoop {
                     }
                 }
 
-                if pow_valid || is_bootstrap {
+                if self.disable_pow || pow_valid || is_bootstrap {
                     for addr in info.listen_addrs {
                         if !is_routable_multiaddr(&addr, self.disable_pow) {
                             tracing::debug!(
@@ -520,14 +526,18 @@ impl super::core::NetworkEventLoop {
                     peer_id,
                     error
                 );
+                if let Some(peer_id) = peer_id {
+                    self.swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
+                }
             }
             SwarmEvent::Dialing { peer_id, .. } => {
                 tracing::debug!("Dialing peer {:?}", peer_id);
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
-                tracing::debug!("Connection closed for peer {:?}: {:?}", peer_id, cause);
+                tracing::info!("Connection closed for peer {:?}: {:?}", peer_id, cause);
                 self.bootstrap_connection_time.remove(&peer_id);
                 self.light_clients.remove(&peer_id);
+                self.swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
 
                 // Case 189: Mass Peer Disconnect
                 let active_peers = self.swarm.network_info().num_peers();

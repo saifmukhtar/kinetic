@@ -182,8 +182,8 @@ pub(crate) fn compute_required_iterations(
                 .len();
             let discount_iterations = match name_len {
                 1 => kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS, // 100% discount (minimum iterations)
-                2..=6 => base_required_iterations / 2, // 50% discount
-                7..=10 => base_required_iterations / 5, // 80% discount
+                2..=6 => base_required_iterations / 2,                               // 50% discount
+                7..=10 => base_required_iterations / 5,                              // 80% discount
                 _ => {
                     (base_required_iterations
                         * kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_PERCENTAGE)
@@ -249,42 +249,17 @@ pub(crate) fn verify_reveal(
         return Err(err);
     }
 
-    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
     use kinetic_core::types::Commitment;
     use sha2::{Digest, Sha256};
 
-    let signable = reveal.signable_bytes();
-    let pubkey = match VerifyingKey::try_from(reveal.pubkey.as_slice()) {
-        Ok(k) => k,
-        Err(_) => {
-            let err = KineticStoreError::InvalidPublicKey;
-            err.log_warning(
-                "KIN-STORE-024",
-                &reveal.name,
-                "Rejecting Kademlia Reveal: Invalid Ed25519 PublicKey",
-            );
-            return Err(err);
-        }
-    };
-    let signature = match Signature::from_slice(&reveal.signature) {
-        Ok(s) => s,
-        Err(_) => {
-            let err = KineticStoreError::MalformedSignature;
-            err.log_warning(
-                "KIN-STORE-025",
-                &reveal.name,
-                "Rejecting Kademlia Reveal: Malformed Ed25519 Signature",
-            );
-            return Err(err);
-        }
-    };
+    let dev_mode = kinetic_core::config::is_dev_mode();
 
-    if pubkey.verify(&signable, &signature).is_err() {
+    if !dev_mode && !reveal.verify_signature() {
         let err = KineticStoreError::InvalidSignature;
         err.log_warning(
             "KIN-STORE-026",
             &reveal.name,
-            "Rejecting Kademlia Reveal: Invalid Ed25519 Signature",
+            "Rejecting Kademlia Reveal: Invalid Post-Quantum Signature",
         );
         return Err(err);
     }
@@ -306,8 +281,6 @@ pub(crate) fn verify_reveal(
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&hasher.finalize());
     let challenge = Commitment { hash };
-
-    let dev_mode = kinetic_core::config::is_dev_mode();
 
     let mut commit_key = Vec::with_capacity(crate::store::constants::KRS_COMMIT_PREFIX.len() + 32);
     commit_key.extend_from_slice(crate::store::constants::KRS_COMMIT_PREFIX);
@@ -438,7 +411,9 @@ pub(crate) fn verify_authorized_kid(
     let sig = ed25519_dalek::Signature::from_slice(&auth_kid.owner_signature)
         .map_err(|_| KineticStoreError::InvalidKidSignature)?;
 
-    if pubkey.verify(&auth_kid.signable_bytes(), &sig).is_err() || auth_kid.kid_doc.verify().is_err() {
+    if pubkey.verify(&auth_kid.signable_bytes(), &sig).is_err()
+        || auth_kid.kid_doc.verify().is_err()
+    {
         let err = KineticStoreError::InvalidKidSignature;
         err.log_warning(
             "KIN-STORE-017",
@@ -466,10 +441,7 @@ pub(crate) fn verify_authorized_kid(
             if let Ok(old_auth_kid) =
                 serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&record.value)
             {
-                if !auth_kid
-                    .kid_doc
-                    .is_authorized_update(&old_auth_kid.kid_doc)
-                {
+                if !auth_kid.kid_doc.is_authorized_update(&old_auth_kid.kid_doc) {
                     let err = KineticStoreError::InvalidKidSignature;
                     err.log_warning(
                         "KIN-STORE-037",

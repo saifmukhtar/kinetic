@@ -52,14 +52,28 @@ impl KineticRecordStore {
                     let dist_new: Vec<u8> = reveal
                         .pubkey
                         .iter()
-                        .zip(reveal.vdf_proof.proof_bytes.iter().chain(std::iter::once(&0)).cycle())
+                        .zip(
+                            reveal
+                                .vdf_proof
+                                .proof_bytes
+                                .iter()
+                                .chain(std::iter::once(&0))
+                                .cycle(),
+                        )
                         .map(|(&a, &b)| a ^ b)
                         .collect();
 
                     let dist_existing: Vec<u8> = existing_reveal
                         .pubkey
                         .iter()
-                        .zip(existing_reveal.vdf_proof.proof_bytes.iter().chain(std::iter::once(&0)).cycle())
+                        .zip(
+                            existing_reveal
+                                .vdf_proof
+                                .proof_bytes
+                                .iter()
+                                .chain(std::iter::once(&0))
+                                .cycle(),
+                        )
                         .map(|(&a, &b)| a ^ b)
                         .collect();
 

@@ -63,16 +63,10 @@ pub async fn handle_publish(
                     "handle_publish: Could not fetch live drand round, \
                      falling back to cached value for staleness check"
                 );
-                state
-                    .storage
-                    .get(kinetic_core::constants::DB_PREFIX_LAST_DRAND)
-                    .ok()
-                    .flatten()
-                    .and_then(|b| {
-                        b.get(..8)
-                            .map(|s| u64::from_be_bytes(s.try_into().unwrap_or([0; 8])))
-                    })
-                    .unwrap_or(0)
+                match drand_client.load_cached_pulse() {
+                    Ok(pulse) => pulse.round,
+                    Err(_) => 0,
+                }
             }
         }
     };
@@ -132,7 +126,7 @@ pub async fn handle_publish(
 
             let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
             let fqdn_clone = fqdn.clone();
-            
+
             let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap();
             let mut owned = Vec::new();
             if let Ok(Some(bytes)) = state.storage.get(owned_key) {
@@ -151,7 +145,10 @@ pub async fn handle_publish(
                 }
             }
             drop(_lock);
-            info!("Persisted {} to daemon storage for automatic Heartbeats", fqdn);
+            info!(
+                "Persisted {} to daemon storage for automatic Heartbeats",
+                fqdn
+            );
 
             // Persist the full Reveal so zone updates can re-sign without the original VDF params.
             let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);

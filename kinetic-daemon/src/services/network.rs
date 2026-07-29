@@ -124,7 +124,7 @@ pub fn start_republisher(
             let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
             if let Ok(Some(bytes)) = republish_storage.get(owned_key) {
                 if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
-                    for name in names {
+                    for (i, name) in names.into_iter().enumerate() {
                         let reveal_key =
                             format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, name);
                         if let Ok(Some(reveal_bytes)) = republish_storage.get(reveal_key.as_bytes())
@@ -137,6 +137,11 @@ pub fn start_republisher(
                                 let n_reveal = name.clone();
 
                                 tokio::spawn(async move {
+                                    tokio::time::sleep(std::time::Duration::from_millis(
+                                        i as u64 * 100,
+                                    ))
+                                    .await;
+
                                     use sha2::Digest;
                                     let mut hasher = sha2::Sha256::new();
                                     hasher.update(reveal.name.as_bytes());

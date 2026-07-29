@@ -122,7 +122,7 @@ mod tests {
         assert!(res.is_err());
         match res.unwrap_err() {
             kinetic_core::error::ResolutionError::NotFound { .. }
-            | kinetic_core::error::ResolutionError::Offline { .. } => {
+            | kinetic_core::error::ResolutionError::Offline => {
                 // Success
             }
             e => panic!("Expected NotFound, got: {:?}", e),

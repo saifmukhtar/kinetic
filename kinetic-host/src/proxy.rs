@@ -104,7 +104,11 @@ pub async fn handle_incoming_proxy_requests(
         let backend_host_clone = backend_host.clone();
 
         tokio::spawn(async move {
-            if req.path.contains("..") || !req.path.starts_with('/') {
+            let decoded_path = percent_encoding::percent_decode_str(&req.path)
+                .decode_utf8()
+                .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
+
+            if decoded_path.contains("..") || !decoded_path.starts_with('/') {
                 warn!("Blocked malicious P2P proxy path: {}", req.path);
                 let _ = client_clone
                     .send_proxy_response(

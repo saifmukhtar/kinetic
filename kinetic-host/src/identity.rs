@@ -10,7 +10,16 @@ pub fn load_or_generate_host_key(key_path: &PathBuf) -> Keypair {
     }
     if let Ok(bytes) = std::fs::read(key_path) {
         tracing::info!("Loaded static infrastructure identity from disk");
-        Keypair::from_protobuf_encoding(&bytes).unwrap_or_else(|_| Keypair::generate_ed25519())
+        Keypair::from_protobuf_encoding(&bytes).unwrap_or_else(|_| {
+            tracing::warn!("Corrupted static identity found, generating new one");
+            let k = Keypair::generate_ed25519();
+            if let Ok(encoded) = k.to_protobuf_encoding() {
+                if let Err(e) = write_secret(key_path, &encoded) {
+                    tracing::warn!("Failed to save static infrastructure identity: {}", e);
+                }
+            }
+            k
+        })
     } else {
         let k = Keypair::generate_ed25519();
         if let Ok(encoded) = k.to_protobuf_encoding() {

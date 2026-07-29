@@ -180,6 +180,35 @@ impl Reveal {
                 MAX_PAYLOAD_SIZE
             )));
         }
+
+        if self.drand_randomness.len() != 64 {
+            return Err(crate::error::KineticError::Internal(format!(
+                "Invalid drand_randomness length: expected 64, got {}",
+                self.drand_randomness.len()
+            )));
+        }
+
+        if self.pubkey.len() != 1952 {
+            return Err(crate::error::KineticError::Internal(format!(
+                "Invalid pubkey length: expected 1952, got {}",
+                self.pubkey.len()
+            )));
+        }
+
+        if self.signature.len() != 4627 {
+            return Err(crate::error::KineticError::Internal(format!(
+                "Invalid signature length: expected 4627, got {}",
+                self.signature.len()
+            )));
+        }
+
+        if self.vdf_proof.proof_bytes.len() > 2048 {
+            return Err(crate::error::KineticError::Internal(format!(
+                "VDF proof size {} exceeds maximum 2048",
+                self.vdf_proof.proof_bytes.len()
+            )));
+        }
+
         Ok(())
     }
 
@@ -201,10 +230,12 @@ impl Reveal {
                 if pubkey.verify(&signable, &sig).is_err() {
                     return false;
                 }
-                
+
                 // Finding 7: Validate inner PreviousProof signature if present
                 if let Some(prev) = &self.previous_proof {
-                    if let Ok(prev_sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice()) {
+                    if let Ok(prev_sig) =
+                        ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice())
+                    {
                         let prev_signable = prev.signable_bytes();
                         if pubkey.verify(&prev_signable, &prev_sig).is_err() {
                             return false;
@@ -213,7 +244,7 @@ impl Reveal {
                         return false;
                     }
                 }
-                
+
                 return true;
             }
         }

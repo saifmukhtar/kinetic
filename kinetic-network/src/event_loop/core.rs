@@ -33,6 +33,7 @@ pub(crate) enum LoopbackCommand {
         peer_id: libp2p::PeerId,
         valid: bool,
         is_bootstrap: bool,
+        remote_addr: libp2p::Multiaddr,
     },
     DialResolvedSeed(libp2p::Multiaddr),
 }
@@ -77,6 +78,7 @@ pub struct NetworkEventLoop {
     pub(crate) loopback_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopbackCommand>>,
     pub(crate) pow_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
     pub(crate) light_clients: FxHashSet<libp2p::PeerId>,
+    pub(crate) light_client_ips: rustc_hash::FxHashMap<std::net::IpAddr, usize>,
 }
 
 impl NetworkEventLoop {
@@ -148,6 +150,7 @@ impl NetworkEventLoop {
                         if let Some(tx) = &self.loopback_tx {
                             let tx_clone = tx.clone();
                             let domains = self.seed_domain.clone();
+                            let disable_pow = self.disable_pow;
                             tokio::spawn(async move {
                                 for domain in &domains {
                                     let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
@@ -155,7 +158,11 @@ impl NetworkEventLoop {
                                         tracing::warn!("Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
                                     }
                                     for multiaddr in addrs {
-                                        let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
+                                        if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow) {
+                                            let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
+                                        } else {
+                                            tracing::warn!("Rejected unroutable DNS seed multiaddr: {}", multiaddr);
+                                        }
                                     }
                                 }
                             });
@@ -250,17 +257,43 @@ impl NetworkEventLoop {
                 peer_id,
                 valid,
                 is_bootstrap,
+                remote_addr,
             } => {
                 if !valid && !is_bootstrap {
+                    let mut ip = None;
+                    for protocol in remote_addr.iter() {
+                        if let libp2p::multiaddr::Protocol::Ip4(ipv4) = protocol {
+                            ip = Some(std::net::IpAddr::V4(ipv4));
+                            break;
+                        } else if let libp2p::multiaddr::Protocol::Ip6(ipv6) = protocol {
+                            ip = Some(std::net::IpAddr::V6(ipv6));
+                            break;
+                        }
+                    }
+
                     if self.light_clients.len() >= 50 {
                         tracing::warn!("Light Client limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion", peer_id);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
+                    } else if let Some(ip_addr) = ip {
+                        let count = self.light_client_ips.entry(ip_addr).or_insert(0);
+                        if *count >= 3 {
+                            tracing::warn!(
+                                "IP {} exceeded limit of 3 light clients. Disconnecting peer {}.",
+                                ip_addr,
+                                peer_id
+                            );
+                            let _ = self.swarm.disconnect_peer_id(peer_id);
+                        } else {
+                            *count += 1;
+                            tracing::debug!(
+                                "Peer {} failed PoW, classifying as Light Client.",
+                                peer_id
+                            );
+                            self.light_clients.insert(peer_id);
+                        }
                     } else {
-                        tracing::debug!(
-                            "Peer {} failed PoW, classifying as Light Client.",
-                            peer_id
-                        );
-                        self.light_clients.insert(peer_id);
+                        tracing::warn!("Could not extract IP for peer {}. Disconnecting to prevent exhaustion.", peer_id);
+                        let _ = self.swarm.disconnect_peer_id(peer_id);
                     }
                 } else if !valid && is_bootstrap {
                     tracing::debug!(

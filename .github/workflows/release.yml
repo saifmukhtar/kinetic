@@ -12,133 +12,159 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: kinetic-daemon
-            asset_name: kinetic-daemon-linux
-            cli_artifact: kinetic
-            cli_asset: kinetic-cli-linux
-            node_artifact: kinetic-node
-            node_asset: kinetic-node-linux
-            host_artifact: kinetic-host
-            host_asset: kinetic-host-linux
-            keygen_artifact: kinetic-keygen
-            keygen_asset: kinetic-keygen-linux
-            dns_artifact: kinetic-dns
-            dns_asset: kinetic-dns-server-linux
-            pac_artifact: kinetic-pac
-            pac_asset: kinetic-pac-linux
-          - os: macos-latest
-            artifact_name: kinetic-daemon
-            asset_name: kinetic-daemon-macos
-            cli_artifact: kinetic
-            cli_asset: kinetic-cli-macos
-            node_artifact: kinetic-node
-            node_asset: kinetic-node-macos
-            host_artifact: kinetic-host
-            host_asset: kinetic-host-macos
-            keygen_artifact: kinetic-keygen
-            keygen_asset: kinetic-keygen-macos
-            dns_artifact: kinetic-dns
-            dns_asset: kinetic-dns-server-macos
-            pac_artifact: kinetic-pac
-            pac_asset: kinetic-pac-macos
-          - os: windows-latest
-            artifact_name: kinetic-daemon.exe
-            asset_name: kinetic-daemon-windows.exe
-            cli_artifact: kinetic.exe
-            cli_asset: kinetic-cli-windows.exe
-            node_artifact: kinetic-node.exe
-            node_asset: kinetic-node-windows.exe
-            host_artifact: kinetic-host.exe
-            host_asset: kinetic-host-windows.exe
-            keygen_artifact: kinetic-keygen.exe
-            keygen_asset: kinetic-keygen-windows.exe
-            dns_artifact: kinetic-dns.exe
-            dns_asset: kinetic-dns-server-windows.exe
-            pac_artifact: kinetic-pac.exe
-            pac_asset: kinetic-pac-windows.exe
-
+  build_linux_gnu:
+    name: Build Linux GNU
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev clang libclang-dev
+      - name: Build Workspace (Release)
+        run: cargo build --release --workspace
+      - name: Rename and Upload Artifacts
+        run: |
+          mkdir -p artifacts
+          cp target/release/kinetic-daemon artifacts/kinetic-daemon-linux-gnu
+          cp target/release/kinetic artifacts/kinetic-cli-linux-gnu
+          cp target/release/kinetic-node artifacts/kinetic-node-linux-gnu
+          cp target/release/kinetic-host artifacts/kinetic-host-linux-gnu
+          cp target/release/kinetic-keygen artifacts/kinetic-keygen-linux-gnu
+          cp target/release/kinetic-dns artifacts/kinetic-dns-server-linux-gnu
+          cp target/release/kinetic-pac artifacts/kinetic-pac-linux-gnu
+          if command -v sha256sum >/dev/null 2>&1; then
+            cd artifacts && sha256sum * > checksums-linux-gnu.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-gnu-binaries
+          path: artifacts/*
 
-    - name: Install MPIR (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        cd kinetic-vdf/chiavdf
-        git clone https://github.com/Chia-Network/mpir_gc_x64.git
+  build_linux_musl:
+    name: Build Linux Musl (Alpine)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install musl C++ compiler
+        run: |
+          wget -q https://musl.cc/x86_64-linux-musl-cross.tgz
+          tar xzf x86_64-linux-musl-cross.tgz
+          echo "$PWD/x86_64-linux-musl-cross/bin" >> $GITHUB_PATH
+          echo "CC=x86_64-linux-musl-gcc" >> $GITHUB_ENV
+          echo "CXX=x86_64-linux-musl-g++" >> $GITHUB_ENV
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Workspace (Release)
+        run: cargo build --release --workspace --target x86_64-unknown-linux-musl
+      - name: Rename and Upload Artifacts
+        run: |
+          mkdir -p artifacts
+          cp target/x86_64-unknown-linux-musl/release/kinetic-daemon artifacts/kinetic-daemon-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/kinetic artifacts/kinetic-cli-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/kinetic-node artifacts/kinetic-node-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/kinetic-host artifacts/kinetic-host-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/kinetic-keygen artifacts/kinetic-keygen-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/kinetic-dns artifacts/kinetic-dns-server-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/kinetic-pac artifacts/kinetic-pac-linux-musl
+          if command -v sha256sum >/dev/null 2>&1; then
+            cd artifacts && sha256sum * > checksums-linux-musl.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-musl-binaries
+          path: artifacts/*
 
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
+  build_macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install dependencies
+        run: brew install gmp
+      - name: Build Workspace (Release)
+        run: cargo build --release --workspace
+      - name: Rename and Upload Artifacts
+        run: |
+          mkdir -p artifacts
+          cp target/release/kinetic-daemon artifacts/kinetic-daemon-macos
+          cp target/release/kinetic artifacts/kinetic-cli-macos
+          cp target/release/kinetic-node artifacts/kinetic-node-macos
+          cp target/release/kinetic-host artifacts/kinetic-host-macos
+          cp target/release/kinetic-keygen artifacts/kinetic-keygen-macos
+          cp target/release/kinetic-dns artifacts/kinetic-dns-server-macos
+          cp target/release/kinetic-pac artifacts/kinetic-pac-macos
+          if command -v sha256sum >/dev/null 2>&1; then
+            cd artifacts && sha256sum * > checksums-macos.txt
+          else
+            cd artifacts && shasum -a 256 * > checksums-macos.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-binaries
+          path: artifacts/*
 
-    - name: Install dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
-      run: sudo apt-get update && sudo apt-get install -y libgmp-dev clang libclang-dev
+  build_windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Enable Longpaths
+        run: git config --system core.longpaths true
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install MPIR
+        run: |
+          cd kinetic-vdf/chiavdf
+          git clone https://github.com/Chia-Network/mpir_gc_x64.git
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Workspace (Release)
+        run: cargo build --release --workspace
+      - name: Rename and Upload Artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp target/release/kinetic-daemon.exe artifacts/kinetic-daemon-windows.exe
+          cp target/release/kinetic.exe artifacts/kinetic-cli-windows.exe
+          cp target/release/kinetic-node.exe artifacts/kinetic-node-windows.exe
+          cp target/release/kinetic-host.exe artifacts/kinetic-host-windows.exe
+          cp target/release/kinetic-keygen.exe artifacts/kinetic-keygen-windows.exe
+          cp target/release/kinetic-dns.exe artifacts/kinetic-dns-server-windows.exe
+          cp target/release/kinetic-pac.exe artifacts/kinetic-pac-windows.exe
+          cd artifacts && sha256sum * > checksums-windows.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: artifacts/*
 
-    - name: Install dependencies (macOS)
-      if: matrix.os == 'macos-latest'
-      run: brew install gmp
-
-    - name: Build Kinetic Daemon (Release)
-      run: cargo build --release -p kinetic-daemon
-
-    - name: Build Kinetic CLI (Release)
-      run: cargo build --release -p kinetic-cli
-
-    - name: Build Kinetic Node (Release)
-      run: cargo build --release -p kinetic-node
-
-    - name: Build Kinetic Host (Release)
-      run: cargo build --release -p kinetic-host
-
-    - name: Build Kinetic Keygen (Release)
-      run: cargo build --release -p kinetic-keygen
-
-    - name: Build Kinetic DNS Server (Release)
-      run: cargo build --release -p kinetic-dns --bin kinetic-dns
-
-    - name: Build Kinetic PAC (Release)
-      run: cargo build --release -p kinetic-pac
-
-    - name: Rename Binaries for Release
-      shell: bash
-      run: |
-        cp target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
-        cp target/release/${{ matrix.cli_artifact }} target/release/${{ matrix.cli_asset }}
-        cp target/release/${{ matrix.node_artifact }} target/release/${{ matrix.node_asset }}
-        cp target/release/${{ matrix.host_artifact }} target/release/${{ matrix.host_asset }}
-        cp target/release/${{ matrix.keygen_artifact }} target/release/${{ matrix.keygen_asset }}
-        cp target/release/${{ matrix.dns_artifact }} target/release/${{ matrix.dns_asset }}
-        cp target/release/${{ matrix.pac_artifact }} target/release/${{ matrix.pac_asset }}
-
-    - name: Generate Checksums
-      shell: bash
-      run: |
-        cd target/release
-        if command -v sha256sum >/dev/null 2>&1; then
-          sha256sum ${{ matrix.asset_name }} ${{ matrix.cli_asset }} ${{ matrix.node_asset }} ${{ matrix.host_asset }} ${{ matrix.keygen_asset }} ${{ matrix.dns_asset }} ${{ matrix.pac_asset }} > checksums-${{ matrix.os }}.txt
-        else
-          shasum -a 256 ${{ matrix.asset_name }} ${{ matrix.cli_asset }} ${{ matrix.node_asset }} ${{ matrix.host_asset }} ${{ matrix.keygen_asset }} ${{ matrix.dns_asset }} ${{ matrix.pac_asset }} > checksums-${{ matrix.os }}.txt
-        fi
-
-    - name: Upload Binary to Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          target/release/${{ matrix.asset_name }}
-          target/release/${{ matrix.cli_asset }}
-          target/release/${{ matrix.node_asset }}
-          target/release/${{ matrix.host_asset }}
-          target/release/${{ matrix.keygen_asset }}
-          target/release/${{ matrix.dns_asset }}
-          target/release/${{ matrix.pac_asset }}
-          target/release/checksums-${{ matrix.os }}.txt
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  publish_release:
+    name: Publish GitHub Release
+    needs: [build_linux_gnu, build_linux_musl, build_macos, build_windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

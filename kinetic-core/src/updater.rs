@@ -57,7 +57,10 @@ pub async fn perform_ota_update(
         return Err(crate::error::UpdaterError::NoMirrorsProvided);
     }
 
-    let client = Client::builder().timeout(Duration::from_secs(60)).build()?;
+    let client = Client::builder()
+        .connect_timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(1800))
+        .build()?;
 
     let mut shuffled_mirrors = mirrors;
     let random_state = std::collections::hash_map::RandomState::new();

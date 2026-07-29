@@ -70,44 +70,20 @@ impl HostRoutingRecord {
 impl DnsZone {
     /// Parses a raw JSON payload into a [`DnsZone`] and validates its structure.
     ///
-    /// Features a streaming JSON recursion depth guard (max 10 levels) to prevent
+    /// Uses `serde_json`'s built-in recursion limit to prevent
     /// stack-overflow DoS attacks ("JSON bombs") when handling untrusted network data.
     ///
     /// # Errors
     ///
-    /// - Returns [`DnsError::NestedTooDeeply`](crate::error::DnsError::NestedTooDeeply) if JSON bracket nesting exceeds 10 levels.
     /// - Returns `JsonError` if JSON deserialization fails.
     /// - Returns `DnsError` variants from `validate` if the logical payload validation rules fail.
     pub fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError> {
-        let mut depth = 0;
-        let mut in_string = false;
-        let mut escape = false;
-        for &b in payload {
-            if escape {
-                escape = false;
-                continue;
-            }
-            match b {
-                b'"' => in_string = !in_string,
-                b'\\' if in_string => escape = true,
-                b'{' | b'[' if !in_string => {
-                    depth += 1;
-                    if depth > 10 {
-                        return Err(crate::error::DnsError::NestedTooDeeply);
-                    }
-                }
-                b'}' | b']' if !in_string && depth > 0 => {
-                    depth -= 1;
-                }
-                _ => {}
-            }
-        }
-
         let mut zone = serde_json::from_slice::<DnsZone>(payload)?;
 
-        let mut lower_records = std::collections::HashMap::new();
+        let mut lower_records: std::collections::HashMap<String, Vec<DnsRecord>> =
+            std::collections::HashMap::new();
         for (k, v) in zone.records.drain() {
-            lower_records.insert(k.to_lowercase(), v);
+            lower_records.entry(k.to_lowercase()).or_default().extend(v);
         }
         zone.records = lower_records;
 

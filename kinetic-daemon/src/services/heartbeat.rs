@@ -105,7 +105,13 @@ pub fn start_heartbeat_loop(
                         };
 
                         use ml_dsa::SignatureEncoding;
-                        let sig = daemon_keypair_hb.sign(&heartbeat.signable_bytes());
+                        let signable_bytes = heartbeat.signable_bytes();
+                        let keypair = daemon_keypair_hb.clone();
+                        let sig =
+                            tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
+                                .await
+                                .unwrap();
+
                         heartbeat.signature = sig.to_bytes().to_vec();
 
                         let name_clone = name.clone();

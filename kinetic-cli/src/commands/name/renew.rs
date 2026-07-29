@@ -4,7 +4,6 @@ use crate::utils::parse_and_format_api_error;
 use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::{load_keypair, Commitment};
-use ml_dsa::signature::Signer;
 use ml_dsa::{KeyExport, Keypair, SignatureEncoding};
 use reqwest::Client;
 use sha2::Digest;
@@ -140,7 +139,7 @@ pub async fn handle(
         vdf_proof: old_reveal.vdf_proof.clone(),
         signature: vec![],
     };
-    
+
     use ml_dsa::signature::Signer;
     let prev_signable = previous_proof.signable_bytes();
     previous_proof.signature = keypair.sign(&prev_signable).to_bytes().to_vec();

@@ -46,6 +46,8 @@ tempfile = "3.27.0"
 rand_core = { version = "0.6.4", features = ["std"] }
 proptest = "1.4.0"
 tracing-subscriber = "0.3.18"
+ml-dsa = "0.1.1"
+kinetic-core = { path = "../kinetic-core", features = ["simulation"] }
 
 [[bench]]
 name = "pow_benchmark"

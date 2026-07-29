@@ -130,9 +130,9 @@ fn remove_os_dns() {
     } else if os == "macos" {
         let conf_path = format!("/etc/resolver/{}", tld);
         std::fs::remove_file(&conf_path).ok();
-        let bind_ip = kinetic_core::constants::LOCAL_BIND_IP;
+        let _bind_ip = kinetic_core::constants::LOCAL_BIND_IP;
         #[cfg(target_os = "macos")]
-        teardown_macos_alias(bind_ip);
+        teardown_macos_alias(_bind_ip);
     } else if os == "windows" {
         let _ = std::process::Command::new("powershell")
             .args([
