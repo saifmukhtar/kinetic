@@ -34,7 +34,6 @@ impl GovernanceEngine for AnarchyEngine {
         _state: &mut GovernanceState,
         _msg: &SignedGovernanceMessage,
         _current_time_sec: u64,
-        _wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
         None
     }

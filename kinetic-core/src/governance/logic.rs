@@ -15,7 +15,7 @@ use super::types::{
     verify_signature, GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
     SignedGovernanceMessage,
 };
-use crate::constants::{GUARD_PUBLIC_KEY_HEX, ROOT_PUBLIC_KEY_HEX};
+use crate::constants::ROOT_PUBLIC_KEY_HEX;
 use crate::error::GovernanceError;
 
 /// Validates that the static cryptographic keys required for governance have been correctly initialized.
@@ -23,7 +23,7 @@ use crate::error::GovernanceError;
 /// # Errors
 ///
 /// - Returns [`GovernanceError::MissingRootKey`] if the root key hex string is unconfigured or invalid.
-/// - Returns [`GovernanceError::MissingGuardKey`] if the guard key hex string is unconfigured or invalid.
+/// - Returns [`GovernanceError::MissingRootKey`] if the root key hex string is unconfigured or invalid.
 /// - Returns [`GovernanceError::KeyLengthMismatch`] if a public key is not exactly 1,952 bytes.
 pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
     if crate::config::is_dev_mode() {
@@ -35,7 +35,7 @@ pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
 
     let dummy_state = GovernanceState::new(0);
     let _ = dummy_state.get_root_key()?;
-    let _ = dummy_state.get_guard_key()?;
+    let _ = dummy_state.get_root_key()?;
 
     Ok(())
 }
@@ -43,7 +43,7 @@ pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
 impl GovernanceState {
     /// Initializes a new [`GovernanceState`] at network genesis.
     ///
-    /// The state starts in `GovernanceMode::Founder` with an empty council, no vetoes,
+    /// The state starts in `GovernanceMode::Founder` with an empty council,
     /// no pending updates, and no premium grants.
     ///
     /// # Returns
@@ -57,21 +57,19 @@ impl GovernanceState {
             active_council: Vec::new(),
             last_signature_timestamps: HashMap::new(),
 
-            vetoed_hashes: HashSet::new(),
             executed_hashes: HashMap::new(),
-            pending_updates: HashMap::new(),
+
             partial_proposals: HashMap::new(),
             founder_premium_grants: 0,
             grace_period_start_sec: None,
             dynamic_root_key: None,
-            dynamic_guard_key: None,
         }
     }
 
     /// Computes the SHA-256 action hash for a signed governance message.
     ///
     /// The hash is derived from `SHA-256(msg.to_canonical_bytes())` and is used as the
-    /// stable key for all subsequent state operations (timelock map, veto set, partial proposal map).
+    /// stable key for all subsequent state operations (timelock map, partial proposal map).
     ///
     /// # Returns
     ///
@@ -92,10 +90,6 @@ impl GovernanceState {
     /// state remains bounded even across long-running daemon processes.
     pub fn prune(&mut self, current_time_sec: u64) {
         let thirty_days_sec = 30 * 24 * 60 * 60;
-
-        // Remove pending updates that have been executable for more than 30 days
-        self.pending_updates
-            .retain(|_, (exec_time, _, _, _)| current_time_sec <= *exec_time + thirty_days_sec);
 
         // Remove partial proposals older than 30 days
         self.partial_proposals
@@ -123,7 +117,6 @@ impl GovernanceState {
         let mut changed = false;
         let action_bytes = incoming_msg.to_canonical_bytes();
         let root_key = self.get_root_key().ok();
-        let guard_key_opt = self.get_guard_key().unwrap_or(None);
         let max_sigs = std::cmp::max(self.active_council.len() * 2, 10);
 
         for sig in &incoming_msg.signatures {
@@ -135,13 +128,6 @@ impl GovernanceState {
                 if let Some(root) = &root_key {
                     if crate::governance::types::verify_signature(root, &action_bytes, sig) {
                         is_authorized = true;
-                    }
-                }
-                if !is_authorized {
-                    if let Some(guard) = &guard_key_opt {
-                        if crate::governance::types::verify_signature(guard, &action_bytes, sig) {
-                            is_authorized = true;
-                        }
                     }
                 }
                 if !is_authorized {
@@ -189,26 +175,6 @@ impl GovernanceState {
         Ok(bytes)
     }
 
-    /// Retrieves the static guard verifying key, if configured.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `GovernanceError` if the key format is invalid.
-    pub fn get_guard_key(&self) -> Result<Option<PublicKeyBytes>, GovernanceError> {
-        if let Some(key) = &self.dynamic_guard_key {
-            return Ok(Some(key.clone()));
-        }
-        if GUARD_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
-            return Ok(None);
-        }
-        let bytes =
-            hex::decode(GUARD_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MissingGuardKey)?;
-        if bytes.len() != 1952 {
-            return Err(GovernanceError::KeyLengthMismatch);
-        }
-        Ok(Some(bytes))
-    }
-
     /// Verifies whether a signed governance message meets the quorum and validity rules to be executed.
     ///
     /// # Errors
@@ -227,36 +193,12 @@ impl GovernanceState {
         &mut self,
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
-        wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
         crate::governance::engine::get_active_engine().execute_action(
             self,
             msg,
             current_time_sec,
-            wait_time,
         )
-    }
-
-    /// Checks for any matured timelocked actions (like OTAs) and returns their corresponding effects.
-    pub fn check_timelocks(&mut self, current_time_sec: u64) -> Vec<GovernanceEffect> {
-        let mut effects = Vec::new();
-        let mut matured_hashes = Vec::new();
-
-        for (hash, (broadcast_time, wait_time, manifest_hash, mirrors)) in &self.pending_updates {
-            if current_time_sec >= broadcast_time.saturating_add(*wait_time) {
-                matured_hashes.push((*hash, *manifest_hash, mirrors.clone()));
-            }
-        }
-
-        for (hash, manifest_hash, mirrors) in matured_hashes {
-            self.pending_updates.remove(&hash);
-            effects.push(GovernanceEffect::TriggerOTA {
-                manifest_hash,
-                mirrors,
-            });
-        }
-
-        effects
     }
 }
 
@@ -287,19 +229,11 @@ pub fn process_governance_message(
 
     let action_bytes = msg.to_canonical_bytes();
     let root_key = state.get_root_key()?;
-    let guard_key_opt = state.get_guard_key().unwrap_or(None);
-
     let mut is_authorized = false;
     for sig in &msg.signatures {
         if verify_signature(&root_key, &action_bytes, sig) {
             is_authorized = true;
             break;
-        }
-        if let Some(guard) = &guard_key_opt {
-            if verify_signature(guard, &action_bytes, sig) {
-                is_authorized = true;
-                break;
-            }
         }
         for member in &state.active_council {
             if verify_signature(member, &action_bytes, sig) {

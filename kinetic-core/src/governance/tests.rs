@@ -16,11 +16,6 @@ mod tests {
         ml_dsa::SigningKey::<MlDsa65>::from_seed(bytes.as_slice().try_into().unwrap())
     }
 
-    fn get_guard_sk() -> ml_dsa::SigningKey<MlDsa65> {
-        let bytes = hex::decode("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
-            .unwrap();
-        ml_dsa::SigningKey::<MlDsa65>::from_seed(bytes.as_slice().try_into().unwrap())
-    }
 
     fn generate_key(seed: u8) -> (ml_dsa::SigningKey<MlDsa65>, PublicKeyBytes) {
         let bytes = [seed; 32];
@@ -35,150 +30,7 @@ mod tests {
         MlDsaSignatureEncoding::to_bytes(&sig).into()
     }
 
-    #[test]
-    fn test_phase1_root_key_bypass() {
-        let root_sk = get_root_sk();
-        let current_time = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut state = GovernanceState::new(current_time);
 
-        let action = GovernanceAction::UpdateBinary {
-            manifest_hash: [0u8; 32],
-            version_nonce: 1,
-            github_username: "saifmukhtar".to_string(),
-            git_commit: "deadbeef".to_string(),
-            git_branch: "main".to_string(),
-            mirrors: vec!["http://mirror1.com".to_string()],
-        };
-
-        let mut msg = SignedGovernanceMessage {
-            action,
-            council_size_at_proposal: 7,
-            timestamp_sec: current_time,
-            signatures: vec![],
-        };
-
-        let sig = sign_action(&msg, &root_sk);
-        msg.signatures.push(sig);
-
-        let effect = process_governance_message(&mut state, &msg).unwrap();
-        assert!(effect.is_none());
-        assert_eq!(state.pending_updates.len(), 1);
-        let action_hash = GovernanceState::hash_action(&msg);
-        let (_, wait_time, _, _) = state.pending_updates.get(&action_hash).unwrap();
-        assert_eq!(*wait_time, 24 * 60 * 60); // 1 day wait
-    }
-
-    #[test]
-    fn test_council_supermajority_ratification() {
-        let current_time = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut state = GovernanceState::new(current_time);
-
-        let (c1_sk, c1_pk) = generate_key(1);
-        let (c2_sk, c2_pk) = generate_key(2);
-        let (c3_sk, c3_pk) = generate_key(3);
-
-        state.active_council.push(c1_pk.clone());
-        state.active_council.push(c2_pk.clone());
-        state.active_council.push(c3_pk.clone());
-        let mut council = vec![(c1_sk, c1_pk), (c2_sk, c2_pk), (c3_sk, c3_pk)];
-        for i in 0..4 {
-            let (sk, pk) = generate_key(4 + i as u8);
-            state.active_council.push(pk.clone());
-            council.push((sk, pk));
-        }
-
-        for pk in &state.active_council {
-            state
-                .last_signature_timestamps
-                .insert(pk.clone(), current_time);
-        }
-
-        state.mode = crate::governance::types::GovernanceMode::Council;
-        state.lock_timestamp_sec = Some(current_time - 100);
-
-        let action = GovernanceAction::UpdateBinary {
-            manifest_hash: [2u8; 32],
-            version_nonce: 2,
-            github_username: "user".to_string(),
-            git_commit: "commit".to_string(),
-            git_branch: "main".to_string(),
-            mirrors: vec!["http://test2.com".to_string()],
-        };
-
-        let mut msg1 = SignedGovernanceMessage {
-            action: action.clone(),
-            council_size_at_proposal: 7,
-            timestamp_sec: current_time,
-            signatures: vec![],
-        };
-
-        msg1.signatures.push(sign_action(&msg1, &council[0].0));
-        let err = process_governance_message(&mut state, &msg1).unwrap_err();
-        assert!(matches!(
-            err,
-            crate::error::GovernanceError::InsufficientSignatures
-        ));
-
-        let mut msg_full = SignedGovernanceMessage {
-            action: action.clone(),
-            council_size_at_proposal: 7,
-            timestamp_sec: current_time,
-            signatures: vec![],
-        };
-        for item in council.iter().take(5) {
-            msg_full.signatures.push(sign_action(&msg_full, &item.0));
-        }
-
-        let action_hash = GovernanceState::hash_action(&msg_full);
-
-        let effect = process_governance_message(&mut state, &msg_full).unwrap();
-        assert!(effect.is_none());
-        assert!(state.pending_updates.contains_key(&action_hash));
-    }
-
-    #[test]
-    fn test_guard_key_veto() {
-        let guard_sk = get_guard_sk();
-        let current_time = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut state = GovernanceState::new(current_time);
-        state.mode = crate::governance::types::GovernanceMode::Council;
-        let action_hash = [3u8; 32];
-        state.pending_updates.insert(
-            action_hash,
-            (
-                current_time,
-                crate::constants::OTA_TIMELOCK_SECONDS,
-                [0u8; 32],
-                vec![],
-            ),
-        );
-
-        let veto_action = GovernanceAction::VetoUpdate {
-            target_hash: action_hash,
-        };
-        let mut veto_msg = SignedGovernanceMessage {
-            action: veto_action,
-            council_size_at_proposal: 7,
-            timestamp_sec: current_time,
-            signatures: vec![],
-        };
-        veto_msg.signatures.push(sign_action(&veto_msg, &guard_sk));
-
-        let effect = process_governance_message(&mut state, &veto_msg).unwrap();
-        assert!(effect.is_none());
-
-        assert!(!state.pending_updates.contains_key(&action_hash));
-        assert!(state.vetoed_hashes.contains(&action_hash));
-    }
 
     #[test]
     fn test_founder_premium_grants() {
@@ -255,48 +107,23 @@ mod tests {
             crate::error::GovernanceError::FounderPremiumLimitReached
         ));
 
-        // Try revoke in founder mode
-        let mut msg_revoke = SignedGovernanceMessage {
-            action: GovernanceAction::RevokePremiumName {
-                name: "a".to_string(),
-            },
-            council_size_at_proposal: 7,
-            timestamp_sec: current_time,
-            signatures: vec![],
-        };
-        msg_revoke
-            .signatures
-            .push(sign_action(&msg_revoke, &root_sk));
-        let err3 = process_governance_message(&mut state, &msg_revoke).unwrap_err();
-        assert!(matches!(
-            err3,
-            crate::error::GovernanceError::RevokeRequiresCouncilMode
-        ));
+
     }
 
-    use proptest::collection::vec;
     use proptest::prelude::*;
     use proptest::string::string_regex;
 
     proptest! {
         #[test]
         fn test_fuzz_to_canonical_bytes(
-            manifest_hash in any::<[u8; 32]>(),
-            version_nonce in any::<u64>(),
-            github_username in string_regex("[a-zA-Z0-9_-]{1,39}").unwrap(),
-            git_commit in string_regex("[0-9a-f]{40}").unwrap(),
-            git_branch in string_regex("[a-zA-Z0-9_/-]{1,100}").unwrap(),
-            mirrors in vec(string_regex("https?://[a-zA-Z0-9.-]+").unwrap(), 0..10),
+            name in string_regex("[a-z0-9_-]{1,63}").unwrap(),
             council_size in any::<u32>(),
             timestamp in any::<u64>(),
         ) {
-            let action = GovernanceAction::UpdateBinary {
-                manifest_hash,
-                version_nonce,
-                github_username,
-                git_commit,
-                git_branch,
-                mirrors,
+            let (_, target_pubkey) = generate_key(99);
+            let action = GovernanceAction::GrantPremiumName {
+                name,
+                target_pubkey,
             };
 
             let msg = SignedGovernanceMessage {
@@ -320,26 +147,5 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_governance_state_pruning() {
-        let current_time = 100_000_000;
-        let mut state = GovernanceState::new(current_time);
 
-        // Add a pending update that expired 31 days ago
-        let expired_time = current_time - (31 * 24 * 60 * 60);
-        state
-            .pending_updates
-            .insert([1u8; 32], (expired_time, 1, [0u8; 32], vec![]));
-
-        // Add a pending update that expired 29 days ago (should stay)
-        let fresh_time = current_time - (29 * 24 * 60 * 60);
-        state
-            .pending_updates
-            .insert([2u8; 32], (fresh_time, 1, [0u8; 32], vec![]));
-
-        state.prune(current_time);
-
-        assert_eq!(state.pending_updates.len(), 1);
-        assert!(state.pending_updates.contains_key(&[2u8; 32]));
-    }
 }

@@ -36,17 +36,7 @@ impl GovernanceEngine for CouncilEngine {
             return Err(GovernanceError::StaleProposal);
         }
 
-        if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
-            let is_mature =
-                if let Some((start, wait, _, _)) = state.pending_updates.get(target_hash) {
-                    current_time_sec >= start.saturating_add(*wait)
-                } else {
-                    return Err(GovernanceError::NotPendingOrVetoed);
-                };
-            if !is_mature {
-                return Err(GovernanceError::TimelockNotExpired);
-            }
-        }
+
 
         let actual_active_count = state.count_active_council(current_time_sec);
         let effective_active_count =
@@ -58,8 +48,7 @@ impl GovernanceEngine for CouncilEngine {
 
         let action_bytes = msg.to_canonical_bytes();
 
-        if let GovernanceAction::GrantPremiumName { name, .. }
-        | GovernanceAction::RevokePremiumName { name } = &msg.action
+        if let GovernanceAction::GrantPremiumName { name, .. } = &msg.action
         {
             let label = name
                 .strip_suffix(crate::constants::TLD_SUFFIX)
@@ -84,21 +73,14 @@ impl GovernanceEngine for CouncilEngine {
         let valid_council_sigs = counted_members.len();
 
         let required_signatures = match &msg.action {
-            GovernanceAction::AppointMember { .. } | GovernanceAction::UpdateBinary { .. } => {
+            GovernanceAction::AppointMember { .. }
+            | GovernanceAction::RotateCouncilMemberKey { .. } => {
                 ((msg.council_size_at_proposal as u64
                     * crate::constants::GOVERNANCE_SUPERMAJORITY_PERCENT)
                     / 100) as usize
                     + 1
             }
-            GovernanceAction::ExecuteTimelock { .. } => 1,
-            GovernanceAction::SelfAppointCouncilMember { old_key, .. } => {
-                if !valid_signers.contains(old_key) {
-                    return Err(GovernanceError::InsufficientSignatures);
-                }
-                1
-            }
-            GovernanceAction::GrantPremiumName { .. }
-            | GovernanceAction::RevokePremiumName { .. } => {
+            GovernanceAction::GrantPremiumName { .. } => {
                 ((msg.council_size_at_proposal as u64
                     * crate::constants::GOVERNANCE_MAJORITY_PERCENT)
                     / 100) as usize
@@ -129,12 +111,7 @@ impl GovernanceEngine for CouncilEngine {
                     .last_signature_timestamps
                     .insert(signer, msg.timestamp_sec);
             }
-            let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
-                Some(crate::constants::OTA_TIMELOCK_SECONDS)
-            } else {
-                None
-            };
-            Ok(self.execute_action(state, msg, current_time_sec, wait_time))
+            Ok(self.execute_action(state, msg, current_time_sec))
         } else {
             Err(GovernanceError::InsufficientSignatures)
         }
@@ -145,7 +122,6 @@ impl GovernanceEngine for CouncilEngine {
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
-        wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
         let mut effect = None;
         let action_hash = GovernanceState::hash_action(msg);
@@ -157,9 +133,10 @@ impl GovernanceEngine for CouncilEngine {
                     state.active_council.push(key.clone());
                 }
             }
-            GovernanceAction::SelfAppointCouncilMember { old_key, new_key } => {
-                if let Some(pos) = state.active_council.iter().position(|k| k == old_key) {
+            GovernanceAction::RotateCouncilMemberKey { target_key, new_key } => {
+                if let Some(pos) = state.active_council.iter().position(|k| k == target_key) {
                     state.active_council[pos] = new_key.clone();
+                    state.last_signature_timestamps.remove(target_key);
                 }
             }
             GovernanceAction::RemoveCouncilMember { target_key } => {
@@ -169,34 +146,7 @@ impl GovernanceEngine for CouncilEngine {
             GovernanceAction::LockCouncil => {
                 // Irrelevant in pure Council mode, but harmless to allow.
             }
-            GovernanceAction::UpdateBinary {
-                manifest_hash,
-                mirrors,
-                ..
-            } => {
-                if let Some(wait_sec) = wait_time {
-                    let action_hash = GovernanceState::hash_action(msg);
-                    state.pending_updates.insert(
-                        action_hash,
-                        (current_time_sec, wait_sec, *manifest_hash, mirrors.clone()),
-                    );
-                } else {
-                    effect = Some(GovernanceEffect::TriggerOTA {
-                        manifest_hash: *manifest_hash,
-                        mirrors: mirrors.clone(),
-                    });
-                }
-            }
-            GovernanceAction::ExecuteTimelock { target_hash } => {
-                if let Some((_, _, manifest_hash, mirrors)) =
-                    state.pending_updates.remove(target_hash)
-                {
-                    effect = Some(GovernanceEffect::TriggerOTA {
-                        manifest_hash,
-                        mirrors,
-                    });
-                }
-            }
+
             GovernanceAction::GrantPremiumName {
                 name,
                 target_pubkey,
@@ -206,12 +156,7 @@ impl GovernanceEngine for CouncilEngine {
                     target_pubkey: target_pubkey.clone(),
                 });
             }
-            GovernanceAction::RevokePremiumName { name } => {
-                effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
-            }
-            GovernanceAction::RotateRootKey { .. }
-            | GovernanceAction::RotateGuardKey { .. }
-            | GovernanceAction::VetoUpdate { .. } => {}
+            GovernanceAction::RotateRootKey { .. } => {}
         }
         effect
     }

@@ -49,42 +49,19 @@ pub enum GovernanceAction {
         /// ML-DSA-65 public key of the candidate member.
         key: PublicKeyBytes,
     },
-    /// Propose an Over-The-Air (OTA) binary update with a mandatory timelock.
-    UpdateBinary {
-        /// Expected SHA-256 hash of `manifest.json`.
-        manifest_hash: Hash256,
-        /// Nonce string or timestamp to prevent replay attacks.
-        version_nonce: u64,
-        /// GitHub handle of the release author.
-        github_username: String,
-        /// Git commit SHA hash.
-        git_commit: String,
-        /// Source Git branch name.
-        git_branch: String,
-        /// List of HTTPS mirror URLs serving the update binaries.
-        mirrors: Vec<String>,
-    },
+
     /// Transition the network from Founder mode to Council mode.
     LockCouncil,
-    /// Cancel and veto a pending OTA update proposal via the Guard key.
-    VetoUpdate {
-        /// Target SHA-256 action hash to veto.
-        target_hash: Hash256,
-    },
+
     /// Rotate the network's offline Root public key.
     RotateRootKey {
         /// New ML-DSA-65 Root public key.
         new_key: PublicKeyBytes,
     },
-    /// Rotate the network's Guard public key.
-    RotateGuardKey {
-        /// New ML-DSA-65 Guard public key.
-        new_key: PublicKeyBytes,
-    },
-    /// Allow a council member to self-appoint an updated signing key.
-    SelfAppointCouncilMember {
+    /// Rotate an existing council member's signing key.
+    RotateCouncilMemberKey {
         /// Existing public key of the member.
-        old_key: PublicKeyBytes,
+        target_key: PublicKeyBytes,
         /// Replacement public key of the member.
         new_key: PublicKeyBytes,
     },
@@ -93,11 +70,7 @@ pub enum GovernanceAction {
         /// Public key of the member to remove.
         target_key: PublicKeyBytes,
     },
-    /// Execute a timelocked action after its waiting period has expired.
-    ExecuteTimelock {
-        /// Target action hash pending in the timelock queue.
-        target_hash: Hash256,
-    },
+
     /// Grant a 1-character premium domain name (Founder phase only, max 5 lifetime grants).
     GrantPremiumName {
         /// Target 1-character name label.
@@ -105,34 +78,18 @@ pub enum GovernanceAction {
         /// Recipient's ML-DSA-65 public key.
         target_pubkey: PublicKeyBytes,
     },
-    /// Revoke a previously granted 1-character premium domain name (Council mode only).
-    RevokePremiumName {
-        /// Target 1-character name label to revoke.
-        name: String,
-    },
 }
 
 /// Side effects produced when a governance action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GovernanceEffect {
-    /// Trigger an OTA binary update download and self-replacement.
-    TriggerOTA {
-        /// Expected SHA-256 hash of `manifest.json`.
-        manifest_hash: Hash256,
-        /// List of HTTPS download mirror URLs.
-        mirrors: Vec<String>,
-    },
+
     /// Inform node subsystems of a premium domain grant.
     PremiumNameGranted {
         /// Granted 1-character name.
         name: String,
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
-    },
-    /// Inform node subsystems of a premium domain revocation.
-    PremiumNameRevoked {
-        /// Revoked 1-character name.
-        name: String,
     },
 }
 
@@ -171,13 +128,10 @@ pub struct GovernanceState {
     pub active_council: Vec<PublicKeyBytes>,
     /// Map tracking the last signature timestamp per council member to detect inactive members.
     pub last_signature_timestamps: HashMap<PublicKeyBytes, u64>,
-    /// Set of action hashes that have been vetoed by the Guard key.
-    pub vetoed_hashes: HashSet<Hash256>,
     /// Map of action hashes that have already been executed to their timestamp (prevents replay attacks).
     #[serde(default)]
     pub executed_hashes: HashMap<Hash256, u64>,
-    /// Timelocked pending updates: `HashMap<action_hash, (proposal_timestamp, timelock_expiration, manifest_hash, mirrors)>`.
-    pub pending_updates: HashMap<Hash256, (u64, u64, Hash256, Vec<String>)>,
+
     /// In-progress proposals aggregating threshold signatures.
     pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
     /// Counter tracking 1-character premium name grants issued by the Founder (max 5).
@@ -187,9 +141,6 @@ pub struct GovernanceState {
     /// Dynamically rotated Root key (if updated via `RotateRootKey`).
     #[serde(default)]
     pub dynamic_root_key: Option<PublicKeyBytes>,
-    /// Dynamically rotated Guard key (if updated via `RotateGuardKey`).
-    #[serde(default)]
-    pub dynamic_guard_key: Option<PublicKeyBytes>,
 }
 
 impl SignedGovernanceMessage {
@@ -200,17 +151,11 @@ impl SignedGovernanceMessage {
     /// | Opcode | Action Variant |
     /// |---|---|
     /// | `0x00` | `AppointMember` |
-    /// | `0x01` | `UpdateBinary` |
     /// | `0x02` | `LockCouncil` |
-    /// | `0x03` | `VetoUpdate` |
     /// | `0x04` | `RotateRootKey` |
-    /// | `0x05` | `RotateGuardKey` |
-    /// | `0x06` | `SelfAppointCouncilMember` |
+    /// | `0x06` | `RotateCouncilMemberKey` |
     /// | `0x07` | `RemoveCouncilMember` |
-    /// | `0x08` | *(reserved — intentionally skipped)* |
-    /// | `0x09` | `ExecuteTimelock` |
-    /// | `0x0A` | `GrantPremiumName` |
-    /// | `0x0B` | `RevokePremiumName` |
+    /// | `0x09` | `GrantPremiumName` |
     ///
     /// All variable-length fields are prefixed with `u32_be(len)` to prevent canonicalization ambiguity.
     /// The message closes with `u32_be(council_size_at_proposal)` and `u64_be(timestamp_sec)`.
@@ -226,48 +171,18 @@ impl SignedGovernanceMessage {
                 buf.push(0x00);
                 buf.extend_from_slice(key.as_slice());
             }
-            GovernanceAction::UpdateBinary {
-                manifest_hash,
-                version_nonce,
-                github_username,
-                git_commit,
-                git_branch,
-                mirrors,
-            } => {
-                buf.push(0x01);
-                buf.extend_from_slice(manifest_hash);
-                buf.extend_from_slice(&version_nonce.to_be_bytes());
-                buf.extend_from_slice(&(github_username.len() as u32).to_be_bytes());
-                buf.extend_from_slice(github_username.as_bytes());
-                buf.extend_from_slice(&(git_commit.len() as u32).to_be_bytes());
-                buf.extend_from_slice(git_commit.as_bytes());
-                buf.extend_from_slice(&(git_branch.len() as u32).to_be_bytes());
-                buf.extend_from_slice(git_branch.as_bytes());
-                buf.extend_from_slice(&(mirrors.len() as u32).to_be_bytes());
-                for mirror in mirrors {
-                    let bytes = mirror.as_bytes();
-                    buf.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
-                    buf.extend_from_slice(bytes);
-                }
-            }
+
             GovernanceAction::LockCouncil => {
                 buf.push(0x02);
             }
-            GovernanceAction::VetoUpdate { target_hash } => {
-                buf.push(0x03);
-                buf.extend_from_slice(target_hash);
-            }
+
             GovernanceAction::RotateRootKey { new_key } => {
                 buf.push(0x04);
                 buf.extend_from_slice(new_key.as_slice());
             }
-            GovernanceAction::RotateGuardKey { new_key } => {
-                buf.push(0x05);
-                buf.extend_from_slice(new_key.as_slice());
-            }
-            GovernanceAction::SelfAppointCouncilMember { old_key, new_key } => {
+            GovernanceAction::RotateCouncilMemberKey { target_key, new_key } => {
                 buf.push(0x06);
-                buf.extend_from_slice(old_key.as_slice());
+                buf.extend_from_slice(target_key.as_slice());
                 buf.extend_from_slice(new_key.as_slice());
             }
             GovernanceAction::RemoveCouncilMember { target_key } => {
@@ -275,10 +190,7 @@ impl SignedGovernanceMessage {
                 buf.extend_from_slice(target_key.as_slice());
             }
 
-            GovernanceAction::ExecuteTimelock { target_hash } => {
-                buf.push(0x09);
-                buf.extend_from_slice(target_hash);
-            }
+
             GovernanceAction::GrantPremiumName {
                 name,
                 target_pubkey,
@@ -288,12 +200,6 @@ impl SignedGovernanceMessage {
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
                 buf.extend_from_slice(target_pubkey.as_slice());
-            }
-            GovernanceAction::RevokePremiumName { name } => {
-                buf.push(0x0B);
-                let name_bytes = name.as_bytes();
-                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
-                buf.extend_from_slice(name_bytes);
             }
         }
 

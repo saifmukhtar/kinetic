@@ -33,17 +33,7 @@ impl GovernanceEngine for MonarchyEngine {
             return Err(GovernanceError::StaleProposal);
         }
 
-        if let GovernanceAction::ExecuteTimelock { target_hash } = &msg.action {
-            let is_mature =
-                if let Some((start, wait, _, _)) = state.pending_updates.get(target_hash) {
-                    current_time_sec >= start.saturating_add(*wait)
-                } else {
-                    return Err(GovernanceError::NotPendingOrVetoed);
-                };
-            if !is_mature {
-                return Err(GovernanceError::TimelockNotExpired);
-            }
-        }
+
 
         let root_key = state.get_root_key()?;
         let action_bytes = msg.to_canonical_bytes();
@@ -62,12 +52,7 @@ impl GovernanceEngine for MonarchyEngine {
                     return Err(GovernanceError::InvalidPremiumNameLength);
                 }
             }
-            let wait_time = if let GovernanceAction::UpdateBinary { .. } = &msg.action {
-                Some(24 * 60 * 60) // 1 day timelock for monarchy updates
-            } else {
-                None
-            };
-            return Ok(self.execute_action(state, msg, current_time_sec, wait_time));
+            return Ok(self.execute_action(state, msg, current_time_sec));
         }
 
         Err(GovernanceError::InsufficientSignatures)
@@ -78,45 +63,13 @@ impl GovernanceEngine for MonarchyEngine {
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
-        wait_time: Option<u64>,
     ) -> Option<GovernanceEffect> {
         let mut effect = None;
         let action_hash = GovernanceState::hash_action(msg);
         state.executed_hashes.insert(action_hash, current_time_sec);
 
         match &msg.action {
-            GovernanceAction::UpdateBinary {
-                manifest_hash,
-                mirrors,
-                ..
-            } => {
-                if let Some(wait_sec) = wait_time {
-                    let action_hash = GovernanceState::hash_action(msg);
-                    state.pending_updates.insert(
-                        action_hash,
-                        (current_time_sec, wait_sec, *manifest_hash, mirrors.clone()),
-                    );
-                } else {
-                    effect = Some(GovernanceEffect::TriggerOTA {
-                        manifest_hash: *manifest_hash,
-                        mirrors: mirrors.clone(),
-                    });
-                }
-            }
-            GovernanceAction::VetoUpdate { target_hash } => {
-                state.pending_updates.remove(target_hash);
-                state.vetoed_hashes.insert(*target_hash);
-            }
-            GovernanceAction::ExecuteTimelock { target_hash } => {
-                if let Some((_, _, manifest_hash, mirrors)) =
-                    state.pending_updates.remove(target_hash)
-                {
-                    effect = Some(GovernanceEffect::TriggerOTA {
-                        manifest_hash,
-                        mirrors,
-                    });
-                }
-            }
+
             GovernanceAction::GrantPremiumName {
                 name,
                 target_pubkey,
@@ -126,20 +79,14 @@ impl GovernanceEngine for MonarchyEngine {
                     target_pubkey: target_pubkey.clone(),
                 });
             }
-            GovernanceAction::RevokePremiumName { name } => {
-                effect = Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() });
-            }
             // Irrelevant in monarchy
             GovernanceAction::AppointMember { .. }
-            | GovernanceAction::SelfAppointCouncilMember { .. }
             | GovernanceAction::RemoveCouncilMember { .. }
+            | GovernanceAction::RotateCouncilMemberKey { .. }
             | GovernanceAction::LockCouncil => {}
 
             GovernanceAction::RotateRootKey { new_key } => {
                 state.dynamic_root_key = Some(new_key.clone());
-            }
-            GovernanceAction::RotateGuardKey { new_key } => {
-                state.dynamic_guard_key = Some(new_key.clone());
             }
         }
         effect

@@ -6,7 +6,7 @@
 
 use crate::error::{
     DnsError, DrandError, GovernanceError, IdentityError, NetworkClientError, PublishError,
-    RegistrationError, ResolutionError, StorageError, UpdaterError, VdfError,
+    RegistrationError, ResolutionError, StorageError, VdfError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -125,7 +125,7 @@ impl From<RegistrationError> for ApiError {
 impl From<GovernanceError> for ApiError {
     fn from(e: GovernanceError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            GovernanceError::MissingRootKey | GovernanceError::MissingGuardKey => {
+            GovernanceError::MissingRootKey => {
                 (500, "Configuration Error")
             }
             GovernanceError::KeyLengthMismatch | GovernanceError::CouncilSizeMismatch => {
@@ -133,16 +133,12 @@ impl From<GovernanceError> for ApiError {
             }
             GovernanceError::StaleProposal
             | GovernanceError::TimelockNotExpired
-            | GovernanceError::OtaTimelockNotExpired
             | GovernanceError::NotPendingOrVetoed => (409, "Conflict"),
-            GovernanceError::InvalidGuardSignature | GovernanceError::InsufficientSignatures => {
+            GovernanceError::InsufficientSignatures => {
                 (401, "Unauthorized")
             }
 
             GovernanceError::FounderPremiumLimitReached
-            | GovernanceError::RevokeRequiresCouncilMode
-            | GovernanceError::RotateRequiresGuard
-            | GovernanceError::ProposalVetoed
             | GovernanceError::EmptyCouncil
             | GovernanceError::CouncilAtCapacity => (403, "Forbidden"),
             GovernanceError::InvalidPremiumNameLength => (400, "Bad Request"),
@@ -162,32 +158,7 @@ impl From<GovernanceError> for ApiError {
     }
 }
 
-impl From<UpdaterError> for ApiError {
-    fn from(e: UpdaterError) -> Self {
-        let (status, title): (u16, &'static str) = match &e {
-            UpdaterError::NoMirrorsProvided | UpdaterError::HashMismatch(..) => {
-                (400, "Bad Request")
-            }
-            UpdaterError::HttpError(_)
-            | UpdaterError::NetworkError(_)
-            | UpdaterError::ReqwestError(_) => (502, "Bad Gateway"),
-            UpdaterError::IoError(_)
-            | UpdaterError::SpawnFailed(_)
-            | UpdaterError::SelfReplaceError(_) => (500, "Internal Server Error"),
-        };
-        ApiError {
-            error_type: e.error_type_uri(),
-            title: title.to_string(),
-            status,
-            detail: e.user_message(),
-            instance: None,
-            code: e.code().to_string(),
-            retryable: e.is_retryable(),
-            details: serde_json::Value::Null,
-            request_id: current_request_id(),
-        }
-    }
-}
+
 
 impl From<NetworkClientError> for ApiError {
     fn from(e: NetworkClientError) -> Self {
