@@ -1,5 +1,6 @@
 //! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Governance actions.
 
+use kinetic_core::types::RevealExt;
 use super::*;
 use axum::{extract::State, http::StatusCode, Json};
 
@@ -356,7 +357,7 @@ pub async fn handle_publish_kid(
                     if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
                         auth_kid.owner_signature.as_slice(),
                     ) {
-                        pubkey.verify(&auth_kid.signable_bytes(), &sig).is_ok()
+                        pubkey.verify(&auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig).is_ok()
                     } else {
                         false
                     }
@@ -454,7 +455,7 @@ pub async fn handle_publish_manifest(
                     if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
                         auth_manifest.owner_signature.as_slice(),
                     ) {
-                        pubkey.verify(&auth_manifest.signable_bytes(), &sig).is_ok()
+                        pubkey.verify(&auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig).is_ok()
                     } else {
                         false
                     }
@@ -580,28 +581,12 @@ pub async fn handle_publish_governance(
             .lock()
             .unwrap();
         match kinetic_core::governance::process_governance_message(&mut gov, &msg) {
-            Ok(effect_opt) => {
+            Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");
                 if let Err(e) = gov.save_to_disk(&path) {
                     tracing::error!("Failed to save modified governance state to disk: {}", e);
                 }
-                if let Some(kinetic_core::governance::GovernanceEffect::TriggerOTA {
-                    manifest_hash,
-                    mirrors,
-                }) = effect_opt
-                {
-                    tokio::spawn(async move {
-                        if let Err(e) = kinetic_core::updater::perform_ota_update(
-                            "kinetic-daemon",
-                            manifest_hash,
-                            mirrors,
-                        )
-                        .await
-                        {
-                            tracing::error!("Daemon OTA update failed: {}", e);
-                        }
-                    });
-                }
+
                 true
             }
             Err(e) => {

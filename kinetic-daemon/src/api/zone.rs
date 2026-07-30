@@ -195,7 +195,7 @@ pub async fn handle_publish_zone(
         }
     };
 
-    let signable = reveal.signable_bytes();
+    let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
     use ml_dsa::signature::Signer;
     use ml_dsa::SignatureEncoding;
     reveal.signature = keypair.sign(&signable).to_bytes().to_vec();

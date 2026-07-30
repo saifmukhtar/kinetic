@@ -92,7 +92,7 @@ impl KineticRecordStore {
                     tracing::info!("Valid Steal Reveal for {}! Overwriting previous owner (idle for {} rounds).", reveal.name, hb_age);
 
                     // Cleanup orphaned keys from previous owner
-                    let keys = kinetic_core::types::derive_storage_keys(&reveal.name);
+                    let keys = kinetic_core::types::derive_storage_keys(&reveal.name, kinetic_core::constants::NETWORK_ID);
                     for key_bytes in keys {
                         let k = libp2p::kad::RecordKey::new(&key_bytes);
                         let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -100,7 +100,7 @@ impl KineticRecordStore {
                         sled_key.extend_from_slice(k.as_ref());
                         let _ = self.storage.delete(&sled_key);
                     }
-                    let hb_keys = kinetic_core::types::derive_heartbeat_keys(&reveal.name);
+                    let hb_keys = kinetic_core::types::derive_heartbeat_keys(&reveal.name, kinetic_core::constants::NETWORK_ID);
                     for key_bytes in hb_keys {
                         let k = libp2p::kad::RecordKey::new(&key_bytes);
                         let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -191,7 +191,7 @@ impl KineticRecordStore {
             }
         };
 
-        let signable = heartbeat.signable_bytes();
+        let signable = heartbeat.signable_bytes(kinetic_core::constants::NETWORK_ID);
         let pubkey = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice())
             .map_err(|_| {
                 let err = KineticStoreError::InvalidPublicKey;

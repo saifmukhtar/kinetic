@@ -50,7 +50,7 @@ mod tests {
             use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
             let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
             reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
-            reveal.signature = keypair.sign(&reveal.signable_bytes()).to_vec();
+            reveal.signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_ID)).to_vec();
             Ok(Json(reveal))
         } else {
             Err(axum::http::StatusCode::NOT_FOUND)

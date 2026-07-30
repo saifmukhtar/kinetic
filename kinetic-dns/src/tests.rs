@@ -60,7 +60,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
     use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
     let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
     reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
-    reveal.signature = keypair.sign(&reveal.signable_bytes()).to_bytes().to_vec();
+    reveal.signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_ID)).to_bytes().to_vec();
     reveal
 }
 

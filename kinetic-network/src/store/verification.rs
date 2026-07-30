@@ -4,6 +4,7 @@
 //! Ed25519 signature checks, VDF iteration verification (including loyalty discounts),
 //! and timestamp freshness checks to prevent sybil attacks and namespace hijacking.
 
+use kinetic_core::types::RevealExt;
 use crate::error::KineticStoreError;
 
 /// Finding 13 (Critical): Verify a HostRoutingRecord's signature and timestamp freshness.
@@ -83,7 +84,7 @@ pub(crate) fn verify_host_routing_record(
     let sig = Signature::from_slice(&record.signature)
         .map_err(|_| KineticStoreError::MalformedSignature)?;
 
-    let signable = record.signable_bytes();
+    let signable = record.signable_bytes(kinetic_core::constants::NETWORK_ID);
     verifying_key
         .verify(&signable, &sig)
         .map_err(|_| KineticStoreError::InvalidHostRouteSignature)
@@ -254,7 +255,7 @@ pub(crate) fn verify_reveal(
 
     let dev_mode = kinetic_core::config::is_dev_mode();
 
-    if !dev_mode && !reveal.verify_signature() {
+    if !dev_mode && !reveal.verify_signature(kinetic_core::constants::NETWORK_ID) {
         let err = KineticStoreError::InvalidSignature;
         err.log_warning(
             "KIN-STORE-026",
@@ -411,7 +412,7 @@ pub(crate) fn verify_authorized_kid(
     let sig = ed25519_dalek::Signature::from_slice(&auth_kid.owner_signature)
         .map_err(|_| KineticStoreError::InvalidKidSignature)?;
 
-    if pubkey.verify(&auth_kid.signable_bytes(), &sig).is_err()
+    if pubkey.verify(&auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig).is_err()
         || auth_kid.kid_doc.verify().is_err()
     {
         let err = KineticStoreError::InvalidKidSignature;
@@ -502,7 +503,7 @@ pub(crate) fn verify_authorized_manifest(
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
     if pubkey
-        .verify(&auth_manifest.signable_bytes(), &sig)
+        .verify(&auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig)
         .is_err()
     {
         let err = KineticStoreError::InvalidManifestSignature;

@@ -43,7 +43,7 @@ impl super::core::NetworkEventLoop {
                 let peers_q = p.peers_queried;
 
                 // Pre-compute local fallback before offloading
-                let keys = kinetic_core::types::derive_storage_keys(&name);
+                let keys = kinetic_core::types::derive_storage_keys(&name, kinetic_core::constants::NETWORK_ID);
                 let mut local_fallback = None;
                 for key_bytes in &keys {
                     let k = kad::RecordKey::new(key_bytes);

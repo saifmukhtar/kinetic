@@ -299,7 +299,7 @@ pub async fn handle(
         miner_pubkey: None,
     };
 
-    let signable = reveal.signable_bytes();
+    let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
     reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
     // 4. Submit to local Daemon via REST API

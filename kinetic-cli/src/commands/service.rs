@@ -116,24 +116,33 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         .unwrap_or(false);
 
     if !binary_found {
-        let role_hint = match binary {
-            "kinetic-daemon" => format!(
+        let role_hint = if binary.ends_with("-daemon") {
+            format!(
                 "manage {} domain names and run the local P2P proxy",
                 kinetic_core::constants::TLD_SUFFIX
-            ),
-            "kinetic-host" => format!(
+            )
+        } else if binary.ends_with("-host") {
+            format!(
                 "host a website or service reachable at a {} name (VPS / homelab)",
                 kinetic_core::constants::TLD_SUFFIX
-            ),
-            "kinetic-node" => format!(
+            )
+        } else if binary.ends_with("-node") {
+            format!(
                 "run a full DHT node and contribute to the {} network",
                 kinetic_core::constants::NETWORK_ID
-            ),
-            "kinetic-dns" => format!(
+            )
+        } else if binary.ends_with("-dns") {
+            format!(
                 "enable system-wide {} DNS resolution (e.g. for curl)",
                 kinetic_core::constants::TLD_SUFFIX
-            ),
-            _ => "use this Kinetic component".to_string(),
+            )
+        } else if binary.ends_with("-pac") {
+            format!(
+                "manage system-wide automatic proxy configuration for {} domains",
+                kinetic_core::constants::TLD_SUFFIX
+            )
+        } else {
+            "use this Kinetic component".to_string()
         };
 
         eprintln!();

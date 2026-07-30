@@ -129,7 +129,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
             match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload_bytes) {
                 Ok(reveal) => {
-                    if !reveal.verify_signature() {
+                    if !reveal.verify_signature(kinetic_core::constants::NETWORK_ID) {
                         warn!(
                             "Rejecting .kin resolution: reveal signature invalid for {}",
                             apex_domain

@@ -290,7 +290,7 @@ pub async fn handle_vdf_register(
 
         use ml_dsa::signature::Signer;
         use ml_dsa::SignatureEncoding;
-        let signable = reveal.signable_bytes();
+        let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
         reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
         // Publish to Network
@@ -613,7 +613,7 @@ pub async fn handle_vdf_renew(
 
         use ml_dsa::signature::Signer;
         use ml_dsa::SignatureEncoding;
-        let signable = new_reveal.signable_bytes();
+        let signable = new_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
         new_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
         let reveal_bytes = match serde_json::to_vec(&new_reveal) {

@@ -141,7 +141,7 @@ pub async fn handle(
     };
 
     use ml_dsa::signature::Signer;
-    let prev_signable = previous_proof.signable_bytes();
+    let prev_signable = previous_proof.signable_bytes(kinetic_core::constants::NETWORK_ID);
     previous_proof.signature = keypair.sign(&prev_signable).to_bytes().to_vec();
 
     let mut new_reveal = kinetic_core::types::Reveal {
@@ -160,7 +160,7 @@ pub async fn handle(
     };
 
     new_reveal.signature = keypair
-        .sign(&new_reveal.signable_bytes())
+        .sign(&new_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
         .to_bytes()
         .to_vec();
 

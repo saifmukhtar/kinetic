@@ -1,5 +1,6 @@
 //! Utility data structures, async task spawners, and the XOR distance tie-breaker conflict resolver.
 
+use kinetic_core::types::RevealExt;
 use kinetic_core::error::{NetworkClientError, ResolutionError};
 use tokio::sync::oneshot;
 
@@ -223,7 +224,7 @@ impl super::core::NetworkEventLoop {
                 #[cfg(not(test))]
                 {
                     let dev_mode = kinetic_core::config::is_dev_mode();
-                    let is_valid = dev_mode || reveal.verify_signature();
+                    let is_valid = dev_mode || reveal.verify_signature(kinetic_core::constants::NETWORK_ID);
 
                     if !is_valid {
                         tracing::warn!(

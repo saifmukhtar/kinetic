@@ -50,7 +50,7 @@ fn test_010_xor_eclipse() {
         miner_pubkey: None,
     };
     real_reveal.signature = keypair
-        .sign(&real_reveal.signable_bytes())
+        .sign(&real_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
         .to_bytes()
         .to_vec();
 
@@ -60,7 +60,7 @@ fn test_010_xor_eclipse() {
     fake_reveal.vdf_proof.proof_bytes = pulse_bytes.to_vec(); // will xor to 0, which is perfectly close
                                                               // re-sign so signature is valid
     fake_reveal.signature = keypair
-        .sign(&fake_reveal.signable_bytes())
+        .sign(&fake_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
         .to_bytes()
         .to_vec();
 

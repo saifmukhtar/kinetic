@@ -15,25 +15,13 @@ pub enum GovernanceCommands {
         #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
         signer_key: PathBuf,
     },
-    /// Propose a network-wide binary update (Requires Quorum)
-    UpdateBinary {
-        #[arg(long, default_value = "release.json")]
-        file: PathBuf,
-        #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
-        signer_key: PathBuf,
-    },
+
     /// Lock the council to prevent further membership changes (Requires Supermajority)
     LockCouncil {
         #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
         signer_key: PathBuf,
     },
-    /// Veto an active proposal (Requires 1 Council Member)
-    VetoUpdate {
-        /// Hex-encoded hash of the proposal to veto
-        target_hash: String,
-        #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
-        signer_key: PathBuf,
-    },
+
     /// Rotate the overarching Root Key (Requires Guard Signature)
     RotateRootKey {
         /// Hex-encoded ML-DSA-65 public key
@@ -41,17 +29,11 @@ pub enum GovernanceCommands {
         #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
         signer_key: PathBuf,
     },
-    /// Rotate the Guard Key (Requires Root Signature)
-    RotateGuardKey {
-        /// Hex-encoded ML-DSA-65 public key
-        new_key: String,
-        #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
-        signer_key: PathBuf,
-    },
-    /// Self-Appoint to the Council (Requires genesis bootstrap privileges)
-    SelfAppointCouncilMember {
+
+    /// Rotate a Council Member's Key (Requires Quorum)
+    RotateCouncilMemberKey {
         /// Hex-encoded ML-DSA-65 public key of the existing member
-        old_key: String,
+        target_key: String,
         /// Hex-encoded ML-DSA-65 public key of the new member
         new_key: String,
         #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
@@ -64,13 +46,7 @@ pub enum GovernanceCommands {
         #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
         signer_key: PathBuf,
     },
-    /// Execute a timelocked proposal whose wait period has expired
-    ExecuteTimelock {
-        /// Hex-encoded hash of the timelocked proposal
-        target_hash: String,
-        #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
-        signer_key: PathBuf,
-    },
+
     /// Grant premium namespace rights to a specific key
     GrantPremiumName {
         /// The apex name to grant
@@ -80,13 +56,7 @@ pub enum GovernanceCommands {
         #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
         signer_key: PathBuf,
     },
-    /// Revoke premium namespace rights
-    RevokePremiumName {
-        /// The apex name to revoke
-        name: String,
-        #[arg(long, default_value = "~/.local/share/kinetic/identity.key")]
-        signer_key: PathBuf,
-    },
+
 }
 
 /// Processes a governance CLI command, signs the action, and publishes it to the network.
@@ -115,98 +85,11 @@ pub async fn handle_governance_command(
                 },
             )
         }
-        GovernanceCommands::UpdateBinary { file, signer_key } => {
-            let json_str = std::fs::read_to_string(&file).map_err(|e| {
-                anyhow::anyhow!("Failed to read release JSON file {}: {}", file.display(), e)
-            })?;
 
-            #[derive(serde::Deserialize)]
-            struct ReleaseJson {
-                version: u64,
-                manifest_hash: String,
-                github_username: String,
-                git_commit: String,
-                git_branch: String,
-                mirrors: Vec<String>,
-            }
-
-            let release: ReleaseJson = serde_json::from_str(&json_str).map_err(|e| {
-                anyhow::anyhow!("Failed to parse JSON in {}: {}", file.display(), e)
-            })?;
-
-            let mut hash_bytes = [0u8; 32];
-            hex::decode_to_slice(&release.manifest_hash, &mut hash_bytes)
-                .map_err(|e| anyhow::anyhow!("Invalid hex in manifest_hash: {}", e))?;
-
-            // Pre-flight validation: check that the manifest on the mirror matches our version
-            if let Some(mirror) = release.mirrors.first() {
-                let manifest_url = format!("{}/manifest.json", mirror.trim_end_matches('/'));
-                let response = client.get(&manifest_url).send().await.map_err(|e| {
-                    anyhow::anyhow!(
-                        "Pre-flight validation failed: could not fetch manifest from {}: {}",
-                        manifest_url,
-                        e
-                    )
-                })?;
-                if !response.status().is_success() {
-                    let status = response.status();
-                    let text = response.text().await.unwrap_or_default();
-                    return Err(anyhow::anyhow!(
-                        "Pre-flight validation failed: HTTP {} from {}: {}",
-                        status,
-                        manifest_url,
-                        text
-                    ));
-                }
-
-                #[derive(serde::Deserialize)]
-                struct ManifestJson {
-                    version: u64,
-                }
-                let manifest: ManifestJson = response.json().await.map_err(|e| {
-                    anyhow::anyhow!(
-                        "Pre-flight validation failed: could not parse manifest JSON: {}",
-                        e
-                    )
-                })?;
-
-                if manifest.version != release.version {
-                    return Err(anyhow::anyhow!("Pre-flight validation failed: release.json specifies version {}, but mirror manifest.json specifies version {}. Aborting proposal.", release.version, manifest.version));
-                }
-            } else {
-                return Err(anyhow::anyhow!(
-                    "Pre-flight validation failed: no mirrors specified in release.json"
-                ));
-            }
-
-            (
-                signer_key,
-                GovernanceAction::UpdateBinary {
-                    manifest_hash: hash_bytes,
-                    version_nonce: release.version,
-                    github_username: release.github_username,
-                    git_commit: release.git_commit,
-                    git_branch: release.git_branch,
-                    mirrors: release.mirrors,
-                },
-            )
-        }
         GovernanceCommands::LockCouncil { signer_key } => {
             (signer_key, GovernanceAction::LockCouncil)
         }
-        GovernanceCommands::VetoUpdate {
-            target_hash,
-            signer_key,
-        } => {
-            let mut hash_bytes = [0u8; 32];
-            hex::decode_to_slice(target_hash, &mut hash_bytes)?;
-            (
-                signer_key,
-                GovernanceAction::VetoUpdate {
-                    target_hash: hash_bytes,
-                },
-            )
-        }
+
         GovernanceCommands::RotateRootKey {
             new_key,
             signer_key,
@@ -220,32 +103,20 @@ pub async fn handle_governance_command(
                 },
             )
         }
-        GovernanceCommands::RotateGuardKey {
+
+        GovernanceCommands::RotateCouncilMemberKey {
+            target_key,
             new_key,
             signer_key,
         } => {
-            let mut key_bytes = [0u8; 1952];
-            hex::decode_to_slice(new_key, &mut key_bytes)?;
-            (
-                signer_key,
-                GovernanceAction::RotateGuardKey {
-                    new_key: key_bytes.into(),
-                },
-            )
-        }
-        GovernanceCommands::SelfAppointCouncilMember {
-            old_key,
-            new_key,
-            signer_key,
-        } => {
-            let mut old_key_bytes = [0u8; 1952];
-            hex::decode_to_slice(old_key, &mut old_key_bytes)?;
+            let mut target_key_bytes = [0u8; 1952];
+            hex::decode_to_slice(target_key, &mut target_key_bytes)?;
             let mut new_key_bytes = [0u8; 1952];
             hex::decode_to_slice(new_key, &mut new_key_bytes)?;
             (
                 signer_key,
-                GovernanceAction::SelfAppointCouncilMember {
-                    old_key: old_key_bytes.into(),
+                GovernanceAction::RotateCouncilMemberKey {
+                    target_key: target_key_bytes.into(),
                     new_key: new_key_bytes.into(),
                 },
             )
@@ -263,19 +134,7 @@ pub async fn handle_governance_command(
                 },
             )
         }
-        GovernanceCommands::ExecuteTimelock {
-            target_hash,
-            signer_key,
-        } => {
-            let mut hash_bytes = [0u8; 32];
-            hex::decode_to_slice(target_hash, &mut hash_bytes)?;
-            (
-                signer_key,
-                GovernanceAction::ExecuteTimelock {
-                    target_hash: hash_bytes,
-                },
-            )
-        }
+
         GovernanceCommands::GrantPremiumName {
             name,
             target_pubkey,
@@ -291,9 +150,7 @@ pub async fn handle_governance_command(
                 },
             )
         }
-        GovernanceCommands::RevokePremiumName { name, signer_key } => {
-            (signer_key, GovernanceAction::RevokePremiumName { name })
-        }
+
     };
 
     // Replace ~ with home dir
@@ -378,101 +235,3 @@ pub async fn handle_governance_command(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-    use tokio::fs::File;
-    use tokio::io::AsyncWriteExt;
-
-    #[tokio::test]
-    async fn test_preflight_validation_success() {
-        let mut server = mockito::Server::new_async().await;
-
-        let _m = server
-            .mock("GET", "/manifest.json")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(r#"{"version": 2}"#)
-            .create_async()
-            .await;
-
-        let temp_dir = tempfile::tempdir().unwrap();
-        let release_path = temp_dir.path().join("release.json");
-        let release_json = format!(
-            r#"{{
-            "version": 2,
-            "manifest_hash": "671ecf284c7ade56078f3e9d187bfa579d98bf0dd2ea2f923bb10aa8abe1375b",
-            "github_username": "saifmukhtar",
-            "git_commit": "e4a5b6c7d8e9f0e1d2c3b4a5f6e7d8c9b0a1f2e3",
-            "git_branch": "main",
-            "mirrors": ["{}"]
-        }}"#,
-            server.url()
-        );
-
-        let mut file = File::create(&release_path).await.unwrap();
-        file.write_all(release_json.as_bytes()).await.unwrap();
-
-        let cmd = GovernanceCommands::UpdateBinary {
-            file: release_path,
-            signer_key: PathBuf::from("dummy_key.json"),
-        };
-
-        let client = reqwest::Client::builder().no_proxy().build().unwrap();
-        let config = kinetic_core::config::KineticConfig::default();
-        let res = handle_governance_command(cmd, &config, &client).await;
-
-        let err_str = res.unwrap_err().to_string();
-        assert!(
-            !err_str.contains("Pre-flight validation failed"),
-            "Pre-flight validation should have passed, but got error: {}",
-            err_str
-        );
-    }
-
-    #[tokio::test]
-    async fn test_preflight_validation_mismatch() {
-        let mut server = mockito::Server::new_async().await;
-
-        let _m = server
-            .mock("GET", "/manifest.json")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(r#"{"version": 1}"#)
-            .create_async()
-            .await;
-
-        let temp_dir = tempfile::tempdir().unwrap();
-        let release_path = temp_dir.path().join("release.json");
-        let release_json = format!(
-            r#"{{
-            "version": 2,
-            "manifest_hash": "671ecf284c7ade56078f3e9d187bfa579d98bf0dd2ea2f923bb10aa8abe1375b",
-            "github_username": "saifmukhtar",
-            "git_commit": "e4a5b6c7d8e9f0e1d2c3b4a5f6e7d8c9b0a1f2e3",
-            "git_branch": "main",
-            "mirrors": ["{}"]
-        }}"#,
-            server.url()
-        );
-
-        let mut file = File::create(&release_path).await.unwrap();
-        file.write_all(release_json.as_bytes()).await.unwrap();
-
-        let cmd = GovernanceCommands::UpdateBinary {
-            file: release_path,
-            signer_key: PathBuf::from("dummy_key.json"),
-        };
-
-        let client = reqwest::Client::builder().no_proxy().build().unwrap();
-        let config = kinetic_core::config::KineticConfig::default();
-        let res = handle_governance_command(cmd, &config, &client).await;
-
-        let err_str = res.unwrap_err().to_string();
-        assert!(err_str.contains("Pre-flight validation failed"));
-        assert!(
-            err_str.contains("specifies version 2, but mirror manifest.json specifies version 1")
-        );
-    }
-}

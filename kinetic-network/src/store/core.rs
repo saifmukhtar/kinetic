@@ -92,7 +92,7 @@ impl KineticRecordStore {
                     ) {
                         if reveal.iterations >= req {
                             let dev_mode = kinetic_core::config::is_dev_mode();
-                            if dev_mode || reveal.verify_signature() {
+                            if dev_mode || reveal.verify_signature(kinetic_core::constants::NETWORK_ID) {
                                 use kinetic_core::types::Commitment;
                                 use sha2::{Digest, Sha256};
                                 let drand_rand = hex::decode(&reveal.drand_randomness)
@@ -152,7 +152,7 @@ impl KineticRecordStore {
 
         for (name, reveal) in reveals_by_name.iter() {
             if let Ok(val) = serde_json::to_vec(reveal) {
-                let keys = kinetic_core::types::derive_storage_keys(name);
+                let keys = kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_ID);
                 for key_bytes in keys {
                     let k = kad::RecordKey::new(&key_bytes);
                     let record = kad::Record::new(k, val.clone());
@@ -229,7 +229,7 @@ impl KineticRecordStore {
             keys_to_delete.push([KRS_REVEAL_PREFIX, name.as_bytes()].concat());
             keys_to_delete.push([KRS_HB_PREFIX, name.as_bytes()].concat());
 
-            let keys = kinetic_core::types::derive_storage_keys(&name);
+            let keys = kinetic_core::types::derive_storage_keys(&name, kinetic_core::constants::NETWORK_ID);
             for key_bytes in keys {
                 let k = kad::RecordKey::new(&key_bytes);
                 let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -238,7 +238,7 @@ impl KineticRecordStore {
                 keys_to_delete.push(sled_key);
             }
 
-            let hb_keys = kinetic_core::types::derive_heartbeat_keys(&name);
+            let hb_keys = kinetic_core::types::derive_heartbeat_keys(&name, kinetic_core::constants::NETWORK_ID);
             for key_bytes in hb_keys {
                 let k = kad::RecordKey::new(&key_bytes);
                 let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());

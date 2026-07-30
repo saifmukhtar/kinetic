@@ -67,16 +67,24 @@ async fn main() -> anyhow::Result<()> {
             commands::dns_tree::handle_dns_tree_command(cmd).await?;
         }
         Commands::Daemon { cmd } => {
-            handle_service_command("kinetic-daemon", cmd, false).await?;
+            let bin = format!("{}-daemon", kinetic_core::constants::NETWORK_ID);
+            handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Host { cmd } => {
-            handle_service_command("kinetic-host", cmd, false).await?;
+            let bin = format!("{}-host", kinetic_core::constants::NETWORK_ID);
+            handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Node { cmd } => {
-            handle_service_command("kinetic-node", cmd, false).await?;
+            let bin = format!("{}-node", kinetic_core::constants::NETWORK_ID);
+            handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Dns { cmd } => {
-            handle_service_command("kinetic-dns", cmd, true).await?;
+            let bin = format!("{}-dns", kinetic_core::constants::NETWORK_ID);
+            handle_service_command(&bin, cmd, true).await?;
+        }
+        Commands::Pac { cmd } => {
+            let bin = format!("{}-pac", kinetic_core::constants::NETWORK_ID);
+            handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Clock(args) => {
             let client = utils::build_client(30)?;

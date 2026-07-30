@@ -32,23 +32,7 @@ pub fn start_gossip_processor(
                                 "Governance state updated via gossip. Effect: {:?}",
                                 effect
                             );
-                            if let kinetic_core::governance::GovernanceEffect::TriggerOTA {
-                                manifest_hash,
-                                mirrors,
-                            } = effect
-                            {
-                                tokio::spawn(async move {
-                                    if let Err(e) = kinetic_core::updater::perform_ota_update(
-                                        "kinetic-daemon",
-                                        manifest_hash,
-                                        mirrors,
-                                    )
-                                    .await
-                                    {
-                                        tracing::error!("Daemon OTA update failed: {}", e);
-                                    }
-                                });
-                            }
+
                             let _ = state.save_to_disk(&gossip_gov_path);
                         }
                         Ok(None) => {

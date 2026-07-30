@@ -139,7 +139,7 @@ pub async fn handle_identity_command(
                     kid_doc: doc,
                     owner_signature: vec![],
                 };
-                let signable = auth_kid.signable_bytes();
+                let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID);
                 use ml_dsa::SignatureEncoding;
                 auth_kid.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
 
@@ -173,7 +173,7 @@ pub async fn handle_identity_command(
                     kid_doc: kid_doc_opt,
                     owner_signature: vec![],
                 };
-                let signable = auth_manifest.signable_bytes();
+                let signable = auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID);
                 use ml_dsa::SignatureEncoding;
                 auth_manifest.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
 

@@ -64,4 +64,9 @@ pub enum Commands {
         #[command(subcommand)]
         cmd: service::ServiceCommands,
     },
+    /// Manage the Kinetic PAC Server (system-wide proxy auto-configuration)
+    Pac {
+        #[command(subcommand)]
+        cmd: service::ServiceCommands,
+    },
 }

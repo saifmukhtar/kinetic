@@ -93,7 +93,7 @@ impl super::core::NetworkEventLoop {
                 payload,
                 responder,
             } => {
-                let keys = kinetic_core::types::derive_storage_keys(&name);
+                let keys = kinetic_core::types::derive_storage_keys(&name, kinetic_core::constants::NETWORK_ID);
                 self.enqueue_dht_puts(name, keys, payload, responder);
             }
             Command::Bootstrap { responder } => {
@@ -109,7 +109,7 @@ impl super::core::NetworkEventLoop {
                 payload,
                 responder,
             } => {
-                let keys = kinetic_core::types::derive_heartbeat_keys(&name);
+                let keys = kinetic_core::types::derive_heartbeat_keys(&name, kinetic_core::constants::NETWORK_ID);
                 self.enqueue_dht_puts(name, keys, payload, responder);
             }
             Command::ResolveRedundant { name, responder } => {
@@ -123,7 +123,7 @@ impl super::core::NetworkEventLoop {
                     );
 
                     // Fallback to local store as a last resort since we're offline
-                    let keys = kinetic_core::types::derive_storage_keys(&name);
+                    let keys = kinetic_core::types::derive_storage_keys(&name, kinetic_core::constants::NETWORK_ID);
                     for key_bytes in &keys {
                         let k = kad::RecordKey::new(key_bytes);
                         if let Some(record) =
@@ -147,7 +147,7 @@ impl super::core::NetworkEventLoop {
                     return;
                 }
 
-                let keys = kinetic_core::types::derive_storage_keys(&name);
+                let keys = kinetic_core::types::derive_storage_keys(&name, kinetic_core::constants::NETWORK_ID);
                 let expected = self.dispatch_dht_queries(
                     name.clone(),
                     keys,
@@ -176,7 +176,7 @@ impl super::core::NetworkEventLoop {
                     return;
                 }
 
-                let keys = kinetic_core::types::derive_storage_keys(&name);
+                let keys = kinetic_core::types::derive_storage_keys(&name, kinetic_core::constants::NETWORK_ID);
                 let expected = self.dispatch_dht_queries(
                     name.clone(),
                     keys,

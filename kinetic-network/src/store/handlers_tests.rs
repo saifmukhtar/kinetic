@@ -135,7 +135,7 @@ mod tests {
 
         // Sign the stale heartbeat
         use ed25519_dalek::Signer;
-        hb.signature = dalek_kp.sign(&hb.signable_bytes()).to_vec();
+        hb.signature = dalek_kp.sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_ID)).to_vec();
 
         let result = store.handle_heartbeat(&hb);
         assert!(matches!(

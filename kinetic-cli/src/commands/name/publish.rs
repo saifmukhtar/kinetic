@@ -88,7 +88,7 @@ pub async fn update_zone_logic(
     }
     tokio::time::sleep(Duration::from_secs(5)).await;
     existing_reveal.payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
-    let signable = existing_reveal.signable_bytes();
+    let signable = existing_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
     existing_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
     let response = client
         .post(format!(
