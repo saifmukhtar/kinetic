@@ -27,7 +27,7 @@ before reasoning about any threat.
  
 | Tier | Example | Membership | Cost function | Sybil resistance needed? | Governing control |
 |------|---------|------------|---------------|--------------------------|-------------------|
-| **T0 — Public `.kin`** | The official reference network | Open / anonymous / adversarial | Full VDF + PoW | **Yes — critical** | Bicameral council + root/guard keys |
+| **T0 — Public `.kin`** | The official reference network | Open / anonymous / adversarial | Full VDF + PoW | **Yes — critical** | Bicameral council + root key |
 | **T1 — Community / campus fork** | `.uni` on a campus network | Known, semi-trusted | Hashcash or light VDF | Low — social reset covers it | Small council or single operator |
 | **T2 — Personal / experimental** | A developer's laptop / lab | Single operator | Trivial / disabled | No | Operator is root |
  
@@ -47,13 +47,11 @@ primitive is **the reset/governance path**, not Sybil resistance.
    controllable by the holder of the matching private key.
 3. **Resolution integrity** — a resolver must not return a record the legitimate
    owner did not publish (no DHT poisoning / cache poisoning).
-4. **Update-channel integrity** — OTA binary updates must require quorum + a
-   timelock/veto window (supply-chain safety).
-5. **Node availability** — a single peer must not be able to freeze or exhaust
+4. **Node availability** — a single peer must not be able to freeze or exhaust
    another node cheaply.
-6. **Local key material** — Ed25519 identity keys and the API token must not be
+5. **Local key material** — Ed25519 identity keys and the API token must not be
    readable by other local users or leaked in logs.
-7. **User-owned data (KID app model)** — data anchored to a KID (posts, likes,
+6. **User-owned data (KID app model)** — data anchored to a KID (posts, likes,
    app state) stays under the user's control and is portable across apps.
  
 ---
@@ -92,9 +90,9 @@ We assume the adversary **cannot**:
   fetched over authenticated channels.
 - **Bootstrap nodes / seed domains are reachable and not fully compromised.**
   These are a known centralization point (see §7).
-- **The root/guard governance keys are generated offline and kept air-gapped.**
+- **The root governance key is generated offline and kept air-gapped.**
   The `kinetic-core/src/constants.rs` file must replace the
-  `REPLACE_ME_*` placeholders in `ROOT_PUBLIC_KEY_HEX` and `GUARD_PUBLIC_KEY_HEX` before any real T0 deployment.
+  `REPLACE_ME_*` placeholders in `ROOT_PUBLIC_KEY_HEX` before any real T0 deployment.
 - **The local machine is not already compromised.** Kinetic protects key files
   with `0o600`, but cannot defend against a local attacker who is already root.
 - **In T1/T2, the human members controlling reset/governance are honest.**
@@ -140,7 +138,7 @@ them explicitly is part of the threat model:
 | Component | Primary threats | Notes |
 |-----------|-----------------|-------|
 | `kinetic-network` (swarm/DHT) | Reactor starvation (sync VDF/PoW on the event loop), Sybil, eclipse, record poisoning, unbounded maps | Highest-risk crate on T0. Offload CPU/crypto to `spawn_blocking` with bounded concurrency. Enforces 16 MiB Argon2id PoW `(Source: kinetic-network/src/pow.rs:62)`. |
-| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces 69% council supermajority `(Source: kinetic-core/src/governance/engine/bicameral.rs:162)` and 48-hour OTA timelocks `(Source: kinetic-core/src/constants.rs:39)`. |
+| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces 69% council supermajority `(Source: kinetic-core/src/governance/engine/bicameral.rs:162)`. |
 | `kinetic-vdf` (Chia FFI) | `unsafe` FFI invariants, discriminant integrity, timing | Verify all invariants before raw pointer use. Discriminant derivation must match exactly between evaluate and verify. |
 | `kinetic-daemon` (DNS/proxy/CA/API) | SSRF, DNS-rebinding, path traversal, local-CA name-constraints, host-header validation, API auth/permissions | Local CA must be name-constrained so it can never MITM non-`.kin` traffic. |
 | `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. Enforces max 50 records per zone `(Source: kinetic-core/src/types/dns.rs:135)`. |

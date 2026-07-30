@@ -11,7 +11,7 @@
 
 Because the Kinetic Protocol operates a zero-dollar namespace layer devoid of a central coordinator, monetary gas auctions, or a global consensus blockchain, system integrity relies entirely on algorithmic, mathematical, and cryptographic defenses. This paper presents a formal security analysis of Kinetic under red-teaming conditions in a permissionless P2P setting. 
 
-We provide combinatorial probability proofs demonstrating that our **Redundant Deterministic Storage** schema ($M = 32$) renders Eclipse attacks statistically impossible ($P_{\text{eclipse}} < 10^{-22}$ even under a $20\%$ adversarial node population). We formalize the **Competitive Edge Validation** protocol for rejecting invalid VDF proofs at $O(1)$ complexity, prove the un-gameable properties of the **Jackpot XOR Collision Lottery**, and detail empirical simulation metrics from our 50-node containerized test harness.
+We provide combinatorial probability proofs demonstrating that our **Redundant Deterministic Storage** schema ($M = 32$) renders Eclipse attacks statistically impossible ($P_{\text{eclipse}} < 10^{-22}$ even under a $20\%$ adversarial node population). We formalize the **Competitive Edge Validation** protocol for rejecting invalid VDF proofs at $O(1)$ complexity, prove the un-gameable properties of the **XOR Collision Tie-Breaker**, and detail empirical simulation metrics from our 50-node containerized test harness.
 
 ---
 
@@ -86,7 +86,7 @@ This forces the attacker to expend CPU power per connection attempt, creating as
 
 ---
 
-## 4. Collision Resolution & The Jackpot XOR Lottery
+## 4. Collision Resolution & The XOR Tie-Breaker
 
 When two honest participants broadcast valid commitments for the identical domain name within the same `drand` pulse interval $B_t$, the collision is resolved deterministically without a PoW bidding war.
 

@@ -106,11 +106,10 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
   `monarchy`, `council`, `bicameral` (default), `anarchy` (immutable).
 - Modes: **Founder → Council**, with an auto-lock after
   `AUTO_LOCK_SECONDS` (1 year) and instant lock when ≥ `MIN_ACTIVE_COUNCIL` (7)
-  active members + a guard key exist. `MAX_COUNCIL_SIZE` is 21.
-- Actions are Ed25519-signed with canonical, domain-separated bytes. Council
-  actions require percentage quorums (69/90/95%); OTA binary updates carry a
-  timelock (`OTA_TIMELOCK_SECONDS`, 48h) with a guard veto window;
-  `EmergencyReset` requires root (and normally guard) and is timelocked.
+  active members exist. `MAX_COUNCIL_SIZE` is 21.
+- Actions are ML-DSA-65-signed with canonical, domain-separated bytes. Council
+  actions require percentage quorums (69/90/95%);
+  `EmergencyReset` requires root and is timelocked.
 - **Design note:** without a global blockchain, this quorum + timelock logic is
   what carries the weight a chain's finality would otherwise provide. It must be
   airtight — see the security checklist.
@@ -124,8 +123,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
 - Governance/timing constants (`MIN_ACTIVE_COUNCIL`, `MAX_AGE_SECONDS`,
   `OTA_TIMELOCK_SECONDS`, `ACTIVE_WINDOW_SECONDS`, …) live directly in
   `constants.rs`.
-- **Governance root/guard keys** are `ROOT_PUBLIC_KEY_HEX` /
-  `GUARD_PUBLIC_KEY_HEX`. The production build ships placeholders
+- **Governance root key** is `ROOT_PUBLIC_KEY_HEX`. The production build ships placeholders
   (`REPLACE_ME_OFFLINE_GENERATED_*`) — a real T0 deployment MUST replace these
   with offline-generated keys before building.
 - `kinetic-forge` automates a fork: it rewrites `network.json` (TLD, DID prefix,

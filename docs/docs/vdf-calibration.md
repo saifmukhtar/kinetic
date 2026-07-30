@@ -35,16 +35,7 @@ Based on this, the required iterations and their estimated wall-clock times are 
 - **8–10 chars:** 2 hours (~955.27 million iterations)
 - **11–17 chars:** 1.5 hours (~716.45 million iterations)
 - **18–20 chars:** 1 hour (~477.63 million iterations)
-- **21–62 chars:** 30 minutes (238,819,830 iterations - Baseline)
-
-### The "Jackpot" Length (63 Characters)
-If a user registers a maximum-length 63-character name, the VDF iteration requirement is determined probabilistically by hashing the name itself along with the current Drand round. Depending on the first two numeric digits of the SHA-256 hash, the wait time scales exponentially:
-- `63`: 63 Seconds (Jackpot!)
-- `00–10`: 63 Minutes
-- `11–20`: 63 Hours
-- `21–30`: 63 Days
-- `...`
-- Up to **63 Millennia** for the worst hash rolls.
+- **21–63 chars:** 30 minutes (238,819,830 iterations - Baseline)
 
 ## Moore's Law & Future Scaling
 Because hardware improves over time (Moore's law, ASICs, FPGAs), a static iteration count will eventually lead to wait times dropping significantly. 

@@ -29,7 +29,7 @@ A malicious gateway returns *both* Lease Record X (Attacker) and Lease Record Y 
 **The Cryptographic Mitigation (Deterministic Selection):**
 The Kinetic protocol strictly mandates a deterministic conflict-resolution rule to prevent state divergence. The client-side resolver evaluates the payloads using the following hierarchy:
 1. **Oldest Original Commitment:** The resolver compares the `drand_pulse` contained within the VDF `Reveal`. The payload with the chronologically earliest legitimate pulse instantly wins. This prevents an attacker from "stealing" a name by computing a VDF years later.
-2. **The XOR Tie-Breaker (Protocol V1):** If and only if both users committed to the name within the exact same 3-second `drand` window, the resolver executes the XOR Lottery. The winner is the payload whose VDF output bytes possess the smallest XOR distance to the *subsequent* `drand` pulse ($B_{t+1}$). Because neither user can predict $B_{t+1}$ during their commitment phase, the tie-breaker is a mathematically un-gameable, perfectly fair lottery.
+2. **The XOR Tie-Breaker (Protocol V1):** If and only if both users committed to the name within the exact same 3-second `drand` window, the resolver executes the XOR Tie-Breaker. The winner is the payload whose VDF output bytes possess the smallest XOR distance to the *subsequent* `drand` pulse ($B_{t+1}$). Because neither user can predict $B_{t+1}$ during their commitment phase, the tie-breaker is mathematically un-gameable.
 
 ---
 

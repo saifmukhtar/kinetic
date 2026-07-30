@@ -79,8 +79,7 @@ $$ \mu(L) = \begin{cases}
 4 & \text{if } 8 \le L \le 10 \quad (\approx 2 \text{ hours}) \\
 3 & \text{if } 11 \le L \le 17 \quad (\approx 1.5 \text{ hours}) \\
 2 & \text{if } 18 \le L \le 20 \quad (\approx 1 \text{ hour}) \\
-1 & \text{if } 21 \le L \le 62 \quad (\approx 30 \text{ mins / Baseline}) \\
-\text{Lottery}(n, B_t) & \text{if } L = 63 \quad (\text{Jackpot Hash Roll})
+1 & \text{if } 21 \le L \le 63 \quad (\approx 30 \text{ mins / Baseline})
 \end{cases} $$
 
 The total required iterations $T(L)$ evaluated in Rust (`kinetic-core/src/consensus_math.rs`):
@@ -146,7 +145,7 @@ Telemetry measured during execution of the `kinetic-sim` 50-node local sandbox e
 | **99th Percentile Lookup Latency ($P_{99}$)** | **118.6 ms** | $\pm 14.2\text{ ms}$ | $< 500\text{ ms}$ |
 | **Gossipsub Commitment Broadcast Propagation ($t_{\text{prop}}$)** | **18.2 ms** | $\pm 3.4\text{ ms}$ | $< 100\text{ ms}$ |
 | **NAT Traversal (DCUtR / STUN) Hole-Punch Success Rate** | **98.4%** | $\pm 0.8\%$ | $> 95.0\%$ |
-| **Conflict Resolution Accuracy (Jackpot XOR)** | **100.0%** | $0.0\%$ | $100.0\%$ |
+| **Conflict Resolution Accuracy (Tie-Breaker XOR)** | **100.0%** | $0.0\%$ | $100.0\%$ |
 
 ---
 

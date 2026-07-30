@@ -28,14 +28,15 @@ jobs:
         run: cargo build --release --workspace
       - name: Rename and Upload Artifacts
         run: |
+          NETWORK_ID=$(jq -r '.network.network_id' network.json)
           mkdir -p artifacts
-          cp target/release/kinetic-daemon artifacts/kinetic-daemon-linux-gnu
-          cp target/release/kinetic artifacts/kinetic-cli-linux-gnu
-          cp target/release/kinetic-node artifacts/kinetic-node-linux-gnu
-          cp target/release/kinetic-host artifacts/kinetic-host-linux-gnu
-          cp target/release/kinetic-keygen artifacts/kinetic-keygen-linux-gnu
-          cp target/release/kinetic-dns artifacts/kinetic-dns-server-linux-gnu
-          cp target/release/kinetic-pac artifacts/kinetic-pac-linux-gnu
+          cp target/release/${NETWORK_ID}-daemon artifacts/${NETWORK_ID}-daemon-linux-gnu
+          cp target/release/${NETWORK_ID} artifacts/${NETWORK_ID}-cli-linux-gnu
+          cp target/release/${NETWORK_ID}-node artifacts/${NETWORK_ID}-node-linux-gnu
+          cp target/release/${NETWORK_ID}-host artifacts/${NETWORK_ID}-host-linux-gnu
+          cp target/release/${NETWORK_ID}-keygen artifacts/${NETWORK_ID}-keygen-linux-gnu
+          cp target/release/${NETWORK_ID}-dns artifacts/${NETWORK_ID}-dns-server-linux-gnu
+          cp target/release/${NETWORK_ID}-pac artifacts/${NETWORK_ID}-pac-linux-gnu
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-linux-gnu.txt
           fi
@@ -67,14 +68,15 @@ jobs:
         run: cargo build --release --workspace --target x86_64-unknown-linux-musl
       - name: Rename and Upload Artifacts
         run: |
+          NETWORK_ID=$(jq -r '.network.network_id' network.json)
           mkdir -p artifacts
-          cp target/x86_64-unknown-linux-musl/release/kinetic-daemon artifacts/kinetic-daemon-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/kinetic artifacts/kinetic-cli-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/kinetic-node artifacts/kinetic-node-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/kinetic-host artifacts/kinetic-host-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/kinetic-keygen artifacts/kinetic-keygen-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/kinetic-dns artifacts/kinetic-dns-server-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/kinetic-pac artifacts/kinetic-pac-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-daemon artifacts/${NETWORK_ID}-daemon-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID} artifacts/${NETWORK_ID}-cli-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-node artifacts/${NETWORK_ID}-node-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-host artifacts/${NETWORK_ID}-host-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-keygen artifacts/${NETWORK_ID}-keygen-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-dns artifacts/${NETWORK_ID}-dns-server-linux-musl
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-pac artifacts/${NETWORK_ID}-pac-linux-musl
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-linux-musl.txt
           fi
@@ -99,14 +101,15 @@ jobs:
         run: cargo build --release --workspace
       - name: Rename and Upload Artifacts
         run: |
+          NETWORK_ID=$(jq -r '.network.network_id' network.json)
           mkdir -p artifacts
-          cp target/release/kinetic-daemon artifacts/kinetic-daemon-macos
-          cp target/release/kinetic artifacts/kinetic-cli-macos
-          cp target/release/kinetic-node artifacts/kinetic-node-macos
-          cp target/release/kinetic-host artifacts/kinetic-host-macos
-          cp target/release/kinetic-keygen artifacts/kinetic-keygen-macos
-          cp target/release/kinetic-dns artifacts/kinetic-dns-server-macos
-          cp target/release/kinetic-pac artifacts/kinetic-pac-macos
+          cp target/release/${NETWORK_ID}-daemon artifacts/${NETWORK_ID}-daemon-macos
+          cp target/release/${NETWORK_ID} artifacts/${NETWORK_ID}-cli-macos
+          cp target/release/${NETWORK_ID}-node artifacts/${NETWORK_ID}-node-macos
+          cp target/release/${NETWORK_ID}-host artifacts/${NETWORK_ID}-host-macos
+          cp target/release/${NETWORK_ID}-keygen artifacts/${NETWORK_ID}-keygen-macos
+          cp target/release/${NETWORK_ID}-dns artifacts/${NETWORK_ID}-dns-server-macos
+          cp target/release/${NETWORK_ID}-pac artifacts/${NETWORK_ID}-pac-macos
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-macos.txt
           else
@@ -138,14 +141,15 @@ jobs:
       - name: Rename and Upload Artifacts
         shell: bash
         run: |
+          NETWORK_ID=$(jq -r '.network.network_id' network.json)
           mkdir -p artifacts
-          cp target/release/kinetic-daemon.exe artifacts/kinetic-daemon-windows.exe
-          cp target/release/kinetic.exe artifacts/kinetic-cli-windows.exe
-          cp target/release/kinetic-node.exe artifacts/kinetic-node-windows.exe
-          cp target/release/kinetic-host.exe artifacts/kinetic-host-windows.exe
-          cp target/release/kinetic-keygen.exe artifacts/kinetic-keygen-windows.exe
-          cp target/release/kinetic-dns.exe artifacts/kinetic-dns-server-windows.exe
-          cp target/release/kinetic-pac.exe artifacts/kinetic-pac-windows.exe
+          cp target/release/${NETWORK_ID}-daemon.exe artifacts/${NETWORK_ID}-daemon-windows.exe
+          cp target/release/${NETWORK_ID}.exe artifacts/${NETWORK_ID}-cli-windows.exe
+          cp target/release/${NETWORK_ID}-node.exe artifacts/${NETWORK_ID}-node-windows.exe
+          cp target/release/${NETWORK_ID}-host.exe artifacts/${NETWORK_ID}-host-windows.exe
+          cp target/release/${NETWORK_ID}-keygen.exe artifacts/${NETWORK_ID}-keygen-windows.exe
+          cp target/release/${NETWORK_ID}-dns.exe artifacts/${NETWORK_ID}-dns-server-windows.exe
+          cp target/release/${NETWORK_ID}-pac.exe artifacts/${NETWORK_ID}-pac-windows.exe
           cd artifacts && sha256sum * > checksums-windows.txt
       - uses: actions/upload-artifact@v4
         with:

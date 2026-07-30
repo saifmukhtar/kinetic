@@ -64,18 +64,15 @@ Errors related to on-chain OTA updates and Council voting logic.
 | Error Code | HTTP Status | Meaning | Developer Detail |
 | :--- | :--- | :--- | :--- |
 | **KIN-GOV-001** | `500 Internal Server Error` | **Missing Root Key**: Fatal configuration error. `ROOT_PUBLIC_KEY_HEX` is not set. | Node missing Founder Key config. |
-| **KIN-GOV-002** | `500 Internal Server Error` | **Missing Guard Key**: Fatal configuration error. `GUARD_PUBLIC_KEY_HEX` is not set. | Node missing Veto Key config. |
+
 | **KIN-GOV-003** | `400 Bad Request` | **Key Length Mismatch**: A supplied public key is not exactly 32 bytes. | Malformed Ed25519 input. |
 | **KIN-GOV-004** | `409 Conflict` | **Stale Proposal**: The governance action is too old and was rejected to prevent replay attacks. | Timestamp outside the allowable replay window. |
 | **KIN-GOV-005** | `409 Conflict` | **Timelock Not Expired**: The governance action is still in its mandatory waiting period. | Action attempted before `unlock_time`. |
-| **KIN-GOV-006** | `409 Conflict` | **OTA Timelock Not Expired**: The 24-hour waiting period for binary replacement has not elapsed. | Network safety delay active. |
 | **KIN-GOV-007** | `409 Conflict` | **Not Pending Or Vetoed**: The target hash is not in a pending state or was actively vetoed by the Guard. | Action aborted or non-existent. |
 | **KIN-GOV-008** | `400 Bad Request` | **Council Size Mismatch**: The proposer claimed an artificially low denominator to bypass the 69% threshold. | Invalid signature pool structure. |
-| **KIN-GOV-009** | `401 Unauthorized` | **Invalid Guard Signature**: The veto signature provided by the Guard key is invalid. | Crypto verification failed. |
 | **KIN-GOV-010** | `403 Forbidden` | **Emergency Reset Vetoed**: The Emergency Reset has been permanently vetoed. | Reset action aborted. |
 | **KIN-GOV-011** | `403 Forbidden` | **Emergency Reset Requires Root**: The reset action lacks a valid Founder signature. | Unauthorized privileged action. |
 | **KIN-GOV-012** | `403 Forbidden` | **Emergency Reset Requires Guard**: The reset action (without override) lacks a valid Guard signature. | Unauthorized privileged action. |
-| **KIN-GOV-013** | `403 Forbidden` | **Rotate Requires Guard**: A Root key rotation requires a Guard co-signature. | Unauthorized privileged action. |
 | **KIN-GOV-014** | `501 Not Implemented` | **Unhandled Threshold Math**: The requested threshold math is not supported by the council voting logic. | Logic bug or unknown feature flag. |
 | **KIN-GOV-015** | `403 Forbidden` | **Empty Council**: The council is empty; actions must be performed by the Root Key. | Phase 1 fallback triggered on Phase 2 node. |
 | **KIN-GOV-016** | `401 Unauthorized` | **Insufficient Signatures**: The action does not have the required 69% valid supermajority. | Threshold voting failed. |
@@ -110,22 +107,6 @@ Errors emitted by the embedded `sled` database engine or the local Kademlia reco
 | **KIN-STORE-016** | `400 Bad Request` | **Payload Too Large**: The Kademlia record exceeds the 16KB limit. | Anti-bloat limit enforcement. |
 | **KIN-STORE-019** | `400 Bad Request` | **Unknown Record Type**: The Kademlia record payload is not recognized by the Kinetic schema. | Store payload parsing failed. |
 | **KIN-STORE-021** | `400 Bad Request` | **Host Routing Invalid**: The `HostRoutingRecord` failed validation (e.g., bad signature or stale sequence number). | Host node routing rejection. |
-
----
-
-## OTA Auto-Updater Errors (`KIN-OTA-*`)
-Errors related to the Over-The-Air binary hot-swapping mechanism.
-
-| Error Code | HTTP Status | Meaning | Developer Detail |
-| :--- | :--- | :--- | :--- |
-| **KIN-OTA-001** | `400 Bad Request` | **No Mirrors Provided**: Update failed because no download URLs were provided by the council. | Empty mirror array in `SignedGovernanceMessage`. |
-| **KIN-OTA-002** | `502 Bad Gateway` | **HTTP Status Error**: Update failed due to a server error (HTTP code). | Target HTTP server returned 4xx/5xx. |
-| **KIN-OTA-003** | `502 Bad Gateway` | **Network Error**: Update failed due to a transport error during download. | TCP/TLS failure. |
-| **KIN-OTA-004** | `502 Bad Gateway` | **Reqwest Error**: Internal HTTP client failed to initialize or execute. | `reqwest` crate error. |
-| **KIN-OTA-005** | `500 Internal Server Error` | **I/O Error**: Issue writing the new binary version to disk. | File permission or space issue. |
-| **KIN-OTA-006** | `500 Internal Server Error` | **Self Replace Error**: The node failed to seamlessly replace itself with the updated binary. | `self_replace` crate failure. |
-| **KIN-OTA-007** | `400 Bad Request` | **Hash Mismatch**: Downloaded software did not match the expected cryptographic hash. | Download corruption or supply chain attack. |
-| **KIN-OTA-008** | `500 Internal Server Error` | **Spawn Failed**: Update succeeded, but the node failed to restart automatically. | `Command::new` failure. |
 
 ---
 

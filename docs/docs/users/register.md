@@ -51,8 +51,7 @@ Registration time depends on your name's length. Shorter names require more VDF 
 | 8–10 characters | ~2 hours |
 | 11–17 characters | ~1.5 hours |
 | 18–20 characters | ~1 hour |
-| 21–62 characters | Baseline (hardware target) |
-| 63 characters | Randomized (63 seconds to 63 millennia) |
+| 21–63 characters | Baseline (hardware target) |
 
 ::: warning Your CPU runs at full load during VDF
 This is normal and expected. The computation is single-threaded and will saturate one CPU core for the entire duration. Do not close the daemon.

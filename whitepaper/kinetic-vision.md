@@ -62,7 +62,7 @@ The structural separation of Name from Identity. A human-readable alias resolves
 The local client environment. OS-level Split-DNS loopback interception transparently routes `.kin` (or any fork TLD) queries through the Kademlia DHT, passing all other traffic to standard resolvers untouched. Dynamic on-the-fly Certificate Authority generation ensures `.kin` domains display the TLS padlock in standard browsers. Epoch-Bound ephemeral transport identities on `kinetic-host` neutralize targeted DoS attacks at every beacon tick.
 
 ### [Pillar IV: Security & Attack Mitigation](./kinetic-security.md)
-The adversarial reality. Redundant Deterministic Storage across M independent DHT keys makes Eclipse attacks statistically impossible (probability ≈ 10⁻⁴⁴⁸ for M=32, f=0.2). Competitive Gossip validation rejects invalid VDF proofs at the network edge. The Jackpot XOR tie-breaker resolves name collisions without grinding.
+The adversarial reality. Redundant Deterministic Storage across M independent DHT keys makes Eclipse attacks statistically impossible (probability ≈ 10⁻⁴⁴⁸ for M=32, f=0.2). Competitive Gossip validation rejects invalid VDF proofs at the network edge. The XOR tie-breaker resolves name collisions without grinding.
 
 ### [Pillar V: Cryptographic Governance](./kinetic-governance.md)
 The upgrade mechanism. A Bicameral Rule Book with a 69% supermajority threshold signature Council, mandatory 48-hour timelocks on OTA binary updates, and a deterministic Phase 2 auto-lock that permanently surrenders founder authority once 7 independent Council members are registered. Governance is not social — it is cryptographic.

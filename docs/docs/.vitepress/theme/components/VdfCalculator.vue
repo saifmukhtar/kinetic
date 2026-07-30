@@ -37,7 +37,7 @@
     <div class="widget-footer">
       <span class="footer-note">
         💡 <strong>Rust Source (<code>kinetic-core/src/consensus_math.rs</code>):</strong> 
-        Calculates <code>(BENCHMARK_BASE_ITERATIONS * target_minutes) / BENCHMARK_TARGET_MINUTES</code>. 2-char labels require 30 days of CPU squarings (343.9B iterations); 21-62 char labels require 30 mins (238.8M iterations).
+        Calculates <code>(BENCHMARK_BASE_ITERATIONS * target_minutes) / BENCHMARK_TARGET_MINUTES</code>. 2-char labels require 30 days of CPU squarings (343.9B iterations); 21-63 char labels require 30 mins (238.8M iterations).
       </span>
     </div>
   </div>
@@ -53,13 +53,7 @@ const TM = 30
 const stats = computed(() => {
   const len = charLength.value
   
-  if (len === 63) {
-    return {
-      time: '63s – 63 Millennia',
-      iterations: 'Probabilistic Hash Roll',
-      badge: '🎰 63-Char Jackpot Roll'
-    }
-  }
+
 
   let minutes = 30
   let badge = 'Baseline Delay (30m)'
@@ -94,7 +88,7 @@ const stats = computed(() => {
   } else if (len >= 18 && len <= 20) {
     minutes = 60
     badge = '⚡ 1 Hour (Standard)'
-  } else if (len >= 21 && len <= 62) {
+  } else if (len >= 21 && len <= 63) {
     minutes = 30
     badge = '✅ 30 Mins (Baseline Target)'
   }
