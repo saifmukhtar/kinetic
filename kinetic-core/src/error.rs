@@ -30,7 +30,6 @@
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
 //! | `KIN-NAM-NNN` | `NamesError` | Domain name validation |
 //! | `KIN-STO-NNN` | `StorageError` | Sled storage engine |
-//! | `KIN-OTA-NNN` | `UpdaterError` | OTA self-updater |
 //! | `KIN-NET-NNN` | `NetworkClientError` + `KineticStoreError` | P2P network client and store layer |
 
 use thiserror::Error;
@@ -51,8 +50,7 @@ pub mod names;
 pub mod network;
 /// Sled storage engine error types.
 pub mod storage;
-/// OTA self-updater error types.
-pub mod updater;
+
 /// chiavdf Verifiable Delay Function error types.
 pub mod vdf;
 
@@ -64,7 +62,6 @@ pub use identity::IdentityError;
 pub use names::NamesError;
 pub use network::NetworkClientError;
 pub use storage::StorageError;
-pub use updater::UpdaterError;
 pub use vdf::{VdfError, VdfRejectReason};
 
 /// Top-level error type for core Kinetic protocol operations.
