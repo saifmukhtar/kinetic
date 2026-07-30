@@ -18,7 +18,7 @@
 //! - **[`drand`]** — Client interface for the drand distributed randomness beacon used in time-bound operations.
 //! - **[`net`]** — Network security primitives, IP classification, and SSRF prevention guards.
 //! - **[`shutdown`]** — Cross-platform graceful shutdown listeners.
-//! - **[`updater`]** *(Non-WASM)* — OTA self-update state machine for node binaries.
+
 //! - **[`api_error`]** *(Non-WASM)* — HTTP status code mapping and Axum-compatible API error responses ([`ApiError`](api_error::ApiError)).
 //! - **[`request_id`]** *(Non-WASM)* — Idempotency key generators for daemon API requests.
 
@@ -52,9 +52,6 @@ pub mod traits;
 /// Shared wire-format types for P2P messages, DNS zones, and domain records.
 pub mod types;
 #[cfg(not(target_arch = "wasm32"))]
-/// Self-updater module for Kinetic node binaries.
-pub mod updater;
-
 /// HTTP API error response wrapper ([`ApiError`](api_error::ApiError)) for Axum web handlers.
 #[cfg(not(target_arch = "wasm32"))]
 pub use api_error::ApiError;

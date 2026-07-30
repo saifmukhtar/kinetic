@@ -157,6 +157,5 @@ pub trait GovernanceEngine: Send + Sync {
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
-        wait_time: Option<u64>,
     ) -> Option<GovernanceEffect>;
 }

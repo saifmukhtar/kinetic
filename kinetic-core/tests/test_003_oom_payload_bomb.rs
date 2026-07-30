@@ -1,3 +1,4 @@
+use kinetic_core::types::RevealExt;
 use kinetic_core::types::{Reveal, VdfProof, MAX_PAYLOAD_SIZE};
 
 #[test]

@@ -1,3 +1,4 @@
+use kinetic_core::types::RevealExt;
 use kinetic_core::types::{Reveal, VdfProof};
 
 #[test]
@@ -19,13 +20,13 @@ fn test_protocol_downgrade_prevention() {
         miner_pubkey: None,
     };
 
-    let bytes_v1 = reveal_v1.signable_bytes();
+    let bytes_v1 = reveal_v1.signable_bytes(env!("KINETIC_NETWORK_ID"));
 
     // Simulate attacker intercepting V1 payload and upgrading it to V2
     let mut reveal_v0 = reveal_v1.clone();
     reveal_v0.protocol_version = 0;
 
-    let bytes_v0 = reveal_v0.signable_bytes();
+    let bytes_v0 = reveal_v0.signable_bytes(env!("KINETIC_NETWORK_ID"));
 
     // Verify that the signable bytes are different purely because of the protocol version
     assert_ne!(
