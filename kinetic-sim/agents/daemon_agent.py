@@ -51,7 +51,7 @@ DAEMON_TO_HOST: dict[int, int] = {
 }
 
 # Daemons 1 and 2 fight over the same coveted name — tests conflict resolution
-CONTESTED_NAME = "jackpot"
+CONTESTED_NAME = "popular"
 
 # Human personas for each daemon (gives Ollama context for realistic narratives)
 DAEMON_PERSONAS = [
@@ -308,19 +308,19 @@ def _run_daemon_lifecycle(idx: int):
 
         status = check_resolve(stdout, stderr)
         
-        # Enforce exactly one winner for jackpot.kin in this simulation
-        if status == "ok" and domain == "jackpot.kin":
-            global _jackpot_winner_idx
-            global _jackpot_winner_lock
-            if '_jackpot_winner_lock' not in globals():
-                _jackpot_winner_lock = threading.Lock()
-                _jackpot_winner_idx = None
+        # Enforce exactly one winner for popular.kin in this simulation
+        if status == "ok" and domain == "popular.kin":
+            global _popular_winner_idx
+            global _popular_winner_lock
+            if '_popular_winner_lock' not in globals():
+                _popular_winner_lock = threading.Lock()
+                _popular_winner_idx = None
                 
-            with _jackpot_winner_lock:
-                if _jackpot_winner_idx is None or _jackpot_winner_idx == idx:
-                    _jackpot_winner_idx = idx
+            with _popular_winner_lock:
+                if _popular_winner_idx is None or _popular_winner_idx == idx:
+                    _popular_winner_idx = idx
                 else:
-                    # Someone else already won the jackpot
+                    # Someone else already won the popular
                     status = "conflict"
 
         if status == "ok":

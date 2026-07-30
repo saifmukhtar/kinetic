@@ -52,12 +52,13 @@ impl HostRoutingRecord {
     /// # Returns
     ///
     /// Concatenated byte vector prefixed with the network routing header string.
-    pub fn signable_bytes(&self) -> Vec<u8> {
-        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-routing-v1").as_bytes();
+    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
+        let prefix_suffix = b"-routing-v1";
         let mut bytes = Vec::with_capacity(
-            prefix.len() + 4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8,
+            network_id.len() + prefix_suffix.len() + 4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8,
         );
-        bytes.extend_from_slice(prefix);
+        bytes.extend_from_slice(network_id.as_bytes());
+        bytes.extend_from_slice(prefix_suffix);
         bytes.extend_from_slice(&(self.host_id.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.host_id.as_bytes());
         bytes.extend_from_slice(&(self.current_peer_id.len() as u32).to_be_bytes());
@@ -105,13 +106,12 @@ impl DnsZone {
     /// - Returns [`DnsError::InvalidKid`](crate::error::DnsError::InvalidKid) if a `KID` string does not begin with `did:kin:`.
     /// - Returns [`DnsError::InvalidIpfsCid`](crate::error::DnsError::InvalidIpfsCid) if an `IPFS` CID string is invalid.
     pub fn validate(&self) -> Result<(), crate::error::DnsError> {
-        let mut total_records = 0;
+        let total_records: usize = self.records.values().map(|vec| vec.len()).sum();
+        if total_records > 50 {
+            return Err(crate::error::DnsError::TooManyRecords);
+        }
 
         for (label, records) in &self.records {
-            total_records += records.len();
-            if total_records > 50 {
-                return Err(crate::error::DnsError::TooManyRecords);
-            }
             if label.is_empty() || label.len() > 63 {
                 return Err(crate::error::DnsError::InvalidLabelLength(label.clone()));
             }

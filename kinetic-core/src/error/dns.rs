@@ -23,7 +23,7 @@ pub enum DnsError {
     #[error("Maximum of 50 DNS records allowed per zone to prevent network bloat")]
     TooManyRecords,
 
-    /// A DNS label has an invalid length (empty or >63 chars).
+    /// A DNS label has an invalid length (empty or >62 chars).
     #[error("Invalid label length: {0}")]
     InvalidLabelLength(String),
 

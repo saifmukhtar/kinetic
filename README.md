@@ -28,7 +28,7 @@
 Instead of paying money to registrars, you pay with **sequential computational time**. By evaluating a **Verifiable Delay Function (VDF)** over imaginary quadratic class groups, your machine proves it expended un-parallelizable time to claim a name.
 
 - 💎 **Zero Cost:** Domain registrations require exactly **$0.00**.
-- 🛡️ **Squatter-Resistant:** Short names scale on a steep mathematical "Squatter Cliff" (a 2-char domain requires 30 days of CPU squarings; 21–62 char domains take 30 minutes). Mass domain squatting and bot sniper farms are physically impossible.
+- 🛡️ **Squatter-Resistant:** Short names scale on a steep mathematical "Squatter Cliff" (a 2-char domain requires 30 days of CPU squarings; 21–63 char domains take 30 minutes). Mass domain squatting and bot sniper farms are physically impossible.
 - 🔐 **Post-Quantum Ownership:** Names are cryptographically bound to an **ML-DSA-65 (FIPS 204)** quantum-resistant identity key.
 - 🌍 **Native Split-DNS Interception:** Integrates transparently into your OS network stack, resolving `.kin` names natively in any Web2 browser while passing standard internet queries through unaffected.
 

@@ -39,10 +39,11 @@ impl Heartbeat {
     /// # Returns
     ///
     /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
-    pub fn signable_bytes(&self) -> Vec<u8> {
-        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-heartbeat-v1").as_bytes();
-        let mut bytes = Vec::with_capacity(prefix.len() + 4 + self.name.len() + 8);
-        bytes.extend_from_slice(prefix);
+    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
+        let prefix_suffix = b"-heartbeat-v1";
+        let mut bytes = Vec::with_capacity(network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 8);
+        bytes.extend_from_slice(network_id.as_bytes());
+        bytes.extend_from_slice(prefix_suffix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&self.latest_drand_pulse.to_be_bytes());
@@ -62,7 +63,7 @@ impl Heartbeat {
 /// # Returns
 ///
 /// A `Vec<[u8; 32]>` of length 32, each element being a unique Kademlia DHT key.
-pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
+pub fn derive_storage_keys(name: &str, network_id: &str) -> Vec<[u8; 32]> {
     use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);
     let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
@@ -71,7 +72,8 @@ pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
         let mut hasher = Sha256::new();
         hasher.update(normalized.as_bytes());
         hasher.update([i]);
-        hasher.update(concat!(env!("KINETIC_NETWORK_ID"), "-dht-v1").as_bytes());
+        hasher.update(network_id.as_bytes());
+        hasher.update(b"-dht-v1");
 
         let result = hasher.finalize();
         let mut key = [0u8; 32];
@@ -92,14 +94,15 @@ pub fn derive_storage_keys(name: &str) -> Vec<[u8; 32]> {
 /// # Returns
 ///
 /// A `Vec<[u8; 32]>` of length 32, each element being a unique Kademlia heartbeat key.
-pub fn derive_heartbeat_keys(name: &str) -> Vec<[u8; 32]> {
+pub fn derive_heartbeat_keys(name: &str, network_id: &str) -> Vec<[u8; 32]> {
     use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);
     let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
 
     for i in 0..M_REDUNDANCY {
         let mut hasher = Sha256::new();
-        hasher.update(concat!(env!("KINETIC_NETWORK_ID"), "-hb-v1").as_bytes());
+        hasher.update(network_id.as_bytes());
+        hasher.update(b"-hb-v1");
         hasher.update(normalized.as_bytes());
         hasher.update([i]);
 
@@ -118,10 +121,10 @@ mod tests {
 
     #[test]
     fn test_derive_storage_keys() {
-        let keys = derive_storage_keys(&format!("{}{}", "saif", TLD_SUFFIX));
+        let keys = derive_storage_keys(&format!("{}{}", "saif", TLD_SUFFIX), env!("KINETIC_NETWORK_ID"));
         assert_eq!(keys.len(), 32);
 
-        let keys2 = derive_storage_keys("SAIF.KIN");
+        let keys2 = derive_storage_keys("SAIF.KIN", env!("KINETIC_NETWORK_ID"));
         assert_eq!(keys, keys2);
 
         for i in 0..keys.len() {

@@ -42,13 +42,14 @@ impl AuthorizedKid {
     /// # Returns
     ///
     /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
-    pub fn signable_bytes(&self) -> Vec<u8> {
-        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-kid-v1").as_bytes();
+    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
+        let prefix_suffix = b"-auth-kid-v1";
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
         let mut bytes =
-            Vec::with_capacity(prefix.len() + 4 + self.name.len() + 4 + canon_bytes.len());
-        bytes.extend_from_slice(prefix);
+            Vec::with_capacity(network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 4 + canon_bytes.len());
+        bytes.extend_from_slice(network_id.as_bytes());
+        bytes.extend_from_slice(prefix_suffix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&(canon_bytes.len() as u32).to_be_bytes());
@@ -79,13 +80,14 @@ impl AuthorizedManifest {
     /// # Returns
     ///
     /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
-    pub fn signable_bytes(&self) -> Vec<u8> {
-        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-manifest-v1").as_bytes();
+    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
+        let prefix_suffix = b"-auth-manifest-v1";
         let canon_bytes = self.manifest.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
         let mut bytes =
-            Vec::with_capacity(prefix.len() + 4 + self.name.len() + 4 + canon_bytes.len());
-        bytes.extend_from_slice(prefix);
+            Vec::with_capacity(network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 4 + canon_bytes.len());
+        bytes.extend_from_slice(network_id.as_bytes());
+        bytes.extend_from_slice(prefix_suffix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&(canon_bytes.len() as u32).to_be_bytes());
@@ -224,6 +226,7 @@ pub fn load_encrypted_keypair(
 pub fn save_keypair_from_mnemonic(
     filename: &str,
     phrase: &str,
+    network_id: &str,
 ) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
     use bip39::{Language, Mnemonic};
     use pbkdf2::pbkdf2_hmac;
@@ -241,13 +244,14 @@ pub fn save_keypair_from_mnemonic(
     let mut seed = mnemonic.to_seed("");
 
     // Use a fixed, network-specific salt for deterministic PBKDF2
-    let salt = format!("{}-seed-key-v1", env!("KINETIC_NETWORK_ID"));
+    let salt = format!("{}-seed-key-v1", network_id);
 
     let mut derived = [0u8; 32];
     #[cfg(debug_assertions)]
     let iterations = 1000;
     #[cfg(not(debug_assertions))]
     let iterations = 5_000_000;
+
     pbkdf2_hmac::<Sha512>(&seed, salt.as_bytes(), iterations, &mut derived);
 
     let signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&derived).into());
@@ -312,9 +316,9 @@ mod tests {
             owner_signature: vec![1, 2, 3],
         };
 
-        let bytes = auth_kid.signable_bytes();
-        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-kid-v1").as_bytes();
-        assert!(bytes.starts_with(prefix));
+        let bytes = auth_kid.signable_bytes(env!("KINETIC_NETWORK_ID"));
+        let prefix = format!("{}-auth-kid-v1", env!("KINETIC_NETWORK_ID"));
+        assert!(bytes.starts_with(prefix.as_bytes()));
         assert!(bytes.windows(8).any(|w| w == b"test.kin"));
     }
 
@@ -338,9 +342,9 @@ mod tests {
             owner_signature: vec![1, 2, 3],
         };
 
-        let bytes = auth_manifest.signable_bytes();
-        let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-auth-manifest-v1").as_bytes();
-        assert!(bytes.starts_with(prefix));
+        let bytes = auth_manifest.signable_bytes(env!("KINETIC_NETWORK_ID"));
+        let prefix = format!("{}-auth-manifest-v1", env!("KINETIC_NETWORK_ID"));
+        assert!(bytes.starts_with(prefix.as_bytes()));
         assert!(bytes.windows(8).any(|w| w == b"test.kin"));
     }
 
@@ -373,7 +377,7 @@ mod tests {
         ));
 
         // 3. Invalid Seed Phrase
-        let result = save_keypair_from_mnemonic("test.bin", "not a valid seed phrase");
+        let result = save_keypair_from_mnemonic("test.bin", "not a valid seed phrase", env!("KINETIC_NETWORK_ID"));
         assert!(matches!(
             result,
             Err(crate::error::IdentityError::InvalidSeedPhrase(_))
@@ -383,7 +387,7 @@ mod tests {
         let valid_path = dir.path().join("valid_key.bin");
         std::env::set_var(crate::constants::ENV_KINETIC_KEY_PATH, &valid_path);
         let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-        let saved_key = save_keypair_from_mnemonic("test.bin", phrase).unwrap();
+        let saved_key = save_keypair_from_mnemonic("test.bin", phrase, env!("KINETIC_NETWORK_ID")).unwrap();
         let loaded_key = load_keypair("test.bin").unwrap();
         use ml_dsa::KeyExport;
         assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());
