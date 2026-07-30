@@ -43,7 +43,7 @@ pub async fn start_dynamic_routing_publisher(
         };
 
         use ed25519_dalek::Signer;
-        let signature = dalek_kp.sign(&record.signable_bytes());
+        let signature = dalek_kp.sign(&record.signable_bytes(kinetic_core::constants::NETWORK_ID));
         record.signature = signature.to_bytes().to_vec();
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {

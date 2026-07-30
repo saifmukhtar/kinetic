@@ -6,7 +6,13 @@
 //! while allowing normal internet traffic to bypass the proxy.
 
 use axum::{routing::get, Router};
+use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
+use service_manager::{
+    ServiceInstallCtx, ServiceLabel, ServiceManager, ServiceStartCtx, ServiceStopCtx,
+    ServiceUninstallCtx,
+};
+use std::env;
 use std::fs::File;
 use std::path::PathBuf;
 use tracing::{info, warn};
@@ -187,15 +193,91 @@ fn default_ip() -> String {
     "127.0.0.1".to_string()
 }
 
-/// Starts the Kinetic PAC daemon.
-///
-/// Discovers configured proxies, runs an HTTP server hosting the dynamic `proxy.pac` script,
-/// and applies the routing script to the host operating system.
-///
-/// # Errors
-/// Returns an `anyhow::Result` error if directory creation or the HTTP socket bind fails.
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+#[derive(Parser)]
+#[command(
+    name = "kinetic-pac-server",
+    version = "0.1.0",
+    author = "Kinetic Protocol"
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Install the PAC server as a background service
+    Install,
+    /// Uninstall the PAC server background service
+    Uninstall,
+    /// Start the PAC server (foreground)
+    Run,
+    /// Start the PAC server service (background)
+    Start,
+    /// Stop the PAC server service (background)
+    Stop,
+}
+
+fn install_service() -> anyhow::Result<()> {
+    println!("Installing Kinetic PAC Server service...");
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
+    let current_exe = env::current_exe()?;
+    manager.install(ServiceInstallCtx {
+        label: label.clone(),
+        program: current_exe.clone(),
+        args: vec!["run".into()],
+        contents: None,
+        username: None,
+        working_directory: None,
+        environment: None,
+        autostart: true,
+        restart_policy: service_manager::RestartPolicy::default(),
+    })?;
+
+    println!("Service installed successfully. Run '{}-pac start' to begin.", kinetic_core::constants::NETWORK_ID);
+    Ok(())
+}
+
+fn uninstall_service() -> anyhow::Result<()> {
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
+    manager.uninstall(ServiceUninstallCtx { label })?;
+
+    // Also remove OS settings just in case it's currently installed
+    let base_dir = dirs::data_local_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("kinetic_global");
+    let pac_manager = PacManager::new(&base_dir);
+    let _ = pac_manager.uninstall();
+
+    println!("Service uninstalled and OS settings restored.");
+    Ok(())
+}
+
+fn start_background_service() -> anyhow::Result<()> {
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
+    manager.start(ServiceStartCtx { label })?;
+    println!("Service started.");
+    Ok(())
+}
+
+fn stop_background_service() -> anyhow::Result<()> {
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let manager = <dyn ServiceManager>::native()
+        .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
+    manager.stop(ServiceStopCtx { label })?;
+    println!("Service stopped.");
+    Ok(())
+}
+
+/// Runs the PAC HTTP Server and applies OS proxy rules
+async fn run_server() -> anyhow::Result<()> {
+
     tracing_subscriber::fmt::init();
 
     let base_dir = dirs::data_local_dir()
@@ -348,5 +430,30 @@ async fn main() -> anyhow::Result<()> {
     });
 
     axum::serve(listener, app).await?;
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Some(Commands::Install) => {
+            install_service()?;
+        }
+        Some(Commands::Uninstall) => {
+            uninstall_service()?;
+        }
+        Some(Commands::Start) => {
+            start_background_service()?;
+        }
+        Some(Commands::Stop) => {
+            stop_background_service()?;
+        }
+        Some(Commands::Run) | None => {
+            run_server().await?;
+        }
+    }
+
     Ok(())
 }

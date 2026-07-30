@@ -8,8 +8,4 @@ fn main() {
     let pk1 = sk1.verifying_key().to_bytes();
     println!("ROOT_PUBLIC_KEY_HEX:\n{}", hex::encode(pk1));
     
-    let bytes2 = hex::decode("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef").unwrap();
-    let sk2 = ml_dsa::SigningKey::<MlDsa65>::from_seed(bytes2.as_slice().try_into().unwrap());
-    let pk2 = sk2.verifying_key().to_bytes();
-    println!("GUARD_PUBLIC_KEY_HEX:\n{}", hex::encode(pk2));
 }
