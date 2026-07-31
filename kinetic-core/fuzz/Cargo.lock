@@ -700,11 +700,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "389ca41296e6190b48053de0321d02a77f32f8a5d2461dd38762c0593805c6d6"
 dependencies = [
  "futures-core",
- "futures-io",
  "futures-macro",
- "futures-sink",
  "futures-task",
- "memchr",
  "pin-project-lite",
  "slab",
 ]
@@ -1254,6 +1251,7 @@ dependencies = [
  "hex",
  "hickory-resolver",
  "kinetic-kid",
+ "kinetic-verify",
  "lazy_static",
  "libp2p-identity",
  "ml-dsa",
@@ -1261,7 +1259,6 @@ dependencies = [
  "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "reqwest",
- "self-replace",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -1298,6 +1295,16 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 1.0.69",
  "web-time",
+]
+
+[[package]]
+name = "kinetic-verify"
+version = "0.1.1"
+dependencies = [
+ "ml-dsa",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1778,7 +1785,6 @@ dependencies = [
  "bytes",
  "encoding_rs",
  "futures-core",
- "futures-util",
  "h2",
  "http",
  "http-body",
@@ -1800,14 +1806,12 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tokio-rustls",
- "tokio-util",
  "tower",
  "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams",
  "web-sys",
 ]
 
@@ -1991,17 +1995,6 @@ checksum = "6ce2691df843ecc5d231c0b14ece2acc3efb62c0a398c7e1d875f3983ce020e3"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "self-replace"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03ec815b5eab420ab893f63393878d89c90fdd94c0bcc44c07abb8ad95552fb7"
-dependencies = [
- "fastrand",
- "tempfile",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2683,19 +2676,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1b4cb0cc549fcf58d7dfc081778139b3d283a081644e833e84682ad71cea24"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "wasm-streams"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d1ec4f6517c9e11ae630e200b2b65d193279042e28edd4a2cda233e46670bbb"
-dependencies = [
- "futures-util",
- "js-sys",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]

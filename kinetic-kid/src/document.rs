@@ -201,9 +201,9 @@ impl KidDocument {
         for byte in hash {
             let _ = write!(expected_hex, "{:02x}", byte);
         }
-        let expected_did = format!("did:kin:{}", expected_hex);
+        let expected_kid = format!("{}{}", env!("KINETIC_DID_PREFIX"), expected_hex);
 
-        if self.kid.as_str() != expected_did {
+        if self.kid.as_str() != expected_kid {
             return Err(KidError::DidKeyMismatch);
         }
 

@@ -16,6 +16,7 @@ anyhow.workspace = true
 tracing.workspace = true
 ed25519-dalek = "2.2.0"
 serde_json = "1.0.150"
+ml-dsa = "0.1.1"
 kinetic-vdf = { version = "0.1.0", path = "../kinetic-vdf" }
 hex = "0.4.3"
 serde = { version = "1.0.228", features = ["derive", "rc"] }
@@ -48,7 +49,9 @@ proptest = "1.4.0"
 tracing-subscriber = "0.3.18"
 ml-dsa = "0.1.1"
 kinetic-core = { path = "../kinetic-core", features = ["simulation"] }
+base64 = "0.22"
 
 [[bench]]
 name = "pow_benchmark"
 harness = false
+

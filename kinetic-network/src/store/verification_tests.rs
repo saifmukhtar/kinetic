@@ -57,4 +57,83 @@ mod tests {
             KineticStoreError::InvalidPublicKey
         ));
     }
+
+    #[test]
+    fn test_mldsa_authorized_kid_validation() {
+        use crate::store::verification::verify_authorized_kid;
+        use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
+        use kinetic_kid::document::KidDocument;
+        use ml_dsa::signature::Signer;
+        use ml_dsa::Generate;
+        use ml_dsa::Keypair;
+        use ml_dsa::KeyExport;
+        use ml_dsa::SignatureEncoding;
+        use crate::error::KineticStoreError;
+
+        let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
+        let ml_pub = ml_kp.verifying_key();
+
+        let reveal = Reveal {
+            protocol_version: 1,
+            name: "test.kinetic".to_string(),
+            payload: vec![],
+            salt: [0u8; 32],
+            drand_pulse: 100,
+            drand_randomness: String::new(),
+            iterations: 100,
+            vdf_proof: VdfProof { proof_bytes: vec![] },
+            pubkey: ml_pub.to_bytes().to_vec(),
+            signature: vec![],
+            previous_proof: None,
+            miner_pubkey: None,
+        };
+
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+        let pub_key_b64 = b64_url.encode(ml_pub.to_bytes());
+
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(ml_pub.to_bytes());
+        let hash = hasher.finalize();
+        let mut hex_hash = String::new();
+        for byte in hash {
+            use std::fmt::Write;
+            let _ = write!(&mut hex_hash, "{:02x}", byte);
+        }
+
+        let kid = kinetic_kid::did::KineticDid::new(&format!("did:{}:{}", kinetic_core::constants::NETWORK_ID, hex_hash)).unwrap();
+        let doc = KidDocument {
+            doc_type: "kinetic.kid.v1".to_string(),
+            kid,
+            created_at: 1234567890,
+            controller_keys: vec![kinetic_kid::document::ControllerKey {
+                id: format!("did:{}:{}#primary", kinetic_core::constants::NETWORK_ID, hex_hash),
+                key_type: "MlDsa65".to_string(),
+                public_key: pub_key_b64,
+            }],
+            manifest: None,
+            revocation_keys: vec![],
+            deactivated: false,
+            signature: None,
+        };
+        let did_doc = doc.sign(&ml_kp).unwrap();
+        
+        let mut auth_kid = AuthorizedKid {
+            name: "test.kinetic".to_string(),
+            kid_doc: did_doc,
+            owner_signature: vec![],
+        };
+
+        // Sign the kid_doc with our ML-DSA key
+        let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID);
+        auth_kid.owner_signature = ml_kp.sign(&signable).to_vec();
+
+        // Pass it through validation! (We mock existing_record as Some to bypass genesis bindings in this simple test)
+        let dummy_key = libp2p::kad::RecordKey::new(&[0u8; 32]);
+        let existing_record = libp2p::kad::Record::new(dummy_key, vec![]);
+        
+        let res = verify_authorized_kid(&auth_kid, Some(&reveal), Some(&std::borrow::Cow::Owned(existing_record)));
+        // Should not fail with InvalidKidSignature
+        assert!(res.is_ok() || !matches!(res.unwrap_err(), KineticStoreError::InvalidKidSignature));
+    }
 }

@@ -116,26 +116,27 @@ mod tests {
         let name = "test.kinetic".to_string();
 
         let mut reveal = dummy_reveal(&name, 100);
-        let kp = Keypair::generate_ed25519();
-        reveal.pubkey = kp.public().to_peer_id().to_bytes(); // We just need *some* bytes, but actually we need Dalek key
-
-        let dalek_kp = ed25519_dalek::SigningKey::from_bytes(&[1u8; 32]);
-        reveal.pubkey = dalek_kp.verifying_key().to_bytes().to_vec();
+        use ml_dsa::Generate;
+        use ml_dsa::Keypair;
+        use ml_dsa::KeyExport;
+        use ml_dsa::SignatureEncoding;
+        let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
+        reveal.pubkey = ml_kp.verifying_key().to_bytes().to_vec();
 
         store.reveals_by_name.put(name.clone(), reveal);
 
         // Set existing pulse to 200
         store.last_heartbeats_by_name.insert(name.clone(), 200);
 
-        let mut hb = Heartbeat {
+        let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
-            latest_drand_pulse: 150, // older pulse
+            latest_drand_pulse: 49,
             signature: vec![],
         };
 
         // Sign the stale heartbeat
-        use ed25519_dalek::Signer;
-        hb.signature = dalek_kp.sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_ID)).to_vec();
+        use ml_dsa::signature::Signer;
+        hb.signature = ml_kp.sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_ID)).to_vec();
 
         let result = store.handle_heartbeat(&hb);
         assert!(matches!(

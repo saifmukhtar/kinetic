@@ -2295,6 +2295,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyring"
+version = "3.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c"
+dependencies = [
+ "log",
+ "zeroize",
+]
+
+[[package]]
 name = "kinetic-core"
 version = "0.1.0"
 dependencies = [
@@ -2314,6 +2324,7 @@ dependencies = [
  "hex",
  "hickory-resolver",
  "kinetic-kid",
+ "kinetic-verify",
  "lazy_static",
  "libp2p-identity",
  "ml-dsa",
@@ -2321,7 +2332,6 @@ dependencies = [
  "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "reqwest",
- "self-replace",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -2355,6 +2365,7 @@ dependencies = [
  "hyper 1.10.1",
  "hyper-util",
  "interprocess",
+ "keyring",
  "kinetic-core",
  "kinetic-dns",
  "kinetic-kid",
@@ -2461,6 +2472,7 @@ dependencies = [
  "libp2p",
  "libp2p-stream 0.1.0-alpha.1",
  "lru 0.12.5",
+ "ml-dsa",
  "rustc-hash",
  "serde",
  "serde_bytes",
@@ -2496,6 +2508,16 @@ dependencies = [
  "fs2",
  "kinetic-core",
  "libc",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "kinetic-verify"
+version = "0.1.1"
+dependencies = [
+ "ml-dsa",
+ "serde",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 
@@ -3237,6 +3259,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "matchers"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
+dependencies = [
+ "regex-automata",
 ]
 
 [[package]]
@@ -4532,17 +4563,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "self-replace"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03ec815b5eab420ab893f63393878d89c90fdd94c0bcc44c07abb8ad95552fb7"
-dependencies = [
- "fastrand",
- "tempfile",
- "windows-sys 0.52.0",
-]
-
-[[package]]
 name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5336,10 +5356,14 @@ version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb7f578e5945fb242538965c2d0b04418d38ec25c79d160cd279bf0731c8d319"
 dependencies = [
+ "matchers",
  "nu-ansi-term",
+ "once_cell",
+ "regex-automata",
  "sharded-slab",
  "smallvec",
  "thread_local",
+ "tracing",
  "tracing-core",
  "tracing-log",
 ]

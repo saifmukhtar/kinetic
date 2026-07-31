@@ -2,13 +2,11 @@
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::{get_zones_dir, KineticConfig};
-use kinetic_core::types::{load_keypair, Commitment, Reveal};
+use kinetic_core::types::{load_keypair, Reveal};
 use ml_dsa::signature::Signer;
 use ml_dsa::SignatureEncoding;
 use reqwest::Client;
 use serde_json::json;
-use sha2::Digest;
-use std::time::Duration;
 use tracing::{info, warn};
 
 /// Updates the routing zone data for a registered domain.
@@ -58,35 +56,6 @@ pub async fn update_zone_logic(
         resolve_res.json().await?
     };
 
-    let challenge_bytes =
-        hex::decode(&existing_reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(existing_reveal.name.as_bytes());
-    hasher.update(existing_reveal.salt);
-    hasher.update(&challenge_bytes);
-    hasher.update(&existing_reveal.pubkey);
-    let mut hash = [0u8; 32];
-    hash.copy_from_slice(&hasher.finalize());
-    let commit_res = client
-        .post(format!(
-            "http://{}:{}/commit",
-            config.daemon.bind_ip, config.daemon.api_port
-        ))
-        .json(&kinetic_core::types::CommitRequest {
-            name: fqdn.clone(),
-            commitment: Commitment { hash },
-        })
-        .send()
-        .await?;
-    if !commit_res.status().is_success() {
-        let status = commit_res.status();
-        let text = commit_res.text().await.unwrap_or_default();
-        return Err(anyhow::anyhow!(
-            "{}",
-            parse_and_format_api_error("Commit failed", status, &text)
-        ));
-    }
-    tokio::time::sleep(Duration::from_secs(5)).await;
     existing_reveal.payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
     let signable = existing_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
     existing_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();

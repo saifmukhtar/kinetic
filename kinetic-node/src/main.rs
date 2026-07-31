@@ -30,7 +30,7 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
-use tracing::{info, warn, Level};
+use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
@@ -159,8 +159,10 @@ async fn run_node() -> Result<()> {
     let config = KineticConfig::load();
 
     // 1. Initialize structured tracing
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_env_filter(env_filter)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
@@ -274,14 +276,15 @@ async fn run_node() -> Result<()> {
         vdf_engine.clone(),
     )?;
 
-    // Subscribe to Quicknet Pulse Gossip
-    let _ = network_client
-        .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
-        .await;
     tokio::spawn(async move {
         network_loop.run().await;
         tracing::warn!("Network loop exited");
     });
+
+    // Subscribe to Quicknet Pulse Gossip
+    let _ = network_client
+        .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
+        .await;
     info!("P2P Network architecture wired");
 
     let gossip_gov_path = gov_state_path.clone();

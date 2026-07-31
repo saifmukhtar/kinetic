@@ -208,8 +208,10 @@ fn stop_background_service() -> Result<()> {
 }
 
 async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_env_filter(env_filter)
         .finish();
     tracing::subscriber::set_global_default(subscriber).ok();
 

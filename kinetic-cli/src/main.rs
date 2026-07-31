@@ -36,8 +36,10 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(tracing::Level::INFO)
+        .with_env_filter(env_filter)
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 

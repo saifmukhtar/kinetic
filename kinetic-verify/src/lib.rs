@@ -39,7 +39,7 @@ fn default_protocol_version() -> u8 {
 }
 
 /// Previous VDF proof link in a chained domain renewal proof sequence.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PreviousProof {
     /// 32-byte salt used in the previous proof generation.
@@ -115,7 +115,7 @@ impl PreviousProof {
 }
 
 /// Revealed domain registration payload submitted to the network during Phase 2.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Reveal {
     /// Protocol version indicator (default: `1`).
     #[serde(default = "default_protocol_version")]

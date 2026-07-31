@@ -3,8 +3,8 @@ use thiserror::Error;
 /// Error type returned by all operations in the `kinetic-kid` crate.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum KidError {
-    /// The DID string does not start with the expected `did:kin:` prefix.
-    #[error("Invalid DID prefix, expected did:kin:")]
+    /// The DID string does not start with the expected prefix.
+    #[error("Invalid DID prefix, expected did:<method>:")]
     InvalidDidPrefix,
     /// The method-specific ID portion of the DID is not a valid hex-encoded hash.
     #[error("Invalid method-specific ID format")]
@@ -125,7 +125,7 @@ impl KidError {
     pub fn user_message(&self) -> String {
         match self {
             Self::InvalidDidPrefix => {
-                "The DID string does not start with the 'did:kin:' prefix.".to_string()
+                "The DID string does not start with the expected 'did:<method>:' prefix.".to_string()
             }
             Self::InvalidDidFormat => "The DID method-specific ID is malformed.".to_string(),
             Self::InvalidDidHexLength => {

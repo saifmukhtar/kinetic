@@ -114,6 +114,8 @@ impl KineticRecordStore {
                     let err = KineticStoreError::StaleReveal;
                     err.log_warning("KIN-STORE-023", &reveal.name, "Rejecting Replayed Reveal:");
                     return Err(err);
+                } else if reveal == &existing_reveal {
+                    return Ok(());
                 }
             }
         }
@@ -182,6 +184,24 @@ impl KineticRecordStore {
         &mut self,
         heartbeat: &kinetic_core::types::Heartbeat,
     ) -> Result<(), KineticStoreError> {
+        // OPTIMIZATION: Check for duplicates or stale heartbeats before doing any expensive ML-DSA signature verification
+        let existing_pulse = self
+            .last_heartbeats_by_name
+            .get(&heartbeat.name)
+            .copied()
+            .unwrap_or(0);
+
+        if heartbeat.latest_drand_pulse == existing_pulse {
+            // Normal duplicate via DHT gossip, ignore it silently to prevent log spam and CPU waste
+            return Ok(());
+        }
+
+        if heartbeat.latest_drand_pulse < existing_pulse {
+            let err = KineticStoreError::StaleHeartbeat;
+            err.log_warning("KIN-STORE-020", &heartbeat.name, "Rejecting Heartbeat:");
+            return Err(err);
+        }
+
         let existing_reveal = match self.get_reveal_with_fallback(&heartbeat.name) {
             Some(r) => r,
             None => {
@@ -192,19 +212,20 @@ impl KineticRecordStore {
         };
 
         let signable = heartbeat.signable_bytes(kinetic_core::constants::NETWORK_ID);
-        let pubkey = ed25519_dalek::VerifyingKey::try_from(existing_reveal.pubkey.as_slice())
+        use ml_dsa::KeyInit;
+        let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_reveal.pubkey.as_slice())
             .map_err(|_| {
                 let err = KineticStoreError::InvalidPublicKey;
                 err.log_warning("KIN-STORE-013", &heartbeat.name, "Rejecting Heartbeat:");
                 err
             })?;
-        let sig = ed25519_dalek::Signature::from_slice(&heartbeat.signature).map_err(|_| {
+        let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(heartbeat.signature.as_slice()).map_err(|_| {
             let err = KineticStoreError::MalformedSignature;
             err.log_warning("KIN-STORE-014", &heartbeat.name, "Rejecting Heartbeat:");
             err
         })?;
 
-        use ed25519_dalek::Verifier;
+        use ml_dsa::signature::Verifier;
         if pubkey.verify(&signable, &sig).is_err() {
             let err = KineticStoreError::InvalidSignature;
             err.log_warning("KIN-STORE-015", &heartbeat.name, "Rejecting Heartbeat:");
@@ -221,18 +242,7 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        // Finding 8: Monotonicity check — reject a heartbeat that would regress the
-        // liveness clock, preventing replay attacks that accelerate steal windows.
-        let existing_pulse = self
-            .last_heartbeats_by_name
-            .get(&heartbeat.name)
-            .copied()
-            .unwrap_or(0);
-        if heartbeat.latest_drand_pulse <= existing_pulse {
-            let err = KineticStoreError::StaleHeartbeat;
-            err.log_warning("KIN-STORE-020", &heartbeat.name, "Rejecting Heartbeat:");
-            return Err(err);
-        }
+        // Monotonicity check already performed at the top of the function.
 
         self.last_heartbeats_by_name
             .insert(heartbeat.name.clone(), heartbeat.latest_drand_pulse);

@@ -101,8 +101,10 @@ async fn run_host() -> Result<()> {
     let config = KineticConfig::load();
 
     // 1. Initialize structured tracing
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_env_filter(env_filter)
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 

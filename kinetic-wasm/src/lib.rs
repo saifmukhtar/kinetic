@@ -138,7 +138,7 @@ impl KineticNode {
             return Err(JsValue::from_str("Reveal name mismatch"));
         }
 
-        if !reveal.verify_signature(kinetic_core::constants::NETWORK_ID) {
+        if reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
             return Err(JsValue::from_str("Invalid reveal signature"));
         }
 

@@ -92,7 +92,7 @@ impl KineticRecordStore {
                     ) {
                         if reveal.iterations >= req {
                             let dev_mode = kinetic_core::config::is_dev_mode();
-                            if dev_mode || reveal.verify_signature(kinetic_core::constants::NETWORK_ID) {
+                            if dev_mode || reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_ok() {
                                 use kinetic_core::types::Commitment;
                                 use sha2::{Digest, Sha256};
                                 let drand_rand = hex::decode(&reveal.drand_randomness)
@@ -318,7 +318,7 @@ impl KineticRecordStore {
         r: kad::Record,
         skip_reveal_verify: bool,
     ) -> Result<(), KineticStoreError> {
-        tracing::info!("KineticRecordStore::put called for key: {:?}", r.key);
+        tracing::trace!("KineticRecordStore::put called for key: {:?}", r.key);
 
         // The core schema limit (MAX_PAYLOAD_SIZE) is 64 KB (65,536 bytes).
         // This store limit is deliberately set higher (80 KB) to safely accommodate
@@ -339,7 +339,7 @@ impl KineticRecordStore {
             if parsed.get("hash").is_some() && parsed.get("vdf_proof").is_none() {
                 match serde_json::from_value::<kinetic_core::types::Commitment>(parsed) {
                     Ok(commitment) => {
-                        tracing::info!("KineticRecordStore::put parsed Commitment");
+                        tracing::debug!("KineticRecordStore::put parsed Commitment");
                         let mut key = Vec::with_capacity(KRS_COMMIT_PREFIX.len() + 32);
                         key.extend_from_slice(KRS_COMMIT_PREFIX);
                         key.extend_from_slice(&commitment.hash);
@@ -359,7 +359,7 @@ impl KineticRecordStore {
             } else if parsed.get("vdf_proof").is_some() {
                 match serde_json::from_value::<kinetic_core::types::Reveal>(parsed) {
                     Ok(reveal) => {
-                        tracing::info!("KineticRecordStore::put parsed Reveal for {}", reveal.name);
+                        tracing::debug!("KineticRecordStore::put parsed Reveal for {}", reveal.name);
                         self.handle_reveal(&reveal, skip_reveal_verify)?;
                     }
                     Err(_) => {
@@ -370,7 +370,7 @@ impl KineticRecordStore {
             } else if parsed.get("latest_drand_pulse").is_some() {
                 match serde_json::from_value::<kinetic_core::types::Heartbeat>(parsed) {
                     Ok(heartbeat) => {
-                        tracing::info!(
+                        tracing::trace!(
                             "KineticRecordStore::put parsed Heartbeat for {}",
                             heartbeat.name
                         );

@@ -255,7 +255,7 @@ pub(crate) fn verify_reveal(
 
     let dev_mode = kinetic_core::config::is_dev_mode();
 
-    if !dev_mode && !reveal.verify_signature(kinetic_core::constants::NETWORK_ID) {
+    if !dev_mode && reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
         let err = KineticStoreError::InvalidSignature;
         err.log_warning(
             "KIN-STORE-026",
@@ -405,11 +405,12 @@ pub(crate) fn verify_authorized_kid(
         err
     })?;
 
-    let pubkey = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
+    use ml_dsa::KeyInit;
+    let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(reveal.pubkey.as_slice())
         .map_err(|_| KineticStoreError::InvalidKidSignature)?;
 
-    use ed25519_dalek::Verifier;
-    let sig = ed25519_dalek::Signature::from_slice(&auth_kid.owner_signature)
+    use ml_dsa::signature::Verifier;
+    let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth_kid.owner_signature.as_slice())
         .map_err(|_| KineticStoreError::InvalidKidSignature)?;
 
     if pubkey.verify(&auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig).is_err()
@@ -495,11 +496,12 @@ pub(crate) fn verify_authorized_manifest(
         err
     })?;
 
-    let pubkey = ed25519_dalek::VerifyingKey::try_from(reveal.pubkey.as_slice())
+    use ml_dsa::KeyInit;
+    let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(reveal.pubkey.as_slice())
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
-    use ed25519_dalek::Verifier;
-    let sig = ed25519_dalek::Signature::from_slice(&auth_manifest.owner_signature)
+    use ml_dsa::signature::Verifier;
+    let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth_manifest.owner_signature.as_slice())
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
     if pubkey

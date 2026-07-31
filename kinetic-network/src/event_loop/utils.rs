@@ -224,9 +224,9 @@ impl super::core::NetworkEventLoop {
                 #[cfg(not(test))]
                 {
                     let dev_mode = kinetic_core::config::is_dev_mode();
-                    let is_valid = dev_mode || reveal.verify_signature(kinetic_core::constants::NETWORK_ID);
+                    let valid_sig = dev_mode || reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_ok();
 
-                    if !is_valid {
+                    if !valid_sig {
                         tracing::warn!(
                             error_code = "KIN-RES-004",
                             name = %reveal.name,

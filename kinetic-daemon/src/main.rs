@@ -241,8 +241,10 @@ async fn run_daemon() -> Result<()> {
         std::process::exit(1);
     }
 
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
+        .with_env_filter(env_filter)
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 

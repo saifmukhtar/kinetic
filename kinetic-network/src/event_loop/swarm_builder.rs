@@ -30,13 +30,19 @@ impl super::core::NetworkEventLoop {
             config.listen_addrs
         );
 
+        let yamux_config = || {
+            let mut config = libp2p::yamux::Config::default();
+            config.set_max_num_streams(1024); // Increased from default 256 to handle initial low-peer DHT stress
+            config
+        };
+
         #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
         let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
             .with_tokio()
             .with_tcp(
                 libp2p::tcp::Config::default().port_reuse(true),
                 libp2p::noise::Config::new,
-                libp2p::yamux::Config::default,
+                yamux_config,
             )?
             .with_quic()
             .with_dns()?;
@@ -47,7 +53,7 @@ impl super::core::NetworkEventLoop {
             .with_tcp(
                 libp2p::tcp::Config::default().port_reuse(true),
                 libp2p::noise::Config::new,
-                libp2p::yamux::Config::default,
+                yamux_config,
             )?
             .with_quic();
 
