@@ -37,6 +37,7 @@ rand_chacha = "0.10.0"
 rand_core = "0.10.1"
 ml-dsa = "0.1.1"
 aes-gcm = "0.10.3"
+kinetic-types = { version = "0.1.0", path = "../kinetic-types" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 directories = "6.0.0"

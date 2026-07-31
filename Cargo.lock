@@ -2658,6 +2658,7 @@ dependencies = [
  "hex",
  "hickory-resolver",
  "kinetic-kid",
+ "kinetic-types",
  "kinetic-verify",
  "lazy_static",
  "libp2p-identity",
@@ -2959,6 +2960,15 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "kinetic-types"
+version = "0.1.0"
+dependencies = [
+ "ml-dsa",
+ "serde",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

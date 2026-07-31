@@ -1,4 +1,13 @@
-//! Data structures and serialized action types for network governance.
+import re
+
+with open("src/governance/types.rs", "r") as f:
+    content = f.read()
+
+# Replace the type aliases and structs with pub use kinetic_types::governance::*;
+# We need to remove: Hash256, PublicKeyBytes, SignatureBytes, GovernanceAction, SignedGovernanceMessage, and the impl of SignedGovernanceMessage.
+# We also need to keep verify_signature, GovernanceEffect, GovernanceState.
+
+code = """//! Data structures and serialized action types for network governance.
 //!
 //! Defines the complete set of [`GovernanceAction`] variants, the persistent [`GovernanceState`],
 //! the [`SignedGovernanceMessage`] proposal envelope, and canonical byte serialization.
@@ -79,3 +88,7 @@ pub struct GovernanceState {
     /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, u64>,
 }
+"""
+
+with open("src/governance/types.rs", "w") as f:
+    f.write(code)
