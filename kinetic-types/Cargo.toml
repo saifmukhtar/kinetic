@@ -1,0 +1,16 @@
+[package]
+name = "kinetic-types"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors = ["Saif Mukhtar"]
+description = "Core governance primitives and post-quantum (ML-DSA-65) serialization for the Kinetic network."
+repository = "https://github.com/saifmukhtar/kinetic"
+readme = "README.md"
+keywords = ["kinetic", "governance", "ml-dsa", "post-quantum"]
+categories = ["cryptography", "data-structures"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+ml-dsa = "0.1.1"
+thiserror = "1.0"
