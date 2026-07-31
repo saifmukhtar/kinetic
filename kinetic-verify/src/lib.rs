@@ -1,6 +1,8 @@
 //! Lightweight, no_std compatible cryptographic verification library for the Kinetic Network.
 //! This crate contains the core verification logic, signatures, and data structures for Kinetic's VDF names, decoupled from the P2P networking stack.
 
+pub mod error;
+
 use serde::{Deserialize, Serialize};
 
 /// Resquaring epoch interval in drand rounds (~6 months / 182.5 days at 3 seconds per round).
@@ -147,38 +149,29 @@ impl Reveal {
     ///
     /// # Returns
     ///
-    /// `true` if the signature is cryptographically valid for the embedded public key; `false` if key parsing, signature decoding, or verification fails.
-    pub fn verify_signature(&self, network_id: &str) -> bool {
+    /// `Ok(())` if the signature is cryptographically valid for the embedded public key; an `error::VerifyError` otherwise.
+    pub fn verify_signature(&self, network_id: &str) -> Result<(), error::VerifyError> {
         use ml_dsa::signature::Verifier;
         use ml_dsa::KeyInit;
         let signable = self.signable_bytes(network_id);
-        if let Ok(pubkey) =
-            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(self.pubkey.as_slice())
-        {
-            if let Ok(sig) =
-                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(self.signature.as_slice())
-            {
-                if pubkey.verify(&signable, &sig).is_err() {
-                    return false;
-                }
+        
+        let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(self.pubkey.as_slice())
+            .map_err(|_| error::VerifyError::MalformedPublicKey)?;
+            
+        let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(self.signature.as_slice())
+            .map_err(|_| error::VerifyError::MalformedSignature)?;
+            
+        pubkey.verify(&signable, &sig).map_err(|_| error::VerifyError::InvalidSignature)?;
 
-                if let Some(prev) = &self.previous_proof {
-                    if let Ok(prev_sig) =
-                        ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice())
-                    {
-                        let prev_signable = prev.signable_bytes(network_id);
-                        if pubkey.verify(&prev_signable, &prev_sig).is_err() {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
+        if let Some(prev) = &self.previous_proof {
+            let prev_sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice())
+                .map_err(|_| error::VerifyError::MalformedSignature)?;
+                
+            let prev_signable = prev.signable_bytes(network_id);
+            pubkey.verify(&prev_signable, &prev_sig).map_err(|_| error::VerifyError::InvalidSignature)?;
         }
-        false
+
+        Ok(())
     }
 
     /// Serializes the reveal payload into a canonical byte string for ML-DSA-65 signature.
