@@ -13,7 +13,7 @@ use service_manager::{
 };
 use std::env;
 use tokio::net::UdpSocket;
-use tracing::{info, warn, Level};
+use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_dns::KineticDnsHandler;

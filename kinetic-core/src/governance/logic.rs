@@ -9,10 +9,10 @@
 //! - Key getters: `get_root_key`, `get_guard_key`, `is_council_member`
 
 use sha2::{Digest, Sha256};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use super::types::{
-    verify_signature, GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
+    GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
     SignedGovernanceMessage,
 };
 use crate::constants::ROOT_PUBLIC_KEY_HEX;
@@ -35,7 +35,6 @@ pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
 
     let dummy_state = GovernanceState::new(0);
     let _ = dummy_state.get_root_key()?;
-    let _ = dummy_state.get_root_key()?;
 
     Ok(())
 }
@@ -52,17 +51,10 @@ impl GovernanceState {
     pub fn new(genesis_timestamp_sec: u64) -> Self {
         Self {
             genesis_timestamp_sec,
-            mode: crate::governance::types::GovernanceMode::Founder,
-            lock_timestamp_sec: None,
-            active_council: Vec::new(),
-            last_signature_timestamps: HashMap::new(),
-
+            active_root_key: None,
+            is_halted: false,
+            total_paused_rounds: 0,
             executed_hashes: HashMap::new(),
-
-            partial_proposals: HashMap::new(),
-            founder_premium_grants: 0,
-            grace_period_start_sec: None,
-            dynamic_root_key: None,
         }
     }
 
@@ -85,77 +77,12 @@ impl GovernanceState {
 
     /// Removes expired timelocks and stale partial proposals to prevent unbounded memory growth.
     ///
-    /// Items are pruned if they have been executable (or created) for more than 30 days
-    /// (`30 * 24 * 60 * 60 = 2,592,000` seconds). This ensures the in-memory governance
-    /// state remains bounded even across long-running daemon processes.
+    /// Items are pruned if they have been executed for more than the network's `MAX_AGE_SECONDS`.
+    /// This ensures the in-memory governance state remains bounded even across long-running daemon processes.
     pub fn prune(&mut self, current_time_sec: u64) {
-        let thirty_days_sec = 30 * 24 * 60 * 60;
-
-        // Remove partial proposals older than 30 days
-        self.partial_proposals
-            .retain(|_, msg| current_time_sec <= msg.timestamp_sec + thirty_days_sec);
-
-        // Remove executed hashes older than 30 days
+        // Remove executed hashes older than the max age
         self.executed_hashes
-            .retain(|_, exec_time| current_time_sec <= *exec_time + thirty_days_sec);
-    }
-
-    /// Merges signatures from an incoming message into the existing state's partial proposal for the same action.
-    /// Returns the updated message containing the combined signatures.
-    pub fn merge_signatures(
-        &mut self,
-        incoming_msg: &SignedGovernanceMessage,
-    ) -> SignedGovernanceMessage {
-        let action_hash = Self::hash_action(incoming_msg);
-
-        let mut msg_to_update = if let Some(existing) = self.partial_proposals.get(&action_hash) {
-            existing.clone()
-        } else {
-            incoming_msg.clone()
-        };
-
-        let mut changed = false;
-        let action_bytes = incoming_msg.to_canonical_bytes();
-        let root_key = self.get_root_key().ok();
-        let max_sigs = std::cmp::max(self.active_council.len() * 2, 10);
-
-        for sig in &incoming_msg.signatures {
-            if msg_to_update.signatures.len() >= max_sigs {
-                break;
-            }
-            if !msg_to_update.signatures.contains(sig) {
-                let mut is_authorized = false;
-                if let Some(root) = &root_key {
-                    if crate::governance::types::verify_signature(root, &action_bytes, sig) {
-                        is_authorized = true;
-                    }
-                }
-                if !is_authorized {
-                    for member in &self.active_council {
-                        if crate::governance::types::verify_signature(member, &action_bytes, sig) {
-                            is_authorized = true;
-                            break;
-                        }
-                    }
-                }
-                if is_authorized {
-                    msg_to_update.signatures.push(sig.clone());
-                    changed = true;
-                }
-            }
-        }
-
-        if changed || !self.partial_proposals.contains_key(&action_hash) {
-            self.partial_proposals
-                .insert(action_hash, msg_to_update.clone());
-        }
-
-        msg_to_update
-    }
-
-    /// Counts the number of active council members within the recent active window.
-    pub fn count_active_council(&self, _current_time_sec: u64) -> usize {
-        self.active_council.len()
+            .retain(|_, exec_time| current_time_sec <= *exec_time + crate::constants::MAX_AGE_SECONDS);
     }
 
     /// Retrieves the static root verifying key.
@@ -164,9 +91,10 @@ impl GovernanceState {
     ///
     /// Returns a `GovernanceError` if the key is missing, invalid, or has the wrong length.
     pub fn get_root_key(&self) -> Result<PublicKeyBytes, GovernanceError> {
-        if let Some(key) = &self.dynamic_root_key {
+        if let Some(key) = &self.active_root_key {
             return Ok(key.clone());
         }
+
         let bytes =
             hex::decode(ROOT_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MissingRootKey)?;
         if bytes.len() != 1952 {
@@ -218,49 +146,10 @@ pub fn process_governance_message(
 
     state.prune(current_time_sec);
 
-    if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
-        return Err(crate::error::GovernanceError::StaleProposal);
-    }
-
     let action_hash = GovernanceState::hash_action(msg);
     if state.executed_hashes.contains_key(&action_hash) {
         return Err(crate::error::GovernanceError::StaleProposal);
     }
 
-    let action_bytes = msg.to_canonical_bytes();
-    let root_key = state.get_root_key()?;
-    let mut is_authorized = false;
-    for sig in &msg.signatures {
-        if verify_signature(&root_key, &action_bytes, sig) {
-            is_authorized = true;
-            break;
-        }
-        for member in &state.active_council {
-            if verify_signature(member, &action_bytes, sig) {
-                is_authorized = true;
-                break;
-            }
-        }
-        if is_authorized {
-            break;
-        }
-    }
-
-    if !is_authorized {
-        return Err(crate::error::GovernanceError::InsufficientSignatures);
-    }
-
-    state.partial_proposals.retain(|_, p| {
-        current_time_sec.abs_diff(p.timestamp_sec) <= crate::constants::MAX_AGE_SECONDS
-    });
-
-    let mut temp_state = state.clone();
-    if let Err(e) = temp_state.verify_action(msg, current_time_sec) {
-        if e != crate::error::GovernanceError::InsufficientSignatures {
-            return Err(e);
-        }
-    }
-
-    let msg_to_update = state.merge_signatures(msg);
-    state.verify_action(&msg_to_update, current_time_sec)
+    state.verify_action(msg, current_time_sec)
 }

@@ -128,7 +128,7 @@ impl From<GovernanceError> for ApiError {
             GovernanceError::MissingRootKey => {
                 (500, "Configuration Error")
             }
-            GovernanceError::KeyLengthMismatch | GovernanceError::CouncilSizeMismatch => {
+            GovernanceError::KeyLengthMismatch => {
                 (400, "Bad Request")
             }
             GovernanceError::StaleProposal
@@ -137,12 +137,8 @@ impl From<GovernanceError> for ApiError {
             GovernanceError::InsufficientSignatures => {
                 (401, "Unauthorized")
             }
-
-            GovernanceError::FounderPremiumLimitReached
-            | GovernanceError::EmptyCouncil
-            | GovernanceError::CouncilAtCapacity => (403, "Forbidden"),
+            GovernanceError::GovernanceDisabled => (403, "Forbidden"),
             GovernanceError::InvalidPremiumNameLength => (400, "Bad Request"),
-            GovernanceError::UnhandledThresholdMath => (501, "Not Implemented"),
         };
         ApiError {
             error_type: e.error_type_uri(),

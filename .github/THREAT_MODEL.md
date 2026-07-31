@@ -27,7 +27,7 @@ before reasoning about any threat.
  
 | Tier | Example | Membership | Cost function | Sybil resistance needed? | Governing control |
 |------|---------|------------|---------------|--------------------------|-------------------|
-| **T0 — Public `.kin`** | The official reference network | Open / anonymous / adversarial | Full VDF + PoW | **Yes — critical** | Bicameral council + root key |
+| **T0 — Public `.kin`** | The official reference network | Open / anonymous / adversarial | Full VDF + PoW | **Yes — critical** | Council + root key |
 | **T1 — Community / campus fork** | `.uni` on a campus network | Known, semi-trusted | Hashcash or light VDF | Low — social reset covers it | Small council or single operator |
 | **T2 — Personal / experimental** | A developer's laptop / lab | Single operator | Trivial / disabled | No | Operator is root |
  
@@ -138,7 +138,7 @@ them explicitly is part of the threat model:
 | Component | Primary threats | Notes |
 |-----------|-----------------|-------|
 | `kinetic-network` (swarm/DHT) | Reactor starvation (sync VDF/PoW on the event loop), Sybil, eclipse, record poisoning, unbounded maps | Highest-risk crate on T0. Offload CPU/crypto to `spawn_blocking` with bounded concurrency. Enforces 16 MiB Argon2id PoW `(Source: kinetic-network/src/pow.rs:62)`. |
-| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces 69% council supermajority `(Source: kinetic-core/src/governance/engine/bicameral.rs:162)`. |
+| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces 69% council supermajority `(Source: kinetic-core/src/governance/engine/council.rs:162)`. |
 | `kinetic-vdf` (Chia FFI) | `unsafe` FFI invariants, discriminant integrity, timing | Verify all invariants before raw pointer use. Discriminant derivation must match exactly between evaluate and verify. |
 | `kinetic-daemon` (DNS/proxy/CA/API) | SSRF, DNS-rebinding, path traversal, local-CA name-constraints, host-header validation, API auth/permissions | Local CA must be name-constrained so it can never MITM non-`.kin` traffic. |
 | `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. Enforces max 50 records per zone `(Source: kinetic-core/src/types/dns.rs:135)`. |

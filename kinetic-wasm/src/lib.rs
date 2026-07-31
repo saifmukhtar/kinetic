@@ -78,6 +78,7 @@ impl KineticNode {
             lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
             disable_pow: false,
             enable_mdns: false,
+            gov_state: None,
         };
 
         // 5. Initialize the Event Loop

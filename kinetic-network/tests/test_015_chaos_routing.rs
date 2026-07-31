@@ -35,6 +35,7 @@ async fn spawn_test_node(
         max_reveals_per_hour: 100,
         seed_domain: vec![],
         disable_pow: true,
+        gov_state: None,
     };
 
     let dir = tempdir().unwrap();

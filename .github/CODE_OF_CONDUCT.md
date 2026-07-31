@@ -34,7 +34,7 @@ However, all technical disagreements must remain strictly focused on the code, t
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the Lead Maintainer and Founder at **saifmukhtar20@gmail.com**. 
 
-Under the Kinetic Bicameral Governance model:
+Under the Kinetic Governance model:
 - **Initial Enforcement** is centralized to the Lead Maintainer to ensure swift resolution.
 - **Escalation & Appeals:** For severe cases, or if a community member wishes to appeal a decision made by the Lead Maintainer, the issue can be formally escalated to the **On-Chain Council**. The Council has the authority to review the case and can overturn decisions or implement bans via a supermajority vote.
 

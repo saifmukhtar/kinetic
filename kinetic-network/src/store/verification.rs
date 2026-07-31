@@ -119,6 +119,7 @@ pub(crate) fn compute_required_iterations(
     reveal: &kinetic_core::types::Reveal,
     current_drand_round: u64,
     engine: &dyn kinetic_core::traits::VdfEngine,
+    gov_state: Option<&std::sync::RwLock<kinetic_core::governance::types::GovernanceState>>,
 ) -> Result<u64, KineticStoreError> {
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&reveal.name) {
         let err = KineticStoreError::InvalidName;
@@ -172,8 +173,15 @@ pub(crate) fn compute_required_iterations(
         );
 
         let prev_req = consensus_math.required_iterations(&reveal.name, &prev_drand_rand);
-        let is_not_too_old = current_drand_round.saturating_sub(prev.drand_pulse)
-            <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
+
+        let total_paused_rounds = gov_state
+            .map(|g| g.read().unwrap().total_paused_rounds)
+            .unwrap_or(0);
+
+        let effective_age = current_drand_round
+            .saturating_sub(prev.drand_pulse)
+            .saturating_sub(total_paused_rounds);
+        let is_not_too_old = effective_age <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
 
         if prev_valid && prev.iterations >= prev_req && is_not_too_old {
             let normalized_name = kinetic_core::types::normalize_name(&reveal.name);
@@ -239,7 +247,13 @@ pub(crate) fn verify_reveal(
     storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
     current_drand_round: u64,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
+    gov_state: Option<&std::sync::RwLock<kinetic_core::governance::types::GovernanceState>>,
 ) -> Result<(), KineticStoreError> {
+    if let Some(state) = gov_state {
+        if state.read().unwrap().is_halted {
+            return Err(KineticStoreError::NetworkHalted);
+        }
+    }
     if let Err(e) = reveal.validate() {
         let err = KineticStoreError::InvalidName;
         err.log_warning(
@@ -320,7 +334,7 @@ pub(crate) fn verify_reveal(
     }
 
     let required_iterations =
-        compute_required_iterations(reveal, current_drand_round, engine.as_ref())?;
+        compute_required_iterations(reveal, current_drand_round, engine.as_ref(), gov_state)?;
 
     if dev_mode {
         tracing::info!(

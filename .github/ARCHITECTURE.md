@@ -100,10 +100,10 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
   rather than an app server, app state (posts, likes, etc.) is portable — if an
   app dies, the user re-registers in a new app and re-attaches the same data.
  
-### 3.4 Governance (public `.kin`, bicameral)
+### 3.4 Governance (public `.kin`, council)
  
 - State machine in `kinetic-core/src/governance/` with pluggable engines:
-  `monarchy`, `council`, `bicameral` (default), `anarchy` (immutable).
+  `sovereign`, `council` (default), `permissionless` (immutable).
 - Modes: **Founder → Council**, with an auto-lock after
   `AUTO_LOCK_SECONDS` (1 year) and instant lock when ≥ `MIN_ACTIVE_COUNCIL` (7)
   active members exist. `MAX_COUNCIL_SIZE` is 21.
@@ -158,7 +158,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
 1. `kinetic-network/src/event_loop/` and `kinetic-network/src/store/` — the
    untrusted-input → accepted-state boundary.
 2. `kinetic-core/src/drand.rs` — randomness binding `(Source: kinetic-core/src/drand.rs:121)`.
-3. `kinetic-core/src/governance/` — the state machine + engines `(Source: kinetic-core/src/governance/engine/bicameral.rs)`.
+3. `kinetic-core/src/governance/` — the state machine + engines `(Source: kinetic-core/src/governance/engine/council.rs)`.
 4. `kinetic-daemon/src/proxy/` and `kinetic-dns/` — SSRF/rebinding surface.
 5. `kinetic-kid/` — identity + manifest verification.
 6. `kinetic-vdf/` — the only significant `unsafe`/FFI surface `(Source: kinetic-vdf/src/lib.rs)`.

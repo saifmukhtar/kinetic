@@ -28,6 +28,7 @@ proptest! {
             NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
+            None,
         );
 
         let key = kad::RecordKey::new(&[0u8; 32]);
@@ -81,6 +82,7 @@ proptest! {
             NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
+            None,
         );
         store.current_drand_round = drand_pulse.saturating_add(100);
 

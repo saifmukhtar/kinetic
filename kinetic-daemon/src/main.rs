@@ -31,7 +31,7 @@ use service_manager::{
     ServiceInstallCtx, ServiceLabel, ServiceManager, ServiceStartCtx, ServiceStopCtx,
     ServiceUninstallCtx,
 };
-use tracing::{info, warn, Level};
+use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
@@ -345,6 +345,7 @@ async fn run_daemon() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
         disable_pow: false,
+        gov_state: None,
     };
 
     let base_config_dir = kinetic_core::config::get_base_dir();
@@ -402,14 +403,8 @@ async fn run_daemon() -> Result<()> {
                                 tracing::warn!("Seed node provided governance state for wrong network genesis.");
                                 continue;
                             }
-                            if downloaded_state.dynamic_root_key.is_some() {
-                                tracing::warn!("Seed node provided untrusted rotated root key during cold bootstrap.");
-                                continue;
-                            }
-                            if downloaded_state.active_council.is_empty() {
-                                tracing::warn!("Seed node provided empty council.");
-                                continue;
-                            }
+
+
 
                             if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
                                 tracing::warn!(

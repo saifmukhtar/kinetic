@@ -113,7 +113,7 @@ cargo run --release --bin kinetic-forge
 
 1. **Configure Network Constants:** Define custom TLDs, bootstrap nodes, and target VDF delay parameters in `network.json`.
 2. **Compile Engine:** Constants are compiled directly into the binary suite via `build.rs` for maximum performance and zero config drift.
-3. **Bicameral Governance:** Maintain sovereign governance keys with emergency timelocks and 69% maintenance council ratifications.
+3. **Governance:** Maintain sovereign governance keys with emergency timelocks and 69% maintenance council ratifications.
 
 📖 **[Read the Complete Engine Forking & Custom Network Guide](https://kinetic.saifmukhtar.dev/vdf-calibration.html)**
 
@@ -187,7 +187,7 @@ Explore the mathematical proofs, RFC drafts, and security models powering Kineti
 - 🆔 **[3. Decentralized Identity Architecture (KID)](./whitepaper/kinetic-identity.md):** Post-quantum ML-DSA-65 identity documents.
 - 🌐 **[4. Network & Execution Spec](./whitepaper/kinetic-network.md):** libp2p Kademlia DHT, gossip subtopics, and Split-DNS.
 - 🛡️ **[5. Security & Threat Mitigation](./whitepaper/kinetic-security.md):** Formal resistance to Sybil, Eclipse, and Front-Running attacks.
-- 🏛️ **[6. Bicameral Governance Engine](./whitepaper/kinetic-governance.md):** Council multisig rules and timelock emergency resets.
+- 🏛️ **[6. Governance Engine](./whitepaper/kinetic-governance.md):** Council multisig rules and timelock emergency resets.
 - 🔨 **[7. Kinetic Engine Forking (`kinetic-forge`)](./whitepaper/kinetic-forge.md):** Custom TLD network deployment guide.
 
 ### 📜 IETF Internet-Draft Specifications
@@ -202,7 +202,7 @@ Explore the mathematical proofs, RFC drafts, and security models powering Kineti
 - ⚙️ **[CONFIG.md](./.github/CONFIG.md):** Comprehensive configuration guide for daemon, P2P networking, and Drand settings.
 - 🔐 **[CRYPTO.md](./.github/CRYPTO.md):** Cryptographic primitive choices (Ed25519, ML-DSA-65, Chia VDF, Drand).
 - 🛡️ **[THREAT_MODEL.md](./.github/THREAT_MODEL.md):** Adversarial threat vectors, security boundaries, and non-goals.
-- 🏛️ **[GOVERNANCE.md](./.github/GOVERNANCE.md):** Maintenance council supermajority, Bicameral keys, and emergency procedure.
+- 🏛️ **[GOVERNANCE.md](./.github/GOVERNANCE.md):** Maintenance council supermajority, Council keys, and emergency procedure.
 - 🤝 **[CONTRIBUTING.md](./.github/CONTRIBUTING.md):** Contribution guidelines, commit rules, and PR checklist.
 - 🔒 **[SECURITY.md](./.github/SECURITY.md):** Responsible disclosure policy and security contacts.
 - 📜 **[CODE_OF_CONDUCT.md](./.github/CODE_OF_CONDUCT.md):** Community engagement standards.

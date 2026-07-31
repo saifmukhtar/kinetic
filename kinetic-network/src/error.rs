@@ -57,6 +57,9 @@ pub enum KineticStoreError {
     /// Finding 8: heartbeat pulse was not strictly greater than the stored value.
     #[error("stale heartbeat: received pulse is not newer than existing record")]
     StaleHeartbeat,
+    /// The network has been emergency paused by the Root Key.
+    #[error("network registration and renewals are currently halted")]
+    NetworkHalted,
     /// Finding 13: HostRoutingRecord failed signature verification or timestamp check.
     #[error("HostRoutingRecord signature verification failed or record is stale")]
     InvalidHostRouteSignature,
@@ -98,6 +101,7 @@ impl KineticStoreError {
             Self::StaleReveal => "KIN-NET-018",
             Self::MissingCommitment => "KIN-NET-019",
             Self::InvalidName => "KIN-NET-020",
+            Self::NetworkHalted => "KIN-NET-021",
         }
     }
 
@@ -140,6 +144,7 @@ impl KineticStoreError {
                 "No prior commitment found in DHT for this reveal".to_string()
             }
             Self::InvalidName => "Name is not a valid Kinetic apex domain".to_string(),
+            Self::NetworkHalted => "Network Registration Halted".to_string(),
         }
     }
 
@@ -165,7 +170,8 @@ impl KineticStoreError {
             | Self::InvalidHostRouteSignature
             | Self::StaleReveal
             | Self::MissingCommitment
-            | Self::InvalidName => Severity::Error,
+            | Self::InvalidName
+            | Self::NetworkHalted => Severity::Error,
         }
     }
 

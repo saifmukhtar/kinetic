@@ -21,6 +21,7 @@ fn test_009_memory_store_bloat() {
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
+        None,
     );
 
     // Insert 15,000 reveals.

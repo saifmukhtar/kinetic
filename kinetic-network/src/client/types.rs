@@ -93,6 +93,8 @@ pub struct NetworkConfig {
     pub max_reveals_per_hour: usize,
     /// The maximum number of reveals to store in memory.
     pub lru_cache_size: std::num::NonZeroUsize,
+    /// Reference to the global governance state, used for emergency halts and drand offsets.
+    pub gov_state: Option<std::sync::Arc<std::sync::RwLock<kinetic_core::governance::types::GovernanceState>>>,
 }
 
 pub(crate) mod serde_bytes_wrapper {

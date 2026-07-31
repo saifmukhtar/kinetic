@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::store::core::KineticRecordStore;
-    use kinetic_core::types::{Heartbeat, Reveal, VdfProof};
+    use kinetic_core::types::{Reveal, VdfProof};
     use kinetic_storage::SledStorage;
     use libp2p::identity::Keypair;
     use libp2p::PeerId;
@@ -46,6 +46,7 @@ mod tests {
             std::num::NonZeroUsize::new(100).unwrap(),
             max_reveals,
             vdf_engine,
+            None,
         );
         (store, storage)
     }

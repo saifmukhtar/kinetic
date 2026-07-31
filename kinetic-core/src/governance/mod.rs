@@ -9,10 +9,9 @@
 //!
 //! | Engine | Signing Rule |
 //! |---|---|
-//! | `monarchy` | Root key signs alone |
+//! | `sovereign` | Root key signs alone |
 //! | `council` | ≥50% of council |
-//! | `bicameral` | Founder mode: Root; Council mode: ≥50% + Guard co-sign for sensitive actions |
-//! | `anarchy` | No signing required (development only) |
+//! | `permissionless` | No signing required (development only) |
 //!
 //! See `kinetic-core/src/governance/engine/` for concrete implementations.
 

@@ -6,7 +6,7 @@
 
 ## Abstract
 
-Unlike traditional open-source projects where governance is dictated via social consensus or loose contributor guidelines, Kinetic enforces protocol upgrades and conflict resolution mathematically. This paper formalizes the **Bicameral Rule Book** — a cryptographic governance architecture designed to provide rapid iteration during the protocol's infancy, while guaranteeing an auto-locking transition to a fully decentralized, trustless threshold-multisig council.
+Unlike traditional open-source projects where governance is dictated via social consensus or loose contributor guidelines, Kinetic enforces protocol upgrades and conflict resolution mathematically. This paper formalizes the **Governance Rule Book** — a cryptographic governance architecture designed to provide rapid iteration during the protocol's infancy, while guaranteeing an auto-locking transition to a fully decentralized, trustless threshold-multisig council.
 
 This governance architecture applies to the canonical `.kin` network. Fork operators deploying their own network via `kinetic-forge` inherit the same governance framework but hold all initial keys themselves, giving them complete sovereignty over their network's upgrade lifecycle. A university fork can define its own council, its own voting threshold, and its own phase transition rules — all within the same cryptographic governance framework.
 
@@ -48,7 +48,7 @@ The Council is a dynamic group of up to $N$ core maintainers whose public keys a
 
 ---
 
-## 3. The Bicameral Rule Book (OTA Updates)
+## 3. The Governance Rule Book (OTA Updates)
 
 Significant architectural changes — modifying VDF difficulty parameters, altering DHT routing logic, updating the governance key structure, or changing network constants in `network.json` — require an official network update governed by the following strict cryptographic pipeline:
 
@@ -123,7 +123,7 @@ The governance framework is a set of cryptographic primitives, not a fixed polit
 
 ## 6. Conclusion
 
-By encoding governance as a cryptographic primitive involving threshold signatures and mandatory timelocks, the Kinetic Protocol ensures that network upgrades are as secure, verifiable, and decentralized as the core naming consensus itself. The Bicameral Rule Book provides a clear, deterministic path from founder-controlled incubation to fully decentralized operation — and fork operators can customize every parameter of this path for their specific institutional context.
+By encoding governance as a cryptographic primitive involving threshold signatures and mandatory timelocks, the Kinetic Protocol ensures that network upgrades are as secure, verifiable, and decentralized as the core naming consensus itself. The Governance Rule Book provides a clear, deterministic path from founder-controlled incubation to fully decentralized operation — and fork operators can customize every parameter of this path for their specific institutional context.
 
 ---
 

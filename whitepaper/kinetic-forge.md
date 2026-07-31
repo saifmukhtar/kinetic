@@ -61,7 +61,7 @@ All consensus, networking, and identity parameters are externalized into `networ
   "benchmark_base_iterations": 238819830,
   "steal_target_rounds": 7884000,
   "m_redundancy": 32,
-  "governance_model": "bicameral",
+  "governance_model": "council",
   "drand_genesis_time": 1692803367,
   "drand_period": 3,
   "drand_public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e...",

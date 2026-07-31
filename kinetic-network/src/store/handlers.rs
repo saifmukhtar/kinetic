@@ -10,12 +10,14 @@ impl KineticRecordStore {
         reveal: &kinetic_core::types::Reveal,
         skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
-        // Finding 3: Use the shared constant instead of a hardcoded magic number.
-        if self.current_drand_round.saturating_sub(reveal.drand_pulse)
-            > kinetic_core::types::RESQUARING_EPOCH_ROUNDS
-        {
-            let age = self.current_drand_round.saturating_sub(reveal.drand_pulse);
-            let err = KineticStoreError::VdfExpired { age };
+        let total_paused_rounds = self.gov_state.as_deref().map(|g| g.read().unwrap().total_paused_rounds).unwrap_or(0);
+
+        let effective_age = self.current_drand_round
+            .saturating_sub(reveal.drand_pulse)
+            .saturating_sub(total_paused_rounds);
+
+        if effective_age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
+            let err = KineticStoreError::VdfExpired { age: effective_age };
             err.log_warning("KIN-STORE-001", &reveal.name, "Rejecting Reveal:");
             return Err(err);
         }
@@ -26,6 +28,7 @@ impl KineticRecordStore {
                 &self.storage,
                 self.current_drand_round,
                 &self.vdf_engine,
+                self.gov_state.as_deref(),
             ) {
                 e.log_warning("KIN-STORE-002", &reveal.name, "Rejecting Reveal:");
                 return Err(e);

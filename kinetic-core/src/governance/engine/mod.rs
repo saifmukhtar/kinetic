@@ -3,10 +3,8 @@
 //! Provides concrete implementations of the [`GovernanceEngine`](crate::traits::GovernanceEngine)
 //! trait, which define the signature thresholds and timelock requirements for protocol actions.
 
-pub mod anarchy;
-pub mod bicameral;
-pub mod council;
-pub mod monarchy;
+pub mod permissionless;
+pub mod sovereign;
 
 use crate::traits::GovernanceEngine;
 
@@ -21,10 +19,8 @@ use crate::traits::GovernanceEngine;
 /// Panics at startup if `GOVERNANCE_MODEL` in `network.json` is set to an unknown value.
 pub fn get_active_engine() -> Box<dyn GovernanceEngine> {
     match crate::constants::GOVERNANCE_MODEL {
-        "bicameral" => Box::new(bicameral::BicameralEngine),
-        "monarchy" => Box::new(monarchy::MonarchyEngine),
-        "anarchy" => Box::new(anarchy::AnarchyEngine),
-        "council" => Box::new(council::CouncilEngine),
+        "sovereign" => Box::new(sovereign::SovereignEngine),
+        "permissionless" => Box::new(permissionless::PermissionlessEngine),
         _ => panic!(
             "Unknown governance model '{}' specified in network.json",
             crate::constants::GOVERNANCE_MODEL

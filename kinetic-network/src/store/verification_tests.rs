@@ -101,13 +101,13 @@ mod tests {
             let _ = write!(&mut hex_hash, "{:02x}", byte);
         }
 
-        let kid = kinetic_kid::did::KineticDid::new(&format!("did:{}:{}", kinetic_core::constants::NETWORK_ID, hex_hash)).unwrap();
+        let kid = kinetic_kid::did::KineticDid::new(&format!("{}{}", kinetic_core::constants::DID_PREFIX, hex_hash)).unwrap();
         let doc = KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,
             created_at: 1234567890,
             controller_keys: vec![kinetic_kid::document::ControllerKey {
-                id: format!("did:{}:{}#primary", kinetic_core::constants::NETWORK_ID, hex_hash),
+                id: format!("{}{}#primary", kinetic_core::constants::DID_PREFIX, hex_hash),
                 key_type: "MlDsa65".to_string(),
                 public_key: pub_key_b64,
             }],

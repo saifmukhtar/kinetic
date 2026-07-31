@@ -1,4 +1,4 @@
-//! Anarchy (development) protocol engine driver.
+//! Permissionless (development) protocol engine driver.
 //!
 //! Used for local testing and simulation where the network runs without any central
 //! governance, timelocks, or update authorities. All privileged actions are universally rejected.
@@ -10,9 +10,9 @@ use crate::traits::GovernanceEngine;
 /// Development-only engine driver where all governance modifications are rejected.
 ///
 /// Represents a pure decentralized state with no Root or Council keys.
-pub struct AnarchyEngine;
+pub struct PermissionlessEngine;
 
-impl GovernanceEngine for AnarchyEngine {
+impl GovernanceEngine for PermissionlessEngine {
     /// Universally rejects all governance actions.
     ///
     /// # Errors
@@ -24,9 +24,9 @@ impl GovernanceEngine for AnarchyEngine {
         _msg: &SignedGovernanceMessage,
         _current_time_sec: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        // In Anarchy mode, the network is perfectly immutable.
+        // In Permissionless mode, the network is perfectly immutable.
         // No governance actions (updates, name revocations) are allowed.
-        Err(GovernanceError::InsufficientSignatures)
+        Err(GovernanceError::GovernanceDisabled)
     }
 
     fn execute_action(

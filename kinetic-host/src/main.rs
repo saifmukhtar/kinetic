@@ -43,7 +43,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::sync::Arc;
 use tokio::sync::watch;
-use tracing::{info, warn, Level};
+use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
@@ -198,6 +198,7 @@ async fn run_host() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
         disable_pow: false,
+        gov_state: None,
     };
 
     let base_config_dir = kinetic_core::config::get_base_dir();

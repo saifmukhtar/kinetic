@@ -113,7 +113,7 @@ pub trait StorageEngine: Send + Sync {
 /// Abstract interface for protocol governance state verification and action execution.
 ///
 /// Four concrete engines are available (selected at compile time via `GOVERNANCE_MODEL`):
-/// `bicameral`, `monarchy`, `council`, `anarchy`. See `kinetic-core/src/governance/engine/`.
+/// `sovereign`, `council`, `permissionless`. See `kinetic-core/src/governance/engine/`.
 ///
 /// The engine is always called in a two-step sequence:
 /// 1. [`verify_action`](Self::verify_action) — validates signatures, thresholds, and timelocks.

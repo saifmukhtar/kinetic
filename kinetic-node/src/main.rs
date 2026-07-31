@@ -247,6 +247,7 @@ async fn run_node() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
         disable_pow: false,
+        gov_state: None,
     };
 
     let base_config_dir = kinetic_core::config::get_base_dir();

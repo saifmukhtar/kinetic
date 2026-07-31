@@ -65,8 +65,7 @@ mod tests {
         let path = Arc::new(dir.path().join("gov.bin"));
 
         let msg = SignedGovernanceMessage {
-            action: GovernanceAction::LockCouncil,
-            council_size_at_proposal: 0,
+            action: GovernanceAction::GrantPremiumName { name: "x".to_string(), target_pubkey: vec![] },
             timestamp_sec: 0,
             signatures: vec![],
         };
@@ -106,7 +105,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = Arc::new(dir.path().join("gov.bin"));
 
-        let extra_fields = b"{\"action\": \"LockCouncil\", \"council_size_at_proposal\": 0, \"timestamp_sec\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
+        let extra_fields = b"{\"action\": {\"GrantPremiumName\": {\"name\": \"x\", \"target_pubkey\": []}}, \"timestamp_sec\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
         // Should parse and handle or ignore the extra field without panicking
         handle_kinetic_governance_gossip(extra_fields, path);
@@ -120,8 +119,7 @@ mod tests {
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
         let msg = SignedGovernanceMessage {
-            action: GovernanceAction::LockCouncil,
-            council_size_at_proposal: 0,
+            action: GovernanceAction::GrantPremiumName { name: "x".to_string(), target_pubkey: vec![] },
             timestamp_sec: 0,
             signatures: vec![],
         };

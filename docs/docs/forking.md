@@ -132,9 +132,9 @@ pub trait GovernanceEngine: Send + Sync {
 ```
 
 **Built-in implementations:**
-- **`Bicameral`**: Requires both a hot guard key and a cold root key (default for high security).
-- **`Monarchy`**: Requires only a single root key (for simpler deployments).
-- **`Anarchy`**: No governance updates allowed; code is law and immutable.
+- **`Council`**: Requires both a hot guard key and a cold root key (default for high security).
+- **`Sovereign`**: Requires only a single root key (for simpler deployments).
+- **`Permissionless`**: No governance updates allowed; code is law and immutable.
 - **`Council`**: Requires a multisig consensus from a defined council of keys. (Note: Council does not use root/guard keys).
 
 **When you'd swap it:**
@@ -190,7 +190,7 @@ It will walk you through:
   (in months, default: 9)
 > 6
 
-? Which Governance Engine do you want to use? (Bicameral, Monarchy, Anarchy, Council)
+? Which Governance Engine do you want to use? (Council, Sovereign, Permissionless, Council)
 > Council
 
 Writing network.json...

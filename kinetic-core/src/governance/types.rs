@@ -10,14 +10,12 @@
 //! 2. Threshold verification by the active [`GovernanceEngine`](crate::traits::GovernanceEngine)
 //!    determines whether the action is immediately executed or enters a timelock queue.
 //!
-//! In **Founder mode** ([`GovernanceMode::Founder`]), the Root key acts as single-signer authority
-//! (no council threshold required). The `LockCouncil` action permanently transitions the network
-//! to **Council mode** ([`GovernanceMode::Council`]), after which Root key authority is removed.
+//! In **Sovereign mode**, the Root key acts as a single-signer authority.
 
 use ml_dsa::signature::Verifier;
 use ml_dsa::KeyInit;
 use ml_dsa::MlDsa65;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
 pub type Hash256 = [u8; 32];
@@ -41,42 +39,33 @@ pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
     false
 }
 
-/// Enumerates privileged protocol actions governed by council threshold voting or Founder mode.
+/// Enumerates privileged protocol actions governed by network governance.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum GovernanceAction {
-    /// Appoint a new member key to the network Council.
-    AppointMember {
-        /// ML-DSA-65 public key of the candidate member.
-        key: PublicKeyBytes,
-    },
 
-    /// Transition the network from Founder mode to Council mode.
-    LockCouncil,
-
-    /// Rotate the network's offline Root public key.
-    RotateRootKey {
-        /// New ML-DSA-65 Root public key.
-        new_key: PublicKeyBytes,
-    },
-    /// Rotate an existing council member's signing key.
-    RotateCouncilMemberKey {
-        /// Existing public key of the member.
-        target_key: PublicKeyBytes,
-        /// Replacement public key of the member.
-        new_key: PublicKeyBytes,
-    },
-    /// Remove an active member from the network Council.
-    RemoveCouncilMember {
-        /// Public key of the member to remove.
-        target_key: PublicKeyBytes,
-    },
-
-    /// Grant a 1-character premium domain name (Founder phase only, max 5 lifetime grants).
+    /// Grant a 1-character premium domain name (Root key only).
     GrantPremiumName {
         /// Target 1-character name label.
         name: String,
         /// Recipient's ML-DSA-65 public key.
         target_pubkey: PublicKeyBytes,
+    },
+    /// Revoke a 1-character premium domain name (Root key only).
+    RevokePremiumName {
+        /// Target 1-character name label.
+        name: String,
+    },
+    /// Permanently delegates root authority to a new ML-DSA-65 public key.
+    RotateRootKey {
+        /// The new ML-DSA-65 root public key.
+        new_key: PublicKeyBytes,
+    },
+    /// Emergency pause for network registration and renewals.
+    EmergencyHalt,
+    /// Resume network registration and renewals, adding to the global pause offset.
+    EmergencyResume {
+        /// The exact number of drand rounds the network was halted for.
+        paused_rounds: u64,
     },
 }
 
@@ -91,15 +80,20 @@ pub enum GovernanceEffect {
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
-}
-
-/// Operational governance mode of the network.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum GovernanceMode {
-    /// Founder bootstrap mode: initial root key holds single-signer ratification authority.
-    Founder,
-    /// Decentralized Council mode: actions require supermajority threshold voting.
-    Council,
+    /// Inform node subsystems of a premium domain revocation.
+    PremiumNameRevoked {
+        /// Revoked 1-character name.
+        name: String,
+    },
+    /// The Sovereign Root key was successfully rotated.
+    RootKeyRotated {
+        /// The new Root public key.
+        new_key: PublicKeyBytes,
+    },
+    /// The network has been emergency halted by the Root key.
+    NetworkHalted,
+    /// The network has been resumed by the Root key.
+    NetworkResumed,
 }
 
 /// Proposal message container with signatures from authorized council members.
@@ -107,8 +101,6 @@ pub enum GovernanceMode {
 pub struct SignedGovernanceMessage {
     /// Target governance action payload.
     pub action: GovernanceAction,
-    /// Recorded council size at the time the proposal was created (prevents denominator manipulation).
-    pub council_size_at_proposal: u32,
     /// Proposal creation Unix timestamp in seconds.
     pub timestamp_sec: u64,
     /// Collected ML-DSA-65 signatures supporting this proposal.
@@ -120,27 +112,17 @@ pub struct SignedGovernanceMessage {
 pub struct GovernanceState {
     /// Unix timestamp of network genesis.
     pub genesis_timestamp_sec: u64,
-    /// Current operating mode ([`GovernanceMode::Founder`] vs [`GovernanceMode::Council`]).
-    pub mode: GovernanceMode,
-    /// Timestamp when Council mode was locked, if applicable.
-    pub lock_timestamp_sec: Option<u64>,
-    /// List of active council member public keys.
-    pub active_council: Vec<PublicKeyBytes>,
-    /// Map tracking the last signature timestamp per council member to detect inactive members.
-    pub last_signature_timestamps: HashMap<PublicKeyBytes, u64>,
-    /// Map of action hashes that have already been executed to their timestamp (prevents replay attacks).
+    /// If Some, this key overrides the hardcoded genesis ROOT_PUBLIC_KEY_HEX.
+    pub active_root_key: Option<PublicKeyBytes>,
+    /// Whether the network registration engine is currently paused.
     #[serde(default)]
+    pub is_halted: bool,
+    /// Total number of drand rounds the network has been paused for since genesis.
+    #[serde(default)]
+    pub total_paused_rounds: u64,
+    #[serde(default)]
+    /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, u64>,
-
-    /// In-progress proposals aggregating threshold signatures.
-    pub partial_proposals: HashMap<Hash256, SignedGovernanceMessage>,
-    /// Counter tracking 1-character premium name grants issued by the Founder (max 5).
-    pub founder_premium_grants: u8,
-    /// Start timestamp of the 14-day automatic transition grace period.
-    pub grace_period_start_sec: Option<u64>,
-    /// Dynamically rotated Root key (if updated via `RotateRootKey`).
-    #[serde(default)]
-    pub dynamic_root_key: Option<PublicKeyBytes>,
 }
 
 impl SignedGovernanceMessage {
@@ -150,15 +132,13 @@ impl SignedGovernanceMessage {
     ///
     /// | Opcode | Action Variant |
     /// |---|---|
-    /// | `0x00` | `AppointMember` |
-    /// | `0x02` | `LockCouncil` |
-    /// | `0x04` | `RotateRootKey` |
-    /// | `0x06` | `RotateCouncilMemberKey` |
-    /// | `0x07` | `RemoveCouncilMember` |
-    /// | `0x09` | `GrantPremiumName` |
+    /// | `0x0A` | `GrantPremiumName` |
+    /// | `0x0B` | `RotateRootKey` |
+    /// | `0x0C` | `EmergencyHalt` |
+    /// | `0x0D` | `EmergencyResume` |
+    /// | `0x0E` | `RevokePremiumName` |
     ///
-    /// All variable-length fields are prefixed with `u32_be(len)` to prevent canonicalization ambiguity.
-    /// The message closes with `u32_be(council_size_at_proposal)` and `u64_be(timestamp_sec)`.
+    /// The message closes with `u64_be(timestamp_sec)`.
     ///
     /// # Returns
     ///
@@ -167,29 +147,6 @@ impl SignedGovernanceMessage {
     pub fn to_canonical_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
-            GovernanceAction::AppointMember { key } => {
-                buf.push(0x00);
-                buf.extend_from_slice(key.as_slice());
-            }
-
-            GovernanceAction::LockCouncil => {
-                buf.push(0x02);
-            }
-
-            GovernanceAction::RotateRootKey { new_key } => {
-                buf.push(0x04);
-                buf.extend_from_slice(new_key.as_slice());
-            }
-            GovernanceAction::RotateCouncilMemberKey { target_key, new_key } => {
-                buf.push(0x06);
-                buf.extend_from_slice(target_key.as_slice());
-                buf.extend_from_slice(new_key.as_slice());
-            }
-            GovernanceAction::RemoveCouncilMember { target_key } => {
-                buf.push(0x07);
-                buf.extend_from_slice(target_key.as_slice());
-            }
-
 
             GovernanceAction::GrantPremiumName {
                 name,
@@ -201,9 +158,25 @@ impl SignedGovernanceMessage {
                 buf.extend_from_slice(name_bytes);
                 buf.extend_from_slice(target_pubkey.as_slice());
             }
+            GovernanceAction::RevokePremiumName { name } => {
+                buf.push(0x0E);
+                let name_bytes = name.as_bytes();
+                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
+                buf.extend_from_slice(name_bytes);
+            }
+            GovernanceAction::RotateRootKey { new_key } => {
+                buf.push(0x0B);
+                buf.extend_from_slice(new_key.as_slice());
+            }
+            GovernanceAction::EmergencyHalt => {
+                buf.push(0x0C);
+            }
+            GovernanceAction::EmergencyResume { paused_rounds } => {
+                buf.push(0x0D);
+                buf.extend_from_slice(&paused_rounds.to_be_bytes());
+            }
         }
 
-        buf.extend_from_slice(&self.council_size_at_proposal.to_be_bytes());
         buf.extend_from_slice(&self.timestamp_sec.to_be_bytes());
         buf
     }

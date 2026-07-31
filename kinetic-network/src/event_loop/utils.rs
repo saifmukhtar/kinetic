@@ -276,6 +276,7 @@ impl super::core::NetworkEventLoop {
                             &reveal,
                             current_pulse,
                             &engine,
+                            None,
                         ) {
                             Ok(req) => req,
                             Err(e) => {

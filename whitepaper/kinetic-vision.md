@@ -65,7 +65,7 @@ The local client environment. OS-level Split-DNS loopback interception transpare
 The adversarial reality. Redundant Deterministic Storage across M independent DHT keys makes Eclipse attacks statistically impossible (probability ≈ 10⁻⁴⁴⁸ for M=32, f=0.2). Competitive Gossip validation rejects invalid VDF proofs at the network edge. The XOR tie-breaker resolves name collisions without grinding.
 
 ### [Pillar V: Cryptographic Governance](./kinetic-governance.md)
-The upgrade mechanism. A Bicameral Rule Book with a 69% supermajority threshold signature Council, mandatory 48-hour timelocks on OTA binary updates, and a deterministic Phase 2 auto-lock that permanently surrenders founder authority once 7 independent Council members are registered. Governance is not social — it is cryptographic.
+The upgrade mechanism. A Governance Rule Book with a 69% supermajority threshold signature Council, mandatory 48-hour timelocks on OTA binary updates, and a deterministic Phase 2 auto-lock that permanently surrenders founder authority once 7 independent Council members are registered. Governance is not social — it is cryptographic.
 
 ---
 

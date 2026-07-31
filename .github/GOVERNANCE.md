@@ -2,7 +2,7 @@
 
 This document describes the governance model for the Kinetic Protocol. It details how decisions are made, how the network is secured via cryptographic rules, and how leadership roles are structured. 
 
-Unlike many open-source projects where governance is purely social, Kinetic's governance is **cryptographically enforced at the protocol level** through the "Bicameral Rule Book." This ensures that the network remains decentralized, mathematically rigorous, and secure.
+Unlike many open-source projects where governance is purely social, Kinetic's governance is **cryptographically enforced at the protocol level** through the "Governance Rule Book." This ensures that the network remains decentralized, mathematically rigorous, and secure.
 
 ## 1. Project Overview & Mission
 
@@ -23,7 +23,7 @@ During Phase 1 (the first 12 months after genesis, defined as `AUTO_LOCK_SECONDS
 ### The Council (Multisig Core Maintainers)
 The Council is a dynamic group of up to 21 core maintainers (`MAX_COUNCIL_SIZE` in `kinetic-core/src/constants.rs:24`) whose public keys are registered on the network.
 - They have voting rights on architectural changes and protocol upgrades (Over-The-Air updates).
-- A **69% supermajority** is required for the Council to ratify a binary OTA update or appoint a new member (Source: `kinetic-core/src/governance/engine/bicameral.rs:162`). Premium names require 90%, and key rotations require 95%.
+- A **69% supermajority** is required for the Council to ratify a binary OTA update or appoint a new member (Source: `kinetic-core/src/governance/engine/council.rs:162`). Premium names require 90%, and key rotations require 95%.
 - If an update is ratified, it enters a **48-hour timelock** (`OTA_TIMELOCK_SECONDS` in `kinetic-core/src/constants.rs:39`) before nodes apply it, allowing the Guard Key to veto if necessary.
 
 ### Contributors and Users
@@ -39,7 +39,7 @@ Maintainership and Council membership are granted through a strict **merit-based
 
 Once nominated, the addition of the new member's public key must be ratified by a 69% supermajority vote of the existing Council via a `SignedGovernanceMessage`.
 
-## 4. Decision-Making Process (The Bicameral Rule Book)
+## 4. Decision-Making Process (The Governance Rule Book)
 
 ### Routine Changes
 Minor bug fixes, documentation updates, and standard refactoring can be merged by any core maintainer without triggering an on-chain network upgrade.

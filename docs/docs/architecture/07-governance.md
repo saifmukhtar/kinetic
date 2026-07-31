@@ -8,11 +8,11 @@ next:
   link: '/architecture/08-client-architecture'
 ---
 
-# Architecture & Motivation: Bicameral Governance
+# Architecture & Motivation: Governance
 
 How does a decentralized protocol seamlessly upgrade itself without relying on centralized auto-updaters controlled by a single corporation, yet simultaneously avoid the gridlock, plutocracy, and systemic failures of traditional DAO token-voting?
 
-Kinetic solves this intricate political and technical challenge via a **Bicameral (Two-Phase) Governance Engine** built directly into the core state machine (`kinetic-core/src/governance/engine/bicameral.rs`).
+Kinetic solves this intricate political and technical challenge via a **Pluggable Governance Engine** built directly into the core state machine (`kinetic-core/src/governance/engine/`).
 
 ## The Failure of Token-Voting DAOs
 
@@ -22,41 +22,34 @@ Conversely, pure "social consensus" (like Bitcoin, where the only way to upgrade
 
 Kinetic has absolutely no token. There is no currency to stake, and no votes to buy. Instead, governance is based on a rigid, cryptographic hierarchy of trusted identities (the Council) that is algorithmically forced to decentralize itself over time to prevent long-term tyranny.
 
-## Phase 1: The Founder Era
+## Supported Governance Models
 
-When a Kinetic network launches (Genesis), the software is highly vulnerable. Unforeseen bugs are likely, economic edge cases will emerge, and the network needs the agility to pivot rapidly to survive its infancy. 
+The Kinetic protocol supports multiple governance engines that can be selected at compile time via `network.json`, allowing the network to operate in different phases or modes depending on its maturity and goals.
 
-In Phase 1, the protocol is strictly governed by a `Root Key` (typically held by the core development team in cold storage). 
+### 1. Sovereign (The Founder Era)
+
+When a Kinetic network launches (Genesis), the software might be highly vulnerable. Unforeseen bugs are likely, economic edge cases will emerge, and the network needs the agility to pivot rapidly to survive its infancy. 
+
+In `sovereign` mode, the protocol is strictly governed by a `Root Key` (typically held by the core development team in cold storage). 
 - The Root key has the unilateral, absolute power to propose Over-The-Air (OTA) binary updates and emergency parameter tweaks.
-- The `Guard Key` (the Founder key) is technically present in the state but is completely dormant during this phase. It acts purely as a decorative placeholder until Phase 2 is triggered.
 
 This model provides the immense agility of a centralized startup while the network is young. However, a foundational tenet of Kinetic is that users should not have to trust the Founders forever.
 
-## The Auto-Lock Transition
+### 2. Council (The Republic Era)
 
-To prevent the Founders from clinging to power indefinitely, the protocol contains a size-based trigger mechanism.
+In `council` mode, the network matures into a distributed republic. It is governed by a globally distributed Council of humans (hard-capped at a maximum of 21 members to ensure agile coordination). Any protocol action, parameter change, or software update now requires a mathematically enforced supermajority of Council signatures.
 
-According to `kinetic-core/src/constants.rs`, there is a `MIN_ACTIVE_COUNCIL` limit (typically 7 members). 
+### 3. Permissionless (Absolute Decentralization)
 
-If the Founders successfully recruit and add 7 independent community members to the Council, and configure a Guard Key, **Phase 1 permanently and irreversibly terminates**. 
-
-The network transitions to Phase 2. The Root key is cryptographically stripped of its unilateral power; any signatures it produces for OTA updates are now immediately rejected by all nodes on the network as invalid. The Founders are reduced to standard Council members.
-
-## Phase 2: The Bicameral Council
+In `permissionless` mode, all governance actions are unilaterally rejected by the network. The protocol becomes completely immutable, relying strictly on "Code is Law". No central authority or council has the power to grant premium names, push OTA updates, or rotate keys. Network upgrades can only be executed via community-driven hard forks.
 
 In Phase 2, the network matures into a distributed republic. It is governed by a globally distributed Council of humans (hard-capped at a maximum of 21 members to ensure agile coordination). Any protocol action, parameter change, or software update now requires a mathematically enforced supermajority of Council signatures.
 
-### The Thresholds
+### The Thresholds (Council Mode)
 The thresholds are hardcoded in the rust binaries and cannot be bypassed without a hard fork:
 - **69% Supermajority:** Required to push an OTA software update, adjust VDF cost parameters, or add/remove a Council member.
 - **90% Supermajority:** Required to forcibly seize or reassign a "premium" or highly contested namespace (e.g., if a trademark dispute threatens the network, or if a botnet is using a `.kin` domain for malware). This extremely high bar prevents the council from easily stealing names from legitimate users.
-- **95% Supermajority:** Required to execute a catastrophic key rotation (e.g., if a nation-state compromises multiple council members and the remaining members must coordinate a massive reset). Note that rotating the Root Key also cryptographically requires a co-signature from the `Guard Key`.
-
-### The Guard Key Activation
-
-Upon entering Phase 2, the previously dormant `Guard Key` activates as a critical bicameral check against the Council:
-- **Cryptographic Veto:** The Guard Key possesses the unilateral power to veto any proposed OTA update or parameter change, acting as a failsafe against a rogue Council.
-- **Root Key Rotation:** As mentioned above, the Council cannot rotate the Root Key without the Guard Key's explicit cryptographic consent.
+- **95% Supermajority:** Required to execute a catastrophic key rotation (e.g., if a nation-state compromises multiple council members and the remaining members must coordinate a massive reset).
 
 ### The 48-Hour OTA Timelock and the Social Failsafe
 

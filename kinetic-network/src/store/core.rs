@@ -40,6 +40,8 @@ pub struct KineticRecordStore {
     pub current_drand_round: u64,
     /// Configuration for rate limiting reveals
     pub max_reveals_per_hour: usize,
+    /// Reference to the global governance state.
+    pub gov_state: Option<std::sync::Arc<std::sync::RwLock<kinetic_core::governance::types::GovernanceState>>>,
 }
 
 impl KineticRecordStore {
@@ -57,6 +59,7 @@ impl KineticRecordStore {
     /// * `lru_cache_size` - The maximum number of reveals to cache in memory.
     /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per domain name.
     /// * `vdf_engine` - The backend engine used to verify VDF proofs.
+    /// * `gov_state` - The global governance state for emergency pause checks.
     ///
     /// # Panics
     ///
@@ -68,6 +71,7 @@ impl KineticRecordStore {
         lru_cache_size: NonZeroUsize,
         max_reveals_per_hour: usize,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
+        gov_state: Option<std::sync::Arc<std::sync::RwLock<kinetic_core::governance::types::GovernanceState>>>,
     ) -> Self {
         let mut reveals_by_name = LruCache::new(lru_cache_size);
         let mut last_heartbeats_by_name = HashMap::new();
@@ -89,6 +93,7 @@ impl KineticRecordStore {
                         &reveal,
                         initial_drand_round,
                         vdf_engine.as_ref(),
+                        gov_state.as_deref(),
                     ) {
                         if reveal.iterations >= req {
                             let dev_mode = kinetic_core::config::is_dev_mode();
@@ -170,6 +175,7 @@ impl KineticRecordStore {
             accepted_reveals_timestamps: LruCache::new(lru_cache_size),
             current_drand_round: initial_drand_round,
             max_reveals_per_hour,
+            gov_state,
         }
     }
     /// Prunes expired records based on Drand pulse progression.
@@ -521,6 +527,7 @@ mod tests {
             NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
+            None,
         );
 
         let record = kad::Record::new(

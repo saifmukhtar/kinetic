@@ -124,7 +124,7 @@ Once your commitment is acknowledged by the peer-to-peer network, your local nod
 <a class="arch-card" href="/architecture/07-governance">
   <span class="arch-num">07</span>
   <span class="arch-title">Governance</span>
-  <span class="arch-desc">Bicameral upgrade keys, council multisig, and code-as-law modes.</span>
+  <span class="arch-desc">Council upgrade keys, council multisig, and code-as-law modes.</span>
 </a>
 
 <a class="arch-card" href="/architecture/08-client-architecture">

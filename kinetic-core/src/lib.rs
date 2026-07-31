@@ -13,7 +13,7 @@
 //! - **[`types`]** — Shared wire-format types ([`DnsZone`](types::DnsZone), [`DnsRecord`](types::DnsRecord), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
 //! - **[`error`]** — Unified error logbook ([`KineticError`](error::KineticError)), domain errors ([`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), [`RegistrationError`](error::RegistrationError)), and stable error codes.
 //! - **[`traits`]** — Core abstraction traits ([`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine)).
-//! - **[`governance`]** — Bicameral council state machine and parameter rulebooks governing privileged protocol actions.
+//! - **[`governance`]** — Council state machine and parameter rulebooks governing privileged protocol actions.
 //! - **[`consensus_math`]** — Deterministic math routines for VDF difficulty scaling, name-length pricing, and grace period calculations.
 //! - **[`drand`]** — Client interface for the drand distributed randomness beacon used in time-bound operations.
 //! - **[`net`]** — Network security primitives, IP classification, and SSRF prevention guards.

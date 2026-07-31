@@ -81,6 +81,7 @@ impl super::core::NetworkEventLoop {
         let lru_cache_size = config.lru_cache_size;
         let max_reveals_per_hour = config.max_reveals_per_hour;
         let vdf_engine_clone = vdf_engine.clone();
+        let gov_state_clone = config.gov_state.clone();
 
         let mut swarm = builder
             .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
@@ -93,6 +94,7 @@ impl super::core::NetworkEventLoop {
                     lru_cache_size,
                     max_reveals_per_hour,
                     vdf_engine_clone.clone(),
+                    gov_state_clone.clone(),
                 );
                 let mut kad_config = kad::Config::default();
                 kad_config
@@ -419,6 +421,7 @@ impl super::core::NetworkEventLoop {
                     std::num::NonZeroUsize::new(100).unwrap(),
                     100,
                     vdf_engine_clone.clone(),
+                    None,
                 );
                 let mut kad_config = kad::Config::default();
                 kad_config.set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(
