@@ -44,9 +44,10 @@ for DIR in $FUZZ_DIRS; do
         echo "🚀 Running fuzz target: $TARGET in $CRATE_DIR for ${DURATION}s"
         
         # Run cargo fuzz. We don't want it to exit the script if it crashes, 
-        # so we catch the exit code.
+        # so we catch the exit code. We also wrap it in 'timeout' to guarantee
+        # it stops exactly when requested, even if libfuzzer hangs.
         set +e
-        cargo +nightly fuzz run "$TARGET" -- -max_total_time="$DURATION"
+        timeout "${DURATION}s" cargo +nightly fuzz run "$TARGET" -- -max_total_time="$DURATION"
         EXIT_CODE=$?
         set -e
         
