@@ -4,8 +4,8 @@
 //! Ed25519 signature checks, VDF iteration verification (including loyalty discounts),
 //! and timestamp freshness checks to prevent sybil attacks and namespace hijacking.
 
-use kinetic_core::types::RevealExt;
 use crate::error::KineticStoreError;
+use kinetic_core::types::RevealExt;
 
 /// Finding 13 (Critical): Verify a HostRoutingRecord's signature and timestamp freshness.
 ///
@@ -173,11 +173,12 @@ pub(crate) fn compute_required_iterations(
 
         let prev_req = consensus_math.required_iterations(&reveal.name, &prev_drand_rand);
 
-        let total_paused_rounds = if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-            state.total_paused_rounds
-        } else {
-            0
-        };
+        let total_paused_rounds =
+            if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+                state.total_paused_rounds
+            } else {
+                0
+            };
 
         let effective_age = current_drand_round
             .saturating_sub(prev.drand_pulse)
@@ -269,7 +270,11 @@ pub(crate) fn verify_reveal(
 
     let dev_mode = kinetic_core::config::is_dev_mode();
 
-    if !dev_mode && reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
+    if !dev_mode
+        && reveal
+            .verify_signature(kinetic_core::constants::NETWORK_ID)
+            .is_err()
+    {
         let err = KineticStoreError::InvalidSignature;
         err.log_warning(
             "KIN-STORE-026",
@@ -427,7 +432,12 @@ pub(crate) fn verify_authorized_kid(
     let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth_kid.owner_signature.as_slice())
         .map_err(|_| KineticStoreError::InvalidKidSignature)?;
 
-    if pubkey.verify(&auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig).is_err()
+    if pubkey
+        .verify(
+            &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID),
+            &sig,
+        )
+        .is_err()
         || auth_kid.kid_doc.verify().is_err()
     {
         let err = KineticStoreError::InvalidKidSignature;
@@ -515,11 +525,15 @@ pub(crate) fn verify_authorized_manifest(
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
     use ml_dsa::signature::Verifier;
-    let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth_manifest.owner_signature.as_slice())
-        .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
+    let sig =
+        ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth_manifest.owner_signature.as_slice())
+            .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
     if pubkey
-        .verify(&auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig)
+        .verify(
+            &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID),
+            &sig,
+        )
         .is_err()
     {
         let err = KineticStoreError::InvalidManifestSignature;
