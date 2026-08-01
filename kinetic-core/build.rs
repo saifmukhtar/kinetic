@@ -52,8 +52,6 @@ struct TimeoutsConfig {
 #[derive(Deserialize)]
 struct NetworkSection {
     tld: String,
-    tld_suffix: String,
-    did_prefix: String,
     base_domain: String,
     network_id: String,
     docs_url: String,
@@ -120,13 +118,13 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The suffix format for Kinetic names, including the preceding dot.\npub const TLD_SUFFIX: &str = \"{}\";\n\n",
-        config.network.tld_suffix
+        "/// The suffix format for Kinetic names, including the preceding dot.\npub const TLD_SUFFIX: &str = \".{}\";\n\n",
+        config.network.tld
     ));
 
     out.push_str(&format!(
-        "/// The prefix used for Decentralized Identifiers (DIDs) on the Kinetic network.\npub const DID_PREFIX: &str = \"{}\";\n\n",
-        config.network.did_prefix
+        "/// The prefix used for Decentralized Identifiers (DIDs) on the Kinetic network.\npub const DID_PREFIX: &str = \"did:{}:\";\n\n",
+        config.network.tld
     ));
 
     out.push_str(&format!(

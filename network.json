@@ -2,8 +2,6 @@
   "network": {
     "network_id": "kinetic",
     "tld": "kin",
-    "tld_suffix": ".kin",
-    "did_prefix": "did:kin:",
     "base_domain": "saifmukhtar.dev",
     "docs_url": "https://kinetic.saifmukhtar.dev",
     "ipfs_gateway": "https://ipfs.io/ipfs/",
