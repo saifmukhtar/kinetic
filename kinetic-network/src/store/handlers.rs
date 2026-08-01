@@ -125,8 +125,9 @@ impl KineticRecordStore {
                     return Err(err);
                 } else {
                     tracing::info!("Valid Steal Reveal for {}! Overwriting previous owner (idle for {} rounds).", new_reveal.name, hb_age);
+                }
 
-                    // Cleanup orphaned keys from previous owner
+                // Cleanup orphaned keys from previous owner
                     let keys = kinetic_core::types::derive_storage_keys(
                         &new_reveal.name,
                         kinetic_core::constants::NETWORK_ID,
