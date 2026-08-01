@@ -23,13 +23,15 @@ pub async fn handle_resolve_name(
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     match state.network.resolve_redundant_payload(&fqdn).await {
-        Ok(payload) => match serde_json::from_slice::<kinetic_core::types::DomainRecord>(&payload) {
-            Ok(record) => Ok(Json(record)),
-            Err(_) => Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Invalid DomainRecord payload on DHT"})),
-            )),
-        },
+        Ok(payload) => {
+            match serde_json::from_slice::<kinetic_core::types::DomainRecord>(&payload) {
+                Ok(record) => Ok(Json(record)),
+                Err(_) => Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": "Invalid DomainRecord payload on DHT"})),
+                )),
+            }
+        }
         Err(kinetic_core::error::ResolutionError::NotFound { .. }) => {
             // Fallback to local storage if DHT lookup fails or returns nothing
             // This rescues users who lost their local reveal.json and the DHT dropped their record
