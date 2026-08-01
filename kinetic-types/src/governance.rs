@@ -133,7 +133,7 @@ impl GovernanceAction {
 
         let timestamp_bytes = &bytes[bytes.len() - 8..];
         let timestamp_sec = u64::from_be_bytes(timestamp_bytes.try_into().unwrap());
-        
+
         let payload = &bytes[0..bytes.len() - 8];
         if payload.is_empty() {
             return Err(GovernanceTypeError::BufferTooSmall);
@@ -154,11 +154,11 @@ impl GovernanceAction {
                 }
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
                     .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
-                
+
                 let pubkey_bytes = &action_data[4 + name_len..];
                 // Note: ML-DSA-65 public keys are 1952 bytes, but we allow parsing any trailing bytes as the pubkey.
                 // If strict validation is required, check length here.
-                
+
                 GovernanceAction::GrantPremiumName {
                     name,
                     target_pubkey: pubkey_bytes.to_vec(),
@@ -193,7 +193,7 @@ impl GovernanceAction {
                 }
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
                     .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
-                
+
                 GovernanceAction::RevokePremiumName { name }
             }
             _ => return Err(GovernanceTypeError::UnknownOpcode(opcode)),
