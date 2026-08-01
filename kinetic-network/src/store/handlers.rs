@@ -10,7 +10,11 @@ impl KineticRecordStore {
         record: &kinetic_core::types::DomainRecord,
         skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
-        let total_paused_rounds = self.gov_state.as_deref().map(|g| g.read().unwrap().total_paused_rounds).unwrap_or(0);
+        let total_paused_rounds = if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+            state.total_paused_rounds
+        } else {
+            0
+        };
 
         let reveal_ref = match record {
             kinetic_core::types::DomainRecord::Standard(r) => Some(r),
@@ -34,7 +38,6 @@ impl KineticRecordStore {
                     &self.storage,
                     self.current_drand_round,
                     &self.vdf_engine,
-                    self.gov_state.as_deref(),
                 ) {
                     e.log_warning("KIN-STORE-002", record.name(), "Rejecting Reveal:");
                     return Err(e);

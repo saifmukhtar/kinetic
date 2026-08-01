@@ -119,7 +119,6 @@ pub(crate) fn compute_required_iterations(
     reveal: &kinetic_core::types::Reveal,
     current_drand_round: u64,
     engine: &dyn kinetic_core::traits::VdfEngine,
-    gov_state: Option<&std::sync::RwLock<kinetic_core::governance::types::GovernanceState>>,
 ) -> Result<u64, KineticStoreError> {
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&reveal.name) {
         let err = KineticStoreError::InvalidName;
@@ -174,9 +173,11 @@ pub(crate) fn compute_required_iterations(
 
         let prev_req = consensus_math.required_iterations(&reveal.name, &prev_drand_rand);
 
-        let total_paused_rounds = gov_state
-            .map(|g| g.read().unwrap().total_paused_rounds)
-            .unwrap_or(0);
+        let total_paused_rounds = if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+            state.total_paused_rounds
+        } else {
+            0
+        };
 
         let effective_age = current_drand_round
             .saturating_sub(prev.drand_pulse)
@@ -247,10 +248,9 @@ pub(crate) fn verify_reveal(
     storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
     current_drand_round: u64,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
-    gov_state: Option<&std::sync::RwLock<kinetic_core::governance::types::GovernanceState>>,
 ) -> Result<(), KineticStoreError> {
-    if let Some(state) = gov_state {
-        if state.read().unwrap().is_halted {
+    if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+        if state.is_halted {
             return Err(KineticStoreError::NetworkHalted);
         }
     }
@@ -334,7 +334,7 @@ pub(crate) fn verify_reveal(
     }
 
     let required_iterations =
-        compute_required_iterations(reveal, current_drand_round, engine.as_ref(), gov_state)?;
+        compute_required_iterations(reveal, current_drand_round, engine.as_ref())?;
 
     if dev_mode {
         tracing::info!(

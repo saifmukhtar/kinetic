@@ -78,7 +78,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
         disable_pow: false,
-        gov_state: None,
     };
 
     let (incoming_tx, _) = tokio::sync::mpsc::channel(32);

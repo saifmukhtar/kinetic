@@ -276,7 +276,7 @@ impl super::core::NetworkEventLoop {
                                 let storage = store.storage.clone();
                                 let engine = store.vdf_engine.clone();
                                 let current_drand_round = store.current_drand_round;
-                                let gov_state_clone = store.gov_state.clone();
+
 
                                 if let Some(loopback) = &self.loopback_tx {
                                     let loopback_clone = loopback.clone();
@@ -289,7 +289,7 @@ impl super::core::NetworkEventLoop {
                                                     &storage,
                                                     current_drand_round,
                                                     &engine,
-                                                    gov_state_clone.as_deref(),
+
                                                 )
                                             })
                                             .await;
