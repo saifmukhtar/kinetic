@@ -79,9 +79,9 @@ impl GovernanceError {
     pub fn severity(&self) -> Severity {
         match self {
             Self::MissingRootKey => Severity::Critical,
-            Self::StaleProposal
-            | Self::TimelockNotExpired
-            | Self::NotPendingOrVetoed => Severity::Info,
+            Self::StaleProposal | Self::TimelockNotExpired | Self::NotPendingOrVetoed => {
+                Severity::Info
+            }
             Self::KeyLengthMismatch => Severity::Error,
             Self::InsufficientSignatures
             | Self::GovernanceDisabled
