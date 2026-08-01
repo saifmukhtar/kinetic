@@ -1,7 +1,7 @@
 //! Utility data structures, async task spawners, and the XOR distance tie-breaker conflict resolver.
 
-use kinetic_core::types::RevealExt;
 use kinetic_core::error::{NetworkClientError, ResolutionError};
+use kinetic_core::types::RevealExt;
 use tokio::sync::oneshot;
 
 pub(crate) struct PendingGet {
@@ -224,7 +224,10 @@ impl super::core::NetworkEventLoop {
                 #[cfg(not(test))]
                 {
                     let dev_mode = kinetic_core::config::is_dev_mode();
-                    let valid_sig = dev_mode || reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_ok();
+                    let valid_sig = dev_mode
+                        || reveal
+                            .verify_signature(kinetic_core::constants::NETWORK_ID)
+                            .is_ok();
 
                     if !valid_sig {
                         tracing::warn!(
@@ -308,7 +311,8 @@ impl super::core::NetworkEventLoop {
                         engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)
                     });
                     #[cfg(target_arch = "wasm32")]
-                    let is_valid = engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations);
+                    let is_valid =
+                        engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations);
 
                     match is_valid {
                         Ok(true) => return Some(p),
