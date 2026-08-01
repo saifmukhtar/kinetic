@@ -18,7 +18,7 @@ use ml_dsa::MlDsa65;
 use std::collections::HashMap;
 
 pub use kinetic_types::governance::{
-    Hash256, PublicKeyBytes, SignatureBytes, GovernanceAction, SignedGovernanceMessage
+    GovernanceAction, Hash256, PublicKeyBytes, SignatureBytes, SignedGovernanceMessage,
 };
 
 /// Verifies an ML-DSA-65 post-quantum signature over a message byte slice.
