@@ -403,8 +403,6 @@ async fn run_daemon() -> Result<()> {
                                 continue;
                             }
 
-
-
                             if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
                                 tracing::warn!(
                                     "Failed to save downloaded governance state to disk: {}",
