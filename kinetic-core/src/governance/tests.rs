@@ -16,7 +16,6 @@ mod tests {
         ml_dsa::SigningKey::<MlDsa65>::from_seed(bytes.as_slice().try_into().unwrap())
     }
 
-
     fn generate_key(seed: u8) -> (ml_dsa::SigningKey<MlDsa65>, PublicKeyBytes) {
         let bytes = [seed; 32];
         let signing_key = ml_dsa::SigningKey::<MlDsa65>::from_seed((&bytes).into());
@@ -29,8 +28,6 @@ mod tests {
         let sig: ml_dsa::Signature<MlDsa65> = signer.sign(&serialized);
         MlDsaSignatureEncoding::to_bytes(&sig).into()
     }
-
-
 
     #[test]
     fn test_premium_grants() {
@@ -86,7 +83,6 @@ mod tests {
                 panic!("Expected PremiumNameGranted");
             }
         }
-
     }
 
     #[test]
@@ -134,11 +130,16 @@ mod tests {
         grant_msg.signatures.push(sign_action(&grant_msg, &root_sk)); // signed with old key
 
         let err = process_governance_message(&mut state, &grant_msg).unwrap_err();
-        assert!(matches!(err, crate::error::GovernanceError::InsufficientSignatures));
+        assert!(matches!(
+            err,
+            crate::error::GovernanceError::InsufficientSignatures
+        ));
 
         // Action 3: Grant a name using the NEW root key (should succeed)
         grant_msg.signatures.clear();
-        grant_msg.signatures.push(sign_action(&grant_msg, &new_root_sk)); // signed with NEW key
+        grant_msg
+            .signatures
+            .push(sign_action(&grant_msg, &new_root_sk)); // signed with NEW key
 
         let effect = process_governance_message(&mut state, &grant_msg).unwrap();
         assert!(matches!(
@@ -193,7 +194,7 @@ mod tests {
         let mut state = GovernanceState::new(current_time);
         state.active_root_key = Some(root_pubkey);
 
-        assert_eq!(state.is_halted, false);
+        assert!(!state.is_halted);
         assert_eq!(state.total_paused_rounds, 0);
 
         let mut halt_msg = SignedGovernanceMessage {
@@ -205,7 +206,7 @@ mod tests {
 
         let effect = process_governance_message(&mut state, &halt_msg).unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
-        assert_eq!(state.is_halted, true);
+        assert!(state.is_halted);
 
         let mut resume_msg = SignedGovernanceMessage {
             action: GovernanceAction::EmergencyResume {
@@ -214,14 +215,13 @@ mod tests {
             timestamp_sec: current_time + 1,
             signatures: vec![],
         };
-        resume_msg.signatures.push(sign_action(&resume_msg, &root_sk));
+        resume_msg
+            .signatures
+            .push(sign_action(&resume_msg, &root_sk));
 
         let effect = process_governance_message(&mut state, &resume_msg).unwrap();
-        assert!(matches!(
-            effect,
-            Some(GovernanceEffect::NetworkResumed)
-        ));
-        assert_eq!(state.is_halted, false);
+        assert!(matches!(effect, Some(GovernanceEffect::NetworkResumed)));
+        assert!(!state.is_halted);
         assert_eq!(state.total_paused_rounds, 1000);
     }
 
