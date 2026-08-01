@@ -25,15 +25,7 @@
   },
   "governance": {
     "governance_model": "sovereign",
-    "min_active_council": 7,
-    "max_council_size": 21,
-    "max_age_seconds": 604800,
-    "timelock_seconds": 2592000,
-    "active_window_seconds": 2592000,
-    "ota_timelock_seconds": 172800,
-    "supermajority_percent": 69,
-    "majority_percent": 90,
-    "strict_majority_percent": 95
+    "max_age_seconds": 604800
   },
   "consensus": {
     "vdf_squatter_multipliers": {

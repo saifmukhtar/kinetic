@@ -74,15 +74,7 @@ struct DrandSection {
 #[derive(Deserialize)]
 struct GovernanceSection {
     governance_model: String,
-    min_active_council: usize,
-    max_council_size: usize,
     max_age_seconds: u64,
-    timelock_seconds: u64,
-    active_window_seconds: u64,
-    ota_timelock_seconds: u64,
-    supermajority_percent: u64,
-    majority_percent: u64,
-    strict_majority_percent: u64,
 }
 
 #[derive(Deserialize)]
@@ -195,34 +187,11 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The minimum number of active council members required to ratify actions.\npub const MIN_ACTIVE_COUNCIL: usize = {};\n\n",
-        config.governance.min_active_council
-    ));
-
-    out.push_str(&format!(
-        "/// The hard limit on the total size of the active council.\npub const MAX_COUNCIL_SIZE: usize = {};\n\n",
-        config.governance.max_council_size
-    ));
-
-    out.push_str(&format!(
         "/// The maximum time (in seconds) a governance proposal is valid before it expires.\npub const MAX_AGE_SECONDS: u64 = {};\n\n",
         config.governance.max_age_seconds
     ));
 
-    out.push_str(&format!(
-        "/// The mandatory timelock (in seconds) before an executed action (like Emergency Reset) becomes permanent.\npub const TIMELOCK_SECONDS: u64 = {};\n\n",
-        config.governance.timelock_seconds
-    ));
 
-    out.push_str(&format!(
-        "/// The rolling window (in seconds) during which a council member must have signed something to be considered \"active\".\npub const ACTIVE_WINDOW_SECONDS: u64 = {};\n\n",
-        config.governance.active_window_seconds
-    ));
-
-    out.push_str(&format!(
-        "/// The specific timelock (in seconds) for Over-The-Air (OTA) binary updates.\npub const OTA_TIMELOCK_SECONDS: u64 = {};\n\n",
-        config.governance.ota_timelock_seconds
-    ));
 
     out.push_str(&format!(
         "/// The default number of iterations used during development and simulation mode.\npub const DEV_MODE_ITERATIONS: u64 = {};\n\n",
@@ -330,12 +299,7 @@ fn main() {
     ));
     out.push_str(&format!("/// Maximum bytes for a VDF proof\npub const CONSENSUS_VDF_MAX_PROOF_BYTES: usize = {};\n\n", config.consensus.vdf_max_proof_bytes));
 
-    out.push_str(&format!("/// Supermajority percentage threshold\npub const GOVERNANCE_SUPERMAJORITY_PERCENT: u64 = {};\n", config.governance.supermajority_percent));
-    out.push_str(&format!(
-        "/// Majority percentage threshold\npub const GOVERNANCE_MAJORITY_PERCENT: u64 = {};\n",
-        config.governance.majority_percent
-    ));
-    out.push_str(&format!("/// Strict majority percentage threshold\npub const GOVERNANCE_STRICT_MAJORITY_PERCENT: u64 = {};\n\n", config.governance.strict_majority_percent));
+
 
     out.push_str(&format!(
         "/// Maximum P2P packet size\npub const LIMITS_P2P_MAX_PACKET_SIZE: usize = {};\n",
