@@ -3,7 +3,6 @@
 use anyhow::{Context, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input};
 
-use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -20,9 +19,6 @@ fn main() -> Result<()> {
     );
     println!();
 
-    let network_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("What is the name of your private network? (e.g. University Network)")
-        .interact_text()?;
 
     let tld: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("What is the top-level domain (TLD) for this network? (e.g. uni)")
@@ -43,12 +39,18 @@ fn main() -> Result<()> {
 
     println!("\nGenerating cryptographic network identity...");
 
-    // Hash the network name to create a unique P2P protocol isolation ID
-    let mut hasher = Sha256::new();
-    hasher.update(network_name.as_bytes());
-    let hash_result = hasher.finalize();
-    let network_id = hex::encode(&hash_result[..16]); // Use first 32 characters (16 bytes)
-    let network_id_str = format!("{}-{}", tld, network_id);
+    let network_id_str: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("What is the unique Network ID? (e.g. uni-testnet)")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            if input.is_empty() {
+                return Err("Network ID cannot be empty.");
+            }
+            if input.chars().any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-') {
+                return Err("Network ID must contain only lowercase letters, numbers, and hyphens.");
+            }
+            Ok(())
+        })
+        .interact_text()?;
 
     println!("✅ Network ID generated: {}", network_id_str);
     println!();
