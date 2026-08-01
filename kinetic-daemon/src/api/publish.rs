@@ -25,27 +25,33 @@ pub async fn handle_publish(
             ),
         ));
     }
-    info!("Received API publish request for name: {}", req.reveal.name);
+    info!("Received API publish request for name: {}", req.record.name());
 
     // Normalize to canonical format
-    let fqdn = kinetic_core::types::normalize_name(&req.reveal.name);
+    let fqdn = kinetic_core::types::normalize_name(req.record.name());
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": format!("Invalid domain name: {}", e)})),
         ));
     }
-    // Ensure the Reveal internally matches the normalized name exactly
-    let mut reveal = req.reveal;
-    reveal.name = fqdn.clone();
-
-    // Finding 4 (High): Run the structural validator before touching the network.
-    // Catches bad protocol versions and oversized payloads at the gate.
-    if let Err(e) = reveal.validate() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": format!("Invalid Reveal: {}", e)})),
-        ));
+    
+    let mut domain_record = req.record;
+    
+    // For Standard domains, we need to validate and enforce Drand staleness.
+    // Premium domains bypass VDF staleness checks.
+    let mut is_standard = false;
+    let mut drand_pulse = 0;
+    if let kinetic_core::types::DomainRecord::Standard(ref mut reveal) = domain_record {
+        reveal.name = fqdn.clone();
+        if let Err(e) = reveal.validate() {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("Invalid Reveal: {}", e)})),
+            ));
+        }
+        is_standard = true;
+        drand_pulse = reveal.drand_pulse;
     }
 
     // Finding 4 (High): Enforce drand staleness — reject Reveals whose VDF pulse is older
@@ -72,20 +78,20 @@ pub async fn handle_publish(
         }
     };
 
-    if current_round > 0 {
-        if reveal.drand_pulse > current_round {
+    if is_standard && current_round > 0 {
+        if drand_pulse > current_round {
             return Err((
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({
                     "error": format!(
                         "Reveal rejected: VDF pulse {} is in the future (current round: {}).",
-                        reveal.drand_pulse,
+                        drand_pulse,
                         current_round
                     )
                 })),
             ));
         }
-        let age = current_round - reveal.drand_pulse;
+        let age = current_round - drand_pulse;
         if age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -93,7 +99,7 @@ pub async fn handle_publish(
                     "error": format!(
                         "Reveal rejected: VDF pulse {} is {} rounds old (max allowed: {}). \
                          Please re-compute a fresh VDF proof.",
-                        reveal.drand_pulse,
+                        drand_pulse,
                         age,
                         kinetic_core::types::RESQUARING_EPOCH_ROUNDS
                     )
@@ -102,7 +108,7 @@ pub async fn handle_publish(
         }
     }
 
-    let payload_bytes = match serde_json::to_vec(&reveal) {
+    let payload_bytes = match serde_json::to_vec(&domain_record) {
         Ok(b) => b,
         Err(e) => {
             return Err((
@@ -111,7 +117,6 @@ pub async fn handle_publish(
             ));
         }
     };
-
     let payload_clone = payload_bytes.clone();
 
     match state
@@ -153,7 +158,7 @@ pub async fn handle_publish(
 
             // Persist the full Reveal so zone updates can re-sign without the original VDF params.
             let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
-            if let Ok(reveal_bytes) = serde_json::to_vec(&reveal) {
+            if let Ok(reveal_bytes) = serde_json::to_vec(&domain_record) {
                 let _ = state.storage.put(reveal_key.as_bytes(), &reveal_bytes);
                 info!(
                     "Persisted Reveal for {} to daemon storage for future zone updates",
@@ -348,10 +353,10 @@ pub async fn handle_publish_kid(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes) {
                 use ml_dsa::KeyInit;
                 if let Ok(pubkey) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
-                    reveal.pubkey.as_slice(),
+                    record.pubkey(),
                 ) {
                     use ml_dsa::signature::Verifier;
                     if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
@@ -446,10 +451,10 @@ pub async fn handle_publish_manifest(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&bytes) {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes) {
                 use ml_dsa::KeyInit;
                 if let Ok(pubkey) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
-                    reveal.pubkey.as_slice(),
+                    record.pubkey(),
                 ) {
                     use ml_dsa::signature::Verifier;
                     if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(

@@ -144,6 +144,7 @@ async fn test_resolve_standard_domain() {
 // 2. Test successful resolve of .kin domain
 #[tokio::test]
 async fn test_resolve_kin_success() {
+    let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).with_test_writer().try_init();
     let api_url = start_mock_daemon().await;
     let handler = KineticDnsHandler::new(
         api_url,

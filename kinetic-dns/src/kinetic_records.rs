@@ -127,11 +127,11 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
         Ok(Some(payload_bytes)) => {
             info!("Successfully resolved .kin from Cache/DHT");
 
-            match serde_json::from_slice::<kinetic_core::types::Reveal>(&payload_bytes) {
-                Ok(reveal) => {
-                    if reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
+            match serde_json::from_slice::<kinetic_core::types::DomainRecord>(&payload_bytes) {
+                Ok(domain_record) => {
+                    if domain_record.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
                         warn!(
-                            "Rejecting .kin resolution: reveal signature invalid for {}",
+                            "Rejecting .kin resolution: record signature invalid for {}",
                             apex_domain
                         );
                         let response = builder
@@ -141,7 +141,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                         return header.into();
                     }
 
-                    match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
+                    match kinetic_core::types::DnsZone::parse_payload(domain_record.payload()) {
                         Ok(zone) => {
                             if let Some(records) = zone.records.get("@") {
                                 for record in records {
@@ -156,7 +156,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 {
                                                     let mut matched = false;
                                                     use base64::Engine;
-                                                    let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&reveal.pubkey);
+                                                    let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(domain_record.pubkey());
 
                                                     if let Some(keys) = kid_json["kid_document"]
                                                         ["controller_keys"]
@@ -172,7 +172,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                         }
                                                     }
                                                     if !matched {
-                                                        warn!("E2E Auth Failed: Reveal pubkey does not match authorized KID {}", did);
+                                                        warn!("E2E Auth Failed: Record pubkey does not match authorized KID {}", did);
                                                         let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
                                                         let _ = response_handle
                                                             .send_response(response)
@@ -180,7 +180,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                         header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
                                                         return header.into();
                                                     } else {
-                                                        info!("E2E Auth Successful: Reveal pubkey matches Authorized KID {}", did);
+                                                        info!("E2E Auth Successful: Record pubkey matches Authorized KID {}", did);
                                                     }
                                                 }
                                             }
@@ -392,7 +392,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                         Err(e) => warn!("Payload was not a valid DnsZone: {}", e),
                     }
                 }
-                Err(e) => warn!("Payload was not a valid Reveal tuple: {}", e),
+                Err(e) => warn!("Payload was not a valid DomainRecord: {}", e),
             }
         }
         Ok(None) => warn!("No payload found for .kin query (NXDOMAIN cached)"),

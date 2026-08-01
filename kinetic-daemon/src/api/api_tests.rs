@@ -120,7 +120,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req_body = serde_json::json!({
-            "reveal": {
+            "record": {
                 "protocol_version": 1,
                 "name": "sub.example.kin",
                 "payload": [1, 2, 3],
@@ -157,7 +157,7 @@ mod tests {
 
         // Protocol version 1 (should be 2) to trigger structural validator error
         let req_body = serde_json::json!({
-            "reveal": {
+            "record": {
                 "protocol_version": 0,
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
@@ -211,7 +211,7 @@ mod tests {
             .unwrap();
 
         let req_body = serde_json::json!({
-            "reveal": {
+            "record": {
                 "protocol_version": 1,
                 "name": "validname.kin",
                 "payload": [1, 2, 3],

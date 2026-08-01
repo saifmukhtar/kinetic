@@ -117,10 +117,10 @@ pub async fn forward_to_backend_direct(
 
         // The DHT stores the full Reveal JSON (set by api.rs via serde_json::to_vec(&reveal)).
         // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
-        let reveal = serde_json::from_slice::<kinetic_core::types::Reveal>(&payload)
+        let record = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&payload)
             .map_err(|_| ProxyError::InvalidPayload)?;
 
-        let zone = match kinetic_core::types::DnsZone::parse_payload(&reveal.payload) {
+        let zone = match kinetic_core::types::DnsZone::parse_payload(record.payload()) {
             Ok(z) => z,
             Err(e) => {
                 tracing::warn!("Proxy Error: Invalid DnsZone payload: {}", e);

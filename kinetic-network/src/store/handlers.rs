@@ -5,58 +5,75 @@ use crate::store::constants::*;
 use crate::store::core::KineticRecordStore;
 
 impl KineticRecordStore {
-    pub(crate) fn handle_reveal(
+    pub(crate) fn handle_record(
         &mut self,
-        reveal: &kinetic_core::types::Reveal,
+        record: &kinetic_core::types::DomainRecord,
         skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
         let total_paused_rounds = self.gov_state.as_deref().map(|g| g.read().unwrap().total_paused_rounds).unwrap_or(0);
 
+        let reveal_ref = match record {
+            kinetic_core::types::DomainRecord::Standard(r) => Some(r),
+            kinetic_core::types::DomainRecord::Premium { .. } => None,
+        };
+
         let effective_age = self.current_drand_round
-            .saturating_sub(reveal.drand_pulse)
+            .saturating_sub(reveal_ref.map_or(0, |r| r.drand_pulse))
             .saturating_sub(total_paused_rounds);
 
         if effective_age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
             let err = KineticStoreError::VdfExpired { age: effective_age };
-            err.log_warning("KIN-STORE-001", &reveal.name, "Rejecting Reveal:");
+            err.log_warning("KIN-STORE-001", record.name(), "Rejecting Record:");
             return Err(err);
         }
 
         if !skip_verify {
-            if let Err(e) = super::verification::verify_reveal(
-                reveal,
-                &self.storage,
-                self.current_drand_round,
-                &self.vdf_engine,
-                self.gov_state.as_deref(),
-            ) {
-                e.log_warning("KIN-STORE-002", &reveal.name, "Rejecting Reveal:");
-                return Err(e);
+            if let Some(reveal) = reveal_ref {
+                if let Err(e) = super::verification::verify_reveal(
+                    reveal,
+                    &self.storage,
+                    self.current_drand_round,
+                    &self.vdf_engine,
+                    self.gov_state.as_deref(),
+                ) {
+                    e.log_warning("KIN-STORE-002", record.name(), "Rejecting Reveal:");
+                    return Err(e);
+                }
             }
         }
 
-        if let Some(existing_reveal) = self.get_reveal_with_fallback(&reveal.name) {
-            if existing_reveal.pubkey != reveal.pubkey {
+        if let Some(existing_record) = self.get_record_with_fallback(record.name()) {
+            if existing_record.pubkey() != record.pubkey() {
                 let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
                 let last_hb_round = self
                     .last_heartbeats_by_name
-                    .get(&reveal.name)
+                    .get(record.name())
                     .copied()
-                    .unwrap_or(reveal.drand_pulse);
+                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.drand_pulse));
 
                 let hb_age = self.current_drand_round.saturating_sub(last_hb_round);
+                
+                let (existing_reveal, new_reveal) = match (existing_record, record) {
+                    (kinetic_core::types::DomainRecord::Standard(existing), kinetic_core::types::DomainRecord::Standard(new)) => (existing, new),
+                    _ => {
+                        let err = KineticStoreError::TieBroken; // Premium domains cannot be stolen or steal
+                        err.log_warning("KIN-STORE-004", record.name(), "Rejecting Steal:");
+                        return Err(err);
+                    }
+                };
+
                 let drand_rand =
-                    hex::decode(&reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
-                let base_diff = consensus_math.required_iterations(&reveal.name, &drand_rand);
+                    hex::decode(&new_reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
+                let base_diff = consensus_math.required_iterations(&new_reveal.name, &drand_rand);
                 let steal_threshold = consensus_math.steal_difficulty(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
-                if reveal.iterations == existing_reveal.iterations && hb_age < 100 {
-                    let dist_new: Vec<u8> = reveal
+                if new_reveal.iterations == existing_reveal.iterations && hb_age < 100 {
+                    let dist_new: Vec<u8> = new_reveal
                         .pubkey
                         .iter()
                         .zip(
-                            reveal
+                            new_reveal
                                 .vdf_proof
                                 .proof_bytes
                                 .iter()
@@ -82,20 +99,20 @@ impl KineticRecordStore {
 
                     if dist_new > dist_existing {
                         let err = KineticStoreError::TieBroken;
-                        err.log_warning("KIN-STORE-004", &reveal.name, "Rejecting Steal Reveal:");
+                        err.log_warning("KIN-STORE-004", &new_reveal.name, "Rejecting Steal Reveal:");
                         return Err(err);
                     } else {
-                        tracing::info!("Valid Steal Reveal for {}! Tie-break won!", reveal.name);
+                        tracing::info!("Valid Steal Reveal for {}! Tie-break won!", new_reveal.name);
                     }
-                } else if reveal.iterations < steal_threshold {
+                } else if new_reveal.iterations < steal_threshold {
                     let err = KineticStoreError::InsufficientIterations;
-                    err.log_warning("KIN-STORE-005", &reveal.name, "Rejecting Steal Reveal:");
+                    err.log_warning("KIN-STORE-005", &new_reveal.name, "Rejecting Steal Reveal:");
                     return Err(err);
                 } else {
-                    tracing::info!("Valid Steal Reveal for {}! Overwriting previous owner (idle for {} rounds).", reveal.name, hb_age);
+                    tracing::info!("Valid Steal Reveal for {}! Overwriting previous owner (idle for {} rounds).", new_reveal.name, hb_age);
 
                     // Cleanup orphaned keys from previous owner
-                    let keys = kinetic_core::types::derive_storage_keys(&reveal.name, kinetic_core::constants::NETWORK_ID);
+                    let keys = kinetic_core::types::derive_storage_keys(&new_reveal.name, kinetic_core::constants::NETWORK_ID);
                     for key_bytes in keys {
                         let k = libp2p::kad::RecordKey::new(&key_bytes);
                         let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -103,7 +120,7 @@ impl KineticRecordStore {
                         sled_key.extend_from_slice(k.as_ref());
                         let _ = self.storage.delete(&sled_key);
                     }
-                    let hb_keys = kinetic_core::types::derive_heartbeat_keys(&reveal.name, kinetic_core::constants::NETWORK_ID);
+                    let hb_keys = kinetic_core::types::derive_heartbeat_keys(&new_reveal.name, kinetic_core::constants::NETWORK_ID);
                     for key_bytes in hb_keys {
                         let k = libp2p::kad::RecordKey::new(&key_bytes);
                         let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -113,24 +130,51 @@ impl KineticRecordStore {
                     }
                 }
             } else {
-                if reveal.drand_pulse < existing_reveal.drand_pulse {
+                let existing_pulse = match &existing_record {
+                    kinetic_core::types::DomainRecord::Standard(r) => r.drand_pulse,
+                    kinetic_core::types::DomainRecord::Premium { .. } => 0,
+                };
+                let new_pulse = reveal_ref.map_or(0, |r| r.drand_pulse);
+                
+                if new_pulse < existing_pulse {
                     let err = KineticStoreError::StaleReveal;
-                    err.log_warning("KIN-STORE-023", &reveal.name, "Rejecting Replayed Reveal:");
+                    err.log_warning("KIN-STORE-023", record.name(), "Rejecting Replayed Reveal:");
                     return Err(err);
-                } else if reveal == &existing_reveal {
+                } else if record.payload() == existing_record.payload() && record.signature() == existing_record.signature() {
                     return Ok(());
+                } else {
+                    // Updating payload of existing domain. Verify the updated payload signature!
+                    let dev_mode = kinetic_core::config::is_dev_mode();
+                    if !skip_verify && !dev_mode {
+                        if let Err(_) = record.verify_signature(kinetic_core::constants::NETWORK_ID) {
+                            let err = KineticStoreError::InvalidSignature;
+                            err.log_warning("KIN-STORE-015", record.name(), "Rejecting updated record due to invalid signature:");
+                            return Err(err);
+                        }
+                    }
+                }
+            }
+        } else {
+            // New record, verify signature
+            let dev_mode = kinetic_core::config::is_dev_mode();
+            if !skip_verify && !dev_mode {
+                if let Err(_) = record.verify_signature(kinetic_core::constants::NETWORK_ID) {
+                    let err = KineticStoreError::InvalidSignature;
+                    err.log_warning("KIN-STORE-015", record.name(), "Rejecting new record due to invalid signature:");
+                    return Err(err);
                 }
             }
         }
 
         let now = web_time::Instant::now();
-        if !self.accepted_reveals_timestamps.contains(&reveal.name) {
+        let name = record.name();
+        if !self.accepted_reveals_timestamps.contains(name) {
             self.accepted_reveals_timestamps
-                .put(reveal.name.clone(), std::collections::VecDeque::new());
+                .put(name.to_string(), std::collections::VecDeque::new());
         }
         let deque = self
             .accepted_reveals_timestamps
-            .get_mut(&reveal.name)
+            .get_mut(name)
             .unwrap();
         while let Some(t) = deque.front() {
             if now.duration_since(*t) > web_time::Duration::from_secs(3600) {
@@ -141,31 +185,31 @@ impl KineticRecordStore {
         }
         if deque.len() >= self.max_reveals_per_hour {
             let err = KineticStoreError::RateLimited;
-            err.log_warning("KIN-STORE-022", &reveal.name, "Rejecting Reveal:");
+            err.log_warning("KIN-STORE-022", name, "Rejecting Reveal:");
             return Err(err);
         }
         deque.push_back(now);
 
         if let Some((evicted_name, _)) = self
             .reveals_by_name
-            .push(reveal.name.clone(), reveal.clone())
+            .push(name.to_string(), record.clone())
         {
-            if evicted_name != reveal.name {
+            if evicted_name != name {
                 self.last_heartbeats_by_name.remove(&evicted_name);
             }
         }
-        let reveal_key = [KRS_REVEAL_PREFIX, reveal.name.as_bytes()].concat();
+        let reveal_key = [KRS_REVEAL_PREFIX, name.as_bytes()].concat();
 
         let mut writes_to_perform = Vec::new();
 
-        if let Ok(bytes) = serde_json::to_vec(&reveal) {
+        if let Ok(bytes) = serde_json::to_vec(&record) {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        let current_round = std::cmp::max(self.current_drand_round, reveal.drand_pulse);
+        let current_round = std::cmp::max(self.current_drand_round, reveal_ref.map_or(0, |r| r.drand_pulse));
         self.last_heartbeats_by_name
-            .insert(reveal.name.clone(), current_round);
-        let hb_key = [KRS_HB_PREFIX, reveal.name.as_bytes()].concat();
+            .insert(name.to_string(), current_round);
+        let hb_key = [KRS_HB_PREFIX, name.as_bytes()].concat();
         writes_to_perform.push((hb_key, current_round.to_be_bytes().to_vec()));
 
         if !writes_to_perform.is_empty() {
@@ -205,7 +249,7 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        let existing_reveal = match self.get_reveal_with_fallback(&heartbeat.name) {
+        let existing_record = match self.get_record_with_fallback(&heartbeat.name) {
             Some(r) => r,
             None => {
                 let err = KineticStoreError::RevealNotFound;
@@ -216,7 +260,7 @@ impl KineticRecordStore {
 
         let signable = heartbeat.signable_bytes(kinetic_core::constants::NETWORK_ID);
         use ml_dsa::KeyInit;
-        let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_reveal.pubkey.as_slice())
+        let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_record.pubkey())
             .map_err(|_| {
                 let err = KineticStoreError::InvalidPublicKey;
                 err.log_warning("KIN-STORE-013", &heartbeat.name, "Rejecting Heartbeat:");

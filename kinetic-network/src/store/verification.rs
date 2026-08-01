@@ -406,10 +406,10 @@ pub(crate) fn verify_reveal(
 /// binding fails on first publication, or the update is not authorised by a prior key.
 pub(crate) fn verify_authorized_kid(
     auth_kid: &kinetic_core::types::AuthorizedKid,
-    active_reveal: Option<&kinetic_core::types::Reveal>,
+    active_record: Option<&kinetic_core::types::DomainRecord>,
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
-    let reveal = active_reveal.ok_or_else(|| {
+    let record = active_record.ok_or_else(|| {
         let err = KineticStoreError::InvalidKidSignature;
         err.log_warning(
             "KIN-STORE-032",
@@ -420,7 +420,7 @@ pub(crate) fn verify_authorized_kid(
     })?;
 
     use ml_dsa::KeyInit;
-    let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(reveal.pubkey.as_slice())
+    let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
         .map_err(|_| KineticStoreError::InvalidKidSignature)?;
 
     use ml_dsa::signature::Verifier;
@@ -497,10 +497,10 @@ pub(crate) fn verify_authorized_kid(
 /// the KID document is missing/invalid, or a version rollback is detected.
 pub(crate) fn verify_authorized_manifest(
     auth_manifest: &kinetic_core::types::AuthorizedManifest,
-    active_reveal: Option<&kinetic_core::types::Reveal>,
+    active_record: Option<&kinetic_core::types::DomainRecord>,
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
-    let reveal = active_reveal.ok_or_else(|| {
+    let record = active_record.ok_or_else(|| {
         let err = KineticStoreError::InvalidManifestSignature;
         err.log_warning(
             "KIN-STORE-033",
@@ -511,7 +511,7 @@ pub(crate) fn verify_authorized_manifest(
     })?;
 
     use ml_dsa::KeyInit;
-    let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(reveal.pubkey.as_slice())
+    let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
     use ml_dsa::signature::Verifier;

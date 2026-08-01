@@ -29,22 +29,22 @@ fn test_009_memory_store_bloat() {
         let name = format!("name{}.kin", i);
         store.reveals_by_name.put(
             name.clone(),
-            Reveal {
+            kinetic_core::types::DomainRecord::Standard(Reveal {
                 name,
                 salt: [0; 32],
                 drand_randomness: String::new(),
-                drand_pulse: 0,
-                iterations: 0,
+                drand_pulse: 100,
+                iterations: 100,
                 vdf_proof: kinetic_core::types::VdfProof {
                     proof_bytes: vec![],
                 },
-                pubkey: vec![],
                 signature: vec![],
                 protocol_version: 1,
+                pubkey: vec![],
                 payload: vec![],
                 previous_proof: None,
                 miner_pubkey: None,
-            },
+            }),
         );
     }
 

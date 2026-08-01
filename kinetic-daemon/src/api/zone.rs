@@ -152,7 +152,7 @@ pub async fn handle_publish_zone(
             ))
         }
     };
-    let mut reveal: kinetic_core::types::Reveal = match serde_json::from_slice(&reveal_bytes) {
+    let mut record: kinetic_core::types::DomainRecord = match serde_json::from_slice(&reveal_bytes) {
         Ok(r) => r,
         Err(_) => {
             return Err((
@@ -177,14 +177,14 @@ pub async fn handle_publish_zone(
     use ml_dsa::KeyExport;
     use ml_dsa::Keypair;
     let pubkey_bytes = keypair.verifying_key().to_bytes().to_vec();
-    if reveal.pubkey != pubkey_bytes {
+    if record.pubkey() != pubkey_bytes.as_slice() {
         return Err((
             StatusCode::CONFLICT,
             Json(serde_json::json!({ "error": "Identity key mismatch with domain registration" })),
         ));
     }
 
-    reveal.payload = match serde_json::to_vec(&zone) {
+    let payload = match serde_json::to_vec(&zone) {
         Ok(v) => v,
         Err(e) => {
             tracing::error!(error_code="KIN-VDF-002", error=?e, "Failed to serialize zone payload — cannot publish");
@@ -195,18 +195,26 @@ pub async fn handle_publish_zone(
         }
     };
 
-    let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
-    use ml_dsa::signature::Signer;
-    use ml_dsa::SignatureEncoding;
-    reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
+    match &mut record {
+        kinetic_core::types::DomainRecord::Standard(r) => {
+            r.payload = payload;
+            let signable = r.signable_bytes(kinetic_core::constants::NETWORK_ID);
+            use ml_dsa::signature::Signer;
+            use ml_dsa::SignatureEncoding;
+            r.signature = keypair.sign(&signable).to_bytes().to_vec();
+        }
+        kinetic_core::types::DomainRecord::Premium { payload: p, .. } => {
+            *p = payload;
+        }
+    }
 
     // 4. Update the stored Reveal so future zone publishes reflect the latest payload
-    if let Ok(updated_bytes) = serde_json::to_vec(&reveal) {
+    if let Ok(updated_bytes) = serde_json::to_vec(&record) {
         let _ = state.storage.put(reveal_key.as_bytes(), &updated_bytes);
     }
 
     // 5. Serialize and publish to the DHT
-    let dht_payload = match serde_json::to_vec(&reveal) {
+    let dht_payload = match serde_json::to_vec(&record) {
         Ok(b) => b,
         Err(e) => {
             return Err((

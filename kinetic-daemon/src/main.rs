@@ -479,6 +479,7 @@ async fn run_daemon() -> Result<()> {
         gov_state_path.clone(),
         drand_client.clone(),
         drand_pulse_tx.clone(),
+        Some(storage.clone()),
     );
 
     let base_config_dir = kinetic_core::config::get_base_dir();

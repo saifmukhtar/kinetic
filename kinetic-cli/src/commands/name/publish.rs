@@ -2,7 +2,7 @@
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::{get_zones_dir, KineticConfig};
-use kinetic_core::types::{load_keypair, Reveal};
+use kinetic_core::types::load_keypair;
 use ml_dsa::signature::Signer;
 use ml_dsa::SignatureEncoding;
 use reqwest::Client;
@@ -33,7 +33,7 @@ pub async fn update_zone_logic(
 
     // Check for local reveal file first for massive UX improvement
     let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
-    let mut existing_reveal: Reveal = if reveal_path.exists() {
+    let mut existing_record: kinetic_core::types::DomainRecord = if reveal_path.exists() {
         let content = std::fs::read_to_string(&reveal_path)?;
         serde_json::from_str(&content)
             .map_err(|e| anyhow::anyhow!("Local reveal file corrupted: {}", e))?
@@ -56,21 +56,36 @@ pub async fn update_zone_logic(
         resolve_res.json().await?
     };
 
-    existing_reveal.payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
-    let signable = existing_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
-    existing_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
+    let new_payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
+    match &mut existing_record {
+        kinetic_core::types::DomainRecord::Standard(r) => {
+            r.payload = new_payload;
+            let signable = r.signable_bytes(kinetic_core::constants::NETWORK_ID);
+            r.signature = keypair.sign(&signable).to_bytes().to_vec();
+        }
+        kinetic_core::types::DomainRecord::Premium { name, payload, signature, .. } => {
+            *payload = new_payload;
+            // The signature for DomainRecord uses the DomainRecord method verify_signature which signs (name || payload || network_id)
+            let mut signable = Vec::new();
+            signable.extend_from_slice(name.as_bytes());
+            signable.extend_from_slice(payload);
+            signable.extend_from_slice(kinetic_core::constants::NETWORK_ID.as_bytes());
+            *signature = keypair.sign(&signable).to_bytes().to_vec();
+        }
+    }
+
     let response = client
         .post(format!(
             "http://{}:{}/publish",
             config.daemon.bind_ip, config.daemon.api_port
         ))
-        .json(&json!({"reveal": existing_reveal}))
+        .json(&json!({"record": existing_record}))
         .send()
         .await?;
     if response.status().is_success() {
         info!("Success! {} updated.", fqdn);
         let _ = save_zone_file(&fqdn, &zone);
-        let reveal_str = serde_json::to_string_pretty(&existing_reveal)?;
+        let reveal_str = serde_json::to_string_pretty(&existing_record)?;
         let _ = std::fs::write(&reveal_path, reveal_str);
     } else {
         let status = response.status();

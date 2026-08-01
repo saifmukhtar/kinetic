@@ -15,6 +15,98 @@ use super::names::normalize_name;
 use crate::constants::M_REDUNDANCY;
 use serde::{Deserialize, Serialize};
 
+/// Represents the two different ways a domain can be owned on the Kinetic network.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DomainRecord {
+    /// A standard domain registered via Proof of Work and VDF.
+    Standard(kinetic_verify::Reveal),
+    /// A premium domain granted directly by the Governance Root Key.
+    Premium {
+        /// The domain name.
+        name: String,
+        /// The ML-DSA-65 public key of the domain owner.
+        pubkey: Vec<u8>,
+        /// The unix timestamp in seconds when this grant was approved.
+        granted_at: u64,
+        /// The zone payload associated with the domain.
+        payload: Vec<u8>,
+        /// The owner's ML-DSA-65 signature authorizing the payload.
+        signature: Vec<u8>,
+    },
+}
+
+impl DomainRecord {
+    /// Returns the domain name.
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Standard(r) => &r.name,
+            Self::Premium { name, .. } => name,
+        }
+    }
+
+    /// Returns the public key of the owner.
+    pub fn pubkey(&self) -> &[u8] {
+        match self {
+            Self::Standard(r) => &r.pubkey,
+            Self::Premium { pubkey, .. } => pubkey,
+        }
+    }
+
+    /// Returns the zone payload.
+    pub fn payload(&self) -> &[u8] {
+        match self {
+            Self::Standard(r) => &r.payload,
+            Self::Premium { payload, .. } => payload,
+        }
+    }
+
+    /// Returns the ML-DSA-65 signature.
+    pub fn signature(&self) -> &[u8] {
+        match self {
+            Self::Standard(r) => &r.signature,
+            Self::Premium { signature, .. } => signature,
+        }
+    }
+
+    /// Verifies the ownership signature attached to this domain record.
+    ///
+    /// For [`Standard`](DomainRecord::Standard) records, this checks the owner's ML-DSA-65
+    /// signature on the VDF reveal payload against the VDF parameters.
+    /// For [`Premium`](DomainRecord::Premium) records, this verifies the owner's ML-DSA-65
+    /// signature over the `name || payload || network_id` bytes to authenticate the zone payload.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`KineticError::InvalidSignature`](crate::error::KineticError::InvalidSignature)
+    /// if the signature fails cryptographic verification or if the public key or signature bytes
+    /// are structurally malformed.
+    pub fn verify_signature(&self, network_id: &str) -> Result<(), crate::error::KineticError> {
+        match self {
+            Self::Standard(reveal) => {
+                reveal.verify_signature(network_id).map_err(|_| crate::error::KineticError::InvalidSignature)
+            }
+            Self::Premium { name, payload, signature, pubkey, .. } => {
+                use ml_dsa::signature::Verifier;
+                use ml_dsa::KeyInit;
+                let verifying_key = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pubkey)
+                    .map_err(|_| crate::error::KineticError::InvalidSignature)?;
+                
+                let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(signature.as_slice())
+                    .map_err(|_| crate::error::KineticError::InvalidSignature)?;
+
+                let mut signable = Vec::new();
+                signable.extend_from_slice(name.as_bytes());
+                signable.extend_from_slice(payload);
+                signable.extend_from_slice(network_id.as_bytes());
+
+                verifying_key.verify(&signable, &sig)
+                    .map_err(|_| crate::error::KineticError::InvalidSignature)
+            }
+        }
+    }
+}
+
 /// Represents a heartbeat proof indicating that a `.kin` domain is actively maintained by its owner.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

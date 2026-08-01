@@ -291,6 +291,7 @@ async fn run_node() -> Result<()> {
     let gossip_gov_path = gov_state_path.clone();
     let drand_client_gossip = drand_client.clone();
     let drand_pulse_tx_gossip = drand_pulse_tx.clone();
+    let gossip_storage = storage.clone();
     tokio::spawn(async move {
         loop {
             let (topic, payload) = match gossip_rx.recv().await {
@@ -299,7 +300,7 @@ async fn run_node() -> Result<()> {
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             };
             if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
-                gossip::handle_kinetic_governance_gossip(&payload, gossip_gov_path.clone());
+                gossip::handle_kinetic_governance_gossip(&payload, gossip_gov_path.clone(), Some(gossip_storage.clone()));
             } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
                 if let Ok(pulse) = serde_json::from_slice::<DrandPulse>(&payload) {
                     if pulse.verify() {

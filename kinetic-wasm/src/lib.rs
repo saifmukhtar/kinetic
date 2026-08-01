@@ -132,18 +132,18 @@ impl KineticNode {
             .await
             .map_err(|e| JsValue::from_str(&format!("Resolution failed: {}", e)))?;
 
-        let reveal: kinetic_core::types::Reveal = serde_json::from_slice(&bytes)
-            .map_err(|e| JsValue::from_str(&format!("Invalid reveal format: {}", e)))?;
+        let record: kinetic_core::types::DomainRecord = serde_json::from_slice(&bytes)
+            .map_err(|e| JsValue::from_str(&format!("Invalid record format: {}", e)))?;
 
-        if reveal.name != name {
-            return Err(JsValue::from_str("Reveal name mismatch"));
+        if record.name() != name {
+            return Err(JsValue::from_str("Record name mismatch"));
         }
 
-        if reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
-            return Err(JsValue::from_str("Invalid reveal signature"));
+        if record.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
+            return Err(JsValue::from_str("Invalid record signature"));
         }
 
-        let zone = kinetic_core::types::DnsZone::parse_payload(&reveal.payload)
+        let zone = kinetic_core::types::DnsZone::parse_payload(record.payload())
             .map_err(|e| JsValue::from_str(&format!("Invalid zone format: {}", e)))?;
 
         let js_obj = serde_wasm_bindgen::to_value(&zone)

@@ -441,18 +441,29 @@ pub async fn handle_vdf_renew(
                 return;
             }
         };
-        let old_reveal: kinetic_core::types::Reveal =
+        let old_record: kinetic_core::types::DomainRecord =
             match serde_json::from_slice(&old_reveal_bytes) {
                 Ok(r) => r,
                 Err(e) => {
                     update_task_error(
                         &tasks_clone,
                         &task_id_clone,
-                        format!("Failed to parse old reveal: {}", e),
+                        format!("Local Reveal corrupted: {}", e),
                     );
                     return;
                 }
             };
+        let old_reveal = match old_record {
+            kinetic_core::types::DomainRecord::Standard(r) => r,
+            kinetic_core::types::DomainRecord::Premium { .. } => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    "Premium domains do not require VDF resquaring".to_string(),
+                );
+                return;
+            }
+        };
 
         // Step 2: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);

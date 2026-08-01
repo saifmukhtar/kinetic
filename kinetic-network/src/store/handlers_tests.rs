@@ -124,7 +124,7 @@ mod tests {
         let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
         reveal.pubkey = ml_kp.verifying_key().to_bytes().to_vec();
 
-        store.reveals_by_name.put(name.clone(), reveal);
+        store.reveals_by_name.put(name.clone(), kinetic_core::types::DomainRecord::Standard(reveal));
 
         // Set existing pulse to 200
         store.last_heartbeats_by_name.insert(name.clone(), 200);

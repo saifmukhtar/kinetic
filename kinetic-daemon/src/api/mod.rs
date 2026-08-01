@@ -2,7 +2,7 @@
 
 use axum::{extract::State, http::StatusCode, routing::post, Router};
 use kinetic_core::traits::StorageEngine;
-use kinetic_core::types::Reveal;
+
 use kinetic_network::NetworkClient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -123,8 +123,8 @@ pub struct ApiState {
 /// Payload for publishing a direct reveal configuration.
 #[derive(Deserialize, Debug)]
 pub struct PublishRequest {
-    /// The Reveal object to publish.
-    pub reveal: Reveal,
+    /// The DomainRecord object to publish.
+    pub record: kinetic_core::types::DomainRecord,
 }
 
 /// Response format for a publish action.

@@ -1,7 +1,7 @@
 //! CLI query handlers for listing, inspecting, and resolving .kin domain names.
 
 use kinetic_core::config::{get_zones_dir, KineticConfig};
-use kinetic_core::types::Reveal;
+
 use reqwest::Client;
 use tracing::{info, warn};
 
@@ -83,10 +83,19 @@ pub async fn handle_info(
         let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
         if reveal_path.exists() {
             let content = std::fs::read_to_string(&reveal_path)?;
-            let reveal: Reveal = serde_json::from_str(&content)?;
+            let record: kinetic_core::types::DomainRecord = serde_json::from_str(&content)?;
             info!("Info for {} (Local):", fqdn);
-            info!("  Created at Drand pulse: {}", reveal.drand_pulse);
-            info!("  VDF Iterations: {}", reveal.iterations);
+            match record {
+                kinetic_core::types::DomainRecord::Standard(r) => {
+                    info!("  Type: Standard");
+                    info!("  Created at Drand pulse: {}", r.drand_pulse);
+                    info!("  VDF Iterations: {}", r.iterations);
+                }
+                kinetic_core::types::DomainRecord::Premium { granted_at, .. } => {
+                    info!("  Type: Premium");
+                    info!("  Granted at: {}", granted_at);
+                }
+            }
             info!("  Status: Local reveal file exists, but network resolution failed.");
         } else {
             info!("No local info found for {}.", fqdn);
