@@ -103,3 +103,77 @@ impl GovernanceState {
         total
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn mock_state() -> GovernanceState {
+        GovernanceState {
+            genesis_timestamp_sec: 0,
+            active_root_key: None,
+            is_halted: false,
+            total_paused_rounds: 0,
+            pause_history: vec![],
+            executed_hashes: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn test_pause_history_double_granting_flaw() {
+        let mut state = mock_state();
+        // Pause happens between rounds 1000 and 1100 (100 rounds)
+        state.pause_history.push((1000, 1100));
+
+        // Domain is registered AFTER the pause, at round 2000
+        let target_pulse = 2000;
+        
+        // It should get 0 paused rounds back (fixing the double-granting flaw)
+        assert_eq!(state.paused_rounds_since(target_pulse), 0);
+    }
+
+    #[test]
+    fn test_pause_history_renewal_in_the_middle() {
+        let mut state = mock_state();
+        // Pause 1: rounds 1000 to 1100 (100 rounds)
+        state.pause_history.push((1000, 1100));
+        // Pause 2: rounds 3000 to 3100 (100 rounds)
+        state.pause_history.push((3000, 3100));
+
+        // User renewed the domain at round 2000
+        // (After pause 1, but before pause 2)
+        let target_pulse = 2000;
+
+        // They should only get Pause 2 (100 rounds) credited
+        assert_eq!(state.paused_rounds_since(target_pulse), 100);
+    }
+
+    #[test]
+    fn test_pause_history_back_to_back_pauses() {
+        let mut state = mock_state();
+        // Pause 1: rounds 1000 to 1100 (100 rounds)
+        state.pause_history.push((1000, 1100));
+        // Pause 2: rounds 3000 to 3100 (100 rounds)
+        state.pause_history.push((3000, 3100));
+
+        // Domain was registered before BOTH pauses, at round 500
+        let target_pulse = 500;
+
+        // They should get BOTH pauses credited (200 rounds)
+        assert_eq!(state.paused_rounds_since(target_pulse), 200);
+    }
+
+    #[test]
+    fn test_pause_history_overlapping_pause() {
+        let mut state = mock_state();
+        // Pause: rounds 1000 to 1100 (100 rounds)
+        state.pause_history.push((1000, 1100));
+
+        // Domain was registered *during* the pause, at round 1050
+        let target_pulse = 1050;
+
+        // They should only get the portion of the pause that happened AFTER they registered (50 rounds)
+        assert_eq!(state.paused_rounds_since(target_pulse), 50);
+    }
+}
