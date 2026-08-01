@@ -86,7 +86,7 @@ impl PreviousProof {
 
         bytes
     }
-    
+
     pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
         let prefix_str = format!("{}-vdf-prev-v1", network_id);
         let prefix = prefix_str.as_bytes();
@@ -154,21 +154,27 @@ impl Reveal {
         use ml_dsa::signature::Verifier;
         use ml_dsa::KeyInit;
         let signable = self.signable_bytes(network_id);
-        
-        let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(self.pubkey.as_slice())
-            .map_err(|_| error::VerifyError::MalformedPublicKey)?;
-            
+
+        let pubkey =
+            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(self.pubkey.as_slice())
+                .map_err(|_| error::VerifyError::MalformedPublicKey)?;
+
         let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(self.signature.as_slice())
             .map_err(|_| error::VerifyError::MalformedSignature)?;
-            
-        pubkey.verify(&signable, &sig).map_err(|_| error::VerifyError::InvalidSignature)?;
+
+        pubkey
+            .verify(&signable, &sig)
+            .map_err(|_| error::VerifyError::InvalidSignature)?;
 
         if let Some(prev) = &self.previous_proof {
-            let prev_sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice())
-                .map_err(|_| error::VerifyError::MalformedSignature)?;
-                
+            let prev_sig =
+                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice())
+                    .map_err(|_| error::VerifyError::MalformedSignature)?;
+
             let prev_signable = prev.signable_bytes(network_id);
-            pubkey.verify(&prev_signable, &prev_sig).map_err(|_| error::VerifyError::InvalidSignature)?;
+            pubkey
+                .verify(&prev_signable, &prev_sig)
+                .map_err(|_| error::VerifyError::InvalidSignature)?;
         }
 
         Ok(())
