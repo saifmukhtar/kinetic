@@ -1,8 +1,0 @@
-FROM registry.fedoraproject.org/fedora-minimal:44
-
-# Install basic networking tools required by Containerlab
-RUN microdnf install -y iproute iputils procps-ng net-tools && microdnf clean all
-
-# The binaries will be bind-mounted from the host.
-# Keep the container alive so we can exec into it or run commands via Containerlab.
-CMD ["sleep", "infinity"]

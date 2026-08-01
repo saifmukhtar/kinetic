@@ -35,10 +35,7 @@ pub struct AtlasNetworkConfig {
     pub seed_domain: Option<String>,
 }
 
-#[derive(serde::Deserialize)]
-struct GitHubFile {
-    download_url: Option<String>,
-}
+
 
 struct SwarmHandle {
     client: NetworkClient,
@@ -102,26 +99,22 @@ impl UniversalKineticNode {
         Ok(())
     }
 
-    /// Fetches the global Atlas network registry from GitHub.
+    /// Fetches the global Atlas network registry from GitHub index.json.
     #[wasm_bindgen]
     pub async fn fetch_registry(&self) -> Result<(), JsValue> {
         let client = reqwest::Client::new();
-        let url = "https://api.github.com/repos/saifmukhtar/kinetic-atlas/contents/networks";
+        // Fetch the aggregated index.json instead of making multiple API calls
+        let url = "https://raw.githubusercontent.com/saifmukhtar/kinetic-atlas/main/index.json";
         let res = client.get(url)
             .header("User-Agent", "Universal-Kinetic-Wasm")
             .send().await.map_err(|e| JsValue::from_str(&e.to_string()))?;
         
-        let files: Vec<GitHubFile> = res.json().await.map_err(|e| JsValue::from_str(&e.to_string()))?;
+        // Parse directly as an array of AtlasNetworkConfig
+        let networks: Vec<AtlasNetworkConfig> = res.json().await.map_err(|e| JsValue::from_str(&e.to_string()))?;
         
         let mut registry = self.registry.borrow_mut();
-        for file in files {
-            if let Some(dl) = file.download_url {
-                if let Ok(res) = client.get(&dl).send().await {
-                    if let Ok(config) = res.json::<AtlasNetworkConfig>().await {
-                        registry.insert(config.id.clone(), config);
-                    }
-                }
-            }
+        for config in networks {
+            registry.insert(config.id.clone(), config);
         }
         
         // Fallback injection for .kin if GitHub fetch failed or it's not present
@@ -137,6 +130,17 @@ impl UniversalKineticNode {
 
         self.emit_event("status", &format!("Registry synced. Supported TLDs: {}", registry.len()));
         Ok(())
+    }
+
+    /// Returns the list of currently supported TLDs as a JavaScript Array of strings.
+    #[wasm_bindgen]
+    pub fn get_supported_tlds(&self) -> js_sys::Array {
+        let registry = self.registry.borrow();
+        let arr = js_sys::Array::new_with_length(registry.len() as u32);
+        for (i, tld) in registry.keys().enumerate() {
+            arr.set(i as u32, JsValue::from_str(tld));
+        }
+        arr
     }
 
     async fn get_or_spawn_swarm(&self, tld: &str) -> Result<NetworkClient, JsValue> {

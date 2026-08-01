@@ -38,3 +38,6 @@ futures-timer = { version = "3.0.3", features = ["wasm-bindgen"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
