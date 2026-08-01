@@ -236,7 +236,10 @@ fn install_service() -> anyhow::Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run '{}-pac start' to begin.", kinetic_core::constants::NETWORK_ID);
+    println!(
+        "Service installed successfully. Run '{}-pac start' to begin.",
+        kinetic_core::constants::NETWORK_ID
+    );
     Ok(())
 }
 
@@ -277,7 +280,6 @@ fn stop_background_service() -> anyhow::Result<()> {
 
 /// Runs the PAC HTTP Server and applies OS proxy rules
 async fn run_server() -> anyhow::Result<()> {
-
     tracing_subscriber::fmt::init();
 
     let base_dir = dirs::data_local_dir()
