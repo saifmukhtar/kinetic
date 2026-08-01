@@ -5,7 +5,7 @@ use kinetic_core::types::{Reveal, VdfProof};
 fn test_subdomain_hijack_validation() {
     let invalid_reveal = Reveal {
         protocol_version: 1,
-        name: format!("{}{}", "blog.saif", kinetic_core::constants::TLD_SUFFIX), // Subdomain!
+        name: format!("{}{}", "blog.saifmukhtar", kinetic_core::constants::TLD_SUFFIX), // Subdomain!
         payload: vec![],
         salt: [0; 32],
         drand_pulse: 1000,
@@ -22,12 +22,12 @@ fn test_subdomain_hijack_validation() {
 
     assert!(
         invalid_reveal.validate().is_err(),
-        "Reveal with subdomain 'blog.saif.kin' was incorrectly validated!"
+        "Reveal with subdomain 'blog.saifmukhtar.kin' was incorrectly validated!"
     );
 
     let valid_reveal = Reveal {
         protocol_version: 1,
-        name: format!("{}{}", "saif", kinetic_core::constants::TLD_SUFFIX), // Apex domain!
+        name: format!("{}{}", "saifmukhtar", kinetic_core::constants::TLD_SUFFIX), // Apex domain!
         payload: vec![],
         salt: [0; 32],
         drand_pulse: 1000,
@@ -44,6 +44,6 @@ fn test_subdomain_hijack_validation() {
 
     assert!(
         valid_reveal.validate().is_ok(),
-        "Reveal with apex domain 'saif.kin' failed validation!"
+        "Reveal with apex domain 'saifmukhtar.kin' failed validation!"
     );
 }

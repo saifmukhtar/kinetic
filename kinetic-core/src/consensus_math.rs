@@ -47,22 +47,22 @@ impl ConsensusParams {
     /// use kinetic_core::consensus_math::ConsensusParams;
     ///
     /// let params = ConsensusParams::default();
-    /// let iterations = params.required_iterations("saif.kin", &[0u8; 32]);
+    /// let iterations = params.required_iterations("example.kin");
     /// assert!(iterations > 0);
     /// ```
-    pub fn required_iterations(&self, name: &str, drand_randomness: &[u8]) -> u64 {
+    pub fn required_iterations(&self, name: &str) -> u64 {
         let normalized_name = crate::types::names::normalize_name(name);
         let apex = crate::types::names::extract_apex_domain(&normalized_name);
         let label = apex
             .strip_suffix(crate::constants::TLD_SUFFIX)
             .unwrap_or(&apex);
-        self.required_iterations_by_label(label, drand_randomness)
+        self.required_iterations_by_label(label)
     }
 
     /// Calculates required VDF iterations for a raw domain label based on the Squatter Cliff curve.
     ///
     /// In dev mode (`is_dev_mode()`), returns a fixed low iteration count ([`DEV_MODE_ITERATIONS`](crate::constants::DEV_MODE_ITERATIONS)).
-    pub fn required_iterations_by_label(&self, label: &str, _drand_randomness: &[u8]) -> u64 {
+    pub fn required_iterations_by_label(&self, label: &str) -> u64 {
         if crate::config::is_dev_mode() {
             return crate::constants::DEV_MODE_ITERATIONS;
         }
@@ -138,9 +138,9 @@ mod tests {
     fn test_decay_length() {
         let params = ConsensusParams::default();
         let _pk = [0u8; 32];
-        let a = params.required_iterations("a", &[0u8; 32]);
-        let ab = params.required_iterations("ab", &[0u8; 32]);
-        let abc = params.required_iterations("abc", &[0u8; 32]);
+        let a = params.required_iterations("a");
+        let ab = params.required_iterations("ab");
+        let abc = params.required_iterations("abc");
 
         if crate::config::is_dev_mode() {
             assert_eq!(a, crate::constants::DEV_MODE_ITERATIONS);

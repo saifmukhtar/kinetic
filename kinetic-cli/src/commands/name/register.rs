@@ -92,7 +92,7 @@ pub async fn handle(
     info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
 
     let required_iterations = kinetic_core::consensus_math::ConsensusParams::default()
-        .required_iterations(&fqdn, &challenge_bytes);
+        .required_iterations(&fqdn);
     let actual_iterations = std::cmp::max(iterations, required_iterations);
 
     let label = kinetic_core::types::names::extract_apex_domain(&fqdn);

@@ -68,7 +68,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req_body = serde_json::json!({
-            "name": "saif.kin",
+            "name": "saifmukhtar.kin",
             "commitment": {
                 "hash": vec![0; 32]
             }
@@ -94,7 +94,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req_body = serde_json::json!({
-            "name": "sub.saif.kin",
+            "name": "sub.saifmukhtar.kin",
             "commitment": {
                 "hash": vec![1; 32]
             }

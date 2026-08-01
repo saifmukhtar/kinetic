@@ -72,9 +72,7 @@ impl KineticRecordStore {
                     }
                 };
 
-                let drand_rand =
-                    hex::decode(&new_reveal.drand_randomness).unwrap_or_else(|_| vec![0u8; 32]);
-                let base_diff = consensus_math.required_iterations(&new_reveal.name, &drand_rand);
+                let base_diff = consensus_math.required_iterations(&new_reveal.name);
                 let steal_threshold = consensus_math.steal_difficulty(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
@@ -172,7 +170,9 @@ impl KineticRecordStore {
                     let dev_mode = kinetic_core::config::is_dev_mode();
                     if !skip_verify
                         && !dev_mode
-                        && record.verify_signature(kinetic_core::constants::NETWORK_ID).is_err()
+                        && record
+                            .verify_signature(kinetic_core::constants::NETWORK_ID)
+                            .is_err()
                     {
                         let err = KineticStoreError::InvalidSignature;
                         err.log_warning(
@@ -189,7 +189,9 @@ impl KineticRecordStore {
             let dev_mode = kinetic_core::config::is_dev_mode();
             if !skip_verify
                 && !dev_mode
-                && record.verify_signature(kinetic_core::constants::NETWORK_ID).is_err()
+                && record
+                    .verify_signature(kinetic_core::constants::NETWORK_ID)
+                    .is_err()
             {
                 let err = KineticStoreError::InvalidSignature;
                 err.log_warning(

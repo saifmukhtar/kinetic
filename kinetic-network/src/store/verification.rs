@@ -135,7 +135,7 @@ pub(crate) fn compute_required_iterations(
 
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
 
-    let drand_rand = hex::decode(&reveal.drand_randomness).map_err(|_| {
+    let _drand_rand = hex::decode(&reveal.drand_randomness).map_err(|_| {
         let err = KineticStoreError::InvalidDrandHex;
         err.log_warning(
             "KIN-STORE-028",
@@ -145,7 +145,7 @@ pub(crate) fn compute_required_iterations(
         err
     })?;
 
-    let base_required_iterations = consensus_math.required_iterations(&reveal.name, &drand_rand);
+    let base_required_iterations = consensus_math.required_iterations(&reveal.name);
     let required_iterations = if let Some(prev) = &reveal.previous_proof {
         // Verify previous proof
         let mut prev_hasher = Sha256::new();
@@ -171,7 +171,7 @@ pub(crate) fn compute_required_iterations(
             Ok(true)
         );
 
-        let prev_req = consensus_math.required_iterations(&reveal.name, &prev_drand_rand);
+        let prev_req = consensus_math.required_iterations(&reveal.name);
 
         let total_paused_rounds =
             if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {

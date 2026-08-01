@@ -222,12 +222,12 @@ mod tests {
     #[test]
     fn test_derive_storage_keys() {
         let keys = derive_storage_keys(
-            &format!("{}{}", "saif", TLD_SUFFIX),
+            &format!("{}{}", "saifmukhtar", TLD_SUFFIX),
             env!("KINETIC_NETWORK_ID"),
         );
         assert_eq!(keys.len(), 32);
 
-        let keys2 = derive_storage_keys("SAIF.KIN", env!("KINETIC_NETWORK_ID"));
+        let keys2 = derive_storage_keys("SAIFMUKHTAR.KIN", env!("KINETIC_NETWORK_ID"));
         assert_eq!(keys, keys2);
 
         for i in 0..keys.len() {

@@ -2780,11 +2780,9 @@ dependencies = [
  "anyhow",
  "clap",
  "dialoguer",
- "hex",
  "regex",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "toml_edit",
 ]
 
@@ -2962,6 +2960,10 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
 ]
+
+[[package]]
+name = "kinetic-tlock"
+version = "0.1.0"
 
 [[package]]
 name = "kinetic-types"

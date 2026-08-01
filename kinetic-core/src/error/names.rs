@@ -94,7 +94,7 @@ impl NamesError {
                 "The domain name does not end with a valid network TLD.".to_string()
             }
             Self::NotAnApexDomain => {
-                "Only apex domain names (e.g. 'saif.kin') can be registered directly.".to_string()
+                "Only apex domain names (e.g. 'example.kin') can be registered directly.".to_string()
             }
         }
     }

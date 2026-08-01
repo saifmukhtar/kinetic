@@ -20,7 +20,7 @@ fn test_010_xor_eclipse() {
 
     let name = "thisisaverylongnamethatisverycheap.kin";
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-    let iterations = consensus_math.required_iterations(name, &[0u8; 32]);
+    let iterations = consensus_math.required_iterations(name);
 
     // Generate REAL VDF Proof
     let mut hasher = Sha256::new();
