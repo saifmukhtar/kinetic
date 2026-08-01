@@ -323,7 +323,7 @@ pub async fn handle(
             );
             let _ = save_zone_file(&fqdn, &zone);
             let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
-            let record = kinetic_core::types::DomainRecord::Standard(reveal);
+            let record = kinetic_core::types::DomainRecord::Standard(Box::new(reveal));
             let reveal_str =
                 serde_json::to_string_pretty(&record).expect("Failed to serialize Reveal");
             let _ = std::fs::write(&reveal_path, reveal_str);
