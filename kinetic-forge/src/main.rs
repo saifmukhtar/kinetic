@@ -3,7 +3,6 @@
 use anyhow::{Context, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input};
 
-
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
@@ -136,7 +135,7 @@ fn main() -> Result<()> {
     )?;
 
     println!("✅ network.json updated successfully.");
-    
+
     println!("Patching Cargo.toml files for binaries...");
     patch_cargo_bin_names(&network_id_str)?;
 
@@ -153,18 +152,20 @@ fn main() -> Result<()> {
     let status = child.wait().context("Failed to wait on cargo build")?;
 
     if status.success() {
-
-
         println!("========================================");
         println!("🎉 FORGE COMPLETE 🎉");
         println!("Your custom network binaries have been compiled to target/release/");
         println!();
         println!("⚠️ NEXT STEPS FOR BOOTSTRAPPING:");
-        println!("1. Run your first `{}-node` (this will act as your seed node).", network_id_str);
+        println!(
+            "1. Run your first `{}-node` (this will act as your seed node).",
+            network_id_str
+        );
         println!("2. Note its printed P2P Multiaddress (which includes its PeerId).");
         println!("3. For all subsequent nodes you deploy, you must manually add that first node's");
         println!(
-            "   multiaddress to their `~/.local/share/{}/config.toml` under `bootstrap_nodes`.", network_id_str
+            "   multiaddress to their `~/.local/share/{}/config.toml` under `bootstrap_nodes`.",
+            network_id_str
         );
         println!("4. (Optional) Add the multiaddress to a DNS TXT record at your seed domain.");
         println!("========================================");
@@ -230,21 +231,23 @@ fn patch_cargo_bin_names(network_id: &str) -> Result<()> {
         ("kinetic-host", format!("{}-host", network_id)),
         ("kinetic-pac", format!("{}-pac", network_id)),
         ("kinetic-dns", format!("{}-dns", network_id)),
-        ("kinetic-cli", format!("{}", network_id)),
+        ("kinetic-cli", network_id.to_string()),
     ];
 
     for (crate_dir, new_bin_name) in crates {
         let path = PathBuf::from(crate_dir).join("Cargo.toml");
         if path.exists() {
             let content = fs::read_to_string(&path)?;
-            let mut doc = content.parse::<toml_edit::DocumentMut>().context("Failed to parse Cargo.toml")?;
-            
+            let mut doc = content
+                .parse::<toml_edit::DocumentMut>()
+                .context("Failed to parse Cargo.toml")?;
+
             if let Some(bin_array) = doc.get_mut("bin").and_then(|i| i.as_array_of_tables_mut()) {
                 if let Some(bin) = bin_array.iter_mut().next() {
                     bin["name"] = toml_edit::value(new_bin_name.as_str());
                 }
             }
-            
+
             fs::write(&path, doc.to_string())?;
             println!("   Patched {} [[bin]] name to {}", crate_dir, new_bin_name);
         }
