@@ -28,23 +28,32 @@ pub fn handle_kinetic_governance_gossip(
             Ok(Some(effect)) => {
                 tracing::info!("Governance state updated via gossip. Effect: {:?}", effect);
                 if let Some(storage) = storage {
+                    use kinetic_core::constants::DB_PREFIX_REVEAL;
                     use kinetic_core::governance::types::GovernanceEffect;
                     use kinetic_core::types::DomainRecord;
-                    use kinetic_core::constants::DB_PREFIX_REVEAL;
 
                     match &effect {
-                        GovernanceEffect::PremiumNameGranted { name, target_pubkey } => {
+                        GovernanceEffect::PremiumNameGranted {
+                            name,
+                            target_pubkey,
+                        } => {
                             let record = DomainRecord::Premium {
                                 name: name.clone(),
                                 pubkey: target_pubkey.clone(),
-                                granted_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                                granted_at: std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs(),
                                 payload: Vec::new(),
                                 signature: Vec::new(),
                             };
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             if let Ok(json_bytes) = serde_json::to_vec(&record) {
                                 let _ = storage.put(key.as_bytes(), &json_bytes);
-                                tracing::info!("Injected DomainRecord::Premium into Sled for {}", name);
+                                tracing::info!(
+                                    "Injected DomainRecord::Premium into Sled for {}",
+                                    name
+                                );
                             }
                         }
                         GovernanceEffect::PremiumNameRevoked { name } => {
@@ -97,7 +106,10 @@ mod tests {
         let path = Arc::new(dir.path().join("gov.bin"));
 
         let msg = SignedGovernanceMessage {
-            action: GovernanceAction::GrantPremiumName { name: "x".to_string(), target_pubkey: vec![] },
+            action: GovernanceAction::GrantPremiumName {
+                name: "x".to_string(),
+                target_pubkey: vec![],
+            },
             timestamp_sec: 0,
             signatures: vec![],
         };
@@ -151,7 +163,10 @@ mod tests {
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
         let msg = SignedGovernanceMessage {
-            action: GovernanceAction::GrantPremiumName { name: "x".to_string(), target_pubkey: vec![] },
+            action: GovernanceAction::GrantPremiumName {
+                name: "x".to_string(),
+                target_pubkey: vec![],
+            },
             timestamp_sec: 0,
             signatures: vec![],
         };
