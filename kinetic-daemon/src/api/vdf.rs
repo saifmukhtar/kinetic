@@ -240,14 +240,15 @@ pub async fn handle_vdf_register(
             return;
         }
 
-        // Wait >10 drand rounds (10 × 3 s = 30 s) to satisfy the commit_age ≥ 10 rule in verify_reveal.
+        // Wait enough rounds to satisfy the commit_age rule in verify_reveal.
+        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_ROUNDS * kinetic_core::constants::DRAND_PERIOD) + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,
-            "Maturing commitment (32 s)...",
+            &format!("Maturing commitment ({} s)...", wait_secs),
             88,
         );
-        tokio::time::sleep(std::time::Duration::from_secs(32)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(wait_secs)).await;
 
         update_task_status(&tasks_clone, &task_id_clone, "Publishing Registration", 90);
 
@@ -585,14 +586,15 @@ pub async fn handle_vdf_renew(
             return;
         }
 
-        // Wait >10 drand rounds to satisfy commit_age ≥ 10 in verify_reveal.
+        // Wait enough rounds to satisfy the commit_age rule in verify_reveal.
+        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_ROUNDS * kinetic_core::constants::DRAND_PERIOD) + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,
-            "Maturing commitment (32 s)...",
+            &format!("Maturing commitment ({} s)...", wait_secs),
             88,
         );
-        tokio::time::sleep(std::time::Duration::from_secs(32)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(wait_secs)).await;
 
         update_task_status(&tasks_clone, &task_id_clone, "Publishing Renewal", 90);
 

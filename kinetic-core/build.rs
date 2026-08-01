@@ -19,6 +19,7 @@ struct SquatterMultipliers {
 
 #[derive(Deserialize)]
 struct ConsensusConfig {
+    minimum_commit_age_rounds: u64,
     vdf_squatter_multipliers: SquatterMultipliers,
     vdf_discount_min_iterations: u64,
     vdf_discount_percentage: u64,
@@ -194,6 +195,11 @@ fn main() {
     out.push_str(&format!(
         "/// The default number of iterations used during development and simulation mode.\npub const DEV_MODE_ITERATIONS: u64 = {};\n\n",
         config.advanced.dev_mode_iterations
+    ));
+
+    out.push_str(&format!(
+        "/// The minimum number of Drand rounds a Commitment must age before a Reveal is accepted.\npub const CONSENSUS_MINIMUM_COMMIT_AGE_ROUNDS: u64 = {};\n\n",
+        config.consensus.minimum_commit_age_rounds
     ));
 
     out.push_str(&format!(

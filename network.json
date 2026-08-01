@@ -41,7 +41,8 @@
     "vdf_discount_min_iterations": 1000,
     "vdf_discount_percentage": 15,
     "vdf_max_iterations": 400000000000,
-    "vdf_max_proof_bytes": 1024
+    "vdf_max_proof_bytes": 1024,
+    "minimum_commit_age_rounds": 10
   },
   "advanced": {
     "benchmark_base_iterations": 238819830,

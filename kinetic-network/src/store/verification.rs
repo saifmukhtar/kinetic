@@ -309,12 +309,12 @@ pub(crate) fn verify_reveal(
     let commit_round = get_u64_from_sled(storage, &commit_key);
 
     if let Some(commit_round) = commit_round {
-        if !dev_mode && current_drand_round.saturating_sub(commit_round) < 10 {
+        if !dev_mode && current_drand_round.saturating_sub(commit_round) < kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_ROUNDS {
             let err = KineticStoreError::StaleReveal;
             err.log_warning(
                 "KIN-STORE-027",
                 &reveal.name,
-                "Rejecting Reveal: Commitment is too recent (age < 10 rounds)",
+                "Rejecting Reveal: Commitment is too recent (age < minimum commit age)",
             );
             return Err(err);
         }
