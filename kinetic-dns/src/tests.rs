@@ -60,7 +60,10 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
     use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
     let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
     reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
-    reveal.signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_ID)).to_bytes().to_vec();
+    reveal.signature = keypair
+        .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
+        .to_bytes()
+        .to_vec();
     reveal
 }
 
@@ -144,7 +147,10 @@ async fn test_resolve_standard_domain() {
 // 2. Test successful resolve of .kin domain
 #[tokio::test]
 async fn test_resolve_kin_success() {
-    let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).with_test_writer().try_init();
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_test_writer()
+        .try_init();
     let api_url = start_mock_daemon().await;
     let handler = KineticDnsHandler::new(
         api_url,
