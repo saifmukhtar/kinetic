@@ -237,6 +237,7 @@ impl NetworkClient {
                 message: "Network channel closed unexpectedly".to_string(),
                 source: None,
             })?;
+        #[cfg(not(target_arch = "wasm32"))]
         match tokio::time::timeout(std::time::Duration::from_secs(10), rx).await {
             Ok(Ok(res)) => res,
             Ok(Err(_)) => Err(ResolutionError::Internal {
@@ -247,6 +248,27 @@ impl NetworkClient {
                 message: "Resolution timed out".to_string(),
                 source: None,
             }),
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use futures::future::{select, Either};
+            use futures_timer::Delay;
+            match select(
+                Box::pin(rx),
+                Delay::new(std::time::Duration::from_secs(10)),
+            )
+            .await
+            {
+                Either::Left((Ok(res), _)) => res,
+                Either::Left((Err(_), _)) => Err(ResolutionError::Internal {
+                    message: "Network channel closed unexpectedly".to_string(),
+                    source: None,
+                }),
+                Either::Right(_) => Err(ResolutionError::Internal {
+                    message: "Resolution timed out".to_string(),
+                    source: None,
+                }),
+            }
         }
     }
 

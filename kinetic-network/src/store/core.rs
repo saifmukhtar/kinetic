@@ -109,14 +109,20 @@ impl KineticRecordStore {
                                         hash.copy_from_slice(&hasher.finalize());
                                         let challenge = Commitment { hash };
 
-                                        if matches!(
-                                            tokio::task::block_in_place(|| vdf_engine.verify(
+                                        #[cfg(not(target_arch = "wasm32"))]
+                                        let is_valid_vdf = tokio::task::block_in_place(|| vdf_engine.verify(
                                                 &challenge,
                                                 &reveal.vdf_proof,
                                                 reveal.iterations
-                                            )),
-                                            Ok(true)
-                                        ) {
+                                            ));
+                                        #[cfg(target_arch = "wasm32")]
+                                        let is_valid_vdf = vdf_engine.verify(
+                                                &challenge,
+                                                &reveal.vdf_proof,
+                                                reveal.iterations
+                                            );
+
+                                        if matches!(is_valid_vdf, Ok(true)) {
                                             is_valid = true;
                                         }
                                     }

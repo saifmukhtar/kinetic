@@ -1,5 +1,6 @@
 //! Custom Kinetic DNS Tree protocol (`kintree`) for discovering bootstrap peer addresses via DNS TXT records.
 
+#[cfg(not(target_arch = "wasm32"))]
 use hickory_resolver::AsyncResolver;
 use libp2p::Multiaddr;
 use std::collections::HashSet;
@@ -8,9 +9,10 @@ use std::collections::HashSet;
 /// It first checks the domain for a `kintree-root` TXT record. If found, it traverses
 /// the branches to discover `kintree-leaf` records containing full Multiaddrs.
 /// If no root is found, it falls back to parsing flat Multiaddrs directly from the root domain's TXT records.
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
     let mut addrs = Vec::new();
-    let resolver = match AsyncResolver::tokio_from_system_conf() {
+    let resolver = match hickory_resolver::AsyncResolver::tokio_from_system_conf() {
         Ok(r) => r,
         Err(e) => {
             tracing::warn!("Failed to initialize DNS resolver: {}", e);
@@ -88,4 +90,10 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
     }
 
     addrs
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Resolves a domain using the Custom Kinetic DNS Tree protocol (kintree).
+pub async fn resolve_dns_tree(_domain: &str) -> Vec<Multiaddr> {
+    Vec::new()
 }

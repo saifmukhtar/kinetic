@@ -303,9 +303,14 @@ impl super::core::NetworkEventLoop {
                     }
 
                     let challenge_cmt = kinetic_core::types::Commitment { hash };
-                    match tokio::task::block_in_place(|| {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let is_valid = tokio::task::block_in_place(|| {
                         engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)
-                    }) {
+                    });
+                    #[cfg(target_arch = "wasm32")]
+                    let is_valid = engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations);
+
+                    match is_valid {
                         Ok(true) => return Some(p),
                         Ok(false) => {
                             tracing::warn!(

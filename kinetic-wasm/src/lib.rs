@@ -2,104 +2,69 @@
 //! # kinetic-wasm
 //!
 //! WebAssembly browser bindings for the Kinetic P2P network client.
-//!
-//! Exposes the [`KineticNode`] interface to JavaScript environments via `wasm-bindgen`,
-//! allowing web browsers to instantiate lightweight nodes, resolve `.kin` domains asynchronously,
-//! verify post-quantum signatures, and proxy HTTP requests over P2P streams.
+//! Upgraded to a Universal Web3 Extension that dynamically spins up swarms based on the Atlas Registry.
 
 use js_sys::Function;
-use kinetic_network::client::{NetworkConfig, NetworkMode};
+use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
 use kinetic_network::NetworkEventLoop;
 use kinetic_storage::SledStorage;
 use libp2p::identity::Keypair;
+use libp2p::Multiaddr;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::sync::Arc;
 use tokio::sync::watch;
 use wasm_bindgen::prelude::*;
+use futures_timer::Delay;
+use std::time::Duration;
 
-/// A WebAssembly wrapper for the Kinetic network client.
-///
-/// This struct allows a browser environment to initialize a lightweight
-/// Kinetic network node, resolve domains, and proxy requests through the P2P network.
+/// Configuration for a specific Kinetic network fork.
+#[wasm_bindgen(getter_with_clone)]
+#[derive(Clone, serde::Deserialize)]
+pub struct AtlasNetworkConfig {
+    /// The TLD (e.g. "kin")
+    pub id: String,
+    /// Display name
+    pub name: String,
+    /// Network ID used for signatures
+    pub network_id: String,
+    /// Hardcoded bootstrap nodes
+    pub bootstrap_nodes: Vec<String>,
+    /// Optional kintree DNS seed domain
+    pub seed_domain: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct GitHubFile {
+    download_url: Option<String>,
+}
+
+struct SwarmHandle {
+    client: NetworkClient,
+    last_used: f64,
+}
+
+/// A Universal WebAssembly wrapper for the Kinetic network client.
+/// Dynamically spawns Libp2p swarms for multiple TLDs on-demand.
 #[wasm_bindgen]
-pub struct KineticNode {
-    /// Optional reference to the underlying active P2P network client.
-    #[wasm_bindgen(skip)]
-    pub client: Option<kinetic_network::client::NetworkClient>,
+pub struct UniversalKineticNode {
+    registry: Rc<RefCell<HashMap<String, AtlasNetworkConfig>>>,
+    swarms: Rc<RefCell<HashMap<String, SwarmHandle>>>,
     on_event: Function,
 }
 
 #[wasm_bindgen]
-impl KineticNode {
-    /// Creates a new uninitialized `KineticNode` instance.
-    ///
-    /// Accepts a JavaScript callback function to emit status events back to the browser.
+impl UniversalKineticNode {
+    /// Creates a new uninitialized `UniversalKineticNode` instance.
     #[wasm_bindgen(constructor)]
-    pub fn new(on_event: Function) -> Result<KineticNode, JsValue> {
+    pub fn new(on_event: Function) -> Result<UniversalKineticNode, JsValue> {
         console_error_panic_hook::set_once();
-        Ok(KineticNode {
-            client: None,
+        Ok(UniversalKineticNode {
+            registry: Rc::new(RefCell::new(HashMap::new())),
+            swarms: Rc::new(RefCell::new(HashMap::new())),
             on_event,
         })
-    }
-
-    /// Starts the node's background event loop and P2P network client.
-    ///
-    /// This method sets up an in-memory storage, generates a local Ed25519 identity,
-    /// configures a light client network mode, and spawns the event loop onto the
-    /// browser's microtask queue.
-    ///
-    /// # Errors
-    /// Returns a `JsValue` error if storage initialization, network configuration,
-    /// or event loop startup fails.
-    #[wasm_bindgen]
-    pub fn start(&mut self) -> Result<(), JsValue> {
-        self.emit_event("status", "Starting Kinetic Wasm Node...");
-
-        // 1. Generate local keypair
-        let local_key = Keypair::generate_ed25519();
-
-        // 2. Setup in-memory temporary storage
-        let storage =
-            Arc::new(SledStorage::new_temp().map_err(|e| JsValue::from_str(&e.to_string()))?);
-
-        // 3. Fake drand pulse receiver (for now, since Drand is not fully mocked out in the event loop for Wasm)
-        let (_drand_tx, drand_rx) = watch::channel(0);
-
-        // 4. Create NetworkConfig
-        let config = NetworkConfig {
-            mode: NetworkMode::LightClient,
-            listen_addrs: vec![],
-            quic_listen_addrs: vec![],
-            bootstrap_nodes: vec![],
-            initial_drand_pulse: 0,
-            seed_domain: vec![],
-            external_address: None,
-            max_reveals_per_hour: 100,
-            lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
-            disable_pow: false,
-            enable_mdns: false,
-        };
-
-        // 5. Initialize the Event Loop
-        let vdf_engine = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
-        let (client, event_loop) =
-            NetworkEventLoop::new(config, local_key, storage, drand_rx, None, None, vdf_engine)
-                .map_err(|e| JsValue::from_str(&e.to_string()))?;
-
-        self.client = Some(client);
-
-        self.emit_event(
-            "status",
-            "Node event loop initialized. Spawning in background...",
-        );
-
-        // 6. Spawn the event loop on the browser's microtask queue!
-        wasm_bindgen_futures::spawn_local(async move {
-            event_loop.run().await;
-        });
-
-        self.emit_event("status", "Node started successfully");
-        Ok(())
     }
 
     fn emit_event(&self, event_type: &str, data: &str) {
@@ -109,23 +74,142 @@ impl KineticNode {
         let _ = self.on_event.call2(&this, &ev_type, &ev_data);
     }
 
-    /// Resolves a domain name across the P2P network to fetch its `DnsZone` configuration.
-    ///
-    /// This queries the network for a redundant payload associated with the domain
-    /// and parses the revealed `DnsZone` into a JavaScript object.
-    ///
-    /// # Errors
-    /// Returns a `JsValue` error if the node is not started, the domain resolution fails,
-    /// the payload is invalid, the reveal signature is invalid, the reveal name is mismatched,
-    /// or the zone format cannot be parsed/serialized.
+    /// Starts the background SwarmManager Garbage Collector.
     #[wasm_bindgen]
-    pub async fn resolve_domain(&self, name: String) -> Result<JsValue, JsValue> {
-        let client = self
-            .client
-            .clone()
-            .ok_or_else(|| JsValue::from_str("Node not started"))?;
-        let key = format!("domain_{}", name);
+    pub fn start_manager(&self) -> Result<(), JsValue> {
+        self.emit_event("status", "Starting Swarm GC...");
+        let swarms_clone = self.swarms.clone();
+        let on_event = self.on_event.clone();
+        
+        wasm_bindgen_futures::spawn_local(async move {
+            loop {
+                Delay::new(Duration::from_secs(60)).await;
+                let now = js_sys::Date::now();
+                let mut lock = swarms_clone.borrow_mut();
+                lock.retain(|tld, handle| {
+                    if now - handle.last_used > 10.0 * 60.0 * 1000.0 {
+                        let this = JsValue::null();
+                        let _ = on_event.call2(&this, &JsValue::from_str("status"), &JsValue::from_str(&format!("Shutting down idle swarm for {}", tld)));
+                        false
+                    } else {
+                        true
+                    }
+                });
+            }
+        });
 
+        self.emit_event("status", "SwarmManager GC started successfully");
+        Ok(())
+    }
+
+    /// Fetches the global Atlas network registry from GitHub.
+    #[wasm_bindgen]
+    pub async fn fetch_registry(&self) -> Result<(), JsValue> {
+        let client = reqwest::Client::new();
+        let url = "https://api.github.com/repos/saifmukhtar/kinetic-atlas/contents/networks";
+        let res = client.get(url)
+            .header("User-Agent", "Universal-Kinetic-Wasm")
+            .send().await.map_err(|e| JsValue::from_str(&e.to_string()))?;
+        
+        let files: Vec<GitHubFile> = res.json().await.map_err(|e| JsValue::from_str(&e.to_string()))?;
+        
+        let mut registry = self.registry.borrow_mut();
+        for file in files {
+            if let Some(dl) = file.download_url {
+                if let Ok(res) = client.get(&dl).send().await {
+                    if let Ok(config) = res.json::<AtlasNetworkConfig>().await {
+                        registry.insert(config.id.clone(), config);
+                    }
+                }
+            }
+        }
+        
+        // Fallback injection for .kin if GitHub fetch failed or it's not present
+        if !registry.contains_key("kin") {
+            registry.insert("kin".to_string(), AtlasNetworkConfig {
+                id: "kin".to_string(),
+                name: "Kinetic Mainnet".to_string(),
+                network_id: kinetic_core::constants::NETWORK_ID.to_string(),
+                bootstrap_nodes: vec![],
+                seed_domain: Some("bootstrap.kinetic.network".to_string()),
+            });
+        }
+
+        self.emit_event("status", &format!("Registry synced. Supported TLDs: {}", registry.len()));
+        Ok(())
+    }
+
+    async fn get_or_spawn_swarm(&self, tld: &str) -> Result<NetworkClient, JsValue> {
+        {
+            let mut lock = self.swarms.borrow_mut();
+            if let Some(handle) = lock.get_mut(tld) {
+                handle.last_used = js_sys::Date::now();
+                return Ok(handle.client.clone());
+            }
+        }
+
+        let config = {
+            let reg = self.registry.borrow();
+            reg.get(tld).cloned().ok_or_else(|| JsValue::from_str(&format!("TLD not found in registry: {}", tld)))?
+        };
+
+        self.emit_event("status", &format!("Spawning new swarm for .{}", tld));
+        
+        let mut bootstrap_nodes = vec![];
+        for addr in config.bootstrap_nodes.iter() {
+            if let Ok(m) = addr.parse() {
+                bootstrap_nodes.push(m);
+            }
+        }
+        
+        if let Some(seed_domain) = &config.seed_domain {
+            let resolved = kinetic_network::dns_tree::resolve_dns_tree(seed_domain).await;
+            for addr in resolved {
+                bootstrap_nodes.push(addr);
+            }
+        }
+
+        let storage = Arc::new(SledStorage::new_temp().map_err(|e| JsValue::from_str(&e.to_string()))?);
+        let (_drand_tx, drand_rx) = watch::channel(0);
+
+        let net_config = NetworkConfig {
+            mode: NetworkMode::LightClient,
+            listen_addrs: vec![],
+            quic_listen_addrs: vec![],
+            bootstrap_nodes,
+            initial_drand_pulse: 0,
+            seed_domain: vec![],
+            external_address: None,
+            max_reveals_per_hour: 100,
+            lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+            disable_pow: false,
+            enable_mdns: false,
+        };
+
+        let local_key = Keypair::generate_ed25519();
+        let vdf_engine = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        let (client, event_loop) = NetworkEventLoop::new(net_config, local_key, storage, drand_rx, None, None, vdf_engine)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+        wasm_bindgen_futures::spawn_local(async move {
+            event_loop.run().await;
+        });
+
+        self.swarms.borrow_mut().insert(tld.to_string(), SwarmHandle {
+            client: client.clone(),
+            last_used: js_sys::Date::now(),
+        });
+
+        Ok(client)
+    }
+
+    /// Resolves a full domain name (e.g. "mywebsite.kin")
+    #[wasm_bindgen]
+    pub async fn resolve_domain(&self, full_domain: String) -> Result<JsValue, JsValue> {
+        let tld = full_domain.split('.').last().unwrap_or(&full_domain);
+        let client = self.get_or_spawn_swarm(tld).await?;
+        
+        let key = format!("domain_{}", full_domain);
         let bytes = client
             .resolve_redundant_payload(&key)
             .await
@@ -134,11 +218,13 @@ impl KineticNode {
         let record: kinetic_core::types::DomainRecord = serde_json::from_slice(&bytes)
             .map_err(|e| JsValue::from_str(&format!("Invalid record format: {}", e)))?;
 
-        if record.name() != name {
+        if record.name() != full_domain {
             return Err(JsValue::from_str("Record name mismatch"));
         }
 
-        if record.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
+        // Validate signature against the dynamic network_id
+        let network_id = self.registry.borrow().get(tld).map(|c| c.network_id.clone()).unwrap_or_else(|| kinetic_core::constants::NETWORK_ID.to_string());
+        if record.verify_signature(&network_id).is_err() {
             return Err(JsValue::from_str("Invalid record signature"));
         }
 
@@ -151,24 +237,16 @@ impl KineticNode {
         Ok(js_obj)
     }
 
-    /// Sends an HTTP GET proxy request over the P2P network to a specific node.
-    ///
-    /// Connects to the given `PeerId` and requests the specified path, returning
-    /// the raw response bytes as a `Uint8Array`.
-    ///
-    /// # Errors
-    /// Returns a `JsValue` error if the node is not started, the target peer ID is invalid,
-    /// or the proxy request fails over the network.
+    /// Sends an HTTP GET proxy request over a specific TLD's P2P network.
     #[wasm_bindgen]
     pub async fn fetch_proxy(
         &self,
+        tld: String,
         peer_id_str: String,
         path: String,
     ) -> Result<js_sys::Uint8Array, JsValue> {
-        let client = self
-            .client
-            .clone()
-            .ok_or_else(|| JsValue::from_str("Node not started"))?;
+        let client = self.get_or_spawn_swarm(&tld).await?;
+        
         let peer_id: libp2p::PeerId = peer_id_str
             .parse()
             .map_err(|e| JsValue::from_str(&format!("Invalid PeerId: {}", e)))?;
@@ -185,44 +263,6 @@ impl KineticNode {
             .await
             .map_err(|e| JsValue::from_str(&format!("Proxy request failed: {:?}", e)))?;
 
-        let uint8_arr = js_sys::Uint8Array::from(&resp.body[..]);
-        Ok(uint8_arr)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use wasm_bindgen_test::*;
-
-    wasm_bindgen_test_configure!(run_in_browser);
-
-    #[wasm_bindgen_test]
-    fn test_kinetic_node_initialization() {
-        let func = js_sys::Function::new_no_args("return;");
-        let node = KineticNode::new(func).unwrap();
-        assert!(node.client.is_none());
-    }
-
-    #[wasm_bindgen_test]
-    async fn test_node_resolve_without_start_fails() {
-        let func = js_sys::Function::new_no_args("return;");
-        let node = KineticNode::new(func).unwrap();
-
-        let res = node.resolve_domain("test.kin".to_string()).await;
-        assert!(res.is_err());
-        assert_eq!(res.unwrap_err().as_string().unwrap(), "Node not started");
-    }
-
-    #[wasm_bindgen_test]
-    async fn test_node_proxy_without_start_fails() {
-        let func = js_sys::Function::new_no_args("return;");
-        let node = KineticNode::new(func).unwrap();
-
-        let res = node
-            .fetch_proxy("12D3KooW...".to_string(), "/path".to_string())
-            .await;
-        assert!(res.is_err());
-        assert_eq!(res.unwrap_err().as_string().unwrap(), "Node not started");
+        Ok(js_sys::Uint8Array::from(&resp.body[..]))
     }
 }

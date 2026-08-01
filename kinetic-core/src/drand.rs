@@ -143,10 +143,13 @@ impl DrandClient {
     pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
         let config = crate::config::KineticConfig::load();
         Self {
+            #[cfg(not(target_arch = "wasm32"))]
             http: reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .build()
                 .unwrap_or_default(),
+            #[cfg(target_arch = "wasm32")]
+            http: reqwest::Client::new(),
             storage,
             endpoints: config.drand.endpoints,
             drand_domain: config.drand.drand_domain,
