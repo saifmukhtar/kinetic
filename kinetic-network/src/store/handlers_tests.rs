@@ -46,7 +46,6 @@ mod tests {
             std::num::NonZeroUsize::new(100).unwrap(),
             max_reveals,
             vdf_engine,
-            None,
         );
         (store, storage)
     }

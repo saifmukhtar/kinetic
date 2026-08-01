@@ -21,14 +21,16 @@ impl KineticRecordStore {
             kinetic_core::types::DomainRecord::Premium { .. } => None,
         };
 
-        let effective_age = self.current_drand_round
-            .saturating_sub(reveal_ref.map_or(0, |r| r.drand_pulse))
-            .saturating_sub(total_paused_rounds);
+        if let Some(reveal) = reveal_ref {
+            let effective_age = self.current_drand_round
+                .saturating_sub(reveal.drand_pulse)
+                .saturating_sub(total_paused_rounds);
 
-        if effective_age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
-            let err = KineticStoreError::VdfExpired { age: effective_age };
-            err.log_warning("KIN-STORE-001", record.name(), "Rejecting Record:");
-            return Err(err);
+            if effective_age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
+                let err = KineticStoreError::VdfExpired { age: effective_age };
+                err.log_warning("KIN-STORE-001", record.name(), "Rejecting Record:");
+                return Err(err);
+            }
         }
 
         if !skip_verify {

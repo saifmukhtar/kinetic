@@ -18,7 +18,6 @@ async fn test_store_garbage_collection() {
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
-        None,
     );
 
     // In this test, we would ideally verify that expired records are cleared.
@@ -41,7 +40,6 @@ async fn test_store_provider_records() {
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
-        None,
     );
 
     let key = RecordKey::new(&"test_provider");
@@ -71,7 +69,6 @@ async fn test_store_remove_provider() {
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
-        None,
     );
 
     let key = RecordKey::new(&"test_provider_remove");
@@ -103,7 +100,6 @@ async fn test_store_provided_records() {
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
-        None,
     );
 
     let key = RecordKey::new(&"test_provided");

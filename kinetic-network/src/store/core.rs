@@ -538,7 +538,6 @@ mod tests {
             NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
-            None,
         );
 
         let record = kad::Record::new(
