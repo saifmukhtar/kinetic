@@ -95,7 +95,11 @@ impl KineticRecordStore {
                             ) {
                                 if reveal.iterations >= req {
                                     let dev_mode = kinetic_core::config::is_dev_mode();
-                                    if dev_mode || reveal.verify_signature(kinetic_core::constants::NETWORK_ID).is_ok() {
+                                    if dev_mode
+                                        || reveal
+                                            .verify_signature(kinetic_core::constants::NETWORK_ID)
+                                            .is_ok()
+                                    {
                                         use kinetic_core::types::Commitment;
                                         use sha2::{Digest, Sha256};
                                         let drand_rand = hex::decode(&reveal.drand_randomness)
@@ -110,17 +114,19 @@ impl KineticRecordStore {
                                         let challenge = Commitment { hash };
 
                                         #[cfg(not(target_arch = "wasm32"))]
-                                        let is_valid_vdf = tokio::task::block_in_place(|| vdf_engine.verify(
+                                        let is_valid_vdf = tokio::task::block_in_place(|| {
+                                            vdf_engine.verify(
                                                 &challenge,
                                                 &reveal.vdf_proof,
-                                                reveal.iterations
-                                            ));
+                                                reveal.iterations,
+                                            )
+                                        });
                                         #[cfg(target_arch = "wasm32")]
                                         let is_valid_vdf = vdf_engine.verify(
-                                                &challenge,
-                                                &reveal.vdf_proof,
-                                                reveal.iterations
-                                            );
+                                            &challenge,
+                                            &reveal.vdf_proof,
+                                            reveal.iterations,
+                                        );
 
                                         if matches!(is_valid_vdf, Ok(true)) {
                                             is_valid = true;
@@ -167,7 +173,10 @@ impl KineticRecordStore {
 
         for (name, reveal) in reveals_by_name.iter() {
             if let Ok(val) = serde_json::to_vec(reveal) {
-                let keys = kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_ID);
+                let keys = kinetic_core::types::derive_storage_keys(
+                    name,
+                    kinetic_core::constants::NETWORK_ID,
+                );
                 for key_bytes in keys {
                     let k = kad::RecordKey::new(&key_bytes);
                     let record = kad::Record::new(k, val.clone());
@@ -252,7 +261,10 @@ impl KineticRecordStore {
             keys_to_delete.push([KRS_REVEAL_PREFIX, name.as_bytes()].concat());
             keys_to_delete.push([KRS_HB_PREFIX, name.as_bytes()].concat());
 
-            let keys = kinetic_core::types::derive_storage_keys(&name, kinetic_core::constants::NETWORK_ID);
+            let keys = kinetic_core::types::derive_storage_keys(
+                &name,
+                kinetic_core::constants::NETWORK_ID,
+            );
             for key_bytes in keys {
                 let k = kad::RecordKey::new(&key_bytes);
                 let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -261,7 +273,10 @@ impl KineticRecordStore {
                 keys_to_delete.push(sled_key);
             }
 
-            let hb_keys = kinetic_core::types::derive_heartbeat_keys(&name, kinetic_core::constants::NETWORK_ID);
+            let hb_keys = kinetic_core::types::derive_heartbeat_keys(
+                &name,
+                kinetic_core::constants::NETWORK_ID,
+            );
             for key_bytes in hb_keys {
                 let k = kad::RecordKey::new(&key_bytes);
                 let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -293,7 +308,8 @@ impl KineticRecordStore {
         }
         let key = [crate::store::constants::KRS_REVEAL_PREFIX, name.as_bytes()].concat();
         if let Ok(Some(bytes)) = self.storage.get(&key) {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes) {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes)
+            {
                 self.reveals_by_name.put(name.to_string(), record.clone());
                 return Some(record);
             }
@@ -382,7 +398,10 @@ impl KineticRecordStore {
             } else if parsed.get("vdf_proof").is_some() || parsed.get("granted_at").is_some() {
                 match serde_json::from_value::<kinetic_core::types::DomainRecord>(parsed) {
                     Ok(record) => {
-                        tracing::debug!("KineticRecordStore::put parsed DomainRecord for {}", record.name());
+                        tracing::debug!(
+                            "KineticRecordStore::put parsed DomainRecord for {}",
+                            record.name()
+                        );
                         self.handle_record(&record, skip_reveal_verify)?;
                     }
                     Err(_) => {
