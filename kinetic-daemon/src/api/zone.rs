@@ -152,7 +152,8 @@ pub async fn handle_publish_zone(
             ))
         }
     };
-    let mut record: kinetic_core::types::DomainRecord = match serde_json::from_slice(&reveal_bytes) {
+    let mut record: kinetic_core::types::DomainRecord = match serde_json::from_slice(&reveal_bytes)
+    {
         Ok(r) => r,
         Err(_) => {
             return Err((
