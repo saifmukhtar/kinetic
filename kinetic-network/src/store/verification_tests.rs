@@ -60,15 +60,15 @@ mod tests {
 
     #[test]
     fn test_mldsa_authorized_kid_validation() {
+        use crate::error::KineticStoreError;
         use crate::store::verification::verify_authorized_kid;
         use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
         use kinetic_kid::document::KidDocument;
         use ml_dsa::signature::Signer;
         use ml_dsa::Generate;
-        use ml_dsa::Keypair;
         use ml_dsa::KeyExport;
+        use ml_dsa::Keypair;
         use ml_dsa::SignatureEncoding;
-        use crate::error::KineticStoreError;
 
         let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
         let ml_pub = ml_kp.verifying_key();
@@ -81,7 +81,9 @@ mod tests {
             drand_pulse: 100,
             drand_randomness: String::new(),
             iterations: 100,
-            vdf_proof: VdfProof { proof_bytes: vec![] },
+            vdf_proof: VdfProof {
+                proof_bytes: vec![],
+            },
             pubkey: ml_pub.to_bytes().to_vec(),
             signature: vec![],
             previous_proof: None,
@@ -101,13 +103,22 @@ mod tests {
             let _ = write!(&mut hex_hash, "{:02x}", byte);
         }
 
-        let kid = kinetic_kid::did::KineticDid::new(&format!("{}{}", kinetic_core::constants::DID_PREFIX, hex_hash)).unwrap();
+        let kid = kinetic_kid::did::KineticDid::new(&format!(
+            "{}{}",
+            kinetic_core::constants::DID_PREFIX,
+            hex_hash
+        ))
+        .unwrap();
         let doc = KidDocument {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,
             created_at: 1234567890,
             controller_keys: vec![kinetic_kid::document::ControllerKey {
-                id: format!("{}{}#primary", kinetic_core::constants::DID_PREFIX, hex_hash),
+                id: format!(
+                    "{}{}#primary",
+                    kinetic_core::constants::DID_PREFIX,
+                    hex_hash
+                ),
                 key_type: "MlDsa65".to_string(),
                 public_key: pub_key_b64,
             }],
@@ -117,7 +128,7 @@ mod tests {
             signature: None,
         };
         let did_doc = doc.sign(&ml_kp).unwrap();
-        
+
         let mut auth_kid = AuthorizedKid {
             name: "test.kinetic".to_string(),
             kid_doc: did_doc,
@@ -131,9 +142,13 @@ mod tests {
         // Pass it through validation! (We mock existing_record as Some to bypass genesis bindings in this simple test)
         let dummy_key = libp2p::kad::RecordKey::new(&[0u8; 32]);
         let existing_record = libp2p::kad::Record::new(dummy_key, vec![]);
-        
-        let record = kinetic_core::types::DomainRecord::Standard(reveal);
-        let res = verify_authorized_kid(&auth_kid, Some(&record), Some(&std::borrow::Cow::Owned(existing_record)));
+
+        let record = kinetic_core::types::DomainRecord::Standard(Box::new(reveal));
+        let res = verify_authorized_kid(
+            &auth_kid,
+            Some(&record),
+            Some(&std::borrow::Cow::Owned(existing_record)),
+        );
         // Should not fail with InvalidKidSignature
         assert!(res.is_ok() || !matches!(res.unwrap_err(), KineticStoreError::InvalidKidSignature));
     }
