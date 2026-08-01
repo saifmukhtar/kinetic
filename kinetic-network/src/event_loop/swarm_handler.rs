@@ -43,7 +43,10 @@ impl super::core::NetworkEventLoop {
                 let peers_q = p.peers_queried;
 
                 // Pre-compute local fallback before offloading
-                let keys = kinetic_core::types::derive_storage_keys(&name, kinetic_core::constants::NETWORK_ID);
+                let keys = kinetic_core::types::derive_storage_keys(
+                    &name,
+                    kinetic_core::constants::NETWORK_ID,
+                );
                 let mut local_fallback = None;
                 for key_bytes in &keys {
                     let k = kad::RecordKey::new(key_bytes);
@@ -277,7 +280,6 @@ impl super::core::NetworkEventLoop {
                                 let engine = store.vdf_engine.clone();
                                 let current_drand_round = store.current_drand_round;
 
-
                                 if let Some(loopback) = &self.loopback_tx {
                                     let loopback_clone = loopback.clone();
                                     let record_clone = record.clone();
@@ -289,7 +291,6 @@ impl super::core::NetworkEventLoop {
                                                     &storage,
                                                     current_drand_round,
                                                     &engine,
-
                                                 )
                                             })
                                             .await;
