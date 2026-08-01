@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 #[serde(untagged)]
 pub enum DomainRecord {
     /// A standard domain registered via Proof of Work and VDF.
-    Standard(kinetic_verify::Reveal),
+    Standard(Box<kinetic_verify::Reveal>),
     /// A premium domain granted directly by the Governance Root Key.
     Premium {
         /// The domain name.
@@ -83,15 +83,21 @@ impl DomainRecord {
     /// are structurally malformed.
     pub fn verify_signature(&self, network_id: &str) -> Result<(), crate::error::KineticError> {
         match self {
-            Self::Standard(reveal) => {
-                reveal.verify_signature(network_id).map_err(|_| crate::error::KineticError::InvalidSignature)
-            }
-            Self::Premium { name, payload, signature, pubkey, .. } => {
+            Self::Standard(reveal) => reveal
+                .verify_signature(network_id)
+                .map_err(|_| crate::error::KineticError::InvalidSignature),
+            Self::Premium {
+                name,
+                payload,
+                signature,
+                pubkey,
+                ..
+            } => {
                 use ml_dsa::signature::Verifier;
                 use ml_dsa::KeyInit;
                 let verifying_key = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pubkey)
                     .map_err(|_| crate::error::KineticError::InvalidSignature)?;
-                
+
                 let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(signature.as_slice())
                     .map_err(|_| crate::error::KineticError::InvalidSignature)?;
 
@@ -100,7 +106,8 @@ impl DomainRecord {
                 signable.extend_from_slice(payload);
                 signable.extend_from_slice(network_id.as_bytes());
 
-                verifying_key.verify(&signable, &sig)
+                verifying_key
+                    .verify(&signable, &sig)
                     .map_err(|_| crate::error::KineticError::InvalidSignature)
             }
         }
@@ -133,7 +140,8 @@ impl Heartbeat {
     /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
     pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
         let prefix_suffix = b"-heartbeat-v1";
-        let mut bytes = Vec::with_capacity(network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 8);
+        let mut bytes =
+            Vec::with_capacity(network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 8);
         bytes.extend_from_slice(network_id.as_bytes());
         bytes.extend_from_slice(prefix_suffix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
@@ -213,7 +221,10 @@ mod tests {
 
     #[test]
     fn test_derive_storage_keys() {
-        let keys = derive_storage_keys(&format!("{}{}", "saif", TLD_SUFFIX), env!("KINETIC_NETWORK_ID"));
+        let keys = derive_storage_keys(
+            &format!("{}{}", "saif", TLD_SUFFIX),
+            env!("KINETIC_NETWORK_ID"),
+        );
         assert_eq!(keys.len(), 32);
 
         let keys2 = derive_storage_keys("SAIF.KIN", env!("KINETIC_NETWORK_ID"));
