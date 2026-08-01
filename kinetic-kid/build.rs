@@ -10,8 +10,11 @@ fn main() {
     }
 
     let json_content = fs::read_to_string(&network_json_path).expect("Failed to read network.json");
-    let parsed: serde_json::Value = serde_json::from_str(&json_content).expect("Failed to parse network.json");
-    let did_prefix = parsed["network"]["did_prefix"].as_str().expect("network.did_prefix missing");
-    
+    let parsed: serde_json::Value =
+        serde_json::from_str(&json_content).expect("Failed to parse network.json");
+    let did_prefix = parsed["network"]["did_prefix"]
+        .as_str()
+        .expect("network.did_prefix missing");
+
     println!("cargo:rustc-env=KINETIC_DID_PREFIX={}", did_prefix);
 }
