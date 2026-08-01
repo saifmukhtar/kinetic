@@ -117,13 +117,16 @@ mod tests {
 
         let mut reveal = dummy_reveal(&name, 100);
         use ml_dsa::Generate;
-        use ml_dsa::Keypair;
         use ml_dsa::KeyExport;
+        use ml_dsa::Keypair;
         use ml_dsa::SignatureEncoding;
         let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
         reveal.pubkey = ml_kp.verifying_key().to_bytes().to_vec();
 
-        store.reveals_by_name.put(name.clone(), kinetic_core::types::DomainRecord::Standard(reveal));
+        store.reveals_by_name.put(
+            name.clone(),
+            kinetic_core::types::DomainRecord::Standard(Box::new(reveal)),
+        );
 
         // Set existing pulse to 200
         store.last_heartbeats_by_name.insert(name.clone(), 200);
@@ -136,7 +139,9 @@ mod tests {
 
         // Sign the stale heartbeat
         use ml_dsa::signature::Signer;
-        hb.signature = ml_kp.sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_ID)).to_vec();
+        hb.signature = ml_kp
+            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_ID))
+            .to_vec();
 
         let result = store.handle_heartbeat(&hb);
         assert!(matches!(
