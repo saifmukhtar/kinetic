@@ -129,7 +129,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
             match serde_json::from_slice::<kinetic_core::types::DomainRecord>(&payload_bytes) {
                 Ok(domain_record) => {
-                    if domain_record.verify_signature(kinetic_core::constants::NETWORK_ID).is_err() {
+                    if domain_record
+                        .verify_signature(kinetic_core::constants::NETWORK_ID)
+                        .is_err()
+                    {
                         warn!(
                             "Rejecting .kin resolution: record signature invalid for {}",
                             apex_domain
