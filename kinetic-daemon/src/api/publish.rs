@@ -1,8 +1,8 @@
 //! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Governance actions.
 
-use kinetic_core::types::RevealExt;
 use super::*;
 use axum::{extract::State, http::StatusCode, Json};
+use kinetic_core::types::RevealExt;
 
 use tracing::{error, info};
 
@@ -25,7 +25,10 @@ pub async fn handle_publish(
             ),
         ));
     }
-    info!("Received API publish request for name: {}", req.record.name());
+    info!(
+        "Received API publish request for name: {}",
+        req.record.name()
+    );
 
     // Normalize to canonical format
     let fqdn = kinetic_core::types::normalize_name(req.record.name());
@@ -35,9 +38,9 @@ pub async fn handle_publish(
             Json(serde_json::json!({"error": format!("Invalid domain name: {}", e)})),
         ));
     }
-    
+
     let mut domain_record = req.record;
-    
+
     // For Standard domains, we need to validate and enforce Drand staleness.
     // Premium domains bypass VDF staleness checks.
     let mut is_standard = false;
@@ -353,16 +356,22 @@ pub async fn handle_publish_kid(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes) {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes)
+            {
                 use ml_dsa::KeyInit;
-                if let Ok(pubkey) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
-                    record.pubkey(),
-                ) {
+                if let Ok(pubkey) =
+                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
+                {
                     use ml_dsa::signature::Verifier;
                     if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
                         auth_kid.owner_signature.as_slice(),
                     ) {
-                        pubkey.verify(&auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig).is_ok()
+                        pubkey
+                            .verify(
+                                &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID),
+                                &sig,
+                            )
+                            .is_ok()
                     } else {
                         false
                     }
@@ -451,16 +460,22 @@ pub async fn handle_publish_manifest(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes) {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes)
+            {
                 use ml_dsa::KeyInit;
-                if let Ok(pubkey) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
-                    record.pubkey(),
-                ) {
+                if let Ok(pubkey) =
+                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
+                {
                     use ml_dsa::signature::Verifier;
                     if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
                         auth_manifest.owner_signature.as_slice(),
                     ) {
-                        pubkey.verify(&auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID), &sig).is_ok()
+                        pubkey
+                            .verify(
+                                &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID),
+                                &sig,
+                            )
+                            .is_ok()
                     } else {
                         false
                     }
