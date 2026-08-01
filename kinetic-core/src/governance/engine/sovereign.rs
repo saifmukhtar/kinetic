@@ -113,6 +113,10 @@ impl GovernanceEngine for SovereignEngine {
                     state.is_halted = false;
                     state.total_paused_rounds =
                         state.total_paused_rounds.saturating_add(*paused_rounds);
+                        
+                    let end_round = current_time_sec.saturating_sub(crate::constants::KINETIC_GENESIS_TIME) / 3;
+                    let start_round = end_round.saturating_sub(*paused_rounds);
+                    state.pause_history.push((start_round, end_round));
                 }
                 Some(GovernanceEffect::NetworkResumed)
             }

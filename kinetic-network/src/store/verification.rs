@@ -173,16 +173,16 @@ pub(crate) fn compute_required_iterations(
 
         let prev_req = consensus_math.required_iterations(&reveal.name);
 
-        let total_paused_rounds =
+        let paused_rounds =
             if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                state.total_paused_rounds
+                state.paused_rounds_since(prev.drand_pulse)
             } else {
                 0
             };
 
         let effective_age = current_drand_round
             .saturating_sub(prev.drand_pulse)
-            .saturating_sub(total_paused_rounds);
+            .saturating_sub(paused_rounds);
         let is_not_too_old = effective_age <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
 
         if prev_valid && prev.iterations >= prev_req && is_not_too_old {

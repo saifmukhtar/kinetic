@@ -53,6 +53,7 @@ impl GovernanceState {
             active_root_key: None,
             is_halted: false,
             total_paused_rounds: 0,
+            pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
         }
     }

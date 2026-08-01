@@ -75,7 +75,31 @@ pub struct GovernanceState {
     /// Total number of drand rounds the network has been paused for since genesis.
     #[serde(default)]
     pub total_paused_rounds: u64,
+    /// Historical timeline of all network pauses (start_round, end_round).
+    #[serde(default)]
+    pub pause_history: Vec<(u64, u64)>,
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, u64>,
+}
+
+impl GovernanceState {
+    /// Calculates the exact number of paused rounds that occurred *after* a specific target pulse.
+    pub fn paused_rounds_since(&self, target_pulse: u64) -> u64 {
+        let mut total = 0;
+        for &(start, end) in &self.pause_history {
+            if end <= target_pulse {
+                // Pause happened entirely before the target pulse, ignore.
+                continue;
+            }
+            if start >= target_pulse {
+                // Pause happened entirely after the target pulse, add full duration.
+                total += end.saturating_sub(start);
+            } else {
+                // Pause overlapped the target pulse, add only the portion after.
+                total += end.saturating_sub(target_pulse);
+            }
+        }
+        total
+    }
 }

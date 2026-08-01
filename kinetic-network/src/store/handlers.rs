@@ -10,23 +10,23 @@ impl KineticRecordStore {
         record: &kinetic_core::types::DomainRecord,
         skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
-        let total_paused_rounds =
-            if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                state.total_paused_rounds
-            } else {
-                0
-            };
-
         let reveal_ref = match record {
             kinetic_core::types::DomainRecord::Standard(r) => Some(r),
             kinetic_core::types::DomainRecord::Premium { .. } => None,
         };
 
         if let Some(reveal) = reveal_ref {
+            let paused_rounds =
+                if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+                    state.paused_rounds_since(reveal.drand_pulse)
+                } else {
+                    0
+                };
+
             let effective_age = self
                 .current_drand_round
                 .saturating_sub(reveal.drand_pulse)
-                .saturating_sub(total_paused_rounds);
+                .saturating_sub(paused_rounds);
 
             if effective_age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
                 let err = KineticStoreError::VdfExpired { age: effective_age };
@@ -150,7 +150,6 @@ impl KineticRecordStore {
                         sled_key.extend_from_slice(k.as_ref());
                         let _ = self.storage.delete(&sled_key);
                     }
-                }
             } else {
                 let existing_pulse = match &existing_record {
                     kinetic_core::types::DomainRecord::Standard(r) => r.drand_pulse,
