@@ -1,7 +1,7 @@
 use kinetic_core::governance::GLOBAL_GOVERNANCE_STATE;
 use kinetic_core::types::DomainRecord;
+
 use kinetic_network::store::core::KineticRecordStore;
-use kinetic_network::error::KineticStoreError;
 use libp2p::identity;
 use libp2p::kad::store::RecordStore;
 use libp2p::kad::Record;
@@ -11,13 +11,15 @@ use tempfile::tempdir;
 async fn test_016_governance_integration_halt() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
-    let storage = std::sync::Arc::new(kinetic_storage::SledStorage::new(storage_path.to_str().unwrap()).unwrap());
-    
+    let storage = std::sync::Arc::new(
+        kinetic_storage::SledStorage::new(storage_path.to_str().unwrap()).unwrap(),
+    );
+
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
-    
+
     let vdf_engine = std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
-    
+
     let mut store = KineticRecordStore::new(
         local_peer_id,
         storage,
@@ -50,8 +52,8 @@ async fn test_016_governance_integration_halt() {
         payload: vec![],
         protocol_version: 2,
     };
-    
-    let domain_record = DomainRecord::Standard(fake_reveal);
+
+    let domain_record = DomainRecord::Standard(Box::new(fake_reveal));
     let record_bytes = serde_json::to_vec(&domain_record).unwrap();
     let record = Record::new(libp2p::kad::RecordKey::new(&"test"), record_bytes);
 
@@ -69,13 +71,15 @@ async fn test_016_governance_integration_halt() {
 async fn test_016_governance_integration_premium() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
-    let storage = std::sync::Arc::new(kinetic_storage::SledStorage::new(storage_path.to_str().unwrap()).unwrap());
-    
+    let storage = std::sync::Arc::new(
+        kinetic_storage::SledStorage::new(storage_path.to_str().unwrap()).unwrap(),
+    );
+
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
-    
+
     let vdf_engine = std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
-    
+
     // Set current drand round to 10 years in the future
     let future_round = 10_000_000;
 
