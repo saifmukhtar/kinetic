@@ -253,12 +253,7 @@ impl NetworkClient {
         {
             use futures::future::{select, Either};
             use futures_timer::Delay;
-            match select(
-                Box::pin(rx),
-                Delay::new(std::time::Duration::from_secs(10)),
-            )
-            .await
-            {
+            match select(Box::pin(rx), Delay::new(std::time::Duration::from_secs(10))).await {
                 Either::Left((Ok(res), _)) => res,
                 Either::Left((Err(_), _)) => Err(ResolutionError::Internal {
                     message: "Network channel closed unexpectedly".to_string(),
