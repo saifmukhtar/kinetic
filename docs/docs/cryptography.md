@@ -86,7 +86,7 @@ Alice wants `example.kin`. She does not announce this. Instead, she creates a cr
 
 First, she generates a high-entropy 32-byte salt $s$.
 Next, she fetches the latest unpredictible randomness pulse from the Drand network (Let's say pulse $B_{t_1}$).
-Finally, she hashes these values together with her Ed25519 public key and the target name:
+Finally, she hashes these values together with her ML-DSA-65 public key and the target name:
 
 $$ C = H(\text{"example.kin."} \parallel s \parallel B_{t_1} \parallel \text{PubKey}_{\text{Alice}}) $$
 

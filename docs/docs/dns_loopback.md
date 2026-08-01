@@ -61,7 +61,7 @@ It actively blocks the request from leaking to the upstream ISP or the global le
 1. **Extraction:** The DNS handler extracts the target string (`example.kin.`).
 2. **Kademlia Query:** The DNS handler triggers an asynchronous `GetRecord` Kademlia query down to the `kinetic-network` layer.
 3. **Decentralized Search:** The DHT swarm routing (XOR distance) locates the Redundant Deterministic Storage nodes holding the payload for `example.kin.`.
-4. **Validation:** As the payloads return, the local daemon strictly verifies the Ed25519 signatures and Chia VDF proofs to ensure the data has not been tampered with or eclipsed.
+4. **Validation:** As the payloads return, the local daemon strictly verifies the ML-DSA-65 signatures and Chia VDF proofs to ensure the data has not been tampered with or eclipsed.
 5. **Synthesis:** The handler unpacks the verified payload (e.g., `192.168.1.100`) and synthesizes a perfectly standard DNS `A` (IPv4) or `AAAA` (IPv6) response record.
 6. **Delivery:** The synthesized record is returned to the local OS, and the browser effortlessly connects to the decentralized application.
 
@@ -102,7 +102,7 @@ Why is it so crucial that the daemon runs locally on `127.0.0.1`, rather than ha
 If you rely on a centralized gateway (even one provided by the Kinetic developers) to resolve `.kin` domains for you, you are implicitly trusting that gateway's VDF verification logic. A centralized gateway could be hacked, coerced by a state actor, or bribed to return false IP addresses for political domains. 
 
 By running the `kinetic-daemon` on `127.0.0.1`:
-* **Zero Trust:** Your laptop personally verifies every single VDF proof and Ed25519 signature. You trust absolutely no one but the mathematics executing on your local silicon.
+* **Zero Trust:** Your laptop personally verifies every single VDF proof and ML-DSA-65 signature. You trust absolutely no one but the mathematics executing on your local silicon.
 * **Censorship Immunity:** An ISP or authoritarian firewall cannot block your access to `.kin` domains because the resolution happens internally via encrypted Kademlia peer-to-peer traffic, completely bypassing the ISP's DNS monitors.
 * **Decentralized Verification:** Because every user verifies the math themselves, the network organically achieves global consensus without requiring a centralized global ledger.
 

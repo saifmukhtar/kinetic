@@ -48,7 +48,7 @@ curl http://127.0.0.1:16002/api/resolve/alice.kin
 
 ### The Reveal Object Fields
 - `name`: The registered name.
-- `pubkey`: The Ed25519 public key bytes controlling this name.
+- `pubkey`: The ML-DSA-65 public key bytes controlling this name.
 - `drand_pulse`: The round of randomness used as the VDF seed.
 - `iterations`: The VDF difficulty (number of sequential operations required).
 - `vdf_proof`: The proof that the VDF was computed correctly.

@@ -37,7 +37,7 @@ Errors that occur when attempting to write a new or updated record to the DHT.
 | :--- | :--- | :--- | :--- |
 | **KIN-PUB-001** | `503 Service Unavailable` | **Offline**: Cannot publish because the node is offline. | No active DHT peers available for `PUT`. |
 | **KIN-PUB-002** | `400 Bad Request` | **Invalid VDF Proof**: The computational proof of work attached to the publish request is invalid and was rejected. | The `chiavdf` verifier failed. |
-| **KIN-PUB-003** | `409 Conflict` | **Name Already Owned**: The requested `.kin` name is already registered under a different public key. | Ed25519 signature mismatch on existing valid record. |
+| **KIN-PUB-003** | `409 Conflict` | **Name Already Owned**: The requested `.kin` name is already registered under a different public key. | ML-DSA-65 signature mismatch on existing valid record. |
 | **KIN-PUB-004** | `503 Service Unavailable` | **Publish Failed**: The network rejected all DHT publish attempts. | Every single `PUT` request failed across the routing table. |
 | **KIN-PUB-005** | `500 Internal Server Error` | **Internal Publish Error**: An unexpected internal error occurred during the publish flow. | Storage or configuration error prevented publishing. |
 
@@ -65,7 +65,7 @@ Errors related to on-chain OTA updates and Council voting logic.
 | :--- | :--- | :--- | :--- |
 | **KIN-GOV-001** | `500 Internal Server Error` | **Missing Root Key**: Fatal configuration error. `ROOT_PUBLIC_KEY_HEX` is not set. | Node missing Founder Key config. |
 
-| **KIN-GOV-003** | `400 Bad Request` | **Key Length Mismatch**: A supplied public key is not exactly 32 bytes. | Malformed Ed25519 input. |
+| **KIN-GOV-003** | `400 Bad Request` | **Key Length Mismatch**: A supplied public key is not exactly 1952 bytes. | Malformed ML-DSA-65 input. |
 | **KIN-GOV-004** | `409 Conflict` | **Stale Proposal**: The governance action is too old and was rejected to prevent replay attacks. | Timestamp outside the allowable replay window. |
 | **KIN-GOV-005** | `409 Conflict` | **Timelock Not Expired**: The governance action is still in its mandatory waiting period. | Action attempted before `unlock_time`. |
 | **KIN-GOV-007** | `409 Conflict` | **Not Pending Or Vetoed**: The target hash is not in a pending state or was actively vetoed by the Guard. | Action aborted or non-existent. |
@@ -210,10 +210,10 @@ Errors related to parsing and validating Kinetic Identity Documents (KIDs).
 | **KIN-KID-004** | `400 Bad Request` | **Invalid DID Hex Characters**: The method-specific ID contains invalid lowercase hexadecimal characters. | Non-hex characters detected. |
 | **KIN-KID-005** | `400 Bad Request` | **JSON Parse Error**: JSON deserialization failed. | Malformed KID document structure. |
 | **KIN-KID-006** | `400 Bad Request` | **Canonicalization Error**: JCS canonicalization failed. | Unable to sort JSON deterministically. |
-| **KIN-KID-007** | `401 Unauthorized` | **Invalid Signature**: The signature bytes are invalid or do not verify against any controller key. | Ed25519 verification failed. |
+| **KIN-KID-007** | `401 Unauthorized` | **Invalid Signature**: The signature bytes are invalid or do not verify against any controller key. | ML-DSA-65 verification failed. |
 | **KIN-KID-008** | `400 Bad Request` | **Missing Signature**: The document or manifest does not contain a signature field. | Required cryptographic proof is missing. |
 | **KIN-KID-009** | `400 Bad Request` | **Base64 Decode Error**: Base64url decoding of a key or signature failed. | Improper encoding of binary fields. |
-| **KIN-KID-010** | `400 Bad Request` | **Key Parse Error**: An Ed25519 public key could not be parsed from the provided bytes. | Key format or length is invalid. |
+| **KIN-KID-010** | `400 Bad Request` | **Key Parse Error**: An ML-DSA-65 public key could not be parsed from the provided bytes. | Key format or length is invalid. |
 | **KIN-KID-011** | `401 Unauthorized` | **Unauthorized Manifest Signature**: The manifest signature was produced by a key not listed in the KID document. | Attacker attempting to forge a manifest. |
 
 ---

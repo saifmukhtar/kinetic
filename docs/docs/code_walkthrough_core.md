@@ -55,8 +55,8 @@ pub struct Reveal {
 * **`pub drand_pulse` & `pub drand_randomness`**: The exact round number and corresponding entropy fetched from the external Drand beacon. This forms the absolute timestamp of the commitment.
 * **`pub iterations: u64`**: The exact number of VDF iterations (Repeated Squarings) the user claims to have computed. The network nodes will verify if this number matches the length-based minimum requirement.
 * **`pub vdf_proof: VdfProof`**: A wrapper around the raw bytes returned by the Chia VDF engine. This concise proof allows honest nodes to instantly verify the computation in \\(O(\log T)\\) time.
-* **`pub pubkey: Vec<u8>`**: The 32-byte Ed25519 public key of the registrant. 
-* **`pub signature: Vec<u8>`**: The 64-byte Ed25519 signature. Crucially, the signature is calculated over a strictly serialized byte array of *all preceding fields*, ensuring that an attacker cannot alter the IP payload without invalidating the signature.
+* **`pub pubkey: Vec<u8>`**: The ML-DSA-65 post-quantum public key of the registrant. 
+* **`pub signature: Vec<u8>`**: The ML-DSA-65 signature. Crucially, the signature is calculated over a strictly serialized byte array of *all preceding fields*, ensuring that an attacker cannot alter the IP payload without invalidating the signature.
 
 ### 1.2 Heartbeats via Rebroadcast
 
