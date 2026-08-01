@@ -55,7 +55,13 @@ impl HostRoutingRecord {
     pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
         let prefix_suffix = b"-routing-v1";
         let mut bytes = Vec::with_capacity(
-            network_id.len() + prefix_suffix.len() + 4 + self.host_id.len() + 4 + self.current_peer_id.len() + 8,
+            network_id.len()
+                + prefix_suffix.len()
+                + 4
+                + self.host_id.len()
+                + 4
+                + self.current_peer_id.len()
+                + 8,
         );
         bytes.extend_from_slice(network_id.as_bytes());
         bytes.extend_from_slice(prefix_suffix);
