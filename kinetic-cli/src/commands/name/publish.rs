@@ -63,7 +63,12 @@ pub async fn update_zone_logic(
             let signable = r.signable_bytes(kinetic_core::constants::NETWORK_ID);
             r.signature = keypair.sign(&signable).to_bytes().to_vec();
         }
-        kinetic_core::types::DomainRecord::Premium { name, payload, signature, .. } => {
+        kinetic_core::types::DomainRecord::Premium {
+            name,
+            payload,
+            signature,
+            ..
+        } => {
             *payload = new_payload;
             // The signature for DomainRecord uses the DomainRecord method verify_signature which signs (name || payload || network_id)
             let mut signable = Vec::new();
