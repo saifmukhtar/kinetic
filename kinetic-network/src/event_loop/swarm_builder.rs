@@ -82,7 +82,6 @@ impl super::core::NetworkEventLoop {
         let max_reveals_per_hour = config.max_reveals_per_hour;
         let vdf_engine_clone = vdf_engine.clone();
 
-
         let mut swarm = builder
             .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
             .with_behaviour(move |key, relay_client| {
@@ -94,7 +93,6 @@ impl super::core::NetworkEventLoop {
                     lru_cache_size,
                     max_reveals_per_hour,
                     vdf_engine_clone.clone(),
-
                 );
                 let mut kad_config = kad::Config::default();
                 kad_config
