@@ -12,8 +12,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
 use super::types::{
-    GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
-    SignedGovernanceMessage,
+    GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes, SignedGovernanceMessage,
 };
 use crate::constants::ROOT_PUBLIC_KEY_HEX;
 use crate::error::GovernanceError;
@@ -81,8 +80,9 @@ impl GovernanceState {
     /// This ensures the in-memory governance state remains bounded even across long-running daemon processes.
     pub fn prune(&mut self, current_time_sec: u64) {
         // Remove executed hashes older than the max age
-        self.executed_hashes
-            .retain(|_, exec_time| current_time_sec <= *exec_time + crate::constants::MAX_AGE_SECONDS);
+        self.executed_hashes.retain(|_, exec_time| {
+            current_time_sec <= *exec_time + crate::constants::MAX_AGE_SECONDS
+        });
     }
 
     /// Retrieves the static root verifying key.
@@ -122,11 +122,7 @@ impl GovernanceState {
         msg: &SignedGovernanceMessage,
         current_time_sec: u64,
     ) -> Option<GovernanceEffect> {
-        crate::governance::engine::get_active_engine().execute_action(
-            self,
-            msg,
-            current_time_sec,
-        )
+        crate::governance::engine::get_active_engine().execute_action(self, msg, current_time_sec)
     }
 }
 
