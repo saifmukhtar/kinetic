@@ -32,8 +32,6 @@ impl GovernanceEngine for SovereignEngine {
             return Err(GovernanceError::StaleProposal);
         }
 
-
-
         let root_key = state.get_root_key()?;
         let action_bytes = msg.to_canonical_bytes();
 
@@ -66,7 +64,7 @@ impl GovernanceEngine for SovereignEngine {
                     }
                 }
                 GovernanceAction::EmergencyHalt | GovernanceAction::EmergencyResume { .. } => {
-                    // No additional verification needed for halt/resume, 
+                    // No additional verification needed for halt/resume,
                     // root key signature is sufficient authorization.
                 }
             }
@@ -88,16 +86,15 @@ impl GovernanceEngine for SovereignEngine {
         state.executed_hashes.insert(action_hash, current_time_sec);
 
         match &msg.action {
-            GovernanceAction::GrantPremiumName { name, target_pubkey } => {
-                Some(GovernanceEffect::PremiumNameGranted {
-                    name: name.clone(),
-                    target_pubkey: target_pubkey.clone(),
-                })
-            }
+            GovernanceAction::GrantPremiumName {
+                name,
+                target_pubkey,
+            } => Some(GovernanceEffect::PremiumNameGranted {
+                name: name.clone(),
+                target_pubkey: target_pubkey.clone(),
+            }),
             GovernanceAction::RevokePremiumName { name } => {
-                Some(GovernanceEffect::PremiumNameRevoked {
-                    name: name.clone(),
-                })
+                Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() })
             }
             GovernanceAction::RotateRootKey { new_key } => {
                 state.active_root_key = Some(new_key.clone());
@@ -114,7 +111,8 @@ impl GovernanceEngine for SovereignEngine {
             GovernanceAction::EmergencyResume { paused_rounds } => {
                 if state.is_halted {
                     state.is_halted = false;
-                    state.total_paused_rounds = state.total_paused_rounds.saturating_add(*paused_rounds);
+                    state.total_paused_rounds =
+                        state.total_paused_rounds.saturating_add(*paused_rounds);
                 }
                 Some(GovernanceEffect::NetworkResumed)
             }
