@@ -26,6 +26,15 @@ fn main() -> Result<()> {
 
     let tld: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("What is the top-level domain (TLD) for this network? (e.g. uni)")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            if input.is_empty() {
+                return Err("TLD cannot be empty.");
+            }
+            if input.chars().any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit()) {
+                return Err("TLD must contain only lowercase letters and numbers (no spaces, no dots).");
+            }
+            Ok(())
+        })
         .interact_text()?;
 
     let base_domain: String = Input::with_theme(&ColorfulTheme::default())
@@ -41,12 +50,7 @@ fn main() -> Result<()> {
     let network_id = hex::encode(&hash_result[..16]); // Use first 32 characters (16 bytes)
     let network_id_str = format!("{}-{}", tld, network_id);
 
-    let tld_suffix = format!(".{}", tld);
-    let did_prefix = format!("did:{}:", tld);
-
     println!("✅ Network ID generated: {}", network_id_str);
-    println!("✅ TLD Suffix: {}", tld_suffix);
-    println!("✅ DID Prefix: {}", did_prefix);
     println!();
 
     let docs_url: String = Input::with_theme(&ColorfulTheme::default())
@@ -121,8 +125,6 @@ fn main() -> Result<()> {
     println!("Updating network.json...");
     patch_constants(
         &tld,
-        &tld_suffix,
-        &did_prefix,
         &base_domain,
         &network_id_str,
         &drand_pubkey,
@@ -179,8 +181,6 @@ fn main() -> Result<()> {
 #[allow(clippy::too_many_arguments)]
 fn patch_constants(
     tld: &str,
-    tld_suffix: &str,
-    did_prefix: &str,
     base_domain: &str,
     network_id: &str,
     drand_pubkey: &str,
@@ -203,8 +203,6 @@ fn patch_constants(
     };
 
     config["network"]["tld"] = serde_json::json!(tld);
-    config["network"]["tld_suffix"] = serde_json::json!(tld_suffix);
-    config["network"]["did_prefix"] = serde_json::json!(did_prefix);
     config["network"]["base_domain"] = serde_json::json!(base_domain);
     config["network"]["network_id"] = serde_json::json!(network_id);
     config["drand"]["drand_genesis_time"] = serde_json::json!(drand_genesis);
