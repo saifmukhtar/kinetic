@@ -1,6 +1,0 @@
-# The Kinetic Protocol
-> A stateless, Sybil-resistant naming system secured purely by math and time.
-
-This file is optimized for AI agents and LLMs to easily scrape the Kinetic documentation.
-
-## Documentation Pages
