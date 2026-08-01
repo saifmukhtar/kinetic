@@ -27,8 +27,8 @@ before reasoning about any threat.
  
 | Tier | Example | Membership | Cost function | Sybil resistance needed? | Governing control |
 |------|---------|------------|---------------|--------------------------|-------------------|
-| **T0 — Public `.kin`** | The official reference network | Open / anonymous / adversarial | Full VDF + PoW | **Yes — critical** | Council + root key |
-| **T1 — Community / campus fork** | `.uni` on a campus network | Known, semi-trusted | Hashcash or light VDF | Low — social reset covers it | Small council or single operator |
+| **T0 — Public `.kin`** | The official reference network | Open / anonymous / adversarial | Full VDF + PoW | **Yes — critical** | Root key (Sovereign) |
+| **T1 — Community / campus fork** | `.uni` on a campus network | Known, semi-trusted | Hashcash or light VDF | Low — social reset covers it | Single operator (Sovereign) |
 | **T2 — Personal / experimental** | A developer's laptop / lab | Single operator | Trivial / disabled | No | Operator is root |
  
 **Key consequence:** most of the heavyweight defenses (16 MiB Argon2id PoW `Source: kinetic-network/src/pow.rs:62`,
@@ -110,7 +110,7 @@ proxy; local key/token permissions; light-client (wasm/mobile) trust model.
 **Out of scope (documented, not defended):** a compromised local OS/root; a
 global adversary who defeats the underlying crypto; loss of the user's own seed
 phrase; availability of third-party infrastructure the operator chooses (custom
-drand, custom bootstrap); social engineering of council members; correctness of
+drand, custom bootstrap); theft of the offline Root key; correctness of
 forks that disable security features intentionally.
  
 ---
@@ -138,7 +138,7 @@ them explicitly is part of the threat model:
 | Component | Primary threats | Notes |
 |-----------|-----------------|-------|
 | `kinetic-network` (swarm/DHT) | Reactor starvation (sync VDF/PoW on the event loop), Sybil, eclipse, record poisoning, unbounded maps | Highest-risk crate on T0. Offload CPU/crypto to `spawn_blocking` with bounded concurrency. Enforces 16 MiB Argon2id PoW `(Source: kinetic-network/src/pow.rs:62)`. |
-| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces 69% council supermajority `(Source: kinetic-core/src/governance/engine/council.rs:162)`. |
+| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces Sovereign Root key rules `(Source: kinetic-core/src/governance/engine/sovereign.rs)`. |
 | `kinetic-vdf` (Chia FFI) | `unsafe` FFI invariants, discriminant integrity, timing | Verify all invariants before raw pointer use. Discriminant derivation must match exactly between evaluate and verify. |
 | `kinetic-daemon` (DNS/proxy/CA/API) | SSRF, DNS-rebinding, path traversal, local-CA name-constraints, host-header validation, API auth/permissions | Local CA must be name-constrained so it can never MITM non-`.kin` traffic. |
 | `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. Enforces max 50 records per zone `(Source: kinetic-core/src/types/dns.rs:135)`. |

@@ -102,16 +102,11 @@ your scrutiny.
  
 - Actions are serialized to **canonical, domain-separated bytes**
   (`SignedGovernanceMessage::to_canonical_bytes`): a 1-byte action tag followed by
-  length-prefixed fields, then `council_size_at_proposal` and `timestamp_sec`.
-  This prevents cross-action signature reuse and ambiguity.
-- Signatures are post-quantum **ML-DSA-65** by the root key, guard key, or council members. Council
-  quorum counts signatures **deduplicated per member index**, so one key cannot be
-  counted multiple times.
+  length-prefixed fields, then `timestamp_sec`.
+- Signatures are post-quantum **ML-DSA-65** by the Root Key.
 - **Invariants:** (a) OTA/reset timelocks must verify *elapsed time* before
   executing (do not allow an `ExecuteTimelock` shortcut that skips maturity);
-  (b) quorum denominators should reflect the intended electorate, not just
-  recently-active members, unless inactivity is explicitly, verifiably signaled;
-  (c) the offline root/guard keys must be real (replace the shipped placeholders).
+  (b) the offline root keys must be real (replace the shipped placeholders).
  
 ---
  

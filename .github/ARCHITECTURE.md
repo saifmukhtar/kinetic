@@ -103,14 +103,12 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
 ### 3.4 Governance (public `.kin`, council)
  
 - State machine in `kinetic-core/src/governance/` with pluggable engines:
-  `sovereign`, `council` (default), `permissionless` (immutable).
-- Modes: **Founder → Council**, with an auto-lock after
-  `AUTO_LOCK_SECONDS` (1 year) and instant lock when ≥ `MIN_ACTIVE_COUNCIL` (7)
-  active members exist. `MAX_COUNCIL_SIZE` is 21.
-- Actions are ML-DSA-65-signed with canonical, domain-separated bytes. Council
-  actions require percentage quorums (69/90/95%);
-  `EmergencyReset` requires root and is timelocked.
-- **Design note:** without a global blockchain, this quorum + timelock logic is
+  `sovereign` (default) and `permissionless` (immutable).
+- Modes: **Sovereign** is controlled exclusively by the offline Root key.
+  **Permissionless** disables governance completely.
+- Actions are ML-DSA-65-signed with canonical, domain-separated bytes.
+  `EmergencyReset` requires the Root key and is timelocked.
+- **Design note:** without a global blockchain, this cryptographic signature logic is
   what carries the weight a chain's finality would otherwise provide. It must be
   airtight — see the security checklist.
  
@@ -120,7 +118,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
  
 - `network.json` (repo root) → parsed by `build.rs` → `network_constants.rs` →
   `include!`d by `kinetic-core/src/constants.rs`.
-- Governance/timing constants (`MIN_ACTIVE_COUNCIL`, `MAX_AGE_SECONDS`,
+- Governance/timing constants (`MAX_AGE_SECONDS`,
   `OTA_TIMELOCK_SECONDS`, `ACTIVE_WINDOW_SECONDS`, …) live directly in
   `constants.rs`.
 - **Governance root key** is `ROOT_PUBLIC_KEY_HEX`. The production build ships placeholders
@@ -158,7 +156,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
 1. `kinetic-network/src/event_loop/` and `kinetic-network/src/store/` — the
    untrusted-input → accepted-state boundary.
 2. `kinetic-core/src/drand.rs` — randomness binding `(Source: kinetic-core/src/drand.rs:121)`.
-3. `kinetic-core/src/governance/` — the state machine + engines `(Source: kinetic-core/src/governance/engine/council.rs)`.
+3. `kinetic-core/src/governance/` — the state machine + engines `(Source: kinetic-core/src/governance/engine/sovereign.rs)`.
 4. `kinetic-daemon/src/proxy/` and `kinetic-dns/` — SSRF/rebinding surface.
 5. `kinetic-kid/` — identity + manifest verification.
 6. `kinetic-vdf/` — the only significant `unsafe`/FFI surface `(Source: kinetic-vdf/src/lib.rs)`.

@@ -36,8 +36,8 @@ Instances of abusive, harassing, or otherwise unacceptable behavior may be repor
 
 Under the Kinetic Governance model:
 - **Initial Enforcement** is centralized to the Lead Maintainer to ensure swift resolution.
-- **Escalation & Appeals:** For severe cases, or if a community member wishes to appeal a decision made by the Lead Maintainer, the issue can be formally escalated to the **On-Chain Council**. The Council has the authority to review the case and can overturn decisions or implement bans via a supermajority vote.
+- **Escalation & Appeals:** For severe cases, or if a community member wishes to appeal a decision made by the Lead Maintainer, the issue can be formally escalated to the **Core Team**. The Core Team has the authority to review the case and can overturn decisions or implement bans.
 
 All complaints will be reviewed and investigated, and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. 
 
-Project maintainers or Council members who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions, including removal from the Council via a formal `RemoveCouncilMember` governance action as dictated by the network's rule book.
+Project maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions, including removal from the maintainer team as dictated by the Founder.

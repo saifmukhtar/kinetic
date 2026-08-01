@@ -8,56 +8,40 @@ Unlike many open-source projects where governance is purely social, Kinetic's go
 
 Kinetic is built on the philosophy of statelessness, decentralization, and extreme technical rigor. We value objective engineering and cryptographic security above all else. 
 
-The governance structure is designed to:
-1. Provide rapid, decisive leadership during the protocol's infancy (Phase 1).
-2. Automatically transition to a fully decentralized, trustless council model (Phase 2).
-3. Ensure that no malicious updates can easily compromise the network.
+The governance structure is decoupled into two pluggable engines depending on the deployment configuration:
+1. **Sovereign Mode:** Designed for the protocol's infancy, private networks, or rapid iteration phases.
+2. **Permissionless Mode:** A fully decentralized, immutable state with no governance authorities.
 
-## 2. Project Roles and Responsibilities
+## 2. Pluggable Governance Engines
 
-### The Founder (Saif Mukhtar)
-During Phase 1 (the first 12 months after genesis, defined as `AUTO_LOCK_SECONDS = 365 * 24 * 60 * 60` in `kinetic-core/src/constants.rs:36`), the Founder holds two critical cryptographic keys:
-- **The Root Key:** Acts as a benevolent dictator key capable of bypassing standard voting thresholds for rapid iteration and emergency fixes.
-- **The Guard Key (Veto Key):** A protective key that can instantly veto any proposed malicious updates and trigger a 30-day emergency timelock. 
+Kinetic does not rely on a complex on-chain parliament or multi-signature council. Instead, networks configure their governance at compile-time via `network.json`. 
 
-### The Council (Multisig Core Maintainers)
-The Council is a dynamic group of up to 21 core maintainers (`MAX_COUNCIL_SIZE` in `kinetic-core/src/constants.rs:24`) whose public keys are registered on the network.
-- They have voting rights on architectural changes and protocol upgrades (Over-The-Air updates).
-- A **69% supermajority** is required for the Council to ratify a binary OTA update or appoint a new member (Source: `kinetic-core/src/governance/engine/council.rs:162`). Premium names require 90%, and key rotations require 95%.
-- If an update is ratified, it enters a **48-hour timelock** (`OTA_TIMELOCK_SECONDS` in `kinetic-core/src/constants.rs:39`) before nodes apply it, allowing the Guard Key to veto if necessary.
+### Sovereign Engine
+In `sovereign` mode, the network is governed exclusively by a single offline **Root Key**. 
+- The Root Key acts as a benevolent dictator capable of pushing Over-The-Air (OTA) updates, rotating keys, and halting the network.
+- There are no voting thresholds, supermajorities, or quorum requirements. The network inherently trusts the mathematics of the Root Key signature.
+- This mode is ideal for the T0 (Public) deployment's initial rollout, ensuring swift mitigation of early-stage vulnerabilities.
 
-### Contributors and Users
-- **Users:** Community members who engage via issues, discussions, or running standard non-validating nodes.
-- **Contributors:** Individuals who submit code, documentation, or reviews. They can propose non-consensus changes via Pull Requests.
+### Permissionless Engine
+In `permissionless` mode, the network operates as an immutable force of nature.
+- There are no administrative keys, no Root Key, and no governance actions permitted.
+- The protocol cannot be halted, and OTA updates are rejected natively by the engine.
+- This is the endgame for public networks: pure mathematics, completely outside human control.
 
-## 3. The Path to Leadership (Meritocracy)
-
-Maintainership and Council membership are granted through a strict **merit-based appointment** process. To be nominated to the Network Council, a community member must:
-1. Demonstrate **sustained technical contributions** (3-6 months) to the core protocol.
-2. Run a **stable network node** (Daemon or Infrastructure Node).
-3. Be formally **nominated by existing Council members**.
-
-Once nominated, the addition of the new member's public key must be ratified by a 69% supermajority vote of the existing Council via a `SignedGovernanceMessage`.
-
-## 4. Decision-Making Process (The Governance Rule Book)
+## 3. Decision-Making Process (The Governance Rule Book)
 
 ### Routine Changes
-Minor bug fixes, documentation updates, and standard refactoring can be merged by any core maintainer without triggering an on-chain network upgrade.
+Minor bug fixes, documentation updates, and standard refactoring can be merged via pull requests. However, they will not be pushed to the network unless an OTA update is authorized.
 
 ### Architectural Changes & OTA Updates
 Significant changes (e.g., modifying VDF parameters, altering the DHT routing logic) require an official network update.
 1. **Proposal:** A new binary is compiled, hashed, and proposed to the network alongside mirrors for downloading.
-2. **Ratification:** The Council must achieve a 69% supermajority by signing the proposal.
-3. **Timelock:** Once ratified, the update enters a 48-hour timelock.
-4. **Execution:** If not vetoed by the Guard Key, the network automatically downloads, verifies the hash, and hot-swaps the running binary via `self_replace`.
+2. **Authorization (Sovereign Only):** The Root Key signs the proposal hash.
+3. **Execution:** Once the network verifies the Root signature (or rejects it instantly if in Permissionless mode), the network automatically downloads, verifies the hash, and hot-swaps the running binary via `self_replace`.
 
-### Phase 1 vs Phase 2
-- **Phase 1 (Incubation):** For the first 12 months, the Founder (Saif Mukhtar) can use the Root Key to bypass the Council for emergency fixes.
-- **Phase 2 (Decentralization):** After 12 months, if there are at least 7 active Council members (`MIN_ACTIVE_COUNCIL` in `kinetic-core/src/constants.rs:21`), the network **auto-locks**. The Root Key loses its bypass authority, and the network becomes permanently decentralized, governed entirely by the Council.
+## 4. Conflict Resolution & Emergencies
 
-## 5. Conflict Resolution & Emergencies
-
-- **Guard Veto:** If a malicious update is ratified by a compromised Council, the Guard Key can veto the update.
-- **Emergency Reset:** If the network is catastrophically compromised, the Founder can issue an Emergency Reset to rotate keys, which triggers a strict 30-day timelock (`TIMELOCK_SECONDS` in `kinetic-core/src/constants.rs:30`) before taking effect. 
+- **Emergency Reset:** If the network is catastrophically compromised while in Sovereign mode, the Root Key can issue an Emergency Halt or Key Rotation.
+- **Permissionless Forking:** If a network running in Permissionless mode encounters a catastrophic bug, the community must socially coordinate a hard fork via a new genesis block, as the protocol itself cannot be altered.
 
 For interpersonal conflicts or Code of Conduct violations, refer to the `CODE_OF_CONDUCT.md`.
