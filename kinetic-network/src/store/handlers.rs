@@ -10,11 +10,12 @@ impl KineticRecordStore {
         record: &kinetic_core::types::DomainRecord,
         skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
-        let total_paused_rounds = if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-            state.total_paused_rounds
-        } else {
-            0
-        };
+        let total_paused_rounds =
+            if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+                state.total_paused_rounds
+            } else {
+                0
+            };
 
         let reveal_ref = match record {
             kinetic_core::types::DomainRecord::Standard(r) => Some(r),
@@ -22,7 +23,8 @@ impl KineticRecordStore {
         };
 
         if let Some(reveal) = reveal_ref {
-            let effective_age = self.current_drand_round
+            let effective_age = self
+                .current_drand_round
                 .saturating_sub(reveal.drand_pulse)
                 .saturating_sub(total_paused_rounds);
 
@@ -57,9 +59,12 @@ impl KineticRecordStore {
                     .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.drand_pulse));
 
                 let hb_age = self.current_drand_round.saturating_sub(last_hb_round);
-                
+
                 let (existing_reveal, new_reveal) = match (existing_record, record) {
-                    (kinetic_core::types::DomainRecord::Standard(existing), kinetic_core::types::DomainRecord::Standard(new)) => (existing, new),
+                    (
+                        kinetic_core::types::DomainRecord::Standard(existing),
+                        kinetic_core::types::DomainRecord::Standard(new),
+                    ) => (existing, new),
                     _ => {
                         let err = KineticStoreError::TieBroken; // Premium domains cannot be stolen or steal
                         err.log_warning("KIN-STORE-004", record.name(), "Rejecting Steal:");
@@ -104,10 +109,17 @@ impl KineticRecordStore {
 
                     if dist_new > dist_existing {
                         let err = KineticStoreError::TieBroken;
-                        err.log_warning("KIN-STORE-004", &new_reveal.name, "Rejecting Steal Reveal:");
+                        err.log_warning(
+                            "KIN-STORE-004",
+                            &new_reveal.name,
+                            "Rejecting Steal Reveal:",
+                        );
                         return Err(err);
                     } else {
-                        tracing::info!("Valid Steal Reveal for {}! Tie-break won!", new_reveal.name);
+                        tracing::info!(
+                            "Valid Steal Reveal for {}! Tie-break won!",
+                            new_reveal.name
+                        );
                     }
                 } else if new_reveal.iterations < steal_threshold {
                     let err = KineticStoreError::InsufficientIterations;
@@ -117,7 +129,10 @@ impl KineticRecordStore {
                     tracing::info!("Valid Steal Reveal for {}! Overwriting previous owner (idle for {} rounds).", new_reveal.name, hb_age);
 
                     // Cleanup orphaned keys from previous owner
-                    let keys = kinetic_core::types::derive_storage_keys(&new_reveal.name, kinetic_core::constants::NETWORK_ID);
+                    let keys = kinetic_core::types::derive_storage_keys(
+                        &new_reveal.name,
+                        kinetic_core::constants::NETWORK_ID,
+                    );
                     for key_bytes in keys {
                         let k = libp2p::kad::RecordKey::new(&key_bytes);
                         let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -125,7 +140,10 @@ impl KineticRecordStore {
                         sled_key.extend_from_slice(k.as_ref());
                         let _ = self.storage.delete(&sled_key);
                     }
-                    let hb_keys = kinetic_core::types::derive_heartbeat_keys(&new_reveal.name, kinetic_core::constants::NETWORK_ID);
+                    let hb_keys = kinetic_core::types::derive_heartbeat_keys(
+                        &new_reveal.name,
+                        kinetic_core::constants::NETWORK_ID,
+                    );
                     for key_bytes in hb_keys {
                         let k = libp2p::kad::RecordKey::new(&key_bytes);
                         let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
@@ -140,34 +158,46 @@ impl KineticRecordStore {
                     kinetic_core::types::DomainRecord::Premium { .. } => 0,
                 };
                 let new_pulse = reveal_ref.map_or(0, |r| r.drand_pulse);
-                
+
                 if new_pulse < existing_pulse {
                     let err = KineticStoreError::StaleReveal;
                     err.log_warning("KIN-STORE-023", record.name(), "Rejecting Replayed Reveal:");
                     return Err(err);
-                } else if record.payload() == existing_record.payload() && record.signature() == existing_record.signature() {
+                } else if record.payload() == existing_record.payload()
+                    && record.signature() == existing_record.signature()
+                {
                     return Ok(());
                 } else {
                     // Updating payload of existing domain. Verify the updated payload signature!
                     let dev_mode = kinetic_core::config::is_dev_mode();
-                    if !skip_verify && !dev_mode {
-                        if let Err(_) = record.verify_signature(kinetic_core::constants::NETWORK_ID) {
-                            let err = KineticStoreError::InvalidSignature;
-                            err.log_warning("KIN-STORE-015", record.name(), "Rejecting updated record due to invalid signature:");
-                            return Err(err);
-                        }
+                    if !skip_verify
+                        && !dev_mode
+                        && record.verify_signature(kinetic_core::constants::NETWORK_ID).is_err()
+                    {
+                        let err = KineticStoreError::InvalidSignature;
+                        err.log_warning(
+                            "KIN-STORE-015",
+                            record.name(),
+                            "Rejecting updated record due to invalid signature:",
+                        );
+                        return Err(err);
                     }
                 }
             }
         } else {
             // New record, verify signature
             let dev_mode = kinetic_core::config::is_dev_mode();
-            if !skip_verify && !dev_mode {
-                if let Err(_) = record.verify_signature(kinetic_core::constants::NETWORK_ID) {
-                    let err = KineticStoreError::InvalidSignature;
-                    err.log_warning("KIN-STORE-015", record.name(), "Rejecting new record due to invalid signature:");
-                    return Err(err);
-                }
+            if !skip_verify
+                && !dev_mode
+                && record.verify_signature(kinetic_core::constants::NETWORK_ID).is_err()
+            {
+                let err = KineticStoreError::InvalidSignature;
+                err.log_warning(
+                    "KIN-STORE-015",
+                    record.name(),
+                    "Rejecting new record due to invalid signature:",
+                );
+                return Err(err);
             }
         }
 
@@ -177,10 +207,7 @@ impl KineticRecordStore {
             self.accepted_reveals_timestamps
                 .put(name.to_string(), std::collections::VecDeque::new());
         }
-        let deque = self
-            .accepted_reveals_timestamps
-            .get_mut(name)
-            .unwrap();
+        let deque = self.accepted_reveals_timestamps.get_mut(name).unwrap();
         while let Some(t) = deque.front() {
             if now.duration_since(*t) > web_time::Duration::from_secs(3600) {
                 deque.pop_front();
@@ -195,9 +222,7 @@ impl KineticRecordStore {
         }
         deque.push_back(now);
 
-        if let Some((evicted_name, _)) = self
-            .reveals_by_name
-            .push(name.to_string(), record.clone())
+        if let Some((evicted_name, _)) = self.reveals_by_name.push(name.to_string(), record.clone())
         {
             if evicted_name != name {
                 self.last_heartbeats_by_name.remove(&evicted_name);
@@ -211,7 +236,10 @@ impl KineticRecordStore {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        let current_round = std::cmp::max(self.current_drand_round, reveal_ref.map_or(0, |r| r.drand_pulse));
+        let current_round = std::cmp::max(
+            self.current_drand_round,
+            reveal_ref.map_or(0, |r| r.drand_pulse),
+        );
         self.last_heartbeats_by_name
             .insert(name.to_string(), current_round);
         let hb_key = [KRS_HB_PREFIX, name.as_bytes()].concat();
@@ -265,17 +293,19 @@ impl KineticRecordStore {
 
         let signable = heartbeat.signable_bytes(kinetic_core::constants::NETWORK_ID);
         use ml_dsa::KeyInit;
-        let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_record.pubkey())
+        let pubkey =
+            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_record.pubkey())
+                .map_err(|_| {
+                    let err = KineticStoreError::InvalidPublicKey;
+                    err.log_warning("KIN-STORE-013", &heartbeat.name, "Rejecting Heartbeat:");
+                    err
+                })?;
+        let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(heartbeat.signature.as_slice())
             .map_err(|_| {
-                let err = KineticStoreError::InvalidPublicKey;
-                err.log_warning("KIN-STORE-013", &heartbeat.name, "Rejecting Heartbeat:");
+                let err = KineticStoreError::MalformedSignature;
+                err.log_warning("KIN-STORE-014", &heartbeat.name, "Rejecting Heartbeat:");
                 err
             })?;
-        let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(heartbeat.signature.as_slice()).map_err(|_| {
-            let err = KineticStoreError::MalformedSignature;
-            err.log_warning("KIN-STORE-014", &heartbeat.name, "Rejecting Heartbeat:");
-            err
-        })?;
 
         use ml_dsa::signature::Verifier;
         if pubkey.verify(&signable, &sig).is_err() {
