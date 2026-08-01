@@ -28,7 +28,7 @@ fn test_009_memory_store_bloat() {
         let name = format!("name{}.kin", i);
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::DomainRecord::Standard(Reveal {
+            kinetic_core::types::DomainRecord::Standard(Box::new(Reveal {
                 name,
                 salt: [0; 32],
                 drand_randomness: String::new(),
@@ -43,7 +43,7 @@ fn test_009_memory_store_bloat() {
                 payload: vec![],
                 previous_proof: None,
                 miner_pubkey: None,
-            }),
+            })),
         );
     }
 
