@@ -17,7 +17,11 @@
 
 ---
 
-### 🌐 [Official Website & Live Documentation](https://kinetic.saifmukhtar.dev) | 📜 [Read the Whitepapers](./whitepaper/kinetic-vision.md) | 🏛️ [Governance Specs](./.github/GOVERNANCE.md)
+### 🌐 [Official Website](https://kinetic.saifmukhtar.dev)
+
+The full documentation for Kinetic has been moved to its own repository. You can find all protocol specifications, technical deep dives, and whitepapers there.
+
+👉 [**Kinetic Documentation Hub**](https://github.com/saifmukhtar/kinetic-docs)
 
 ---
 
