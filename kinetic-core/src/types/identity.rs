@@ -46,8 +46,9 @@ impl AuthorizedKid {
         let prefix_suffix = b"-auth-kid-v1";
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
-        let mut bytes =
-            Vec::with_capacity(network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 4 + canon_bytes.len());
+        let mut bytes = Vec::with_capacity(
+            network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 4 + canon_bytes.len(),
+        );
         bytes.extend_from_slice(network_id.as_bytes());
         bytes.extend_from_slice(prefix_suffix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
@@ -84,8 +85,9 @@ impl AuthorizedManifest {
         let prefix_suffix = b"-auth-manifest-v1";
         let canon_bytes = self.manifest.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
-        let mut bytes =
-            Vec::with_capacity(network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 4 + canon_bytes.len());
+        let mut bytes = Vec::with_capacity(
+            network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 4 + canon_bytes.len(),
+        );
         bytes.extend_from_slice(network_id.as_bytes());
         bytes.extend_from_slice(prefix_suffix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
@@ -377,7 +379,11 @@ mod tests {
         ));
 
         // 3. Invalid Seed Phrase
-        let result = save_keypair_from_mnemonic("test.bin", "not a valid seed phrase", env!("KINETIC_NETWORK_ID"));
+        let result = save_keypair_from_mnemonic(
+            "test.bin",
+            "not a valid seed phrase",
+            env!("KINETIC_NETWORK_ID"),
+        );
         assert!(matches!(
             result,
             Err(crate::error::IdentityError::InvalidSeedPhrase(_))
@@ -387,7 +393,8 @@ mod tests {
         let valid_path = dir.path().join("valid_key.bin");
         std::env::set_var(crate::constants::ENV_KINETIC_KEY_PATH, &valid_path);
         let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-        let saved_key = save_keypair_from_mnemonic("test.bin", phrase, env!("KINETIC_NETWORK_ID")).unwrap();
+        let saved_key =
+            save_keypair_from_mnemonic("test.bin", phrase, env!("KINETIC_NETWORK_ID")).unwrap();
         let loaded_key = load_keypair("test.bin").unwrap();
         use ml_dsa::KeyExport;
         assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());
