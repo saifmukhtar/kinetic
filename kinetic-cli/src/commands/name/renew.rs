@@ -33,7 +33,7 @@ pub async fn handle(
         let content = std::fs::read_to_string(&reveal_path)?;
         let record: kinetic_core::types::DomainRecord = serde_json::from_str(&content)?;
         match record {
-            kinetic_core::types::DomainRecord::Standard(r) => r,
+            kinetic_core::types::DomainRecord::Standard(r) => *r,
             kinetic_core::types::DomainRecord::Premium { .. } => {
                 return Err(anyhow::anyhow!(
                     "Name '{}' is a Premium domain. Premium domains do not expire or require VDF renewal.",
@@ -187,7 +187,7 @@ pub async fn handle(
 
     if res.status().is_success() {
         info!("Successfully renewed '{}'!", fqdn);
-        let record = kinetic_core::types::DomainRecord::Standard(new_reveal);
+        let record = kinetic_core::types::DomainRecord::Standard(Box::new(new_reveal));
         std::fs::write(&reveal_path, serde_json::to_string_pretty(&record)?)?;
     } else {
         let status = res.status();
