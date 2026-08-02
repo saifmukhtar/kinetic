@@ -58,6 +58,16 @@ impl GovernanceEngine for SovereignEngine {
                         return Err(GovernanceError::InvalidPremiumNameLength);
                     }
                 }
+                GovernanceAction::GrantInfrastructureName { name, .. } => {
+                    if !crate::types::infrastructure::is_infrastructure_name(name) {
+                        return Err(GovernanceError::InvalidInfrastructureName);
+                    }
+                }
+                GovernanceAction::RevokeInfrastructureName { name } => {
+                    if !crate::types::infrastructure::is_infrastructure_name(name) {
+                        return Err(GovernanceError::InvalidInfrastructureName);
+                    }
+                }
                 GovernanceAction::RotateRootKey { new_key } => {
                     if new_key.len() != 1952 {
                         return Err(GovernanceError::KeyLengthMismatch);
@@ -95,6 +105,16 @@ impl GovernanceEngine for SovereignEngine {
             }),
             GovernanceAction::RevokePremiumName { name } => {
                 Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() })
+            }
+            GovernanceAction::GrantInfrastructureName {
+                name,
+                target_pubkey,
+            } => Some(GovernanceEffect::InfrastructureNameGranted {
+                name: name.clone(),
+                target_pubkey: target_pubkey.clone(),
+            }),
+            GovernanceAction::RevokeInfrastructureName { name } => {
+                Some(GovernanceEffect::InfrastructureNameRevoked { name: name.clone() })
             }
             GovernanceAction::RotateRootKey { new_key } => {
                 state.active_root_key = Some(new_key.clone());

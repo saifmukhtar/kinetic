@@ -698,6 +698,25 @@ Errors from the council governance engine. These are returned when a `SignedGove
 
 ---
 
+### KIN-GOV-020 — InvalidInfrastructureName
+
+| Field | Value |
+|---|---|
+| **Variant** | `GovernanceError::InvalidInfrastructureName` |
+| **Severity** | Warning |
+| **HTTP Status** | `400 Bad Request` |
+| **Retryable** | No |
+
+**What it is:** A governance action attempted to grant or revoke infrastructure status for a name that is not in the Category 2 list.
+
+**Why it occurs:** Infrastructure names are hardcoded (e.g., `seed.kin`, `api.kin`). Governance proposals cannot arbitrary assign infrastructure status to normal names.
+
+**What it means:** The target name is not eligible for Category 2 infrastructure status.
+
+**Solution:** Only explicitly listed Category 2 labels (e.g. `seed.kin`, `docs.kin`) can be granted or revoked via this governance action.
+
+---
+
 ## KIN-DNS — DNS Zone Validation
 
 Errors from DNS zone payload parsing and record validation. A DNS zone is the JSON payload stored inside a Kinetic reveal record describing the owner's DNS configuration.

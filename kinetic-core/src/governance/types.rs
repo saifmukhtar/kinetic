@@ -51,6 +51,18 @@ pub enum GovernanceEffect {
         /// Revoked 1-character name.
         name: String,
     },
+    /// Inform node subsystems of an infrastructure domain grant.
+    InfrastructureNameGranted {
+        /// Granted Category 2 name.
+        name: String,
+        /// Recipient public key.
+        target_pubkey: PublicKeyBytes,
+    },
+    /// Inform node subsystems of an infrastructure domain revocation.
+    InfrastructureNameRevoked {
+        /// Revoked Category 2 name.
+        name: String,
+    },
     /// The Sovereign Root key was successfully rotated.
     RootKeyRotated {
         /// The new Root public key.

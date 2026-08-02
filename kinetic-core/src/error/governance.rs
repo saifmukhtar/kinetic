@@ -51,6 +51,9 @@ pub enum GovernanceError {
     /// A premium name grant/revoke was attempted on a name that is not exactly 1 character long.
     #[error("Premium name grants must be exactly 1 character long")]
     InvalidPremiumNameLength,
+    /// An infrastructure name grant/revoke was attempted on a name not in the Category 2 list.
+    #[error("Infrastructure name grants must target a valid Category 2 infrastructure name")]
+    InvalidInfrastructureName,
 }
 
 impl GovernanceError {
@@ -67,6 +70,7 @@ impl GovernanceError {
 
             Self::InsufficientSignatures => "KIN-GOV-016",
             Self::InvalidPremiumNameLength => "KIN-GOV-019",
+            Self::InvalidInfrastructureName => "KIN-GOV-020",
         }
     }
 
@@ -85,7 +89,8 @@ impl GovernanceError {
             Self::KeyLengthMismatch => Severity::Error,
             Self::InsufficientSignatures
             | Self::GovernanceDisabled
-            | Self::InvalidPremiumNameLength => Severity::Warning,
+            | Self::InvalidPremiumNameLength
+            | Self::InvalidInfrastructureName => Severity::Warning,
         }
     }
 
@@ -116,6 +121,7 @@ impl GovernanceError {
                 "The message lacks the required cryptographic signatures to meet the council quorum threshold.".to_string()
             }
             Self::InvalidPremiumNameLength => "Premium names governed by this action must be exactly 1 character long.".to_string(),
+            Self::InvalidInfrastructureName => "Infrastructure names governed by this action must be valid Category 2 names.".to_string(),
         }
     }
 }

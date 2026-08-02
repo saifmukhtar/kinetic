@@ -126,13 +126,14 @@ impl From<GovernanceError> for ApiError {
     fn from(e: GovernanceError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
             GovernanceError::MissingRootKey => (500, "Configuration Error"),
-            GovernanceError::KeyLengthMismatch => (400, "Bad Request"),
             GovernanceError::StaleProposal
             | GovernanceError::TimelockNotExpired
             | GovernanceError::NotPendingOrVetoed => (409, "Conflict"),
             GovernanceError::InsufficientSignatures => (401, "Unauthorized"),
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
-            GovernanceError::InvalidPremiumNameLength => (400, "Bad Request"),
+            GovernanceError::KeyLengthMismatch | GovernanceError::InvalidPremiumNameLength | GovernanceError::InvalidInfrastructureName => {
+                (400, "Bad Request")
+            }
         };
         ApiError {
             error_type: e.error_type_uri(),

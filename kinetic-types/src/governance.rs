@@ -14,6 +14,8 @@
 //! | `0x0C` | [`GovernanceAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
 //! | `0x0D` | [`GovernanceAction::EmergencyResume`] | Resume registrations and advance pause offset |
 //! | `0x0E` | [`GovernanceAction::RevokePremiumName`] | Revoke a previously granted 1-character apex domain |
+//! | `0x0F` | [`GovernanceAction::GrantInfrastructureName`] | Grant a Category 2 infrastructure domain (Root key only) |
+//! | `0x10` | [`GovernanceAction::RevokeInfrastructureName`] | Revoke a Category 2 infrastructure domain (Root key only) |
 
 use crate::error::Severity;
 use thiserror::Error;
@@ -38,6 +40,18 @@ pub enum GovernanceAction {
     /// Revoke a 1-character premium domain name (Root key only).
     RevokePremiumName {
         /// Target 1-character name label.
+        name: String,
+    },
+    /// Grant a Category 2 network infrastructure name (Root key only).
+    GrantInfrastructureName {
+        /// Target infrastructure name label (e.g., "seed", "api").
+        name: String,
+        /// Recipient's ML-DSA-65 public key.
+        target_pubkey: PublicKeyBytes,
+    },
+    /// Revoke a Category 2 network infrastructure name (Root key only).
+    RevokeInfrastructureName {
+        /// Target infrastructure name label.
         name: String,
     },
     /// Permanently delegates root authority to a new ML-DSA-65 public key.
@@ -77,6 +91,8 @@ impl SignedGovernanceMessage {
     /// | `0x0C` | `EmergencyHalt` |
     /// | `0x0D` | `EmergencyResume` |
     /// | `0x0E` | `RevokePremiumName` |
+    /// | `0x0F` | `GrantInfrastructureName` |
+    /// | `0x10` | `RevokeInfrastructureName` |
     ///
     /// The message closes with `u64_be(timestamp_sec)`.
     ///
@@ -99,6 +115,22 @@ impl SignedGovernanceMessage {
             }
             GovernanceAction::RevokePremiumName { name } => {
                 buf.push(0x0E);
+                let name_bytes = name.as_bytes();
+                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
+                buf.extend_from_slice(name_bytes);
+            }
+            GovernanceAction::GrantInfrastructureName {
+                name,
+                target_pubkey,
+            } => {
+                buf.push(0x0F);
+                let name_bytes = name.as_bytes();
+                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
+                buf.extend_from_slice(name_bytes);
+                buf.extend_from_slice(target_pubkey.as_slice());
+            }
+            GovernanceAction::RevokeInfrastructureName { name } => {
+                buf.push(0x10);
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
@@ -260,6 +292,38 @@ impl GovernanceAction {
                     .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
 
                 GovernanceAction::RevokePremiumName { name }
+            }
+            0x0F => {
+                // GrantInfrastructureName
+                if action_data.len() < 4 {
+                    return Err(GovernanceTypeError::BufferTooSmall);
+                }
+                let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
+                if action_data.len() < 4 + name_len {
+                    return Err(GovernanceTypeError::BufferTooSmall);
+                }
+                let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
+                    .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
+
+                let pubkey_bytes = &action_data[4 + name_len..];
+                GovernanceAction::GrantInfrastructureName {
+                    name,
+                    target_pubkey: pubkey_bytes.to_vec(),
+                }
+            }
+            0x10 => {
+                // RevokeInfrastructureName
+                if action_data.len() < 4 {
+                    return Err(GovernanceTypeError::BufferTooSmall);
+                }
+                let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
+                if action_data.len() < 4 + name_len {
+                    return Err(GovernanceTypeError::BufferTooSmall);
+                }
+                let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
+                    .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
+
+                GovernanceAction::RevokeInfrastructureName { name }
             }
             _ => return Err(GovernanceTypeError::UnknownOpcode(opcode)),
         };
