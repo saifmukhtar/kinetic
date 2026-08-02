@@ -19,9 +19,9 @@ ed25519-dalek = "2.2.0"
 getrandom = "0.4.3"
 hex = "0.4.3"
 bip39 = "2.2.2"
-kinetic-core = { version = "0.1.0", path = "../kinetic-core" }
-kinetic-vdf = { version = "0.1.0", path = "../kinetic-vdf" }
-kinetic-kid = { version = "0.1.0", path = "../kinetic-kid" }
+kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
+kinetic-vdf = { version = "0.2.0", path = "../kinetic-vdf" }
+kinetic-kid = { version = "0.2.0", path = "../kinetic-kid" }
 libp2p = { version = "0.53", features = ["ed25519"] }
 rand = "0.10.1"
 rand_core = { version = "0.6.4", features = ["std", "getrandom"] }

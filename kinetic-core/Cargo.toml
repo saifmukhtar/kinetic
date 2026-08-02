@@ -4,12 +4,17 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 build = "build.rs"
+description = "Core daemon primitives, VDF management, and network utilities for the Kinetic Network."
+repository = "https://github.com/kinetic-network/kinetic"
+readme = "../README.md"
+keywords = ["kinetic", "p2p", "vdf", "post-quantum"]
+categories = ["cryptography", "network-programming"]
 
 [features]
 simulation = []
 
 [dependencies]
-kinetic-verify = { version = "0.1.2", path = "../kinetic-verify" }
+kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
 thiserror.workspace = true
 anyhow.workspace = true
 sha2 = "0.11.0"
@@ -30,14 +35,14 @@ libp2p-identity = { version = "0.2.14", features = ["peerid"] }
 bip39 = "2.2.2"
 pbkdf2 = "0.13.0"
 drand-verify = "0.6.2"
-kinetic-kid = { version = "0.1.0", path = "../kinetic-kid" }
+kinetic-kid = { version = "0.2.0", path = "../kinetic-kid" }
 bytes = "1.6.0"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 rand_chacha = "0.10.0"
 rand_core = "0.10.1"
 ml-dsa = "0.1.1"
 aes-gcm = "0.10.3"
-kinetic-types = { version = "0.1.1", path = "../kinetic-types" }
+kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 directories = "6.0.0"

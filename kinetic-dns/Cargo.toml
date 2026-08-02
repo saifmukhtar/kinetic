@@ -8,7 +8,7 @@ license.workspace = true
 simulation = ["kinetic-core/simulation"]
 
 [dependencies]
-kinetic-core = { version = "0.1.0", path = "../kinetic-core" }
+kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
 hickory-server = "0.24"
 async-trait = "0.1"
 tokio = { workspace = true, features = ["sync"] }
@@ -16,7 +16,7 @@ thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 hickory-proto = "0.24"
-kinetic-network = { version = "0.1.0", path = "../kinetic-network" }
+kinetic-network = { version = "0.2.0", path = "../kinetic-network" }
 hickory-resolver = { version = "0.24.4", features = ["dns-over-https-rustls", "webpki-roots", "system-config"] }
 serde_json = "1.0.150"
 moka = { version = "0.12", features = ["future"] }

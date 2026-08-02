@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 description = "Kinetic Identity Document (KID) implementation for the Kinetic Network"
 repository = "https://github.com/kinetic-network/kinetic"
+readme = "../README.md"
+keywords = ["kinetic", "identity", "kid", "crypto"]
+categories = ["cryptography", "authentication"]
 
 [features]
 simulation = []
