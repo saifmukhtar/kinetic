@@ -99,10 +99,21 @@ struct NetworkConfig {
 fn main() {
     println!("cargo:rerun-if-changed=../network.json");
 
-    let network_json_path = PathBuf::from("../network.json");
-    if !network_json_path.exists() {
-        panic!("network.json is missing from the workspace root. Please create it or run kinetic-forge to generate one.");
-    }
+    println!("cargo:rerun-if-env-changed=KINETIC_NETWORK_JSON");
+
+    let env_path = std::env::var("KINETIC_NETWORK_JSON").map(PathBuf::from);
+    let workspace_path = PathBuf::from("../network.json");
+    let bundled_path = PathBuf::from("default_network.json");
+
+    let network_json_path = if let Ok(path) = env_path {
+        path
+    } else if workspace_path.exists() {
+        workspace_path
+    } else if bundled_path.exists() {
+        bundled_path
+    } else {
+        panic!("Failed to find network.json in any location.");
+    };
 
     let json_content = fs::read_to_string(&network_json_path).expect("Failed to read network.json");
     let config: NetworkConfig =

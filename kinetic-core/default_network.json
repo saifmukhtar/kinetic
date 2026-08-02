@@ -1,0 +1,73 @@
+{
+  "network": {
+    "network_id": "kinetic",
+    "tld": "kin",
+    "base_domain": "saifmukhtar.dev",
+    "docs_url": "https://kinetic.saifmukhtar.dev",
+    "ipfs_gateway": "https://ipfs.io/ipfs/",
+    "local_bind_ip": "127.0.0.2",
+    "bootstrap_nodes": []
+  },
+  "drand": {
+    "drand_genesis_time": 1692803367,
+    "drand_period": 3,
+    "kinetic_genesis_drand_round": 30579969,
+    "drand_public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
+    "drand_http_endpoints": [
+      "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
+      "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
+      "https://api.drand.secureweb3.com:6875/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
+      "https://api2.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
+      "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest"
+    ]
+  },
+  "governance": {
+    "governance_model": "sovereign",
+    "max_age_seconds": 604800
+  },
+  "consensus": {
+    "vdf_squatter_multipliers": {
+      "len_0_to_1": 52596000,
+      "len_2": 43200,
+      "len_3": 34560,
+      "len_4": 21600,
+      "len_5": 1440,
+      "len_6": 720,
+      "len_7": 150,
+      "len_8_to_10": 120,
+      "len_11_to_17": 90,
+      "len_18_to_20": 60
+    },
+    "vdf_discount_min_iterations": 1000,
+    "vdf_discount_percentage": 15,
+    "vdf_max_iterations": 400000000000,
+    "vdf_max_proof_bytes": 1024,
+    "minimum_commit_age_rounds": 10
+  },
+  "advanced": {
+    "benchmark_base_iterations": 238819830,
+    "benchmark_target_minutes": 30.0,
+    "steal_target_rounds": 7884000,
+    "m_redundancy": 32,
+    "dev_mode_iterations": 1000,
+    "limits": {
+      "p2p_max_packet_size": 102400,
+      "p2p_max_circuit_bytes": 4194304,
+      "proxy_max_body_bytes": 5242880,
+      "storage_max_value_bytes": 81920,
+      "kid_max_public_key_bytes": 8192,
+      "kid_max_location_bytes": 2048,
+      "kid_max_endpoint_bytes": 256,
+      "drand_max_response_bytes": 65536,
+      "lru_cache_size": 100000
+    },
+    "timeouts": {
+      "idle_timeout_seconds": 201600,
+      "heartbeat_age_warning_seconds": 43200,
+      "heartbeat_age_critical_seconds": 86400,
+      "dns_cache_ttl_seconds": 300,
+      "network_prune_interval_seconds": 3600,
+      "host_route_max_age_seconds": 600
+    }
+  }
+}

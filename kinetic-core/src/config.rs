@@ -493,4 +493,20 @@ mod tests {
         assert!(config.network.enable_mdns);
         assert!(config.daemon.enable_dns);
     }
+
+    #[test]
+    fn test_bundled_network_json_sync() {
+        let root_json_path = PathBuf::from("../network.json");
+        let bundled_json_path = PathBuf::from("default_network.json");
+
+        if root_json_path.exists() && bundled_json_path.exists() {
+            let root_content = fs::read_to_string(&root_json_path).expect("Failed to read root network.json");
+            let bundled_content = fs::read_to_string(&bundled_json_path).expect("Failed to read bundled default_network.json");
+            
+            assert_eq!(
+                root_content, bundled_content,
+                "The bundled default_network.json in kinetic-core must perfectly match the root network.json!"
+            );
+        }
+    }
 }
