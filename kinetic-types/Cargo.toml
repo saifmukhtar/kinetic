@@ -1,6 +1,6 @@
 [package]
 name = "kinetic-types"
-version.workspace = true
+version = "0.1.1"
 edition.workspace = true
 license.workspace = true
 authors = ["Saif Mukhtar"]
@@ -14,6 +14,9 @@ categories = ["cryptography", "data-structures"]
 serde = { version = "1.0", features = ["derive"] }
 ml-dsa = "0.1.1"
 thiserror = "1.0"
+bytes = "1.4"
+serde_bytes = "0.11"
+kinetic-kid = { version = "0.1.0", path = "../kinetic-kid" }
 
 [dev-dependencies]
 serde_json = "1.0"
