@@ -98,7 +98,7 @@ pub async fn handle(
         .required_iterations(&fqdn);
     let actual_iterations = std::cmp::max(iterations, required_iterations);
 
-    let label = kinetic_core::types::names::extract_apex_domain(&fqdn);
+    let label = kinetic_core::types::names::extract_apex_name(&fqdn);
     let label = label
         .strip_suffix(kinetic_core::constants::TLD_SUFFIX)
         .unwrap_or(&label);
@@ -326,7 +326,7 @@ pub async fn handle(
             );
             let _ = save_zone_file(&fqdn, &zone);
             let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
-            let record = kinetic_core::types::DomainRecord::Standard(Box::new(reveal));
+            let record = kinetic_core::types::NameRecord::Standard(Box::new(reveal));
             let reveal_str =
                 serde_json::to_string_pretty(&record).expect("Failed to serialize Reveal");
             let _ = std::fs::write(&reveal_path, reveal_str);

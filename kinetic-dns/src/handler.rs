@@ -27,7 +27,7 @@ impl RequestHandler for KineticDnsHandler {
 
         if clean_name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
             let domain_name = kinetic_core::types::normalize_name(&clean_name);
-            let apex_domain = kinetic_core::types::extract_apex_domain(&domain_name);
+            let apex_domain = kinetic_core::types::extract_apex_name(&domain_name);
 
             resolve_kinetic(
                 request,

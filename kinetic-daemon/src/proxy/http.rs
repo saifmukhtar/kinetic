@@ -119,7 +119,7 @@ pub async fn forward_to_backend_direct(
 
     while recursion_count < 10 {
         recursion_count += 1;
-        let apex_domain = kinetic_core::types::extract_apex_domain(&current_domain);
+        let apex_domain = kinetic_core::types::extract_apex_name(&current_domain);
 
         // Resolve via DHT directly — NOT via system DNS
         let payload = network_client
@@ -129,7 +129,7 @@ pub async fn forward_to_backend_direct(
 
         // The DHT stores the full Reveal JSON (set by api.rs via serde_json::to_vec(&reveal)).
         // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
-        let record = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&payload)
+        let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
             .map_err(|_| ProxyError::InvalidPayload)?;
 
         let zone = match kinetic_core::types::DnsZone::parse_payload(record.payload()) {

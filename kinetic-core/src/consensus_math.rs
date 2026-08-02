@@ -52,7 +52,7 @@ impl ConsensusParams {
     /// ```
     pub fn required_iterations(&self, name: &str) -> u64 {
         let normalized_name = crate::types::names::normalize_name(name);
-        let apex = crate::types::names::extract_apex_domain(&normalized_name);
+        let apex = crate::types::names::extract_apex_name(&normalized_name);
         let label = apex
             .strip_suffix(crate::constants::TLD_SUFFIX)
             .unwrap_or(&apex);

@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use kinetic_core::types::names::{extract_apex_domain, is_valid_apex_name, normalize_name};
+use kinetic_core::types::names::{extract_apex_name, is_valid_apex_name, normalize_name};
 use std::hint::black_box;
 
 fn bench_names(c: &mut Criterion) {
@@ -18,8 +18,8 @@ fn bench_names(c: &mut Criterion) {
         b.iter(|| is_valid_apex_name(black_box(&norm_name)))
     });
 
-    group.bench_function("extract_apex_domain", |b| {
-        b.iter(|| extract_apex_domain(black_box(&norm_name)))
+    group.bench_function("extract_apex_name", |b| {
+        b.iter(|| extract_apex_name(black_box(&norm_name)))
     });
 
     group.finish();

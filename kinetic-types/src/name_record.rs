@@ -1,22 +1,22 @@
-//! Domain records, ownership models, and heartbeat proofs.
+//! Name records, ownership models, and heartbeat proofs.
 //!
-//! On the Kinetic network, domain ownership is structured into two distinct classes:
+//! On the Kinetic network, name ownership is structured into two distinct classes:
 //!
-//! 1. **Standard Domains** ([`DomainRecord::Standard`]): Registered trustlessly via Proof-of-Work
+//! 1. **Standard Names** ([`NameRecord::Standard`]): Registered trustlessly via Proof-of-Work
 //!    and Verifiable Delay Function (VDF) computation. Ownership is proven via the reveal record.
-//! 2. **Premium Domains** ([`DomainRecord::Premium`]): 1-character apex domains granted directly
+//! 2. **Premium Names** ([`NameRecord::Premium`]): 1-character apex names granted directly
 //!    by the Governance Root Authority key.
 //!
-//! To maintain active routing and prove domain liveness, owners periodically publish [`Heartbeat`]
+//! To maintain active routing and prove name liveness, owners periodically publish [`Heartbeat`]
 //! proofs signed with their ML-DSA-65 post-quantum private keys.
 
 use serde::{Deserialize, Serialize};
 
-/// Represents a heartbeat proof indicating that a `.kin` domain is actively maintained by its owner.
+/// Represents a heartbeat proof indicating that a `.kin` name is actively maintained by its owner.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Heartbeat {
-    /// Domain name associated with this heartbeat.
+    /// Name associated with this heartbeat.
     pub name: String,
     /// Latest drand round number proving heartbeat recency.
     pub latest_drand_pulse: u64,
@@ -39,29 +39,29 @@ impl Heartbeat {
     }
 }
 
-/// Represents the two different ways a domain can be owned on the Kinetic network.
+/// Represents the two different ways a name can be owned on the Kinetic network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum DomainRecord {
-    /// A standard domain registered via Proof of Work and VDF.
+pub enum NameRecord {
+    /// A standard name registered via Proof of Work and VDF.
     Standard(Box<crate::vdf::Reveal>),
-    /// A premium domain granted directly by the Governance Root Key.
+    /// A premium name granted directly by the Governance Root Key.
     Premium {
-        /// The domain name.
+        /// The name.
         name: String,
-        /// The ML-DSA-65 public key of the domain owner.
+        /// The ML-DSA-65 public key of the name owner.
         pubkey: Vec<u8>,
         /// The unix timestamp in seconds when this grant was approved.
         granted_at: u64,
-        /// The zone payload associated with the domain.
+        /// The zone payload associated with the name.
         payload: Vec<u8>,
         /// The owner's ML-DSA-65 signature authorizing the payload.
         signature: Vec<u8>,
     },
 }
 
-impl DomainRecord {
-    /// Returns the domain name.
+impl NameRecord {
+    /// Returns the name.
     pub fn name(&self) -> &str {
         match self {
             Self::Standard(r) => &r.name,
@@ -93,7 +93,7 @@ impl DomainRecord {
         }
     }
 
-    /// Verifies the ownership signature attached to this domain record.
+    /// Verifies the ownership signature attached to this name record.
     pub fn verify_signature(&self, network_id: &str) -> Result<(), crate::vdf::VdfVerifyError> {
         match self {
             Self::Standard(reveal) => reveal.verify_signature(network_id),
@@ -128,7 +128,7 @@ impl DomainRecord {
 /// Redundancy factor for DHT storage and heartbeat replication across the network.
 pub const M_REDUNDANCY: u8 = 32;
 
-/// Normalizes a given domain name string for consistent key derivation.
+/// Normalizes a given name string for consistent key derivation.
 /// Converts the name to lowercase and strips trailing dots.
 pub fn normalize_name(name: &str) -> String {
     let mut norm = name.to_lowercase();
@@ -138,7 +138,7 @@ pub fn normalize_name(name: &str) -> String {
     norm
 }
 
-/// Derives the set of DHT storage keys for a given domain name and network ID.
+/// Derives the set of DHT storage keys for a given name and network ID.
 ///
 /// Produces exactly 32 distinct 32-byte keys via:
 /// `SHA-256(normalized_name || [i] || network_id || "-dht-v1")` for `i in 0..32`.
@@ -162,7 +162,7 @@ pub fn derive_storage_keys(name: &str, network_id: &str) -> Vec<[u8; 32]> {
     keys
 }
 
-/// Derives the set of DHT heartbeat keys for a given domain name and network ID.
+/// Derives the set of DHT heartbeat keys for a given name and network ID.
 ///
 /// Produces exactly 32 distinct 32-byte keys via:
 /// `SHA-256(network_id || "-hb-v1" || normalized_name || [i])` for `i in 0..32`.

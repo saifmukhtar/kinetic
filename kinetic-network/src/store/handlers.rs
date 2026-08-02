@@ -7,12 +7,12 @@ use crate::store::core::KineticRecordStore;
 impl KineticRecordStore {
     pub(crate) fn handle_record(
         &mut self,
-        record: &kinetic_core::types::DomainRecord,
+        record: &kinetic_core::types::NameRecord,
         skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
         let reveal_ref = match record {
-            kinetic_core::types::DomainRecord::Standard(r) => Some(r),
-            kinetic_core::types::DomainRecord::Premium { .. } => None,
+            kinetic_core::types::NameRecord::Standard(r) => Some(r),
+            kinetic_core::types::NameRecord::Premium { .. } => None,
         };
 
         if let Some(reveal) = reveal_ref {
@@ -62,8 +62,8 @@ impl KineticRecordStore {
 
                 let (existing_reveal, new_reveal) = match (existing_record, record) {
                     (
-                        kinetic_core::types::DomainRecord::Standard(existing),
-                        kinetic_core::types::DomainRecord::Standard(new),
+                        kinetic_core::types::NameRecord::Standard(existing),
+                        kinetic_core::types::NameRecord::Standard(new),
                     ) => (existing, new),
                     _ => {
                         let err = KineticStoreError::TieBroken; // Premium domains cannot be stolen or steal
@@ -152,8 +152,8 @@ impl KineticRecordStore {
                     }
             } else {
                 let existing_pulse = match &existing_record {
-                    kinetic_core::types::DomainRecord::Standard(r) => r.drand_pulse,
-                    kinetic_core::types::DomainRecord::Premium { .. } => 0,
+                    kinetic_core::types::NameRecord::Standard(r) => r.drand_pulse,
+                    kinetic_core::types::NameRecord::Premium { .. } => 0,
                 };
                 let new_pulse = reveal_ref.map_or(0, |r| r.drand_pulse);
 

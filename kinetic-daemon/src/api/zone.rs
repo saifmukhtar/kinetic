@@ -152,7 +152,7 @@ pub async fn handle_publish_zone(
             ))
         }
     };
-    let mut record: kinetic_core::types::DomainRecord = match serde_json::from_slice(&reveal_bytes)
+    let mut record: kinetic_core::types::NameRecord = match serde_json::from_slice(&reveal_bytes)
     {
         Ok(r) => r,
         Err(_) => {
@@ -197,14 +197,14 @@ pub async fn handle_publish_zone(
     };
 
     match &mut record {
-        kinetic_core::types::DomainRecord::Standard(r) => {
+        kinetic_core::types::NameRecord::Standard(r) => {
             r.payload = payload;
             let signable = r.signable_bytes(kinetic_core::constants::NETWORK_ID);
             use ml_dsa::signature::Signer;
             use ml_dsa::SignatureEncoding;
             r.signature = keypair.sign(&signable).to_bytes().to_vec();
         }
-        kinetic_core::types::DomainRecord::Premium { payload: p, .. } => {
+        kinetic_core::types::NameRecord::Premium { payload: p, .. } => {
             *p = payload;
         }
     }

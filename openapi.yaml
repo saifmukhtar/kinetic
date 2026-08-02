@@ -36,6 +36,16 @@ components:
       required:
         - status
         - message
+    ConfigResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        mode:
+          type: string
+      required:
+        - status
+        - mode
     VdfTaskStatus:
       type: object
       properties:
@@ -566,6 +576,10 @@ paths:
       responses:
         '200':
           description: Config Object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
     post:
       operationId: updateConfig
       summary: Update config

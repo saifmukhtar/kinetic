@@ -14,7 +14,7 @@
 
 pub mod clock;
 pub mod dns;
-pub mod domain;
+pub mod name_record;
 pub mod identity;
 pub mod infrastructure;
 pub mod names;
@@ -22,7 +22,7 @@ pub mod vdf;
 
 pub use clock::*;
 pub use dns::*;
-pub use domain::*;
+pub use name_record::*;
 pub use identity::*;
 pub use infrastructure::*;
 pub use names::*;

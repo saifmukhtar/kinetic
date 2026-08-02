@@ -39,26 +39,26 @@ pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
 /// Side effects produced when a governance action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GovernanceEffect {
-    /// Inform node subsystems of a premium domain grant.
+    /// Inform node subsystems of a premium name grant.
     PremiumNameGranted {
         /// Granted 1-character name.
         name: String,
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
-    /// Inform node subsystems of a premium domain revocation.
+    /// Inform node subsystems of a premium name revocation.
     PremiumNameRevoked {
         /// Revoked 1-character name.
         name: String,
     },
-    /// Inform node subsystems of an infrastructure domain grant.
+    /// Inform node subsystems of an infrastructure name grant.
     InfrastructureNameGranted {
         /// Granted Category 2 name.
         name: String,
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
-    /// Inform node subsystems of an infrastructure domain revocation.
+    /// Inform node subsystems of an infrastructure name revocation.
     InfrastructureNameRevoked {
         /// Revoked Category 2 name.
         name: String,
@@ -153,7 +153,7 @@ mod tests {
         // Pause 2: rounds 3000 to 3100 (100 rounds)
         state.pause_history.push((3000, 3100));
 
-        // User renewed the domain at round 2000
+        // User renewed the name at round 2000
         // (After pause 1, but before pause 2)
         let target_pulse = 2000;
 

@@ -1,18 +1,18 @@
-//! Domain heartbeat payloads and DHT storage key derivation.
+//! Name heartbeat payloads and DHT storage key derivation.
 //!
-//! Provides structures for domain heartbeats and SHA-256-based DHT key derivation
+//! Provides structures for name heartbeats and SHA-256-based DHT key derivation
 //! that implements M=32 redundant storage assignment.
 //!
 //! ## DHT Key Derivation
 //!
-//! Every domain is stored at `M_REDUNDANCY` (32) distinct DHT keys to improve availability
+//! Every name is stored at `M_REDUNDANCY` (32) distinct DHT keys to improve availability
 //! and resist single-peer failures. Each key is derived as:
 //! `SHA-256(name_bytes || [i] || "{NETWORK_ID}-dht-v1")`
 //!
 //! The `{NETWORK_ID}` suffix prevents key collisions between different Kinetic TLD networks.
 
-pub use kinetic_types::domain::{
-    derive_heartbeat_keys, derive_storage_keys, DomainRecord, Heartbeat, M_REDUNDANCY,
+pub use kinetic_types::name_record::{
+    derive_heartbeat_keys, derive_storage_keys, Heartbeat, M_REDUNDANCY, NameRecord,
 };
 
 #[cfg(test)]

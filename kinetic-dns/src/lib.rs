@@ -97,7 +97,7 @@ impl KineticDnsHandler {
     /// Explicitly invalidate the DNS cache for a given apex domain.
     /// This is called by the daemon after a successful local update to prevent serving stale data.
     pub async fn invalidate_cache(&self, apex_domain: &str) {
-        let domain_normalized = kinetic_core::types::extract_apex_domain(apex_domain);
+        let domain_normalized = kinetic_core::types::extract_apex_name(apex_domain);
         self.cache.invalidate(&domain_normalized).await;
         tracing::info!(
             "Invalidated DNS cache for apex domain: {}",

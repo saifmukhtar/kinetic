@@ -33,7 +33,7 @@ pub async fn update_zone_logic(
 
     // Check for local reveal file first for massive UX improvement
     let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
-    let mut existing_record: kinetic_core::types::DomainRecord = if reveal_path.exists() {
+    let mut existing_record: kinetic_core::types::NameRecord = if reveal_path.exists() {
         let content = std::fs::read_to_string(&reveal_path)?;
         serde_json::from_str(&content)
             .map_err(|e| anyhow::anyhow!("Local reveal file corrupted: {}", e))?
@@ -58,19 +58,19 @@ pub async fn update_zone_logic(
 
     let new_payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
     match &mut existing_record {
-        kinetic_core::types::DomainRecord::Standard(r) => {
+        kinetic_core::types::NameRecord::Standard(r) => {
             r.payload = new_payload;
             let signable = r.signable_bytes(kinetic_core::constants::NETWORK_ID);
             r.signature = keypair.sign(&signable).to_bytes().to_vec();
         }
-        kinetic_core::types::DomainRecord::Premium {
+        kinetic_core::types::NameRecord::Premium {
             name,
             payload,
             signature,
             ..
         } => {
             *payload = new_payload;
-            // The signature for DomainRecord uses the DomainRecord method verify_signature which signs (name || payload || network_id)
+            // The signature for NameRecord uses the NameRecord method verify_signature which signs (name || payload || network_id)
             let mut signable = Vec::new();
             signable.extend_from_slice(name.as_bytes());
             signable.extend_from_slice(payload);

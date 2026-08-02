@@ -1,5 +1,5 @@
 use kinetic_core::governance::GLOBAL_GOVERNANCE_STATE;
-use kinetic_core::types::DomainRecord;
+use kinetic_core::types::NameRecord;
 
 use kinetic_network::store::core::KineticRecordStore;
 use libp2p::identity;
@@ -53,7 +53,7 @@ async fn test_016_governance_integration_halt() {
         protocol_version: 2,
     };
 
-    let domain_record = DomainRecord::Standard(Box::new(fake_reveal));
+    let domain_record = NameRecord::Standard(Box::new(fake_reveal));
     let record_bytes = serde_json::to_vec(&domain_record).unwrap();
     let record = Record::new(libp2p::kad::RecordKey::new(&"test"), record_bytes);
 
@@ -93,7 +93,7 @@ async fn test_016_governance_integration_premium() {
     );
 
     // Create a premium record
-    let domain_record = DomainRecord::Premium {
+    let domain_record = NameRecord::Premium {
         name: "test_premium".to_string(),
         pubkey: vec![1; 32],
         granted_at: 0,

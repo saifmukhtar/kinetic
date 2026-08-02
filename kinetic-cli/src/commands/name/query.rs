@@ -83,15 +83,15 @@ pub async fn handle_info(
         let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
         if reveal_path.exists() {
             let content = std::fs::read_to_string(&reveal_path)?;
-            let record: kinetic_core::types::DomainRecord = serde_json::from_str(&content)?;
+            let record: kinetic_core::types::NameRecord = serde_json::from_str(&content)?;
             info!("Info for {} (Local):", fqdn);
             match record {
-                kinetic_core::types::DomainRecord::Standard(r) => {
+                kinetic_core::types::NameRecord::Standard(r) => {
                     info!("  Type: Standard");
                     info!("  Created at Drand pulse: {}", r.drand_pulse);
                     info!("  VDF Iterations: {}", r.iterations);
                 }
-                kinetic_core::types::DomainRecord::Premium { granted_at, .. } => {
+                kinetic_core::types::NameRecord::Premium { granted_at, .. } => {
                     info!("  Type: Premium");
                     info!("  Granted at: {}", granted_at);
                 }

@@ -241,7 +241,7 @@ impl UniversalKineticNode {
             .await
             .map_err(|e| JsValue::from_str(&format!("Resolution failed: {}", e)))?;
 
-        let record: kinetic_core::types::DomainRecord = serde_json::from_slice(&bytes)
+        let record: kinetic_core::types::NameRecord = serde_json::from_slice(&bytes)
             .map_err(|e| JsValue::from_str(&format!("Invalid record format: {}", e)))?;
 
         if record.name() != full_domain {

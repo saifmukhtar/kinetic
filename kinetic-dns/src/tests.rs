@@ -394,7 +394,7 @@ mod fuzzing {
             domain in ".*"
         ) {
             let normalized = kinetic_core::types::normalize_name(&domain);
-            let _apex = kinetic_core::types::extract_apex_domain(&normalized);
+            let _apex = kinetic_core::types::extract_apex_name(&normalized);
         }
     }
 }

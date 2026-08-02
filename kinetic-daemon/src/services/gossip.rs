@@ -46,14 +46,14 @@ pub fn start_gossip_processor(
                             if let Some(storage) = &storage {
                                 use kinetic_core::constants::DB_PREFIX_REVEAL;
                                 use kinetic_core::governance::types::GovernanceEffect;
-                                use kinetic_core::types::DomainRecord;
+                                use kinetic_core::types::NameRecord;
 
                                 match &effect {
                                     GovernanceEffect::PremiumNameGranted {
                                         name,
                                         target_pubkey,
                                     } => {
-                                        let record = DomainRecord::Premium {
+                                        let record = NameRecord::Premium {
                                             name: name.clone(),
                                             pubkey: target_pubkey.clone(),
                                             granted_at: std::time::SystemTime::now()
@@ -67,7 +67,7 @@ pub fn start_gossip_processor(
                                         if let Ok(json_bytes) = serde_json::to_vec(&record) {
                                             let _ = storage.put(key.as_bytes(), &json_bytes);
                                             tracing::info!(
-                                                "Injected DomainRecord::Premium into Sled for {}",
+                                                "Injected NameRecord::Premium into Sled for {}",
                                                 name
                                             );
                                         }
@@ -76,7 +76,7 @@ pub fn start_gossip_processor(
                                         let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                                         let _ = storage.delete(key.as_bytes());
                                         tracing::info!(
-                                            "Revoked DomainRecord::Premium from Sled for {}",
+                                            "Revoked NameRecord::Premium from Sled for {}",
                                             name
                                         );
                                     }

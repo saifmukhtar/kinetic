@@ -3,7 +3,7 @@
 /// Canonical TLD name string for the Kinetic network.
 pub const TLD: &str = "kin";
 
-/// Normalizes a given domain name string.
+/// Normalizes a given name string.
 ///
 /// Converts the name to lowercase, strips trailing dots, and appends the canonical
 /// Kinetic TLD suffix ([`crate::constants::TLD_SUFFIX`]) if missing.
@@ -27,7 +27,7 @@ pub fn normalize_name(name: &str) -> String {
     norm
 }
 
-/// Checks whether a given domain name is a Category 1 reserved public utility name.
+/// Checks whether a given name is a Category 1 reserved public utility name.
 ///
 /// Hardcoded reserved names (e.g. `localhost`, `test`, `example`) are permanently
 /// locked and cannot be registered under any TLD instance.
@@ -58,7 +58,7 @@ pub const PUBLIC_NAMES: &[&str] = &[
     "internal",
 ];
 
-/// Validates whether a given domain name is a valid apex domain that can be registered.
+/// Validates whether a given name is a valid apex name that can be registered.
 ///
 /// Enforces standard DNS LDH (Letters, Digits, Hyphen) rules, total/label length limits,
 /// apex structure, and Category 1/2 reservation checks.
@@ -66,10 +66,10 @@ pub const PUBLIC_NAMES: &[&str] = &[
 /// # Errors
 ///
 /// - Returns [`crate::error::NamesError::InvalidTLD`] if the name does not end with the network TLD suffix.
-/// - Returns [`crate::error::NamesError::NameTooLong`] if the total domain length exceeds 253 characters or is empty.
+/// - Returns [`crate::error::NamesError::NameTooLong`] if the total name length exceeds 253 characters or is empty.
 /// - Returns [`crate::error::NamesError::LabelTooLong`] if any individual dot-separated label exceeds 63 characters.
 /// - Returns [`crate::error::NamesError::InvalidCharacter`] if a label contains non-LDH characters or invalid hyphen/digit placements.
-/// - Returns [`crate::error::NamesError::NotAnApexDomain`] if the input is a subdomain (e.g. `blog.example.kin`) instead of an apex domain (`example.kin`).
+/// - Returns [`crate::error::NamesError::NotAnApexName`] if the input is a subdomain (e.g. `blog.example.kin`) instead of an apex name (`example.kin`).
 /// - Returns [`crate::error::NamesError::ReservedName`] if the label matches a Category 1 public utility name.
 /// - Returns [`crate::error::NamesError::InfrastructureName`] if the label is a locked Category 2 network infrastructure name.
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
@@ -105,9 +105,9 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
         }
     }
 
-    let apex = extract_apex_domain(&norm);
+    let apex = extract_apex_name(&norm);
     if norm != apex {
-        return Err(crate::error::NamesError::NotAnApexDomain);
+        return Err(crate::error::NamesError::NotAnApexName);
     }
 
     // Ensure the registered label is not a Category 1 reserved public utility name.
@@ -123,8 +123,8 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     Ok(())
 }
 
-/// Extracts the apex domain (e.g., `example.kin`) from a subdomain string (e.g., `blog.example.kin`).
-pub fn extract_apex_domain(name: &str) -> String {
+/// Extracts the apex name (e.g., `example.kin`) from a subdomain string (e.g., `blog.example.kin`).
+pub fn extract_apex_name(name: &str) -> String {
     let norm = normalize_name(name);
 
     let parts: Vec<&str> = norm.split('.').collect();
@@ -174,7 +174,7 @@ mod tests {
 
         assert_eq!(
             is_valid_apex_name(&format!("{}{}", "blog.saifmukhtar", crate::constants::TLD_SUFFIX)),
-            Err(crate::error::NamesError::NotAnApexDomain)
+            Err(crate::error::NamesError::NotAnApexName)
         );
         assert_eq!(
             is_valid_apex_name(&format!("{}{}", "saifmukhtar_123", crate::constants::TLD_SUFFIX)),
@@ -209,17 +209,17 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_apex_domain() {
+    fn test_extract_apex_name() {
         assert_eq!(
-            extract_apex_domain(&format!("{}{}", "blog.saifmukhtar", crate::constants::TLD_SUFFIX)),
+            extract_apex_name(&format!("{}{}", "blog.saifmukhtar", crate::constants::TLD_SUFFIX)),
             format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)
         );
         assert_eq!(
-            extract_apex_domain(&format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)),
+            extract_apex_name(&format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)),
             format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)
         );
         assert_eq!(
-            extract_apex_domain(&format!(
+            extract_apex_name(&format!(
                 "{}{}",
                 "api.v1.saifmukhtar",
                 crate::constants::TLD_SUFFIX
@@ -246,7 +246,7 @@ mod names_tests {
         );
         assert_eq!(
             is_valid_apex_name("subdomain.explorer.kin"),
-            Err(crate::error::NamesError::NotAnApexDomain)
+            Err(crate::error::NamesError::NotAnApexName)
         );
 
         // These should be accepted (Category 3/normal names)
@@ -269,7 +269,7 @@ mod proptests {
 
         #[test]
         fn doesnt_crash_extract_apex(s in any::<String>()) {
-            let _ = extract_apex_domain(&s);
+            let _ = extract_apex_name(&s);
         }
 
         #[test]

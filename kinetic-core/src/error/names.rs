@@ -38,9 +38,9 @@ pub enum NamesError {
     #[error("Name has an invalid Top-Level Domain")]
     InvalidTLD,
 
-    /// The name is a subdomain, but the operation requires an apex domain.
-    #[error("Only apex domains are allowed (subdomains must be managed by the apex owner)")]
-    NotAnApexDomain,
+    /// The name is a subdomain, but the operation requires an apex name.
+    #[error("Only apex names are allowed (subdomains must be managed by the apex owner)")]
+    NotAnApexName,
 }
 
 impl NamesError {
@@ -53,7 +53,7 @@ impl NamesError {
             Self::ReservedName => "KIN-NAM-004",
             Self::InfrastructureName => "KIN-NAM-005",
             Self::InvalidTLD => "KIN-NAM-006",
-            Self::NotAnApexDomain => "KIN-NAM-007",
+            Self::NotAnApexName => "KIN-NAM-007",
         }
     }
 
@@ -76,13 +76,13 @@ impl NamesError {
     pub fn user_message(&self) -> String {
         match self {
             Self::NameTooLong => {
-                "The domain name is empty or exceeds the 253-character limit.".to_string()
+                "The name is empty or exceeds the 253-character limit.".to_string()
             }
             Self::LabelTooLong => {
-                "A label within the domain exceeds the 63-character limit.".to_string()
+                "A label within the name exceeds the 63-character limit.".to_string()
             }
             Self::InvalidCharacter => {
-                "The domain name contains invalid characters. Only lowercase letters, digits, and internal hyphens are allowed.".to_string()
+                "The name contains invalid characters. Only lowercase letters, digits, and internal hyphens are allowed.".to_string()
             }
             Self::ReservedName => {
                 "This name is a permanently protected public utility name.".to_string()
@@ -91,10 +91,10 @@ impl NamesError {
                 "This name is reserved for critical network infrastructure.".to_string()
             }
             Self::InvalidTLD => {
-                "The domain name does not end with a valid network TLD.".to_string()
+                "The name does not end with a valid network TLD.".to_string()
             }
-            Self::NotAnApexDomain => {
-                "Only apex domain names (e.g. 'example.kin') can be registered directly.".to_string()
+            Self::NotAnApexName => {
+                "Only apex names (e.g. 'example.kin') can be registered directly.".to_string()
             }
         }
     }

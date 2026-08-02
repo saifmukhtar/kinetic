@@ -137,7 +137,7 @@ mod tests {
         let dummy_key = libp2p::kad::RecordKey::new(&[0u8; 32]);
         let existing_record = libp2p::kad::Record::new(dummy_key, vec![]);
 
-        let record = kinetic_core::types::DomainRecord::Standard(Box::new(reveal));
+        let record = kinetic_core::types::NameRecord::Standard(Box::new(reveal));
         let res = verify_authorized_kid(
             &auth_kid,
             Some(&record),

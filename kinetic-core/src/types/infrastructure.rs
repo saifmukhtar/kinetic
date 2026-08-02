@@ -33,7 +33,7 @@ pub const INFRASTRUCTURE_NAMES: &[&str] = &[
 /// `true` if the apex label is in the [`INFRASTRUCTURE_NAMES`] list, `false` otherwise.
 pub fn is_infrastructure_name(name: &str) -> bool {
     let norm = crate::types::names::normalize_name(name);
-    let apex = crate::types::names::extract_apex_domain(&norm);
+    let apex = crate::types::names::extract_apex_name(&norm);
     let parts: Vec<&str> = apex.split('.').collect();
     if !parts.is_empty() {
         INFRASTRUCTURE_NAMES.contains(&parts[0])

@@ -128,8 +128,8 @@ pub struct ApiState {
 /// Payload for publishing a direct reveal configuration.
 #[derive(Deserialize, Debug)]
 pub struct PublishRequest {
-    /// The DomainRecord object to publish.
-    pub record: kinetic_core::types::DomainRecord,
+    /// The NameRecord object to publish.
+    pub record: kinetic_core::types::NameRecord,
 }
 
 /// Response format for a publish action.

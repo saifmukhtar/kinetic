@@ -112,7 +112,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
-        assert!(body_str.contains("Invalid domain name"));
+        assert!(body_str.contains("Invalid name"));
     }
 
     #[tokio::test]
@@ -148,7 +148,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
-        assert!(body_str.contains("Invalid domain name"));
+        assert!(body_str.contains("Invalid name"));
     }
 
     #[tokio::test]

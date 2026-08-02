@@ -128,7 +128,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
         Ok(Some(payload_bytes)) => {
             info!("Successfully resolved .kin from Cache/DHT");
 
-            match serde_json::from_slice::<kinetic_core::types::DomainRecord>(&payload_bytes) {
+            match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload_bytes) {
                 Ok(domain_record) => {
                     if domain_record
                         .verify_signature(kinetic_core::constants::NETWORK_ID)
@@ -396,7 +396,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                         Err(e) => warn!("Payload was not a valid DnsZone: {}", e),
                     }
                 }
-                Err(e) => warn!("Payload was not a valid DomainRecord: {}", e),
+                Err(e) => warn!("Payload was not a valid NameRecord: {}", e),
             }
         }
         Ok(None) => warn!("No payload found for .kin query (NXDOMAIN cached)"),

@@ -11,6 +11,6 @@ fn main() {
         "pubkey": [],
         "signature": []
     });
-    let record: Result<kinetic_core::types::DomainRecord, _> = serde_json::from_value(json);
+    let record: Result<kinetic_core::types::NameRecord, _> = serde_json::from_value(json);
     println!("{:?}", record);
 }

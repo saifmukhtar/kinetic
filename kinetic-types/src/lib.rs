@@ -9,7 +9,7 @@
 //!
 //! - [`clock`]: Branded time hierarchy ([`KineticTime`](clock::KineticTime)) based on Drand rounds (Pulses, Cycles, Epochs, Orbits).
 //! - [`dns`]: DNS zone definitions, record variants (`A`, `AAAA`, `CNAME`, `TXT`, `PeerId`, `KID`, `IPFS`), and P2P routing records.
-//! - [`domain`]: Domain records ([`DomainRecord`](domain::DomainRecord)), heartbeat liveness proofs ([`Heartbeat`](domain::Heartbeat)), and signature verification.
+//! - [`name_record`]: Name records ([`NameRecord`](name_record::NameRecord)), heartbeat liveness proofs ([`Heartbeat`](name_record::Heartbeat)), and signature verification.
 //! - [`error`]: Common error taxonomy metadata and severity classifications ([`Severity`](error::Severity)).
 //! - [`governance`]: Governance actions, signed proposal containers ([`SignedGovernanceMessage`](governance::SignedGovernanceMessage)), binary opcodes, and parser error types.
 //! - [`identity`]: Key Identifier ([`AuthorizedKid`](identity::AuthorizedKid)) and capability manifest attachments ([`AuthorizedManifest`](identity::AuthorizedManifest)) with replay protection.
@@ -18,7 +18,7 @@
 
 pub mod clock;
 pub mod dns;
-pub mod domain;
+pub mod name_record;
 pub mod error;
 pub mod governance;
 pub mod identity;

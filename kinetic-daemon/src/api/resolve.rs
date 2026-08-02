@@ -19,16 +19,16 @@ use tracing::info;
 pub async fn handle_resolve_name(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<kinetic_core::types::DomainRecord>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<kinetic_core::types::NameRecord>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     match state.network.resolve_redundant_payload(&fqdn).await {
         Ok(payload) => {
-            match serde_json::from_slice::<kinetic_core::types::DomainRecord>(&payload) {
+            match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
                 Ok(record) => Ok(Json(record)),
                 Err(_) => Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({"error": "Invalid DomainRecord payload on DHT"})),
+                    Json(serde_json::json!({"error": "Invalid NameRecord payload on DHT"})),
                 )),
             }
         }
@@ -38,7 +38,7 @@ pub async fn handle_resolve_name(
             let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
             match state.storage.get(reveal_key.as_bytes()) {
                 Ok(Some(bytes)) => {
-                    match serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes) {
+                    match serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
                         Ok(record) => {
                             tracing::info!("Recovered {} from local daemon storage backup!", fqdn);
                             Ok(Json(record))

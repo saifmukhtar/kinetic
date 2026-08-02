@@ -125,7 +125,7 @@ mod tests {
 
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::DomainRecord::Standard(Box::new(reveal)),
+            kinetic_core::types::NameRecord::Standard(Box::new(reveal)),
         );
 
         // Set existing pulse to 200

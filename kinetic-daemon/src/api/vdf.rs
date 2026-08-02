@@ -445,7 +445,7 @@ pub async fn handle_vdf_renew(
                 return;
             }
         };
-        let old_record: kinetic_core::types::DomainRecord =
+        let old_record: kinetic_core::types::NameRecord =
             match serde_json::from_slice(&old_reveal_bytes) {
                 Ok(r) => r,
                 Err(e) => {
@@ -458,8 +458,8 @@ pub async fn handle_vdf_renew(
                 }
             };
         let old_reveal = match old_record {
-            kinetic_core::types::DomainRecord::Standard(r) => r,
-            kinetic_core::types::DomainRecord::Premium { .. } => {
+            kinetic_core::types::NameRecord::Standard(r) => r,
+            kinetic_core::types::NameRecord::Premium { .. } => {
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,

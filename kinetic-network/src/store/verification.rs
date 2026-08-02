@@ -490,7 +490,7 @@ pub(crate) fn verify_reveal(
 /// binding fails on first publication, or the update is not authorised by a prior key.
 pub(crate) fn verify_authorized_kid(
     auth_kid: &kinetic_core::types::AuthorizedKid,
-    active_record: Option<&kinetic_core::types::DomainRecord>,
+    active_record: Option<&kinetic_core::types::NameRecord>,
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {
@@ -586,7 +586,7 @@ pub(crate) fn verify_authorized_kid(
 /// the KID document is missing/invalid, or a version rollback is detected.
 pub(crate) fn verify_authorized_manifest(
     auth_manifest: &kinetic_core::types::AuthorizedManifest,
-    active_record: Option<&kinetic_core::types::DomainRecord>,
+    active_record: Option<&kinetic_core::types::NameRecord>,
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {

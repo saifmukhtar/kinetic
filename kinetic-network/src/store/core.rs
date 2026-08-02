@@ -29,7 +29,7 @@ pub struct KineticRecordStore {
     /// VDF Engine used for proof validation.
     pub vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     /// Cache of verified domain records.
-    pub reveals_by_name: LruCache<String, kinetic_core::types::DomainRecord>,
+    pub reveals_by_name: LruCache<String, kinetic_core::types::NameRecord>,
     /// The latest heartbeat pulse observed for each domain.
     pub last_heartbeats_by_name: HashMap<String, u64>,
 
@@ -83,11 +83,11 @@ impl KineticRecordStore {
                 }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if let Ok(record) =
-                    serde_json::from_slice::<kinetic_core::types::DomainRecord>(&val_bytes)
+                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&val_bytes)
                 {
                     let mut is_valid = false;
                     match &record {
-                        kinetic_core::types::DomainRecord::Standard(reveal) => {
+                        kinetic_core::types::NameRecord::Standard(reveal) => {
                             if let Ok(req) = super::verification::compute_required_iterations(
                                 reveal,
                                 initial_drand_round,
@@ -140,18 +140,18 @@ impl KineticRecordStore {
                                 }
                             }
                         }
-                        kinetic_core::types::DomainRecord::Premium { .. } => {
+                        kinetic_core::types::NameRecord::Premium { .. } => {
                             // Premium domains injected by governance are implicitly valid.
                             is_valid = true;
                         }
                     }
 
                     if is_valid {
-                        tracing::info!("[KRS restore] DomainRecord for {}", name);
+                        tracing::info!("[KRS restore] NameRecord for {}", name);
                         reveals_by_name.put(name, record);
                     } else {
                         tracing::warn!(
-                            "[KRS restore] Discarding invalid locally stored DomainRecord for {}",
+                            "[KRS restore] Discarding invalid locally stored NameRecord for {}",
                             name
                         );
                     }
@@ -229,7 +229,7 @@ impl KineticRecordStore {
 
         for (name, record) in &self.reveals_by_name {
             match record {
-                kinetic_core::types::DomainRecord::Standard(reveal) => {
+                kinetic_core::types::NameRecord::Standard(reveal) => {
                     let age = current_round.saturating_sub(reveal.drand_pulse);
                     if age > max_age_rounds {
                         expired_names.push(name.clone());
@@ -251,7 +251,7 @@ impl KineticRecordStore {
                         expired_names.push(name.clone());
                     }
                 }
-                kinetic_core::types::DomainRecord::Premium { .. } => {
+                kinetic_core::types::NameRecord::Premium { .. } => {
                     // Premium names do not expire via drand resquaring, and don't require heartbeats.
                     continue;
                 }
@@ -307,13 +307,13 @@ impl KineticRecordStore {
     pub(crate) fn get_record_with_fallback(
         &mut self,
         name: &str,
-    ) -> Option<kinetic_core::types::DomainRecord> {
+    ) -> Option<kinetic_core::types::NameRecord> {
         if let Some(r) = self.reveals_by_name.get(name) {
             return Some(r.clone());
         }
         let key = [crate::store::constants::KRS_REVEAL_PREFIX, name.as_bytes()].concat();
         if let Ok(Some(bytes)) = self.storage.get(&key) {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes)
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
             {
                 self.reveals_by_name.put(name.to_string(), record.clone());
                 return Some(record);
@@ -401,10 +401,10 @@ impl KineticRecordStore {
                     }
                 }
             } else if parsed.get("vdf_proof").is_some() || parsed.get("granted_at").is_some() {
-                match serde_json::from_value::<kinetic_core::types::DomainRecord>(parsed) {
+                match serde_json::from_value::<kinetic_core::types::NameRecord>(parsed) {
                     Ok(record) => {
                         tracing::debug!(
-                            "KineticRecordStore::put parsed DomainRecord for {}",
+                            "KineticRecordStore::put parsed NameRecord for {}",
                             record.name()
                         );
                         self.handle_record(&record, skip_reveal_verify)?;

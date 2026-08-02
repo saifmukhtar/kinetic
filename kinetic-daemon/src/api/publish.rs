@@ -35,7 +35,7 @@ pub async fn handle_publish(
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": format!("Invalid domain name: {}", e)})),
+            Json(serde_json::json!({"error": format!("Invalid name: {}", e)})),
         ));
     }
 
@@ -45,7 +45,7 @@ pub async fn handle_publish(
     // Premium domains bypass VDF staleness checks.
     let mut is_standard = false;
     let mut drand_pulse = 0;
-    if let kinetic_core::types::DomainRecord::Standard(ref mut reveal) = domain_record {
+    if let kinetic_core::types::NameRecord::Standard(ref mut reveal) = domain_record {
         reveal.name = fqdn.clone();
         if let Err(e) = reveal.validate() {
             return Err((
@@ -236,7 +236,7 @@ pub async fn handle_commit(
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": format!("Invalid domain name: {}", e)})),
+            Json(serde_json::json!({"error": format!("Invalid name: {}", e)})),
         ));
     }
 
@@ -356,7 +356,7 @@ pub async fn handle_publish_kid(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes)
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
             {
                 use ml_dsa::KeyInit;
                 if let Ok(pubkey) =
@@ -460,7 +460,7 @@ pub async fn handle_publish_manifest(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::DomainRecord>(&bytes)
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
             {
                 use ml_dsa::KeyInit;
                 if let Ok(pubkey) =
