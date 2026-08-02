@@ -5,8 +5,8 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use crate::error::{
-    DnsError, DrandError, GovernanceError, IdentityError, NetworkClientError, PublishError,
-    RegistrationError, ResolutionError, StorageError, VdfError,
+    DnsError, DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError,
+    PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -293,6 +293,23 @@ impl From<IdentityError> for ApiError {
             error_type: e.error_type_uri(),
             title: title.to_string(),
             status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<NamesError> for ApiError {
+    fn from(e: NamesError) -> Self {
+        // All NamesError variants are deterministic input validation failures — 400 Bad Request.
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: "Invalid Domain Name".to_string(),
+            status: 400,
             detail: e.user_message(),
             instance: None,
             code: e.code().to_string(),

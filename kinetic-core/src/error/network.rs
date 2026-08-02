@@ -13,8 +13,7 @@
 //! The `KineticStoreError` codes take precedence in external-facing API responses
 //! because they carry richer rejection context. This type is used internally within
 //! the event loop for command dispatch failures.
-//!
-//! `KineticStoreError`
+
 use super::Severity;
 use thiserror::Error;
 

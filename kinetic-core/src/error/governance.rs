@@ -27,8 +27,8 @@ pub enum GovernanceError {
     #[error("ROOT_PUBLIC_KEY_HEX is not configured. This is a fatal error.")]
     MissingRootKey,
 
-    /// A supplied public key byte slice is not exactly 32 bytes.
-    #[error("Key must be 32 bytes")]
+    /// A supplied public key byte slice does not match the required length (e.g. 1,952 bytes for ML-DSA-65).
+    #[error("Key length mismatch")]
     KeyLengthMismatch,
     /// The governance proposal timestamp is older than the allowed replay window.
     #[error("Governance action too old, replay rejected")]
@@ -102,7 +102,7 @@ impl GovernanceError {
         match self {
             Self::MissingRootKey => "The ROOT_PUBLIC_KEY_HEX environment variable is not set. This is a fatal configuration error.".to_string(),
 
-            Self::KeyLengthMismatch => "The provided cryptographic key is invalid. It must be exactly 32 bytes long.".to_string(),
+            Self::KeyLengthMismatch => "The provided cryptographic key length is invalid.".to_string(),
             Self::StaleProposal => "The proposed governance action is too old and has been rejected to prevent replay attacks.".to_string(),
             Self::TimelockNotExpired => "The governance action is still in its mandatory waiting period and cannot be executed yet.".to_string(),
 

@@ -4,9 +4,10 @@
 //! active [`GovernanceEngine`](crate::traits::GovernanceEngine) after signature verification:
 //! - [`GovernanceState::new`] — genesis state initialization
 //! - [`GovernanceState::hash_action`] — deterministic SHA-256 action hash derivation
-//! - [`GovernanceState::merge_signatures`] — threshold signature aggregation
 //! - [`GovernanceState::prune`] — stale proposal garbage collection
-//! - Key getters: `get_root_key`, `get_guard_key`, `is_council_member`
+//! - [`GovernanceState::get_root_key`] — root verification key retrieval
+//! - [`GovernanceState::verify_action`] — engine action verification
+//! - [`GovernanceState::execute_action`] — engine action execution
 
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -21,7 +22,6 @@ use crate::error::GovernanceError;
 ///
 /// # Errors
 ///
-/// - Returns [`GovernanceError::MissingRootKey`] if the root key hex string is unconfigured or invalid.
 /// - Returns [`GovernanceError::MissingRootKey`] if the root key hex string is unconfigured or invalid.
 /// - Returns [`GovernanceError::KeyLengthMismatch`] if a public key is not exactly 1,952 bytes.
 pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
