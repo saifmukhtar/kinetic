@@ -126,7 +126,7 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "drand_pulse": 100,
-                "drand_randomness": "0".repeat(64),
+                "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
@@ -163,7 +163,7 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "drand_pulse": 100,
-                "drand_randomness": "0".repeat(64),
+                "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
@@ -198,7 +198,7 @@ mod tests {
         // Mock current drand round to 10_000_000 (must be > RESQUARING_EPOCH_ROUNDS)
         let mock_pulse = kinetic_core::drand::DrandPulse {
             round: 10_000_000,
-            randomness: "0".repeat(64),
+            randomness: "0".repeat(192),
             signature: "0".repeat(192),
             is_from_cache: true,
             is_unavailable: false,
@@ -217,7 +217,7 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "drand_pulse": 100, // Very old
-                "drand_randomness": "0".repeat(64),
+                "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
@@ -258,7 +258,7 @@ mod tests {
             payload: vec![1, 2, 3],
             salt: [0; 32],
             drand_pulse: 100,
-            drand_randomness: "0".repeat(64),
+            drand_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],

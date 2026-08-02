@@ -2845,6 +2845,7 @@ dependencies = [
  "argon2",
  "base64 0.22.1",
  "bytes",
+ "drand-verify",
  "ed25519-dalek",
  "futures",
  "futures-timer",

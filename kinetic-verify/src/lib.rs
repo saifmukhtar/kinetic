@@ -44,11 +44,11 @@ fn default_protocol_version() -> u8 {
 pub struct PreviousProof {
     /// 32-byte salt used in the previous proof generation.
     pub salt: [u8; 32],
-    /// Drand round number associated with the previous proof.
+    /// Associated drand randomness round number from prior registration.
     pub drand_pulse: u64,
-    /// Hex-encoded drand randomness string.
-    pub drand_randomness: String,
-    /// Iteration count of the previous proof.
+    /// Hex-encoded drand BLS12-381 G2 signature from prior registration.
+    pub drand_signature: String,
+    /// Number of VDF iterations completed in prior registration.
     pub iterations: u64,
     /// Embedded VDF proof bytes.
     pub vdf_proof: VdfProof,
@@ -63,7 +63,7 @@ impl PreviousProof {
         let capacity = prefix.len()
             + 32 // salt
             + 8 // drand_pulse
-            + 4 + self.drand_randomness.len()
+            + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
             + 4 + self.signature.len();
@@ -73,8 +73,8 @@ impl PreviousProof {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.drand_randomness.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.drand_randomness.as_bytes());
+        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.drand_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 
@@ -93,7 +93,7 @@ impl PreviousProof {
         let capacity = prefix.len()
             + 32 // salt
             + 8 // drand_pulse
-            + 4 + self.drand_randomness.len()
+            + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len();
 
@@ -102,8 +102,8 @@ impl PreviousProof {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.drand_randomness.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.drand_randomness.as_bytes());
+        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.drand_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 
@@ -128,8 +128,8 @@ pub struct Reveal {
     pub salt: [u8; 32],
     /// Associated drand randomness round number.
     pub drand_pulse: u64,
-    /// Hex-encoded drand randomness seed string.
-    pub drand_randomness: String,
+    /// Hex-encoded drand BLS12-381 G2 signature from the League of Entropy.
+    pub drand_signature: String,
     /// Number of VDF iterations completed.
     pub iterations: u64,
     /// Evaluated VDF proof.
@@ -196,7 +196,7 @@ impl Reveal {
             + 4 + self.payload.len()
             + 32 // salt
             + 8 // drand_pulse
-            + 4 + self.drand_randomness.len()
+            + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
             + 4 + self.pubkey.len()
@@ -224,8 +224,8 @@ impl Reveal {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.drand_randomness.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.drand_randomness.as_bytes());
+        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.drand_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 

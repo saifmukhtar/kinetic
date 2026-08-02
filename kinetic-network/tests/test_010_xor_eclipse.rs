@@ -16,7 +16,7 @@ fn test_010_xor_eclipse() {
     let mut pulse_bytes = [0u8; 32];
     pulse_bytes[..8].copy_from_slice(&drand_pulse.to_be_bytes());
 
-    let drand_randomness = hex::encode(pulse_bytes);
+    let drand_signature = hex::encode(pulse_bytes);
 
     let name = "thisisaverylongnamethatisverycheap.kin";
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
@@ -38,7 +38,7 @@ fn test_010_xor_eclipse() {
     let mut real_reveal = Reveal {
         name: name.to_string(),
         salt: [0u8; 32],
-        drand_randomness: drand_randomness.clone(),
+        drand_signature: drand_signature.clone(),
         drand_pulse,
         iterations,
         vdf_proof: real_vdf_proof,

@@ -31,7 +31,7 @@ fn test_009_memory_store_bloat() {
             kinetic_core::types::DomainRecord::Standard(Box::new(Reveal {
                 name,
                 salt: [0; 32],
-                drand_randomness: String::new(),
+                drand_signature: String::new(),
                 drand_pulse: 100,
                 iterations: 100,
                 vdf_proof: kinetic_core::types::VdfProof {

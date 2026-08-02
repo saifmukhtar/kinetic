@@ -9,7 +9,7 @@ fn test_protocol_downgrade_prevention() {
         payload: vec![1, 2, 3],
         salt: [0u8; 32],
         drand_pulse: 100,
-        drand_randomness: "0".repeat(64),
+        drand_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![4, 5, 6],

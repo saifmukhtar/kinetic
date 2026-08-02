@@ -102,7 +102,7 @@ impl KineticRecordStore {
                                     {
                                         use kinetic_core::types::Commitment;
                                         use sha2::{Digest, Sha256};
-                                        let drand_rand = hex::decode(&reveal.drand_randomness)
+                                        let drand_rand = hex::decode(&reveal.drand_signature)
                                             .unwrap_or_else(|_| vec![0u8; 32]);
                                         let mut hasher = Sha256::new();
                                         hasher.update(reveal.name.as_bytes());

@@ -241,18 +241,48 @@ impl super::core::NetworkEventLoop {
                     use kinetic_core::traits::VdfEngine;
                     use kinetic_vdf::ChiaVdfEngine;
                     use sha2::{Digest, Sha256};
+                    use drand_verify::Pubkey;
 
-                    let drand_bytes = match hex::decode(&reveal.drand_randomness) {
+                    let drand_sig_bytes = match hex::decode(&reveal.drand_signature) {
                         Ok(b) => b,
                         Err(e) => {
                             tracing::warn!(
                                 error_code = "KIN-RES-003",
-                                "Skipping candidate: invalid drand_randomness hex: {}",
+                                "Skipping candidate: invalid drand_signature hex: {}",
                                 e
                             );
                             continue;
                         }
                     };
+
+                    if !dev_mode {
+                        let pubkey_bytes: [u8; 96] = match hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY) {
+                            Ok(b) => match b.try_into() {
+                                Ok(arr) => arr,
+                                Err(_) => continue,
+                            },
+                            Err(_) => continue,
+                        };
+
+                        let pk = match drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes) {
+                            Ok(p) => p,
+                            Err(_) => continue,
+                        };
+
+                        if !pk.verify(reveal.drand_pulse, &[], &drand_sig_bytes).unwrap_or(false) {
+                            tracing::warn!(
+                                error_code = "KIN-RES-011",
+                                "Skipping candidate: invalid drand BLS signature"
+                            );
+                            continue;
+                        }
+                    }
+
+                    let mut drand_hasher = Sha256::new();
+                    drand_hasher.update(&drand_sig_bytes);
+                    let mut drand_bytes = [0u8; 32];
+                    drand_bytes.copy_from_slice(&drand_hasher.finalize());
+
                     let mut hasher = Sha256::new();
                     hasher.update(reveal.name.as_bytes());
                     hasher.update(reveal.salt);
@@ -377,7 +407,7 @@ mod tests {
             payload: vec![],
             salt: [0u8; 32],
             drand_pulse: 0,
-            drand_randomness: "0".repeat(64),
+            drand_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,
             pubkey: vec![0; 1952],

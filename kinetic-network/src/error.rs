@@ -52,7 +52,7 @@ pub enum KineticStoreError {
     #[error("unknown record type prefix")]
     UnknownRecordType,
     /// Drand hex randomness could not be decoded.
-    #[error("drand_randomness field contains invalid hex")]
+    #[error("drand_signature field contains invalid hex")]
     InvalidDrandHex,
     /// Finding 8: heartbeat pulse was not strictly greater than the stored value.
     #[error("stale heartbeat: received pulse is not newer than existing record")]

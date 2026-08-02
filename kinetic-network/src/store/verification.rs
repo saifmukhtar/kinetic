@@ -132,18 +132,42 @@ pub(crate) fn compute_required_iterations(
 
     use kinetic_core::types::Commitment;
     use sha2::{Digest, Sha256};
+    use drand_verify::Pubkey;
 
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
 
-    let _drand_rand = hex::decode(&reveal.drand_randomness).map_err(|_| {
+    let drand_sig_bytes = hex::decode(&reveal.drand_signature).map_err(|_| {
         let err = KineticStoreError::InvalidDrandHex;
         err.log_warning(
             "KIN-STORE-028",
             &reveal.name,
-            "Rejecting Kademlia Reveal: Invalid Drand hex",
+            "Rejecting Kademlia Reveal: Invalid Drand signature hex",
         );
         err
     })?;
+
+    if !kinetic_core::config::is_dev_mode() {
+        let pubkey_bytes: [u8; 96] = hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY)
+            .map_err(|_| KineticStoreError::InvalidDrandHex)?
+            .try_into()
+            .map_err(|_| KineticStoreError::InvalidDrandHex)?;
+
+        let pk = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
+            .map_err(|_| KineticStoreError::InvalidDrandHex)?;
+
+        if !pk
+            .verify(reveal.drand_pulse, &[], &drand_sig_bytes)
+            .unwrap_or(false)
+        {
+            let err = KineticStoreError::InvalidDrandHex; // Or introduce InvalidDrandSignature
+            err.log_warning(
+                "KIN-STORE-030",
+                &reveal.name,
+                "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
+            );
+            return Err(err);
+        }
+    }
 
     let base_required_iterations = consensus_math.required_iterations(&reveal.name);
     let required_iterations = if let Some(prev) = &reveal.previous_proof {
@@ -151,15 +175,44 @@ pub(crate) fn compute_required_iterations(
         let mut prev_hasher = Sha256::new();
         prev_hasher.update(reveal.name.as_bytes());
         prev_hasher.update(prev.salt);
-        let prev_drand_rand = hex::decode(&prev.drand_randomness).map_err(|_| {
+        let prev_drand_sig_bytes = hex::decode(&prev.drand_signature).map_err(|_| {
             let err = KineticStoreError::InvalidDrandHex;
             err.log_warning(
                 "KIN-STORE-028",
                 &reveal.name,
-                "Rejecting Kademlia Reveal: Previous record has invalid Drand hex",
+                "Rejecting Kademlia Reveal: Previous record has invalid Drand signature hex",
             );
             err
         })?;
+
+        if !kinetic_core::config::is_dev_mode() {
+            let pubkey_bytes: [u8; 96] = hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY)
+                .map_err(|_| KineticStoreError::InvalidDrandHex)?
+                .try_into()
+                .map_err(|_| KineticStoreError::InvalidDrandHex)?;
+
+            let pk = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
+                .map_err(|_| KineticStoreError::InvalidDrandHex)?;
+
+            if !pk
+                .verify(prev.drand_pulse, &[], &prev_drand_sig_bytes)
+                .unwrap_or(false)
+            {
+                let err = KineticStoreError::InvalidDrandHex;
+                err.log_warning(
+                    "KIN-STORE-030",
+                    &reveal.name,
+                    "Rejecting Kademlia Reveal: Previous record has invalid Drand BLS signature",
+                );
+                return Err(err);
+            }
+        }
+
+        let mut drand_hasher = Sha256::new();
+        drand_hasher.update(&prev_drand_sig_bytes);
+        let mut prev_drand_rand = [0u8; 32];
+        prev_drand_rand.copy_from_slice(&drand_hasher.finalize());
+
         prev_hasher.update(&prev_drand_rand);
         prev_hasher.update(&reveal.pubkey);
         let mut prev_hash = [0u8; 32];
@@ -267,6 +320,7 @@ pub(crate) fn verify_reveal(
 
     use kinetic_core::types::Commitment;
     use sha2::{Digest, Sha256};
+    use drand_verify::Pubkey;
 
     let dev_mode = kinetic_core::config::is_dev_mode();
 
@@ -284,15 +338,44 @@ pub(crate) fn verify_reveal(
         return Err(err);
     }
 
-    let drand_rand = hex::decode(&reveal.drand_randomness).map_err(|_| {
+    let drand_sig_bytes = hex::decode(&reveal.drand_signature).map_err(|_| {
         let err = KineticStoreError::InvalidDrandHex;
         err.log_warning(
             "KIN-STORE-028",
             &reveal.name,
-            "Rejecting Kademlia Reveal: Invalid Drand Randomness Hex",
+            "Rejecting Kademlia Reveal: Invalid Drand Signature Hex",
         );
         err
     })?;
+
+    if !dev_mode {
+        let pubkey_bytes: [u8; 96] = hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY)
+            .map_err(|_| KineticStoreError::InvalidDrandHex)?
+            .try_into()
+            .map_err(|_| KineticStoreError::InvalidDrandHex)?;
+
+        let pk = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
+            .map_err(|_| KineticStoreError::InvalidDrandHex)?;
+
+        if !pk
+            .verify(reveal.drand_pulse, &[], &drand_sig_bytes)
+            .unwrap_or(false)
+        {
+            let err = KineticStoreError::InvalidDrandHex;
+            err.log_warning(
+                "KIN-STORE-030",
+                &reveal.name,
+                "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
+            );
+            return Err(err);
+        }
+    }
+
+    let mut drand_hasher = Sha256::new();
+    drand_hasher.update(&drand_sig_bytes);
+    let mut drand_rand = [0u8; 32];
+    drand_rand.copy_from_slice(&drand_hasher.finalize());
+
     let mut hasher = Sha256::new();
     hasher.update(reveal.name.as_bytes());
     hasher.update(reveal.salt);

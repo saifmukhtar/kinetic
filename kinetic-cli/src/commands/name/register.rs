@@ -52,17 +52,20 @@ pub async fn handle(
     let mut salt = [0u8; 32];
     getrandom::fill(&mut salt).expect("Failed to generate random salt");
 
-    let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
-
-    // Construct commitment: H(name || salt || drand_randomness || pubkey)
+    // Construct commitment: H(name || salt || drand_signature || pubkey)
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path.to_string_lossy())?;
     let pubkey = keypair.verifying_key().to_bytes();
+    
+    let mut drand_hasher = sha2::Sha256::new();
+    drand_hasher.update(&hex::decode(&drand_data.signature).unwrap());
+    let mut drand_rand = [0u8; 32];
+    drand_rand.copy_from_slice(&drand_hasher.finalize());
 
     let mut hasher = sha2::Sha256::new();
     hasher.update(fqdn.as_bytes());
     hasher.update(salt);
-    hasher.update(&challenge_bytes);
+    hasher.update(&drand_rand);
     hasher.update(pubkey);
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&hasher.finalize());
@@ -288,7 +291,7 @@ pub async fn handle(
         payload,
         salt,
         drand_pulse: drand_data.round,
-        drand_randomness: drand_data.randomness.clone(),
+        drand_signature: drand_data.signature.clone(),
         iterations: actual_iterations,
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: proof.proof_bytes,

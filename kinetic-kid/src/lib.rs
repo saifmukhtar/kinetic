@@ -54,8 +54,8 @@ mod tests {
 
     #[test]
     fn test_did_parsing() {
-        assert!(KineticDid::new(&format!("did:kin:{}", "0".repeat(64))).is_ok());
-        assert!(KineticDid::new(&format!("did:example:{}", "0".repeat(64))).is_err());
+        assert!(KineticDid::new(&format!("did:kin:{}", "0".repeat(192))).is_ok());
+        assert!(KineticDid::new(&format!("did:example:{}", "0".repeat(192))).is_err());
         assert!(KineticDid::new("did:kin:").is_err());
     }
 

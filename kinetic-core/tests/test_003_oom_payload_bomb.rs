@@ -14,7 +14,7 @@ fn test_003_oom_payload_bomb() {
         payload: oversized_payload,
         salt: [0u8; 32],
         drand_pulse: 100,
-        drand_randomness: "random".to_string(),
+        drand_signature: "random".to_string(),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],

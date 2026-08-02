@@ -9,7 +9,7 @@ fn test_subdomain_hijack_validation() {
         payload: vec![],
         salt: [0; 32],
         drand_pulse: 1000,
-        drand_randomness: "0".repeat(64),
+        drand_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],
@@ -31,7 +31,7 @@ fn test_subdomain_hijack_validation() {
         payload: vec![],
         salt: [0; 32],
         drand_pulse: 1000,
-        drand_randomness: "0".repeat(64),
+        drand_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],

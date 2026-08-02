@@ -79,7 +79,7 @@ mod tests {
             payload: vec![],
             salt: [0u8; 32],
             drand_pulse: 100,
-            drand_randomness: String::new(),
+            drand_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
                 proof_bytes: vec![],

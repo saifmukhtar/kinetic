@@ -146,7 +146,7 @@ pub fn start_republisher(
                                     let mut hasher = sha2::Sha256::new();
                                     hasher.update(reveal.name.as_bytes());
                                     hasher.update(reveal.salt);
-                                    if let Ok(drand_rand) = hex::decode(&reveal.drand_randomness) {
+                                    if let Ok(drand_rand) = hex::decode(&reveal.drand_signature) {
                                         hasher.update(&drand_rand);
                                         hasher.update(&reveal.pubkey);
                                         let mut hash = [0u8; 32];

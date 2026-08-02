@@ -5,7 +5,7 @@ fn main() {
         "payload": [],
         "salt": vec![0; 32],
         "drand_pulse": 0,
-        "drand_randomness": "0".repeat(64),
+        "drand_signature": "0".repeat(192),
         "iterations": 1,
         "vdf_proof": { "proof_bytes": [] },
         "pubkey": [],

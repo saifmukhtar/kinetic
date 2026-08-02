@@ -157,13 +157,16 @@ pub async fn handle_vdf_register(
             );
             return;
         }
-        let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
+        let mut drand_hasher = sha2::Sha256::new();
+        drand_hasher.update(&hex::decode(&drand_data.signature).unwrap());
+        let mut drand_rand = [0u8; 32];
+        drand_rand.copy_from_slice(&drand_hasher.finalize());
 
         use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
         hasher.update(fqdn.as_bytes());
         hasher.update(salt);
-        hasher.update(&challenge_bytes);
+        hasher.update(&drand_rand);
         hasher.update(pubkey);
         let mut hash = [0u8; 32];
         hash.copy_from_slice(&hasher.finalize());
@@ -278,7 +281,7 @@ pub async fn handle_vdf_register(
             payload,
             salt,
             drand_pulse: drand_data.round,
-            drand_randomness: drand_data.randomness.clone(),
+            drand_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
@@ -502,13 +505,16 @@ pub async fn handle_vdf_renew(
             );
             return;
         }
-        let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
+        let mut drand_hasher = sha2::Sha256::new();
+        drand_hasher.update(&hex::decode(&drand_data.signature).unwrap());
+        let mut drand_rand = [0u8; 32];
+        drand_rand.copy_from_slice(&drand_hasher.finalize());
 
         use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
         hasher.update(fqdn.as_bytes());
         hasher.update(salt);
-        hasher.update(&challenge_bytes);
+        hasher.update(&drand_rand);
         hasher.update(pubkey);
         let mut hash = [0u8; 32];
         hash.copy_from_slice(&hasher.finalize());
@@ -601,7 +607,7 @@ pub async fn handle_vdf_renew(
         let previous_proof = kinetic_core::types::PreviousProof {
             salt: old_reveal.salt,
             drand_pulse: old_reveal.drand_pulse,
-            drand_randomness: old_reveal.drand_randomness.clone(),
+            drand_signature: old_reveal.drand_signature.clone(),
             iterations: old_reveal.iterations,
             vdf_proof: old_reveal.vdf_proof.clone(),
             signature: old_reveal.signature.clone(),
@@ -613,7 +619,7 @@ pub async fn handle_vdf_renew(
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
             drand_pulse: drand_data.round,
-            drand_randomness: drand_data.randomness.clone(),
+            drand_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,

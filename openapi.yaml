@@ -92,7 +92,7 @@ components:
             type: integer
         drand_pulse:
           type: integer
-        drand_randomness:
+        drand_signature:
           type: string
         iterations:
           type: integer
@@ -105,7 +105,7 @@ components:
       required:
         - salt
         - drand_pulse
-        - drand_randomness
+        - drand_signature
         - iterations
         - vdf_proof
         - signature
@@ -127,7 +127,7 @@ components:
             type: integer
         drand_pulse:
           type: integer
-        drand_randomness:
+        drand_signature:
           type: string
         iterations:
           type: integer
@@ -155,7 +155,7 @@ components:
         - payload
         - salt
         - drand_pulse
-        - drand_randomness
+        - drand_signature
         - iterations
         - vdf_proof
         - pubkey

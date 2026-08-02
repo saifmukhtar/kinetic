@@ -66,13 +66,16 @@ pub async fn handle(
     let mut salt = [0u8; 32];
     getrandom::fill(&mut salt).expect("Failed to generate random salt");
 
-    let challenge_bytes = hex::decode(&drand_data.randomness).unwrap_or_else(|_| vec![0u8; 32]);
+    let mut drand_hasher = sha2::Sha256::new();
+    drand_hasher.update(&hex::decode(&drand_data.signature).unwrap());
+    let mut drand_rand = [0u8; 32];
+    drand_rand.copy_from_slice(&drand_hasher.finalize());
 
     let mut hasher = sha2::Sha256::new();
     hasher.update(fqdn.as_bytes());
-    hasher.update(salt);
-    hasher.update(&challenge_bytes);
-    hasher.update(pubkey);
+    hasher.update(&salt);
+    hasher.update(&drand_rand);
+    hasher.update(&pubkey);
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&hasher.finalize());
     let challenge = Commitment { hash };
@@ -143,7 +146,7 @@ pub async fn handle(
     let mut previous_proof = kinetic_core::types::PreviousProof {
         salt: old_reveal.salt,
         drand_pulse: old_reveal.drand_pulse,
-        drand_randomness: old_reveal.drand_randomness.clone(),
+        drand_signature: old_reveal.drand_signature.clone(),
         iterations: old_reveal.iterations,
         vdf_proof: old_reveal.vdf_proof.clone(),
         signature: vec![],
@@ -159,7 +162,7 @@ pub async fn handle(
         payload: old_reveal.payload.clone(),
         salt,
         drand_pulse: drand_data.round,
-        drand_randomness: drand_data.randomness.clone(),
+        drand_signature: drand_data.signature.clone(),
         iterations: actual_iterations,
         vdf_proof,
         pubkey: pubkey.to_vec(),

@@ -41,10 +41,10 @@ impl RevealExt for Reveal {
             )));
         }
 
-        if self.drand_randomness.len() != 64 {
+        if self.drand_signature.len() != 192 {
             return Err(crate::error::KineticError::Internal(format!(
-                "Invalid drand_randomness length: expected 64, got {}",
-                self.drand_randomness.len()
+                "Invalid drand_signature length: expected 192, got {}",
+                self.drand_signature.len()
             )));
         }
 

@@ -36,7 +36,7 @@ mod tests {
                 payload,
                 salt: [0u8; 32],
                 drand_pulse: 1000,
-                drand_randomness: "".to_string(),
+                drand_signature: "".to_string(),
                 iterations: 100000,
                 vdf_proof: VdfProof {
                     proof_bytes: vec![],

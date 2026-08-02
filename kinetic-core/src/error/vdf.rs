@@ -11,7 +11,7 @@
 //!
 //! Kinetic uses a Wesolowski VDF (chiavdf library) where the challenge is derived
 //! from the Drand randomness at commitment time:
-//! `challenge = SHA-256(network_id || name || salt || drand_randomness_hex)`.
+//! `challenge = SHA-256(network_id || name || salt || drand_signature_hex)`.
 //!
 //! The VDF prover is serialized via a filesystem lock file to prevent parallel
 //! proof generation from exhausting CPU resources. [`VdfError::LockAcquireError`]

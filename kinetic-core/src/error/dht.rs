@@ -40,8 +40,8 @@ pub enum RecordRejectReason {
     /// The revealed data's hash does not match the stored commitment.
     #[error("commitment mismatch")]
     CommitmentMismatch,
-    /// The `drand_randomness` field contains non-hex characters.
-    #[error("drand_randomness contains invalid hex")]
+    /// The `drand_signature` field contains non-hex characters.
+    #[error("drand_signature contains invalid hex")]
     InvalidDrandHex,
     /// The public key bytes could not be parsed as a valid Ed25519 key.
     #[error("public key bytes are malformed")]

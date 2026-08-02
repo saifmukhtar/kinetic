@@ -19,7 +19,7 @@ use crate::types::{Commitment, VdfProof};
 ///
 /// The canonical implementation in `kinetic-vdf` wraps the `chiavdf` Wesolowski
 /// VDF library. The challenge is always a 32-byte SHA-256 hash derived from
-/// `network_id || name || salt || drand_randomness_hex`.
+/// `network_id || name || salt || drand_signature_hex`.
 pub trait VdfEngine: Send + Sync {
     /// Evaluates the VDF sequentially for the given number of iterations.
     ///
