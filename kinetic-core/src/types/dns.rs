@@ -3,78 +3,19 @@
 //! Handles standard DNS record types ([`A`](DnsRecord::A), [`AAAA`](DnsRecord::AAAA), [`CNAME`](DnsRecord::CNAME), [`TXT`](DnsRecord::TXT))
 //! as well as Kinetic-native decentralized record types ([`PeerId`](DnsRecord::PeerId), [`KID`](DnsRecord::KID), [`IPFS`](DnsRecord::IPFS)).
 
-use serde::{Deserialize, Serialize};
 
-/// Represents a DNS zone mapping subdomain labels to lists of [`DnsRecord`] entries.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct DnsZone {
-    /// HashMap mapping dot-separated labels (e.g. `"@"`, `"blog"`) to record vectors.
-    #[serde(default)]
-    pub records: std::collections::HashMap<String, Vec<DnsRecord>>,
+pub use kinetic_types::dns::{DnsRecord, DnsZone, HostRoutingRecord};
+
+/// Extension trait for DnsZone containing validation and parsing logic.
+pub trait DnsZoneExt: Sized {
+    /// Parses a raw JSON payload into a [`DnsZone`] and validates its structure.
+    fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError>;
+    
+    /// Validates all records within the DNS zone for structural correctness and network limits.
+    fn validate(&self) -> Result<(), crate::error::DnsError>;
 }
 
-/// Supported DNS record types and their associated payload values.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type", content = "value")]
-pub enum DnsRecord {
-    /// Standard IPv4 address record.
-    A(std::net::Ipv4Addr),
-    /// Standard IPv6 address record.
-    AAAA(std::net::Ipv6Addr),
-    /// Canonical Name alias pointing to another domain.
-    CNAME(String),
-    /// Text record (max 255 bytes).
-    TXT(String),
-    /// libp2p PeerId record pointing to a P2P node address.
-    PeerId(String),
-    /// Key Identifier DID document reference (must begin with `did:kin:`).
-    KID(String),
-    /// InterPlanetary File System (IPFS) Content Identifier (CID).
-    IPFS(String),
-}
-
-/// Host routing record mapping a host identifier to a P2P peer ID.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HostRoutingRecord {
-    /// Unique host identifier string.
-    pub host_id: String,
-    /// Currently assigned libp2p PeerId.
-    pub current_peer_id: String,
-    /// Unix timestamp of record creation.
-    pub timestamp: u64,
-    /// Owner signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
-    pub signature: Vec<u8>,
-}
-
-impl HostRoutingRecord {
-    /// Serializes the host routing record into length-prefixed bytes for signing.
-    ///
-    /// # Returns
-    ///
-    /// Concatenated byte vector prefixed with the network routing header string.
-    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
-        let prefix_suffix = b"-routing-v1";
-        let mut bytes = Vec::with_capacity(
-            network_id.len()
-                + prefix_suffix.len()
-                + 4
-                + self.host_id.len()
-                + 4
-                + self.current_peer_id.len()
-                + 8,
-        );
-        bytes.extend_from_slice(network_id.as_bytes());
-        bytes.extend_from_slice(prefix_suffix);
-        bytes.extend_from_slice(&(self.host_id.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.host_id.as_bytes());
-        bytes.extend_from_slice(&(self.current_peer_id.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.current_peer_id.as_bytes());
-        bytes.extend_from_slice(&self.timestamp.to_be_bytes());
-        bytes
-    }
-}
-
-impl DnsZone {
+impl DnsZoneExt for DnsZone {
     /// Parses a raw JSON payload into a [`DnsZone`] and validates its structure.
     ///
     /// Uses `serde_json`'s built-in recursion limit to prevent
@@ -84,7 +25,7 @@ impl DnsZone {
     ///
     /// - Returns `JsonError` if JSON deserialization fails.
     /// - Returns `DnsError` variants from `validate` if the logical payload validation rules fail.
-    pub fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError> {
+    fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError> {
         let mut zone = serde_json::from_slice::<DnsZone>(payload)?;
 
         let mut lower_records: std::collections::HashMap<String, Vec<DnsRecord>> =
@@ -111,7 +52,7 @@ impl DnsZone {
     /// - Returns [`DnsError::InvalidPeerId`](crate::error::DnsError::InvalidPeerId) if a `PeerId` string fails libp2p parsing.
     /// - Returns [`DnsError::InvalidKid`](crate::error::DnsError::InvalidKid) if a `KID` string does not begin with `did:kin:`.
     /// - Returns [`DnsError::InvalidIpfsCid`](crate::error::DnsError::InvalidIpfsCid) if an `IPFS` CID string is invalid.
-    pub fn validate(&self) -> Result<(), crate::error::DnsError> {
+    fn validate(&self) -> Result<(), crate::error::DnsError> {
         let total_records: usize = self.records.values().map(|vec| vec.len()).sum();
         if total_records > 50 {
             return Err(crate::error::DnsError::TooManyRecords);
@@ -176,6 +117,7 @@ impl DnsZone {
                             return Err(crate::error::DnsError::InvalidIpfsCid(cid.clone()));
                         }
                     }
+                    DnsRecord::Other => {}
                 }
             }
         }

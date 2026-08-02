@@ -80,10 +80,10 @@ impl GovernanceEngine for SovereignEngine {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_time_sec: u64,
+        _current_time_sec: u64,
     ) -> Option<GovernanceEffect> {
         let action_hash = GovernanceState::hash_action(msg);
-        state.executed_hashes.insert(action_hash, current_time_sec);
+        state.executed_hashes.insert(action_hash, msg.timestamp_sec);
 
         match &msg.action {
             GovernanceAction::GrantPremiumName {
@@ -114,7 +114,7 @@ impl GovernanceEngine for SovereignEngine {
                     state.total_paused_rounds =
                         state.total_paused_rounds.saturating_add(*paused_rounds);
                         
-                    let end_round = current_time_sec.saturating_sub(crate::constants::KINETIC_GENESIS_TIME) / 3;
+                    let end_round = msg.timestamp_sec.saturating_sub(crate::constants::KINETIC_GENESIS_TIME) / 3;
                     let start_round = end_round.saturating_sub(*paused_rounds);
                     state.pause_history.push((start_round, end_round));
                 }

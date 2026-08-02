@@ -57,6 +57,17 @@ pub fn is_ssrf_safe(ip: IpAddr) -> bool {
                 return false;
             }
 
+            // IPv4-Compatible IPv6 (::/96) - Deprecated but some kernels still route to loopback
+            if segments[0] == 0
+                && segments[1] == 0
+                && segments[2] == 0
+                && segments[3] == 0
+                && segments[4] == 0
+                && segments[5] == 0
+            {
+                return false;
+            }
+
             // Check for IPv4-mapped IPv6 address that wraps a dangerous v4
             if let Some(v4_mapped) = v6.to_ipv4_mapped() {
                 return is_ssrf_safe(IpAddr::V4(v4_mapped));
