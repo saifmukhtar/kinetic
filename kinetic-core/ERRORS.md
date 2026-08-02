@@ -12,17 +12,17 @@ https://kinetic.network/errors/KIN-XXX-NNN
 
 ## Table of Contents
 
-| Namespace | Domain | Error Type |
+| Namespace | Name | Error Type |
 |---|---|---|
-| [KIN-RES](#kin-res--dht-domain name-resolution) | DHT Name Resolution | `ResolutionError` |
+| [KIN-RES](#kin-res--dht-name-resolution) | DHT Name Resolution | `ResolutionError` |
 | [KIN-PUB](#kin-pub--dht-record-publishing) | DHT Record Publishing | `PublishError` |
-| [KIN-REG](#kin-reg--domain name-registration) | Name Registration Flow | `RegistrationError` |
+| [KIN-REG](#kin-reg--name-registration) | Name Registration Flow | `RegistrationError` |
 | [KIN-VDF](#kin-vdf--verifiable-delay-function) | VDF Engine | `VdfError` |
 | [KIN-GOV](#kin-gov--governance) | Council Governance | `GovernanceError` |
 | [KIN-DNS](#kin-dns--dns-zone-validation) | DNS Zone Parsing | `DnsError` |
 | [KIN-DRA](#kin-dra--drand-randomness-beacon) | Drand Beacon | `DrandError` |
 | [KIN-IDN](#kin-idn--node-identity) | Node Identity Keys | `IdentityError` |
-| [KIN-NAM](#kin-nam--domain-domain name-validation) | Name Validation | `NamesError` |
+| [KIN-NAM](#kin-nam--name-validation) | Name Validation | `NamesError` |
 | [KIN-STO](#kin-sto--local-storage) | Sled Storage Engine | `StorageError` |
 | [KIN-NET](#kin-net--p2p-network-client) | P2P Network Client | `NetworkClientError` |
 
@@ -30,7 +30,7 @@ https://kinetic.network/errors/KIN-XXX-NNN
 
 ## KIN-RES — DHT Name Resolution
 
-Errors produced during a DHT domain name lookup. These are returned when a node attempts to resolve a `.kin` domain name to its DNS zone or ownership record.
+Errors produced during a DHT name lookup. These are returned when a node attempts to resolve a `.kin` name to its DNS zone or ownership record.
 
 **Retryable variants:** `KIN-RES-001`, `KIN-RES-005`
 
@@ -67,14 +67,14 @@ Errors produced during a DHT domain name lookup. These are returned when a node 
 | **HTTP Status** | `404 Not Found` |
 | **Retryable** | No |
 
-**What it is:** The queried `.kin` domain name was not found in the DHT after polling all available peers.
+**What it is:** The queried `.kin` name was not found in the DHT after polling all available peers.
 
-**Why it occurs:** The domain name has never been registered, the registration has been pruned because the owner stopped publishing heartbeats, or the domain name is simply not yet propagated to the queried peers.
+**Why it occurs:** The name has never been registered, the registration has been pruned because the owner stopped publishing heartbeats, or the name is simply not yet propagated to the queried peers.
 
-**What it means:** No authoritative record exists for this domain name in the network at this moment.
+**What it means:** No authoritative record exists for this name in the network at this moment.
 
 **Solution:**
-- Confirm the domain name is spelled correctly (including the `.kin` suffix).
+- Confirm the name is spelled correctly (including the `.kin` suffix).
 - Check that the owner's daemon is running and actively publishing heartbeat records.
 - Wait a few minutes and retry — DHT propagation can take time after a fresh registration.
 
@@ -89,7 +89,7 @@ Errors produced during a DHT domain name lookup. These are returned when a node 
 | **HTTP Status** | `422 Unprocessable Entity` |
 | **Retryable** | No |
 
-**What it is:** The domain name was found in the DHT but one or more records returned by peers failed Wesolowski VDF proof verification.
+**What it is:** The name was found in the DHT but one or more records returned by peers failed Wesolowski VDF proof verification.
 
 **Why it occurs:** A peer is serving a record with a forged or corrupted VDF proof. This can indicate a malicious peer attempting to inject a fraudulent record or serious data corruption in that peer's store.
 
@@ -97,7 +97,7 @@ Errors produced during a DHT domain name lookup. These are returned when a node 
 
 **Solution:**
 - Retry — the DHT query may hit different peers that return valid records on the next attempt.
-- If the problem persists, the domain name's registration may be genuinely corrupted at the network level. The legitimate owner should re-register.
+- If the problem persists, the name's registration may be genuinely corrupted at the network level. The legitimate owner should re-register.
 - Report the peer serving invalid proofs to the Kinetic Council if you can identify it.
 
 ---
@@ -111,15 +111,15 @@ Errors produced during a DHT domain name lookup. These are returned when a node 
 | **HTTP Status** | `410 Gone` |
 | **Retryable** | No |
 
-**What it is:** The domain name was found, but its registration has passed its validity window — the owner has not published a heartbeat record within the required number of drand rounds.
+**What it is:** The name was found, but its registration has passed its validity window — the owner has not published a heartbeat record within the required number of drand rounds.
 
-**Why it occurs:** The domain name's owner stopped running their daemon or stopped publishing heartbeats, causing the record to age beyond the `STEAL_TARGET_ROUNDS` threshold.
+**Why it occurs:** The name's owner stopped running their daemon or stopped publishing heartbeats, causing the record to age beyond the `STEAL_TARGET_ROUNDS` threshold.
 
-**What it means:** The domain name is expired and eligible for thermodynamic takeover by any other miner with a higher VDF iteration count.
+**What it means:** The name is expired and eligible for thermodynamic takeover by any other miner with a higher VDF iteration count.
 
-**Solution (owner):** Restart your Kinetic daemon immediately and ensure it stays online. Publish a fresh heartbeat to reset the expiry clock before someone else claims the domain name.
+**Solution (owner):** Restart your Kinetic daemon immediately and ensure it stays online. Publish a fresh heartbeat to reset the expiry clock before someone else claims the name.
 
-**Solution (resolver):** Treat the domain name as unresolvable for now. It may be re-registered by a new owner shortly.
+**Solution (resolver):** Treat the name as unresolvable for now. It may be re-registered by a new owner shortly.
 
 ---
 
@@ -134,7 +134,7 @@ Errors produced during a DHT domain name lookup. These are returned when a node 
 
 **What it is:** The DHT query did not return a result before the resolution deadline.
 
-**Why it occurs:** The network is congested, the domain name is stored on peers that are slow to respond, or the querying node is connected to a poor set of routing peers.
+**Why it occurs:** The network is congested, the name is stored on peers that are slow to respond, or the querying node is connected to a poor set of routing peers.
 
 **What it means:** The resolution attempt was abandoned without a definitive answer (neither found nor confirmed not-found).
 
@@ -218,13 +218,13 @@ Errors produced when pushing a record to the DHT. These occur after local VDF pr
 | **HTTP Status** | `409 Conflict` |
 | **Retryable** | No |
 
-**What it is:** The domain name being published is already owned by a different Ed25519 public key, and the new record's VDF iteration count is not high enough to displace it.
+**What it is:** The name being published is already owned by a different Ed25519 public key, and the new record's VDF iteration count is not high enough to displace it.
 
-**Why it occurs:** Someone else already registered this domain name with a sufficiently strong VDF proof.
+**Why it occurs:** Someone else already registered this name with a sufficiently strong VDF proof.
 
-**What it means:** The publish was blocked. You do not own this domain name.
+**What it means:** The publish was blocked. You do not own this name.
 
-**Solution:** Choose a different domain name. If you believe you are the legitimate owner (e.g. you are re-publishing with your own key), ensure you are using the correct signing key and that your iteration count meets or exceeds the current owner's.
+**Solution:** Choose a different name. If you believe you are the legitimate owner (e.g. you are re-publishing with your own key), ensure you are using the correct signing key and that your iteration count meets or exceeds the current owner's.
 
 ---
 
@@ -283,7 +283,7 @@ Errors produced when pushing a record to the DHT. These occur after local VDF pr
 
 ## KIN-REG — Name Registration
 
-Errors produced during the full two-phase commit → reveal domain name registration flow.
+Errors produced during the full two-phase commit → reveal name registration flow.
 
 **Retryable variants:** `KIN-REG-002`
 
@@ -298,13 +298,13 @@ Errors produced during the full two-phase commit → reveal domain name registra
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
 
-**What it is:** The submitted domain name contains characters or structure not permitted by Kinetic naming rules.
+**What it is:** The submitted name contains characters or structure not permitted by Kinetic naming rules.
 
-**Why it occurs:** The domain name contains uppercase letters, underscores, special characters, starts/ends with a hyphen, starts with a digit, is too long, or is a reserved/infrastructure domain name.
+**Why it occurs:** The name contains uppercase letters, underscores, special characters, starts/ends with a hyphen, starts with a digit, is too long, or is a reserved/infrastructure name.
 
-**What it means:** The domain name cannot be registered as-is.
+**What it means:** The name cannot be registered as-is.
 
-**Solution:** Use only lowercase letters (`a–z`), digits (`0–9`), and internal hyphens. The domain name must end with `.kin` and cannot be a subname (e.g. `blog.example.kin` is not registerable directly). See [KIN-NAM errors](#kin-nam--domain-domain name-validation) for specifics.
+**Solution:** Use only lowercase letters (`a–z`), digits (`0–9`), and internal hyphens. The name must end with `.kin` and cannot be a subname (e.g. `blog.example.kin` is not registerable directly). See [KIN-NAM errors](#kin-nam--name-validation) for specifics.
 
 ---
 
@@ -336,11 +336,11 @@ Errors produced during the full two-phase commit → reveal domain name registra
 | **HTTP Status** | `422 Unprocessable Entity` |
 | **Retryable** | No |
 
-**What it is:** The reveal data (domain name + salt + payload) does not hash to the same value as the previously stored commitment.
+**What it is:** The reveal data (name + salt + payload) does not hash to the same value as the previously stored commitment.
 
 **Why it occurs:** The reveal was constructed with different data than the commit — typically caused by a bug, a corrupted local commitment record, or an attempt to tamper with the registration.
 
-**What it means:** Protocol invariant violated: `SHA-256(domain name || salt || payload) ≠ stored_commitment_hash`.
+**What it means:** Protocol invariant violated: `SHA-256(name || salt || payload) ≠ stored_commitment_hash`.
 
 **Solution:** Start the registration process from scratch. Do not modify the commit payload between the commit and reveal phases.
 
@@ -355,13 +355,13 @@ Errors produced during the full two-phase commit → reveal domain name registra
 | **HTTP Status** | `409 Conflict` |
 | **Retryable** | No |
 
-**What it is:** The domain name was claimed by a different public key before this registration completed.
+**What it is:** The name was claimed by a different public key before this registration completed.
 
 **Why it occurs:** Another miner submitted a higher-iteration VDF proof during the time between your commit and your reveal.
 
-**What it means:** You lost the mining competition for this domain name.
+**What it means:** You lost the mining competition for this name.
 
-**Solution:** Choose a different domain name, or increase your VDF iteration count and try again. Higher iteration counts make your claim harder to displace.
+**Solution:** Choose a different name, or increase your VDF iteration count and try again. Higher iteration counts make your claim harder to displace.
 
 ---
 
@@ -374,11 +374,11 @@ Errors produced during the full two-phase commit → reveal domain name registra
 | **HTTP Status** | `409 Conflict` |
 | **Retryable** | No |
 
-**What it is:** A VDF registration task is already running for this domain name on this daemon instance.
+**What it is:** A VDF registration task is already running for this name on this daemon instance.
 
-**Why it occurs:** The daemon enforces a single concurrent registration per domain name to prevent CPU exhaustion.
+**Why it occurs:** The daemon enforces a single concurrent registration per name to prevent CPU exhaustion.
 
-**What it means:** You cannot start a second parallel registration for the same domain name.
+**What it means:** You cannot start a second parallel registration for the same name.
 
 **Solution:** Wait for the existing registration task to complete before starting a new one.
 
@@ -515,7 +515,7 @@ Errors from the VDF engine (`chiavdf` Wesolowski implementation). These occur du
 
 **Why it occurs:** Running on an unsupported architecture (e.g. 32-bit ARM, MIPS) or an OS without the required GMP/FLINT native library dependencies.
 
-**What it means:** The node cannot participate in domain name registration on this platform.
+**What it means:** The node cannot participate in name registration on this platform.
 
 **Solution:** Run the Kinetic daemon on a supported platform: `x86_64` or `aarch64` Linux/macOS with `chiavdf` native dependencies installed.
 
@@ -688,11 +688,11 @@ Errors from the council governance engine. These are returned when a `SignedGove
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
 
-**What it is:** A governance action attempted to grant or revoke premium status for a domain name that is not exactly 1 character long.
+**What it is:** A governance action attempted to grant or revoke premium status for a name that is not exactly 1 character long.
 
 **Why it occurs:** Premium single-character names (e.g. `a.kin`, `z.kin`) are a special governance-controlled category. Only 1-character apex labels qualify.
 
-**What it means:** The target domain name is not eligible for premium governance.
+**What it means:** The target name is not eligible for premium governance.
 
 **Solution:** Only 1-character labels (e.g. `x.kin`) can be granted or revoked as premium names via governance.
 
@@ -707,11 +707,11 @@ Errors from the council governance engine. These are returned when a `SignedGove
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
 
-**What it is:** A governance action attempted to grant or revoke infrastructure status for a domain name that is not in the Category 2 list.
+**What it is:** A governance action attempted to grant or revoke infrastructure status for a name that is not in the Category 2 list.
 
 **Why it occurs:** Infrastructure names are hardcoded (e.g., `seed.kin`, `api.kin`). Governance proposals cannot arbitrary assign infrastructure status to normal names.
 
-**What it means:** The target domain name is not eligible for Category 2 infrastructure status.
+**What it means:** The target name is not eligible for Category 2 infrastructure status.
 
 **Solution:** Only explicitly listed Category 2 labels (e.g. `seed.kin`, `docs.kin`) can be granted or revoked via this governance action.
 
@@ -818,11 +818,11 @@ Errors from DNS zone payload parsing and record validation. A DNS zone is the JS
 
 ---
 
-### KIN-DNS-006 — InvalidCdomain nameConfiguration
+### KIN-DNS-006 — InvalidCnameConfiguration
 
 | Field | Value |
 |---|---|
-| **Variant** | `DnsError::InvalidCdomain nameConfiguration` |
+| **Variant** | `DnsError::InvalidCnameConfiguration` |
 | **Severity** | Warning |
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
@@ -852,11 +852,11 @@ Errors from DNS zone payload parsing and record validation. A DNS zone is the JS
 
 ---
 
-### KIN-DNS-008 — InvalidCdomain nameTarget
+### KIN-DNS-008 — InvalidCnameTarget
 
 | Field | Value |
 |---|---|
-| **Variant** | `DnsError::InvalidCdomain nameTarget` |
+| **Variant** | `DnsError::InvalidCnameTarget` |
 | **Severity** | Warning |
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
@@ -1178,7 +1178,7 @@ Errors from loading, saving, and decrypting the ML-DSA-65 node identity key file
 
 ## KIN-NAM — Name Validation
 
-Errors from name structural validation. These are returned before any network operation when a submitted domain name violates Kinetic naming rules.
+Errors from name structural validation. These are returned before any network operation when a submitted name violates Kinetic naming rules.
 
 **Retryable variants:** None — all are deterministic input failures.
 
@@ -1197,7 +1197,7 @@ Errors from name structural validation. These are returned before any network op
 
 **Why it occurs:** RFC 1035 §2.3.4 defines a maximum of 253 characters for a fully-qualified name.
 
-**Solution:** Use a shorter domain name. The label before `.kin` must be at most 249 characters.
+**Solution:** Use a shorter name. The label before `.kin` must be at most 249 characters.
 
 ---
 
@@ -1227,7 +1227,7 @@ Errors from name structural validation. These are returned before any network op
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
 
-**What it is:** The domain name contains characters not permitted by the DNS LDH (Letters-Digits-Hyphens) rule, or has invalid hyphen/digit placement.
+**What it is:** The name contains characters not permitted by the DNS LDH (Letters-Digits-Hyphens) rule, or has invalid hyphen/digit placement.
 
 **Why it occurs:** Uppercase letters, underscores, special characters, names starting with a hyphen or digit, or names ending with a hyphen.
 
@@ -1244,7 +1244,7 @@ Errors from name structural validation. These are returned before any network op
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
 
-**What it is:** The domain name matches a Category 1 permanently reserved public utility domain name (RFC 2606 / RFC 6761).
+**What it is:** The name matches a Category 1 permanently reserved public utility name (RFC 2606 / RFC 6761).
 
 **Why it occurs:** Names like `localhost.kin`, `test.kin`, `example.kin`, `invalid.kin` etc. are permanently locked across the network.
 
@@ -1252,7 +1252,7 @@ Errors from name structural validation. These are returned before any network op
 
 **Reserved names include:** `test`, `example`, `invalid`, `localhost`, `local`, `onion`, `arpa`, `null`, `none`, `zero`, `corp`, `lan`, `internal`.
 
-**Solution:** Choose a different domain name.
+**Solution:** Choose a different name.
 
 ---
 
@@ -1265,7 +1265,7 @@ Errors from name structural validation. These are returned before any network op
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
 
-**What it is:** The domain name is a Category 2 Kinetic infrastructure domain name, locked for Council governance use only.
+**What it is:** The name is a Category 2 Kinetic infrastructure name, locked for Council governance use only.
 
 **Why it occurs:** Names representing critical network infrastructure are permanently protected from user mining.
 
@@ -1273,7 +1273,7 @@ Errors from name structural validation. These are returned before any network op
 
 **Infrastructure names include:** `seed`, `node`, `docs`, `dao`, `explorer`, `status`, `api`, `blog`, `rpc`.
 
-**Solution:** Choose a different domain name.
+**Solution:** Choose a different name.
 
 ---
 
@@ -1286,11 +1286,11 @@ Errors from name structural validation. These are returned before any network op
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
 
-**What it is:** The submitted domain name does not end with the `.kin` network TLD suffix.
+**What it is:** The submitted name does not end with the `.kin` network TLD suffix.
 
-**Why it occurs:** A domain name from another TLD (`.com`, `.eth`, `.crypto`) was submitted to the Kinetic API, or the `.kin` suffix was omitted.
+**Why it occurs:** A name from another TLD (`.com`, `.eth`, `.crypto`) was submitted to the Kinetic API, or the `.kin` suffix was omitted.
 
-**Solution:** Always append `.kin` to the domain name (e.g. `mydomain name.kin`).
+**Solution:** Always append `.kin` to the name (e.g. `myname.kin`).
 
 ---
 
@@ -1303,7 +1303,7 @@ Errors from name structural validation. These are returned before any network op
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
 
-**What it is:** The submitted domain name is a subname (e.g. `blog.example.kin`) rather than an apex name (`example.kin`).
+**What it is:** The submitted name is a subname (e.g. `blog.example.kin`) rather than an apex name (`example.kin`).
 
 **Why it occurs:** Only apex `.kin` domains are registered directly in the DHT. Subdomains are managed by the apex owner via their DNS zone.
 
