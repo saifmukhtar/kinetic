@@ -11,76 +11,9 @@
 //!
 //! The `{NETWORK_ID}` suffix prevents key collisions between different Kinetic TLD networks.
 
-use super::names::normalize_name;
-use crate::constants::M_REDUNDANCY;
-
-
-pub use kinetic_types::domain::DomainRecord;
-
-pub use kinetic_types::domain::Heartbeat;
-
-/// Derives the set of DHT storage keys for a given domain name.
-///
-/// Produces exactly [`M_REDUNDANCY`](crate::constants::M_REDUNDANCY) (32) distinct 32-byte keys
-/// via `SHA-256(name_bytes || [i] || "{NETWORK_ID}-dht-v1")` for `i in 0..32`.
-/// The name is normalized (lowercased, TLD-suffixed) before hashing.
-///
-/// The `{NETWORK_ID}` suffix ensures keys are unique per TLD network even if the same
-/// domain name exists on multiple Kinetic-derived networks.
-///
-/// # Returns
-///
-/// A `Vec<[u8; 32]>` of length 32, each element being a unique Kademlia DHT key.
-pub fn derive_storage_keys(name: &str, network_id: &str) -> Vec<[u8; 32]> {
-    use sha2::{Digest, Sha256};
-    let normalized = normalize_name(name);
-    let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
-
-    for i in 0..M_REDUNDANCY {
-        let mut hasher = Sha256::new();
-        hasher.update(normalized.as_bytes());
-        hasher.update([i]);
-        hasher.update(network_id.as_bytes());
-        hasher.update(b"-dht-v1");
-
-        let result = hasher.finalize();
-        let mut key = [0u8; 32];
-        key.copy_from_slice(&result);
-        keys.push(key);
-    }
-    keys
-}
-
-/// Derives the set of DHT heartbeat keys for a given domain name.
-///
-/// Produces exactly [`M_REDUNDANCY`](crate::constants::M_REDUNDANCY) (32) distinct 32-byte keys
-/// via `SHA-256("{NETWORK_ID}-hb-v1" || name_bytes || [i])` for `i in 0..32`.
-///
-/// Heartbeat keys are intentionally in a different namespace from storage keys
-/// (the prefix ordering differs) to prevent store/heartbeat key collisions.
-///
-/// # Returns
-///
-/// A `Vec<[u8; 32]>` of length 32, each element being a unique Kademlia heartbeat key.
-pub fn derive_heartbeat_keys(name: &str, network_id: &str) -> Vec<[u8; 32]> {
-    use sha2::{Digest, Sha256};
-    let normalized = normalize_name(name);
-    let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
-
-    for i in 0..M_REDUNDANCY {
-        let mut hasher = Sha256::new();
-        hasher.update(network_id.as_bytes());
-        hasher.update(b"-hb-v1");
-        hasher.update(normalized.as_bytes());
-        hasher.update([i]);
-
-        let result = hasher.finalize();
-        let mut key = [0u8; 32];
-        key.copy_from_slice(&result);
-        keys.push(key);
-    }
-    keys
-}
+pub use kinetic_types::domain::{
+    derive_heartbeat_keys, derive_storage_keys, DomainRecord, Heartbeat, M_REDUNDANCY,
+};
 
 #[cfg(test)]
 mod tests {

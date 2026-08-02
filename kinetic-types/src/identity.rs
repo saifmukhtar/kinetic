@@ -1,3 +1,19 @@
+//! Authorized Key Identifier (KID) documents and capability manifests.
+//!
+//! Provides the authorization containers binding decentralized identities (KIDs) and capability
+//! manifests to `.kin` domains.
+//!
+//! ## Cross-Network Replay Protection
+//!
+//! Every authorization payload prefixes serialized bytes with the unique `network_id` string:
+//! - [`AuthorizedKid::signable_bytes`] produces:
+//!   `{network_id}-auth-kid-v1` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
+//! - [`AuthorizedManifest::signable_bytes`] produces:
+//!   `{network_id}-auth-manifest-v1` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
+//!
+//! This deterministic framing guarantees that signatures generated for the production `.kin` network
+//! cannot be replayed on alternative or test networks (e.g. `.corp` or `.local`).
+
 use serde::{Deserialize, Serialize};
 
 /// Authorized Key Identifier (KID) document bound to a `.kin` domain.

@@ -1,13 +1,70 @@
+//! Verifiable Delay Function (VDF) commitments, proofs, reveals, and signature verification.
+//!
+//! Provides the core wire types for the Kinetic two-phase domain registration protocol:
+//!
+//! 1. **Phase 1 (Commitment)**: Submitting a blind SHA-256 [`Commitment`] hash to claim registration priority.
+//! 2. **Phase 2 (Reveal)**: Revealing domain metadata, salt, drand randomness, and the computed
+//!    [`VdfProof`] inside a [`Reveal`] structure verified with post-quantum ML-DSA-65 signatures.
+
+use crate::error::Severity;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, thiserror::Error)]
+/// Errors arising from ML-DSA-65 post-quantum signature verification on VDF reveal and domain payloads.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum VdfVerifyError {
-    #[error("Malformed public key")]
+    /// Provided public key bytes could not be parsed into a valid ML-DSA-65 verifying key.
+    #[error("Malformed ML-DSA-65 public key")]
     MalformedPublicKey,
-    #[error("Malformed signature")]
+    /// Signature byte slice does not conform to the ML-DSA-65 signature structure.
+    #[error("Malformed ML-DSA-65 signature bytes")]
     MalformedSignature,
-    #[error("Invalid signature")]
+    /// Cryptographic verification failed over the canonical signable bytes.
+    #[error("Invalid ML-DSA-65 post-quantum signature")]
     InvalidSignature,
+}
+
+impl VdfVerifyError {
+    /// Protocol error code following the Kinetic error taxonomy.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::MalformedPublicKey => "KIN-VDF-040",
+            Self::MalformedSignature => "KIN-VDF-041",
+            Self::InvalidSignature => "KIN-VDF-042",
+        }
+    }
+
+    /// Severity level for logging and telemetry.
+    pub fn severity(&self) -> Severity {
+        match self {
+            Self::MalformedPublicKey | Self::MalformedSignature => Severity::Warning,
+            Self::InvalidSignature => Severity::Error,
+        }
+    }
+
+    /// Whether this verification error can be retried without modifying inputs.
+    pub fn is_retryable(&self) -> bool {
+        false
+    }
+
+    /// Clean, user-facing error message suitable for frontend display.
+    pub fn user_message(&self) -> String {
+        match self {
+            Self::MalformedPublicKey => {
+                "The domain owner's ML-DSA-65 public key is corrupted or invalid.".to_string()
+            }
+            Self::MalformedSignature => {
+                "The ML-DSA-65 signature format is malformed.".to_string()
+            }
+            Self::InvalidSignature => {
+                "The post-quantum ownership signature failed cryptographic verification.".to_string()
+            }
+        }
+    }
+
+    /// RFC 7807 problem details type URI.
+    pub fn error_type_uri(&self) -> String {
+        format!("https://kinetic.network/errors/{}", self.code())
+    }
 }
 
 fn default_protocol_version() -> u8 {
@@ -57,6 +114,7 @@ pub struct PreviousProof {
 }
 
 impl PreviousProof {
+    /// Serializes the previous proof container into length-prefixed bytes for payload chaining.
     pub fn proof_bytes(&self, network_id: &str) -> Vec<u8> {
         let prefix_str = format!("{}-vdf-prev-v1", network_id);
         let prefix = prefix_str.as_bytes();
@@ -87,6 +145,7 @@ impl PreviousProof {
         bytes
     }
 
+    /// Serializes the fields of the previous proof that are covered by its signature.
     pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
         let prefix_str = format!("{}-vdf-prev-v1", network_id);
         let prefix = prefix_str.as_bytes();

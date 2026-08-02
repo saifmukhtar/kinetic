@@ -1,5 +1,22 @@
-//! Core governance data structures and canonical serialization.
-//! This module is standalone so it can be imported by offline air-gapped tools.
+//! Core governance data structures, action opcodes, and canonical binary serialization.
+//!
+//! Provides the data structures and binary parsing logic for privileged network actions
+//! on the Kinetic network. This module is self-contained so that offline, air-gapped
+//! key management and signing tools can construct, sign, and verify governance proposals
+//! without pulling in network dependencies.
+//!
+//! ## Action Opcodes
+//!
+//! | Opcode | Action Variant | Description |
+//! |---|---|---|
+//! | `0x0A` | [`GovernanceAction::GrantPremiumName`] | Grant a 1-character apex domain (Root key only) |
+//! | `0x0B` | [`GovernanceAction::RotateRootKey`] | Rotate network authority to a new ML-DSA-65 key |
+//! | `0x0C` | [`GovernanceAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
+//! | `0x0D` | [`GovernanceAction::EmergencyResume`] | Resume registrations and advance pause offset |
+//! | `0x0E` | [`GovernanceAction::RevokePremiumName`] | Revoke a previously granted 1-character apex domain |
+
+use crate::error::Severity;
+use thiserror::Error;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
 pub type Hash256 = [u8; 32];
@@ -104,27 +121,78 @@ impl SignedGovernanceMessage {
     }
 }
 
-use thiserror::Error;
-
-#[derive(Error, Debug, PartialEq, Eq)]
+/// Errors arising from canonical governance message parsing and validation.
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum GovernanceTypeError {
-    #[error("Buffer too small for parsing")]
+    /// Provided byte slice is shorter than the minimum expected header or field size.
+    #[error("Buffer too small for parsing governance payload")]
     BufferTooSmall,
-    #[error("Unknown governance opcode: {0}")]
+    /// Opcode byte does not match any recognized governance action.
+    #[error("Unknown governance opcode: 0x{0:02X}")]
     UnknownOpcode(u8),
-    #[error("Invalid UTF-8 in premium name string")]
+    /// Domain name string field contains invalid UTF-8 bytes.
+    #[error("Invalid UTF-8 sequence in premium name string")]
     InvalidUtf8,
-    #[error("Invalid pubkey length, expected 1952 bytes")]
+    /// Provided public key length does not match expected ML-DSA-65 parameter size.
+    #[error("Invalid public key length, expected 1952 bytes for ML-DSA-65")]
     InvalidPubkeyLength,
 }
 
+impl GovernanceTypeError {
+    /// Protocol error code following the Kinetic error taxonomy.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::BufferTooSmall => "KIN-GOV-030",
+            Self::UnknownOpcode(_) => "KIN-GOV-031",
+            Self::InvalidUtf8 => "KIN-GOV-032",
+            Self::InvalidPubkeyLength => "KIN-GOV-033",
+        }
+    }
+
+    /// Severity level for logging and telemetry.
+    pub fn severity(&self) -> Severity {
+        match self {
+            Self::BufferTooSmall | Self::InvalidUtf8 | Self::InvalidPubkeyLength => Severity::Warning,
+            Self::UnknownOpcode(_) => Severity::Error,
+        }
+    }
+
+    /// Whether this parsing error can be retried without modifying payload data.
+    pub fn is_retryable(&self) -> bool {
+        false
+    }
+
+    /// Clean, user-facing error message suitable for frontend display.
+    pub fn user_message(&self) -> String {
+        match self {
+            Self::BufferTooSmall => {
+                "The governance payload buffer is truncated or smaller than required.".to_string()
+            }
+            Self::UnknownOpcode(op) => {
+                format!("The governance action opcode (0x{op:02X}) is unrecognized by this protocol version.")
+            }
+            Self::InvalidUtf8 => {
+                "The governance proposal contains an invalid UTF-8 domain name label.".to_string()
+            }
+            Self::InvalidPubkeyLength => {
+                "The governance public key length does not match the ML-DSA-65 parameter size.".to_string()
+            }
+        }
+    }
+
+    /// RFC 7807 problem details type URI.
+    pub fn error_type_uri(&self) -> String {
+        format!("https://kinetic.network/errors/{}", self.code())
+    }
+}
+
 impl GovernanceAction {
-    /// Parses a GovernanceAction and the appended timestamp from a canonical byte slice.
+    /// Parses a [`GovernanceAction`] and its trailing timestamp from a canonical byte slice.
     ///
-    /// The canonical format expects:
+    /// The canonical binary format consists of:
     /// - 1 byte opcode
-    /// - Opcode-specific payload
-    /// - 8 bytes timestamp (u64 big-endian) at the very end
+    /// - Opcode-specific variable-length payload
+    /// - 8 bytes timestamp (`u64` big-endian) at the very end
     pub fn parse_canonical_payload(bytes: &[u8]) -> Result<(Self, u64), GovernanceTypeError> {
         if bytes.len() < 9 {
             // At least 1 byte opcode + 8 bytes timestamp
@@ -156,9 +224,6 @@ impl GovernanceAction {
                     .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
-                // Note: ML-DSA-65 public keys are 1952 bytes, but we allow parsing any trailing bytes as the pubkey.
-                // If strict validation is required, check length here.
-
                 GovernanceAction::GrantPremiumName {
                     name,
                     target_pubkey: pubkey_bytes.to_vec(),

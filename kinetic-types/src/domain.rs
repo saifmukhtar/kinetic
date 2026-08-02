@@ -1,3 +1,15 @@
+//! Domain records, ownership models, and heartbeat proofs.
+//!
+//! On the Kinetic network, domain ownership is structured into two distinct classes:
+//!
+//! 1. **Standard Domains** ([`DomainRecord::Standard`]): Registered trustlessly via Proof-of-Work
+//!    and Verifiable Delay Function (VDF) computation. Ownership is proven via the reveal record.
+//! 2. **Premium Domains** ([`DomainRecord::Premium`]): 1-character apex domains granted directly
+//!    by the Governance Root Authority key.
+//!
+//! To maintain active routing and prove domain liveness, owners periodically publish [`Heartbeat`]
+//! proofs signed with their ML-DSA-65 post-quantum private keys.
+
 use serde::{Deserialize, Serialize};
 
 /// Represents a heartbeat proof indicating that a `.kin` domain is actively maintained by its owner.
@@ -110,5 +122,95 @@ impl DomainRecord {
                     .map_err(|_| crate::vdf::VdfVerifyError::InvalidSignature)
             }
         }
+    }
+}
+
+/// Redundancy factor for DHT storage and heartbeat replication across the network.
+pub const M_REDUNDANCY: u8 = 32;
+
+/// Normalizes a given domain name string for consistent key derivation.
+/// Converts the name to lowercase and strips trailing dots.
+pub fn normalize_name(name: &str) -> String {
+    let mut norm = name.to_lowercase();
+    while norm.ends_with('.') {
+        norm.pop();
+    }
+    norm
+}
+
+/// Derives the set of DHT storage keys for a given domain name and network ID.
+///
+/// Produces exactly 32 distinct 32-byte keys via:
+/// `SHA-256(normalized_name || [i] || network_id || "-dht-v1")` for `i in 0..32`.
+pub fn derive_storage_keys(name: &str, network_id: &str) -> Vec<[u8; 32]> {
+    use sha2::{Digest, Sha256};
+    let normalized = normalize_name(name);
+    let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
+
+    for i in 0..M_REDUNDANCY {
+        let mut hasher = Sha256::new();
+        hasher.update(normalized.as_bytes());
+        hasher.update([i]);
+        hasher.update(network_id.as_bytes());
+        hasher.update(b"-dht-v1");
+
+        let result = hasher.finalize();
+        let mut key = [0u8; 32];
+        key.copy_from_slice(&result);
+        keys.push(key);
+    }
+    keys
+}
+
+/// Derives the set of DHT heartbeat keys for a given domain name and network ID.
+///
+/// Produces exactly 32 distinct 32-byte keys via:
+/// `SHA-256(network_id || "-hb-v1" || normalized_name || [i])` for `i in 0..32`.
+pub fn derive_heartbeat_keys(name: &str, network_id: &str) -> Vec<[u8; 32]> {
+    use sha2::{Digest, Sha256};
+    let normalized = normalize_name(name);
+    let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
+
+    for i in 0..M_REDUNDANCY {
+        let mut hasher = Sha256::new();
+        hasher.update(network_id.as_bytes());
+        hasher.update(b"-hb-v1");
+        hasher.update(normalized.as_bytes());
+        hasher.update([i]);
+
+        let result = hasher.finalize();
+        let mut key = [0u8; 32];
+        key.copy_from_slice(&result);
+        keys.push(key);
+    }
+    keys
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_derive_storage_keys_consistency() {
+        let keys1 = derive_storage_keys("mywebsite.kin", "kinetic-mainnet");
+        let keys2 = derive_storage_keys("MYWEBSITE.KIN.", "kinetic-mainnet");
+        assert_eq!(keys1.len(), 32);
+        assert_eq!(keys1, keys2);
+
+        // Ensure each index key is unique
+        for i in 0..keys1.len() {
+            for j in i + 1..keys1.len() {
+                assert_ne!(keys1[i], keys1[j]);
+            }
+        }
+    }
+
+    #[test]
+    fn test_derive_heartbeat_keys_consistency() {
+        let hb_keys = derive_heartbeat_keys("mywebsite.kin", "kinetic-mainnet");
+        let storage_keys = derive_storage_keys("mywebsite.kin", "kinetic-mainnet");
+        assert_eq!(hb_keys.len(), 32);
+        // Heartbeat keys must not collide with storage keys
+        assert_ne!(hb_keys, storage_keys);
     }
 }

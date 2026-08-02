@@ -1,3 +1,14 @@
+//! Kinetic Network Timekeeping & Branded Time Units.
+//!
+//! Provides branded time tracking for frontends, explorers, and node monitoring.
+//! The underlying consensus engine uses absolute Drand rounds, which this module
+//! translates into the official Kinetic time hierarchy:
+//!
+//! - **1 Pulse** = 1 Drand Round (3 seconds)
+//! - **1 Cycle** = 1,200 Pulses (1 Hour)
+//! - **1 Epoch** = 28,800 Pulses (1 Day / 24 Hours)
+//! - **1 Orbit** = 7 Epochs (1 Week / 7 Days / 201,600 Pulses)
+
 use serde::{Deserialize, Serialize};
 
 /// Represents a specific point in time on the Kinetic network using branded units.
