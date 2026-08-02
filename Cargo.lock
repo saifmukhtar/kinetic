@@ -1804,6 +1804,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "gossip_test"
+version = "0.1.0"
+
+[[package]]
 name = "group"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2856,6 +2860,7 @@ dependencies = [
  "kinetic-core",
  "kinetic-kid",
  "kinetic-storage",
+ "kinetic-types",
  "kinetic-vdf",
  "libp2p",
  "libp2p-stream 0.1.0-alpha.1",
@@ -2968,10 +2973,13 @@ version = "0.1.0"
 
 [[package]]
 name = "kinetic-types"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
+ "bytes",
+ "kinetic-kid",
  "ml-dsa",
  "serde",
+ "serde_bytes",
  "serde_json",
  "thiserror 1.0.69",
 ]
@@ -2993,8 +3001,9 @@ dependencies = [
 
 [[package]]
 name = "kinetic-verify"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
+ "kinetic-types",
  "ml-dsa",
  "serde",
  "serde_json",
