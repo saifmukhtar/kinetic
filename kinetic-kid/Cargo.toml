@@ -3,6 +3,8 @@ name = "kinetic-kid"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Kinetic Identity Document (KID) implementation for the Kinetic Network"
+repository = "https://github.com/kinetic-network/kinetic"
 
 [features]
 simulation = []
