@@ -90,7 +90,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_commit_invalid_apex_domain() {
+    async fn test_commit_invalid_apex_name() {
         let (app, _, _) = setup_test_app().await;
 
         let req_body = serde_json::json!({
@@ -116,7 +116,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_publish_invalid_apex_domain() {
+    async fn test_publish_invalid_apex_name() {
         let (app, _, _) = setup_test_app().await;
 
         let req_body = serde_json::json!({

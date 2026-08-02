@@ -1,4 +1,4 @@
-//! HTTP REST API handlers for resolving .kin domain names and Kinetic Identifiers (KIDs).
+//! HTTP REST API handlers for resolving .kin names and Kinetic Identifiers (KIDs).
 
 use super::*;
 use axum::{

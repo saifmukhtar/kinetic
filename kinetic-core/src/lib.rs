@@ -3,7 +3,7 @@
 //!
 //! The foundational shared kernel for the Kinetic decentralized naming network.
 //!
-//! `kinetic-core` contains the core domain models, protocol constants, cryptographic
+//! `kinetic-core` contains the core models, protocol constants, cryptographic
 //! state machines, error hierarchies, and common I/O utilities used across all Kinetic
 //! binaries and sub-crates.
 //!
@@ -49,7 +49,7 @@ pub mod request_id;
 pub mod shutdown;
 /// Core trait definitions: [`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine).
 pub mod traits;
-/// Shared wire-format types for P2P messages, DNS zones, and domain records.
+/// Shared wire-format types for P2P messages, DNS zones, and name records.
 pub mod types;
 #[cfg(not(target_arch = "wasm32"))]
 /// HTTP API error response wrapper ([`ApiError`](api_error::ApiError)) for Axum web handlers.
@@ -59,7 +59,7 @@ pub use api_error::ApiError;
 /// Primary protocol error taxonomy re-exported at crate root:
 /// - [`KineticError`]: Top-level unified error enum.
 /// - [`PublishError`]: Record publication failures (`KIN-PUB-*`).
-/// - [`RegistrationError`]: Domain registration failures (`KIN-REG-*`).
+/// - [`RegistrationError`]: Name registration failures (`KIN-REG-*`).
 /// - [`ResolutionError`]: DHT name resolution failures (`KIN-RES-*`).
 /// - [`RecordRejectReason`]: Storage engine rejection codes.
 /// - [`VdfRejectReason`]: VDF proof validation rejection reasons.

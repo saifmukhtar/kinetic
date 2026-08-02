@@ -28,7 +28,7 @@ pub async fn handle_proxy_request(
             return Ok(Response::builder()
                 .status(StatusCode::FORBIDDEN)
                 .body(axum::body::Body::from(format!(
-                    "Kinetic proxy only handles {} domains",
+                    "Kinetic proxy only handles {} names",
                     kinetic_core::constants::TLD_SUFFIX
                 )))
                 .unwrap_or_else(|_| {
@@ -85,7 +85,7 @@ pub async fn handle_proxy_request(
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
             .body(axum::body::Body::from(
-                "Only .kin domains are supported by this proxy",
+                "Only .kin names are supported by this proxy",
             ))
             .unwrap_or_else(|_| Response::new(axum::body::Body::from("Internal Proxy Error"))));
     }
@@ -105,7 +105,7 @@ pub async fn handle_proxy_request(
     }
 }
 
-/// Forwards an HTTP request directly to a backend service by resolving the `.kin` domain to an IP or PeerId.
+/// Forwards an HTTP request directly to a backend service by resolving the `.kin` name to an IP or PeerId.
 pub async fn forward_to_backend_direct(
     req: Request<Incoming>,
     domain: &str,

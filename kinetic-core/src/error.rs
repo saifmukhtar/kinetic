@@ -28,7 +28,7 @@
 //! | `KIN-DNS-NNN` | `DnsError` | DNS zone parsing |
 //! | `KIN-DRA-NNN` | `DrandError` | Drand beacon |
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
-//! | `KIN-NAM-NNN` | `NamesError` | Domain name validation |
+//! | `KIN-NAM-NNN` | `NamesError` | Name validation |
 //! | `KIN-STO-NNN` | `StorageError` | Sled storage engine |
 //! | `KIN-NET-NNN` | `NetworkClientError` + `KineticStoreError` | P2P network client and store layer |
 
@@ -44,7 +44,7 @@ pub mod drand;
 pub mod governance;
 /// Node identity and seed phrase error types.
 pub mod identity;
-/// Domain name validation error types (`KIN-NAM-NNN`).
+/// Name validation error types (`KIN-NAM-NNN`).
 pub mod names;
 /// libp2p network client error types.
 pub mod network;

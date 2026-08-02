@@ -19,7 +19,7 @@ pub enum IdentityCommands {
         kid: String,
         #[arg(long, default_value = "manifest.json")]
         manifest: String,
-        /// The domain name that owns this KID (e.g. saif.kin)
+        /// The name that owns this KID (e.g. saif.kin)
         #[arg(long)]
         name: String,
     },

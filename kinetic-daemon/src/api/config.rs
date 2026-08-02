@@ -1,4 +1,4 @@
-//! HTTP REST API endpoints for daemon configuration, node status, owned domains, and governance state.
+//! HTTP REST API endpoints for daemon configuration, node status, owned names, and governance state.
 
 use super::*;
 use axum::{

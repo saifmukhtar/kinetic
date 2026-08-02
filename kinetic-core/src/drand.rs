@@ -59,7 +59,7 @@ impl DrandPulse {
         }
     }
 
-    /// Returns `true` if this pulse is suitable for driving VDF domain registrations (must be live).
+    /// Returns `true` if this pulse is suitable for driving VDF name registrations (must be live).
     pub fn is_usable_for_registration(&self) -> bool {
         !self.is_unavailable && !self.is_from_cache
     }

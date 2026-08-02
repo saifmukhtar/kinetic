@@ -138,7 +138,7 @@ mod tests {
         // Pause happens between rounds 1000 and 1100 (100 rounds)
         state.pause_history.push((1000, 1100));
 
-        // Domain is registered AFTER the pause, at round 2000
+        // Name is registered AFTER the pause, at round 2000
         let target_pulse = 2000;
         
         // It should get 0 paused rounds back (fixing the double-granting flaw)
@@ -169,7 +169,7 @@ mod tests {
         // Pause 2: rounds 3000 to 3100 (100 rounds)
         state.pause_history.push((3000, 3100));
 
-        // Domain was registered before BOTH pauses, at round 500
+        // Name was registered before BOTH pauses, at round 500
         let target_pulse = 500;
 
         // They should get BOTH pauses credited (200 rounds)
@@ -182,7 +182,7 @@ mod tests {
         // Pause: rounds 1000 to 1100 (100 rounds)
         state.pause_history.push((1000, 1100));
 
-        // Domain was registered *during* the pause, at round 1050
+        // Name was registered *during* the pause, at round 1050
         let target_pulse = 1050;
 
         // They should only get the portion of the pause that happened AFTER they registered (50 rounds)

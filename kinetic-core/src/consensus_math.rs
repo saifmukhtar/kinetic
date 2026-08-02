@@ -37,7 +37,7 @@ impl ConsensusParams {
         crate::constants::BASE_ITERATIONS
     }
 
-    /// Calculates the required VDF iterations for a full `.kin` domain name.
+    /// Calculates the required VDF iterations for a full `.kin` name.
     ///
     /// Normalizes the name, extracts the apex label, and evaluates difficulty against the Squatter Cliff curve.
     ///
@@ -59,7 +59,7 @@ impl ConsensusParams {
         self.required_iterations_by_label(label)
     }
 
-    /// Calculates required VDF iterations for a raw domain label based on the Squatter Cliff curve.
+    /// Calculates required VDF iterations for a raw name label based on the Squatter Cliff curve.
     ///
     /// In dev mode (`is_dev_mode()`), returns a fixed low iteration count ([`DEV_MODE_ITERATIONS`](crate::constants::DEV_MODE_ITERATIONS)).
     pub fn required_iterations_by_label(&self, label: &str) -> u64 {
@@ -91,7 +91,7 @@ impl ConsensusParams {
         }
     }
 
-    /// Calculates the VDF iteration effort required to claim an idle domain.
+    /// Calculates the VDF iteration effort required to claim an idle name.
     ///
     /// Applies an inverse-square multiplier based on `rounds_idle`. As `rounds_idle` increases,
     /// the required effort decays down to the baseline `base_iterations`.

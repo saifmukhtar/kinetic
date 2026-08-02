@@ -118,7 +118,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     if !binary_found {
         let role_hint = if binary.ends_with("-daemon") {
             format!(
-                "manage {} domain names and run the local P2P proxy",
+                "manage {} names and run the local P2P proxy",
                 kinetic_core::constants::TLD_SUFFIX
             )
         } else if binary.ends_with("-host") {
@@ -138,7 +138,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
             )
         } else if binary.ends_with("-pac") {
             format!(
-                "manage system-wide automatic proxy configuration for {} domains",
+                "manage system-wide automatic proxy configuration for {} names",
                 kinetic_core::constants::TLD_SUFFIX
             )
         } else {

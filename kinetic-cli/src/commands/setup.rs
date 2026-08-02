@@ -42,7 +42,7 @@ pub async fn handle_setup_command(cmd: SetupCommand) -> anyhow::Result<()> {
     println!("\nNext Steps:");
     println!("  1. Start the Kinetic Daemon:   sudo systemctl start kinetic-daemon");
     println!("  2. Check your node status:     kinetic daemon status");
-    println!("  3. Register your .kin domain:  kinetic name register <name.kin>");
+    println!("  3. Register your .kin name:  kinetic name register <name.kin>");
     println!("\nFor documentation, visit https://kinetic.saifmukhtar.dev");
     println!("========================================================\n");
 
@@ -175,14 +175,14 @@ fn setup_firefox() -> anyhow::Result<()> {
 
         if injected > 0 {
             println!("🎉 Success! The Kinetic Root CA has been securely injected into {} Firefox profile(s).", injected);
-            println!("Firefox will now resolve .kin domains without security warnings.");
+            println!("Firefox will now resolve .kin names without security warnings.");
         } else {
             println!("⚠️ Found Firefox profiles, but none contained a cert9.db database.");
         }
     } else {
         println!("❌ Mozilla NSS tools are missing.\n");
         if cfg!(windows) {
-            println!("To enable Kinetic domains in Firefox, please open Firefox, go to");
+            println!("To enable Kinetic names in Firefox, please open Firefox, go to");
             println!("Settings -> Privacy & Security -> View Certificates -> Import");
             println!("and select the certificate located at:");
             println!("\n    {}\n", cert_path.display());

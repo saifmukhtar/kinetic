@@ -85,11 +85,11 @@ mod tests {
 
     #[test]
     fn test_parse_and_format_api_error_valid_json() {
-        let body = r#"{"type":"about:blank","title":"Bad Request","status":400,"detail":"Invalid domain format","code":"400","retryable":false,"request_id":"req-1234","details":null}"#;
+        let body = r#"{"type":"about:blank","title":"Bad Request","status":400,"detail":"Invalid name format","code":"400","retryable":false,"request_id":"req-1234","details":null}"#;
 
         let result =
             parse_and_format_api_error("Test Context", reqwest::StatusCode::BAD_REQUEST, body);
-        assert_eq!(result, "[400] Test Context: Invalid domain format");
+        assert_eq!(result, "[400] Test Context: Invalid name format");
     }
 
     #[test]

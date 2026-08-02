@@ -65,11 +65,11 @@ pub const KADEMLIA_PROVIDER_RECORD_TTL_SECS: u64 = 4 * 3600;
 /// The interval at which Kademlia provider records are republished in seconds (3 hours).
 pub const KADEMLIA_PUBLICATION_INTERVAL_SECS: u64 = 3 * 3600;
 
-/// Purpose domain string used in PBKDF2 for deriving ML-DSA-65 deterministic governance keys.
+/// Purpose string used in PBKDF2 for deriving ML-DSA-65 deterministic governance keys.
 pub const KINETIC_GOVERNANCE_KEY_PURPOSE: &str =
     concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_GOVERNANCE_KEY_v1_PQC");
 
-/// Prefix for storing registered `.kin` domains in local Sled/DB storage.
+/// Prefix for storing registered `.kin` names in local Sled/DB storage.
 /// Dynamically namespaced with `NETWORK_ID` to prevent cross-network key collisions.
 pub const DB_PREFIX_OWNED_NAMES: &[u8] =
     concat!("n:", env!("KINETIC_NETWORK_ID"), "_owned_names").as_bytes();

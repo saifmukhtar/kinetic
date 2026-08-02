@@ -10,7 +10,7 @@ use tracing::{error, info};
 ///
 /// # Errors
 ///
-/// Returns a tuple containing a `StatusCode` and an error JSON payload if the domain name is invalid,
+/// Returns a tuple containing a `StatusCode` and an error JSON payload if the name is invalid,
 /// the `Reveal` validation fails, or if publishing to the DHT fails.
 pub async fn handle_publish(
     axum::extract::Extension(role): axum::extract::Extension<Role>,

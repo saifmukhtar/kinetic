@@ -180,7 +180,7 @@ pub async fn handle(
     // 3. Construct the DnsZone and auto-generate/inherit KID
     let mut records = std::collections::HashMap::new();
 
-    // Check if this is a subdomain
+    // Check if this is a subname
     let base_name = if !name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
         format!("{}{}", name, kinetic_core::constants::TLD_SUFFIX)
     } else {
@@ -192,7 +192,7 @@ pub async fn handle(
 
     let base_kid_path = kid_dir.join(format!("{}.json", base_name));
     let kid_str = if base_kid_path.exists() {
-        // Subdomain inheriting base KID, or renewing base name
+        // Subname inheriting base KID, or renewing base name
         if let Ok(content) = std::fs::read_to_string(&base_kid_path) {
             if let Ok(doc) = serde_json::from_str::<kinetic_kid::document::KidDocument>(&content) {
                 assert!(doc

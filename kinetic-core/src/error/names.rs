@@ -5,13 +5,13 @@
 //!
 //! - **LDH rule** (RFC 5891): only lowercase letters, digits, and internal hyphens.
 //! - **Length limits**: total ≤253 chars; each label ≤63 chars (RFC 1035).
-//! - **Apex-only**: subdomains are managed by the apex owner, not the DHT directly.
+//! - **Apex-only**: subnames are managed by the apex owner, not the DHT directly.
 //! - **Category 1 reserved** (RFC 2606/6761): `localhost`, `test`, `example`, etc.
 //! - **Category 2 infrastructure**: `seed`, `explorer`, `docs`, etc. locked until Phase 2.
 use super::Severity;
 use thiserror::Error;
 
-/// Errors related to domain name validation and RFC reserved name checks.
+/// Errors related to name validation and RFC reserved name checks.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum NamesError {
     /// The name exceeds the 253 character limit or is completely empty.
@@ -38,8 +38,8 @@ pub enum NamesError {
     #[error("Name has an invalid Top-Level Domain")]
     InvalidTLD,
 
-    /// The name is a subdomain, but the operation requires an apex name.
-    #[error("Only apex names are allowed (subdomains must be managed by the apex owner)")]
+    /// The name is a subname, but the operation requires an apex name.
+    #[error("Only apex names are allowed (subnames must be managed by the apex owner)")]
     NotAnApexName,
 }
 

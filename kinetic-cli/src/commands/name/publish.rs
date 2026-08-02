@@ -105,7 +105,7 @@ pub async fn update_zone_logic(
 
 /// Handles publishing local zone configuration to the network.
 ///
-/// Reads the corresponding `zone.json` file for the given domain name
+/// Reads the corresponding `zone.json` file for the given name
 /// and calls `update_zone_logic` to submit it to the local daemon.
 ///
 /// # Errors

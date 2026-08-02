@@ -9,7 +9,7 @@
 //! ## Command groups
 //!
 //! - **`identity`** — Display the local node's Peer ID and network identity.
-//! - **`name`** — Register, renew, update, and transfer `.kin` domain names.
+//! - **`name`** — Register, renew, update, and transfer `.kin` names.
 //! - **`service`** — Install, uninstall, start, and stop the daemon as a system service.
 //! - **`setup`** — Interactive setup wizard for initial node configuration.
 //! - **`seed`** — Generate or restore the node's seed phrase identity.
