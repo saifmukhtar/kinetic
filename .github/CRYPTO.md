@@ -51,7 +51,7 @@ your scrutiny.
   omitted, so signing is deterministic and canonicalization-independent.
 - Controller key count is bounded (≤ 20).
 - **Invariants to keep:** (a) manifests must be bound to their KID *and* verified
-  against a controller key (not just the domain-owner key); (b) manifest `version`
+  against a controller key (not just the name-owner key); (b) manifest `version`
   must be monotonic and `valid_from` enforced to prevent rollback; (c) if
   `revocation_keys` are a feature, they must actually be enforced during verify.
  
@@ -60,7 +60,7 @@ your scrutiny.
 ## 4. Ephemeral Transport Identities (Ed25519)
  
 - Ephemeral Ed25519 keys are used strictly at the `libp2p` networking layer for Noise transport handshakes and Kademlia routing.
-- This isolates the underlying ML-DSA-65 post-quantum user identity: even if an attacker compromises a transient node's Ed25519 PeerID, they can **never** hijack `.kin` domains or forge KID capability signatures.
+- This isolates the underlying ML-DSA-65 post-quantum user identity: even if an attacker compromises a transient node's Ed25519 PeerID, they can **never** hijack `.kin` names or forge KID capability signatures.
  
 ---
  

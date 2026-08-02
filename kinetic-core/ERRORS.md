@@ -1294,11 +1294,11 @@ Errors from name structural validation. These are returned before any network op
 
 ---
 
-### KIN-NAM-007 — NotAnApexDomain
+### KIN-NAM-007 — NotAnApexName
 
 | Field | Value |
 |---|---|
-| **Variant** | `NamesError::NotAnApexDomain` |
+| **Variant** | `NamesError::NotAnApexName` |
 | **Severity** | Warning |
 | **HTTP Status** | `400 Bad Request` |
 | **Retryable** | No |
