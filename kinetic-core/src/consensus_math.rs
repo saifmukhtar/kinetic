@@ -34,7 +34,7 @@ impl Default for ConsensusParams {
 impl ConsensusParams {
     /// Returns the baseline hardware anchor iteration benchmark defined for the network.
     pub fn calculate_hardware_anchor(&self) -> u64 {
-        crate::constants::BENCHMARK_BASE_ITERATIONS
+        crate::constants::BASE_ITERATIONS
     }
 
     /// Calculates the required VDF iterations for a full `.kin` domain name.
@@ -69,7 +69,7 @@ impl ConsensusParams {
 
         let len = label.len();
         let base = self.calculate_hardware_anchor();
-        let tm = crate::constants::BENCHMARK_TARGET_MINUTES as u64;
+        let tm = crate::constants::TARGET_MINUTES as u64;
 
         let calc =
             |multiplier: u64| -> u64 { ((base as u128 * multiplier as u128) / tm as u128) as u64 };

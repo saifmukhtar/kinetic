@@ -59,7 +59,7 @@ fn main() {
     println!("\n=== BENCHMARK RESULTS ===");
     println!("Average iterations per minute: {}", avg);
 
-    let target_minutes = kinetic_core::constants::BENCHMARK_TARGET_MINUTES;
+    let target_minutes = kinetic_core::constants::TARGET_MINUTES;
     let target_iterations = (avg as f64 * target_minutes) as u64;
 
     println!(

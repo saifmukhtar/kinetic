@@ -104,8 +104,8 @@ pub async fn handle(
         .unwrap_or(&label);
 
     let expected_minutes = (actual_iterations as f64
-        / kinetic_core::constants::BENCHMARK_BASE_ITERATIONS as f64)
-        * kinetic_core::constants::BENCHMARK_TARGET_MINUTES;
+        / kinetic_core::constants::BASE_ITERATIONS as f64)
+        * kinetic_core::constants::TARGET_MINUTES;
     let time_str = if expected_minutes >= 1440.0 {
         format!("{:.1} days", expected_minutes / 1440.0)
     } else if expected_minutes >= 60.0 {

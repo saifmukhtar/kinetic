@@ -27,13 +27,13 @@ include!(concat!(env!("OUT_DIR"), "/network_constants.rs"));
 pub const POW_DIFFICULTY_BITS: u32 = 15;
 
 /// PBKDF2 iterations for wallet derived keys
-pub const CRYPTO_WALLET_PBKDF2_ITERATIONS: u32 = 600000;
+pub const WALLET_PBKDF2_ITERATIONS: u32 = 600000;
 
 /// PBKDF2 iterations for key generation
-pub const CRYPTO_KEYGEN_PBKDF2_ITERATIONS: u32 = 2048;
+pub const KEYGEN_PBKDF2_ITERATIONS: u32 = 2048;
 
 /// Argon2 memory cost in KB
-pub const CRYPTO_ARGON2_MEMORY_COST_KB: u32 = 16384;
+pub const ARGON2_MEMORY_COST_KB: u32 = 16384;
 
 // --- PRODUCTION KEYS ---
 /// Production keys
@@ -100,22 +100,22 @@ pub const GOSSIP_TOPIC_DRAND: &str = concat!("drand_pulse_", env!("KINETIC_NETWO
 // ============================================================================
 
 /// Environment variable string to override the data directory path (e.g. `KINETIC_MAINNET_DATA_DIR`).
-pub const ENV_KINETIC_DATA_DIR: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_DATA_DIR");
+pub const ENV_DATA_DIR: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_DATA_DIR");
 /// Environment variable string to override the `config.toml` path (e.g. `KINETIC_MAINNET_CONFIG_PATH`).
-pub const ENV_KINETIC_CONFIG_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_CONFIG_PATH");
+pub const ENV_CONFIG_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_CONFIG_PATH");
 /// Environment variable string to override the identity key file path (e.g. `KINETIC_MAINNET_KEY_PATH`).
-pub const ENV_KINETIC_KEY_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_KEY_PATH");
+pub const ENV_KEY_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_KEY_PATH");
 /// Environment variable string to override the P2P host listen port (e.g. `KINETIC_MAINNET_HOST_P2P_PORT`).
-pub const ENV_KINETIC_HOST_P2P_PORT: &str =
+pub const ENV_HOST_P2P_PORT: &str =
     concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_P2P_PORT");
 /// Environment variable string to override the backend proxy port for the host (e.g. `KINETIC_MAINNET_HOST_BACKEND_PORT`).
-pub const ENV_KINETIC_HOST_BACKEND_PORT: &str =
+pub const ENV_HOST_BACKEND_PORT: &str =
     concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_BACKEND_PORT");
 /// Environment variable string to override the backend proxy host IP (e.g. `KINETIC_MAINNET_HOST_BACKEND_HOST`).
-pub const ENV_KINETIC_HOST_BACKEND_HOST: &str =
+pub const ENV_HOST_BACKEND_HOST: &str =
     concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_BACKEND_HOST");
 /// Environment variable string to override the governance state file path (e.g. `KINETIC_MAINNET_GOVERNANCE_PATH`).
-pub const ENV_KINETIC_GOVERNANCE_PATH: &str =
+pub const ENV_GOVERNANCE_PATH: &str =
     concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_GOVERNANCE_PATH");
 
 #[cfg(test)]

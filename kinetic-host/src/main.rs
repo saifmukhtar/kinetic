@@ -158,7 +158,7 @@ async fn run_host() -> Result<()> {
         local_peer_id
     );
 
-    let p2p_port = std::env::var(kinetic_core::constants::ENV_KINETIC_HOST_P2P_PORT)
+    let p2p_port = std::env::var(kinetic_core::constants::ENV_HOST_P2P_PORT)
         .unwrap_or_else(|_| config.network.host_port.to_string())
         .parse::<u16>()
         .unwrap_or(config.network.host_port);
@@ -203,7 +203,7 @@ async fn run_host() -> Result<()> {
     let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_KINETIC_GOVERNANCE_PATH)
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| base_config_dir.join("governance.key"));
     let gov_state_path = std::sync::Arc::new(gov_state_path);
@@ -238,11 +238,11 @@ async fn run_host() -> Result<()> {
         gov_state_path.clone(),
     ));
 
-    let backend_port = std::env::var(kinetic_core::constants::ENV_KINETIC_HOST_BACKEND_PORT)
+    let backend_port = std::env::var(kinetic_core::constants::ENV_HOST_BACKEND_PORT)
         .unwrap_or_else(|_| "80".to_string())
         .parse::<u16>()
         .unwrap_or(80);
-    let backend_host = std::env::var(kinetic_core::constants::ENV_KINETIC_HOST_BACKEND_HOST)
+    let backend_host = std::env::var(kinetic_core::constants::ENV_HOST_BACKEND_HOST)
         .unwrap_or_else(|_| config.daemon.bind_ip.clone());
 
     tokio::spawn(proxy::handle_incoming_proxy_requests(

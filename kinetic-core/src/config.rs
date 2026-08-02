@@ -374,7 +374,7 @@ impl KineticConfig {
     /// "fail-open" security vulnerabilities where invalid configs silently degrade to insecure defaults.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load() -> Self {
-        let config_path = std::env::var(crate::constants::ENV_KINETIC_CONFIG_PATH)
+        let config_path = std::env::var(crate::constants::ENV_CONFIG_PATH)
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
@@ -419,7 +419,7 @@ impl KineticConfig {
     /// Returns [`std::io::Error`] if file creation, TOML serialization, or writing fails.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn save(&self) -> Result<(), std::io::Error> {
-        let config_path = std::env::var(crate::constants::ENV_KINETIC_CONFIG_PATH)
+        let config_path = std::env::var(crate::constants::ENV_CONFIG_PATH)
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
@@ -457,7 +457,7 @@ pub fn get_zones_dir() -> PathBuf {
 /// to ensure multiple network instances or forks coexist without disk collisions.
 /// Overrideable with the `KINETIC_DATA_DIR` environment variable.
 pub fn get_base_dir() -> PathBuf {
-    if let Ok(path) = std::env::var(crate::constants::ENV_KINETIC_DATA_DIR) {
+    if let Ok(path) = std::env::var(crate::constants::ENV_DATA_DIR) {
         return PathBuf::from(path);
     }
 

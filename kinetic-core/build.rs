@@ -150,13 +150,13 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Base hardware iteration anchor for the VDF. \n/// WARNING: If you want to connect to the global mainnet, you should NOT lower this much! \n/// It is carefully calibrated to prevent extreme spam across the global internet.\npub const BENCHMARK_BASE_ITERATIONS: u64 = {};\n\n",
+        "/// Base hardware iteration anchor for the VDF. \n/// WARNING: If you want to connect to the global mainnet, you should NOT lower this much! \n/// It is carefully calibrated to prevent extreme spam across the global internet.\npub const BASE_ITERATIONS: u64 = {};\n\n",
         config.advanced.benchmark_base_iterations
     ));
 
     let target_minutes = config.advanced.benchmark_target_minutes.unwrap_or(30.0);
     out.push_str(&format!(
-        "/// The physical time (in minutes) corresponding to the BENCHMARK_BASE_ITERATIONS.\npub const BENCHMARK_TARGET_MINUTES: f64 = {:.1};\n\n",
+        "/// The physical time (in minutes) corresponding to the BASE_ITERATIONS.\npub const TARGET_MINUTES: f64 = {:.1};\n\n",
         target_minutes
     ));
 

@@ -42,7 +42,7 @@ pub fn load_keypair(
     use std::fs;
     use std::path::PathBuf;
 
-    let key_path = std::env::var(crate::constants::ENV_KINETIC_KEY_PATH)
+    let key_path = std::env::var(crate::constants::ENV_KEY_PATH)
         .map(PathBuf::from)
         .unwrap_or_else(|_| crate::config::get_base_dir().join(filename));
 
@@ -184,7 +184,7 @@ pub fn save_keypair_from_mnemonic(
     seed.zeroize();
     derived.zeroize();
 
-    let key_path = std::env::var(crate::constants::ENV_KINETIC_KEY_PATH)
+    let key_path = std::env::var(crate::constants::ENV_KEY_PATH)
         .map(PathBuf::from)
         .unwrap_or_else(|_| crate::config::get_base_dir().join(filename));
 
@@ -281,7 +281,7 @@ mod tests {
 
         // 1. Not Found
         std::env::set_var(
-            crate::constants::ENV_KINETIC_KEY_PATH,
+            crate::constants::ENV_KEY_PATH,
             dir.path().join("missing.bin"),
         );
         let result = load_keypair("test.bin");
@@ -293,7 +293,7 @@ mod tests {
         // 2. Corrupted File
         let corrupt_path = dir.path().join("corrupted.bin");
         fs::write(&corrupt_path, b"too_short").unwrap();
-        std::env::set_var(crate::constants::ENV_KINETIC_KEY_PATH, &corrupt_path);
+        std::env::set_var(crate::constants::ENV_KEY_PATH, &corrupt_path);
         let result = load_keypair("test.bin");
         assert!(matches!(
             result,
@@ -313,7 +313,7 @@ mod tests {
 
         // 4. Successful Save and Load
         let valid_path = dir.path().join("valid_key.bin");
-        std::env::set_var(crate::constants::ENV_KINETIC_KEY_PATH, &valid_path);
+        std::env::set_var(crate::constants::ENV_KEY_PATH, &valid_path);
         let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
         let saved_key =
             save_keypair_from_mnemonic("test.bin", phrase, env!("KINETIC_NETWORK_ID")).unwrap();
@@ -364,6 +364,6 @@ mod tests {
         ));
 
         // Clean up env var
-        std::env::remove_var(crate::constants::ENV_KINETIC_KEY_PATH);
+        std::env::remove_var(crate::constants::ENV_KEY_PATH);
     }
 }
