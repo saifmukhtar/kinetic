@@ -106,10 +106,12 @@ impl super::core::NetworkEventLoop {
                     // the 64 KB payload plus Kademlia/protobuf network routing overhead.
                     .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
                     // Tighten provider records life for dynamic IPv6 / CGNAT rotations
-                    .set_provider_record_ttl(Some(std::time::Duration::from_secs(4 * 3600)))
+                    .set_provider_record_ttl(Some(std::time::Duration::from_secs(
+                        kinetic_core::constants::KADEMLIA_PROVIDER_RECORD_TTL_SECS,
+                    )))
                     // Re-publish records before the 4 hour TTL expires to prevent network dropouts
                     .set_provider_publication_interval(Some(std::time::Duration::from_secs(
-                        3 * 3600,
+                        kinetic_core::constants::KADEMLIA_PUBLICATION_INTERVAL_SECS,
                     )));
 
                 #[cfg(test)]

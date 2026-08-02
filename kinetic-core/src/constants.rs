@@ -55,8 +55,15 @@ pub mod test_keys {
 #[cfg(test)]
 pub use test_keys::*;
 // ============================================================================
-// 4. STORAGE & NETWORK PREFIXES
 // ============================================================================
+// 4. STORAGE & NETWORK PREFIXES & KADEMLIA CONSTANTS
+// ============================================================================
+
+/// The Time-To-Live (TTL) for Kademlia DHT provider records in seconds (4 hours).
+pub const KADEMLIA_PROVIDER_RECORD_TTL_SECS: u64 = 4 * 3600;
+
+/// The interval at which Kademlia provider records are republished in seconds (3 hours).
+pub const KADEMLIA_PUBLICATION_INTERVAL_SECS: u64 = 3 * 3600;
 
 /// Purpose domain string used in PBKDF2 for deriving ML-DSA-65 deterministic governance keys.
 pub const KINETIC_GOVERNANCE_KEY_PURPOSE: &str =
