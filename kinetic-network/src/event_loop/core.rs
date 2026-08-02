@@ -62,7 +62,14 @@ pub struct NetworkEventLoop {
             libp2p::request_response::ResponseChannel<crate::client::ProxyResponse>,
         )>,
     >,
-    pub(crate) gossip_tx: Option<tokio::sync::broadcast::Sender<(String, Vec<u8>)>>,
+    pub(crate) gossip_tx: Option<
+        tokio::sync::broadcast::Sender<(
+            String,
+            Vec<u8>,
+            libp2p::gossipsub::MessageId,
+            libp2p::PeerId,
+        )>,
+    >,
     pub(crate) bad_vdf_counts: lru::LruCache<PeerId, (u32, web_time::Instant)>,
     pub(crate) current_drand_pulse: u64,
     pub(crate) drand_pulse_rx: watch::Receiver<u64>,

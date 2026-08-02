@@ -1,6 +1,5 @@
 //! Type definitions and configuration structures for network client operations and P2P proxying.
 
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Errors that can occur during proxy request/response handling.
@@ -26,38 +25,7 @@ pub enum ProxyError {
     Other(std::borrow::Cow<'static, str>),
 }
 
-/// A request to be proxied to a remote node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProxyRequest {
-    /// The HTTP method (e.g. GET, POST).
-    pub method: std::sync::Arc<str>,
-    /// The request path.
-    pub path: std::sync::Arc<str>,
-    /// Key-value headers.
-    pub headers: Vec<(std::sync::Arc<str>, std::sync::Arc<str>)>,
-    /// Request body payload.
-    #[serde(with = "serde_bytes_wrapper")]
-    pub body: bytes::Bytes,
-}
-
-/// A response received from a proxy request.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProxyResponse {
-    /// The HTTP status code.
-    pub status: u16,
-    /// Key-value headers.
-    pub headers: Vec<(std::sync::Arc<str>, std::sync::Arc<str>)>,
-    /// Response body payload.
-    #[serde(with = "serde_bytes_wrapper")]
-    pub body: bytes::Bytes,
-}
-
-impl ProxyResponse {
-    /// Returns true if the status code is between 200 and 299.
-    pub fn is_success(&self) -> bool {
-        self.status >= 200 && self.status < 300
-    }
-}
+pub use kinetic_types::proxy::{ProxyRequest, ProxyResponse, serde_bytes_wrapper};
 
 /// The mode in which the network daemon operates.
 #[derive(Debug, Clone, PartialEq)]
@@ -95,32 +63,4 @@ pub struct NetworkConfig {
     pub lru_cache_size: std::num::NonZeroUsize,
 }
 
-pub(crate) mod serde_bytes_wrapper {
-    use bytes::Bytes;
-    use serde::{Deserializer, Serializer};
 
-    /// Serializes a `Bytes` instance efficiently.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the underlying `serde_bytes::serialize` fails.
-    pub fn serialize<S>(bytes: &Bytes, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serde_bytes::serialize(bytes.as_ref(), serializer)
-    }
-
-    /// Deserializes a `Bytes` instance efficiently.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the underlying `serde_bytes::deserialize` fails.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Bytes, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let b: Vec<u8> = serde_bytes::deserialize(deserializer)?;
-        Ok(Bytes::from(b))
-    }
-}

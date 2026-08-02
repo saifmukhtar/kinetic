@@ -182,11 +182,11 @@ impl super::core::NetworkEventLoop {
                 .into_iter()
                 .filter_map(|(p, parsed_payload)| {
                     if let ParsedPayload::HostRouting(record) = parsed_payload {
-                        if crate::store::verification::verify_host_routing_record(&record).is_err()
+                        if crate::store::verification::verify_host_routing_record(&record, current_pulse).is_err()
                         {
                             return None;
                         }
-                        Some((p, u64::MAX - record.timestamp)) // Sort by newest timestamp
+                        Some((p, u64::MAX - record.drand_pulse)) // Sort by newest drand_pulse
                     } else {
                         None
                     }

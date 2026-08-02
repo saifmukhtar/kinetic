@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
 use wasm_bindgen::prelude::*;
+use kinetic_core::types::DnsZoneExt;
 
 /// Configuration for a specific Kinetic network fork.
 #[wasm_bindgen(getter_with_clone)]
@@ -235,9 +236,8 @@ impl UniversalKineticNode {
         let tld = full_domain.split('.').next_back().unwrap_or(&full_domain);
         let client = self.get_or_spawn_swarm(tld).await?;
 
-        let key = format!("domain_{}", full_domain);
         let bytes = client
-            .resolve_redundant_payload(&key)
+            .resolve_redundant_payload(&full_domain)
             .await
             .map_err(|e| JsValue::from_str(&format!("Resolution failed: {}", e)))?;
 

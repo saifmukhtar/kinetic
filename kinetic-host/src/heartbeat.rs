@@ -12,6 +12,7 @@ pub async fn start_dynamic_routing_publisher(
     local_peer_id_str: Arc<RwLock<String>>,
     host_peer_id_str: String,
     publisher_client: NetworkClient,
+    drand_pulse_rx: watch::Receiver<u64>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     let Ok(ed_key) = publisher_host_key.try_into_ed25519() else {
@@ -27,10 +28,7 @@ pub async fn start_dynamic_routing_publisher(
     loop {
         interval.tick().await;
 
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        let drand_pulse = *drand_pulse_rx.borrow();
 
         let mut record = kinetic_core::types::HostRoutingRecord {
             host_id: host_peer_id_str.clone(),
@@ -38,7 +36,7 @@ pub async fn start_dynamic_routing_publisher(
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            timestamp,
+            drand_pulse,
             signature: vec![],
         };
 
@@ -74,7 +72,7 @@ pub async fn start_drand_heartbeat(
         kinetic_network::ProxyRequest,
         libp2p::request_response::ResponseChannel<kinetic_network::ProxyResponse>,
     )>,
-    hc_gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>)>,
+    hc_gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>, libp2p::gossipsub::MessageId, libp2p::PeerId)>,
     hc_vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(3));

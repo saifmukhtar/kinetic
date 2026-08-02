@@ -15,6 +15,7 @@ pub async fn handle_connect(
     leaf_cache: Arc<Mutex<LeafCertCache>>,
     network_client: Arc<NetworkClient>,
     config: Arc<kinetic_core::config::KineticConfig>,
+    node_peer_id: String,
 ) -> Result<(), ProxyError> {
     // 1. Get leaf cert for this domain (uses the full requested subdomain!)
     let server_config = {
@@ -33,8 +34,9 @@ pub async fn handle_connect(
         let nc = Arc::clone(&network_client);
         let d = apex_domain.clone();
         let config_clone = Arc::clone(&config);
+        let peer_id_clone = node_peer_id.clone();
         async move {
-            match forward_to_backend_direct(req, &d, &nc, config_clone).await {
+            match forward_to_backend_direct(req, &d, &nc, config_clone, &peer_id_clone).await {
                 Ok(resp) => Ok::<_, std::convert::Infallible>(resp),
                 Err(e) => {
                     warn!("Forwarding error: {}", e);

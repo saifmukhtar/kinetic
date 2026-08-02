@@ -15,45 +15,41 @@ use kinetic_core::types::RevealExt;
 /// # Arguments
 ///
 /// * `record` - The host routing record to be verified.
+/// * `current_drand_round` - The current global drand pulse round.
 ///
 /// # Errors
 ///
-/// * Returns `KineticStoreError::InvalidHostRouteSignature` if the timestamp is stale (older than 10 mins) or from the future.
+/// * Returns `KineticStoreError::InvalidHostRouteSignature` if the timestamp is stale (older than 100 rounds) or from the future.
 /// * Returns `KineticStoreError::InvalidPublicKey` if the `host_id` cannot be parsed as a valid `PeerId` containing an Ed25519 key.
 /// * Returns `KineticStoreError::MalformedSignature` if the signature bytes are structurally invalid.
 pub(crate) fn verify_host_routing_record(
     record: &kinetic_core::types::HostRoutingRecord,
+    current_drand_round: u64,
 ) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
-    // Enforce timestamp freshness — reject records older than 10 minutes,
-    // and reject records more than 5 minutes in the future to prevent pinning via u64::MAX timestamps.
-    let now = web_time::SystemTime::now()
-        .duration_since(web_time::UNIX_EPOCH)
-        .map_err(|_| KineticStoreError::InvalidHostRouteSignature)?
-        .as_secs();
-    if now.saturating_sub(record.timestamp)
-        > kinetic_core::constants::TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS
-    {
+    // Enforce Drand pulse freshness — reject records older than 100 rounds (~5 minutes),
+    // and reject records from the future to prevent pinning via u64::MAX timestamps.
+    if current_drand_round.saturating_sub(record.drand_pulse) > 100 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-023",
             &record.host_id,
             &format!(
-                "HostRoutingRecord is stale ({} seconds old)",
-                now.saturating_sub(record.timestamp)
+                "HostRoutingRecord is stale ({} rounds old)",
+                current_drand_round.saturating_sub(record.drand_pulse)
             ),
         );
         return Err(err);
     }
-    if record.timestamp > now + 300 {
+    if record.drand_pulse > current_drand_round {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-024",
             &record.host_id,
             &format!(
-                "HostRoutingRecord is from the future ({} seconds ahead)",
-                record.timestamp.saturating_sub(now)
+                "HostRoutingRecord is from the future ({} rounds ahead)",
+                record.drand_pulse.saturating_sub(current_drand_round)
             ),
         );
         return Err(err);

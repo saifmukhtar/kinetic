@@ -9,22 +9,18 @@ mod tests {
     fn test_host_routing_freshness() {
         let peer_id = PeerId::from(Keypair::generate_ed25519().public()); // Random but we won't verify sig if timestamp is stale
 
-        let stale_timestamp = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-            - kinetic_core::constants::TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS
-            - 10;
+        let current_drand_round = 1000;
+        let stale_pulse = current_drand_round - 150; // 150 rounds old, > 100 max age
 
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            timestamp: stale_timestamp,
+            drand_pulse: stale_pulse,
             signature: vec![],
         };
 
         // Even with a bad signature, it should fail on freshness first
-        let res = verify_host_routing_record(&record);
+        let res = verify_host_routing_record(&record, current_drand_round);
         assert!(matches!(
             res.unwrap_err(),
             KineticStoreError::InvalidHostRouteSignature
@@ -38,19 +34,17 @@ mod tests {
         let mh = libp2p::multihash::Multihash::wrap(0x12, &[0u8; 32]).unwrap();
         let peer_id = PeerId::from_multihash(mh).unwrap();
 
-        let recent_timestamp = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let current_drand_round = 1000;
+        let recent_pulse = current_drand_round;
 
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            timestamp: recent_timestamp,
+            drand_pulse: recent_pulse,
             signature: vec![],
         };
 
-        let res = verify_host_routing_record(&record);
+        let res = verify_host_routing_record(&record, current_drand_round);
         // Should safely return InvalidPublicKey instead of panicking
         assert!(matches!(
             res.unwrap_err(),

@@ -3,6 +3,7 @@
 use hickory_proto::rr::{Name, RData, Record};
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, ResponseHandler, ResponseInfo};
+use kinetic_core::types::DnsZoneExt;
 use moka::future::Cache;
 use std::str::FromStr;
 use std::sync::Arc;

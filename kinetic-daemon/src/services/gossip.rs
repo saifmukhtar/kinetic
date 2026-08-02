@@ -2,7 +2,13 @@
 
 /// Starts the background task that processes incoming pubsub gossip messages.
 pub fn start_gossip_processor(
-    mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>)>,
+    network_client: kinetic_network::NetworkClient,
+    mut gossip_rx: tokio::sync::broadcast::Receiver<(
+        String,
+        Vec<u8>,
+        libp2p::gossipsub::MessageId,
+        libp2p::PeerId,
+    )>,
     gossip_gov_path: std::sync::Arc<std::path::PathBuf>,
     drand_client_gossip: std::sync::Arc<kinetic_core::drand::DrandClient>,
     drand_pulse_tx_gossip: tokio::sync::watch::Sender<u64>,
@@ -10,18 +16,20 @@ pub fn start_gossip_processor(
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         loop {
-            let (topic, payload) = match gossip_rx.recv().await {
+            let (topic, payload, message_id, propagation_source) = match gossip_rx.recv().await {
                 Ok(msg) => msg,
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             };
             if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
+                let mut is_valid = false;
                 if let Ok(signed_msg) = serde_json::from_slice::<
                     kinetic_core::governance::SignedGovernanceMessage,
                 >(&payload)
                 {
                     let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
                     else {
+                        network_client.report_gossip_validation(message_id, propagation_source, is_valid);
                         continue;
                     };
                     match kinetic_core::governance::process_governance_message(
@@ -29,6 +37,7 @@ pub fn start_gossip_processor(
                         &signed_msg,
                     ) {
                         Ok(Some(effect)) => {
+                            is_valid = true;
                             tracing::info!(
                                 "Governance state updated via gossip. Effect: {:?}",
                                 effect
@@ -78,22 +87,25 @@ pub fn start_gossip_processor(
                             let _ = state.save_to_disk(&gossip_gov_path);
                         }
                         Ok(None) => {
+                            is_valid = true;
                             tracing::info!(
                                 "Governance state updated via gossip. No immediate effect."
                             );
                             let _ = state.save_to_disk(&gossip_gov_path);
                         }
                         Err(e) => {
-                            tracing::debug!("Governance gossip message rejected: {:?}", e);
+                            tracing::debug!("Governance gossip message rejected by process_governance_message: {:?}", e);
                         }
                     }
                 }
+                network_client.report_gossip_validation(message_id, propagation_source, is_valid);
             } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
+                let mut is_valid = false;
                 if let Ok(pulse) =
                     serde_json::from_slice::<kinetic_core::drand::DrandPulse>(&payload)
                 {
                     let pulse_clone = pulse.clone();
-                    let is_valid = tokio::task::spawn_blocking(move || pulse_clone.verify())
+                    is_valid = tokio::task::spawn_blocking(move || pulse_clone.verify())
                         .await
                         .unwrap_or(false);
                     if is_valid {
@@ -106,6 +118,7 @@ pub fn start_gossip_processor(
                         }
                     }
                 }
+                network_client.report_gossip_validation(message_id, propagation_source, is_valid);
             }
         }
     })

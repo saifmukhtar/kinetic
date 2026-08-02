@@ -13,7 +13,7 @@ pub async fn handle_get_time(
     // Fetch the latest verified Drand pulse
     match drand_client.fetch_latest().await {
         Ok(drand_data) => {
-            let time = KineticTime::from_drand_round(drand_data.round);
+            let time = KineticTime::from_drand_round(drand_data.round, kinetic_core::constants::KINETIC_GENESIS_DRAND_ROUND);
             Ok(Json(time))
         }
         Err(e) => {

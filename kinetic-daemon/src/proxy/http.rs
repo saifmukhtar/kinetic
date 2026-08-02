@@ -1,6 +1,7 @@
 //! HTTP request routing, CNAME recursion, IPFS gateway proxying, P2P peer forwarding, and SSRF loop protection.
 
 use super::*;
+use kinetic_core::types::DnsZoneExt;
 /// Handles an incoming HTTP or HTTPS (CONNECT) proxy request, determining how to route it.
 pub async fn handle_proxy_request(
     req: Request<Incoming>,
@@ -8,7 +9,16 @@ pub async fn handle_proxy_request(
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
     config: Arc<kinetic_core::config::KineticConfig>,
+    node_peer_id: String,
 ) -> Result<Response<axum::body::Body>, std::convert::Infallible> {
+    let loop_header = req.headers().get("x-kinetic-loop-protect").and_then(|h| h.to_str().ok());
+    if loop_header == Some(&node_peer_id) {
+        return Ok(Response::builder()
+            .status(StatusCode::LOOP_DETECTED)
+            .body(axum::body::Body::from("Proxy Loop Detected"))
+            .unwrap_or_else(|_| Response::new(axum::body::Body::from("Internal Proxy Error"))));
+    }
+
     if req.method() == Method::CONNECT {
         let raw_host = req.uri().host().unwrap_or("").to_string();
         let domain_name = kinetic_core::types::normalize_name(&raw_host);
@@ -38,6 +48,7 @@ pub async fn handle_proxy_request(
                         leaf_cache,
                         Arc::new(client),
                         Arc::clone(&config),
+                        node_peer_id.clone(),
                     )
                     .await
                     {
@@ -82,7 +93,7 @@ pub async fn handle_proxy_request(
     info!("Proxying plain HTTP request for {} -> {}", host_name, path);
 
     // Resolve PeerId/IP from DHT
-    match forward_to_backend_direct(req, &host_name, &client, Arc::clone(&config)).await {
+    match forward_to_backend_direct(req, &host_name, &client, Arc::clone(&config), &node_peer_id).await {
         Ok(resp) => Ok(resp),
         Err(e) => {
             warn!("Proxy request failed: {}", e);
@@ -100,6 +111,7 @@ pub async fn forward_to_backend_direct(
     domain: &str,
     network_client: &NetworkClient,
     config: Arc<kinetic_core::config::KineticConfig>,
+    node_peer_id: &str,
 ) -> Result<Response<axum::body::Body>, ProxyError> {
     let mut current_domain = domain.to_string();
     let mut target_str = String::new();
@@ -310,16 +322,21 @@ pub async fn forward_to_backend_direct(
             );
         }
 
-        // Explicitly HTTP — no TLS to backend
+        // Auto-upgrade public IPs to HTTPS and port 443
+        let scheme = if is_ssrf { "http" } else { "https" };
+        let port = if !is_ssrf && original_port == 80 { 443 } else { original_port };
+
         let formatted_host = if ip_addr.is_ipv6() {
             format!("[{}]", ip_addr)
         } else {
             ip_addr.to_string()
         };
+        
         let backend_url = format!(
-            "http://{}:{}{}",
+            "{}://{}:{}{}",
+            scheme,
             formatted_host,
-            original_port,
+            port,
             req.uri()
                 .path_and_query()
                 .map(|p| p.as_str())
@@ -329,6 +346,7 @@ pub async fn forward_to_backend_direct(
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
             .no_proxy()
+            .danger_accept_invalid_certs(true)
             .redirect(reqwest::redirect::Policy::none())
             .build()?;
 
@@ -341,6 +359,7 @@ pub async fn forward_to_backend_direct(
             }
         }
         backend_req = backend_req.header("Host", domain);
+        backend_req = backend_req.header("X-Kinetic-Loop-Protect", node_peer_id);
 
         let backend_resp = backend_req.send().await?;
 

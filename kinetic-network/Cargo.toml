@@ -8,6 +8,7 @@ license.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-kid = { path = "../kinetic-kid" }
+kinetic-types = { version = "0.1.1", path = "../kinetic-types" }
 libp2p = { version = "0.53", features = ["kad", "gossipsub", "noise", "yamux", "macros", "identify", "relay", "dcutr", "ping", "request-response", "cbor", "autonat", "upnp", "quic"] }
 tokio = { version = "1.38.0", features = ["sync", "macros"] }
 sha2 = "0.10"

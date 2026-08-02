@@ -264,6 +264,7 @@ async fn run_host() -> Result<()> {
         local_peer_id_str.clone(),
         host_peer_id.to_string(),
         network_client.clone(),
+        drand_pulse_rx.clone(),
     ));
 
     tokio::spawn(heartbeat::start_drand_heartbeat(

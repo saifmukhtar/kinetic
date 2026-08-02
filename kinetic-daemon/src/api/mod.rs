@@ -115,7 +115,12 @@ pub struct ApiState {
     /// The IP address this daemon is bound to.
     pub bind_ip: String,
     /// Gossip channel sender for SSE streams.
-    pub gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>)>,
+    pub gossip_tx: tokio::sync::broadcast::Sender<(
+        String,
+        Vec<u8>,
+        libp2p::gossipsub::MessageId,
+        libp2p::PeerId,
+    )>,
     /// Set of foreign TLDs registered by the kinetic-atlas bridge.
     pub atlas_tlds: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
 }
@@ -301,7 +306,12 @@ pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
 pub async fn start_server(
     network: NetworkClient,
     storage: Arc<dyn StorageEngine>,
-    gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>)>,
+    gossip_tx: tokio::sync::broadcast::Sender<(
+        String,
+        Vec<u8>,
+        libp2p::gossipsub::MessageId,
+        libp2p::PeerId,
+    )>,
     bind_ip: String,
     port: u16,
     atlas_tlds: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,

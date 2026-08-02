@@ -102,8 +102,13 @@ impl KineticRecordStore {
                                     {
                                         use kinetic_core::types::Commitment;
                                         use sha2::{Digest, Sha256};
-                                        let drand_rand = hex::decode(&reveal.drand_signature)
+                                        let drand_sig_bytes = hex::decode(&reveal.drand_signature)
                                             .unwrap_or_else(|_| vec![0u8; 32]);
+                                        let mut drand_hasher = Sha256::new();
+                                        drand_hasher.update(&drand_sig_bytes);
+                                        let mut drand_rand = [0u8; 32];
+                                        drand_rand.copy_from_slice(&drand_hasher.finalize());
+
                                         let mut hasher = Sha256::new();
                                         hasher.update(reveal.name.as_bytes());
                                         hasher.update(reveal.salt);
@@ -458,7 +463,7 @@ impl KineticRecordStore {
             } else if parsed.get("host_id").is_some() {
                 match serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed) {
                     Ok(host_route) => {
-                        match crate::store::verification::verify_host_routing_record(&host_route) {
+                        match crate::store::verification::verify_host_routing_record(&host_route, self.current_drand_round) {
                             Ok(()) => {
                                 tracing::info!("KineticRecordStore::put accepted verified HostRoutingRecord for {}", host_route.host_id);
                             }

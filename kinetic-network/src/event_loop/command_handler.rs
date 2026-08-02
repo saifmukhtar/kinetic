@@ -88,6 +88,9 @@ impl super::core::NetworkEventLoop {
 
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
+            Command::GetCurrentDrandRound { responder } => {
+                let _ = responder.send(self.current_drand_pulse);
+            }
             Command::PublishRedundant {
                 name,
                 payload,
@@ -280,6 +283,21 @@ impl super::core::NetworkEventLoop {
                     .map(|_| ())
                     .map_err(|e| NetworkClientError::GossipSubError(e.to_string()));
                 let _ = responder.send(res);
+            }
+            Command::ReportGossipValidation {
+                message_id,
+                propagation_source,
+                acceptance,
+            } => {
+                let _ = self
+                    .swarm
+                    .behaviour_mut()
+                    .gossipsub
+                    .report_message_validation_result(
+                        &message_id,
+                        &propagation_source,
+                        acceptance,
+                    );
             }
         }
     }

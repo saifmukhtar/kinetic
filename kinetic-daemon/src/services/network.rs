@@ -10,11 +10,16 @@ pub fn start_pow_miner_loop(
     hc_drand_rx: tokio::sync::watch::Receiver<u64>,
     hc_config: kinetic_network::NetworkConfig,
     hc_storage: std::sync::Arc<dyn StorageEngine>,
-    hc_inc_tx: tokio::sync::mpsc::Sender<(
+    incoming_tx: tokio::sync::mpsc::Sender<(
         kinetic_network::ProxyRequest,
         libp2p::request_response::ResponseChannel<kinetic_network::ProxyResponse>,
     )>,
-    hc_gossip_tx: tokio::sync::broadcast::Sender<(String, Vec<u8>)>,
+    gossip_tx: tokio::sync::broadcast::Sender<(
+        String,
+        Vec<u8>,
+        libp2p::gossipsub::MessageId,
+        libp2p::PeerId,
+    )>,
     mut network_loop_handle: tokio::task::JoinHandle<()>,
     mut current_local_key: libp2p::identity::Keypair,
     hc_vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
@@ -76,8 +81,8 @@ pub fn start_pow_miner_loop(
                             current_local_key.clone(),
                             hc_storage.clone(),
                             hc_drand_rx.clone(),
-                            Some(hc_inc_tx.clone()),
-                            Some(hc_gossip_tx.clone()),
+                            Some(incoming_tx.clone()),
+                            Some(gossip_tx.clone()),
                             hc_vdf_engine.clone(),
                         ) {
                             Ok(res) => break res,

@@ -66,6 +66,7 @@ pub async fn start_proxy_server(
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
     config: Arc<kinetic_core::config::KineticConfig>,
+    node_peer_id: String,
 ) -> anyhow::Result<()> {
     // Case 198: IPv6 Only Network Support
     let bind_ip = &config.daemon.pac_bind_ip;
@@ -106,18 +107,21 @@ pub async fn start_proxy_server(
         let ca_clone = Arc::clone(&root_ca);
         let cache_clone = Arc::clone(&leaf_cache);
         let config_clone = Arc::clone(&config);
+        let peer_id_for_task = node_peer_id.clone();
 
         tokio::task::spawn(async move {
             if let Err(err) = http1::Builder::new()
                 .serve_connection(
                     io,
                     service_fn(move |req| {
+                        let peer_id_clone = peer_id_for_task.clone();
                         handle_proxy_request(
                             req,
                             client_clone.clone(),
                             Arc::clone(&ca_clone),
                             Arc::clone(&cache_clone),
                             Arc::clone(&config_clone),
+                            peer_id_clone,
                         )
                     }),
                 )

@@ -23,7 +23,7 @@ pub async fn handle_gossip_subscribe(
     let stream = async_stream::stream! {
         loop {
             match rx.recv().await {
-                Ok((msg_topic, payload)) => {
+                Ok((msg_topic, payload, _, _)) => {
                     if msg_topic == topic {
                         if let Ok(payload_str) = String::from_utf8(payload) {
                             yield Ok(Event::default().data(payload_str));

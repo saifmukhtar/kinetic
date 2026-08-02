@@ -416,10 +416,19 @@ impl super::core::NetworkEventLoop {
                 }
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(
-                libp2p::gossipsub::Event::Message { message, .. },
+                libp2p::gossipsub::Event::Message {
+                    propagation_source,
+                    message_id,
+                    message,
+                },
             )) => {
                 if let Some(tx) = &self.gossip_tx {
-                    let _ = tx.send((message.topic.into_string(), message.data));
+                    let _ = tx.send((
+                        message.topic.into_string(),
+                        message.data,
+                        message_id,
+                        propagation_source,
+                    ));
                 }
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(_)) => {}

@@ -437,7 +437,12 @@ async fn run_daemon() -> Result<()> {
     }
 
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
-    let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);
+    let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel::<(
+        String,
+        Vec<u8>,
+        libp2p::gossipsub::MessageId,
+        libp2p::PeerId,
+    )>(100);
     let current_local_key = local_key;
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config.clone(),
@@ -472,6 +477,7 @@ async fn run_daemon() -> Result<()> {
     );
 
     kinetic_daemon::services::gossip::start_gossip_processor(
+        network_client.clone(),
         gossip_rx,
         gov_state_path.clone(),
         drand_client.clone(),
@@ -495,6 +501,7 @@ async fn run_daemon() -> Result<()> {
     let ca_clone = std::sync::Arc::clone(&root_ca);
     let cache_clone = std::sync::Arc::clone(&leaf_cache);
     let config_arc = std::sync::Arc::new(config.clone());
+    let proxy_peer_id = local_peer_id.to_string();
     tokio::spawn(async move {
         if let Err(e) = proxy::start_proxy_server(
             proxy_client,
@@ -502,6 +509,7 @@ async fn run_daemon() -> Result<()> {
             ca_clone,
             cache_clone,
             config_arc,
+            proxy_peer_id,
         )
         .await
         {

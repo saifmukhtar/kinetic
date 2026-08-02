@@ -11,6 +11,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
+use kinetic_core::types::DnsZoneExt;
 
 #[derive(Clone)]
 struct MockResponseHandler {
@@ -384,6 +385,7 @@ mod fuzzing {
             random_string in ".*"
         ) {
             // Pass random utf-8 strings into our DnsZone payload parser
+            use kinetic_core::types::DnsZoneExt;
             let _ = DnsZone::parse_payload(random_string.as_bytes());
         }
 

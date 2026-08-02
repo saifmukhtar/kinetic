@@ -22,7 +22,14 @@ impl super::core::NetworkEventLoop {
                 libp2p::request_response::ResponseChannel<ProxyResponse>,
             )>,
         >,
-        gossip_tx: Option<tokio::sync::broadcast::Sender<(String, Vec<u8>)>>,
+        gossip_tx: Option<
+            tokio::sync::broadcast::Sender<(
+                String,
+                Vec<u8>,
+                libp2p::gossipsub::MessageId,
+                libp2p::PeerId,
+            )>,
+        >,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
         info!(
@@ -140,6 +147,7 @@ impl super::core::NetworkEventLoop {
                         // This limit is deliberately set higher (100 KB) to safely accommodate
                         // the 64 KB payload plus Gossipsub/protobuf network routing overhead.
                         .max_transmit_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
+                        .validate_messages()
                         .build()
                         .expect("Valid gossipsub config")
                 } else {
@@ -150,6 +158,7 @@ impl super::core::NetworkEventLoop {
                         // This limit is deliberately set higher (100 KB) to safely accommodate
                         // the 64 KB payload plus Gossipsub/protobuf network routing overhead.
                         .max_transmit_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
+                        .validate_messages()
                         .build()
                         .expect("Valid gossipsub config")
                 };
@@ -435,7 +444,11 @@ impl super::core::NetworkEventLoop {
 
                 let gossipsub = libp2p::gossipsub::Behaviour::new(
                     libp2p::gossipsub::MessageAuthenticity::Signed(key.clone()),
-                    libp2p::gossipsub::ConfigBuilder::default().build().unwrap(),
+                    libp2p::gossipsub::ConfigBuilder::default()
+                        .validation_mode(libp2p::gossipsub::ValidationMode::Strict)
+                        .validate_messages()
+                        .build()
+                        .unwrap(),
                 )
                 .unwrap();
 

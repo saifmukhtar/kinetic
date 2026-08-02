@@ -68,7 +68,7 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
                 0
             };
 
-            KineticTime::from_drand_round(current_round)
+            KineticTime::from_drand_round(current_round, kinetic_core::constants::KINETIC_GENESIS_DRAND_ROUND)
         }
     };
 

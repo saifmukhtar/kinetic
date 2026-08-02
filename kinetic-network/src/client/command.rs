@@ -8,6 +8,11 @@ use tokio::sync::oneshot;
 /// Represents commands sent from the client task to the network event loop.
 #[derive(Debug)]
 pub enum Command {
+    /// Get the current drand pulse round from the event loop state.
+    GetCurrentDrandRound {
+        /// Channel to return the round.
+        responder: oneshot::Sender<u64>,
+    },
     /// Publish a record to the DHT redundantly.
     PublishRedundant {
         /// The name under which to publish.
@@ -83,5 +88,14 @@ pub enum Command {
         payload: Vec<u8>,
         /// Channel to return the result.
         responder: oneshot::Sender<std::result::Result<(), NetworkClientError>>,
+    },
+    /// Report the result of application-level validation for a gossipsub message.
+    ReportGossipValidation {
+        /// The message ID.
+        message_id: libp2p::gossipsub::MessageId,
+        /// The source peer who sent the message.
+        propagation_source: libp2p::PeerId,
+        /// Whether the message should be accepted or rejected.
+        acceptance: libp2p::gossipsub::MessageAcceptance,
     },
 }

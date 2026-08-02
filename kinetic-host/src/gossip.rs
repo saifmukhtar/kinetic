@@ -3,12 +3,15 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use libp2p::gossipsub::MessageId;
+use libp2p::PeerId;
+
 /// Starts an async loop to listen for governance gossip messages, update global state, and save to disk.
 pub async fn start_gossip_listener(
-    mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>)>,
+    mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>, MessageId, PeerId)>,
     gov_state_path: Arc<PathBuf>,
 ) {
-    while let Ok((topic, payload)) = gossip_rx.recv().await {
+    while let Ok((topic, payload, _, _)) = gossip_rx.recv().await {
         if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
             if let Ok(signed_msg) = serde_json::from_slice::<
                 kinetic_core::governance::SignedGovernanceMessage,

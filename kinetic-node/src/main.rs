@@ -293,7 +293,7 @@ async fn run_node() -> Result<()> {
     let gossip_storage = storage.clone();
     tokio::spawn(async move {
         loop {
-            let (topic, payload) = match gossip_rx.recv().await {
+            let (topic, payload, _, _) = match gossip_rx.recv().await {
                 Ok(msg) => msg,
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
