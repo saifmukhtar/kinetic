@@ -3,7 +3,7 @@
 //! The primary user-facing Kinetic daemon binary (`kinetic-daemon`).
 //!
 //! The daemon is the central coordinator of a Kinetic network participant's
-//! local stack. It manages the full lifecycle of domain name registration,
+//! local stack. It manages the full lifecycle of name registration,
 //! renewal, and resolution, and exposes an authenticated HTTP API that the
 //! `kinetic-cli` and desktop app interact with.
 //!
@@ -12,9 +12,9 @@
 //! - **P2P networking**: Runs a full Kademlia DHT node for publishing and
 //!   resolving `.kin` DNS records.
 //! - **VDF engine**: Drives the Chia VDF to produce time-lock proofs for
-//!   domain registration and ownership transfers.
+//!   name registration and ownership transfers.
 //! - **DNS resolver**: Embeds `kinetic-dns` to answer system-level DNS queries
-//!   for `.kin` domains on the loopback interface.
+//!   for `.kin` names on the loopback interface.
 //! - **HTTP API**: Authenticated REST API on port 16002 for CLI and UI clients.
 //! - **Service manager**: Can install, start, stop, and uninstall itself as a
 //!   system service (systemd on Linux, launchd on macOS, SCM on Windows).

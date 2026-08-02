@@ -181,7 +181,7 @@ pub async fn handle_publish_zone(
     if record.pubkey() != pubkey_bytes.as_slice() {
         return Err((
             StatusCode::CONFLICT,
-            Json(serde_json::json!({ "error": "Identity key mismatch with domain registration" })),
+            Json(serde_json::json!({ "error": "Identity key mismatch with name registration" })),
         ));
     }
 

@@ -1,4 +1,4 @@
-//! Background network loops for dynamic PoW identity rotation and periodic DHT domain republishing.
+//! Background network loops for dynamic PoW identity rotation and periodic DHT name republishing.
 
 use kinetic_core::traits::StorageEngine;
 
@@ -114,7 +114,7 @@ pub fn start_pow_miner_loop(
     })
 }
 
-/// Starts a background loop that periodically republishes owned domain payloads
+/// Starts a background loop that periodically republishes owned name payloads
 /// to the DHT to ensure they remain alive and discoverable.
 pub fn start_republisher(
     republish_network: kinetic_network::NetworkClient,

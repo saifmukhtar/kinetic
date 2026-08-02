@@ -1,4 +1,4 @@
-//! New .kin domain name registration engine featuring Drand entropy, two-phase commitment, and VDF proof generation.
+//! New .kin name registration engine featuring Drand entropy, two-phase commitment, and VDF proof generation.
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::{get_zones_dir, KineticConfig};
@@ -12,11 +12,11 @@ use sha2::Digest;
 use std::time::Duration;
 use tracing::{info, warn};
 
-/// Handles the registration of a new `.kin` domain name.
+/// Handles the registration of a new `.kin` name.
 ///
 /// This involves fetching the latest Drand beacon for entropy, generating a VDF
 /// proof (which can be computationally intensive), creating/inheriting a Kinetic
-/// Identity Document (KID) for the domain, and submitting the resulting proof
+/// Identity Document (KID) for the name, and submitting the resulting proof
 /// and zone configuration to the local daemon for DHT propagation.
 ///
 /// # Errors
@@ -117,10 +117,10 @@ pub async fn handle(
     if !label.is_empty() && label.len() <= 6 {
         warn!("================================================================");
         warn!(
-            "CRITICAL WARNING: You are attempting to register a {}-letter domain.",
+            "CRITICAL WARNING: You are attempting to register a {}-letter name.",
             label.len()
         );
-        warn!("Short domains require massive VDF computations to prevent squatting.");
+        warn!("Short names require massive VDF computations to prevent squatting.");
         warn!(
             "This requires {} iterations and will take approximately {} of continuous CPU time.",
             actual_iterations, time_str
@@ -134,7 +134,7 @@ pub async fn handle(
         tokio::time::sleep(Duration::from_secs(15)).await;
     } else {
         info!(
-            "This domain requires {} iterations and will take approximately {}.",
+            "This name requires {} iterations and will take approximately {}.",
             actual_iterations, time_str
         );
     }

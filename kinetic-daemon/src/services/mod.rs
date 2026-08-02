@@ -1,4 +1,4 @@
-//! Daemon background services for Gossipsub processing, domain heartbeats, and network loops.
+//! Daemon background services for Gossipsub processing, name heartbeats, and network loops.
 
 /// Gossip protocol processor service.
 pub mod gossip;

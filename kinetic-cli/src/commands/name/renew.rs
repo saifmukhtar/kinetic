@@ -1,4 +1,4 @@
-//! Domain name renewal engine with cryptographic proof chaining and owner VDF difficulty discounts.
+//! Name renewal engine with cryptographic proof chaining and owner VDF difficulty discounts.
 
 use crate::utils::parse_and_format_api_error;
 use kinetic_core::config::{get_zones_dir, KineticConfig};
@@ -10,9 +10,9 @@ use sha2::Digest;
 use std::time::Duration;
 use tracing::info;
 
-/// Handles domain name renewal.
+/// Handles name renewal.
 ///
-/// Renews an existing `.kin` domain by fetching the latest Drand beacon,
+/// Renews an existing `.kin` name by fetching the latest Drand beacon,
 /// computing a discounted VDF proof based on the previous proof, and publishing
 /// the new `Reveal` to the DHT. This extends the lifespan of the registration.
 ///
@@ -36,7 +36,7 @@ pub async fn handle(
             kinetic_core::types::NameRecord::Standard(r) => *r,
             kinetic_core::types::NameRecord::Premium { .. } => {
                 return Err(anyhow::anyhow!(
-                    "Name '{}' is a Premium domain. Premium domains do not expire or require VDF renewal.",
+                    "Name '{}' is Premium. Premium names do not expire or require VDF renewal.",
                     fqdn
                 ));
             }

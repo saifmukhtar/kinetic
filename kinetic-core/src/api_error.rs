@@ -309,7 +309,7 @@ impl From<NamesError> for ApiError {
         // All NamesError variants are deterministic input validation failures — 400 Bad Request.
         ApiError {
             error_type: e.error_type_uri(),
-            title: "Invalid Domain Name".to_string(),
+            title: "Invalid Name".to_string(),
             status: 400,
             detail: e.user_message(),
             instance: None,

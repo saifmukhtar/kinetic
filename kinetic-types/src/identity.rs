@@ -1,7 +1,7 @@
 //! Authorized Key Identifier (KID) documents and capability manifests.
 //!
 //! Provides the authorization containers binding decentralized identities (KIDs) and capability
-//! manifests to `.kin` domains.
+//! manifests to `.kin` names.
 //!
 //! ## Cross-Network Replay Protection
 //!
@@ -16,14 +16,14 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Authorized Key Identifier (KID) document bound to a `.kin` domain.
+/// Authorized Key Identifier (KID) document bound to a `.kin` name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedKid {
-    /// Domain name associated with this KID.
+    /// Name associated with this KID.
     pub name: String,
     /// Embedded KID document containing public keys and controller data.
     pub kid_doc: kinetic_kid::document::KidDocument,
-    /// Domain owner's signature verifying the KID attachment.
+    /// Name owner's signature verifying the KID attachment.
     pub owner_signature: Vec<u8>,
 }
 
@@ -56,16 +56,16 @@ impl AuthorizedKid {
     }
 }
 
-/// Authorized capability manifest bound to a `.kin` domain.
+/// Authorized capability manifest bound to a `.kin` name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedManifest {
-    /// Domain name associated with this capability manifest.
+    /// Name associated with this capability manifest.
     pub name: String,
     /// Embedded capability manifest structure.
     pub manifest: kinetic_kid::manifest::CapabilityManifest,
     /// Optional associated KID document.
     pub kid_doc: Option<kinetic_kid::document::KidDocument>,
-    /// Domain owner's signature verifying the manifest attachment.
+    /// Name owner's signature verifying the manifest attachment.
     pub owner_signature: Vec<u8>,
 }
 

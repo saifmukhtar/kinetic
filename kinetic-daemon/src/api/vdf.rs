@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 /// Payload for renewing a registered Kinetic name via VDF.
 #[derive(Deserialize)]
 pub struct NameRenewRequest {
-    /// The domain name to renew.
+    /// The name to renew.
     pub name: String,
     /// Optional overridden iteration count.
     pub iterations: Option<u64>,
@@ -23,7 +23,7 @@ pub struct NameRenewRequest {
 /// Payload for registering a new Kinetic name via VDF.
 #[derive(Deserialize)]
 pub struct VdfRegisterRequest {
-    /// The domain name to register.
+    /// The name to register.
     pub name: String,
     /// Optional overridden iteration count.
     pub iterations: Option<u64>,
@@ -440,7 +440,7 @@ pub async fn handle_vdf_renew(
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    format!("Domain {} not found locally", fqdn),
+                    format!("Name {} not found locally", fqdn),
                 );
                 return;
             }
@@ -463,7 +463,7 @@ pub async fn handle_vdf_renew(
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    "Premium domains do not require VDF resquaring".to_string(),
+                    "Premium names do not require VDF resquaring".to_string(),
                 );
                 return;
             }

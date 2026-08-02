@@ -1,4 +1,4 @@
-//! Periodic domain heartbeat generator and Drand pulse synchronization worker loop.
+//! Periodic name heartbeat generator and Drand pulse synchronization worker loop.
 
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Heartbeat;
@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Starts a background loop that periodically broadcasts heartbeats for owned domains.
+/// Starts a background loop that periodically broadcasts heartbeats for owned names.
 pub fn start_heartbeat_loop(
     hb_storage: Arc<dyn StorageEngine>,
     hb_network: kinetic_network::NetworkClient,

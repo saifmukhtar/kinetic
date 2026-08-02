@@ -9,13 +9,13 @@
 //!
 //! | Opcode | Action Variant | Description |
 //! |---|---|---|
-//! | `0x0A` | [`GovernanceAction::GrantPremiumName`] | Grant a 1-character apex domain (Root key only) |
+//! | `0x0A` | [`GovernanceAction::GrantPremiumName`] | Grant a 1-character apex name (Root key only) |
 //! | `0x0B` | [`GovernanceAction::RotateRootKey`] | Rotate network authority to a new ML-DSA-65 key |
 //! | `0x0C` | [`GovernanceAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
 //! | `0x0D` | [`GovernanceAction::EmergencyResume`] | Resume registrations and advance pause offset |
-//! | `0x0E` | [`GovernanceAction::RevokePremiumName`] | Revoke a previously granted 1-character apex domain |
-//! | `0x0F` | [`GovernanceAction::GrantInfrastructureName`] | Grant a Category 2 infrastructure domain (Root key only) |
-//! | `0x10` | [`GovernanceAction::RevokeInfrastructureName`] | Revoke a Category 2 infrastructure domain (Root key only) |
+//! | `0x0E` | [`GovernanceAction::RevokePremiumName`] | Revoke a previously granted 1-character apex name |
+//! | `0x0F` | [`GovernanceAction::GrantInfrastructureName`] | Grant a Category 2 infrastructure name (Root key only) |
+//! | `0x10` | [`GovernanceAction::RevokeInfrastructureName`] | Revoke a Category 2 infrastructure name (Root key only) |
 
 use crate::error::Severity;
 use thiserror::Error;
@@ -30,14 +30,14 @@ pub type SignatureBytes = Vec<u8>;
 /// Enumerates privileged protocol actions governed by network governance.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GovernanceAction {
-    /// Grant a 1-character premium domain name (Root key only).
+    /// Grant a 1-character premium name (Root key only).
     GrantPremiumName {
         /// Target 1-character name label.
         name: String,
         /// Recipient's ML-DSA-65 public key.
         target_pubkey: PublicKeyBytes,
     },
-    /// Revoke a 1-character premium domain name (Root key only).
+    /// Revoke a 1-character premium name (Root key only).
     RevokePremiumName {
         /// Target 1-character name label.
         name: String,
@@ -162,7 +162,7 @@ pub enum GovernanceTypeError {
     /// Opcode byte does not match any recognized governance action.
     #[error("Unknown governance opcode: 0x{0:02X}")]
     UnknownOpcode(u8),
-    /// Domain name string field contains invalid UTF-8 bytes.
+    /// Name string field contains invalid UTF-8 bytes.
     #[error("Invalid UTF-8 sequence in premium name string")]
     InvalidUtf8,
     /// Provided public key length does not match expected ML-DSA-65 parameter size.
@@ -204,7 +204,7 @@ impl GovernanceTypeError {
                 format!("The governance action opcode (0x{op:02X}) is unrecognized by this protocol version.")
             }
             Self::InvalidUtf8 => {
-                "The governance proposal contains an invalid UTF-8 domain name label.".to_string()
+                "The governance proposal contains an invalid UTF-8 name label.".to_string()
             }
             Self::InvalidPubkeyLength => {
                 "The governance public key length does not match the ML-DSA-65 parameter size.".to_string()

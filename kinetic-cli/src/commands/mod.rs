@@ -15,7 +15,7 @@ pub use service::handle_service_command;
 /// Available subcommands for the Kinetic CLI.
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Domain name operations (register, publish, guard, etc.)
+    /// Name operations (register, publish, guard, etc.)
     Name {
         #[command(subcommand)]
         cmd: name::NameCommands,

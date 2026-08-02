@@ -1,9 +1,9 @@
-//! Consensus difficulty math, Squatter Cliff curve, and inverse-square domain takeover calculations.
+//! Consensus difficulty math, Squatter Cliff curve, and inverse-square name takeover calculations.
 //!
 //! # VDF Squatter Cliff Curve
 //!
-//! To prevent high-value short domain names from being trivially squatted, Kinetic requires
-//! exponential VDF iteration effort for shorter domain labels:
+//! To prevent high-value short names from being trivially squatted, Kinetic requires
+//! exponential VDF iteration effort for shorter name labels:
 //! - **1-char labels**: 100 years of sequential computation (permanently locked).
 //! - **2-char labels**: 30 days of computation.
 //! - **3 to 4-char labels**: 24 days down to 15 days.
@@ -12,14 +12,14 @@
 //!
 //! # Inverse-Square Steal Decay Math
 //!
-//! When a domain owner fails to publish regular heartbeats, the iteration effort required
-//! for a third party to claim ("steal") the domain decays via an inverse-square formula:
+//! When a name owner fails to publish regular heartbeats, the iteration effort required
+//! for a third party to claim ("steal") the name decays via an inverse-square formula:
 //!
 //! $$\text{Multiplier} = \left(\frac{\text{steal\_target\_rounds}}{\text{rounds\_idle} + 1}\right)^2$$
 
-/// Consensus parameters governing VDF difficulty and domain takeover decay rates.
+/// Consensus parameters governing VDF difficulty and name takeover decay rates.
 pub struct ConsensusParams {
-    /// Number of Drand rounds a domain must remain idle before takeover difficulty decays to $1\times$.
+    /// Number of Drand rounds a name must remain idle before takeover difficulty decays to $1\times$.
     pub steal_target_rounds: u64,
 }
 

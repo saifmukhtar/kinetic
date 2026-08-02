@@ -41,8 +41,8 @@ pub async fn handle_publish(
 
     let mut domain_record = req.record;
 
-    // For Standard domains, we need to validate and enforce Drand staleness.
-    // Premium domains bypass VDF staleness checks.
+    // For Standard names, we need to validate and enforce Drand staleness.
+    // Premium names bypass VDF staleness checks.
     let mut is_standard = false;
     let mut drand_pulse = 0;
     if let kinetic_core::types::NameRecord::Standard(ref mut reveal) = domain_record {
@@ -214,7 +214,7 @@ pub async fn handle_publish(
 ///
 /// # Errors
 ///
-/// Returns an error if the domain name is invalid, the commitment hash is all-zeros,
+/// Returns an error if the name is invalid, the commitment hash is all-zeros,
 /// serialization fails, or DHT publishing fails.
 pub async fn handle_commit(
     axum::extract::Extension(role): axum::extract::Extension<Role>,

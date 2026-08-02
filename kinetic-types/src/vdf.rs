@@ -1,15 +1,15 @@
 //! Verifiable Delay Function (VDF) commitments, proofs, reveals, and signature verification.
 //!
-//! Provides the core wire types for the Kinetic two-phase domain registration protocol:
+//! Provides the core wire types for the Kinetic two-phase name registration protocol:
 //!
 //! 1. **Phase 1 (Commitment)**: Submitting a blind SHA-256 [`Commitment`] hash to claim registration priority.
-//! 2. **Phase 2 (Reveal)**: Revealing domain metadata, salt, drand randomness, and the computed
+//! 2. **Phase 2 (Reveal)**: Revealing name metadata, salt, drand randomness, and the computed
 //!    [`VdfProof`] inside a [`Reveal`] structure verified with post-quantum ML-DSA-65 signatures.
 
 use crate::error::Severity;
 use serde::{Deserialize, Serialize};
 
-/// Errors arising from ML-DSA-65 post-quantum signature verification on VDF reveal and domain payloads.
+/// Errors arising from ML-DSA-65 post-quantum signature verification on VDF reveal and name payloads.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum VdfVerifyError {
     /// Provided public key bytes could not be parsed into a valid ML-DSA-65 verifying key.
@@ -50,7 +50,7 @@ impl VdfVerifyError {
     pub fn user_message(&self) -> String {
         match self {
             Self::MalformedPublicKey => {
-                "The domain owner's ML-DSA-65 public key is corrupted or invalid.".to_string()
+                "The name owner's ML-DSA-65 public key is corrupted or invalid.".to_string()
             }
             Self::MalformedSignature => {
                 "The ML-DSA-65 signature format is malformed.".to_string()
@@ -89,13 +89,13 @@ pub struct VdfProof {
 /// Initial commitment submission request payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommitRequest {
-    /// Target `.kin` domain name.
+    /// Target `.kin` name.
     pub name: String,
     /// Cryptographic commitment.
     pub commitment: Commitment,
 }
 
-/// Previous VDF proof link in a chained domain renewal proof sequence.
+/// Previous VDF proof link in a chained name renewal proof sequence.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PreviousProof {
@@ -173,15 +173,15 @@ impl PreviousProof {
     }
 }
 
-/// Revealed domain registration payload submitted to the network during Phase 2.
+/// Revealed name registration payload submitted to the network during Phase 2.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Reveal {
     /// Protocol version indicator (default: `1`).
     #[serde(default = "default_protocol_version")]
     pub protocol_version: u8,
-    /// Registered `.kin` domain name.
+    /// Registered `.kin` name.
     pub name: String,
-    /// Arbitrary domain metadata or DNS zone record payload bytes.
+    /// Arbitrary name metadata or DNS zone record payload bytes.
     pub payload: Vec<u8>,
     /// 32-byte salt value for commitment blinding.
     pub salt: [u8; 32],
@@ -193,11 +193,11 @@ pub struct Reveal {
     pub iterations: u64,
     /// Evaluated VDF proof.
     pub vdf_proof: VdfProof,
-    /// ML-DSA-65 public key of the domain owner.
+    /// ML-DSA-65 public key of the name owner.
     pub pubkey: Vec<u8>,
     /// ML-DSA-65 post-quantum signature over `signable_bytes`.
     pub signature: Vec<u8>,
-    /// Optional chained proof for domain renewal operations.
+    /// Optional chained proof for name renewal operations.
     pub previous_proof: Option<PreviousProof>,
     /// Optional public key of the miner that computed the VDF proof.
     pub miner_pubkey: Option<Vec<u8>>,
@@ -315,7 +315,7 @@ impl Reveal {
 pub struct VdfJobRequest {
     /// 32-byte target SHA-256 challenge commitment hash.
     pub challenge_hash: [u8; 32],
-    /// Character length of the domain label being registered.
+    /// Character length of the name label being registered.
     pub name_length: u8,
     /// Evaluated Hashcash proof-of-work nonce.
     pub hashcash_nonce: u64,

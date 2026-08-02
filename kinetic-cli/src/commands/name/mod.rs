@@ -1,4 +1,4 @@
-//! Domain name management subcommands for registering, publishing, renewing, and querying .kin names.
+//! Name management subcommands for registering, publishing, renewing, and querying .kin names.
 
 use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
@@ -11,7 +11,7 @@ pub mod renew;
 #[cfg(test)]
 mod tests;
 
-/// Available subcommands for managing `.kin` domain names.
+/// Available subcommands for managing `.kin` names.
 #[derive(Subcommand)]
 pub enum NameCommands {
     /// Claim and register a .kin name to secure ownership
@@ -53,7 +53,7 @@ pub enum NameCommands {
 
 /// Dispatches name-related CLI subcommands.
 ///
-/// Handles domain name operations such as registration, publishing, renewal, and queries
+/// Handles name operations such as registration, publishing, renewal, and queries
 /// by forwarding them to the corresponding handlers.
 ///
 /// # Errors

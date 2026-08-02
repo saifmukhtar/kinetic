@@ -1,4 +1,4 @@
-//! Domain name zone routing updates and commit-reveal network publishing logic.
+//! Name zone routing updates and commit-reveal network publishing logic.
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::{get_zones_dir, KineticConfig};
@@ -9,13 +9,13 @@ use reqwest::Client;
 use serde_json::json;
 use tracing::{info, warn};
 
-/// Updates the routing zone data for a registered domain.
+/// Updates the routing zone data for a registered name.
 ///
 /// This involves checking for a local reveal file (or fetching it from the DHT),
 /// signing the new payload, and propagating the updated record to the network.
 ///
 /// # Errors
-/// Returns an `anyhow::Error` if the domain name is invalid, keys cannot be loaded,
+/// Returns an `anyhow::Error` if the name is invalid, keys cannot be loaded,
 /// the existing record cannot be found, or the DHT publish fails.
 pub async fn update_zone_logic(
     fqdn: String,
@@ -25,7 +25,7 @@ pub async fn update_zone_logic(
     _display_val: String,
 ) -> anyhow::Result<()> {
     if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
-        tracing::error!("Invalid domain name '{}': {}", fqdn, e);
+        tracing::error!("Invalid name '{}': {}", fqdn, e);
         return Ok(());
     }
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");

@@ -85,11 +85,11 @@ pub enum KineticError {
     #[error("VDF proof verification failed")]
     InvalidVdfProof,
 
-    /// Domain name validation failed.
+    /// Name validation failed.
     ///
     /// Wraps [`NamesError`] for names that violate LDH rules, exceed length limits,
-    /// match reserved names (RFC 2606/6761), or are not apex domains.
-    #[error("Invalid Domain Name: {0}")]
+    /// match reserved names (RFC 2606/6761), or are not apex names.
+    #[error("Invalid Name: {0}")]
     InvalidName(#[from] NamesError),
 
     /// An Ed25519 or ML-DSA-65 signature failed verification.
