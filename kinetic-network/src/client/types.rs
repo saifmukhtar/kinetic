@@ -57,10 +57,14 @@ pub struct NetworkConfig {
     pub external_address: Option<libp2p::Multiaddr>,
     /// Bypass PoW verification for tests.
     pub disable_pow: bool,
+    /// If true, and the node is a Light Node, it will act as an opt-in NAT traversal Relay for mobile clients.
+    pub opt_in_relay: bool,
     /// The maximum number of reveals a node will accept into the cache per hour (Rate Limiting).
     pub max_reveals_per_hour: usize,
+    /// Disable storage sync checks at startup.
+    pub disable_storage_sync: bool,
     /// The maximum number of reveals to store in memory.
     pub lru_cache_size: std::num::NonZeroUsize,
+    /// Test mode for integration testing (short timeouts, disabled UPnP/Relay/mDNS unless overridden).
+    pub test_mode: bool,
 }
-
-

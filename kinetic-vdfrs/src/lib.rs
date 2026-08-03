@@ -4,7 +4,8 @@
 //! A pure Rust implementation of the Verifiable Delay Function (VDF) verifier for the Kinetic network.
 //!
 //! Unlike `kinetic-vdf` which relies on the C++ `chiavdf` library and `libgmp`,
-//! this crate uses pure Rust math (`num-bigint`) to evaluate Class Group operations.
+//! this crate acts as a thin wrapper over the `kyn-vdf` crate to evaluate Class Group operations.
+//! `kyn-vdf` provides a pure Rust, zero-FFI implementation (using `num-bigint`).
 //! This allows VDF proofs to be securely verified in `wasm32-unknown-unknown` environments,
 //! enabling Light Nodes in web browsers and mobile apps to achieve zero-trust data verification.
 

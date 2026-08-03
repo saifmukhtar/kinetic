@@ -5,6 +5,7 @@ use libp2p::{identity, Multiaddr, PeerId};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::tempdir;
+use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 async fn spawn_test_node(
@@ -35,6 +36,7 @@ async fn spawn_test_node(
         max_reveals_per_hour: 100,
         seed_domain: vec![],
         disable_pow: true,
+        test_mode: true,
     };
 
     let dir = tempdir().unwrap();
@@ -43,7 +45,7 @@ async fn spawn_test_node(
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
         std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
     let (client, event_loop) =
-        NetworkEventLoop::new_test_node(config, keypair, storage, vdf_engine).unwrap();
+        NetworkEventLoop::new(config, keypair, storage, watch::channel(0).1, None, None, vdf_engine).unwrap();
 
     let handle = tokio::spawn(async move {
         event_loop.run().await;

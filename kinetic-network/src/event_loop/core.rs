@@ -29,6 +29,11 @@ pub(crate) enum LoopbackCommand {
         record: libp2p::kad::Record,
         verdict: Result<(), crate::error::KineticStoreError>,
     },
+    CommitGossipValidation {
+        message_id: libp2p::gossipsub::MessageId,
+        source: libp2p::PeerId,
+        is_valid: bool,
+    },
     ConnectionPoWVerified {
         peer_id: libp2p::PeerId,
         valid: bool,
@@ -86,9 +91,21 @@ pub struct NetworkEventLoop {
     pub(crate) pow_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
     pub(crate) light_nodes: FxHashSet<libp2p::PeerId>,
     pub(crate) light_node_ips: rustc_hash::FxHashMap<String, usize>,
+    pub(crate) has_bootstrapped: bool,
+    pub(crate) proxy_cdn_usage: (usize, web_time::Instant),
 }
 
 impl NetworkEventLoop {
+    /// Returns true if the Kademlia bootstrap has been triggered
+    pub fn has_bootstrapped(&self) -> bool {
+        self.has_bootstrapped
+    }
+
+    /// Checks if a peer is currently banned
+    pub fn is_banned(&mut self, peer_id: &libp2p::PeerId) -> bool {
+        self.banned_peers.peek(peer_id).is_some()
+    }
+
     /// Starts the event loop. Blocks indefinitely until the command channel is closed.
     ///
     /// The event loop continuously multiplexes between:
@@ -142,13 +159,13 @@ impl NetworkEventLoop {
                     tracing::info!("Running periodic Sled pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                     let storage = self.swarm.behaviour_mut().kademlia.store_mut().storage.clone();
+                    let current_kyn = self.current_drand_kyn;
                     crate::event_loop::utils::spawn_blocking(move || {
                         if let Ok(iter) = storage.scan_prefix(kinetic_core::constants::DB_PREFIX_BANNED_PEER.as_bytes(), None) {
-                            let now = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_secs();
                             for (key_bytes, val_bytes) in iter {
                                 if val_bytes.len() == 8 {
                                     let expire = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
-                                    if expire <= now {
+                                    if expire <= current_kyn {
                                         let _ = storage.delete(&key_bytes);
                                     }
                                 }
@@ -253,12 +270,8 @@ impl NetworkEventLoop {
                         if new_val.0 >= 3 {
                             tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
                             let _ = self.swarm.disconnect_peer_id(source);
-                            let expire_time = web_time::SystemTime::now()
-                                .duration_since(web_time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs()
-                                + 86400;
-                            self.banned_peers.put(source, expire_time);
+                            let expire_kyn = self.current_drand_kyn + 28800;
+                            self.banned_peers.put(source, expire_kyn);
                         }
                     }
                 } else {
@@ -271,7 +284,54 @@ impl NetworkEventLoop {
                         .behaviour_mut()
                         .kademlia
                         .store_mut()
-                        .put_verified_record(record);
+                        .put_verified_record(record.clone());
+                    
+                    // Advertise that we are caching this record (Edge Caching / Option 3)
+                    let _ = self
+                        .swarm
+                        .behaviour_mut()
+                        .kademlia
+                        .start_providing(record.key.clone());
+                }
+            }
+            LoopbackCommand::CommitGossipValidation {
+                message_id,
+                source,
+                is_valid,
+            } => {
+                let acceptance = if is_valid {
+                    libp2p::gossipsub::MessageAcceptance::Accept
+                } else {
+                    libp2p::gossipsub::MessageAcceptance::Reject
+                };
+
+                let _ = self
+                    .swarm
+                    .behaviour_mut()
+                    .gossipsub
+                    .report_message_validation_result(&message_id, &source, acceptance);
+
+                if !is_valid {
+                    let now = web_time::Instant::now();
+                    let (count, last_time) = self
+                        .bad_vdf_counts
+                        .get(&source)
+                        .copied()
+                        .unwrap_or((0, now));
+                    let new_val =
+                        if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
+                            (1, now)
+                        } else {
+                            (count + 1, now)
+                        };
+                    self.bad_vdf_counts.put(source, new_val);
+
+                    if new_val.0 >= 3 {
+                        tracing::warn!("Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning", source);
+                        let _ = self.swarm.disconnect_peer_id(source);
+                        let expire_kyn = self.current_drand_kyn + 28800;
+                        self.banned_peers.put(source, expire_kyn);
+                    }
                 }
             }
             LoopbackCommand::ConnectionPoWVerified {

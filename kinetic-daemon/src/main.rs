@@ -343,8 +343,11 @@ async fn run_daemon() -> Result<()> {
             .as_ref()
             .and_then(|a| a.parse().ok()),
         max_reveals_per_hour: 100,
-        lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE).unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
+        test_mode: false,
+        disable_storage_sync: false,
+        opt_in_relay: config.network.opt_in_relay,
     };
 
     let base_config_dir = kinetic_core::config::get_base_dir();

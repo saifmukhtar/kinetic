@@ -206,6 +206,7 @@ impl UniversalKineticNode {
             lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
             disable_pow: false,
             enable_mdns: false,
+            test_mode: false,
         };
 
         let local_key = Keypair::generate_ed25519();

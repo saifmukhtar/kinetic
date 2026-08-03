@@ -100,7 +100,7 @@ impl CapabilityManifest {
             if svc.id.len() > 256
                 || svc.service_type.len() > 256
                 || svc.protocol.len() > 64
-                || svc.endpoint.len() > 2048
+                || svc.endpoint.len() > crate::LIMITS_KID_MAX_ENDPOINT_BYTES
             {
                 return Err(KidError::TooManyKeys);
             }

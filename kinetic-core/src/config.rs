@@ -120,6 +120,7 @@ pub struct DaemonConfig {
         skip_serializing_if = "is_default_api_port"
     )]
     pub api_port: u16,
+
     /// Port for the built-in DNS resolver (default: [`ports::DNS`]).
     #[serde(default = "default_dns_port")]
     pub dns_port: u16,
@@ -270,6 +271,12 @@ pub struct P2pConfig {
     /// Optional externally reachable multiaddr (e.g. for nodes behind NAT).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_address: Option<String>,
+    /// If true, runs the node in Light Node mode (no DHT storage, no active VDF mining).
+    #[serde(default)]
+    pub light_node: bool,
+    /// If true, and the node is a Light Node, it will act as an opt-in NAT traversal Relay for mobile clients.
+    #[serde(default)]
+    pub opt_in_relay: bool,
 }
 
 fn default_p2p_daemon() -> u16 {
@@ -353,6 +360,8 @@ impl Default for KineticConfig {
                 seed_domain: vec![format!("seed.{}", crate::constants::BASE_DOMAIN)],
                 enable_mdns: true,
                 external_address: None,
+                light_node: false,
+                opt_in_relay: false,
             },
             drand: DrandConfig::default(),
         }

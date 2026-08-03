@@ -292,7 +292,7 @@ impl DrandClient {
                             .bytes()
                             .await
                             .map_err(|e| DrandError::Network(e.to_string()))?;
-                        if bytes.len() > 64 * 1024 {
+                        if bytes.len() > crate::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
                             return Err(DrandError::Network(
                                 "Drand response exceeded 64 KB limit".to_string(),
                             ));
@@ -308,7 +308,7 @@ impl DrandClient {
                             .map_err(|e| DrandError::Network(e.to_string()))?
                         {
                             body.extend_from_slice(&chunk);
-                            if body.len() > 64 * 1024 {
+                            if body.len() > crate::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
                                 return Err(DrandError::Network(
                                     "Drand response exceeded 64 KB limit".to_string(),
                                 ));

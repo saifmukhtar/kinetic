@@ -2,7 +2,6 @@
 
 use libp2p::kad;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tracing::info;
 
 use crate::behavior::KineticBehavior;
@@ -24,32 +23,36 @@ pub(crate) fn build_full_swarm(
         config
     };
 
+    let build_tcp = |port_reuse: bool| {
+        libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
+            .with_tokio()
+            .with_tcp(
+                libp2p::tcp::Config::default().port_reuse(port_reuse),
+                libp2p::noise::Config::new,
+                yamux_config,
+            )
+    };
+
+    let builder_tcp = match build_tcp(true) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!("Failed to build TCP transport with port_reuse(true): {}. Falling back to port_reuse(false).", e);
+            build_tcp(false)?
+        }
+    };
+
     #[cfg(not(target_os = "android"))]
-    let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
-        .with_tokio()
-        .with_tcp(
-            libp2p::tcp::Config::default().port_reuse(true),
-            libp2p::noise::Config::new,
-            yamux_config,
-        )?
-        .with_quic()
-        .with_dns()?;
+    let builder = builder_tcp.with_quic().with_dns()?;
 
     #[cfg(target_os = "android")]
-    let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
-        .with_tokio()
-        .with_tcp(
-            libp2p::tcp::Config::default().port_reuse(true),
-            libp2p::noise::Config::new,
-            yamux_config,
-        )?
-        .with_quic();
+    let builder = builder_tcp.with_quic();
 
     let (control_tx, control_rx) = std::sync::mpsc::channel();
     let initial_drand_kyn = config.initial_drand_kyn;
     let enable_mdns = config.enable_mdns;
     let lru_cache_size = config.lru_cache_size;
     let max_reveals_per_hour = config.max_reveals_per_hour;
+    let test_mode = config.test_mode;
 
     let mut swarm = builder
         .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
@@ -78,8 +81,11 @@ pub(crate) fn build_full_swarm(
                     kinetic_core::constants::KADEMLIA_PUBLICATION_INTERVAL_SECS,
                 )));
 
-            #[cfg(test)]
-            kad_config.set_query_timeout(std::time::Duration::from_secs(5));
+            if test_mode {
+                kad_config.set_query_timeout(std::time::Duration::from_secs(5));
+            } else {
+                // In production, keep longer timeout or defaults
+            }
 
             let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
             // Full Node MUST be a Server
@@ -118,7 +124,7 @@ pub(crate) fn build_full_swarm(
             let stream = libp2p_stream::Behaviour::new();
             let _ = control_tx.send(stream.new_control());
 
-            let mdns = if enable_mdns {
+            let mdns = if enable_mdns && !test_mode {
                 libp2p::swarm::behaviour::toggle::Toggle::from(Some(
                     libp2p::mdns::tokio::Behaviour::new(
                         libp2p::mdns::Config::default(),
@@ -129,36 +135,56 @@ pub(crate) fn build_full_swarm(
                 libp2p::swarm::behaviour::toggle::Toggle::from(None)
             };
 
-            let autonat = libp2p::autonat::Behaviour::new(
-                peer_id,
-                libp2p::autonat::Config {
-                    boot_delay: std::time::Duration::from_secs(3),
-                    retry_interval: std::time::Duration::from_secs(90),
-                    refresh_interval: std::time::Duration::from_secs(3600),
-                    ..Default::default()
-                },
-            );
-
-            let upnp = libp2p::swarm::behaviour::toggle::Toggle::from(Some(
-                libp2p::upnp::tokio::Behaviour::default(),
-            ));
-
-            let relay_server = libp2p::swarm::behaviour::toggle::Toggle::from(Some(
-                libp2p::relay::Behaviour::new(
+            let autonat = if test_mode {
+                libp2p::autonat::Behaviour::new(
                     peer_id,
-                    libp2p::relay::Config {
-                        max_circuits: 512,
-                        max_circuits_per_peer: 2,
-                        circuit_src_rate_limiters: vec![],
-                        max_circuit_duration: std::time::Duration::from_secs(2 * 60),
-                        max_circuit_bytes: kinetic_core::constants::LIMITS_P2P_MAX_CIRCUIT_BYTES as u64,
-                        reservation_rate_limiters: vec![],
-                        max_reservations: 1024,
-                        max_reservations_per_peer: 2,
-                        reservation_duration: std::time::Duration::from_secs(5 * 60),
+                    libp2p::autonat::Config {
+                        boot_delay: std::time::Duration::from_secs(2),
+                        retry_interval: std::time::Duration::from_secs(2),
+                        refresh_interval: std::time::Duration::from_secs(3600),
+                        ..Default::default()
                     },
-                ),
-            ));
+                )
+            } else {
+                libp2p::autonat::Behaviour::new(
+                    peer_id,
+                    libp2p::autonat::Config {
+                        boot_delay: std::time::Duration::from_secs(10),
+                        retry_interval: std::time::Duration::from_secs(90),
+                        refresh_interval: std::time::Duration::from_secs(3600),
+                        ..Default::default()
+                    },
+                )
+            };
+
+            let upnp = if test_mode {
+                libp2p::swarm::behaviour::toggle::Toggle::from(None)
+            } else {
+                libp2p::swarm::behaviour::toggle::Toggle::from(Some(
+                    libp2p::upnp::tokio::Behaviour::default(),
+                ))
+            };
+
+            let relay_server = if test_mode {
+                libp2p::swarm::behaviour::toggle::Toggle::from(None)
+            } else {
+                libp2p::swarm::behaviour::toggle::Toggle::from(Some(
+                    libp2p::relay::Behaviour::new(
+                        peer_id,
+                        libp2p::relay::Config {
+                            max_circuits: 1024,
+                            max_circuits_per_peer: 10,
+                            circuit_src_rate_limiters: vec![],
+                            max_circuit_duration: std::time::Duration::from_secs(2 * 60),
+                            max_circuit_bytes: kinetic_core::constants::LIMITS_P2P_MAX_CIRCUIT_BYTES as u64,
+                            reservation_rate_limiters: vec![],
+                            max_reservations: 1024,
+                            max_reservations_per_peer: 2,
+                            reservation_duration: std::time::Duration::from_secs(5 * 60),
+                        },
+                    ),
+                ))
+            };
 
             KineticBehavior {
                 relay_client,

@@ -24,6 +24,7 @@ mod tests {
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
             disable_pow: false,
+            test_mode: false,
             bootstrap_nodes: bootstrap_nodes
                 .into_iter()
                 .map(|s| s.parse().unwrap())
@@ -164,6 +165,7 @@ mod tests {
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(1).unwrap(), // Size 1
             disable_pow: false,
+            test_mode: false,
             bootstrap_nodes: vec![],
             initial_drand_kyn: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
@@ -225,6 +227,7 @@ mod tests {
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(1000).unwrap(),
             disable_pow: false,
+            test_mode: false,
             bootstrap_nodes: vec![],
             initial_drand_kyn: 1000,
             mode: kinetic_network::NetworkMode::FullNode,

@@ -25,6 +25,8 @@
 
 #![deny(missing_docs)]
 
+include!(concat!(env!("OUT_DIR"), "/kid_limits.rs"));
+
 /// Secure, bounded JSON deserialization helpers.
 pub mod bounded;
 /// DID parsing and validation for the `did:kin:` scheme.

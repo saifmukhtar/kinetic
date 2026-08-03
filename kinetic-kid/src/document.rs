@@ -89,12 +89,12 @@ impl KidDocument {
             return Err(KidError::TooManyKeys);
         }
         for key in &self.controller_keys {
-            if key.id.len() > 256 || key.public_key.len() > 8192 || key.key_type.len() > 32 {
+            if key.id.len() > 256 || key.public_key.len() > crate::LIMITS_KID_MAX_PUBLIC_KEY_BYTES || key.key_type.len() > 32 {
                 return Err(KidError::TooManyKeys);
             }
         }
         for rk in &self.revocation_keys {
-            if rk.len() > 8192 {
+            if rk.len() > crate::LIMITS_KID_MAX_PUBLIC_KEY_BYTES {
                 return Err(KidError::TooManyKeys);
             }
         }
@@ -103,7 +103,7 @@ impl KidDocument {
                 return Err(KidError::TooManyKeys);
             }
             for loc in &manifest.locations {
-                if loc.len() > 2048 {
+                if loc.len() > crate::LIMITS_KID_MAX_LOCATION_BYTES {
                     return Err(KidError::TooManyKeys);
                 }
             }

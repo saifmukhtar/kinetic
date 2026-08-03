@@ -65,6 +65,7 @@ pub(crate) fn build_light_swarm(
     let initial_drand_kyn = config.initial_drand_kyn;
     let lru_cache_size = config.lru_cache_size;
     let max_reveals_per_hour = config.max_reveals_per_hour;
+    let test_mode = config.test_mode;
 
     let swarm = builder
         .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
@@ -148,17 +149,48 @@ pub(crate) fn build_light_swarm(
             #[cfg(not(target_arch = "wasm32"))]
             let upnp = libp2p::swarm::behaviour::toggle::Toggle::from(None);
             #[cfg(not(target_arch = "wasm32"))]
-            let relay_server = libp2p::swarm::behaviour::toggle::Toggle::from(None);
-
-            let autonat = libp2p::autonat::Behaviour::new(
-                peer_id,
-                libp2p::autonat::Config {
-                    boot_delay: std::time::Duration::from_secs(3),
-                    retry_interval: std::time::Duration::from_secs(90),
-                    refresh_interval: std::time::Duration::from_secs(3600),
-                    ..Default::default()
-                },
+            let relay_server = libp2p::swarm::behaviour::toggle::Toggle::from(
+                if config.opt_in_relay && !test_mode {
+                    Some(libp2p::relay::Behaviour::new(
+                        peer_id,
+                        libp2p::relay::Config {
+                            max_reservations: 128,
+                            max_reservations_per_peer: 4,
+                            reservation_duration: std::time::Duration::from_secs(60 * 60),
+                            reservation_rate_limiters: vec![],
+                            max_circuits: 16,
+                            max_circuits_per_peer: 4,
+                            max_circuit_duration: std::time::Duration::from_secs(2 * 60),
+                            max_circuit_bytes: 2 * 1024 * 1024,
+                            circuit_src_rate_limiters: vec![],
+                        },
+                    ))
+                } else {
+                    None
+                }
             );
+
+            let autonat = if test_mode {
+                libp2p::autonat::Behaviour::new(
+                    peer_id,
+                    libp2p::autonat::Config {
+                        boot_delay: std::time::Duration::from_secs(2),
+                        retry_interval: std::time::Duration::from_secs(2),
+                        refresh_interval: std::time::Duration::from_secs(3600),
+                        ..Default::default()
+                    },
+                )
+            } else {
+                libp2p::autonat::Behaviour::new(
+                    peer_id,
+                    libp2p::autonat::Config {
+                        boot_delay: std::time::Duration::from_secs(10),
+                        retry_interval: std::time::Duration::from_secs(90),
+                        refresh_interval: std::time::Duration::from_secs(3600),
+                        ..Default::default()
+                    },
+                )
+            };
 
             KineticBehavior {
                 relay_client,

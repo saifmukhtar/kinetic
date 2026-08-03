@@ -76,8 +76,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         initial_drand_kyn: 0,
         external_address: None,
         max_reveals_per_hour: 100,
-        lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE).unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
+        test_mode: false,
+        disable_storage_sync: true,
+        opt_in_relay: false, // Ping proxy cannot act as a relay
     };
 
     let (incoming_tx, _) = tokio::sync::mpsc::channel(32);

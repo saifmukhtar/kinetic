@@ -164,7 +164,11 @@ async fn run_host() -> Result<()> {
         .unwrap_or(config.network.host_port);
 
     let network_config = NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: if config.network.light_node {
+            NetworkMode::LightNode
+        } else {
+            NetworkMode::FullNode
+        },
         listen_addrs: vec![
             format!("/ip4/0.0.0.0/tcp/{}", p2p_port).parse().unwrap(),
             format!("/ip6/::/tcp/{}", p2p_port).parse().unwrap(),
@@ -196,10 +200,12 @@ async fn run_host() -> Result<()> {
             .as_ref()
             .and_then(|a| a.parse().ok()),
         max_reveals_per_hour: 100,
-        lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
+        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE).unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
+        test_mode: false,
+        disable_storage_sync: false,
+        opt_in_relay: config.network.opt_in_relay,
     };
-
     let base_config_dir = kinetic_core::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
