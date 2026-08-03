@@ -68,6 +68,7 @@ impl super::core::NetworkEventLoop {
             pending_puts: rustc_hash::FxHashMap::default(),
             query_id_to_name: rustc_hash::FxHashMap::default(),
             pending_proxy_requests: rustc_hash::FxHashMap::default(),
+            pending_cdn_requests: rustc_hash::FxHashMap::default(),
             incoming_proxy_tx,
             gossip_tx,
             bad_vdf_counts: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),

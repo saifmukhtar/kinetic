@@ -61,6 +61,10 @@ pub struct NetworkEventLoop {
             std::result::Result<crate::client::ProxyResponse, crate::client::ProxyError>,
         >,
     >,
+    pub(crate) pending_cdn_requests: FxHashMap<
+        libp2p::request_response::OutboundRequestId,
+        std::sync::Arc<str>, // The domain name being requested
+    >,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(
             crate::client::ProxyRequest,
