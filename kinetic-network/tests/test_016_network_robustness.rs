@@ -24,6 +24,7 @@ fn create_base_config() -> NetworkConfig {
         max_reveals_per_hour: 100,
         seed_domain: vec![],
         disable_pow: true,
+        disable_storage_sync: true,
         test_mode: true,
     }
 }
@@ -152,6 +153,72 @@ async fn test_10_invalid_test_keys() {
     assert_ne!(peer_id.to_string(), "");
 }
 
+/// Verify that a peer accumulating 3 invalid gossip messages within 60 seconds is banned.
+/// This exercises the ban-counting path without needing a live gossipsub mesh.
+#[tokio::test]
+async fn test_11_gossip_ban_after_three_invalid_messages() {
+    let config = create_base_config();
+    let keypair = Keypair::generate_ed25519();
+    let (storage, vdf_engine) = create_engine_and_store();
+    let (_, mut event_loop) =
+        NetworkEventLoop::new(config, keypair, storage, watch::channel(0).1, None, None, vdf_engine)
+            .unwrap();
+
+    let attacker = Keypair::generate_ed25519().public().to_peer_id();
+
+    event_loop.record_invalid_gossip(attacker);
+    assert!(!event_loop.is_banned(&attacker), "1 strike should not trigger a ban");
+
+    event_loop.record_invalid_gossip(attacker);
+    assert!(!event_loop.is_banned(&attacker), "2 strikes should not trigger a ban");
+
+    event_loop.record_invalid_gossip(attacker);
+    assert!(event_loop.is_banned(&attacker), "3 strikes within 60s must trigger a ban");
+}
+
+/// Verify that two distinct peers each accumulate strikes independently.
+/// A ban on one peer must not affect the other.
+#[tokio::test]
+async fn test_12_gossip_ban_is_per_peer() {
+    let config = create_base_config();
+    let keypair = Keypair::generate_ed25519();
+    let (storage, vdf_engine) = create_engine_and_store();
+    let (_, mut event_loop) =
+        NetworkEventLoop::new(config, keypair, storage, watch::channel(0).1, None, None, vdf_engine)
+            .unwrap();
+
+    let peer_a = Keypair::generate_ed25519().public().to_peer_id();
+    let peer_b = Keypair::generate_ed25519().public().to_peer_id();
+
+    // Give peer_a 3 strikes, peer_b only 2
+    for _ in 0..3 {
+        event_loop.record_invalid_gossip(peer_a);
+    }
+    for _ in 0..2 {
+        event_loop.record_invalid_gossip(peer_b);
+    }
+
+    assert!(event_loop.is_banned(&peer_a), "peer_a should be banned");
+    assert!(!event_loop.is_banned(&peer_b), "peer_b should not be banned yet");
+}
+
+/// Verify the semaphore is configured to allow at least 1 permit — i.e. the bound is > 0
+/// and we can acquire a permit immediately on a fresh event loop.
+#[tokio::test]
+async fn test_13_gossip_semaphore_not_zero_bound() {
+    let config = create_base_config();
+    let keypair = Keypair::generate_ed25519();
+    let (storage, vdf_engine) = create_engine_and_store();
+    let (_, event_loop) =
+        NetworkEventLoop::new(config, keypair, storage, watch::channel(0).1, None, None, vdf_engine)
+            .unwrap();
+
+    // A fresh event loop must have at least one permit available.
+    // If the semaphore were misconfigured at 0, this would return Err immediately.
+    let permit = event_loop.gossip_semaphore.try_acquire();
+    assert!(permit.is_ok(), "gossip_semaphore must have available permits on startup");
+}
+
 proptest! {
     #[test]
     fn proptest_valid_cache_sizes(size in 1usize..1000000) {
@@ -159,7 +226,7 @@ proptest! {
         config.lru_cache_size = std::num::NonZeroUsize::new(size).unwrap();
         assert_eq!(config.lru_cache_size.get(), size);
     }
-    
+
     #[test]
     fn proptest_vdf_reveal_limits(reveals in 1usize..1000) {
         let mut config = create_base_config();

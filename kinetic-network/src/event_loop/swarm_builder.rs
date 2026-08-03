@@ -112,6 +112,7 @@ impl super::core::NetworkEventLoop {
             nat_status: "Unknown".to_string(),
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
+            gossip_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(8)),
             light_nodes: rustc_hash::FxHashSet::default(),
             light_node_ips: rustc_hash::FxHashMap::default(),
             has_bootstrapped: false,

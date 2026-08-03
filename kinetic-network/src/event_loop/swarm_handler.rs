@@ -426,6 +426,27 @@ impl super::core::NetworkEventLoop {
                 let payload = message.data;
                 let loopback = self.loopback_tx.clone();
                 let gossip_tx = self.gossip_tx.clone();
+                let semaphore = self.gossip_semaphore.clone();
+
+                // Reject immediately if the verification pool is saturated.
+                // This prevents a flood attacker from exhausting the blocking thread pool.
+                let _permit = match semaphore.try_acquire_owned() {
+                    Ok(p) => p,
+                    Err(_) => {
+                        tracing::warn!(
+                            "Gossip semaphore saturated — dropping message from {} on topic {}",
+                            propagation_source, topic
+                        );
+                        if let Some(tx) = &self.loopback_tx {
+                            let _ = tx.send(crate::event_loop::core::LoopbackCommand::CommitGossipValidation {
+                                message_id,
+                                source: propagation_source,
+                                is_valid: false,
+                            });
+                        }
+                        return;
+                    }
+                };
 
                 crate::event_loop::utils::spawn(async move {
                     let payload_clone = payload.clone();

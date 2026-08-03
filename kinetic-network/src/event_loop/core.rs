@@ -89,6 +89,8 @@ pub struct NetworkEventLoop {
     pub(crate) nat_status: String,
     pub(crate) loopback_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopbackCommand>>,
     pub(crate) pow_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
+    /// Caps concurrent in-flight gossip verifications to prevent thread pool exhaustion from flood attacks.
+    pub gossip_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
     pub(crate) light_nodes: FxHashSet<libp2p::PeerId>,
     pub(crate) light_node_ips: rustc_hash::FxHashMap<String, usize>,
     pub(crate) has_bootstrapped: bool,
@@ -104,6 +106,34 @@ impl NetworkEventLoop {
     /// Checks if a peer is currently banned
     pub fn is_banned(&mut self, peer_id: &libp2p::PeerId) -> bool {
         self.banned_peers.peek(peer_id).is_some()
+    }
+
+    /// Records one invalid gossip message from `source`, incrementing its strike count.
+    ///
+    /// If the peer accumulates 3 invalid messages within 60 seconds, it is added to
+    /// `banned_peers` and should be disconnected by the caller. Extracted to be testable
+    /// without a live swarm.
+    pub fn record_invalid_gossip(&mut self, source: libp2p::PeerId) {
+        let now = web_time::Instant::now();
+        let (count, last_time) = self
+            .bad_vdf_counts
+            .get(&source)
+            .copied()
+            .unwrap_or((0, now));
+        let new_val = if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
+            (1, now)
+        } else {
+            (count + 1, now)
+        };
+        self.bad_vdf_counts.put(source, new_val);
+        if new_val.0 >= 3 {
+            tracing::warn!(
+                "Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning",
+                source
+            );
+            let expire_kyn = self.current_drand_kyn + 28800;
+            self.banned_peers.put(source, expire_kyn);
+        }
     }
 
     /// Starts the event loop. Blocks indefinitely until the command channel is closed.
@@ -312,25 +342,10 @@ impl NetworkEventLoop {
                     .report_message_validation_result(&message_id, &source, acceptance);
 
                 if !is_valid {
-                    let now = web_time::Instant::now();
-                    let (count, last_time) = self
-                        .bad_vdf_counts
-                        .get(&source)
-                        .copied()
-                        .unwrap_or((0, now));
-                    let new_val =
-                        if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
-                            (1, now)
-                        } else {
-                            (count + 1, now)
-                        };
-                    self.bad_vdf_counts.put(source, new_val);
-
-                    if new_val.0 >= 3 {
-                        tracing::warn!("Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning", source);
+                    self.record_invalid_gossip(source);
+                    // Disconnect after recording — banned_peers is updated inside record_invalid_gossip.
+                    if self.is_banned(&source) {
                         let _ = self.swarm.disconnect_peer_id(source);
-                        let expire_kyn = self.current_drand_kyn + 28800;
-                        self.banned_peers.put(source, expire_kyn);
                     }
                 }
             }
