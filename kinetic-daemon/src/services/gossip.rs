@@ -1,6 +1,6 @@
-//! Background pub/sub gossip message processor for governance updates and Drand time pulses.
+//! Backgkyn pub/sub gossip message processor for governance updates and Drand time kyns.
 
-/// Starts the background task that processes incoming pubsub gossip messages.
+/// Starts the backgkyn task that processes incoming pubsub gossip messages.
 pub fn start_gossip_processor(
     network_client: kinetic_network::NetworkClient,
     mut gossip_rx: tokio::sync::broadcast::Receiver<(
@@ -11,7 +11,7 @@ pub fn start_gossip_processor(
     )>,
     gossip_gov_path: std::sync::Arc<std::path::PathBuf>,
     drand_client_gossip: std::sync::Arc<kinetic_core::drand::DrandClient>,
-    drand_pulse_tx_gossip: tokio::sync::watch::Sender<u64>,
+    drand_kyn_tx_gossip: tokio::sync::watch::Sender<u64>,
     storage: Option<std::sync::Arc<dyn kinetic_core::traits::StorageEngine>>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
@@ -101,19 +101,19 @@ pub fn start_gossip_processor(
                 network_client.report_gossip_validation(message_id, propagation_source, is_valid);
             } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
                 let mut is_valid = false;
-                if let Ok(pulse) =
-                    serde_json::from_slice::<kinetic_core::drand::DrandPulse>(&payload)
+                if let Ok(kyn) =
+                    serde_json::from_slice::<kinetic_core::drand::RawKyn>(&payload)
                 {
-                    let pulse_clone = pulse.clone();
-                    is_valid = tokio::task::spawn_blocking(move || pulse_clone.verify())
+                    let kyn_clone = kyn.clone();
+                    is_valid = tokio::task::spawn_blocking(move || kyn_clone.verify())
                         .await
                         .unwrap_or(false);
                     if is_valid {
-                        if let Ok(latest) = drand_client_gossip.load_cached_pulse() {
-                            if (pulse.round > latest.round || latest.is_unavailable)
-                                && drand_client_gossip.cache_pulse(&pulse).is_ok()
+                        if let Ok(latest) = drand_client_gossip.load_cached_kyn() {
+                            if (kyn.kyn > latest.kyn || latest.is_unavailable)
+                                && drand_client_gossip.cache_kyn(&kyn).is_ok()
                             {
-                                let _ = drand_pulse_tx_gossip.send(pulse.round);
+                                let _ = drand_kyn_tx_gossip.send(kyn.kyn);
                             }
                         }
                     }

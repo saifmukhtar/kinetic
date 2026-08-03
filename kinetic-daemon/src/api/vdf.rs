@@ -1,4 +1,4 @@
-//! HTTP REST API endpoints and background task workers for VDF registration, renewal, and task progress tracking.
+//! HTTP REST API endpoints and backgkyn task workers for VDF registration, renewal, and task progress tracking.
 
 use super::*;
 use axum::{
@@ -29,7 +29,7 @@ pub struct VdfRegisterRequest {
     pub iterations: Option<u64>,
 }
 
-/// Handles API requests to initiate a background VDF registration task.
+/// Handles API requests to initiate a backgkyn VDF registration task.
 /// Ensures that only one VDF task is actively running.
 ///
 /// # Errors
@@ -103,7 +103,7 @@ pub async fn handle_vdf_register(
         );
     }
 
-    // Spawn blocking background task
+    // Spawn blocking backgkyn task
     let tasks_clone = state.vdf_tasks.clone();
     let network_clone = state.network.clone();
     let storage_clone = state.storage.clone();
@@ -243,8 +243,8 @@ pub async fn handle_vdf_register(
             return;
         }
 
-        // Wait enough rounds to satisfy the commit_age rule in verify_reveal.
-        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_ROUNDS * kinetic_core::constants::DRAND_PERIOD) + 2;
+        // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
+        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS * kinetic_core::constants::DRAND_PERIOD) + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,
@@ -280,7 +280,7 @@ pub async fn handle_vdf_register(
             name: fqdn.clone(),
             payload,
             salt,
-            drand_pulse: drand_data.round,
+            drand_kyn: drand_data.kyn,
             drand_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
@@ -592,8 +592,8 @@ pub async fn handle_vdf_renew(
             return;
         }
 
-        // Wait enough rounds to satisfy the commit_age rule in verify_reveal.
-        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_ROUNDS * kinetic_core::constants::DRAND_PERIOD) + 2;
+        // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
+        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS * kinetic_core::constants::DRAND_PERIOD) + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,
@@ -606,7 +606,7 @@ pub async fn handle_vdf_renew(
 
         let previous_proof = kinetic_core::types::PreviousProof {
             salt: old_reveal.salt,
-            drand_pulse: old_reveal.drand_pulse,
+            drand_kyn: old_reveal.drand_kyn,
             drand_signature: old_reveal.drand_signature.clone(),
             iterations: old_reveal.iterations,
             vdf_proof: old_reveal.vdf_proof.clone(),
@@ -618,7 +618,7 @@ pub async fn handle_vdf_renew(
             name: fqdn.clone(),
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
-            drand_pulse: drand_data.round,
+            drand_kyn: drand_data.kyn,
             drand_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {

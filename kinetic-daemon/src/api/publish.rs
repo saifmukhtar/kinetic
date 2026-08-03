@@ -44,7 +44,7 @@ pub async fn handle_publish(
     // For Standard names, we need to validate and enforce Drand staleness.
     // Premium names bypass VDF staleness checks.
     let mut is_standard = false;
-    let mut drand_pulse = 0;
+    let mut drand_kyn = 0;
     if let kinetic_core::types::NameRecord::Standard(ref mut reveal) = domain_record {
         reveal.name = fqdn.clone();
         if let Err(e) = reveal.validate() {
@@ -54,57 +54,57 @@ pub async fn handle_publish(
             ));
         }
         is_standard = true;
-        drand_pulse = reveal.drand_pulse;
+        drand_kyn = reveal.drand_kyn;
     }
 
-    // Finding 4 (High): Enforce drand staleness — reject Reveals whose VDF pulse is older
-    // than RESQUARING_EPOCH_ROUNDS. Fetch the current beacon round, falling back to the
+    // Finding 4 (High): Enforce drand staleness — reject Reveals whose VDF kyn is older
+    // than RESQUARING_EPOCH_KYNS. Fetch the current beacon kyn, falling back to the
     // sled-cached value so offline-first nodes aren’t broken.
-    let current_round: u64 = {
+    let current_kyn: u64 = {
         let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
         match drand_client.fetch_latest().await {
-            Ok(pulse) => pulse.round,
+            Ok(kyn) => kyn.kyn,
             Err(_) => {
-                // Graceful fallback: read the last known round from sled.
+                // Graceful fallback: read the last known kyn from sled.
                 // If even that is unavailable, we allow the publish to proceed —
                 // the DHT store layer will still enforce its own staleness check.
                 tracing::warn!(
                     error_code = "KIN-API-001",
-                    "handle_publish: Could not fetch live drand round, \
+                    "handle_publish: Could not fetch live drand kyn, \
                      falling back to cached value for staleness check"
                 );
-                match drand_client.load_cached_pulse() {
-                    Ok(pulse) => pulse.round,
+                match drand_client.load_cached_kyn() {
+                    Ok(kyn) => kyn.kyn,
                     Err(_) => 0,
                 }
             }
         }
     };
 
-    if is_standard && current_round > 0 {
-        if drand_pulse > current_round {
+    if is_standard && current_kyn > 0 {
+        if drand_kyn > current_kyn {
             return Err((
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({
                     "error": format!(
-                        "Reveal rejected: VDF pulse {} is in the future (current round: {}).",
-                        drand_pulse,
-                        current_round
+                        "Reveal rejected: VDF kyn {} is in the future (current kyn: {}).",
+                        drand_kyn,
+                        current_kyn
                     )
                 })),
             ));
         }
-        let age = current_round - drand_pulse;
-        if age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
+        let age = current_kyn - drand_kyn;
+        if age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
             return Err((
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({
                     "error": format!(
-                        "Reveal rejected: VDF pulse {} is {} rounds old (max allowed: {}). \
+                        "Reveal rejected: VDF kyn {} is {} kyns old (max allowed: {}). \
                          Please re-compute a fresh VDF proof.",
-                        drand_pulse,
+                        drand_kyn,
                         age,
-                        kinetic_core::types::RESQUARING_EPOCH_ROUNDS
+                        kinetic_core::types::RESQUARING_EPOCH_KYNS
                     )
                 })),
             ));
@@ -169,7 +169,7 @@ pub async fn handle_publish(
                 );
             }
 
-            // Phase 4.2: Spawn a background task to verify quorum threshold
+            // Phase 4.2: Spawn a backgkyn task to verify quorum threshold
             let network = state.network.clone();
             let fqdn_clone = fqdn.clone();
 

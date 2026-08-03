@@ -125,7 +125,7 @@ mod tests {
                 "name": "sub.example.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
-                "drand_pulse": 100,
+                "drand_kyn": 100,
                 "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
@@ -162,7 +162,7 @@ mod tests {
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
-                "drand_pulse": 100,
+                "drand_kyn": 100,
                 "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
@@ -195,9 +195,9 @@ mod tests {
             .try_init();
         let (app, _, storage) = setup_test_app().await;
 
-        // Mock current drand round to 10_000_000 (must be > RESQUARING_EPOCH_ROUNDS)
-        let mock_pulse = kinetic_core::drand::DrandPulse {
-            round: 10_000_000,
+        // Mock current drand kyn to 10_000_000 (must be > RESQUARING_EPOCH_KYNS)
+        let mock_kyn = kinetic_core::drand::RawKyn {
+            kyn: 10_000_000,
             randomness: "0".repeat(192),
             signature: "0".repeat(192),
             is_from_cache: true,
@@ -206,7 +206,7 @@ mod tests {
         storage
             .put(
                 kinetic_core::constants::DB_PREFIX_LAST_DRAND,
-                &serde_json::to_vec(&mock_pulse).unwrap(),
+                &serde_json::to_vec(&mock_kyn).unwrap(),
             )
             .unwrap();
 
@@ -216,7 +216,7 @@ mod tests {
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
-                "drand_pulse": 100, // Very old
+                "drand_kyn": 100, // Very old
                 "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
@@ -245,7 +245,7 @@ mod tests {
             "Unexpected response: {}",
             body_str
         );
-        assert!(body_str.contains("Reveal rejected: VDF pulse"));
+        assert!(body_str.contains("Reveal rejected: VDF kyn"));
     }
 
     #[tokio::test]
@@ -257,7 +257,7 @@ mod tests {
             name: "validname.kin".to_string(),
             payload: vec![1, 2, 3],
             salt: [0; 32],
-            drand_pulse: 100,
+            drand_kyn: 100,
             drand_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {

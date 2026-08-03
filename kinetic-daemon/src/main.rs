@@ -67,7 +67,7 @@ enum Commands {
     },
     /// Uninstall the daemon system service
     Uninstall,
-    /// Start the daemon (foreground)
+    /// Start the daemon (foregkyn)
     Run,
     /// Start the daemon service (background)
     Start,
@@ -269,18 +269,18 @@ async fn run_daemon() -> Result<()> {
     );
 
     let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(Some(storage.clone())));
-    let initial_pulse = match drand_client.fetch_latest().await {
-        Ok(pulse) => {
-            info!("Drand beacon connected — pulse #{}", pulse.round);
-            pulse
+    let initial_kyn = match drand_client.fetch_latest().await {
+        Ok(kyn) => {
+            info!("Drand beacon connected — kyn #{}", kyn.kyn);
+            kyn
         }
         Err(e) => {
             warn!("Drand beacon unavailable on startup: {}", e);
             warn!("P2P swarm and proxy will start — registration disabled until beacon reachable");
-            kinetic_core::drand::DrandPulse::unavailable()
+            kinetic_core::drand::RawKyn::unavailable()
         }
     };
-    let initial_drand_pulse = initial_pulse.round;
+    let initial_drand_kyn = initial_kyn.kyn;
 
     // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately
     // without having to wait for the 30-40 second PoW mining loop to finish.
@@ -289,16 +289,16 @@ async fn run_daemon() -> Result<()> {
         std::process::exit(1);
     }
 
-    let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
+    let (drand_kyn_tx, drand_kyn_rx) = watch::channel(initial_drand_kyn);
     let local_key = kinetic_network::pow::mine_sybil_keypair(
-        initial_drand_pulse,
+        initial_drand_kyn,
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     tracing::info!("Daemon starting with Peer ID: {}", local_peer_id);
 
     let mode = match config.daemon.network_mode.as_str() {
-        "LightClient" => NetworkMode::LightClient,
+        "LightNode" => NetworkMode::LightNode,
         _ => NetworkMode::FullNode,
     };
     let network_config = NetworkConfig {
@@ -336,7 +336,7 @@ async fn run_daemon() -> Result<()> {
             .map(Into::into)
             .collect(),
         enable_mdns: config.network.enable_mdns,
-        initial_drand_pulse,
+        initial_drand_kyn,
         external_address: config
             .network
             .external_address
@@ -448,7 +448,7 @@ async fn run_daemon() -> Result<()> {
         network_config.clone(),
         current_local_key.clone(),
         storage.clone(),
-        drand_pulse_rx.clone(),
+        drand_kyn_rx.clone(),
         Some(incoming_tx.clone()),
         Some(gossip_tx.clone()),
         vdf_engine.clone(),
@@ -458,7 +458,7 @@ async fn run_daemon() -> Result<()> {
         network_loop.run().await;
     });
 
-    // Subscribe to Quicknet Pulse Gossip
+    // Subscribe to Quicknet Kyn Gossip
     let _ = network_client
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
         .await;
@@ -466,7 +466,7 @@ async fn run_daemon() -> Result<()> {
 
     kinetic_daemon::services::network::start_pow_miner_loop(
         network_client.clone(),
-        drand_pulse_rx.clone(),
+        drand_kyn_rx.clone(),
         network_config.clone(),
         storage.clone(),
         incoming_tx.clone(),
@@ -481,7 +481,7 @@ async fn run_daemon() -> Result<()> {
         gossip_rx,
         gov_state_path.clone(),
         drand_client.clone(),
-        drand_pulse_tx.clone(),
+        drand_kyn_tx.clone(),
         Some(storage.clone()),
     );
 
@@ -549,9 +549,9 @@ async fn run_daemon() -> Result<()> {
         network_client.clone(),
         drand_client.clone(),
         config.drand.p2p_only,
-        initial_drand_pulse,
+        initial_drand_kyn,
         daemon_keypair.clone(),
-        drand_pulse_tx.clone(),
+        drand_kyn_tx.clone(),
     );
 
     // Register with kinetic-pac by dropping our proxy config into the global proxies directory

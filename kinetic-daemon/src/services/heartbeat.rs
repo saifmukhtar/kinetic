@@ -1,4 +1,4 @@
-//! Periodic name heartbeat generator and Drand pulse synchronization worker loop.
+//! Periodic name heartbeat generator and Drand kyn synchronization worker loop.
 
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Heartbeat;
@@ -7,18 +7,18 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Starts a background loop that periodically broadcasts heartbeats for owned names.
+/// Starts a backgkyn loop that periodically broadcasts heartbeats for owned names.
 pub fn start_heartbeat_loop(
     hb_storage: Arc<dyn StorageEngine>,
     hb_network: kinetic_network::NetworkClient,
     hb_drand: Arc<kinetic_core::drand::DrandClient>,
     p2p_only: bool,
-    initial_drand_pulse: u64,
+    initial_drand_kyn: u64,
     daemon_keypair_hb: ml_dsa::SigningKey<ml_dsa::MlDsa65>,
-    drand_pulse_tx_hb: tokio::sync::watch::Sender<u64>,
+    drand_kyn_tx_hb: tokio::sync::watch::Sender<u64>,
 ) -> tokio::task::JoinHandle<()> {
-    let last_known_live_round = Arc::new(AtomicU64::new(initial_drand_pulse));
-    let lklr = last_known_live_round.clone();
+    let last_known_live_kyn = Arc::new(AtomicU64::new(initial_drand_kyn));
+    let lklr = last_known_live_kyn.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(3));
         let mut next_hb = tokio::time::Instant::now();
@@ -28,18 +28,18 @@ pub fn start_heartbeat_loop(
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_drand.load_cached_pulse() {
+                if let Ok(latest) = hb_drand.load_cached_kyn() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                    let expected_round = (now - kinetic_core::constants::DRAND_GENESIS_TIME)
+                    let expected_kyn = (now - kinetic_core::constants::DRAND_GENESIS_TIME)
                         / kinetic_core::constants::DRAND_PERIOD;
 
-                    if expected_round > latest.round + 5 {
+                    if expected_kyn > latest.kyn + 5 {
                         tracing::warn!(
-                            "P2P Drand fallback triggered! We are behind by {} rounds.",
-                            expected_round.saturating_sub(latest.round)
+                            "P2P Drand fallback triggered! We are behind by {} kyns.",
+                            expected_kyn.saturating_sub(latest.kyn)
                         );
                         should_fetch_http = true;
                     }
@@ -48,11 +48,11 @@ pub fn start_heartbeat_loop(
                 }
             }
 
-            let pulse = if should_fetch_http {
+            let kyn = if should_fetch_http {
                 match hb_drand.fetch_latest().await {
                     Ok(p) => {
                         if !p.is_unavailable && !p.is_from_cache {
-                            let _ = drand_pulse_tx_hb.send(p.round);
+                            let _ = drand_kyn_tx_hb.send(p.kyn);
                             if !p2p_only {
                                 if let Ok(payload) = serde_json::to_vec(&p) {
                                     let _ = hb_network
@@ -67,25 +67,25 @@ pub fn start_heartbeat_loop(
                         p
                     }
                     Err(_) => hb_drand
-                        .load_cached_pulse()
-                        .unwrap_or(kinetic_core::drand::DrandPulse::unavailable()),
+                        .load_cached_kyn()
+                        .unwrap_or(kinetic_core::drand::RawKyn::unavailable()),
                 }
             } else {
                 hb_drand
-                    .load_cached_pulse()
-                    .unwrap_or(kinetic_core::drand::DrandPulse::unavailable())
+                    .load_cached_kyn()
+                    .unwrap_or(kinetic_core::drand::RawKyn::unavailable())
             };
 
-            if pulse.is_unavailable {
+            if kyn.is_unavailable {
                 continue;
             }
 
-            if pulse.round > lklr.load(Ordering::Relaxed) {
-                lklr.store(pulse.round, Ordering::Relaxed);
+            if kyn.kyn > lklr.load(Ordering::Relaxed) {
+                lklr.store(kyn.kyn, Ordering::Relaxed);
             }
 
             let current_live = lklr.load(Ordering::Relaxed);
-            if !pulse.is_usable_for_heartbeat(current_live) {
+            if !kyn.is_usable_for_heartbeat(current_live) {
                 continue;
             }
 
@@ -100,7 +100,7 @@ pub fn start_heartbeat_loop(
                     for name in names {
                         let mut heartbeat = Heartbeat {
                             name: name.clone(),
-                            latest_drand_pulse: pulse.round,
+                            latest_drand_kyn: kyn.kyn,
                             signature: vec![],
                         };
 
@@ -117,7 +117,7 @@ pub fn start_heartbeat_loop(
 
                         let name_clone = name.clone();
                         let hb_network_clone = hb_network.clone();
-                        let _pulse_round = pulse.round;
+                        let _kyn_kyn = kyn.kyn;
 
                         tokio::spawn(async move {
                             if let Ok(payload) = serde_json::to_vec(&heartbeat) {
