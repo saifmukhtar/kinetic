@@ -8,10 +8,7 @@ license.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 thiserror.workspace = true
 anyhow.workspace = true
-num-bigint = "0.4.4"
-num-traits = "0.2.19"
-num-integer = "0.1.46"
-sha2 = "0.10.8"
+kyn-vdf = "0.1.0"
 
 [dev-dependencies]
 kinetic-vdf = { path = "../kinetic-vdf" }
