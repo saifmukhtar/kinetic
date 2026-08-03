@@ -3001,6 +3001,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kinetic-vdfrs"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "kinetic-core",
+ "kinetic-vdf",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "kinetic-verify"
 version = "0.2.0"
 dependencies = [
@@ -3022,7 +3036,7 @@ dependencies = [
  "kinetic-core",
  "kinetic-network",
  "kinetic-storage",
- "kinetic-vdf",
+ "kinetic-vdfrs",
  "libp2p",
  "reqwest",
  "serde",
