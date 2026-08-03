@@ -1,13 +1,15 @@
 //! Kinetic Network Timekeeping & Branded Time Units.
 //!
 //! Provides branded time tracking for frontends, explorers, and node monitoring.
-//! The underlying consensus engine uses absolute Drand rounds, which this module
-//! translates into the official Kinetic time hierarchy:
+//! The underlying consensus engine uses absolute network beacons, which this module
+//! translates into the official Kinetic time hierarchy (The Crystal Lexicon):
 //!
-//! - **1 Pulse** = 1 Drand Round (3 seconds)
-//! - **1 Cycle** = 1,200 Pulses (1 Hour)
-//! - **1 Epoch** = 28,800 Pulses (1 Day / 24 Hours)
-//! - **1 Orbit** = 7 Epochs (1 Week / 7 Days / 201,600 Pulses)
+//! - **1 Kyn** = 3 seconds (The atomic heartbeat)
+//! - **1 Facet** = 1,200 Kyns (1 Hour)
+//! - **1 Prism** = 28,800 Kyns (1 Day / 24 Hours)
+//! - **1 Matrix** = 7 Prisms (1 Week / 7 Days / 201,600 Kyns)
+//! - **1 Lattice** = 30 Prisms (1 Month / 30 Days / 864,000 Kyns)
+//! - **1 Apex** = 365 Prisms (1 Year / 365 Days / 10,512,000 Kyns)
 
 use serde::{Deserialize, Serialize};
 
@@ -15,64 +17,76 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Time Hierarchy
 ///
-/// - **Pulse**: 1 Drand Round (3 seconds)
-/// - **Cycle**: 1,200 Pulses (1 Hour)
-/// - **Epoch**: 28,800 Pulses (1 Day)
-/// - **Orbit**: 7 Epochs (1 Week)
+/// - **Kyn**: 3 seconds
+/// - **Facet**: 1,200 Kyns (1 Hour)
+/// - **Prism**: 28,800 Kyns (1 Day)
+/// - **Matrix**: 7 Prisms (1 Week)
+/// - **Lattice**: 30 Prisms (1 Month)
+/// - **Apex**: 365 Prisms (1 Year)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KineticTime {
-    /// Number of completed 24-hour network Epochs (28,800 pulses each).
-    pub epoch: u64,
-    /// Number of completed 1-hour network Cycles within the current Epoch (1,200 pulses each, 0..23).
-    pub cycle: u64,
-    /// Number of completed 3-second Pulses within the current Cycle (0..1199).
-    pub pulse: u64,
-    /// Total number of pulses elapsed since network genesis.
-    pub total_pulses: u64,
+    /// Number of completed 24-hour network Prisms (28,800 kyns each).
+    pub prism: u64,
+    /// Number of completed 1-hour network Facets within the current Prism (1,200 kyns each, 0..23).
+    pub facet: u64,
+    /// Number of completed 3-second Kyns within the current Facet (0..1199).
+    pub kyn: u64,
+    /// Total number of kyns elapsed since network genesis.
+    pub total_kyns: u64,
 }
 
 impl KineticTime {
-    /// Creates a new [`KineticTime`] instance from an absolute Drand round number and a genesis round.
+    /// Creates a new [`KineticTime`] instance from an absolute network kyn number and a genesis kyn.
     ///
-    /// If `current_drand_round` is less than `genesis_drand_round`,
+    /// If `current_kyn` is less than `genesis_kyn`,
     /// returns a time structure initialized to zero.
     #[allow(clippy::absurd_extreme_comparisons)]
-    pub fn from_drand_round(current_drand_round: u64, genesis_drand_round: u64) -> Self {
-        if current_drand_round < genesis_drand_round {
+    pub fn from_kyn(current_kyn: u64, genesis_kyn: u64) -> Self {
+        if current_kyn < genesis_kyn {
             return Self {
-                epoch: 0,
-                cycle: 0,
-                pulse: 0,
-                total_pulses: 0,
+                prism: 0,
+                facet: 0,
+                kyn: 0,
+                total_kyns: 0,
             };
         }
 
-        let total_pulses = current_drand_round - genesis_drand_round;
+        let total_kyns = current_kyn - genesis_kyn;
 
-        let epoch = total_pulses / 28_800;
-        let remainder_after_epoch = total_pulses % 28_800;
+        let prism = total_kyns / 28_800;
+        let remainder_after_prism = total_kyns % 28_800;
 
-        let cycle = remainder_after_epoch / 1_200;
-        let pulse = remainder_after_epoch % 1_200;
+        let facet = remainder_after_prism / 1_200;
+        let kyn = remainder_after_prism % 1_200;
 
         Self {
-            epoch,
-            cycle,
-            pulse,
-            total_pulses,
+            prism,
+            facet,
+            kyn,
+            total_kyns,
         }
     }
 
-    /// Returns the number of completed 7-day network Orbits (1 Orbit = 7 Epochs).
-    pub fn orbit(&self) -> u64 {
-        self.epoch / 7
+    /// Returns the number of completed 7-day network Matrices (1 Matrix = 7 Prisms).
+    pub fn matrix(&self) -> u64 {
+        self.prism / 7
+    }
+
+    /// Returns the number of completed 30-day network Lattices (1 Lattice = 30 Prisms).
+    pub fn lattice(&self) -> u64 {
+        self.prism / 30
+    }
+
+    /// Returns the number of completed 365-day network Apexes (1 Apex = 365 Prisms).
+    pub fn apex(&self) -> u64 {
+        self.prism / 365
     }
 
     /// Formats the time into a branded aesthetic string.
     pub fn to_display_string(&self) -> String {
         format!(
-            "Epoch {}, Cycle {} (Pulse {})",
-            self.epoch, self.cycle, self.pulse
+            "Prism {}, Facet {} (Kyn {})",
+            self.prism, self.facet, self.kyn
         )
     }
 }

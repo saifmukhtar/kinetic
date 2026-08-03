@@ -46,8 +46,8 @@ pub struct HostRoutingRecord {
     pub host_id: String,
     /// Currently assigned libp2p PeerId.
     pub current_peer_id: String,
-    /// The Drand pulse round when this record was created.
-    pub drand_pulse: u64,
+    /// The Drand kyn kyn when this record was created.
+    pub drand_kyn: u64,
     /// Owner signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
     pub signature: Vec<u8>,
 }
@@ -75,7 +75,7 @@ impl HostRoutingRecord {
         bytes.extend_from_slice(self.host_id.as_bytes());
         bytes.extend_from_slice(&(self.current_peer_id.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.current_peer_id.as_bytes());
-        bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
+        bytes.extend_from_slice(&self.drand_kyn.to_be_bytes());
         bytes
     }
 }

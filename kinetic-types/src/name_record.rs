@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 pub struct Heartbeat {
     /// Name associated with this heartbeat.
     pub name: String,
-    /// Latest drand round number proving heartbeat recency.
-    pub latest_drand_pulse: u64,
+    /// Latest drand kyn number proving heartbeat recency.
+    pub latest_drand_kyn: u64,
     /// Owner's ML-DSA-65 post-quantum signature over [`signable_bytes`](Heartbeat::signable_bytes).
     pub signature: Vec<u8>,
 }
@@ -34,7 +34,7 @@ impl Heartbeat {
         bytes.extend_from_slice(prefix_suffix);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
-        bytes.extend_from_slice(&self.latest_drand_pulse.to_be_bytes());
+        bytes.extend_from_slice(&self.latest_drand_kyn.to_be_bytes());
         bytes
     }
 }
@@ -51,7 +51,7 @@ pub enum NameRecord {
         name: String,
         /// The ML-DSA-65 public key of the name owner.
         pubkey: Vec<u8>,
-        /// The unix timestamp in seconds when this grant was approved.
+        /// The unix timestamp in kyns when this grant was approved.
         granted_at: u64,
         /// The zone payload associated with the name.
         payload: Vec<u8>,

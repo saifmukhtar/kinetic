@@ -101,8 +101,8 @@ pub struct CommitRequest {
 pub struct PreviousProof {
     /// 32-byte salt used in the previous proof generation.
     pub salt: [u8; 32],
-    /// Associated drand randomness round number from prior registration.
-    pub drand_pulse: u64,
+    /// Associated drand randomness kyn number from prior registration.
+    pub drand_kyn: u64,
     /// Hex-encoded drand BLS12-381 G2 signature from prior registration.
     pub drand_signature: String,
     /// Number of VDF iterations completed in prior registration.
@@ -120,7 +120,7 @@ impl PreviousProof {
         let prefix = prefix_str.as_bytes();
         let capacity = prefix.len()
             + 32 // salt
-            + 8 // drand_pulse
+            + 8 // drand_kyn
             + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
@@ -129,7 +129,7 @@ impl PreviousProof {
         let mut bytes = Vec::with_capacity(capacity);
         bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&self.salt);
-        bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
+        bytes.extend_from_slice(&self.drand_kyn.to_be_bytes());
 
         bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.drand_signature.as_bytes());
@@ -151,7 +151,7 @@ impl PreviousProof {
         let prefix = prefix_str.as_bytes();
         let capacity = prefix.len()
             + 32 // salt
-            + 8 // drand_pulse
+            + 8 // drand_kyn
             + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len();
@@ -159,7 +159,7 @@ impl PreviousProof {
         let mut bytes = Vec::with_capacity(capacity);
         bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&self.salt);
-        bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
+        bytes.extend_from_slice(&self.drand_kyn.to_be_bytes());
 
         bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.drand_signature.as_bytes());
@@ -185,8 +185,8 @@ pub struct Reveal {
     pub payload: Vec<u8>,
     /// 32-byte salt value for commitment blinding.
     pub salt: [u8; 32],
-    /// Associated drand randomness round number.
-    pub drand_pulse: u64,
+    /// Associated drand randomness kyn number.
+    pub drand_kyn: u64,
     /// Hex-encoded drand BLS12-381 G2 signature from the League of Entropy.
     pub drand_signature: String,
     /// Number of VDF iterations completed.
@@ -250,7 +250,7 @@ impl Reveal {
             + 4 + self.name.len()
             + 4 + self.payload.len()
             + 32 // salt
-            + 8 // drand_pulse
+            + 8 // drand_kyn
             + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
@@ -277,7 +277,7 @@ impl Reveal {
         bytes.extend_from_slice(&self.payload);
 
         bytes.extend_from_slice(&self.salt);
-        bytes.extend_from_slice(&self.drand_pulse.to_be_bytes());
+        bytes.extend_from_slice(&self.drand_kyn.to_be_bytes());
 
         bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.drand_signature.as_bytes());
@@ -319,6 +319,6 @@ pub struct VdfJobRequest {
     pub name_length: u8,
     /// Evaluated Hashcash proof-of-work nonce.
     pub hashcash_nonce: u64,
-    /// Associated drand randomness round number.
-    pub drand_pulse: u64,
+    /// Associated drand randomness kyn number.
+    pub drand_kyn: u64,
 }

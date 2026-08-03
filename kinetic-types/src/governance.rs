@@ -63,8 +63,8 @@ pub enum GovernanceAction {
     EmergencyHalt,
     /// Resume network registration and renewals, adding to the global pause offset.
     EmergencyResume {
-        /// The exact number of drand rounds the network was halted for.
-        paused_rounds: u64,
+        /// The exact number of drand kyns the network was halted for.
+        paused_kyns: u64,
     },
 }
 
@@ -142,9 +142,9 @@ impl SignedGovernanceMessage {
             GovernanceAction::EmergencyHalt => {
                 buf.push(0x0C);
             }
-            GovernanceAction::EmergencyResume { paused_rounds } => {
+            GovernanceAction::EmergencyResume { paused_kyns } => {
                 buf.push(0x0D);
-                buf.extend_from_slice(&paused_rounds.to_be_bytes());
+                buf.extend_from_slice(&paused_kyns.to_be_bytes());
             }
         }
 
@@ -276,8 +276,8 @@ impl GovernanceAction {
                 if action_data.len() < 8 {
                     return Err(GovernanceTypeError::BufferTooSmall);
                 }
-                let paused_rounds = u64::from_be_bytes(action_data[0..8].try_into().unwrap());
-                GovernanceAction::EmergencyResume { paused_rounds }
+                let paused_kyns = u64::from_be_bytes(action_data[0..8].try_into().unwrap());
+                GovernanceAction::EmergencyResume { paused_kyns }
             }
             0x0E => {
                 // RevokePremiumName
