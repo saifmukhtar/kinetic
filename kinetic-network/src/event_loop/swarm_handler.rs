@@ -455,8 +455,10 @@ impl super::core::NetworkEventLoop {
                             }
                             return false;
                         }
-                        // Reject unknown topics to prevent spam
-                        false
+                        // Unknown topic — gossipsub only delivers messages on topics we subscribed to,
+                        // so this peer is not spamming. We have no application-level crypto rule for
+                        // this topic yet, so accept it and let the downstream application decide.
+                        true
                     }).await;
 
                     if let Some(tx) = loopback {
