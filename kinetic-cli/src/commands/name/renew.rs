@@ -61,7 +61,7 @@ pub async fn handle(
     info!("Fetching latest Drand entropy beacon...");
     let drand_client = kinetic_core::drand::DrandClient::new(None);
     let drand_data = drand_client.fetch_latest().await?;
-    info!("Successfully fetched Drand round {}.", drand_data.round);
+    info!("Successfully fetched Drand kyn {}.", drand_data.kyn);
 
     let mut salt = [0u8; 32];
     getrandom::fill(&mut salt).expect("Failed to generate random salt");
@@ -145,7 +145,7 @@ pub async fn handle(
 
     let mut previous_proof = kinetic_core::types::PreviousProof {
         salt: old_reveal.salt,
-        drand_pulse: old_reveal.drand_pulse,
+        drand_kyn: old_reveal.drand_kyn,
         drand_signature: old_reveal.drand_signature.clone(),
         iterations: old_reveal.iterations,
         vdf_proof: old_reveal.vdf_proof.clone(),
@@ -161,7 +161,7 @@ pub async fn handle(
         name: fqdn.clone(),
         payload: old_reveal.payload.clone(),
         salt,
-        drand_pulse: drand_data.round,
+        drand_kyn: drand_data.kyn,
         drand_signature: drand_data.signature.clone(),
         iterations: actual_iterations,
         vdf_proof,

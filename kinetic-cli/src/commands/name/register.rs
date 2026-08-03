@@ -40,8 +40,8 @@ pub async fn handle(
     let drand_client = kinetic_core::drand::DrandClient::new(None);
     let drand_data = drand_client.fetch_latest().await?;
     info!(
-        "Successfully fetched Drand round {}. Randomness: {}",
-        drand_data.round, drand_data.randomness
+        "Successfully fetched Drand kyn {}. Randomness: {}",
+        drand_data.kyn, drand_data.randomness
     );
 
     // 2. Generate the VDF Proof
@@ -145,7 +145,7 @@ pub async fn handle(
     let refresh_client = client.clone();
     let refresh_bind_ip = config.daemon.bind_ip.clone();
 
-    // Phase 4.1.5: Spawn a background task to refresh the commitment periodically
+    // Phase 4.1.5: Spawn a backgkyn task to refresh the commitment periodically
     let refresh_handle = tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(3600)); // Every hour
         loop {
@@ -290,7 +290,7 @@ pub async fn handle(
         name: fqdn.clone(),
         payload,
         salt,
-        drand_pulse: drand_data.round,
+        drand_kyn: drand_data.kyn,
         drand_signature: drand_data.signature.clone(),
         iterations: actual_iterations,
         vdf_proof: kinetic_core::types::VdfProof {

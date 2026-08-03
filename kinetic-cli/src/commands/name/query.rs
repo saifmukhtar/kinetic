@@ -49,7 +49,7 @@ pub async fn handle_list(config: &KineticConfig, client: &Client) -> anyhow::Res
 /// Retrieves information about a specific `.kin` name.
 ///
 /// Attempts to resolve the name from the network. If unavailable, falls back
-/// to local storage to provide details like Drand pulse and VDF iterations.
+/// to local storage to provide details like Drand kyn and VDF iterations.
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if local data parsing fails or network requests error out.
@@ -88,7 +88,7 @@ pub async fn handle_info(
             match record {
                 kinetic_core::types::NameRecord::Standard(r) => {
                     info!("  Type: Standard");
-                    info!("  Created at Drand pulse: {}", r.drand_pulse);
+                    info!("  Created at Drand kyn: {}", r.drand_kyn);
                     info!("  VDF Iterations: {}", r.iterations);
                 }
                 kinetic_core::types::NameRecord::Premium { granted_at, .. } => {

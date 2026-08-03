@@ -62,13 +62,13 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
                 .unwrap_or_default()
                 .as_secs();
 
-            let current_round = if now > DRAND_GENESIS_TIME {
+            let current_kyn = if now > DRAND_GENESIS_TIME {
                 (now - DRAND_GENESIS_TIME) / DRAND_PERIOD
             } else {
                 0
             };
 
-            KineticTime::from_drand_round(current_round, kinetic_core::constants::KINETIC_GENESIS_DRAND_ROUND)
+            KineticTime::from_kyn(current_kyn, kinetic_core::constants::KINETIC_GENESIS_DRAND_KYN)
         }
     };
 
