@@ -159,6 +159,17 @@ impl super::core::NetworkEventLoop {
                     return;
                 }
 
+                // Race Kademlia with the CDN layer: Blast a CDN request to up to 3 connected peers
+                let peers: Vec<_> = self.swarm.connected_peers().copied().take(3).collect();
+                for peer in peers {
+                    let req_id = self.swarm.behaviour_mut().cdn.send_request(
+                        &peer,
+                        kinetic_types::cdn::CdnRequest { domain: name.clone() },
+                    );
+                    self.pending_cdn_requests.insert(req_id, name.clone());
+                }
+
+
                 let keys = kinetic_core::types::derive_storage_keys(
                     &name,
                     kinetic_core::constants::NETWORK_ID,
