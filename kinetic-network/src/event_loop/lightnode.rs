@@ -143,32 +143,21 @@ pub(crate) fn build_light_swarm(
             #[cfg(not(target_arch = "wasm32"))]
             let _ = control_tx.send(stream.new_control());
 
-            // Light nodes never run servers or discovery
             #[cfg(not(target_arch = "wasm32"))]
-            let mdns = libp2p::swarm::behaviour::toggle::Toggle::from(None);
+            let mdns = if config.enable_mdns && !test_mode {
+                libp2p::swarm::behaviour::toggle::Toggle::from(Some(
+                    libp2p::mdns::tokio::Behaviour::new(
+                        libp2p::mdns::Config::default(),
+                        peer_id,
+                    ).expect("Valid mdns config"),
+                ))
+            } else {
+                libp2p::swarm::behaviour::toggle::Toggle::from(None)
+            };
             #[cfg(not(target_arch = "wasm32"))]
             let upnp = libp2p::swarm::behaviour::toggle::Toggle::from(None);
             #[cfg(not(target_arch = "wasm32"))]
-            let relay_server = libp2p::swarm::behaviour::toggle::Toggle::from(
-                if config.opt_in_relay && !test_mode {
-                    Some(libp2p::relay::Behaviour::new(
-                        peer_id,
-                        libp2p::relay::Config {
-                            max_reservations: 128,
-                            max_reservations_per_peer: 4,
-                            reservation_duration: std::time::Duration::from_secs(60 * 60),
-                            reservation_rate_limiters: vec![],
-                            max_circuits: 16,
-                            max_circuits_per_peer: 4,
-                            max_circuit_duration: std::time::Duration::from_secs(2 * 60),
-                            max_circuit_bytes: 2 * 1024 * 1024,
-                            circuit_src_rate_limiters: vec![],
-                        },
-                    ))
-                } else {
-                    None
-                }
-            );
+            let relay_server = libp2p::swarm::behaviour::toggle::Toggle::from(None);
 
             let autonat = if test_mode {
                 libp2p::autonat::Behaviour::new(

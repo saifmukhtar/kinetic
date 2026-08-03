@@ -422,14 +422,62 @@ impl super::core::NetworkEventLoop {
                     message,
                 },
             )) => {
-                if let Some(tx) = &self.gossip_tx {
-                    let _ = tx.send((
-                        message.topic.into_string(),
-                        message.data,
-                        message_id,
-                        propagation_source,
-                    ));
-                }
+                let topic = message.topic.into_string();
+                let payload = message.data;
+                let loopback = self.loopback_tx.clone();
+                let gossip_tx = self.gossip_tx.clone();
+
+                crate::event_loop::utils::spawn(async move {
+                    let payload_clone = payload.clone();
+                    let topic_clone = topic.clone();
+                    
+                    let is_valid = crate::event_loop::utils::spawn_blocking(move || {
+                        if topic_clone == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
+                            if let Ok(kyn) = serde_json::from_slice::<kinetic_core::drand::RawKyn>(&payload_clone) {
+                                return kyn.verify();
+                            }
+                            return false;
+                        } else if topic_clone == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
+                            if let Ok(signed_msg) = serde_json::from_slice::<kinetic_core::governance::SignedGovernanceMessage>(&payload_clone) {
+                                // Pure signature check — no state mutation, no executed_hashes touch.
+                                // We only need to confirm at least one signature is valid against the root key.
+                                let gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+                                    .lock()
+                                    .unwrap_or_else(|e| e.into_inner());
+                                if let Ok(root_key) = gov.get_root_key() {
+                                    drop(gov); // Release lock before crypto work
+                                    let action_bytes = signed_msg.to_canonical_bytes();
+                                    return signed_msg
+                                        .signatures
+                                        .iter()
+                                        .any(|sig| kinetic_core::governance::verify_signature(&root_key, &action_bytes, sig));
+                                }
+                            }
+                            return false;
+                        }
+                        // Reject unknown topics to prevent spam
+                        false
+                    }).await;
+
+                    if let Some(tx) = loopback {
+                        let _ = tx.send(crate::event_loop::core::LoopbackCommand::CommitGossipValidation {
+                            message_id: message_id.clone(),
+                            source: propagation_source,
+                            is_valid,
+                        });
+                    }
+
+                    if is_valid {
+                        if let Some(tx) = gossip_tx {
+                            let _ = tx.send((
+                                topic,
+                                payload,
+                                message_id,
+                                propagation_source,
+                            ));
+                        }
+                    }
+                });
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(_)) => {}
             SwarmEvent::Behaviour(KineticBehaviorEvent::Autonat(
@@ -522,9 +570,7 @@ impl super::core::NetworkEventLoop {
                     let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
                     let pow_valid = self.is_valid_pow(&peer_id);
 
-                    if (pow_valid || is_bootstrap)
-                        && is_routable_multiaddr(&multiaddr, self.disable_pow)
-                    {
+                    if pow_valid || is_bootstrap {
                         self.swarm
                             .behaviour_mut()
                             .kademlia
