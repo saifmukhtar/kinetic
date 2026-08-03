@@ -2942,7 +2942,7 @@ dependencies = [
 
 [[package]]
 name = "kinetic-test"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
@@ -3027,7 +3027,7 @@ dependencies = [
 
 [[package]]
 name = "kinetic-wasm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bytes",
  "console_error_panic_hook",
