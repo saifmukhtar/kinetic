@@ -14,6 +14,7 @@
 //! - [`governance`]: Governance actions, signed proposal containers ([`SignedGovernanceMessage`](governance::SignedGovernanceMessage)), binary opcodes, and parser error types.
 //! - [`identity`]: Key Identifier ([`AuthorizedKid`](identity::AuthorizedKid)) and capability manifest attachments ([`AuthorizedManifest`](identity::AuthorizedManifest)) with replay protection.
 //! - [`proxy`]: High-performance IPC proxy requests and responses for browser and desktop integration.
+//! - [`cdn`]: Request/Response types for the P2P CDN caching layer.
 //! - [`vdf`]: Proof-of-work commitment ([`Commitment`](vdf::Commitment)), evaluation proofs ([`VdfProof`](vdf::VdfProof)), and reveal submissions ([`Reveal`](vdf::Reveal)) with ML-DSA-65 signature verification.
 
 pub mod clock;
@@ -23,4 +24,5 @@ pub mod error;
 pub mod governance;
 pub mod identity;
 pub mod proxy;
+pub mod cdn;
 pub mod vdf;
