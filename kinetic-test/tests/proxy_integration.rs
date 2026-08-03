@@ -27,7 +27,7 @@ async fn setup_node_with_proxy(
             .into_iter()
             .map(|s| s.parse().unwrap())
             .collect(),
-        initial_drand_pulse: 1000,
+        initial_drand_kyn: 1000,
         mode: kinetic_network::NetworkMode::FullNode,
         enable_mdns: false,
         seed_domain: vec![],

@@ -3,7 +3,7 @@
 Lightweight, `no_std`-compatible cryptographic verification library for the Kinetic Network.
 
 This crate extracts the core verification logic out of the main `kinetic-core` daemon. It is specifically designed to be extremely lightweight, making it perfect for:
-- Light clients (Mobile apps, Desktop wallets)
+- Light nodes (Mobile apps, Desktop wallets)
 - Browser extensions (WASM targets)
 - Systems that need to dynamically verify Kinetic data across multiple network forks.
 

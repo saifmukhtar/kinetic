@@ -35,7 +35,7 @@ mod tests {
                 name: "testdns.kin".to_string(),
                 payload,
                 salt: [0u8; 32],
-                drand_pulse: 1000,
+                drand_kyn: 1000,
                 drand_signature: "".to_string(),
                 iterations: 100000,
                 vdf_proof: VdfProof {

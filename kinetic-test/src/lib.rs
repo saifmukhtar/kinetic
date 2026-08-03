@@ -28,7 +28,7 @@ mod tests {
                 .into_iter()
                 .map(|s| s.parse().unwrap())
                 .collect(),
-            initial_drand_pulse: 1000,
+            initial_drand_kyn: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
             seed_domain: vec![],
@@ -36,12 +36,12 @@ mod tests {
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
             Arc::new(SledStorage::new(dir.path()).unwrap());
-        let (_pulse_tx, pulse_rx) = watch::channel(1000);
+        let (_kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
             Arc::new(kinetic_vdf::ChiaVdfEngine::new());
 
         let (client, event_loop) =
-            NetworkEventLoop::new(config, keypair, storage, pulse_rx, None, None, vdf_engine)
+            NetworkEventLoop::new(config, keypair, storage, kyn_rx, None, None, vdf_engine)
                 .unwrap();
 
         let handle = tokio::spawn(async move {
@@ -165,7 +165,7 @@ mod tests {
             lru_cache_size: std::num::NonZeroUsize::new(1).unwrap(), // Size 1
             disable_pow: false,
             bootstrap_nodes: vec![],
-            initial_drand_pulse: 1000,
+            initial_drand_kyn: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
             seed_domain: vec![],
@@ -174,12 +174,12 @@ mod tests {
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
             Arc::new(SledStorage::new(dir.path()).unwrap());
-        let (_pulse_tx, pulse_rx) = watch::channel(1000);
+        let (_kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
             Arc::new(kinetic_vdf::ChiaVdfEngine::new());
 
         let (client, event_loop) =
-            NetworkEventLoop::new(config, key_a, storage, pulse_rx, None, None, vdf_engine)
+            NetworkEventLoop::new(config, key_a, storage, kyn_rx, None, None, vdf_engine)
                 .unwrap();
 
         let _handle = tokio::spawn(async move {
@@ -209,12 +209,12 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_drand_pulse_sync() {
+    async fn test_drand_kyn_sync() {
         let key_a = Keypair::generate_ed25519();
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
             Arc::new(SledStorage::new(dir.path()).unwrap());
-        let (pulse_tx, pulse_rx) = watch::channel(1000);
+        let (kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
             Arc::new(kinetic_vdf::ChiaVdfEngine::new());
 
@@ -226,14 +226,14 @@ mod tests {
             lru_cache_size: std::num::NonZeroUsize::new(1000).unwrap(),
             disable_pow: false,
             bootstrap_nodes: vec![],
-            initial_drand_pulse: 1000,
+            initial_drand_kyn: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
             seed_domain: vec![],
         };
 
         let (client, event_loop) =
-            NetworkEventLoop::new(config, key_a, storage, pulse_rx, None, None, vdf_engine)
+            NetworkEventLoop::new(config, key_a, storage, kyn_rx, None, None, vdf_engine)
                 .unwrap();
 
         let _handle = tokio::spawn(async move {
@@ -242,8 +242,8 @@ mod tests {
 
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        // Push a new Drand pulse
-        pulse_tx.send(2000).unwrap();
+        // Push a new Drand kyn
+        kyn_tx.send(2000).unwrap();
 
         tokio::time::sleep(Duration::from_millis(500)).await;
 

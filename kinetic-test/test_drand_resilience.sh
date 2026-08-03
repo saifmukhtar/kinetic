@@ -28,7 +28,7 @@ echo "Waiting 65 seconds for next heartbeat tick..."
 sleep 65
 
 echo "=== Logs during block ==="
-grep -i "Heartbeat loop: Drand pulse unavailable" daemon.log || grep -i "Heartbeat using cached" daemon.log || grep -i "unreachable" daemon.log
+grep -i "Heartbeat loop: Drand kyn unavailable" daemon.log || grep -i "Heartbeat using cached" daemon.log || grep -i "unreachable" daemon.log
 
 echo "=== Unblocking Drand IPs ==="
 sudo iptables -D OUTPUT -p tcp --dport 443 -d api.drand.sh -j REJECT 2>/dev/null || true
