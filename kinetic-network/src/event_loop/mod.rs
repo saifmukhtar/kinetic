@@ -3,8 +3,8 @@
 /// Outbound command handlers.
 pub mod command_handler;
 /// The core event loop definition.
-pub(crate) mod full_node_builder;
-pub(crate) mod light_node_builder;
+pub(crate) mod fullnode;
+pub(crate) mod lightnode;
 pub mod core;
 /// Swarm initialization logic.
 pub mod swarm_builder;

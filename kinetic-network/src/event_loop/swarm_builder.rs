@@ -11,8 +11,8 @@ use crate::client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, Pro
 use crate::store::KineticRecordStore;
 
 #[cfg(not(target_arch = "wasm32"))]
-use super::full_node_builder;
-use super::light_node_builder;
+use super::fullnode;
+use super::lightnode;
 
 impl super::core::NetworkEventLoop {
     /// Initializes a new P2P Swarm and returns the client handle and the event loop.
@@ -40,13 +40,13 @@ impl super::core::NetworkEventLoop {
         let (tx, rx) = mpsc::channel(32);
 
         let (mut swarm, client) = if config.mode == NetworkMode::LightNode {
-            light_node_builder::build_light_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
+            lightnode::build_light_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         } else {
             #[cfg(target_arch = "wasm32")]
             panic!("FullNode mode is not supported on WebAssembly");
             
             #[cfg(not(target_arch = "wasm32"))]
-            full_node_builder::build_full_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
+            fullnode::build_full_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         };
 
         let mut bootstrap_peers = rustc_hash::FxHashSet::default();
