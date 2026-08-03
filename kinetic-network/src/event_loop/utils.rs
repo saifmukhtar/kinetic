@@ -99,14 +99,14 @@ impl super::core::NetworkEventLoop {
     pub fn xor_tie_breaker(
         query_name: &str,
         payloads: Vec<Vec<u8>>,
-        current_pulse: u64,
+        current_kyn: u64,
     ) -> Option<Vec<u8>> {
         if payloads.is_empty() {
             return None;
         }
 
-        let mut pulse_bytes = [0u8; 32];
-        pulse_bytes[..8].copy_from_slice(&current_pulse.to_be_bytes());
+        let mut kyn_bytes = [0u8; 32];
+        kyn_bytes[..8].copy_from_slice(&current_kyn.to_be_bytes());
 
         // Deduplicate payloads in-place
         let mut unique_payloads = payloads;
@@ -182,11 +182,11 @@ impl super::core::NetworkEventLoop {
                 .into_iter()
                 .filter_map(|(p, parsed_payload)| {
                     if let ParsedPayload::HostRouting(record) = parsed_payload {
-                        if crate::store::verification::verify_host_routing_record(&record, current_pulse).is_err()
+                        if crate::store::verification::verify_host_routing_record(&record, current_kyn).is_err()
                         {
                             return None;
                         }
-                        Some((p, u64::MAX - record.drand_pulse)) // Sort by newest drand_pulse
+                        Some((p, u64::MAX - record.drand_kyn)) // Sort by newest drand_kyn
                     } else {
                         None
                     }
@@ -207,7 +207,7 @@ impl super::core::NetworkEventLoop {
                             .unwrap_or([0u8; 32]);
 
                         let mut dist = [0u8; 32];
-                        for (i, (y, p)) in std::iter::zip(y_bytes, pulse_bytes).enumerate() {
+                        for (i, (y, p)) in std::iter::zip(y_bytes, kyn_bytes).enumerate() {
                             dist[i] = y ^ p;
                         }
                         Some((p, reveal, dist))
@@ -269,7 +269,7 @@ impl super::core::NetworkEventLoop {
                             Err(_) => continue,
                         };
 
-                        if !pk.verify(reveal.drand_pulse, &[], &drand_sig_bytes).unwrap_or(false) {
+                        if !pk.verify(reveal.drand_kyn, &[], &drand_sig_bytes).unwrap_or(false) {
                             tracing::warn!(
                                 error_code = "KIN-RES-011",
                                 "Skipping candidate: invalid drand BLS signature"
@@ -291,13 +291,13 @@ impl super::core::NetworkEventLoop {
                     let mut hash = [0u8; 32];
                     hash.copy_from_slice(&hasher.finalize());
 
-                    if current_pulse.saturating_sub(reveal.drand_pulse)
-                        > kinetic_core::types::RESQUARING_EPOCH_ROUNDS
+                    if current_kyn.saturating_sub(reveal.drand_kyn)
+                        > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
                             error_code = "KIN-RES-005",
                             name = %reveal.name,
-                            "Skipping candidate: Reveal expired (older than RESQUARING_EPOCH_ROUNDS)"
+                            "Skipping candidate: Reveal expired (older than RESQUARING_EPOCH_KYNS)"
                         );
                         continue;
                     }
@@ -307,7 +307,7 @@ impl super::core::NetworkEventLoop {
                     let required_iterations =
                         match crate::store::verification::compute_required_iterations(
                             &reveal,
-                            current_pulse,
+                            current_kyn,
                             &engine,
                         ) {
                             Ok(req) => req,
@@ -406,7 +406,7 @@ mod tests {
             name: "dummy.kin".to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            drand_pulse: 0,
+            drand_kyn: 0,
             drand_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,
@@ -430,11 +430,11 @@ mod tests {
         );
         assert_eq!(winner.unwrap(), payload_b);
 
-        let pulse: u64 = 0x1500_0000_0000_0000;
+        let kyn: u64 = 0x1500_0000_0000_0000;
         let winner2 = NetworkEventLoop::xor_tie_breaker(
             "dummy.kin",
             vec![payload_a.clone(), payload_b.clone()],
-            pulse,
+            kyn,
         );
         assert_eq!(winner2.unwrap(), payload_a);
     }

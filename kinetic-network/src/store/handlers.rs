@@ -16,19 +16,19 @@ impl KineticRecordStore {
         };
 
         if let Some(reveal) = reveal_ref {
-            let paused_rounds =
+            let paused_kyns =
                 if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                    state.paused_rounds_since(reveal.drand_pulse)
+                    state.paused_kyns_since(reveal.drand_kyn)
                 } else {
                     0
                 };
 
             let effective_age = self
-                .current_drand_round
-                .saturating_sub(reveal.drand_pulse)
-                .saturating_sub(paused_rounds);
+                .current_drand_kyn
+                .saturating_sub(reveal.drand_kyn)
+                .saturating_sub(paused_kyns);
 
-            if effective_age > kinetic_core::types::RESQUARING_EPOCH_ROUNDS {
+            if effective_age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
                 let err = KineticStoreError::VdfExpired { age: effective_age };
                 err.log_warning("KIN-STORE-001", record.name(), "Rejecting Record:");
                 return Err(err);
@@ -40,7 +40,7 @@ impl KineticRecordStore {
                 if let Err(e) = super::verification::verify_reveal(
                     reveal,
                     &self.storage,
-                    self.current_drand_round,
+                    self.current_drand_kyn,
                     &self.vdf_engine,
                 ) {
                     e.log_warning("KIN-STORE-002", record.name(), "Rejecting Reveal:");
@@ -52,13 +52,13 @@ impl KineticRecordStore {
         if let Some(existing_record) = self.get_record_with_fallback(record.name()) {
             if existing_record.pubkey() != record.pubkey() {
                 let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-                let last_hb_round = self
+                let last_hb_kyn = self
                     .last_heartbeats_by_name
                     .get(record.name())
                     .copied()
-                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.drand_pulse));
+                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.drand_kyn));
 
-                let hb_age = self.current_drand_round.saturating_sub(last_hb_round);
+                let hb_age = self.current_drand_kyn.saturating_sub(last_hb_kyn);
 
                 let (existing_reveal, new_reveal) = match (existing_record, record) {
                     (
@@ -124,7 +124,7 @@ impl KineticRecordStore {
                     err.log_warning("KIN-STORE-005", &new_reveal.name, "Rejecting Steal Reveal:");
                     return Err(err);
                 } else {
-                    tracing::info!("Valid Steal Reveal for {}! Overwriting previous owner (idle for {} rounds).", new_reveal.name, hb_age);
+                    tracing::info!("Valid Steal Reveal for {}! Overwriting previous owner (idle for {} kyns).", new_reveal.name, hb_age);
                 }
 
                 // Cleanup orphaned keys from previous owner
@@ -152,10 +152,10 @@ impl KineticRecordStore {
                     }
             } else {
                 let existing_pulse = match &existing_record {
-                    kinetic_core::types::NameRecord::Standard(r) => r.drand_pulse,
+                    kinetic_core::types::NameRecord::Standard(r) => r.drand_kyn,
                     kinetic_core::types::NameRecord::Premium { .. } => 0,
                 };
-                let new_pulse = reveal_ref.map_or(0, |r| r.drand_pulse);
+                let new_pulse = reveal_ref.map_or(0, |r| r.drand_kyn);
 
                 if new_pulse < existing_pulse {
                     let err = KineticStoreError::StaleReveal;
@@ -238,14 +238,14 @@ impl KineticRecordStore {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        let current_round = std::cmp::max(
-            self.current_drand_round,
-            reveal_ref.map_or(0, |r| r.drand_pulse),
+        let current_kyn = std::cmp::max(
+            self.current_drand_kyn,
+            reveal_ref.map_or(0, |r| r.drand_kyn),
         );
         self.last_heartbeats_by_name
-            .insert(name.to_string(), current_round);
+            .insert(name.to_string(), current_kyn);
         let hb_key = [KRS_HB_PREFIX, name.as_bytes()].concat();
-        writes_to_perform.push((hb_key, current_round.to_be_bytes().to_vec()));
+        writes_to_perform.push((hb_key, current_kyn.to_be_bytes().to_vec()));
 
         if !writes_to_perform.is_empty() {
             let storage = self.storage.clone();
@@ -273,12 +273,12 @@ impl KineticRecordStore {
             .copied()
             .unwrap_or(0);
 
-        if heartbeat.latest_drand_pulse == existing_pulse {
+        if heartbeat.latest_drand_kyn == existing_pulse {
             // Normal duplicate via DHT gossip, ignore it silently to prevent log spam and CPU waste
             return Ok(());
         }
 
-        if heartbeat.latest_drand_pulse < existing_pulse {
+        if heartbeat.latest_drand_kyn < existing_pulse {
             let err = KineticStoreError::StaleHeartbeat;
             err.log_warning("KIN-STORE-020", &heartbeat.name, "Rejecting Heartbeat:");
             return Err(err);
@@ -316,7 +316,7 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        if heartbeat.latest_drand_pulse > self.current_drand_round + 2 {
+        if heartbeat.latest_drand_kyn > self.current_drand_kyn + 2 {
             let err = KineticStoreError::StaleHeartbeat;
             err.log_warning(
                 "KIN-STORE-021",
@@ -329,9 +329,9 @@ impl KineticRecordStore {
         // Monotonicity check already performed at the top of the function.
 
         self.last_heartbeats_by_name
-            .insert(heartbeat.name.clone(), heartbeat.latest_drand_pulse);
+            .insert(heartbeat.name.clone(), heartbeat.latest_drand_kyn);
         let hb_key = [KRS_HB_PREFIX, heartbeat.name.as_bytes()].concat();
-        let hb_val = heartbeat.latest_drand_pulse.to_be_bytes().to_vec();
+        let hb_val = heartbeat.latest_drand_kyn.to_be_bytes().to_vec();
 
         let storage = self.storage.clone();
         crate::event_loop::utils::spawn(async move {

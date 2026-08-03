@@ -12,11 +12,11 @@ fn test_010_xor_eclipse() {
     let keypair = SigningKey::from_bytes(&[1u8; 32]);
     let pubkey = keypair.verifying_key();
 
-    let drand_pulse = 50u64;
-    let mut pulse_bytes = [0u8; 32];
-    pulse_bytes[..8].copy_from_slice(&drand_pulse.to_be_bytes());
+    let drand_kyn = 50u64;
+    let mut kyn_bytes = [0u8; 32];
+    kyn_bytes[..8].copy_from_slice(&drand_kyn.to_be_bytes());
 
-    let drand_signature = hex::encode(pulse_bytes);
+    let drand_signature = hex::encode(kyn_bytes);
 
     let name = "thisisaverylongnamethatisverycheap.kin";
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
@@ -26,7 +26,7 @@ fn test_010_xor_eclipse() {
     let mut hasher = Sha256::new();
     hasher.update(name.as_bytes());
     hasher.update([0u8; 32]);
-    hasher.update(pulse_bytes);
+    hasher.update(kyn_bytes);
     hasher.update(pubkey.as_bytes());
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&hasher.finalize());
@@ -39,7 +39,7 @@ fn test_010_xor_eclipse() {
         name: name.to_string(),
         salt: [0u8; 32],
         drand_signature: drand_signature.clone(),
-        drand_pulse,
+        drand_kyn,
         iterations,
         vdf_proof: real_vdf_proof,
         pubkey: pubkey.to_bytes().to_vec(),
@@ -54,10 +54,10 @@ fn test_010_xor_eclipse() {
         .to_bytes()
         .to_vec();
 
-    // Generate FAKE payload with proof bytes matching the pulse exactly (so XOR = 0)
+    // Generate FAKE payload with proof bytes matching the kyn exactly (so XOR = 0)
     // but the VDF is invalid.
     let mut fake_reveal = real_reveal.clone();
-    fake_reveal.vdf_proof.proof_bytes = pulse_bytes.to_vec(); // will xor to 0, which is perfectly close
+    fake_reveal.vdf_proof.proof_bytes = kyn_bytes.to_vec(); // will xor to 0, which is perfectly close
                                                               // re-sign so signature is valid
     fake_reveal.signature = keypair
         .sign(&fake_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
@@ -70,7 +70,7 @@ fn test_010_xor_eclipse() {
     let winner = NetworkEventLoop::xor_tie_breaker(
         name,
         vec![real_bytes.clone(), fake_bytes.clone()],
-        drand_pulse,
+        drand_kyn,
     );
 
     // The tie breaker should pick the REAL bytes, because the fake bytes fail VDF verification.

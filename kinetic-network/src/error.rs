@@ -54,8 +54,8 @@ pub enum KineticStoreError {
     /// Drand hex randomness could not be decoded.
     #[error("drand_signature field contains invalid hex")]
     InvalidDrandHex,
-    /// Finding 8: heartbeat pulse was not strictly greater than the stored value.
-    #[error("stale heartbeat: received pulse is not newer than existing record")]
+    /// Finding 8: heartbeat kyn was not strictly greater than the stored value.
+    #[error("stale heartbeat: received kyn is not newer than existing record")]
     StaleHeartbeat,
     /// The network has been emergency paused by the Root Key.
     #[error("network registration and renewals are currently halted")]
@@ -134,7 +134,7 @@ impl KineticStoreError {
             Self::InvalidManifestSignature => "Manifest signature verification failed".to_string(),
             Self::UnknownRecordType => "Record payload prefix is unrecognized".to_string(),
             Self::InvalidDrandHex => "Drand randomness hex string is invalid".to_string(),
-            Self::StaleHeartbeat => "Heartbeat pulse is not newer than stored record".to_string(),
+            Self::StaleHeartbeat => "Heartbeat kyn is not newer than stored record".to_string(),
             Self::InvalidHostRouteSignature => {
                 "Host routing record signature verification failed".to_string()
             }

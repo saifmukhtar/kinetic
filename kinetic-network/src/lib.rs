@@ -20,7 +20,7 @@
 //!
 //! - **`client`** — The [`NetworkClient`] handle and the [`NetworkConfig`]
 //!   used to initialise the swarm. Also exposes [`NetworkMode`] (FullNode /
-//!   LightClient) and the [`ProxyRequest`] / [`ProxyResponse`] types.
+//!   LightNode) and the [`ProxyRequest`] / [`ProxyResponse`] types.
 //! - **`event_loop`** — The [`NetworkEventLoop`] task and its swarm builder,
 //!   event handlers, and utility functions.
 //! - **`store`** — The in-memory DHT record store with GC, PoW verification,

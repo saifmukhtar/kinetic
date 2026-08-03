@@ -33,13 +33,13 @@ pub enum NetworkMode {
     /// Fully participates in the DHT and gossip protocols.
     FullNode,
     /// Client-only mode; issues requests but does not store DHT records.
-    LightClient,
+    LightNode,
 }
 
 /// Configuration settings for instantiating the network swarm.
 #[derive(Debug, Clone)]
 pub struct NetworkConfig {
-    /// Operating mode (FullNode or LightClient).
+    /// Operating mode (FullNode or LightNode).
     pub mode: NetworkMode,
     /// The multiaddrs to listen on for TCP/IP traffic.
     pub listen_addrs: Vec<libp2p::Multiaddr>,
@@ -51,8 +51,8 @@ pub struct NetworkConfig {
     pub seed_domain: Vec<std::sync::Arc<str>>,
     /// Whether to enable local mDNS discovery.
     pub enable_mdns: bool,
-    /// The initial drand pulse round to use for VDF verification.
-    pub initial_drand_pulse: u64,
+    /// The initial drand kyn to use for VDF verification.
+    pub initial_drand_kyn: u64,
     /// An optional externally reachable IP or domain to announce.
     pub external_address: Option<libp2p::Multiaddr>,
     /// Bypass PoW verification for tests.

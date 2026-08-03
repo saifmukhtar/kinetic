@@ -15,7 +15,7 @@ impl super::core::NetworkEventLoop {
         config: NetworkConfig,
         local_key: libp2p::identity::Keypair,
         storage: Arc<dyn kinetic_core::traits::StorageEngine>,
-        drand_pulse_rx: watch::Receiver<u64>,
+        drand_kyn_rx: watch::Receiver<u64>,
         incoming_proxy_tx: Option<
             mpsc::Sender<(
                 ProxyRequest,
@@ -83,7 +83,7 @@ impl super::core::NetworkEventLoop {
         let (control_tx, control_rx) = std::sync::mpsc::channel();
         let storage_clone = storage.clone();
         let mode = config.mode.clone();
-        let initial_drand_pulse = config.initial_drand_pulse;
+        let initial_drand_kyn = config.initial_drand_kyn;
         let enable_mdns = config.enable_mdns;
         let lru_cache_size = config.lru_cache_size;
         let max_reveals_per_hour = config.max_reveals_per_hour;
@@ -96,7 +96,7 @@ impl super::core::NetworkEventLoop {
                 let store = KineticRecordStore::new(
                     peer_id,
                     storage_clone,
-                    initial_drand_pulse,
+                    initial_drand_kyn,
                     lru_cache_size,
                     max_reveals_per_hour,
                     vdf_engine_clone.clone(),
@@ -125,14 +125,14 @@ impl super::core::NetworkEventLoop {
                 kad_config.set_query_timeout(std::time::Duration::from_secs(5));
 
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_config);
-                if mode == NetworkMode::LightClient {
+                if mode == NetworkMode::LightNode {
                     kademlia.set_mode(Some(kad::Mode::Client));
                 } else {
                     kademlia.set_mode(Some(kad::Mode::Server));
                 }
 
-                let gossipsub_config = if mode == NetworkMode::LightClient {
-                    // LightClient mesh params: mesh_n_low < mesh_n < mesh_n_high (strict)
+                let gossipsub_config = if mode == NetworkMode::LightNode {
+                    // LightNode mesh params: mesh_n_low < mesh_n < mesh_n_high (strict)
                     // gossipsub panics with MeshParametersInvalid if this invariant is violated.
                     libp2p::gossipsub::ConfigBuilder::default()
                         .heartbeat_interval(web_time::Duration::from_secs(10)) // Less frequent heartbeats (save battery)
@@ -209,7 +209,7 @@ impl super::core::NetworkEventLoop {
                 let autonat = libp2p::autonat::Behaviour::new(
                     peer_id,
                     libp2p::autonat::Config {
-                        boot_delay: std::time::Duration::from_secs(15),
+                        boot_delay: std::time::Duration::from_secs(3),
                         retry_interval: std::time::Duration::from_secs(90),
                         refresh_interval: std::time::Duration::from_secs(3600),
                         ..Default::default()
@@ -265,7 +265,7 @@ impl super::core::NetworkEventLoop {
             })
             .unwrap()
             .with_swarm_config(|c| {
-                if config.mode == NetworkMode::LightClient {
+                if config.mode == NetworkMode::LightNode {
                     c.with_idle_connection_timeout(web_time::Duration::from_secs(60))
                 // Aggressive power saving for mobile
                 } else {
@@ -348,8 +348,8 @@ impl super::core::NetworkEventLoop {
             incoming_proxy_tx,
             gossip_tx,
             bad_vdf_counts: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
-            current_drand_pulse: config.initial_drand_pulse,
-            drand_pulse_rx,
+            current_drand_kyn: config.initial_drand_kyn,
+            drand_kyn_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers,
             startup_time: web_time::Instant::now(),
@@ -392,8 +392,8 @@ impl super::core::NetworkEventLoop {
             nat_status: "Unknown".to_string(),
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
-            light_clients: rustc_hash::FxHashSet::default(),
-            light_client_ips: rustc_hash::FxHashMap::default(),
+            light_nodes: rustc_hash::FxHashSet::default(),
+            light_node_ips: rustc_hash::FxHashMap::default(),
         };
 
         Ok((client, event_loop))
@@ -492,7 +492,7 @@ impl super::core::NetworkEventLoop {
         let (tx, rx) = mpsc::channel(32);
         let client = NetworkClient::new(tx.clone(), libp2p_stream::Behaviour::new().new_control());
 
-        let (_, drand_pulse_rx) = watch::channel(0);
+        let (_, drand_kyn_rx) = watch::channel(0);
 
         for addr in &config.listen_addrs {
             if !addr.is_empty() {
@@ -532,8 +532,8 @@ impl super::core::NetworkEventLoop {
             incoming_proxy_tx: None,
             gossip_tx: None,
             bad_vdf_counts: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
-            current_drand_pulse: 0,
-            drand_pulse_rx,
+            current_drand_kyn: 0,
+            drand_kyn_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers: Default::default(),
             startup_time: web_time::Instant::now(),
@@ -545,8 +545,8 @@ impl super::core::NetworkEventLoop {
             nat_status: "Unknown".to_string(),
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
-            light_clients: rustc_hash::FxHashSet::default(),
-            light_client_ips: rustc_hash::FxHashMap::default(),
+            light_nodes: rustc_hash::FxHashSet::default(),
+            light_node_ips: rustc_hash::FxHashMap::default(),
         };
 
         Ok((client, event_loop))

@@ -352,12 +352,12 @@ impl NetworkClient {
         Ok(())
     }
 
-    /// Fetches the current drand pulse round from the event loop state.
+    /// Fetches the current drand kyn kyn from the event loop state.
     ///
     /// # Errors
     ///
     /// Returns a `NetworkClientError` if the channel is closed.
-    pub async fn get_current_drand_round(&self) -> Result<u64, NetworkClientError> {
+    pub async fn get_current_drand_kyn(&self) -> Result<u64, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self
             .sender
@@ -365,7 +365,7 @@ impl NetworkClient {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         sender_clone
-            .send(Command::GetCurrentDrandRound { responder: tx })
+            .send(Command::GetCurrentDrandKyn { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)
@@ -381,14 +381,14 @@ impl NetworkClient {
         host_id: &str,
     ) -> std::result::Result<Option<kinetic_core::types::HostRoutingRecord>, NetworkClientError>
     {
-        let current_drand_round = self.get_current_drand_round().await?;
+        let current_drand_kyn = self.get_current_drand_kyn().await?;
         let key = format!("host_route_{}", host_id);
         match self.resolve_redundant_payload(&key).await {
             Ok(bytes) => {
                 let record =
                     serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&bytes)
                         .map_err(|e| NetworkClientError::Other(e.to_string()))?;
-                crate::store::verification::verify_host_routing_record(&record, current_drand_round)
+                crate::store::verification::verify_host_routing_record(&record, current_drand_kyn)
                     .map_err(|e| NetworkClientError::Other(e.to_string()))?;
                 Ok(Some(record))
             }

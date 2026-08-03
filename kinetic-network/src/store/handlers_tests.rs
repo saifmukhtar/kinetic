@@ -8,13 +8,13 @@ mod tests {
     use std::sync::Arc;
     use tempfile::tempdir;
 
-    fn dummy_reveal(name: &str, drand_pulse: u64) -> Reveal {
+    fn dummy_reveal(name: &str, drand_kyn: u64) -> Reveal {
         Reveal {
             protocol_version: 1,
             name: name.to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            drand_pulse,
+            drand_kyn,
             drand_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
@@ -42,7 +42,7 @@ mod tests {
         let store = KineticRecordStore::new(
             peer_id,
             storage.clone(),
-            100, // initial drand round
+            100, // initial drand kyn
             std::num::NonZeroUsize::new(100).unwrap(),
             max_reveals,
             vdf_engine,
@@ -128,12 +128,12 @@ mod tests {
             kinetic_core::types::NameRecord::Standard(Box::new(reveal)),
         );
 
-        // Set existing pulse to 200
+        // Set existing kyn to 200
         store.last_heartbeats_by_name.insert(name.clone(), 200);
 
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
-            latest_drand_pulse: 49,
+            latest_drand_kyn: 49,
             signature: vec![],
         };
 

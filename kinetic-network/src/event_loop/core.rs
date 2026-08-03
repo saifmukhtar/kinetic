@@ -71,8 +71,8 @@ pub struct NetworkEventLoop {
         )>,
     >,
     pub(crate) bad_vdf_counts: lru::LruCache<PeerId, (u32, web_time::Instant)>,
-    pub(crate) current_drand_pulse: u64,
-    pub(crate) drand_pulse_rx: watch::Receiver<u64>,
+    pub(crate) current_drand_kyn: u64,
+    pub(crate) drand_kyn_rx: watch::Receiver<u64>,
     pub(crate) bootstrap_nodes: Vec<libp2p::Multiaddr>,
     pub(crate) seed_domain: Vec<std::sync::Arc<str>>,
     pub(crate) bootstrap_peers: FxHashSet<libp2p::PeerId>,
@@ -84,8 +84,8 @@ pub struct NetworkEventLoop {
     pub(crate) nat_status: String,
     pub(crate) loopback_tx: Option<tokio::sync::mpsc::UnboundedSender<LoopbackCommand>>,
     pub(crate) pow_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
-    pub(crate) light_clients: FxHashSet<libp2p::PeerId>,
-    pub(crate) light_client_ips: rustc_hash::FxHashMap<std::net::IpAddr, usize>,
+    pub(crate) light_nodes: FxHashSet<libp2p::PeerId>,
+    pub(crate) light_node_ips: rustc_hash::FxHashMap<String, usize>,
 }
 
 impl NetworkEventLoop {
@@ -141,6 +141,20 @@ impl NetworkEventLoop {
                     prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(kinetic_core::constants::TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS + jitter));
                     tracing::info!("Running periodic Sled pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
+                    let storage = self.swarm.behaviour_mut().kademlia.store_mut().storage.clone();
+                    crate::event_loop::utils::spawn_blocking(move || {
+                        if let Ok(iter) = storage.scan_prefix(kinetic_core::constants::DB_PREFIX_BANNED_PEER.as_bytes(), None) {
+                            let now = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_secs();
+                            for (key_bytes, val_bytes) in iter {
+                                if val_bytes.len() == 8 {
+                                    let expire = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
+                                    if expire <= now {
+                                        let _ = storage.delete(&key_bytes);
+                                    }
+                                }
+                            }
+                        }
+                    });
                 }
                 _ = &mut redial_delay => {
                     let jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 5) as u64;
@@ -190,12 +204,12 @@ impl NetworkEventLoop {
                         }
                     }
                 }
-                Ok(()) = self.drand_pulse_rx.changed() => {
-                    let new_round = *self.drand_pulse_rx.borrow();
-                    if new_round > self.current_drand_pulse {
-                        tracing::debug!("NetworkEventLoop: drand pulse updated {} -> {}", self.current_drand_pulse, new_round);
-                        self.current_drand_pulse = new_round;
-                        self.swarm.behaviour_mut().kademlia.store_mut().current_drand_round = new_round;
+                Ok(()) = self.drand_kyn_rx.changed() => {
+                    let new_kyn = *self.drand_kyn_rx.borrow();
+                    if new_kyn > self.current_drand_kyn {
+                        tracing::debug!("NetworkEventLoop: drand kyn updated {} -> {}", self.current_drand_kyn, new_kyn);
+                        self.current_drand_kyn = new_kyn;
+                        self.swarm.behaviour_mut().kademlia.store_mut().current_drand_kyn = new_kyn;
                     }
                 }
                 event = libp2p::futures::StreamExt::select_next_some(&mut self.swarm) => self.handle_swarm_event(event).await,
@@ -278,29 +292,36 @@ impl NetworkEventLoop {
                         }
                     }
 
-                    if self.light_clients.len() >= 50 {
-                        tracing::warn!("Light Client limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion", peer_id);
+                    let identifier = if let Some(ip_addr) = ip {
+                        ip_addr.to_string()
+                    } else {
+                        let mut stripped = remote_addr.clone();
+                        if let Some(libp2p::multiaddr::Protocol::P2p(_)) = stripped.iter().last() {
+                            stripped.pop();
+                        }
+                        stripped.to_string()
+                    };
+
+                    if self.light_nodes.len() >= 50 {
+                        tracing::warn!("Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion", peer_id);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
-                    } else if let Some(ip_addr) = ip {
-                        let count = self.light_client_ips.entry(ip_addr).or_insert(0);
+                    } else {
+                        let count = self.light_node_ips.entry(identifier.clone()).or_insert(0);
                         if *count >= 3 {
                             tracing::warn!(
-                                "IP {} exceeded limit of 3 light clients. Disconnecting peer {}.",
-                                ip_addr,
+                                "Identifier {} exceeded limit of 3 light clients. Disconnecting peer {}.",
+                                identifier,
                                 peer_id
                             );
                             let _ = self.swarm.disconnect_peer_id(peer_id);
                         } else {
                             *count += 1;
                             tracing::debug!(
-                                "Peer {} failed PoW, classifying as Light Client.",
+                                "Peer {} failed PoW, classifying as Light Node.",
                                 peer_id
                             );
-                            self.light_clients.insert(peer_id);
+                            self.light_nodes.insert(peer_id);
                         }
-                    } else {
-                        tracing::warn!("Could not extract IP for peer {}. Disconnecting to prevent exhaustion.", peer_id);
-                        let _ = self.swarm.disconnect_peer_id(peer_id);
                     }
                 } else if !valid && is_bootstrap {
                     tracing::debug!(

@@ -12,10 +12,10 @@ impl super::core::NetworkEventLoop {
         if self.disable_pow {
             return true;
         }
-        self.current_drand_pulse > 0
+        self.current_drand_kyn > 0
             && crate::pow::is_valid_sybil_pow(
                 peer_id,
-                self.current_drand_pulse,
+                self.current_drand_kyn,
                 kinetic_core::constants::POW_DIFFICULTY_BITS,
             )
     }
@@ -56,12 +56,12 @@ impl super::core::NetworkEventLoop {
                     }
                 }
 
-                let current_drand_pulse = self.current_drand_pulse;
+                let current_drand_kyn = self.current_drand_kyn;
 
                 // Spawn a blocking task to do heavy VDF processing
                 crate::event_loop::utils::spawn(async move {
                     let tie_breaker_result = crate::event_loop::utils::spawn_blocking(move || {
-                        Self::xor_tie_breaker(&name, p.received_payloads, current_drand_pulse)
+                        Self::xor_tie_breaker(&name, p.received_payloads, current_drand_kyn)
                     })
                     .await;
 
@@ -137,9 +137,9 @@ impl super::core::NetworkEventLoop {
                         .insert(peer_id, web_time::Instant::now());
                 }
 
-                if self.current_drand_pulse == 0 && !is_bootstrap && !self.disable_pow {
+                if self.current_drand_kyn == 0 && !is_bootstrap && !self.disable_pow {
                     tracing::debug!(
-                        "Peer {} connected during uninitialized drand pulse, disconnecting",
+                        "Peer {} connected during uninitialized drand kyn, disconnecting",
                         peer_id
                     );
                     let _ = self.swarm.disconnect_peer_id(peer_id);
@@ -152,7 +152,7 @@ impl super::core::NetworkEventLoop {
 
                 if let Some(loopback) = &self.loopback_tx {
                     let loopback_clone = loopback.clone();
-                    let current_pulse = self.current_drand_pulse;
+                    let current_kyn = self.current_drand_kyn;
                     let peer_id_clone = peer_id;
                     let pow_semaphore = self.pow_semaphore.clone();
                     let remote_addr = endpoint.get_remote_address().clone();
@@ -161,7 +161,7 @@ impl super::core::NetworkEventLoop {
                         let valid = crate::event_loop::utils::spawn_blocking(move || {
                             crate::pow::is_valid_sybil_pow(
                                 &peer_id_clone,
-                                current_pulse,
+                                current_kyn,
                                 kinetic_core::constants::POW_DIFFICULTY_BITS,
                             )
                         })
@@ -257,8 +257,8 @@ impl super::core::NetworkEventLoop {
                             ..
                         },
                 } => {
-                    if self.light_clients.contains(&source) {
-                        tracing::warn!("Light client {} attempted to PutRecord (Write). Rejecting and disconnecting.", source);
+                    if self.light_nodes.contains(&source) {
+                        tracing::warn!("Light node {} attempted to PutRecord (Write). Rejecting and disconnecting.", source);
                         let _ = self.swarm.disconnect_peer_id(source);
                         let expire_time = web_time::SystemTime::now()
                             .duration_since(web_time::UNIX_EPOCH)
@@ -278,7 +278,7 @@ impl super::core::NetworkEventLoop {
                                 let store = self.swarm.behaviour_mut().kademlia.store_mut();
                                 let storage = store.storage.clone();
                                 let engine = store.vdf_engine.clone();
-                                let current_drand_round = store.current_drand_round;
+                                let current_drand_kyn = store.current_drand_kyn;
 
                                 if let Some(loopback) = &self.loopback_tx {
                                     let loopback_clone = loopback.clone();
@@ -289,7 +289,7 @@ impl super::core::NetworkEventLoop {
                                                 crate::store::verification::verify_reveal(
                                                     &reveal,
                                                     &storage,
-                                                    current_drand_round,
+                                                    current_drand_kyn,
                                                     &engine,
                                                 )
                                             })
@@ -548,19 +548,8 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 tracing::info!("Connection closed for peer {:?}: {:?}", peer_id, cause);
                 self.bootstrap_connection_time.remove(&peer_id);
-                self.light_clients.remove(&peer_id);
+                self.light_nodes.remove(&peer_id);
                 self.swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
-
-                // Case 189: Mass Peer Disconnect
-                let active_peers = self.swarm.network_info().num_peers();
-                if active_peers == 0 && !self.bootstrap_nodes.is_empty() {
-                    tracing::warn!(
-                        "Mass Peer Disconnect: 0 active peers. Re-dialing bootstrap nodes..."
-                    );
-                    for addr in &self.bootstrap_nodes {
-                        let _ = self.swarm.dial(addr.clone());
-                    }
-                }
             }
             _ => {}
         }

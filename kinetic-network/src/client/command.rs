@@ -8,9 +8,9 @@ use tokio::sync::oneshot;
 /// Represents commands sent from the client task to the network event loop.
 #[derive(Debug)]
 pub enum Command {
-    /// Get the current drand pulse round from the event loop state.
-    GetCurrentDrandRound {
-        /// Channel to return the round.
+    /// Get the current drand kyn kyn from the event loop state.
+    GetCurrentDrandKyn {
+        /// Channel to return the kyn.
         responder: oneshot::Sender<u64>,
     },
     /// Publish a record to the DHT redundantly.

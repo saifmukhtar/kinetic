@@ -15,41 +15,41 @@ use kinetic_core::types::RevealExt;
 /// # Arguments
 ///
 /// * `record` - The host routing record to be verified.
-/// * `current_drand_round` - The current global drand pulse round.
+/// * `current_drand_kyn` - The current global drand kyn kyn.
 ///
 /// # Errors
 ///
-/// * Returns `KineticStoreError::InvalidHostRouteSignature` if the timestamp is stale (older than 100 rounds) or from the future.
+/// * Returns `KineticStoreError::InvalidHostRouteSignature` if the timestamp is stale (older than 100 kyns) or from the future.
 /// * Returns `KineticStoreError::InvalidPublicKey` if the `host_id` cannot be parsed as a valid `PeerId` containing an Ed25519 key.
 /// * Returns `KineticStoreError::MalformedSignature` if the signature bytes are structurally invalid.
 pub(crate) fn verify_host_routing_record(
     record: &kinetic_core::types::HostRoutingRecord,
-    current_drand_round: u64,
+    current_drand_kyn: u64,
 ) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
-    // Enforce Drand pulse freshness — reject records older than 100 rounds (~5 minutes),
+    // Enforce Drand kyn freshness — reject records older than 100 kyns (~5 minutes),
     // and reject records from the future to prevent pinning via u64::MAX timestamps.
-    if current_drand_round.saturating_sub(record.drand_pulse) > 100 {
+    if current_drand_kyn.saturating_sub(record.drand_kyn) > 100 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-023",
             &record.host_id,
             &format!(
-                "HostRoutingRecord is stale ({} rounds old)",
-                current_drand_round.saturating_sub(record.drand_pulse)
+                "HostRoutingRecord is stale ({} kyns old)",
+                current_drand_kyn.saturating_sub(record.drand_kyn)
             ),
         );
         return Err(err);
     }
-    if record.drand_pulse > current_drand_round {
+    if record.drand_kyn > current_drand_kyn {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-024",
             &record.host_id,
             &format!(
-                "HostRoutingRecord is from the future ({} rounds ahead)",
-                record.drand_pulse.saturating_sub(current_drand_round)
+                "HostRoutingRecord is from the future ({} kyns ahead)",
+                record.drand_kyn.saturating_sub(current_drand_kyn)
             ),
         );
         return Err(err);
@@ -104,7 +104,7 @@ fn get_u64_from_sled(
 /// # Arguments
 ///
 /// * `reveal` - The proposed reveal to compute iterations for.
-/// * `current_drand_round` - The current global drand pulse round.
+/// * `current_drand_kyn` - The current global drand kyn kyn.
 /// * `engine` - The VDF engine reference used to verify any `previous_proof` attached for a discount.
 ///
 /// # Errors
@@ -113,7 +113,7 @@ fn get_u64_from_sled(
 /// * Returns `KineticStoreError::InvalidDrandHex` if the Drand randomness is not valid hex.
 pub(crate) fn compute_required_iterations(
     reveal: &kinetic_core::types::Reveal,
-    current_drand_round: u64,
+    current_drand_kyn: u64,
     engine: &dyn kinetic_core::traits::VdfEngine,
 ) -> Result<u64, KineticStoreError> {
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&reveal.name) {
@@ -152,7 +152,7 @@ pub(crate) fn compute_required_iterations(
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
         if !pk
-            .verify(reveal.drand_pulse, &[], &drand_sig_bytes)
+            .verify(reveal.drand_kyn, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
             let err = KineticStoreError::InvalidDrandHex; // Or introduce InvalidDrandSignature
@@ -191,7 +191,7 @@ pub(crate) fn compute_required_iterations(
                 .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
             if !pk
-                .verify(prev.drand_pulse, &[], &prev_drand_sig_bytes)
+                .verify(prev.drand_kyn, &[], &prev_drand_sig_bytes)
                 .unwrap_or(false)
             {
                 let err = KineticStoreError::InvalidDrandHex;
@@ -222,17 +222,17 @@ pub(crate) fn compute_required_iterations(
 
         let prev_req = consensus_math.required_iterations(&reveal.name);
 
-        let paused_rounds =
+        let paused_kyns =
             if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                state.paused_rounds_since(prev.drand_pulse)
+                state.paused_kyns_since(prev.drand_kyn)
             } else {
                 0
             };
 
-        let effective_age = current_drand_round
-            .saturating_sub(prev.drand_pulse)
-            .saturating_sub(paused_rounds);
-        let is_not_too_old = effective_age <= kinetic_core::types::RESQUARING_EPOCH_ROUNDS * 2;
+        let effective_age = current_drand_kyn
+            .saturating_sub(prev.drand_kyn)
+            .saturating_sub(paused_kyns);
+        let is_not_too_old = effective_age <= kinetic_core::types::RESQUARING_EPOCH_KYNS * 2;
 
         if prev_valid && prev.iterations >= prev_req && is_not_too_old {
             let normalized_name = kinetic_core::types::normalize_name(&reveal.name);
@@ -282,21 +282,21 @@ pub(crate) fn compute_required_iterations(
 ///
 /// * `reveal` - The Reveal payload.
 /// * `storage` - The local sled storage engine (to look up the commitment).
-/// * `current_drand_round` - The current drand pulse round.
+/// * `current_drand_kyn` - The current drand kyn kyn.
 /// * `engine` - The VDF engine used to verify the proof.
 ///
 /// # Errors
 ///
 /// * Returns `KineticStoreError::InvalidName` if the name is invalid.
 /// * Returns `KineticStoreError::InvalidPublicKey` or `KineticStoreError::InvalidSignature` if Ed25519 checks fail.
-/// * Returns `KineticStoreError::StaleReveal` if the commitment is too recent (age < 10 rounds).
+/// * Returns `KineticStoreError::StaleReveal` if the commitment is too recent (age < 10 kyns).
 /// * Returns `KineticStoreError::MissingCommitment` if no prior commitment is found in the DHT.
 /// * Returns `KineticStoreError::InsufficientIterations` if the iterations do not meet the consensus threshold.
 /// * Returns `KineticStoreError::InvalidVdf` if the VDF proof fails verification.
 pub(crate) fn verify_reveal(
     reveal: &kinetic_core::types::Reveal,
     storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
-    current_drand_round: u64,
+    current_drand_kyn: u64,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> Result<(), KineticStoreError> {
     if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
@@ -354,7 +354,7 @@ pub(crate) fn verify_reveal(
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
         if !pk
-            .verify(reveal.drand_pulse, &[], &drand_sig_bytes)
+            .verify(reveal.drand_kyn, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
             let err = KineticStoreError::InvalidDrandHex;
@@ -385,10 +385,10 @@ pub(crate) fn verify_reveal(
     commit_key.extend_from_slice(crate::store::constants::KRS_COMMIT_PREFIX);
     commit_key.extend_from_slice(&hash);
 
-    let commit_round = get_u64_from_sled(storage, &commit_key);
+    let commit_kyn = get_u64_from_sled(storage, &commit_key);
 
-    if let Some(commit_round) = commit_round {
-        if !dev_mode && current_drand_round.saturating_sub(commit_round) < kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_ROUNDS {
+    if let Some(commit_kyn) = commit_kyn {
+        if !dev_mode && current_drand_kyn.saturating_sub(commit_kyn) < kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS {
             let err = KineticStoreError::StaleReveal;
             err.log_warning(
                 "KIN-STORE-027",
@@ -398,9 +398,9 @@ pub(crate) fn verify_reveal(
             return Err(err);
         }
         tracing::info!(
-            "Commitment matched for Reveal of {} (committed around round {})",
+            "Commitment matched for Reveal of {} (committed akyn kyn {})",
             reveal.name,
-            commit_round
+            commit_kyn
         );
     } else if !dev_mode {
         let err = KineticStoreError::MissingCommitment;
@@ -418,7 +418,7 @@ pub(crate) fn verify_reveal(
     }
 
     let required_iterations =
-        compute_required_iterations(reveal, current_drand_round, engine.as_ref())?;
+        compute_required_iterations(reveal, current_drand_kyn, engine.as_ref())?;
 
     if dev_mode {
         tracing::info!(

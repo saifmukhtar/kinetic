@@ -29,7 +29,7 @@ async fn spawn_test_node(
         quic_listen_addrs: vec![],
         bootstrap_nodes,
         external_address: None,
-        initial_drand_pulse: 1000,
+        initial_drand_kyn: 1000,
         enable_mdns: false,
         lru_cache_size: std::num::NonZeroUsize::new(100).unwrap(),
         max_reveals_per_hour: 100,
@@ -84,7 +84,7 @@ async fn test_chaos_routing_partition() {
         name: test_key.to_string(),
         payload: vec![],
         salt: [0; 32],
-        drand_pulse: 1000,
+        drand_kyn: 1000,
         drand_signature: "0".repeat(192),
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: vec![0; 100],

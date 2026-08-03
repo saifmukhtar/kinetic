@@ -30,14 +30,14 @@ pub struct KineticRecordStore {
     pub vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     /// Cache of verified domain records.
     pub reveals_by_name: LruCache<String, kinetic_core::types::NameRecord>,
-    /// The latest heartbeat pulse observed for each domain.
+    /// The latest heartbeat kyn observed for each domain.
     pub last_heartbeats_by_name: HashMap<String, u64>,
 
     /// History of timestamps for accepted reveals used for rate limiting per name.
     pub accepted_reveals_timestamps:
         LruCache<String, std::collections::VecDeque<web_time::Instant>>,
-    /// The current observed Drand pulse round.
-    pub current_drand_round: u64,
+    /// The current observed Drand kyn kyn.
+    pub current_drand_kyn: u64,
     /// Configuration for rate limiting reveals
     pub max_reveals_per_hour: usize,
 }
@@ -53,7 +53,7 @@ impl KineticRecordStore {
     ///
     /// * `local_peer_id` - The libp2p [`PeerId`] of the local node.
     /// * `storage` - A thread-safe reference to the underlying sled database wrapper.
-    /// * `initial_drand_round` - The starting drand pulse round to initialize the store.
+    /// * `initial_drand_kyn` - The starting drand kyn kyn to initialize the store.
     /// * `lru_cache_size` - The maximum number of reveals to cache in memory.
     /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per domain name.
     /// * `vdf_engine` - The backend engine used to verify VDF proofs.
@@ -65,7 +65,7 @@ impl KineticRecordStore {
     pub fn new(
         local_peer_id: PeerId,
         storage: Arc<dyn StorageEngine>,
-        initial_drand_round: u64,
+        initial_drand_kyn: u64,
         lru_cache_size: NonZeroUsize,
         max_reveals_per_hour: usize,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
@@ -90,7 +90,7 @@ impl KineticRecordStore {
                         kinetic_core::types::NameRecord::Standard(reveal) => {
                             if let Ok(req) = super::verification::compute_required_iterations(
                                 reveal,
-                                initial_drand_round,
+                                initial_drand_kyn,
                                 vdf_engine.as_ref(),
                             ) {
                                 if reveal.iterations >= req {
@@ -167,9 +167,9 @@ impl KineticRecordStore {
                 }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if val_bytes.len() == 8 {
-                    let round = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
-                    tracing::info!("[KRS restore] Heartbeat round {} for {}", round, name);
-                    last_heartbeats_by_name.insert(name, round);
+                    let kyn = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
+                    tracing::info!("[KRS restore] Heartbeat kyn {} for {}", kyn, name);
+                    last_heartbeats_by_name.insert(name, kyn);
                 }
             }
         }
@@ -197,41 +197,41 @@ impl KineticRecordStore {
             reveals_by_name,
             last_heartbeats_by_name,
             accepted_reveals_timestamps: LruCache::new(lru_cache_size),
-            current_drand_round: initial_drand_round,
+            current_drand_kyn: initial_drand_kyn,
             max_reveals_per_hour,
         }
     }
-    /// Prunes expired records based on Drand pulse progression.
+    /// Prunes expired records based on Drand kyn progression.
     ///
-    /// This removes `Commitment` records that are older than 100 rounds,
+    /// This removes `Commitment` records that are older than 100 kyns,
     /// `Reveal` records older than the resquaring epoch, and idle heartbeats
     /// older than 7 days (where applicable for infrastructure).
     pub fn prune(&mut self) {
-        let current_round = self.current_drand_round;
+        let current_kyn = self.current_drand_kyn;
         let mut keys_to_delete = Vec::new();
 
         // 1. Scan and Prune Commitments from Sled
         if let Ok(iter) = self.storage.scan_prefix(KRS_COMMIT_PREFIX, None) {
             for (key_bytes, val_bytes) in iter {
                 if val_bytes.len() == 8 {
-                    let round = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
-                    if current_round.saturating_sub(round) >= 100 {
+                    let kyn = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
+                    if current_kyn.saturating_sub(kyn) >= 100 {
                         keys_to_delete.push(key_bytes.to_vec());
                     }
                 }
             }
         }
 
-        let max_age_rounds = kinetic_core::types::RESQUARING_EPOCH_ROUNDS;
-        let idle_timeout = (7 * 24 * 3600) / 3; // 7 days of 3-second Drand rounds
+        let max_age_kyns = kinetic_core::types::RESQUARING_EPOCH_KYNS;
+        let idle_timeout = (7 * 24 * 3600) / 3; // 7 days of 3-second Drand kyns
 
         let mut expired_names = Vec::new();
 
         for (name, record) in &self.reveals_by_name {
             match record {
                 kinetic_core::types::NameRecord::Standard(reveal) => {
-                    let age = current_round.saturating_sub(reveal.drand_pulse);
-                    if age > max_age_rounds {
+                    let age = current_kyn.saturating_sub(reveal.drand_kyn);
+                    if age > max_age_kyns {
                         expired_names.push(name.clone());
                         continue;
                     }
@@ -240,8 +240,8 @@ impl KineticRecordStore {
                         .last_heartbeats_by_name
                         .get(name)
                         .copied()
-                        .unwrap_or(reveal.drand_pulse);
-                    let hb_age = current_round.saturating_sub(last_hb);
+                        .unwrap_or(reveal.drand_kyn);
+                    let hb_age = current_kyn.saturating_sub(last_hb);
 
                     if !kinetic_core::types::infrastructure::requires_heartbeat(name) {
                         continue;
@@ -389,7 +389,7 @@ impl KineticRecordStore {
                         key.extend_from_slice(&commitment.hash);
                         let _ = self
                             .storage
-                            .put(&key, &self.current_drand_round.to_be_bytes());
+                            .put(&key, &self.current_drand_kyn.to_be_bytes());
                         return self
                             .inner
                             .put(r)
@@ -414,7 +414,7 @@ impl KineticRecordStore {
                         return Err(err);
                     }
                 }
-            } else if parsed.get("latest_drand_pulse").is_some() {
+            } else if parsed.get("latest_drand_kyn").is_some() {
                 match serde_json::from_value::<kinetic_core::types::Heartbeat>(parsed) {
                     Ok(heartbeat) => {
                         tracing::trace!(
@@ -463,7 +463,7 @@ impl KineticRecordStore {
             } else if parsed.get("host_id").is_some() {
                 match serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed) {
                     Ok(host_route) => {
-                        match crate::store::verification::verify_host_routing_record(&host_route, self.current_drand_round) {
+                        match crate::store::verification::verify_host_routing_record(&host_route, self.current_drand_kyn) {
                             Ok(()) => {
                                 tracing::info!("KineticRecordStore::put accepted verified HostRoutingRecord for {}", host_route.host_id);
                             }

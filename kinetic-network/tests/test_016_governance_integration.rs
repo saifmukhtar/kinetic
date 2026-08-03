@@ -41,7 +41,7 @@ async fn test_016_governance_integration_halt() {
         pubkey: vec![1; 32],
         salt: [0; 32],
         drand_signature: "0000".to_string(), // invalid but will be rejected by halt first
-        drand_pulse: 1000,
+        drand_kyn: 1000,
         iterations: 1000,
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: vec![],
@@ -80,7 +80,7 @@ async fn test_016_governance_integration_premium() {
 
     let vdf_engine = std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
 
-    // Set current drand round to 10 years in the future
+    // Set current drand kyn to 10 years in the future
     let future_round = 10_000_000;
 
     let mut store = KineticRecordStore::new(

@@ -4,8 +4,8 @@ use argon2::{Algorithm, Argon2, Params, Version};
 use libp2p::{identity::Keypair, PeerId};
 use tracing::info;
 
-/// The number of drand pulses in a single PoW epoch (e.g., 1440 for 12 hours at 30s per pulse).
-pub const EPOCH_PULSES: u64 = 1440; // 12 hours at 30s per pulse
+/// The number of drand kyns in a single PoW epoch (e.g., 1440 for 12 hours at 30s per kyn).
+pub const EPOCH_KYNS: u64 = 1440; // 12 hours at 30s per kyn
 
 /// Computes the leading zero bits of a given byte slice.
 fn leading_zeros(hash: &[u8]) -> u32 {
@@ -32,7 +32,7 @@ fn compute_pow_hash(argon2: &Argon2, peer_bytes: &[u8], epoch: u64) -> [u8; 32] 
 }
 
 /// Computes a peer-specific epoch to stagger identity churn across the network.
-pub fn get_staggered_epoch(peer_bytes: &[u8], pulse: u64) -> u64 {
+pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: u64) -> u64 {
     let mut offset_bytes = [0u8; 8];
     let len = peer_bytes.len();
     if len >= 8 {
@@ -41,22 +41,22 @@ pub fn get_staggered_epoch(peer_bytes: &[u8], pulse: u64) -> u64 {
         // Right-align the bytes to prevent massive value shifts on short inputs
         offset_bytes[8 - len..].copy_from_slice(peer_bytes);
     }
-    let offset = u64::from_be_bytes(offset_bytes) % EPOCH_PULSES;
-    (pulse + offset) / EPOCH_PULSES
+    let offset = u64::from_be_bytes(offset_bytes) % EPOCH_KYNS;
+    (kyn + offset) / EPOCH_KYNS
 }
 
 /// Validates if a PeerId has sufficient proof-of-work for the current or previous epoch.
-pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32) -> bool {
+pub fn is_valid_sybil_pow(peer_id: &PeerId, current_kyn: u64, difficulty: u32) -> bool {
     if kinetic_core::config::is_dev_mode() {
         return true;
     }
 
-    if current_pulse == 0 {
+    if current_kyn == 0 {
         return false;
     }
 
     let peer_bytes = peer_id.to_bytes();
-    let current_epoch = get_staggered_epoch(&peer_bytes, current_pulse);
+    let current_epoch = get_staggered_epoch(&peer_bytes, current_kyn);
 
     // 16MB memory, 1 iteration, 1 parallelism
     let params = Params::new(16384, 1, 1, None).expect("Valid static Argon2 params");
@@ -82,9 +82,9 @@ pub fn is_valid_sybil_pow(peer_id: &PeerId, current_pulse: u64, difficulty: u32)
 /// Grinds an Ed25519 keypair whose PeerId satisfies the PoW for the current epoch.
 /// WARNING: This is a blocking, CPU-bound operation. If calling from an async context,
 /// ensure it is wrapped in `tokio::task::spawn_blocking` to prevent executor starvation.
-pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
-    if current_pulse == 0 && !kinetic_core::config::is_dev_mode() {
-        panic!("Cannot generate PoW against pulse 0 (drand uninitialized)");
+pub fn mine_sybil_keypair(current_kyn: u64, difficulty: u32) -> Keypair {
+    if current_kyn == 0 && !kinetic_core::config::is_dev_mode() {
+        panic!("Cannot generate PoW against kyn 0 (drand uninitialized)");
     }
 
     if kinetic_core::config::is_dev_mode() {
@@ -109,7 +109,7 @@ pub fn mine_sybil_keypair(current_pulse: u64, difficulty: u32) -> Keypair {
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let peer_bytes = peer_id.to_bytes();
-        let current_epoch = get_staggered_epoch(&peer_bytes, current_pulse);
+        let current_epoch = get_staggered_epoch(&peer_bytes, current_kyn);
 
         let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch);
 
@@ -132,37 +132,37 @@ mod tests {
 
     #[test]
     fn test_pow_mining_and_validation() {
-        let pulse = 10_000_000;
+        let kyn = 10_000_000;
         let difficulty = 8; // Low difficulty for fast test
-        let kp = mine_sybil_keypair(pulse, difficulty);
+        let kp = mine_sybil_keypair(kyn, difficulty);
         let peer_id = PeerId::from(kp.public());
 
-        // Should be valid for current pulse
-        assert!(is_valid_sybil_pow(&peer_id, pulse, difficulty));
+        // Should be valid for current kyn
+        assert!(is_valid_sybil_pow(&peer_id, kyn, difficulty));
 
-        // Should be valid for pulse at the very end of the current epoch
-        let end_of_epoch_pulse = (pulse / EPOCH_PULSES) * EPOCH_PULSES + EPOCH_PULSES - 1;
-        assert!(is_valid_sybil_pow(&peer_id, end_of_epoch_pulse, difficulty));
+        // Should be valid for kyn at the very end of the current epoch
+        let end_of_epoch_kyn = (kyn / EPOCH_KYNS) * EPOCH_KYNS + EPOCH_KYNS - 1;
+        assert!(is_valid_sybil_pow(&peer_id, end_of_epoch_kyn, difficulty));
 
-        // Should be valid for the NEXT epoch's pulse (because we are the "previous epoch" from its perspective)
-        let next_epoch_pulse = pulse + EPOCH_PULSES;
-        assert!(is_valid_sybil_pow(&peer_id, next_epoch_pulse, difficulty));
+        // Should be valid for the NEXT epoch's kyn (because we are the "previous epoch" from its perspective)
+        let next_epoch_kyn = kyn + EPOCH_KYNS;
+        assert!(is_valid_sybil_pow(&peer_id, next_epoch_kyn, difficulty));
 
-        // Should NOT be valid for pulse 2 epochs away (unless we get a 1/256 lucky collision)
-        let two_epochs_away = pulse + (2 * EPOCH_PULSES);
+        // Should NOT be valid for kyn 2 epochs away (unless we get a 1/256 lucky collision)
+        let two_epochs_away = kyn + (2 * EPOCH_KYNS);
         if is_valid_sybil_pow(&peer_id, two_epochs_away, difficulty) {
             println!("Random collision for two_epochs_away - skipping assert");
         } else {
             assert!(!is_valid_sybil_pow(&peer_id, two_epochs_away, difficulty));
         }
 
-        // Should NOT be valid for pulse 1 epoch ago
-        if pulse > EPOCH_PULSES {
-            let prev_epoch_pulse = pulse - EPOCH_PULSES;
-            if is_valid_sybil_pow(&peer_id, prev_epoch_pulse, difficulty) {
-                println!("Random collision for prev_epoch_pulse - skipping assert");
+        // Should NOT be valid for kyn 1 epoch ago
+        if kyn > EPOCH_KYNS {
+            let prev_epoch_kyn = kyn - EPOCH_KYNS;
+            if is_valid_sybil_pow(&peer_id, prev_epoch_kyn, difficulty) {
+                println!("Random collision for prev_epoch_kyn - skipping assert");
             } else {
-                assert!(!is_valid_sybil_pow(&peer_id, prev_epoch_pulse, difficulty));
+                assert!(!is_valid_sybil_pow(&peer_id, prev_epoch_kyn, difficulty));
             }
         }
     }
