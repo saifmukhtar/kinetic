@@ -138,6 +138,21 @@ pub(crate) fn build_light_swarm(
                 libp2p::request_response::Config::default(),
             );
 
+            let cdn = libp2p::request_response::cbor::Behaviour::<
+                kinetic_types::cdn::CdnRequest,
+                kinetic_types::cdn::CdnResponse,
+            >::new(
+                [(
+                    libp2p::StreamProtocol::try_from_owned(format!(
+                        "/{}/cdn/1.0.0",
+                        kinetic_core::constants::NETWORK_ID
+                    ))
+                    .unwrap(),
+                    libp2p::request_response::ProtocolSupport::Full,
+                )],
+                libp2p::request_response::Config::default(),
+            );
+
             #[cfg(not(target_arch = "wasm32"))]
             let stream = libp2p_stream::Behaviour::new();
             #[cfg(not(target_arch = "wasm32"))]
@@ -191,6 +206,7 @@ pub(crate) fn build_light_swarm(
                 stream,
                 kademlia,
                 gossipsub,
+                cdn,
                 autonat,
                 #[cfg(not(target_arch = "wasm32"))]
                 upnp,

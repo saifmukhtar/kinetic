@@ -21,6 +21,13 @@ pub struct KineticBehavior {
 
     /// Request-response protocol for domain proxies.
     pub proxy: libp2p::request_response::cbor::Behaviour<ProxyRequest, ProxyResponse>,
+    
+    /// Request-response protocol for serving DHT caches (CDN).
+    pub cdn: libp2p::request_response::cbor::Behaviour<
+        kinetic_types::cdn::CdnRequest,
+        kinetic_types::cdn::CdnResponse,
+    >,
+
     /// Stream protocol for passing raw traffic.
     #[cfg(not(target_arch = "wasm32"))]
     pub stream: libp2p_stream::Behaviour,
