@@ -415,6 +415,68 @@ impl super::core::NetworkEventLoop {
                     _ => {}
                 }
             }
+            SwarmEvent::Behaviour(KineticBehaviorEvent::Cdn(e)) => {
+                use libp2p::request_response::{Event, Message};
+                match e {
+                    Event::Message { message, peer } => match message {
+                        Message::Request {
+                            request, channel, ..
+                        } => {
+                            let domain = request.domain.as_ref();
+                            let record = {
+                                let keys = kinetic_core::types::derive_storage_keys(
+                                    domain,
+                                    kinetic_core::constants::NETWORK_ID,
+                                );
+                                let mut result = None;
+                                for key_bytes in &keys {
+                                    let k = libp2p::kad::RecordKey::new(key_bytes);
+                                    if let Some(record) =
+                                        self.swarm.behaviour_mut().kademlia.store_mut().get(&k)
+                                    {
+                                        result = Some(record.value.clone());
+                                        break;
+                                    }
+                                }
+                                result
+                            };
+                            
+                            let _ = self.swarm.behaviour_mut().cdn.send_response(
+                                channel,
+                                kinetic_types::cdn::CdnResponse { record },
+                            );
+                            
+                            self.proxy_cdn_usage.0 += 1;
+                        }
+                        Message::Response {
+                            request_id,
+                            response,
+                        } => {
+                            if let Some(domain) = self.pending_cdn_requests.remove(&request_id) {
+                                if let Some(record_bytes) = response.record {
+                                    if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes) {
+                                        let skip_verify = kinetic_core::config::is_dev_mode();
+                                        if self.swarm.behaviour_mut().kademlia.store_mut().handle_record(&record, skip_verify).is_ok() {
+                                            tracing::info!("CDN Hit! Accelerated resolution of {} via {}", domain, peer);
+                                            if let Some(mut pending) = self.pending_gets.remove(&domain) {
+                                                for tx in pending.responders.drain(..) {
+                                                    let _ = tx.send(Ok(record_bytes.clone()));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    Event::OutboundFailure {
+                        request_id, ..
+                    } => {
+                        self.pending_cdn_requests.remove(&request_id);
+                    }
+                    _ => {}
+                }
+            }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(
                 libp2p::gossipsub::Event::Message {
                     propagation_source,
