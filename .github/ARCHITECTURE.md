@@ -65,7 +65,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
 ### 3.1 Name registration (commit / reveal + VDF)
  
 1. **Commit:** the registrant publishes a hash commitment binding the name and
-   their key, timestamped against a drand round. This prevents front-running the
+   their key, timestamped against a drand kyn. This prevents front-running the
    plaintext name.
 2. **Compute:** the registrant runs the VDF for the required number of iterations,
    using a challenge derived from the drand randomness. This is the "cost."

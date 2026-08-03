@@ -31,7 +31,7 @@
     <circle cx="60" cy="15" r="5" fill="#27C93F"/>
     <!-- Terminal Content -->
     <text x="20" y="70" font-family="monospace" font-size="14" fill="#00E5FF">$ kinetic register myname.kin</text>
-    <text x="20" y="110" font-family="monospace" font-size="14" fill="#4F5B66">&gt; Fetching Drand Quicknet pulse...</text>
+    <text x="20" y="110" font-family="monospace" font-size="14" fill="#4F5B66">&gt; Fetching Drand Quicknet kyn...</text>
     <text x="20" y="140" font-family="monospace" font-size="14" fill="#4F5B66">&gt; Initializing VDF Engine (Class Groups)</text>
     <text x="20" y="170" font-family="monospace" font-size="14" fill="#B400FF">&gt; Grinding proof for difficulty 200,000... █</text>
     <text x="20" y="210" font-family="monospace" font-size="14" fill="#27C93F">✓ Success: Name registered!</text>

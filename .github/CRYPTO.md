@@ -71,7 +71,7 @@ your scrutiny.
 - **VDF (proof-of-time)** is the *cost*: the registrant must run a sequential
   computation whose challenge is derived from drand randomness. This replaces a
   registrar/token fee with wall-clock compute that cannot be parallelized away.
-- **Invariants:** (a) the VDF challenge must be bound to the correct drand round
+- **Invariants:** (a) the VDF challenge must be bound to the correct drand kyn
   and to the name/key (no reuse across names); (b) proof size is bounded before
   verification; (c) verification runs **off** the async reactor
   (`spawn_blocking` + bounded concurrency) so a flood of proofs cannot starve the
@@ -85,7 +85,7 @@ your scrutiny.
 - Kinetic pins the Quicknet chain (public key + chain hash in `network.json`) and
   fetches pulses over HTTPS from multiple providers.
 - **Critical invariant — randomness must be bound to the signature.** Verifying
-  the BLS signature over the round is necessary but **not sufficient**: the
+  the BLS signature over the kyn is necessary but **not sufficient**: the
   resolver must also verify that the delivered `randomness` equals the beacon's
   defined derivation from the signature (for Quicknet, `randomness = SHA-256(sig)` `Source: kinetic-core/src/drand.rs:121`).
   Otherwise a MITM/malicious endpoint could supply a valid signature alongside
@@ -133,7 +133,7 @@ your scrutiny.
 ## 10. Things Reviewers Should Specifically Try to Break
  
 1. Feed a valid drand signature with mismatched `randomness` — is it rejected?
-2. Submit a Reveal whose VDF challenge is derived from a *different* round/name —
+2. Submit a Reveal whose VDF challenge is derived from a *different* kyn/name —
    accepted?
 3. Flood inbound `PutRecord` / connections — does verification stay off the
    reactor and bounded?
