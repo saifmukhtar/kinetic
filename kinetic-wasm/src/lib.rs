@@ -195,11 +195,11 @@ impl UniversalKineticNode {
         let (_drand_tx, drand_rx) = watch::channel(0);
 
         let net_config = NetworkConfig {
-            mode: NetworkMode::LightClient,
+            mode: NetworkMode::LightNode,
             listen_addrs: vec![],
             quic_listen_addrs: vec![],
             bootstrap_nodes,
-            initial_drand_pulse: 0,
+            initial_drand_kyn: 0,
             seed_domain: vec![],
             external_address: None,
             max_reveals_per_hour: 100,
@@ -209,7 +209,7 @@ impl UniversalKineticNode {
         };
 
         let local_key = Keypair::generate_ed25519();
-        let vdf_engine = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        let vdf_engine = Arc::new(kinetic_vdfrs::PureRustVdfEngine::new());
         let (client, event_loop) = NetworkEventLoop::new(
             net_config, local_key, storage, drand_rx, None, None, vdf_engine,
         )
