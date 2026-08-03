@@ -127,7 +127,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         disable_pow: false,
         test_mode: false,
         disable_storage_sync: true,
-        opt_in_relay: false, // WASM cannot act as a relay
     };
 
     let (incoming_tx, _) = tokio::sync::mpsc::channel(32);

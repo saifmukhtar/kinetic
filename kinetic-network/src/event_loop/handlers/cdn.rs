@@ -1,0 +1,69 @@
+use crate::event_loop::core::NetworkEventLoop;
+use libp2p::request_response::{Event, Message};
+use libp2p::kad::store::RecordStore;
+use kinetic_types::cdn::{CdnRequest, CdnResponse};
+
+pub(crate) async fn handle(
+    event_loop: &mut NetworkEventLoop,
+    e: Event<CdnRequest, CdnResponse>,
+) {
+    match e {
+        Event::Message { message, peer } => match message {
+            Message::Request {
+                request, channel, ..
+            } => {
+                let domain = request.domain.as_ref();
+                let record = {
+                    let keys = kinetic_core::types::derive_storage_keys(
+                        domain,
+                        kinetic_core::constants::NETWORK_ID,
+                    );
+                    let mut result = None;
+                    for key_bytes in &keys {
+                        let k = libp2p::kad::RecordKey::new(key_bytes);
+                        if let Some(record) =
+                            event_loop.swarm.behaviour_mut().kademlia.store_mut().get(&k)
+                        {
+                            result = Some(record.value.clone());
+                            break;
+                        }
+                    }
+                    result
+                };
+                
+                let _ = event_loop.swarm.behaviour_mut().cdn.send_response(
+                    channel,
+                    kinetic_types::cdn::CdnResponse { record },
+                );
+                
+                event_loop.proxy_cdn_usage.0 += 1;
+            }
+            Message::Response {
+                request_id,
+                response,
+            } => {
+                if let Some(domain) = event_loop.pending_cdn_requests.remove(&request_id) {
+                    if let Some(record_bytes) = response.record {
+                        if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes) {
+                            let skip_verify = kinetic_core::config::is_dev_mode();
+                            if event_loop.swarm.behaviour_mut().kademlia.store_mut().handle_record(&record, skip_verify).is_ok() {
+                                tracing::info!("CDN Hit! Accelerated resolution of {} via {}", domain, peer);
+                                if let Some(mut pending) = event_loop.pending_gets.remove(&domain) {
+                                    for tx in pending.responders.drain(..) {
+                                        let _ = tx.send(Ok(record_bytes.clone()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        Event::OutboundFailure {
+            request_id, ..
+        } => {
+            event_loop.pending_cdn_requests.remove(&request_id);
+        }
+        _ => {}
+    }
+}

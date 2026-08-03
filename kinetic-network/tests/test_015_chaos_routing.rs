@@ -37,6 +37,7 @@ async fn spawn_test_node(
         seed_domain: vec![],
         disable_pow: true,
         test_mode: true,
+        disable_storage_sync: false,
     };
 
     let dir = tempdir().unwrap();

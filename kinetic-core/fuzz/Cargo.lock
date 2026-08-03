@@ -1233,7 +1233,7 @@ dependencies = [
 
 [[package]]
 name = "kinetic-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -1251,6 +1251,7 @@ dependencies = [
  "hex",
  "hickory-resolver",
  "kinetic-kid",
+ "kinetic-types",
  "kinetic-verify",
  "lazy_static",
  "libp2p-identity",
@@ -1283,7 +1284,7 @@ dependencies = [
 
 [[package]]
 name = "kinetic-kid"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64",
  "ml-dsa",
@@ -1298,9 +1299,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "kinetic-verify"
-version = "0.1.1"
+name = "kinetic-types"
+version = "0.2.0"
 dependencies = [
+ "bytes",
+ "kinetic-kid",
+ "ml-dsa",
+ "serde",
+ "serde_bytes",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "kinetic-verify"
+version = "0.2.0"
+dependencies = [
+ "kinetic-types",
  "ml-dsa",
  "serde",
  "serde_json",
@@ -2011,6 +2026,16 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde_bytes"
+version = "0.11.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d440709e79d88e51ac01c4b72fc6cb7314017bb7da9eeff678aa94c10e3ea8"
+dependencies = [
+ "serde",
+ "serde_core",
 ]
 
 [[package]]

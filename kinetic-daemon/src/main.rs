@@ -347,7 +347,6 @@ async fn run_daemon() -> Result<()> {
         disable_pow: false,
         test_mode: false,
         disable_storage_sync: false,
-        opt_in_relay: config.network.opt_in_relay,
     };
 
     let base_config_dir = kinetic_core::config::get_base_dir();

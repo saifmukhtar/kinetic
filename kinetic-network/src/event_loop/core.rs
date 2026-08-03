@@ -194,17 +194,19 @@ impl NetworkEventLoop {
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                     let storage = self.swarm.behaviour_mut().kademlia.store_mut().storage.clone();
                     let current_kyn = self.current_drand_kyn;
-                    crate::event_loop::utils::spawn_blocking(move || {
-                        if let Ok(iter) = storage.scan_prefix(kinetic_core::constants::DB_PREFIX_BANNED_PEER.as_bytes(), None) {
-                            for (key_bytes, val_bytes) in iter {
-                                if val_bytes.len() == 8 {
-                                    let expire = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
-                                    if expire <= current_kyn {
-                                        let _ = storage.delete(&key_bytes);
+                    crate::event_loop::utils::spawn(async move {
+                        let _ = crate::event_loop::utils::spawn_blocking(move || {
+                            if let Ok(iter) = storage.scan_prefix(kinetic_core::constants::DB_PREFIX_BANNED_PEER.as_bytes(), None) {
+                                for (key_bytes, val_bytes) in iter {
+                                    if val_bytes.len() == 8 {
+                                        let expire = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
+                                        if expire <= current_kyn {
+                                            let _ = storage.delete(&key_bytes);
+                                        }
                                     }
                                 }
                             }
-                        }
+                        }).await;
                     });
                 }
                 _ = &mut redial_delay => {

@@ -10,6 +10,8 @@ pub mod core;
 pub mod swarm_builder;
 /// Inbound swarm handlers.
 pub mod swarm_handler;
+/// Specialized handlers.
+pub mod handlers;
 /// Event loop utilities.
 pub mod utils;
 
