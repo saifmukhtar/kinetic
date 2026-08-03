@@ -47,7 +47,7 @@ use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
-use kinetic_core::drand::{DrandClient, DrandPulse};
+use kinetic_core::drand::{DrandClient, RawKyn};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
 
@@ -122,19 +122,19 @@ async fn run_host() -> Result<()> {
     // 3. Initialize Drand client for PoW validation of ephemeral clients
     let drand_client = Arc::new(DrandClient::new(Some(storage.clone())));
 
-    let initial_pulse = match drand_client.fetch_latest().await {
-        Ok(pulse) => {
-            info!("Drand beacon connected — pulse #{}", pulse.round);
-            pulse
+    let initial_kyn = match drand_client.fetch_latest().await {
+        Ok(kyn) => {
+            info!("Drand beacon connected — kyn #{}", kyn.kyn);
+            kyn
         }
         Err(e) => {
             warn!("Drand beacon unavailable on startup: {}", e);
-            DrandPulse::unavailable()
+            RawKyn::unavailable()
         }
     };
 
-    let initial_drand_pulse = initial_pulse.round;
-    let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
+    let initial_drand_kyn = initial_kyn.kyn;
+    let (drand_kyn_tx, drand_kyn_rx) = watch::channel(initial_drand_kyn);
 
     // 4. Load Static Network Identity (The Permanent Host Key)
     let key_path = kinetic_core::config::get_base_dir().join("host.key");
@@ -146,7 +146,7 @@ async fn run_host() -> Result<()> {
     info!("Mining PoW S/Kademlia identity for current epoch...");
     let local_key = tokio::task::spawn_blocking(move || {
         kinetic_network::pow::mine_sybil_keypair(
-            initial_drand_pulse,
+            initial_drand_kyn,
             kinetic_core::constants::POW_DIFFICULTY_BITS,
         )
     })
@@ -189,7 +189,7 @@ async fn run_host() -> Result<()> {
             .map(Into::into)
             .collect(),
         enable_mdns: config.network.enable_mdns,
-        initial_drand_pulse,
+        initial_drand_kyn,
         external_address: config
             .network
             .external_address
@@ -222,7 +222,7 @@ async fn run_host() -> Result<()> {
         network_config.clone(),
         local_key.clone(),
         storage.clone(),
-        drand_pulse_rx.clone(),
+        drand_kyn_rx.clone(),
         Some(incoming_tx.clone()),
         Some(gossip_tx.clone()),
         vdf_engine.clone(),
@@ -264,17 +264,17 @@ async fn run_host() -> Result<()> {
         local_peer_id_str.clone(),
         host_peer_id.to_string(),
         network_client.clone(),
-        drand_pulse_rx.clone(),
+        drand_kyn_rx.clone(),
     ));
 
     tokio::spawn(heartbeat::start_drand_heartbeat(
         drand_client.clone(),
-        drand_pulse_tx,
+        drand_kyn_tx,
         local_peer_id,
         local_peer_id_str.clone(),
         network_loop_handle.clone(),
         network_client.clone(),
-        drand_pulse_rx.clone(),
+        drand_kyn_rx.clone(),
         network_config.clone(),
         storage.clone(),
         incoming_tx.clone(),

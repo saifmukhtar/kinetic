@@ -34,7 +34,7 @@ use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
-use kinetic_core::drand::{DrandClient, DrandPulse};
+use kinetic_core::drand::{DrandClient, RawKyn};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::SledStorage;
 
@@ -51,7 +51,7 @@ enum Commands {
     Install,
     /// Uninstall the node system service
     Uninstall,
-    /// Start the node (foreground)
+    /// Start the node (foregkyn)
     Run,
     /// Start the node service (background)
     Start,
@@ -181,19 +181,19 @@ async fn run_node() -> Result<()> {
     // 3. Initialize Drand client for PoW validation of ephemeral clients
     let drand_client = Arc::new(DrandClient::new(Some(storage.clone())));
 
-    let initial_pulse = match drand_client.fetch_latest().await {
-        Ok(pulse) => {
-            info!("Drand beacon connected — pulse #{}", pulse.round);
-            pulse
+    let initial_kyn = match drand_client.fetch_latest().await {
+        Ok(kyn) => {
+            info!("Drand beacon connected — kyn #{}", kyn.kyn);
+            kyn
         }
         Err(e) => {
             warn!("Drand beacon unavailable on startup: {}", e);
-            DrandPulse::unavailable()
+            RawKyn::unavailable()
         }
     };
 
-    let initial_drand_pulse = initial_pulse.round;
-    let (drand_pulse_tx, drand_pulse_rx) = watch::channel(initial_drand_pulse);
+    let initial_drand_kyn = initial_kyn.kyn;
+    let (drand_kyn_tx, drand_kyn_rx) = watch::channel(initial_drand_kyn);
 
     // 4. Load Static Network Identity
     let key_path = kinetic_core::config::get_base_dir().join("node.key");
@@ -238,7 +238,7 @@ async fn run_node() -> Result<()> {
             .map(Into::into)
             .collect(),
         enable_mdns: false,
-        initial_drand_pulse,
+        initial_drand_kyn,
         external_address: config
             .network
             .external_address
@@ -270,7 +270,7 @@ async fn run_node() -> Result<()> {
         network_config,
         local_key,
         storage.clone(),
-        drand_pulse_rx,
+        drand_kyn_rx,
         None,
         Some(gossip_tx),
         vdf_engine.clone(),
@@ -281,7 +281,7 @@ async fn run_node() -> Result<()> {
         tracing::warn!("Network loop exited");
     });
 
-    // Subscribe to Quicknet Pulse Gossip
+    // Subscribe to Quicknet Kyn Gossip
     let _ = network_client
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
         .await;
@@ -289,7 +289,7 @@ async fn run_node() -> Result<()> {
 
     let gossip_gov_path = gov_state_path.clone();
     let drand_client_gossip = drand_client.clone();
-    let drand_pulse_tx_gossip = drand_pulse_tx.clone();
+    let drand_kyn_tx_gossip = drand_kyn_tx.clone();
     let gossip_storage = storage.clone();
     tokio::spawn(async move {
         loop {
@@ -305,13 +305,13 @@ async fn run_node() -> Result<()> {
                     Some(gossip_storage.clone()),
                 );
             } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
-                if let Ok(pulse) = serde_json::from_slice::<DrandPulse>(&payload) {
-                    if pulse.verify() {
-                        if let Ok(latest) = drand_client_gossip.load_cached_pulse() {
-                            if (pulse.round > latest.round || latest.is_unavailable)
-                                && drand_client_gossip.cache_pulse(&pulse).is_ok()
+                if let Ok(kyn) = serde_json::from_slice::<RawKyn>(&payload) {
+                    if kyn.verify() {
+                        if let Ok(latest) = drand_client_gossip.load_cached_kyn() {
+                            if (kyn.kyn > latest.kyn || latest.is_unavailable)
+                                && drand_client_gossip.cache_kyn(&kyn).is_ok()
                             {
-                                let _ = drand_pulse_tx_gossip.send(pulse.round);
+                                let _ = drand_kyn_tx_gossip.send(kyn.kyn);
                             }
                         }
                     }
@@ -333,19 +333,19 @@ async fn run_node() -> Result<()> {
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_drand.load_cached_pulse() {
+                if let Ok(latest) = hb_drand.load_cached_kyn() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    let estimated_round = now
+                    let estimated_kyn = now
                         .saturating_sub(kinetic_core::constants::DRAND_GENESIS_TIME)
                         / kinetic_core::constants::DRAND_PERIOD;
 
-                    if estimated_round > latest.round + 5 {
+                    if estimated_kyn > latest.kyn + 5 {
                         tracing::warn!(
-                            "P2P Drand fallback triggered! We are behind by {} rounds.",
-                            estimated_round.saturating_sub(latest.round)
+                            "P2P Drand fallback triggered! We are behind by {} kyns.",
+                            estimated_kyn.saturating_sub(latest.kyn)
                         );
                         should_fetch_http = true;
                     }
@@ -355,12 +355,12 @@ async fn run_node() -> Result<()> {
             }
 
             if should_fetch_http {
-                if let Ok(pulse) = hb_drand.fetch_latest().await {
-                    if !pulse.is_unavailable && !pulse.is_from_cache {
-                        let _ = drand_pulse_tx.send(pulse.round);
+                if let Ok(kyn) = hb_drand.fetch_latest().await {
+                    if !kyn.is_unavailable && !kyn.is_from_cache {
+                        let _ = drand_kyn_tx.send(kyn.kyn);
                         // Broadcast to P2P network if we are fetching HTTP
                         if !p2p_only {
-                            if let Ok(payload) = serde_json::to_vec(&pulse) {
+                            if let Ok(payload) = serde_json::to_vec(&kyn) {
                                 let _ = hb_network
                                     .broadcast_gossip(
                                         kinetic_core::constants::GOSSIP_TOPIC_DRAND,

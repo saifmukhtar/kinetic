@@ -13,15 +13,15 @@ use kinetic_storage::SledStorage;
 use std::sync::Arc;
 use tokio::sync::watch;
 
-async fn fetch_drand_pulse() -> u64 {
+async fn fetch_drand_kyn() -> u64 {
     let client = reqwest::Client::new();
     let ping_endpoint = kinetic_core::constants::DRAND_HTTP_ENDPOINTS
         .first()
         .unwrap_or(&"");
     if let Ok(res) = client.get(*ping_endpoint).send().await {
         if let Ok(json) = res.json::<serde_json::Value>().await {
-            if let Some(round) = json["round"].as_u64() {
-                return round;
+            if let Some(kyn) = json["round"].as_u64() {
+                return kyn;
             }
         }
     }
@@ -99,7 +99,7 @@ async fn handle_request(
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    let current_pulse = fetch_drand_pulse().await;
+    let current_pulse = fetch_drand_kyn().await;
     println!("Mining PoW to satisfy kinetic-host anti-spam...");
     let key = kinetic_network::pow::mine_sybil_keypair(
         current_pulse,
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let storage = Arc::new(SledStorage::new("./kinetic_gateway_db")?);
 
     let config = NetworkConfig {
-        mode: NetworkMode::LightClient,
+        mode: NetworkMode::LightNode,
         listen_addrs: vec![
             "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
             "/ip6/::/tcp/0".parse().unwrap(),
@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect(),
         seed_domain: vec![],
         enable_mdns: false,
-        initial_drand_pulse: 0,
+        initial_drand_kyn: 0,
         external_address: None,
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),

@@ -12,7 +12,7 @@ pub async fn start_dynamic_routing_publisher(
     local_peer_id_str: Arc<RwLock<String>>,
     host_peer_id_str: String,
     publisher_client: NetworkClient,
-    drand_pulse_rx: watch::Receiver<u64>,
+    drand_kyn_rx: watch::Receiver<u64>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     let Ok(ed_key) = publisher_host_key.try_into_ed25519() else {
@@ -28,7 +28,7 @@ pub async fn start_dynamic_routing_publisher(
     loop {
         interval.tick().await;
 
-        let drand_pulse = *drand_pulse_rx.borrow();
+        let drand_kyn = *drand_kyn_rx.borrow();
 
         let mut record = kinetic_core::types::HostRoutingRecord {
             host_id: host_peer_id_str.clone(),
@@ -36,7 +36,7 @@ pub async fn start_dynamic_routing_publisher(
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            drand_pulse,
+            drand_kyn,
             signature: vec![],
         };
 
@@ -54,13 +54,13 @@ pub async fn start_dynamic_routing_publisher(
 
 /// Starts a continuous heartbeat loop that monitors the Drand randomness beacon and hot-swaps the ephemeral PoW identity when the epoch advances.
 ///
-/// This function listens for new pulses and uses them to verify the validity of the current PoW identity.
+/// This function listens for new kyns and uses them to verify the validity of the current PoW identity.
 /// If the identity is found to be expired based on the staggered epoch progression, it terminates the existing
 /// network loop, mines a new identity, and restarts the P2P swarm asynchronously to ensure seamless connectivity.
 #[allow(clippy::too_many_arguments)]
 pub async fn start_drand_heartbeat(
     hb_drand: Arc<DrandClient>,
-    drand_pulse_tx: watch::Sender<u64>,
+    drand_kyn_tx: watch::Sender<u64>,
     mut hb_local_peer_id: libp2p::PeerId,
     shared_peer_id: Arc<RwLock<String>>,
     loop_handle_ref: Arc<tokio::sync::Mutex<tokio::task::JoinHandle<()>>>,
@@ -79,13 +79,13 @@ pub async fn start_drand_heartbeat(
     let mut last_verified_epoch: Option<u64> = None;
     loop {
         interval.tick().await;
-        if let Ok(pulse) = hb_drand.fetch_latest().await {
-            if !pulse.is_unavailable && !pulse.is_from_cache {
-                let _ = drand_pulse_tx.send(pulse.round);
+        if let Ok(kyn) = hb_drand.fetch_latest().await {
+            if !kyn.is_unavailable && !kyn.is_from_cache {
+                let _ = drand_kyn_tx.send(kyn.kyn);
 
                 let current_epoch = kinetic_network::pow::get_staggered_epoch(
                     &hb_local_peer_id.to_bytes(),
-                    pulse.round,
+                    kyn.kyn,
                 );
 
                 let needs_validation = match last_verified_epoch {
@@ -95,11 +95,11 @@ pub async fn start_drand_heartbeat(
 
                 if needs_validation {
                     let peer_id_clone = hb_local_peer_id;
-                    let pulse_round = pulse.round;
+                    let kyn_round = kyn.kyn;
                     let pow_valid = tokio::task::spawn_blocking(move || {
                         kinetic_network::pow::is_valid_sybil_pow(
                             &peer_id_clone,
-                            pulse_round,
+                            kyn_round,
                             kinetic_core::constants::POW_DIFFICULTY_BITS,
                         )
                     })
@@ -112,7 +112,7 @@ pub async fn start_drand_heartbeat(
                         );
                         let current_local_key = tokio::task::spawn_blocking(move || {
                             kinetic_network::pow::mine_sybil_keypair(
-                                pulse_round,
+                                kyn_round,
                                 kinetic_core::constants::POW_DIFFICULTY_BITS,
                             )
                         })
