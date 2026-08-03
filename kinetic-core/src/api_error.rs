@@ -232,10 +232,10 @@ impl From<DrandError> for ApiError {
                 (502, "Bad Gateway")
             }
             DrandError::HttpError(s) => (*s, "Upstream Error"),
-            DrandError::NoCachedPulse => (404, "Not Found"),
+            DrandError::NoCachedKyn => (404, "Not Found"),
             DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
             DrandError::InvalidSignature => (422, "Cryptographic Verification Failed"),
-            DrandError::StalePulse { .. } => (400, "Stale Drand Pulse"),
+            DrandError::StaleKyn { .. } => (400, "Stale Network Kyn"),
         };
         ApiError {
             error_type: e.error_type_uri(),

@@ -6,7 +6,7 @@
 use super::names::is_valid_apex_name;
 pub use kinetic_verify::{
     CommitRequest, Commitment, PreviousProof, Reveal, VdfJobRequest, VdfProof, MAX_PAYLOAD_SIZE,
-    RESQUARING_EPOCH_ROUNDS,
+    RESQUARING_EPOCH_KYNS,
 };
 
 /// Extension trait providing network-specific validation logic for Reveal payloads.

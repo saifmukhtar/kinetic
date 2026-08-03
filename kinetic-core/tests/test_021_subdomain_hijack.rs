@@ -8,7 +8,7 @@ fn test_subdomain_hijack_validation() {
         name: format!("{}{}", "blog.saifmukhtar", kinetic_core::constants::TLD_SUFFIX), // Subdomain!
         payload: vec![],
         salt: [0; 32],
-        drand_pulse: 1000,
+        drand_kyn: 1000,
         drand_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
@@ -30,7 +30,7 @@ fn test_subdomain_hijack_validation() {
         name: format!("{}{}", "saifmukhtar", kinetic_core::constants::TLD_SUFFIX), // Apex domain!
         payload: vec![],
         salt: [0; 32],
-        drand_pulse: 1000,
+        drand_kyn: 1000,
         drand_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {

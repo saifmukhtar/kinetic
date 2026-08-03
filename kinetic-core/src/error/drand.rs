@@ -1,16 +1,16 @@
-//! Drand Quicknet pulse acquisition and verification error types (`KIN-DRA-NNN`).
+//! Drand Quicknet kyn acquisition and verification error types (`KIN-DRA-NNN`).
 //!
 //! [`DrandError`] is returned by [`DrandClient::fetch_latest`](crate::drand::DrandClient::fetch_latest)
-//! when the Quicknet randomness beacon cannot be reached, returns an invalid pulse, or the
+//! when the Quicknet randomness beacon cannot be reached, returns an invalid kyn, or the
 //! BLS threshold signature fails mathematical verification.
 //!
 //! ## Protocol Context
 //!
-//! Drand pulses are the heartbeat of the Kinetic protocol. Every VDF commitment encodes
-//! the current pulse round as a salt, and every reveal must include the Drand randomness
-//! at the time of commitment. An invalid or stale pulse breaks the time-lock guarantee.
+//! Network kyns are the heartbeat of the Kinetic protocol. Every VDF commitment encodes
+//! the current kyn kyn as a salt, and every reveal must include the Drand randomness
+//! at the time of commitment. An invalid or stale kyn breaks the time-lock guarantee.
 //!
-//! The daemon falls back to cached pulses (`DrandError::NoCachedPulse`) and gossipsub
+//! The daemon falls back to cached kyns (`DrandError::NoCachedKyn`) and gossipsub
 //! P2P propagation if all HTTP endpoints fail.
 use super::Severity;
 use thiserror::Error;
@@ -27,9 +27,9 @@ pub enum DrandError {
     /// An endpoint returned a non-2xx HTTP status.
     #[error("HTTP status error: {0}")]
     HttpError(u16),
-    /// No pulse was found in the local cache (and the network is also unavailable).
-    #[error("No cached pulse found")]
-    NoCachedPulse,
+    /// No kyn was found in the local cache (and the network is also unavailable).
+    #[error("No cached kyn found")]
+    NoCachedKyn,
     /// JSON (de)serialization failed.
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
@@ -42,12 +42,12 @@ pub enum DrandError {
     /// The BLS threshold signature was mathematically invalid.
     #[error("Invalid Drand signature")]
     InvalidSignature,
-    /// The returned pulse is too old compared to the system clock.
-    #[error("Stale pulse: expected round ~{expected}, but got {got}")]
-    StalePulse {
-        /// The expected Drand round based on the local system clock.
+    /// The returned kyn is too old compared to the system clock.
+    #[error("Stale kyn: expected kyn ~{expected}, but got {got}")]
+    StaleKyn {
+        /// The expected Drand kyn based on the local system clock.
         expected: u64,
-        /// The actual round returned by the endpoint.
+        /// The actual kyn returned by the endpoint.
         got: u64,
     },
 }
@@ -58,17 +58,17 @@ impl PartialEq for DrandError {
             (Self::AllEndpointsFailed, Self::AllEndpointsFailed) => true,
             (Self::Network(a), Self::Network(b)) => a == b,
             (Self::HttpError(a), Self::HttpError(b)) => a == b,
-            (Self::NoCachedPulse, Self::NoCachedPulse) => true,
+            (Self::NoCachedKyn, Self::NoCachedKyn) => true,
             (Self::Serde(a), Self::Serde(b)) => a.to_string() == b.to_string(),
             (Self::Storage(a), Self::Storage(b)) => a == b,
             (Self::Reqwest(a), Self::Reqwest(b)) => a.to_string() == b.to_string(),
             (Self::InvalidSignature, Self::InvalidSignature) => true,
             (
-                Self::StalePulse {
+                Self::StaleKyn {
                     expected: e1,
                     got: g1,
                 },
-                Self::StalePulse {
+                Self::StaleKyn {
                     expected: e2,
                     got: g2,
                 },
@@ -86,12 +86,12 @@ impl DrandError {
             Self::AllEndpointsFailed => "KIN-DRA-001",
             Self::Network(_) => "KIN-DRA-002",
             Self::HttpError(_) => "KIN-DRA-003",
-            Self::NoCachedPulse => "KIN-DRA-004",
+            Self::NoCachedKyn => "KIN-DRA-004",
             Self::Serde(_) => "KIN-DRA-005",
             Self::Storage(_) => "KIN-DRA-006",
             Self::Reqwest(_) => "KIN-DRA-007",
             Self::InvalidSignature => "KIN-DRA-008",
-            Self::StalePulse { .. } => "KIN-DRA-009",
+            Self::StaleKyn { .. } => "KIN-DRA-009",
         }
     }
 
@@ -106,9 +106,9 @@ impl DrandError {
             Self::AllEndpointsFailed
             | Self::Network(_)
             | Self::HttpError(_)
-            | Self::NoCachedPulse
+            | Self::NoCachedKyn
             | Self::Reqwest(_)
-            | Self::StalePulse { .. } => Severity::Warning,
+            | Self::StaleKyn { .. } => Severity::Warning,
             Self::Serde(_) | Self::Storage(_) | Self::InvalidSignature => Severity::Error,
         }
     }
@@ -121,24 +121,24 @@ impl DrandError {
                 | Self::Network(_)
                 | Self::HttpError(_)
                 | Self::Reqwest(_)
-                | Self::StalePulse { .. }
+                | Self::StaleKyn { .. }
         )
     }
 
     /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
         match self {
-            Self::AllEndpointsFailed => "All Drand endpoints failed.".to_string(),
+            Self::AllEndpointsFailed => "All network endpoints failed.".to_string(),
             Self::Network(_) | Self::HttpError(_) | Self::Reqwest(_) => {
-                "A network error occurred while fetching the Drand pulse.".to_string()
+                "A network error occurred while fetching the network kyn.".to_string()
             }
-            Self::NoCachedPulse => "No cached Drand pulse found.".to_string(),
-            Self::Serde(_) => "Failed to parse the Drand pulse.".to_string(),
+            Self::NoCachedKyn => "No cached network kyn found.".to_string(),
+            Self::Serde(_) => "Failed to parse the network kyn.".to_string(),
             Self::Storage(_) => {
-                "A storage error occurred while reading or writing the Drand cache.".to_string()
+                "A storage error occurred while reading or writing the kyn cache.".to_string()
             }
-            Self::InvalidSignature => "Invalid Drand signature.".to_string(),
-            Self::StalePulse { .. } => "The fetched Drand pulse was too old.".to_string(),
+            Self::InvalidSignature => "Invalid network signature.".to_string(),
+            Self::StaleKyn { .. } => "The fetched network kyn was too old.".to_string(),
         }
     }
 }

@@ -1,19 +1,19 @@
 //! League of Entropy Drand Quicknet randomness beacon client and cache manager.
 //!
-//! Fetches 3-second public randomness pulses from Drand HTTP endpoints and DNS seed TXT records,
-//! verifies BLS12-381 G2 signatures, binds SHA-256 randomness output, and caches valid pulses to storage.
+//! Fetches 3-second public randomness kyns from Drand HTTP endpoints and DNS seed TXT records,
+//! verifies BLS12-381 G2 signatures, binds SHA-256 randomness output, and caches valid kyns to storage.
 //!
-//! ## Pulse Acquisition Strategy
+//! ## Kyn Acquisition Strategy
 //!
 //! 1. Try each HTTP endpoint (from `config.toml` and DNS TXT records) with up to 3 attempts and 500ms/1s/2s backoff.
 //! 2. For each successful response: verify BLS signature + SHA-256 binding + staleness (≤200 rounds / 10 minutes).
 //! 3. If all endpoints fail: fall back to local storage cache (may be stale but still usable for heartbeats).
-//! 4. If no cache exists: return `DrandError::NoCachedPulse` (`KIN-DRA-004`).
+//! 4. If no cache exists: return `DrandError::NoCachedKyn` (`KIN-DRA-004`).
 //!
 //! ## Dev Mode Behavior
 //!
 //! In dev mode ([`is_dev_mode()`](crate::config::is_dev_mode)), all signature verification is bypassed
-//! and a synthetic mock pulse with `round: 5,000,000` is returned if no cache exists.
+//! and a synthetic mock kyn with `kyn: 5,000,000` is returned if no cache exists.
 
 use crate::error::DrandError;
 use crate::traits::StorageEngine;
@@ -29,11 +29,12 @@ use hickory_resolver::config::*;
 // Heartbeat staleness threshold — 10 minutes in Drand Quicknet rounds (3s each)
 const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200; // 10min * 20 rounds/min
 
-/// A single randomness beacon pulse from the drand Quicknet network.
+/// A single randomness beacon kyn from the drand Quicknet network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DrandPulse {
-    /// Monotonically increasing round number.
-    pub round: u64,
+pub struct RawKyn {
+    /// Monotonically increasing kyn number.
+    #[serde(alias = "round")]
+    pub kyn: u64,
     /// Hex-encoded SHA-256 randomness output string.
     pub randomness: String,
     /// BLS12-381 G2 signature string from the League of Entropy.
@@ -42,16 +43,16 @@ pub struct DrandPulse {
     /// `true` if loaded from the local storage cache rather than fetched live.
     #[serde(default)]
     pub is_from_cache: bool,
-    /// `true` if no live or cached pulse was available (sentinel unavailable state).
+    /// `true` if no live or cached kyn was available (sentinel unavailable state).
     #[serde(default)]
     pub is_unavailable: bool,
 }
 
-impl DrandPulse {
-    /// Returns a sentinel [`DrandPulse`] representing an unavailable beacon state.
+impl RawKyn {
+    /// Returns a sentinel [`RawKyn`] representing an unavailable beacon state.
     pub fn unavailable() -> Self {
         Self {
-            round: 0,
+            kyn: 0,
             randomness: String::new(),
             signature: String::new(),
             is_from_cache: false,
@@ -59,27 +60,27 @@ impl DrandPulse {
         }
     }
 
-    /// Returns `true` if this pulse is suitable for driving VDF name registrations (must be live).
+    /// Returns `true` if this kyn is suitable for driving VDF name registrations (must be live).
     pub fn is_usable_for_registration(&self) -> bool {
         !self.is_unavailable && !self.is_from_cache
     }
 
-    /// Returns `true` if this pulse is acceptable for heartbeat validation.
+    /// Returns `true` if this kyn is acceptable for heartbeat validation.
     ///
-    /// Accepts cached pulses if their round age relative to `current_live_round` does not
-    /// exceed `MAX_STALE_ROUNDS_FOR_HEARTBEAT` (200 rounds / 10 minutes).
-    pub fn is_usable_for_heartbeat(&self, current_live_round: u64) -> bool {
+    /// Accepts cached kyns if their kyn age relative to `current_live_kyn` does not
+    /// exceed `MAX_STALE_ROUNDS_FOR_HEARTBEAT` (200 kyns / 10 minutes).
+    pub fn is_usable_for_heartbeat(&self, current_live_kyn: u64) -> bool {
         if self.is_unavailable {
             return false;
         }
         if !self.is_from_cache {
             return true;
         }
-        let staleness = current_live_round.saturating_sub(self.round);
+        let staleness = current_live_kyn.saturating_sub(self.kyn);
         staleness <= MAX_STALE_ROUNDS_FOR_HEARTBEAT
     }
 
-    /// Cryptographically verifies the pulse against the League of Entropy Quicknet public key.
+    /// Cryptographically verifies the kyn against the League of Entropy Quicknet public key.
     ///
     /// Validates both the BLS12-381 G2 signature and the `SHA-256(signature) == randomness` binding.
     /// In dev mode (`is_dev_mode()`), bypasses signature verification to allow offline mock testing.
@@ -111,8 +112,8 @@ impl DrandPulse {
             Err(_) => return false,
         };
 
-        // 1. Verify BLS signature over the round (Quicknet is unchained, so previous_signature is empty array)
-        if !pk.verify(self.round, &[], &sig_bytes).unwrap_or(false) {
+        // 1. Verify BLS signature over the kyn (Quicknet is unchained, so previous_signature is empty array)
+        if !pk.verify(self.kyn, &[], &sig_bytes).unwrap_or(false) {
             return false;
         }
 
@@ -126,7 +127,7 @@ impl DrandPulse {
     }
 }
 
-/// HTTP and DNS-backed client for fetching and caching Drand Quicknet randomness pulses.
+/// HTTP and DNS-backed client for fetching and caching Drand Quicknet randomness kyns.
 pub struct DrandClient {
     http: reqwest::Client,
     storage: Option<Arc<dyn StorageEngine>>,
@@ -139,7 +140,7 @@ pub struct DrandClient {
 impl DrandClient {
     /// Creates a new [`DrandClient`].
     ///
-    /// Accepts an optional [`StorageEngine`] handle to cache successfully fetched pulses on disk.
+    /// Accepts an optional [`StorageEngine`] handle to cache successfully fetched kyns on disk.
     pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
         let config = crate::config::KineticConfig::load();
         Self {
@@ -161,7 +162,7 @@ impl DrandClient {
         }
     }
 
-    /// Fetches the latest verified Drand pulse across configured endpoints and DNS seeds.
+    /// Fetches the latest verified Drand kyn across configured endpoints and DNS seeds.
     ///
     /// Performs exponential backoff, verifies BLS signatures, enforces a 10-minute staleness
     /// limit, and falls back to local storage cache if network endpoints are unreachable.
@@ -169,14 +170,14 @@ impl DrandClient {
     /// # Errors
     ///
     /// - Returns [`DrandError::InvalidSignature`](crate::error::DrandError::InvalidSignature) if an endpoint returns a bad BLS signature.
-    /// - Returns [`DrandError::StalePulse`](crate::error::DrandError::StalePulse) if a pulse is older than 200 rounds (10 minutes).
+    /// - Returns [`DrandError::StaleKyn`](crate::error::DrandError::StaleKyn) if a kyn is older than 200 kyns (10 minutes).
     /// - Returns [`DrandError::HttpError`](crate::error::DrandError::HttpError) on non-200 HTTP responses.
     /// - Returns [`DrandError::Network`](crate::error::DrandError::Network) on connection timeouts or body size limit violations (> 64 KB).
-    /// - Returns [`DrandError::NoCachedPulse`](crate::error::DrandError::NoCachedPulse) if all endpoints fail and no cache exists.
+    /// - Returns [`DrandError::NoCachedKyn`](crate::error::DrandError::NoCachedKyn) if all endpoints fail and no cache exists.
     /// - Returns [`DrandError::AllEndpointsFailed`](crate::error::DrandError::AllEndpointsFailed) if network and fallback attempts fail.
-    pub async fn fetch_latest(&self) -> Result<DrandPulse, DrandError> {
+    pub async fn fetch_latest(&self) -> Result<RawKyn, DrandError> {
         if crate::config::is_dev_mode() {
-            return self.load_cached_pulse();
+            return self.load_cached_kyn();
         }
 
         let mut endpoints = self.endpoints.clone();
@@ -209,10 +210,10 @@ impl DrandClient {
 
         for endpoint in &endpoints {
             match self.fetch_with_backoff(endpoint).await {
-                Ok(mut pulse) => {
-                    if !pulse.verify() {
+                Ok(mut kyn) => {
+                    if !kyn.verify() {
                         warn!(
-                            "Drand endpoint {} returned a cryptographically invalid pulse!",
+                            "Drand endpoint {} returned a cryptographically invalid kyn!",
                             endpoint
                         );
                         last_error = Some(DrandError::InvalidSignature);
@@ -223,28 +224,28 @@ impl DrandClient {
                         .duration_since(web_time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    let estimated_round = (now
+                    let estimated_kyn = (now
                         .saturating_sub(crate::constants::DRAND_GENESIS_TIME))
                         / crate::constants::DRAND_PERIOD;
-                    let age = estimated_round.saturating_sub(pulse.round);
+                    let age = estimated_kyn.saturating_sub(kyn.kyn);
 
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
                         warn!(
-                            "Drand endpoint {} returned an unacceptably stale pulse (round {}, expected ~{}).",
-                            endpoint, pulse.round, estimated_round
+                            "Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
+                            endpoint, kyn.kyn, estimated_kyn
                         );
-                        last_error = Some(DrandError::StalePulse {
-                            expected: estimated_round,
-                            got: pulse.round,
+                        last_error = Some(DrandError::StaleKyn {
+                            expected: estimated_kyn,
+                            got: kyn.kyn,
                         });
                         continue;
                     }
 
-                    pulse.is_from_cache = false;
-                    pulse.is_unavailable = false;
+                    kyn.is_from_cache = false;
+                    kyn.is_unavailable = false;
                     // Cache on every successful fetch
-                    let _ = self.cache_pulse(&pulse);
-                    return Ok(pulse);
+                    let _ = self.cache_kyn(&kyn);
+                    return Ok(kyn);
                 }
                 Err(e) => {
                     warn!("Drand endpoint {} unreachable: {}", endpoint, e);
@@ -254,12 +255,12 @@ impl DrandClient {
         }
 
         // All endpoints failed — try cache
-        warn!("All Drand endpoints unreachable — falling back to cached pulse");
-        self.load_cached_pulse()
+        warn!("All Drand endpoints unreachable — falling back to cached kyn");
+        self.load_cached_kyn()
             .map_err(|_| last_error.unwrap_or(DrandError::AllEndpointsFailed))
     }
 
-    /// Attempts to fetch a single Drand pulse from a URL with up to 3 attempts and exponential backoff.
+    /// Attempts to fetch a single Drand kyn from a URL with up to 3 attempts and exponential backoff.
     ///
     /// Attempt delays: 500ms → 1s → 2s. Per-request HTTP timeout: 5 seconds.
     /// Response body size is capped at 64 KB to prevent memory exhaustion from malicious endpoints.
@@ -272,7 +273,7 @@ impl DrandClient {
     /// - Returns [`DrandError::Network`] (`KIN-DRA-003`) on connection failure or response body exceeds 64 KB.
     /// - Returns [`DrandError::JsonError`] (`KIN-DRA-006`) if the response body fails JSON deserialization.
     /// - Returns [`DrandError::AllEndpointsFailed`] (`KIN-DRA-005`) if all 3 attempts are exhausted without success.
-    async fn fetch_with_backoff(&self, url: &str) -> Result<DrandPulse, DrandError> {
+    async fn fetch_with_backoff(&self, url: &str) -> Result<RawKyn, DrandError> {
         let mut delay = Duration::from_millis(500);
         let max_attempts = 3;
 
@@ -296,7 +297,7 @@ impl DrandClient {
                                 "Drand response exceeded 64 KB limit".to_string(),
                             ));
                         }
-                        return Ok(serde_json::from_slice::<DrandPulse>(&bytes)?);
+                        return Ok(serde_json::from_slice::<RawKyn>(&bytes)?);
                     }
                     #[cfg(not(target_arch = "wasm32"))]
                     {
@@ -313,7 +314,7 @@ impl DrandClient {
                                 ));
                             }
                         }
-                        return Ok(serde_json::from_slice::<DrandPulse>(&body)?);
+                        return Ok(serde_json::from_slice::<RawKyn>(&body)?);
                     }
                 }
                 Ok(_resp) if attempt < max_attempts - 1 => {
@@ -339,42 +340,42 @@ impl DrandClient {
         Err(DrandError::AllEndpointsFailed)
     }
 
-    /// Caches a verified pulse to the local storage engine.
+    /// Caches a verified kyn to the local storage engine.
     ///
     /// # Errors
     ///
     /// - Returns `JsonError` if JSON serialization fails.
     /// - Returns [`crate::error::DrandError::Storage`] if writing to disk fails.
-    pub fn cache_pulse(&self, pulse: &DrandPulse) -> Result<(), DrandError> {
+    pub fn cache_kyn(&self, kyn: &RawKyn) -> Result<(), DrandError> {
         if let Some(storage) = &self.storage {
-            let bytes = serde_json::to_vec(pulse)?;
+            let bytes = serde_json::to_vec(kyn)?;
             storage.put(crate::constants::DB_PREFIX_LAST_DRAND, &bytes)?;
         }
         Ok(())
     }
 
-    /// Retrieves the most recent successfully cached pulse from local storage.
+    /// Retrieves the most recent successfully cached kyn from local storage.
     ///
-    /// In dev mode (`is_dev_mode()`), if the cache is empty, returns a synthetic mock pulse (`round: 5,000,000`).
+    /// In dev mode (`is_dev_mode()`), if the cache is empty, returns a synthetic mock kyn (`kyn: 5,000,000`).
     ///
     /// # Errors
     ///
-    /// - Returns [`DrandError::NoCachedPulse`](crate::error::DrandError::NoCachedPulse) if storage is empty or missing (outside dev mode).
+    /// - Returns [`DrandError::NoCachedKyn`](crate::error::DrandError::NoCachedKyn) if storage is empty or missing (outside dev mode).
     /// - Returns [`DrandError::Storage`](crate::error::DrandError::Storage) if database reading fails.
-    pub fn load_cached_pulse(&self) -> Result<DrandPulse, DrandError> {
+    pub fn load_cached_kyn(&self) -> Result<RawKyn, DrandError> {
         if let Some(storage) = &self.storage {
             if let Ok(Some(bytes)) = storage.get(crate::constants::DB_PREFIX_LAST_DRAND) {
-                if let Ok(mut pulse) = serde_json::from_slice::<DrandPulse>(&bytes) {
-                    pulse.is_from_cache = true;
-                    return Ok(pulse);
+                if let Ok(mut kyn) = serde_json::from_slice::<RawKyn>(&bytes) {
+                    kyn.is_from_cache = true;
+                    return Ok(kyn);
                 }
             }
         }
 
         if crate::config::is_dev_mode() {
-            tracing::warn!("DEV MODE: Returning mock drand pulse because cache is empty.");
-            return Ok(DrandPulse {
-                round: 5000000,
+            tracing::warn!("DEV MODE: Returning mock drand kyn because cache is empty.");
+            return Ok(RawKyn {
+                kyn: 5000000,
                 randomness: "mock_randomness".to_string(),
                 signature: String::new(),
                 is_from_cache: true,
@@ -382,7 +383,7 @@ impl DrandClient {
             });
         }
 
-        Err(DrandError::NoCachedPulse)
+        Err(DrandError::NoCachedKyn)
     }
 }
 
@@ -391,10 +392,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_valid_quicknet_pulse_verification() {
-        // Known valid pulse from Quicknet (Round 30290678)
-        let pulse = DrandPulse {
-            round: 30290678,
+    fn test_valid_quicknet_kyn_verification() {
+        // Known valid kyn from Quicknet (Kyn 30290678)
+        let kyn = RawKyn {
+            kyn: 30290678,
             randomness: "bd5f53ad61578f2566860e3792d01513b817e34c7de92f4781aa76b53ddef0ea".to_string(),
             signature: "ac8313d3ad1f95fe1b380ab6124aade0d4de5919fd60dc846746025ac9aa9d3c434b9dc94c0b75c4efd81aec9e2ef0b9".to_string(),
             is_from_cache: false,
@@ -403,16 +404,16 @@ mod tests {
 
         // Should cryptographically verify against QUICKNET_PUBLIC_KEY
         assert!(
-            pulse.verify(),
-            "Valid Quicknet pulse failed BLS verification"
+            kyn.verify(),
+            "Valid Quicknet kyn failed BLS verification"
         );
     }
 
     #[test]
-    fn test_invalid_quicknet_pulse_verification() {
-        // Corrupted pulse (tampered signature)
-        let pulse = DrandPulse {
-            round: 30290678,
+    fn test_invalid_quicknet_kyn_verification() {
+        // Corrupted kyn (tampered signature)
+        let kyn = RawKyn {
+            kyn: 30290678,
             randomness: "bd5f53ad61578f2566860e3792d01513b817e34c7de92f4781aa76b53ddef0ea".to_string(),
             signature: "bc8313d3ad1f95fe1b380ab6124aade0d4de5919fd60dc846746025ac9aa9d3c434b9dc94c0b75c4efd81aec9e2ef0b9".to_string(), // flipped first char
             is_from_cache: false,
@@ -421,11 +422,11 @@ mod tests {
 
         // Should fail cryptographic verification (unless in dev mode, which always passes)
         if crate::config::is_dev_mode() {
-            assert!(pulse.verify(), "Dev mode should always pass verification");
+            assert!(kyn.verify(), "Dev mode should always pass verification");
         } else {
             assert!(
-                !pulse.verify(),
-                "Invalid Quicknet pulse incorrectly passed BLS verification"
+                !kyn.verify(),
+                "Invalid Quicknet kyn incorrectly passed BLS verification"
             );
         }
     }

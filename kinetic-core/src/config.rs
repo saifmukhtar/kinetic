@@ -65,7 +65,7 @@ pub struct KineticConfig {
 /// Drand networking configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrandConfig {
-    /// Drand HTTP endpoints to query for Quicknet pulses.
+    /// Drand HTTP endpoints to query for Quicknet kyns.
     #[serde(
         default = "default_drand_endpoints",
         skip_serializing_if = "is_default_drand_endpoints"
@@ -74,7 +74,7 @@ pub struct DrandConfig {
     /// Domains to query via DNS TXT records for dynamic Drand endpoints.
     #[serde(default = "default_drand_seed_domain")]
     pub drand_domain: Vec<String>,
-    /// If true, the node will only listen to P2P gossipsub for Drand pulses
+    /// If true, the node will only listen to P2P gossipsub for Drand kyns
     /// and will not query the internet via HTTP/DNS.
     #[serde(default)]
     pub p2p_only: bool,
@@ -138,7 +138,7 @@ pub struct DaemonConfig {
     /// Path to the directory where the embedded storage database is persisted.
     pub storage_dir: PathBuf,
     /// Network operating mode. Supported values: `"FullNode"` (participates in DHT storage & routing)
-    /// or `"LightClient"` (queries network without storing records).
+    /// or `"LightNode"` (queries network without storing records).
     #[serde(default = "default_network_mode")]
     pub network_mode: String,
     /// Whether the node should automatically download and install OTA binary updates.

@@ -19,7 +19,7 @@ struct SquatterMultipliers {
 
 #[derive(Deserialize)]
 struct ConsensusConfig {
-    minimum_commit_age_rounds: u64,
+    minimum_commit_age_kyns: u64,
     vdf_squatter_multipliers: SquatterMultipliers,
     vdf_discount_min_iterations: u64,
     vdf_discount_percentage: u64,
@@ -65,7 +65,7 @@ struct NetworkSection {
 struct DrandSection {
     drand_genesis_time: u64,
     drand_period: u64,
-    kinetic_genesis_drand_round: u64,
+    kinetic_genesis_drand_kyn: u64,
     drand_public_key: String,
     drand_http_endpoints: Vec<String>,
 }
@@ -80,7 +80,7 @@ struct GovernanceSection {
 struct AdvancedSection {
     benchmark_base_iterations: u64,
     benchmark_target_minutes: Option<f64>,
-    steal_target_rounds: u64,
+    steal_target_kyns: u64,
     m_redundancy: u8,
     dev_mode_iterations: u64,
     limits: LimitsConfig,
@@ -161,8 +161,8 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The number of rounds a name must be inactive before the steal difficulty completely decays.\npub const STEAL_TARGET_ROUNDS: u64 = {};\n\n",
-        config.advanced.steal_target_rounds
+        "/// The number of kyns a name must be inactive before the steal difficulty completely decays.\npub const STEAL_TARGET_KYNS: u64 = {};\n\n",
+        config.advanced.steal_target_kyns
     ));
 
     // Safety floor: refuse to compile a network with fewer than 5 redundant DHT keys.
@@ -209,8 +209,8 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The minimum number of Drand rounds a Commitment must age before a Reveal is accepted.\npub const CONSENSUS_MINIMUM_COMMIT_AGE_ROUNDS: u64 = {};\n\n",
-        config.consensus.minimum_commit_age_rounds
+        "/// The minimum number of Drand kyns a Commitment must age before a Reveal is accepted.\npub const CONSENSUS_MINIMUM_COMMIT_AGE_KYNS: u64 = {};\n\n",
+        config.consensus.minimum_commit_age_kyns
     ));
 
     out.push_str(&format!(
@@ -219,18 +219,18 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Duration in seconds of each Drand round.\npub const DRAND_PERIOD: u64 = {};\n\n",
+        "/// Duration in seconds of each Drand kyn.\npub const DRAND_PERIOD: u64 = {};\n\n",
         config.drand.drand_period
     ));
 
     out.push_str(&format!(
-        "/// The absolute Drand round at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Epoch/Cycle/Pulse).\npub const KINETIC_GENESIS_DRAND_ROUND: u64 = {};\n\n",
-        config.drand.kinetic_genesis_drand_round
+        "/// The absolute Drand kyn at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Epoch/Cycle/Kyn).\npub const KINETIC_GENESIS_DRAND_KYN: u64 = {};\n\n",
+        config.drand.kinetic_genesis_drand_kyn
     ));
 
     out.push_str(&format!(
         "/// The absolute Unix timestamp (in seconds) of the Kinetic network genesis.\npub const KINETIC_GENESIS_TIME: u64 = {};\n\n",
-        config.drand.drand_genesis_time + (config.drand.kinetic_genesis_drand_round * config.drand.drand_period)
+        config.drand.drand_genesis_time + (config.drand.kinetic_genesis_drand_kyn * config.drand.drand_period)
     ));
 
     // Expose NETWORK_ID as a compile-time env var so constants.rs can use env!() for

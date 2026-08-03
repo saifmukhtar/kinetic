@@ -128,15 +128,15 @@ impl GovernanceEngine for SovereignEngine {
                 }
                 Some(GovernanceEffect::NetworkHalted)
             }
-            GovernanceAction::EmergencyResume { paused_rounds } => {
+            GovernanceAction::EmergencyResume { paused_kyns } => {
                 if state.is_halted {
                     state.is_halted = false;
-                    state.total_paused_rounds =
-                        state.total_paused_rounds.saturating_add(*paused_rounds);
+                    state.total_paused_kyns =
+                        state.total_paused_kyns.saturating_add(*paused_kyns);
                         
-                    let end_round = msg.timestamp_sec.saturating_sub(crate::constants::KINETIC_GENESIS_TIME) / 3;
-                    let start_round = end_round.saturating_sub(*paused_rounds);
-                    state.pause_history.push((start_round, end_round));
+                    let end_kyn = msg.timestamp_sec.saturating_sub(crate::constants::KINETIC_GENESIS_TIME) / 3;
+                    let start_kyn = end_kyn.saturating_sub(*paused_kyns);
+                    state.pause_history.push((start_kyn, end_kyn));
                 }
                 Some(GovernanceEffect::NetworkResumed)
             }

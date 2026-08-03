@@ -31,7 +31,7 @@ pub enum RecordRejectReason {
     #[error("name already owned by a different key")]
     AlreadyOwned,
 
-    /// The VDF iteration count is below the minimum required for this name and round.
+    /// The VDF iteration count is below the minimum required for this name and kyn.
     #[error("insufficient VDF iterations to claim ownership")]
     InsufficientIterations,
     /// The record lost an XOR-distance tie-break to a competing record.

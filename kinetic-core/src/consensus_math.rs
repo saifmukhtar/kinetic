@@ -15,18 +15,18 @@
 //! When a name owner fails to publish regular heartbeats, the iteration effort required
 //! for a third party to claim ("steal") the name decays via an inverse-square formula:
 //!
-//! $$\text{Multiplier} = \left(\frac{\text{steal\_target\_rounds}}{\text{rounds\_idle} + 1}\right)^2$$
+//! $$\text{Multiplier} = \left(\frac{\text{steal\_target\_kyns}}{\text{kyns\_idle} + 1}\right)^2$$
 
 /// Consensus parameters governing VDF difficulty and name takeover decay rates.
 pub struct ConsensusParams {
-    /// Number of Drand rounds a name must remain idle before takeover difficulty decays to $1\times$.
-    pub steal_target_rounds: u64,
+    /// Number of Drand kyns a name must remain idle before takeover difficulty decays to $1\times$.
+    pub steal_target_kyns: u64,
 }
 
 impl Default for ConsensusParams {
     fn default() -> Self {
         Self {
-            steal_target_rounds: crate::constants::STEAL_TARGET_ROUNDS,
+            steal_target_kyns: crate::constants::STEAL_TARGET_KYNS,
         }
     }
 }
@@ -93,7 +93,7 @@ impl ConsensusParams {
 
     /// Calculates the VDF iteration effort required to claim an idle name.
     ///
-    /// Applies an inverse-square multiplier based on `rounds_idle`. As `rounds_idle` increases,
+    /// Applies an inverse-square multiplier based on `kyns_idle`. As `kyns_idle` increases,
     /// the required effort decays down to the baseline `base_iterations`.
     ///
     /// # Examples
@@ -107,12 +107,12 @@ impl ConsensusParams {
     /// let diff_early = params.steal_difficulty(base, 100);
     /// assert!(diff_early >= base);
     /// ```
-    pub fn steal_difficulty(&self, base_iterations: u64, rounds_idle: u64) -> u64 {
-        let idle_plus = rounds_idle.saturating_add(1) as u128;
-        let target_rounds = self.steal_target_rounds as u128;
+    pub fn steal_difficulty(&self, base_iterations: u64, kyns_idle: u64) -> u64 {
+        let idle_plus = kyns_idle.saturating_add(1) as u128;
+        let target_kyns = self.steal_target_kyns as u128;
 
-        let multiplier = if target_rounds > idle_plus {
-            let target_sq = target_rounds * target_rounds;
+        let multiplier = if target_kyns > idle_plus {
+            let target_sq = target_kyns * target_kyns;
             let idle_sq = idle_plus * idle_plus;
             target_sq / idle_sq
         } else {
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn test_steal_difficulty() {
         let params = ConsensusParams::default();
-        let target = params.steal_target_rounds;
+        let target = params.steal_target_kyns;
 
         let diff_early = params.steal_difficulty(100, target / 2);
         assert!(diff_early > 100); // 4x multiplier

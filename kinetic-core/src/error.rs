@@ -38,7 +38,7 @@ use thiserror::Error;
 pub mod dht;
 /// DNS Zone parsing and validation error types.
 pub mod dns;
-/// Drand Quicknet pulse acquisition and verification error types.
+/// Drand Quicknet kyn acquisition and verification error types.
 pub mod drand;
 /// Council governance and parameter-update error types.
 pub mod governance;
@@ -107,11 +107,11 @@ pub enum KineticError {
     #[error("Hash commitment mismatch: revealed data does not match commitment")]
     CommitmentMismatch,
 
-    /// A drand pulse was rejected as invalid.
+    /// A drand kyn was rejected as invalid.
     ///
-    /// Raised when the pulse round number is wrong, the hex encoding is malformed,
+    /// Raised when the kyn kyn number is wrong, the hex encoding is malformed,
     /// or the BLS signature does not verify against the Quicknet chain public key.
-    #[error("Invalid Drand pulse: {0}")]
+    #[error("Invalid Drand kyn: {0}")]
     InvalidDrandPulse(String),
 
     /// A storage operation in Sled failed.

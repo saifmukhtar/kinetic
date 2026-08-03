@@ -195,7 +195,7 @@ mod tests {
         state.active_root_key = Some(root_pubkey);
 
         assert!(!state.is_halted);
-        assert_eq!(state.total_paused_rounds, 0);
+        assert_eq!(state.total_paused_kyns, 0);
 
         let mut halt_msg = SignedGovernanceMessage {
             action: GovernanceAction::EmergencyHalt,
@@ -210,7 +210,7 @@ mod tests {
 
         let mut resume_msg = SignedGovernanceMessage {
             action: GovernanceAction::EmergencyResume {
-                paused_rounds: 1000,
+                paused_kyns: 1000,
             },
             timestamp_sec: current_time + 1,
             signatures: vec![],
@@ -222,7 +222,7 @@ mod tests {
         let effect = process_governance_message(&mut state, &resume_msg).unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::NetworkResumed)));
         assert!(!state.is_halted);
-        assert_eq!(state.total_paused_rounds, 1000);
+        assert_eq!(state.total_paused_kyns, 1000);
     }
 
     #[test]

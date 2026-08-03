@@ -111,7 +111,7 @@ Errors produced during a DHT name lookup. These are returned when a node attempt
 | **HTTP Status** | `410 Gone` |
 | **Retryable** | No |
 
-**What it is:** The name was found, but its registration has passed its validity window — the owner has not published a heartbeat record within the required number of drand rounds.
+**What it is:** The name was found, but its registration has passed its validity window — the owner has not published a heartbeat record within the required number of drand kyns.
 
 **Why it occurs:** The name's owner stopped running their daemon or stopped publishing heartbeats, causing the record to age beyond the `STEAL_TARGET_ROUNDS` threshold.
 
@@ -258,11 +258,11 @@ Errors produced when pushing a record to the DHT. These occur after local VDF pr
 
 **What it is:** The network explicitly rejected the record with a specific reason string.
 
-**Why it occurs:** The record failed store-level validation at one or more peers — e.g. invalid signature, expired epoch, or commitment mismatch.
+**Why it occurs:** The record failed store-level validation at one or more peers — e.g. invalid signature, expired prism, or commitment mismatch.
 
 **What it means:** The record is structurally valid but violates a network-enforced protocol rule.
 
-**Solution:** Inspect the `reason` field in the error details. Common causes are expired drand rounds (re-commit) or a bad Ed25519 signature (check the signing key).
+**Solution:** Inspect the `reason` field in the error details. Common causes are expired drand kyns (re-commit) or a bad Ed25519 signature (check the signing key).
 
 ---
 
@@ -395,11 +395,11 @@ Errors produced during the full two-phase commit → reveal name registration fl
 
 **What it is:** The network explicitly rejected the registration record. The specific `RecordRejectReason` is included in the error details.
 
-**Why it occurs:** Common sub-reasons include: invalid signature, insufficient VDF iterations, expired registration epoch, or lost tie-break to a competing record.
+**Why it occurs:** Common sub-reasons include: invalid signature, insufficient VDF iterations, expired registration prism, or lost tie-break to a competing record.
 
 **What it means:** The generated record does not meet the network's acceptance criteria.
 
-**Solution:** Inspect the `reject_reason` field. For `InsufficientIterations` — increase your target iteration count. For `InvalidSignature` — verify your signing key matches the public key in the record. For `Expired` — re-commit with a fresh drand round.
+**Solution:** Inspect the `reject_reason` field. For `InsufficientIterations` — increase your target iteration count. For `InvalidSignature` — verify your signing key matches the public key in the record. For `Expired` — re-commit with a fresh drand kyn.
 
 ---
 
@@ -479,7 +479,7 @@ Errors from the VDF engine (`chiavdf` Wesolowski implementation). These occur du
 
 **What it means:** The VDF cannot be computed for this specific challenge.
 
-**Solution:** Re-commit with a new drand round (a different salt), which will produce a different challenge hash.
+**Solution:** Re-commit with a new drand kyn (a different salt), which will produce a different challenge hash.
 
 ---
 
@@ -920,7 +920,7 @@ Errors from DNS zone payload parsing and record validation. A DNS zone is the JS
 
 ## KIN-DRA — Drand Randomness Beacon
 
-Errors from the drand Quicknet HTTP client and pulse cache. Drand pulses are the time-source for VDF commitments — every commit encodes the current pulse round as a salt.
+Errors from the drand Quicknet HTTP client and kyn cache. Network kyns are the time-source for VDF commitments — every commit encodes the current kyn kyn as a salt.
 
 **Retryable variants:** `KIN-DRA-001`, `KIN-DRA-002`, `KIN-DRA-003`, `KIN-DRA-007`, `KIN-DRA-009`
 
@@ -939,7 +939,7 @@ Errors from the drand Quicknet HTTP client and pulse cache. Drand pulses are the
 
 **Why it occurs:** The drand Quicknet network is temporarily unavailable, or all endpoints are blocked from the daemon's network.
 
-**What it means:** No fresh pulse can be fetched. The daemon falls back to the last cached pulse for operations that permit it.
+**What it means:** No fresh kyn can be fetched. The daemon falls back to the last cached kyn for operations that permit it.
 
 **Solution:** Retry after a short delay. Check that the machine can reach `https://drand.cloudflare.com` and the other configured endpoints.
 
@@ -977,22 +977,22 @@ Errors from the drand Quicknet HTTP client and pulse cache. Drand pulses are the
 
 ---
 
-### KIN-DRA-004 — NoCachedPulse
+### KIN-DRA-004 — NoCachedKyn
 
 | Field | Value |
 |---|---|
-| **Variant** | `DrandError::NoCachedPulse` |
+| **Variant** | `DrandError::NoCachedKyn` |
 | **Severity** | Warning |
 | **HTTP Status** | `404 Not Found` |
 | **Retryable** | No |
 
-**What it is:** No pulse has ever been cached locally and the network is also unavailable.
+**What it is:** No kyn has ever been cached locally and the network is also unavailable.
 
 **Why it occurs:** First startup without network connectivity, or the local storage was wiped.
 
-**What it means:** The daemon cannot determine the current drand round. Operations that require a pulse (commit, reveal) are blocked.
+**What it means:** The daemon cannot determine the current drand kyn. Operations that require a kyn (commit, reveal) are blocked.
 
-**Solution:** Ensure the daemon has internet connectivity on first startup so it can fetch and cache an initial pulse.
+**Solution:** Ensure the daemon has internet connectivity on first startup so it can fetch and cache an initial kyn.
 
 ---
 
@@ -1022,7 +1022,7 @@ Errors from the drand Quicknet HTTP client and pulse cache. Drand pulses are the
 | **HTTP Status** | `500 Internal Server Error` |
 | **Retryable** | No |
 
-**What it is:** A Sled storage error occurred while reading or writing the drand pulse cache.
+**What it is:** A Sled storage error occurred while reading or writing the drand kyn cache.
 
 **Solution:** Check disk space and storage integrity. See [KIN-STO errors](#kin-sto--local-storage).
 
@@ -1052,28 +1052,28 @@ Errors from the drand Quicknet HTTP client and pulse cache. Drand pulses are the
 | **HTTP Status** | `422 Unprocessable Entity` |
 | **Retryable** | No |
 
-**What it is:** The BLS threshold signature in the fetched drand pulse failed mathematical verification against the Quicknet chain public key.
+**What it is:** The BLS threshold signature in the fetched drand kyn failed mathematical verification against the Quicknet chain public key.
 
-**Why it occurs:** The endpoint returned a forged or corrupted pulse — a serious security event.
+**Why it occurs:** The endpoint returned a forged or corrupted kyn — a serious security event.
 
-**What it means:** The pulse cannot be trusted and was rejected.
+**What it means:** The kyn cannot be trusted and was rejected.
 
 **Solution:** The daemon will automatically retry other configured endpoints. If all endpoints return invalid signatures, the drand network itself may be compromised — do not proceed with new registrations and notify the Kinetic Council.
 
 ---
 
-### KIN-DRA-009 — StalePulse
+### KIN-DRA-009 — StaleKyn
 
 | Field | Value |
 |---|---|
-| **Variant** | `DrandError::StalePulse` |
+| **Variant** | `DrandError::StaleKyn` |
 | **Severity** | Warning |
-| **HTTP Status** | `400 Stale Drand Pulse` |
+| **HTTP Status** | `400 Stale Network Kyn` |
 | **Retryable** | Yes |
 
-**What it is:** The pulse returned by the endpoint is too far behind the expected round based on the current system clock.
+**What it is:** The kyn returned by the endpoint is too far behind the expected kyn based on the current system clock.
 
-**Why it occurs:** The endpoint is serving an outdated cached pulse, or the daemon's system clock is significantly ahead of the actual time.
+**Why it occurs:** The endpoint is serving an outdated cached kyn, or the daemon's system clock is significantly ahead of the actual time.
 
 **Solution:** Retry against a different drand endpoint. Check that the system clock is synchronized via NTP.
 
@@ -1315,7 +1315,7 @@ Errors from name structural validation. These are returned before any network op
 
 ## KIN-STO — Local Storage
 
-Errors from the Sled embedded B-tree database used for all local persistence (pulse cache, commitments, governance state).
+Errors from the Sled embedded B-tree database used for all local persistence (kyn cache, commitments, governance state).
 
 ---
 

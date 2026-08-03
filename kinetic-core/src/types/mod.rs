@@ -4,7 +4,7 @@
 //!
 //! | Module | Key Types | Role |
 //! |---|---|---|
-//! | `clock` | `KineticTime` | Drand-round-to-branded-time conversion |
+//! | `clock` | `KineticTime` | Drand-kyn-to-branded-time conversion |
 //! | `dns` | `DnsZone`, `DnsRecord` | DNS zone payload stored in DHT reveal records |
 //! | `domain` | `Heartbeat` | Domain heartbeats and DHT key derivation |
 //! | `identity` | `AuthorizedKid`, `AuthorizedManifest` | ML-DSA-65 keypair management |

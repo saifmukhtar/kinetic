@@ -80,9 +80,9 @@ pub const DB_PREFIX_REVEAL: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_r
 /// Key prefix for storing banned peer multiaddrs in local Sled/DB storage.
 pub const DB_PREFIX_BANNED_PEER: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_banned_peer:");
 
-/// Storage key for persisting the latest processed Drand round number.
+/// Storage key for persisting the latest processed Drand kyn number.
 pub const DB_PREFIX_LAST_DRAND: &[u8] =
-    concat!("n:", env!("KINETIC_NETWORK_ID"), "_last_drand_round").as_bytes();
+    concat!("n:", env!("KINETIC_NETWORK_ID"), "_last_drand_kyn").as_bytes();
 
 /// Database namespace for the P2P ping proxy subsystem.
 pub const DB_NAME_PING: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_ping_db");
@@ -91,9 +91,9 @@ pub const DB_NAME_PING: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_ping_
 /// Dynamically namespaced with `NETWORK_ID` to isolate governance propagation across networks.
 pub const GOSSIP_TOPIC_GOVERNANCE: &str = concat!(env!("KINETIC_NETWORK_ID"), "_governance");
 
-/// libp2p Gossipsub topic for broadcasting Drand randomness beacon pulses.
-/// Dynamically namespaced with `NETWORK_ID` to separate network pulse channels.
-pub const GOSSIP_TOPIC_DRAND: &str = concat!("drand_pulse_", env!("KINETIC_NETWORK_ID"));
+/// libp2p Gossipsub topic for broadcasting Drand randomness beacon kyns.
+/// Dynamically namespaced with `NETWORK_ID` to separate network kyn channels.
+pub const GOSSIP_TOPIC_DRAND: &str = concat!("drand_kyn_", env!("KINETIC_NETWORK_ID"));
 
 // ============================================================================
 // 5. ENVIRONMENT VARIABLES
