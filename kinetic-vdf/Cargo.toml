@@ -13,6 +13,7 @@ fs2 = "0.4.3"
 libc = "0.2"
 dirs = "5.0"
 chiavdf = { version = "1.1.14", path = "chiavdf/rust_bindings" }
+kyn-vdf = "0.1.1"
 
 cmake = "0.1.58"
 

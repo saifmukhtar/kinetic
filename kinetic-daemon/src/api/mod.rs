@@ -24,6 +24,8 @@ pub mod time;
 pub mod vdf;
 /// API endpoints for DNS zone management.
 pub mod zone;
+/// API endpoints for KID local management.
+pub mod kid;
 
 use atlas::*;
 use config::*;
@@ -33,6 +35,7 @@ use resolve::*;
 use time::*;
 use vdf::*;
 use zone::*;
+use kid::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
@@ -198,6 +201,8 @@ pub fn app(state: ApiState) -> Router {
             "/zone/{name}/publish",
             axum::routing::post(handle_publish_zone),
         )
+        .route("/kid", axum::routing::post(handle_generate_kid))
+        .route("/kid/{name}/rotate", axum::routing::post(handle_rotate_kid))
         .route("/vdf/register", axum::routing::post(handle_vdf_register))
         .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
         .route(
@@ -221,6 +226,8 @@ pub fn app(state: ApiState) -> Router {
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
+        .route("/kid", axum::routing::get(handle_list_kids))
+        .route("/kid/{name}", axum::routing::get(handle_get_kid))
         .route("/time", axum::routing::get(handle_get_time))
         .route(
             "/gossip/subscribe/{topic}",

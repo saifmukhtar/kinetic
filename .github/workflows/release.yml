@@ -26,17 +26,24 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgmp-dev clang libclang-dev
       - name: Build Workspace (Release)
         run: cargo build --release --workspace
-      - name: Rename and Upload Artifacts
+      - name: Package Artifacts
         run: |
           NETWORK_ID=$(jq -r '.network.network_id' network.json)
-          mkdir -p artifacts
-          cp target/release/${NETWORK_ID}-daemon artifacts/${NETWORK_ID}-daemon-linux-gnu
-          cp target/release/${NETWORK_ID} artifacts/${NETWORK_ID}-cli-linux-gnu
-          cp target/release/${NETWORK_ID}-node artifacts/${NETWORK_ID}-node-linux-gnu
-          cp target/release/${NETWORK_ID}-host artifacts/${NETWORK_ID}-host-linux-gnu
-          cp target/release/${NETWORK_ID}-keygen artifacts/${NETWORK_ID}-keygen-linux-gnu
-          cp target/release/${NETWORK_ID}-dns artifacts/${NETWORK_ID}-dns-server-linux-gnu
-          cp target/release/${NETWORK_ID}-pac artifacts/${NETWORK_ID}-pac-linux-gnu
+          mkdir -p artifacts minimal_pkg full_pkg
+          
+          cp target/release/${NETWORK_ID}-daemon minimal_pkg/
+          cp target/release/${NETWORK_ID} minimal_pkg/
+          tar -czf artifacts/${NETWORK_ID}-minimal-linux-gnu.tar.gz -C minimal_pkg .
+          
+          cp target/release/${NETWORK_ID}-daemon full_pkg/
+          cp target/release/${NETWORK_ID} full_pkg/
+          cp target/release/${NETWORK_ID}-dns full_pkg/
+          cp target/release/${NETWORK_ID}-pac full_pkg/
+          cp target/release/${NETWORK_ID}-node full_pkg/
+          cp target/release/${NETWORK_ID}-host full_pkg/
+          cp target/release/${NETWORK_ID}-keygen full_pkg/
+          tar -czf artifacts/${NETWORK_ID}-full-linux-gnu.tar.gz -C full_pkg .
+          
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-linux-gnu.txt
           fi
@@ -66,17 +73,24 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build Workspace (Release)
         run: cargo build --release --workspace --target x86_64-unknown-linux-musl
-      - name: Rename and Upload Artifacts
+      - name: Package Artifacts
         run: |
           NETWORK_ID=$(jq -r '.network.network_id' network.json)
-          mkdir -p artifacts
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-daemon artifacts/${NETWORK_ID}-daemon-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID} artifacts/${NETWORK_ID}-cli-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-node artifacts/${NETWORK_ID}-node-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-host artifacts/${NETWORK_ID}-host-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-keygen artifacts/${NETWORK_ID}-keygen-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-dns artifacts/${NETWORK_ID}-dns-server-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-pac artifacts/${NETWORK_ID}-pac-linux-musl
+          mkdir -p artifacts minimal_pkg full_pkg
+          
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-daemon minimal_pkg/
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID} minimal_pkg/
+          tar -czf artifacts/${NETWORK_ID}-minimal-linux-musl.tar.gz -C minimal_pkg .
+          
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-daemon full_pkg/
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID} full_pkg/
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-dns full_pkg/
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-pac full_pkg/
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-node full_pkg/
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-host full_pkg/
+          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-keygen full_pkg/
+          tar -czf artifacts/${NETWORK_ID}-full-linux-musl.tar.gz -C full_pkg .
+          
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-linux-musl.txt
           fi
@@ -99,17 +113,24 @@ jobs:
         run: brew install gmp
       - name: Build Workspace (Release)
         run: cargo build --release --workspace
-      - name: Rename and Upload Artifacts
+      - name: Package Artifacts
         run: |
           NETWORK_ID=$(jq -r '.network.network_id' network.json)
-          mkdir -p artifacts
-          cp target/release/${NETWORK_ID}-daemon artifacts/${NETWORK_ID}-daemon-macos
-          cp target/release/${NETWORK_ID} artifacts/${NETWORK_ID}-cli-macos
-          cp target/release/${NETWORK_ID}-node artifacts/${NETWORK_ID}-node-macos
-          cp target/release/${NETWORK_ID}-host artifacts/${NETWORK_ID}-host-macos
-          cp target/release/${NETWORK_ID}-keygen artifacts/${NETWORK_ID}-keygen-macos
-          cp target/release/${NETWORK_ID}-dns artifacts/${NETWORK_ID}-dns-server-macos
-          cp target/release/${NETWORK_ID}-pac artifacts/${NETWORK_ID}-pac-macos
+          mkdir -p artifacts minimal_pkg full_pkg
+          
+          cp target/release/${NETWORK_ID}-daemon minimal_pkg/
+          cp target/release/${NETWORK_ID} minimal_pkg/
+          tar -czf artifacts/${NETWORK_ID}-minimal-macos.tar.gz -C minimal_pkg .
+          
+          cp target/release/${NETWORK_ID}-daemon full_pkg/
+          cp target/release/${NETWORK_ID} full_pkg/
+          cp target/release/${NETWORK_ID}-dns full_pkg/
+          cp target/release/${NETWORK_ID}-pac full_pkg/
+          cp target/release/${NETWORK_ID}-node full_pkg/
+          cp target/release/${NETWORK_ID}-host full_pkg/
+          cp target/release/${NETWORK_ID}-keygen full_pkg/
+          tar -czf artifacts/${NETWORK_ID}-full-macos.tar.gz -C full_pkg .
+          
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-macos.txt
           else
@@ -138,18 +159,25 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build Workspace (Release)
         run: cargo build --release --workspace
-      - name: Rename and Upload Artifacts
+      - name: Package Artifacts
         shell: bash
         run: |
           NETWORK_ID=$(jq -r '.network.network_id' network.json)
-          mkdir -p artifacts
-          cp target/release/${NETWORK_ID}-daemon.exe artifacts/${NETWORK_ID}-daemon-windows.exe
-          cp target/release/${NETWORK_ID}.exe artifacts/${NETWORK_ID}-cli-windows.exe
-          cp target/release/${NETWORK_ID}-node.exe artifacts/${NETWORK_ID}-node-windows.exe
-          cp target/release/${NETWORK_ID}-host.exe artifacts/${NETWORK_ID}-host-windows.exe
-          cp target/release/${NETWORK_ID}-keygen.exe artifacts/${NETWORK_ID}-keygen-windows.exe
-          cp target/release/${NETWORK_ID}-dns.exe artifacts/${NETWORK_ID}-dns-server-windows.exe
-          cp target/release/${NETWORK_ID}-pac.exe artifacts/${NETWORK_ID}-pac-windows.exe
+          mkdir -p artifacts minimal_pkg full_pkg
+          
+          cp target/release/${NETWORK_ID}-daemon.exe minimal_pkg/
+          cp target/release/${NETWORK_ID}.exe minimal_pkg/
+          (cd minimal_pkg && zip -r ../artifacts/${NETWORK_ID}-minimal-windows.zip .)
+          
+          cp target/release/${NETWORK_ID}-daemon.exe full_pkg/
+          cp target/release/${NETWORK_ID}.exe full_pkg/
+          cp target/release/${NETWORK_ID}-dns.exe full_pkg/
+          cp target/release/${NETWORK_ID}-pac.exe full_pkg/
+          cp target/release/${NETWORK_ID}-node.exe full_pkg/
+          cp target/release/${NETWORK_ID}-host.exe full_pkg/
+          cp target/release/${NETWORK_ID}-keygen.exe full_pkg/
+          (cd full_pkg && zip -r ../artifacts/${NETWORK_ID}-full-windows.zip .)
+          
           cd artifacts && sha256sum * > checksums-windows.txt
       - uses: actions/upload-artifact@v4
         with:
