@@ -54,6 +54,7 @@ docs/node_modules/
 docs/docs/.vitepress/dist/
 docs/docs/.vitepress/cache/
 docs/docs/.vitepress/dist/
+docs/learn/
 
 # Fuzzing
 **/fuzz/target/

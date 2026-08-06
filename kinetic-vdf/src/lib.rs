@@ -17,7 +17,7 @@
 //! [`VdfError::UnsupportedPlatform`] because native compilation of chiavdf is
 //! not supported in that environment.
 //!
-//! A filesystem lock (in `dirs::runtime_dir()`) is acquired before each
+//! A filesystem lock (in `kinetic_core::config::get_base_dir()` or `/tmp`) is acquired before each
 //! evaluation to prevent concurrent VDF computations from saturating all CPU
 //! cores simultaneously.
 
