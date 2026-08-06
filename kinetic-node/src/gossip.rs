@@ -46,6 +46,7 @@ pub fn handle_kinetic_governance_gossip(
                                     .as_secs(),
                                 payload: Vec::new(),
                                 signature: Vec::new(),
+                                authorization: None,
                             };
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             if let Ok(json_bytes) = serde_json::to_vec(&record) {

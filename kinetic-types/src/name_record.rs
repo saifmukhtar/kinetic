@@ -22,6 +22,9 @@ pub struct Heartbeat {
     pub latest_drand_kyn: u64,
     /// Owner's ML-DSA-65 post-quantum signature over [`signable_bytes`](Heartbeat::signable_bytes).
     pub signature: Vec<u8>,
+    /// Optional delegated authorization proof (Fat Heartbeat).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization: Option<Box<crate::identity::AuthorizedManifest>>,
 }
 
 impl Heartbeat {
@@ -57,6 +60,9 @@ pub enum NameRecord {
         payload: Vec<u8>,
         /// The owner's ML-DSA-65 signature authorizing the payload.
         signature: Vec<u8>,
+        /// Optional delegated authorization proof for DNS updates.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        authorization: Option<Box<crate::identity::AuthorizedManifest>>,
     },
 }
 
@@ -102,6 +108,7 @@ impl NameRecord {
                 payload,
                 signature,
                 pubkey,
+                authorization,
                 ..
             } => {
                 use ml_dsa::signature::Verifier;
@@ -117,9 +124,43 @@ impl NameRecord {
                 signable.extend_from_slice(payload);
                 signable.extend_from_slice(network_id.as_bytes());
 
-                verifying_key
-                    .verify(&signable, &sig)
-                    .map_err(|_| crate::vdf::VdfVerifyError::InvalidSignature)
+                if let Some(auth) = authorization {
+                    let auth_signable = auth.signable_bytes(network_id);
+                    let auth_sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth.owner_signature.as_slice())
+                        .map_err(|_| crate::vdf::VdfVerifyError::DelegatedAuthorizationInvalid)?;
+                    
+                    verifying_key.verify(&auth_signable, &auth_sig)
+                        .map_err(|_| crate::vdf::VdfVerifyError::DelegatedAuthorizationInvalid)?;
+                    
+                    let has_cap = auth.manifest.services.iter().any(|s| s.service_type == "kinetic.capability.dns_update");
+                    if !has_cap {
+                        return Err(crate::vdf::VdfVerifyError::DelegatedCapabilityMissing);
+                    }
+                    
+                    let kid_doc = auth.kid_doc.as_ref().ok_or(crate::vdf::VdfVerifyError::DelegatedAuthorizationInvalid)?;
+                    let mut verified = false;
+                    for ck in &kid_doc.controller_keys {
+                        use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+                        if ck.key_type == "ML-DSA-65" {
+                            if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
+                                if let Ok(vk) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes) {
+                                    if vk.verify(&signable, &sig).is_ok() {
+                                        verified = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if !verified {
+                        return Err(crate::vdf::VdfVerifyError::InvalidSignature);
+                    }
+                    Ok(())
+                } else {
+                    verifying_key
+                        .verify(&signable, &sig)
+                        .map_err(|_| crate::vdf::VdfVerifyError::InvalidSignature)
+                }
             }
         }
     }

@@ -288,6 +288,7 @@ pub async fn handle_vdf_register(
             },
             pubkey: pubkey.to_vec(),
             signature: vec![],
+            authorization: None,
             previous_proof: None,
             miner_pubkey: None,
         };
@@ -495,7 +496,7 @@ pub async fn handle_vdf_renew(
             }
         };
         use ml_dsa::{KeyExport, Keypair};
-        let pubkey = keypair.verifying_key().to_bytes();
+        let pubkey_bytes = keypair.verifying_key().to_bytes();
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -515,7 +516,7 @@ pub async fn handle_vdf_renew(
         hasher.update(fqdn.as_bytes());
         hasher.update(salt);
         hasher.update(&drand_rand);
-        hasher.update(pubkey);
+        hasher.update(pubkey_bytes);
         let mut hash = [0u8; 32];
         hash.copy_from_slice(&hasher.finalize());
         let challenge = kinetic_core::types::Commitment { hash };
@@ -624,8 +625,9 @@ pub async fn handle_vdf_renew(
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
             },
-            pubkey: pubkey.to_vec(),
+            pubkey: pubkey_bytes.to_vec(),
             signature: vec![],
+            authorization: None,
             previous_proof: Some(previous_proof),
             miner_pubkey: None,
         };

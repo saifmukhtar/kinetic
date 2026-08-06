@@ -2982,6 +2982,7 @@ version = "0.2.0"
 name = "kinetic-types"
 version = "0.2.0"
 dependencies = [
+ "base64 0.22.1",
  "bytes",
  "kinetic-kid",
  "ml-dsa",

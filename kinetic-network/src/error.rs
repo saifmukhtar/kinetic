@@ -75,6 +75,12 @@ pub enum KineticStoreError {
     /// Invalid apex domain name
     #[error("the provided name is not a valid kinetic apex domain")]
     InvalidName,
+    /// The delegated manifest does not grant the required capability.
+    #[error("delegated capability missing from authorized manifest")]
+    DelegatedCapabilityMissing,
+    /// The delegated authorization proof is structurally invalid or fails signature check.
+    #[error("delegated authorization proof is invalid")]
+    DelegatedAuthorizationInvalid,
 }
 
 impl KineticStoreError {
@@ -102,6 +108,8 @@ impl KineticStoreError {
             Self::MissingCommitment => "KIN-NET-019",
             Self::InvalidName => "KIN-NET-020",
             Self::NetworkHalted => "KIN-NET-021",
+            Self::DelegatedCapabilityMissing => "KIN-NET-022",
+            Self::DelegatedAuthorizationInvalid => "KIN-NET-023",
         }
     }
 
@@ -145,6 +153,12 @@ impl KineticStoreError {
             }
             Self::InvalidName => "Name is not a valid Kinetic apex domain".to_string(),
             Self::NetworkHalted => "Network Registration Halted".to_string(),
+            Self::DelegatedCapabilityMissing => {
+                "The delegated manifest does not grant the required capability for this action.".to_string()
+            }
+            Self::DelegatedAuthorizationInvalid => {
+                "The delegated authorization proof could not be verified against the master key.".to_string()
+            }
         }
     }
 
@@ -171,7 +185,9 @@ impl KineticStoreError {
             | Self::StaleReveal
             | Self::MissingCommitment
             | Self::InvalidName
-            | Self::NetworkHalted => Severity::Error,
+            | Self::NetworkHalted
+            | Self::DelegatedCapabilityMissing
+            | Self::DelegatedAuthorizationInvalid => Severity::Error,
         }
     }
 

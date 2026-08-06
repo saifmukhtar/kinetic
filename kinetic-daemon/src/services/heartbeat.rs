@@ -102,6 +102,7 @@ pub fn start_heartbeat_loop(
                             name: name.clone(),
                             latest_drand_kyn: kyn.kyn,
                             signature: vec![],
+                            authorization: None,
                         };
 
                         use ml_dsa::SignatureEncoding;

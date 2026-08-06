@@ -298,6 +298,7 @@ pub async fn handle(
         },
         pubkey: pubkey.to_vec(),
         signature: vec![],
+        authorization: None,
         previous_proof: None,
         miner_pubkey: None,
     };

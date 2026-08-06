@@ -167,6 +167,7 @@ pub async fn handle(
         vdf_proof,
         pubkey: pubkey.to_vec(),
         signature: vec![],
+        authorization: None,
         previous_proof: Some(previous_proof),
         miner_pubkey: None,
     };

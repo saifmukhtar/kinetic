@@ -57,7 +57,7 @@ impl AuthorizedKid {
 }
 
 /// Authorized capability manifest bound to a `.kin` name.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuthorizedManifest {
     /// Name associated with this capability manifest.
     pub name: String,

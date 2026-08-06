@@ -168,38 +168,40 @@ impl KineticRecordStore {
                 } else {
                     // Updating payload of existing domain. Verify the updated payload signature!
                     let dev_mode = kinetic_core::config::is_dev_mode();
-                    if !skip_verify
-                        && !dev_mode
-                        && record
-                            .verify_signature(kinetic_core::constants::NETWORK_ID)
-                            .is_err()
-                    {
-                        let err = KineticStoreError::InvalidSignature;
-                        err.log_warning(
-                            "KIN-STORE-015",
-                            record.name(),
-                            "Rejecting updated record due to invalid signature:",
-                        );
-                        return Err(err);
+                    if !skip_verify && !dev_mode {
+                        if let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_ID) {
+                            let err = match e {
+                                kinetic_types::vdf::VdfVerifyError::DelegatedCapabilityMissing => KineticStoreError::DelegatedCapabilityMissing,
+                                kinetic_types::vdf::VdfVerifyError::DelegatedAuthorizationInvalid => KineticStoreError::DelegatedAuthorizationInvalid,
+                                _ => KineticStoreError::InvalidSignature,
+                            };
+                            err.log_warning(
+                                "KIN-STORE-015",
+                                record.name(),
+                                "Rejecting updated record due to invalid signature:",
+                            );
+                            return Err(err);
+                        }
                     }
                 }
             }
         } else {
             // New record, verify signature
             let dev_mode = kinetic_core::config::is_dev_mode();
-            if !skip_verify
-                && !dev_mode
-                && record
-                    .verify_signature(kinetic_core::constants::NETWORK_ID)
-                    .is_err()
-            {
-                let err = KineticStoreError::InvalidSignature;
-                err.log_warning(
-                    "KIN-STORE-015",
-                    record.name(),
-                    "Rejecting new record due to invalid signature:",
-                );
-                return Err(err);
+            if !skip_verify && !dev_mode {
+                if let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_ID) {
+                    let err = match e {
+                        kinetic_types::vdf::VdfVerifyError::DelegatedCapabilityMissing => KineticStoreError::DelegatedCapabilityMissing,
+                        kinetic_types::vdf::VdfVerifyError::DelegatedAuthorizationInvalid => KineticStoreError::DelegatedAuthorizationInvalid,
+                        _ => KineticStoreError::InvalidSignature,
+                    };
+                    err.log_warning(
+                        "KIN-STORE-015",
+                        record.name(),
+                        "Rejecting new record due to invalid signature:",
+                    );
+                    return Err(err);
+                }
             }
         }
 
@@ -294,23 +296,85 @@ impl KineticRecordStore {
         };
 
         let signable = heartbeat.signable_bytes(kinetic_core::constants::NETWORK_ID);
+        use ml_dsa::signature::Verifier;
         use ml_dsa::KeyInit;
-        let pubkey =
-            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_record.pubkey())
+
+        let is_valid_signature = if let Some(auth) = &heartbeat.authorization {
+            let primary_pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_record.pubkey())
                 .map_err(|_| {
                     let err = KineticStoreError::InvalidPublicKey;
                     err.log_warning("KIN-STORE-013", &heartbeat.name, "Rejecting Heartbeat:");
                     err
                 })?;
-        let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(heartbeat.signature.as_slice())
-            .map_err(|_| {
-                let err = KineticStoreError::MalformedSignature;
-                err.log_warning("KIN-STORE-014", &heartbeat.name, "Rejecting Heartbeat:");
+            
+            let auth_signable = auth.signable_bytes(kinetic_core::constants::NETWORK_ID);
+            let auth_sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth.owner_signature.as_slice())
+                .map_err(|_| {
+                    let err = KineticStoreError::DelegatedAuthorizationInvalid;
+                    err.log_warning("KIN-STORE-023", &heartbeat.name, "Rejecting Heartbeat:");
+                    err
+                })?;
+            
+            if primary_pubkey.verify(&auth_signable, &auth_sig).is_err() {
+                let err = KineticStoreError::DelegatedAuthorizationInvalid;
+                err.log_warning("KIN-STORE-023", &heartbeat.name, "Rejecting Heartbeat:");
+                return Err(err);
+            }
+            
+            let has_cap = auth.manifest.services.iter().any(|s| s.service_type == "kinetic.capability.heartbeat");
+            if !has_cap {
+                let err = KineticStoreError::DelegatedCapabilityMissing;
+                err.log_warning("KIN-STORE-022", &heartbeat.name, "Rejecting Heartbeat:");
+                return Err(err);
+            }
+            
+            let kid_doc = auth.kid_doc.as_ref().ok_or_else(|| {
+                let err = KineticStoreError::DelegatedAuthorizationInvalid;
+                err.log_warning("KIN-STORE-023", &heartbeat.name, "Rejecting Heartbeat:");
                 err
             })?;
+            
+            let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(heartbeat.signature.as_slice())
+                .map_err(|_| {
+                    let err = KineticStoreError::MalformedSignature;
+                    err.log_warning("KIN-STORE-014", &heartbeat.name, "Rejecting Heartbeat:");
+                    err
+                })?;
+            
+            let mut verified = false;
+            for ck in &kid_doc.controller_keys {
+                use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+                if ck.key_type == "ML-DSA-65" {
+                    if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
+                        if let Ok(vk) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes) {
+                            if vk.verify(&signable, &sig).is_ok() {
+                                verified = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            verified
+        } else {
+            let pubkey =
+                ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_record.pubkey())
+                    .map_err(|_| {
+                        let err = KineticStoreError::InvalidPublicKey;
+                        err.log_warning("KIN-STORE-013", &heartbeat.name, "Rejecting Heartbeat:");
+                        err
+                    })?;
+            let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(heartbeat.signature.as_slice())
+                .map_err(|_| {
+                    let err = KineticStoreError::MalformedSignature;
+                    err.log_warning("KIN-STORE-014", &heartbeat.name, "Rejecting Heartbeat:");
+                    err
+                })?;
+            
+            pubkey.verify(&signable, &sig).is_ok()
+        };
 
-        use ml_dsa::signature::Verifier;
-        if pubkey.verify(&signable, &sig).is_err() {
+        if !is_valid_signature {
             let err = KineticStoreError::InvalidSignature;
             err.log_warning("KIN-STORE-015", &heartbeat.name, "Rejecting Heartbeat:");
             return Err(err);

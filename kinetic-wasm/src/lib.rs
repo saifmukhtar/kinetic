@@ -207,6 +207,7 @@ impl UniversalKineticNode {
             disable_pow: false,
             enable_mdns: false,
             test_mode: false,
+            disable_storage_sync: false,
         };
 
         let local_key = Keypair::generate_ed25519();

@@ -21,6 +21,12 @@ pub enum VdfVerifyError {
     /// Cryptographic verification failed over the canonical signable bytes.
     #[error("Invalid ML-DSA-65 post-quantum signature")]
     InvalidSignature,
+    /// The delegated manifest does not grant the required capability.
+    #[error("Delegated capability missing from authorized manifest")]
+    DelegatedCapabilityMissing,
+    /// The delegated authorization proof is structurally invalid or fails signature check.
+    #[error("Delegated authorization proof is invalid")]
+    DelegatedAuthorizationInvalid,
 }
 
 impl VdfVerifyError {
@@ -30,6 +36,8 @@ impl VdfVerifyError {
             Self::MalformedPublicKey => "KIN-VDF-040",
             Self::MalformedSignature => "KIN-VDF-041",
             Self::InvalidSignature => "KIN-VDF-042",
+            Self::DelegatedCapabilityMissing => "KIN-VDF-043",
+            Self::DelegatedAuthorizationInvalid => "KIN-VDF-044",
         }
     }
 
@@ -37,7 +45,7 @@ impl VdfVerifyError {
     pub fn severity(&self) -> Severity {
         match self {
             Self::MalformedPublicKey | Self::MalformedSignature => Severity::Warning,
-            Self::InvalidSignature => Severity::Error,
+            Self::InvalidSignature | Self::DelegatedCapabilityMissing | Self::DelegatedAuthorizationInvalid => Severity::Error,
         }
     }
 
@@ -57,6 +65,12 @@ impl VdfVerifyError {
             }
             Self::InvalidSignature => {
                 "The post-quantum ownership signature failed cryptographic verification.".to_string()
+            }
+            Self::DelegatedCapabilityMissing => {
+                "The delegated manifest does not grant the required capability for this action.".to_string()
+            }
+            Self::DelegatedAuthorizationInvalid => {
+                "The delegated authorization proof could not be verified against the master key.".to_string()
             }
         }
     }
@@ -197,6 +211,9 @@ pub struct Reveal {
     pub pubkey: Vec<u8>,
     /// ML-DSA-65 post-quantum signature over `signable_bytes`.
     pub signature: Vec<u8>,
+    /// Optional delegated authorization proof for DNS updates.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization: Option<Box<crate::identity::AuthorizedManifest>>,
     /// Optional chained proof for name renewal operations.
     pub previous_proof: Option<PreviousProof>,
     /// Optional public key of the miner that computed the VDF proof.
@@ -217,9 +234,42 @@ impl Reveal {
         let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(self.signature.as_slice())
             .map_err(|_| VdfVerifyError::MalformedSignature)?;
 
-        pubkey
-            .verify(&signable, &sig)
-            .map_err(|_| VdfVerifyError::InvalidSignature)?;
+        if let Some(auth) = &self.authorization {
+            let auth_signable = auth.signable_bytes(network_id);
+            let auth_sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth.owner_signature.as_slice())
+                .map_err(|_| VdfVerifyError::DelegatedAuthorizationInvalid)?;
+            
+            pubkey.verify(&auth_signable, &auth_sig)
+                .map_err(|_| VdfVerifyError::DelegatedAuthorizationInvalid)?;
+            
+            let has_cap = auth.manifest.services.iter().any(|s| s.service_type == "kinetic.capability.dns_update");
+            if !has_cap {
+                return Err(VdfVerifyError::DelegatedCapabilityMissing);
+            }
+            
+            let kid_doc = auth.kid_doc.as_ref().ok_or(VdfVerifyError::DelegatedAuthorizationInvalid)?;
+            let mut verified = false;
+            for ck in &kid_doc.controller_keys {
+                use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+                if ck.key_type == "ML-DSA-65" {
+                    if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
+                        if let Ok(vk) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes) {
+                            if vk.verify(&signable, &sig).is_ok() {
+                                verified = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if !verified {
+                return Err(VdfVerifyError::InvalidSignature);
+            }
+        } else {
+            pubkey
+                .verify(&signable, &sig)
+                .map_err(|_| VdfVerifyError::InvalidSignature)?;
+        }
 
         if let Some(prev) = &self.previous_proof {
             let prev_sig =
