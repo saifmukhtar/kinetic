@@ -52,7 +52,7 @@ fn test_kid_error_did_prefix() {
 fn test_kid_error_did_empty() {
     assert!(matches!(
         KineticDid::new("did:kin:"),
-        Err(KidError::InvalidDidFormat)
+        Err(KidError::InvalidDidHexLength)
     ));
 }
 

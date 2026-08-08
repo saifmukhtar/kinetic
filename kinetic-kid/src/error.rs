@@ -6,9 +6,9 @@ pub enum KidError {
     /// The DID string does not start with the expected prefix.
     #[error("Invalid DID prefix, expected did:<method>:")]
     InvalidDidPrefix,
-    /// The method-specific ID portion of the DID is not a valid hex-encoded hash.
-    #[error("Invalid method-specific ID format")]
-    InvalidDidFormat,
+    /// Reserved error code for future DID format specifications (KIN-KID-002).
+    #[error("Reserved error code (KIN-KID-002)")]
+    Reserved002,
     /// The method-specific ID is not exactly 64 characters long.
     #[error("DID method-specific ID must be exactly 64 characters long")]
     InvalidDidHexLength,
@@ -81,7 +81,7 @@ impl KidError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::InvalidDidPrefix => "KIN-KID-001",
-            Self::InvalidDidFormat => "KIN-KID-002",
+            Self::Reserved002 => "KIN-KID-002",
             Self::InvalidDidHexLength => "KIN-KID-003",
             Self::InvalidDidHexCharacters => "KIN-KID-004",
             Self::JsonParseError(_) => "KIN-KID-005",
@@ -127,7 +127,7 @@ impl KidError {
             Self::InvalidDidPrefix => {
                 "The DID string does not start with the expected 'did:<method>:' prefix.".to_string()
             }
-            Self::InvalidDidFormat => "The DID method-specific ID is malformed.".to_string(),
+            Self::Reserved002 => "Reserved error code.".to_string(),
             Self::InvalidDidHexLength => {
                 "The DID method-specific ID must be exactly 64 hexadecimal characters long."
                     .to_string()

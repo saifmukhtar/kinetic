@@ -14,8 +14,7 @@ impl KineticDid {
     /// # Errors
     ///
     /// - Returns [`KidError::InvalidDidPrefix`] if the string does not start with `did:kin:`.
-    /// - Returns [`KidError::InvalidDidFormat`] if the method-specific ID is empty.
-    /// - Returns [`KidError::InvalidDidHexLength`] if the method-specific ID is not 64 characters long.
+    /// - Returns [`KidError::InvalidDidHexLength`] if the method-specific ID is not exactly 64 characters long.
     /// - Returns [`KidError::InvalidDidHexCharacters`] if the method-specific ID contains uppercase hex or non-hex characters.
     pub fn new(id_str: &str) -> Result<Self, KidError> {
         let expected_prefix = env!("KINETIC_DID_PREFIX");
@@ -24,10 +23,6 @@ impl KineticDid {
         }
 
         let method_specific_id = &id_str[expected_prefix.len()..];
-        if method_specific_id.is_empty() {
-            return Err(KidError::InvalidDidFormat);
-        }
-
         if method_specific_id.len() != 64 {
             return Err(KidError::InvalidDidHexLength);
         }
