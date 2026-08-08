@@ -92,7 +92,7 @@ pub struct LocalKidSummary {
     pub deactivated: bool,
 }
 
-/// Returns the canonical directory where local KID documents and keys are stored (`~/.kinetic/kids/`).
+/// Returns the canonical directory where local KID documents and keys are stored (`{base_dir}/kids/`).
 pub fn get_kids_dir() -> PathBuf {
     crate::config::get_base_dir().join("kids")
 }
@@ -396,7 +396,7 @@ pub fn load_local_kid(name: &str) -> Result<(KidDocument, PathBuf), IdentityErro
     Err(IdentityError::KidNotFound(fqdn))
 }
 
-/// Lists all locally managed domain KIDs from `~/.kinetic/kids/`.
+/// Lists all locally managed domain KIDs from `{base_dir}/kids/`.
 pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
     let dir = get_kids_dir();
     if !dir.exists() {
