@@ -31,6 +31,8 @@ async fn setup_node_with_proxy(
         mode: kinetic_network::NetworkMode::FullNode,
         enable_mdns: false,
         seed_domain: vec![],
+        test_mode: false,
+        disable_storage_sync: false,
     };
     let dir = tempdir().unwrap();
     let storage: Arc<dyn kinetic_core::traits::StorageEngine> =

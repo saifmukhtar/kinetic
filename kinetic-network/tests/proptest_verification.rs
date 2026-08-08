@@ -64,6 +64,7 @@ proptest! {
                 signature: vec![0u8; 64],
             }),
             miner_pubkey: None,
+            authorization: None,
         };
 
         let temp_dir = tempfile::tempdir().unwrap();

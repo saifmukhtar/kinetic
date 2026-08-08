@@ -267,6 +267,7 @@ mod tests {
             signature: vec![2; 4627],
             previous_proof: None,
             miner_pubkey: None,
+            authorization: None,
         };
         let reveal_key = format!("{}validname.kin", kinetic_core::constants::DB_PREFIX_REVEAL);
         storage

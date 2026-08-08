@@ -33,6 +33,7 @@ mod tests {
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
             seed_domain: vec![],
+            disable_storage_sync: false,
         };
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
@@ -171,6 +172,7 @@ mod tests {
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
             seed_domain: vec![],
+            disable_storage_sync: false,
         };
 
         let dir = tempdir().unwrap();
@@ -233,6 +235,7 @@ mod tests {
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
             seed_domain: vec![],
+            disable_storage_sync: false,
         };
 
         let (client, event_loop) =

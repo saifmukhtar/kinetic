@@ -97,6 +97,7 @@ async fn test_chaos_routing_partition() {
         signature: vec![0; 4627],
         previous_proof: None,
         miner_pubkey: None,
+        authorization: None,
     })
     .unwrap();
 

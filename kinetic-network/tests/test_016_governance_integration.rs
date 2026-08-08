@@ -51,6 +51,7 @@ async fn test_016_governance_integration_halt() {
         miner_pubkey: None,
         payload: vec![],
         protocol_version: 2,
+        authorization: None,
     };
 
     let domain_record = NameRecord::Standard(Box::new(fake_reveal));
@@ -99,6 +100,7 @@ async fn test_016_governance_integration_premium() {
         granted_at: 0,
         payload: vec![],
         signature: vec![],
+        authorization: None,
     };
 
     let record_bytes = serde_json::to_vec(&domain_record).unwrap();

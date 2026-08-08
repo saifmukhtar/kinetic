@@ -56,6 +56,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         signature: vec![],
         miner_pubkey: None,
         previous_proof: None,
+        authorization: None,
     };
     use ml_dsa::signature::Signer;
     use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};

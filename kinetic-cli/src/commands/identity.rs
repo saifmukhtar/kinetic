@@ -87,7 +87,7 @@ pub async fn handle_identity_command(
                     .as_secs(),
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: format!("{}#primary", did_str),
-                    key_type: "ML-DSA-65".to_string(),
+                    key_type: "MlDsa65".to_string(),
                     public_key: pub_key_b64,
                 }],
                 manifest: None,
@@ -262,7 +262,7 @@ pub async fn handle_identity_command(
             let primary_id = format!("{}#primary", doc.kid);
             doc.controller_keys = vec![kinetic_kid::document::ControllerKey {
                 id: primary_id,
-                key_type: "ML-DSA-65".to_string(),
+                key_type: "MlDsa65".to_string(),
                 public_key: new_pub_b64,
             }];
 
@@ -369,10 +369,12 @@ mod tests {
         let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
         use ml_dsa::KeyExport;
         std::fs::write(temp_dir.join("identity.key"), keypair.to_bytes()).unwrap();
-        env::set_var(
-            kinetic_core::constants::ENV_DATA_DIR,
-            temp_dir.to_str().expect("valid utf-8 path"),
-        );
+        unsafe {
+            env::set_var(
+                kinetic_core::constants::ENV_DATA_DIR,
+                temp_dir.to_str().expect("valid utf-8 path"),
+            );
+        }
         let app = Router::new()
             .route(
                 "/publish-kid",

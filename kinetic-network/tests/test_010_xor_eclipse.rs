@@ -48,6 +48,7 @@ fn test_010_xor_eclipse() {
         payload: vec![],
         previous_proof: None,
         miner_pubkey: None,
+        authorization: None,
     };
     real_reveal.signature = keypair
         .sign(&real_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))

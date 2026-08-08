@@ -283,12 +283,15 @@ impl From<DnsError> for ApiError {
 impl From<IdentityError> for ApiError {
     fn from(e: IdentityError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            IdentityError::Io(_) | IdentityError::CorruptedIdentityFile(_) => {
-                (500, "Internal Server Error")
-            }
-            IdentityError::IdentityNotFound(_) => (404, "Not Found"),
+            IdentityError::Io(_)
+            | IdentityError::CorruptedIdentityFile(_)
+            | IdentityError::KidSigningFailed(_)
+            | IdentityError::Json(_) => (500, "Internal Server Error"),
+            IdentityError::IdentityNotFound(_) | IdentityError::KidNotFound(_) => (404, "Not Found"),
             IdentityError::InvalidSeedPhrase(_) => (400, "Bad Request"),
             IdentityError::DecryptionFailed(_) => (401, "Unauthorized"),
+            IdentityError::KidAlreadyExists(_) => (409, "Conflict"),
+            IdentityError::InvalidRotation(_) => (422, "Unprocessable Entity"),
         };
         ApiError {
             error_type: e.error_type_uri(),

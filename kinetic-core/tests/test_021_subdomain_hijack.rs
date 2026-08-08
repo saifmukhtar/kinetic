@@ -18,6 +18,7 @@ fn test_subdomain_hijack_validation() {
         signature: vec![0; 4627],
         previous_proof: None,
         miner_pubkey: None,
+        authorization: None,
     };
 
     assert!(
@@ -40,6 +41,7 @@ fn test_subdomain_hijack_validation() {
         signature: vec![0; 4627],
         previous_proof: None,
         miner_pubkey: None,
+        authorization: None,
     };
 
     assert!(

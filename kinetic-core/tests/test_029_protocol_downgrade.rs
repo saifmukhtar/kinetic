@@ -18,6 +18,7 @@ fn test_protocol_downgrade_prevention() {
         signature: vec![0; 4627],
         previous_proof: None,
         miner_pubkey: None,
+        authorization: None,
     };
 
     let bytes_v1 = reveal_v1.signable_bytes(env!("KINETIC_NETWORK_ID"));

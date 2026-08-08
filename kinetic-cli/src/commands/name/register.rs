@@ -5,7 +5,7 @@ use kinetic_core::config::{get_zones_dir, KineticConfig};
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::{load_keypair, Commitment, Reveal};
 use ml_dsa::signature::Signer;
-use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
+use ml_dsa::{KeyExport, Keypair, SignatureEncoding};
 use reqwest::Client;
 use serde_json::json;
 use sha2::Digest;
@@ -180,107 +180,18 @@ pub async fn handle(
     // 3. Construct the DnsZone and auto-generate/inherit KID
     let mut records = std::collections::HashMap::new();
 
-    // Check if this is a subname
-    let base_name = if !name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
-        format!("{}{}", name, kinetic_core::constants::TLD_SUFFIX)
+    let kid_res = kinetic_core::types::get_or_create_kid_for_name(&fqdn, true, false)?;
+    if kid_res.is_inherited {
+        info!("Inheriting apex KID for {}: {}", fqdn, kid_res.did);
     } else {
-        fqdn.clone()
-    };
-
-    let kid_dir = kinetic_core::config::get_base_dir().join("kids");
-    std::fs::create_dir_all(&kid_dir).unwrap_or_default();
-
-    let base_kid_path = kid_dir.join(format!("{}.json", base_name));
-    let kid_str = if base_kid_path.exists() {
-        // Subname inheriting base KID, or renewing base name
-        if let Ok(content) = std::fs::read_to_string(&base_kid_path) {
-            if let Ok(doc) = serde_json::from_str::<kinetic_kid::document::KidDocument>(&content) {
-                assert!(doc
-                    .kid
-                    .as_str()
-                    .starts_with(kinetic_core::constants::DID_PREFIX));
-                doc.kid.as_str().to_string()
-            } else {
-                "".to_string()
-            }
-        } else {
-            "".to_string()
-        }
-    } else {
-        "".to_string()
-    };
-
-    let final_kid_str = if kid_str.is_empty() {
-        // Generate a new KID for this new base name
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
-        let kid_keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
-        let pk_bytes = kid_keypair.verifying_key().to_bytes();
-        let pk_b64 = b64_url.encode(pk_bytes);
-
-        use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(pk_bytes);
-        let did_string = format!(
-            "{}{}",
-            kinetic_core::constants::DID_PREFIX,
-            hex::encode(hasher.finalize())
-        );
-        let did = kinetic_kid::did::KineticDid::new(&did_string)
-            .map_err(|e| anyhow::anyhow!("Invalid DID: {}", e))?;
-        let controller_key = kinetic_kid::document::ControllerKey {
-            id: format!("{}#key-1", did.as_str()),
-            key_type: "ML-DSA-65".to_string(),
-            public_key: pk_b64,
-        };
-
-        let doc = kinetic_kid::document::KidDocument {
-            doc_type: "kinetic.kid.v1".to_string(),
-            kid: did.clone(),
-            created_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-            controller_keys: vec![controller_key],
-            manifest: None,
-            revocation_keys: vec![],
-            deactivated: false,
-            signature: None,
-        };
-
-        let signed_doc = doc
-            .sign(&kid_keypair)
-            .map_err(|e| anyhow::anyhow!("Failed to sign KID doc: {}", e))?;
-
-        // Save to file
-        let doc_json = serde_json::to_string_pretty(&signed_doc)?;
-        std::fs::write(&base_kid_path, doc_json)?;
-
-        // Also save the private key for the user
-        let key_path = kid_dir.join(format!(
-            "{}.key{}",
-            base_name,
-            kinetic_core::constants::TLD_SUFFIX
-        ));
-        std::fs::write(&key_path, kid_keypair.to_bytes())?;
-
-        info!(
-            "Automatically generated new KID for {}: {}",
-            base_name,
-            did.as_str()
-        );
-        did.as_str().to_string()
-    } else {
-        info!("Inheriting existing KID for {}: {}", fqdn, kid_str);
-        kid_str
-    };
+        info!("Generated new KID for {}: {}", fqdn, kid_res.did);
+    }
 
     // Map the apex of the zone to this KID
-    if !final_kid_str.is_empty() {
-        records.insert(
-            "@".to_string(),
-            vec![kinetic_core::types::DnsRecord::KID(final_kid_str)],
-        );
-    }
+    records.insert(
+        "@".to_string(),
+        vec![kinetic_core::types::DnsRecord::KID(kid_res.did)],
+    );
 
     let zone = kinetic_core::types::DnsZone { records };
     let payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");

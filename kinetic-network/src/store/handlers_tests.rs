@@ -24,6 +24,7 @@ mod tests {
             signature: vec![],
             previous_proof: None,
             miner_pubkey: None,
+            authorization: None,
         }
     }
 
@@ -135,6 +136,7 @@ mod tests {
             name: name.clone(),
             latest_drand_kyn: 49,
             signature: vec![],
+            authorization: None,
         };
 
         // Sign the stale heartbeat

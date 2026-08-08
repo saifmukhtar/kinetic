@@ -17,6 +17,8 @@ pub mod dns;
 pub mod name_record;
 pub mod identity;
 pub mod infrastructure;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod kid_manager;
 pub mod names;
 pub mod vdf;
 
@@ -25,5 +27,7 @@ pub use dns::*;
 pub use name_record::*;
 pub use identity::*;
 pub use infrastructure::*;
+#[cfg(not(target_arch = "wasm32"))]
+pub use kid_manager::*;
 pub use names::*;
 pub use vdf::*;

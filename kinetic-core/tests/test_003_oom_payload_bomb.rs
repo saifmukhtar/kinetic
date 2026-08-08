@@ -23,6 +23,7 @@ fn test_003_oom_payload_bomb() {
         signature: vec![],
         previous_proof: None,
         miner_pubkey: None,
+        authorization: None,
     };
 
     // 2. Validate the struct. Under OLD logic, it would lack this method or it would pass.

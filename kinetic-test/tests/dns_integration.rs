@@ -45,6 +45,7 @@ mod tests {
                 signature: vec![],
                 previous_proof: None,
                 miner_pubkey: None,
+                authorization: None,
             };
             use ml_dsa::signature::Signer;
             use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};

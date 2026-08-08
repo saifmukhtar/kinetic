@@ -82,6 +82,7 @@ mod tests {
             signature: vec![],
             previous_proof: None,
             miner_pubkey: None,
+            authorization: None,
         };
 
         use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};

@@ -43,6 +43,7 @@ fn test_009_memory_store_bloat() {
                 payload: vec![],
                 previous_proof: None,
                 miner_pubkey: None,
+                authorization: None,
             })),
         );
     }

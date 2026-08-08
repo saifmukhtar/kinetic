@@ -30,6 +30,26 @@ pub enum IdentityError {
     /// Failed to decrypt the identity file.
     #[error("Failed to decrypt identity file: {0}")]
     DecryptionFailed(String),
+
+    /// A KID document or key already exists for the given name.
+    #[error("KID already exists for name: {0}")]
+    KidAlreadyExists(String),
+
+    /// A KID document or key was not found for the given name.
+    #[error("KID not found for name: {0}")]
+    KidNotFound(String),
+
+    /// An error occurred during KID key rotation.
+    #[error("Invalid KID rotation: {0}")]
+    InvalidRotation(String),
+
+    /// Cryptographic signing of a KID document failed.
+    #[error("Failed to sign KID document: {0}")]
+    KidSigningFailed(String),
+
+    /// JSON serialization or deserialization failed.
+    #[error("JSON error: {0}")]
+    Json(String),
 }
 
 impl PartialEq for IdentityError {
@@ -40,6 +60,11 @@ impl PartialEq for IdentityError {
             (Self::IdentityNotFound(a), Self::IdentityNotFound(b)) => a == b,
             (Self::InvalidSeedPhrase(a), Self::InvalidSeedPhrase(b)) => a == b,
             (Self::DecryptionFailed(a), Self::DecryptionFailed(b)) => a == b,
+            (Self::KidAlreadyExists(a), Self::KidAlreadyExists(b)) => a == b,
+            (Self::KidNotFound(a), Self::KidNotFound(b)) => a == b,
+            (Self::InvalidRotation(a), Self::InvalidRotation(b)) => a == b,
+            (Self::KidSigningFailed(a), Self::KidSigningFailed(b)) => a == b,
+            (Self::Json(a), Self::Json(b)) => a == b,
             _ => false,
         }
     }
@@ -56,6 +81,11 @@ impl IdentityError {
             Self::IdentityNotFound(_) => "KIN-IDN-003",
             Self::InvalidSeedPhrase(_) => "KIN-IDN-004",
             Self::DecryptionFailed(_) => "KIN-IDN-005",
+            Self::KidAlreadyExists(_) => "KIN-IDN-006",
+            Self::KidNotFound(_) => "KIN-IDN-007",
+            Self::InvalidRotation(_) => "KIN-IDN-008",
+            Self::KidSigningFailed(_) => "KIN-IDN-009",
+            Self::Json(_) => "KIN-IDN-010",
         }
     }
 
@@ -70,8 +100,13 @@ impl IdentityError {
             Self::Io(_)
             | Self::CorruptedIdentityFile(_)
             | Self::IdentityNotFound(_)
-            | Self::DecryptionFailed(_) => Severity::Error,
-            Self::InvalidSeedPhrase(_) => Severity::Warning,
+            | Self::DecryptionFailed(_)
+            | Self::InvalidRotation(_)
+            | Self::KidSigningFailed(_)
+            | Self::Json(_) => Severity::Error,
+            Self::InvalidSeedPhrase(_) | Self::KidAlreadyExists(_) | Self::KidNotFound(_) => {
+                Severity::Warning
+            }
         }
     }
 
@@ -94,6 +129,21 @@ impl IdentityError {
             Self::DecryptionFailed(_) => {
                 "Failed to decrypt the identity file. Incorrect password or corrupted payload."
                     .to_string()
+            }
+            Self::KidAlreadyExists(name) => {
+                format!("A KID document already exists for {name}. Use rotation to update keys.")
+            }
+            Self::KidNotFound(name) => {
+                format!("No KID document found for {name}.")
+            }
+            Self::InvalidRotation(msg) => {
+                format!("KID key rotation failed: {msg}")
+            }
+            Self::KidSigningFailed(msg) => {
+                format!("Failed to sign KID document: {msg}")
+            }
+            Self::Json(msg) => {
+                format!("JSON processing error: {msg}")
             }
         }
     }

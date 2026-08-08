@@ -414,6 +414,7 @@ mod tests {
             signature: vec![0; 4627],
             miner_pubkey: None,
             previous_proof: None,
+            authorization: None,
         };
         serde_json::to_vec(&reveal).unwrap()
     }
