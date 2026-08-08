@@ -90,3 +90,41 @@ impl KineticTime {
         )
     }
 }
+
+/// Converts an absolute Drand kyn number to deterministic Unix epoch seconds.
+#[inline]
+pub fn kyn_to_unix_secs(kyn: u64, drand_genesis_time: u64, drand_period: u64) -> u64 {
+    drand_genesis_time.saturating_add(kyn.saturating_mul(drand_period))
+}
+
+/// Converts a Unix timestamp (in seconds) to the corresponding absolute Drand kyn number.
+#[inline]
+pub fn unix_secs_to_kyn(unix_secs: u64, drand_genesis_time: u64, drand_period: u64) -> u64 {
+    if drand_period == 0 {
+        return 0;
+    }
+    unix_secs.saturating_sub(drand_genesis_time) / drand_period
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_kyn_unix_conversion_roundtrip() {
+        let genesis_time = 1692803367;
+        let period = 3;
+        let kyn = 30_579_969;
+
+        let unix_secs = kyn_to_unix_secs(kyn, genesis_time, period);
+        assert_eq!(unix_secs, genesis_time + (kyn * period));
+
+        let recovered_kyn = unix_secs_to_kyn(unix_secs, genesis_time, period);
+        assert_eq!(recovered_kyn, kyn);
+    }
+
+    #[test]
+    fn test_unix_secs_to_kyn_zero_period() {
+        assert_eq!(unix_secs_to_kyn(100, 50, 0), 0);
+    }
+}

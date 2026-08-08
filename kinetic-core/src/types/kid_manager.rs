@@ -98,6 +98,19 @@ pub fn get_kids_dir() -> PathBuf {
     crate::config::get_base_dir().join("kids")
 }
 
+/// Returns the current network-anchored Unix timestamp (seconds).
+///
+/// Derives the network time by mapping the estimated Drand kyn to exact Unix
+/// seconds aligned to 3-second network heartbeats using network constants.
+pub fn current_network_unix_timestamp() -> u64 {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let estimated_kyn = crate::types::clock::unix_secs_to_network_kyn(now);
+    crate::types::clock::network_kyn_to_unix_secs(estimated_kyn)
+}
+
 /// Resolves the filesystem paths for a domain's KID document and private key.
 pub fn get_kid_paths(name: &str) -> (PathBuf, PathBuf) {
     let fqdn = normalize_name(name);
@@ -251,10 +264,7 @@ pub fn get_or_create_kid_for_name(
     let kid_did = KineticDid::new(&did_str)
         .map_err(|e| IdentityError::Json(format!("Invalid DID derived: {:?}", e)))?;
 
-    let now_ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    let now_ts = current_network_unix_timestamp();
 
     let doc = KidDocument {
         doc_type: "kinetic.kid.v1".to_string(),
@@ -537,10 +547,7 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    let current_time = current_network_unix_timestamp();
 
     let manifest = CapabilityManifest {
         doc_type: "kinetic.manifest.v1".to_string(),

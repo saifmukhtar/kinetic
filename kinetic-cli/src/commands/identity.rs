@@ -81,10 +81,7 @@ pub async fn handle_identity_command(
             let doc = kinetic_kid::document::KidDocument {
                 doc_type: "kinetic.kid.v1".to_string(),
                 kid: kid_did,
-                created_at: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs(),
+                created_at: kinetic_core::types::kid_manager::current_network_unix_timestamp(),
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: format!("{}#primary", did_str),
                     key_type: "MlDsa65".to_string(),

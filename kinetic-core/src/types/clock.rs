@@ -12,7 +12,27 @@
 //! - **1 Apex** = 365 Prisms (1 Year / 365 Days / 10,512,000 Kyns)
 
 
-pub use kinetic_types::clock::KineticTime;
+pub use kinetic_types::clock::{kyn_to_unix_secs, unix_secs_to_kyn, KineticTime};
+
+/// Converts an absolute Drand kyn to deterministic Unix epoch seconds using network constants.
+#[inline]
+pub fn network_kyn_to_unix_secs(kyn: u64) -> u64 {
+    kyn_to_unix_secs(
+        kyn,
+        crate::constants::DRAND_GENESIS_TIME,
+        crate::constants::DRAND_PERIOD,
+    )
+}
+
+/// Converts a Unix timestamp (in seconds) to an estimated network Drand kyn using network constants.
+#[inline]
+pub fn unix_secs_to_network_kyn(unix_secs: u64) -> u64 {
+    unix_secs_to_kyn(
+        unix_secs,
+        crate::constants::DRAND_GENESIS_TIME,
+        crate::constants::DRAND_PERIOD,
+    )
+}
 
 #[cfg(test)]
 mod tests {
@@ -56,5 +76,17 @@ mod tests {
         assert_eq!(time.kyn, 45);
         assert_eq!(time.total_kyns, 31_245);
         assert_eq!(time.to_display_string(), "Prism 1, Facet 2 (Kyn 45)");
+    }
+
+    #[test]
+    fn test_network_kyn_unix_conversion() {
+        let kyn = 30_579_969;
+        let unix_secs = network_kyn_to_unix_secs(kyn);
+        assert_eq!(
+            unix_secs,
+            crate::constants::DRAND_GENESIS_TIME + (kyn * crate::constants::DRAND_PERIOD)
+        );
+        let recovered = unix_secs_to_network_kyn(unix_secs);
+        assert_eq!(recovered, kyn);
     }
 }
