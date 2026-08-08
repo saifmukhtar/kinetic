@@ -82,7 +82,7 @@ impl KidDocument {
     ///
     /// - Returns [`KidError::TooManyKeys`] if key count or URL bounds are exceeded.
     /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
-    /// - Returns [`KidError::Base64Error`] if signature or public key base64url decoding fails.
+    /// - Returns [`KidError::Base64Error`] if signature base64url decoding fails.
     /// - Returns [`KidError::InvalidSignature`] if no listed key produces a valid ML-DSA-65 signature.
     pub fn verify(&self) -> Result<(), KidError> {
         if self.controller_keys.len() > 20 || self.revocation_keys.len() > 20 {
@@ -150,7 +150,7 @@ impl KidDocument {
         } else {
             // Document is active, the signature MUST be from a controller key
             for key in &self.controller_keys {
-                if key.key_type.eq_ignore_ascii_case("MlDsa65") {
+                if key.key_type.eq_ignore_ascii_case("MlDsa65") || key.key_type.eq_ignore_ascii_case("ML-DSA-65") {
                     if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
                         if let Ok(public_key) =
                             ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
@@ -245,7 +245,7 @@ impl KidDocument {
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
         previous_doc.controller_keys.iter().any(|ck| {
-            if !ck.key_type.eq_ignore_ascii_case("MlDsa65") {
+            if !ck.key_type.eq_ignore_ascii_case("MlDsa65") && !ck.key_type.eq_ignore_ascii_case("ML-DSA-65") {
                 return false;
             }
             if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {

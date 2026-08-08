@@ -68,11 +68,12 @@ impl CapabilityManifest {
     /// # Errors
     ///
     /// - Returns [`KidError::TooManyKeys`] if key count, service count, or URI bounds are exceeded.
-    /// - Returns [`KidError::UnauthorizedManifestSignature`] if manifest DID does not match document DID or signature is invalid.
+    /// - Returns [`KidError::UnauthorizedManifestSignature`] if manifest DID does not match document DID or signature is not authorized.
     /// - Returns [`KidError::InvalidValidFrom`] if `valid_from` is in the future beyond 5 minutes skew.
     /// - Returns [`KidError::ManifestExpired`] if `expires_at` timestamp has passed.
     /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
     /// - Returns [`KidError::Base64Error`] if signature decoding fails.
+    /// - Returns [`KidError::InvalidSignature`] if signature bytes are invalid.
     pub fn verify(&self, kid_document: &KidDocument) -> Result<(), KidError> {
         let current_time = web_time::SystemTime::now()
             .duration_since(web_time::UNIX_EPOCH)
@@ -87,11 +88,12 @@ impl CapabilityManifest {
     /// # Errors
     ///
     /// - Returns [`KidError::TooManyKeys`] if key count, service count, or URI bounds are exceeded.
-    /// - Returns [`KidError::UnauthorizedManifestSignature`] if manifest DID does not match document DID or signature is invalid.
+    /// - Returns [`KidError::UnauthorizedManifestSignature`] if manifest DID does not match document DID or signature is not authorized.
     /// - Returns [`KidError::InvalidValidFrom`] if `valid_from` is in the future beyond 5 minutes skew relative to `current_time_secs`.
     /// - Returns [`KidError::ManifestExpired`] if `expires_at` timestamp has passed relative to `current_time_secs`.
     /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
     /// - Returns [`KidError::Base64Error`] if signature decoding fails.
+    /// - Returns [`KidError::InvalidSignature`] if signature bytes are invalid.
     pub fn verify_at_time(&self, kid_document: &KidDocument, current_time_secs: u64) -> Result<(), KidError> {
         if kid_document.controller_keys.len() > 20 {
             return Err(KidError::TooManyKeys);
@@ -133,7 +135,7 @@ impl CapabilityManifest {
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
         for key in &kid_document.controller_keys {
-            if key.key_type.eq_ignore_ascii_case("MlDsa65") {
+            if key.key_type.eq_ignore_ascii_case("MlDsa65") || key.key_type.eq_ignore_ascii_case("ML-DSA-65") {
                 if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
                     use ml_dsa::KeyInit;
                     if let Ok(public_key) =
