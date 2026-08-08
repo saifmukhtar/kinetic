@@ -203,6 +203,7 @@ pub fn app(state: ApiState) -> Router {
         )
         .route("/kid", axum::routing::post(handle_generate_kid))
         .route("/kid/{name}/rotate", axum::routing::post(handle_rotate_kid))
+        .route("/kid/{name}/revoke", axum::routing::post(handle_revoke_kid))
         .route("/vdf/register", axum::routing::post(handle_vdf_register))
         .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
         .route(

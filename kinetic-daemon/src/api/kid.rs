@@ -143,3 +143,50 @@ pub async fn handle_rotate_kid(
         "kid_doc": rotated.kid_doc
     })))
 }
+
+/// Handles API requests to revoke (deactivate) a local KID document and publish the revocation.
+pub async fn handle_revoke_kid(
+    Extension(role): Extension<Role>,
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_publish() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+        ));
+    }
+
+    let revoked_doc = kinetic_core::types::revoke_local_kid(&name).map_err(|e| {
+        let api_err = kinetic_core::ApiError::from(e);
+        (
+            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(serde_json::to_value(api_err).unwrap_or_default()),
+        )
+    })?;
+
+    let auth_kid = kinetic_core::types::authorize_kid_document(&name, &revoked_doc).map_err(|e| {
+        let api_err = kinetic_core::ApiError::from(e);
+        (
+            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(serde_json::to_value(api_err).unwrap_or_default()),
+        )
+    })?;
+
+    // Publish revoked document to DHT
+    if let Ok(payload_bytes) = serde_json::to_vec(&auth_kid) {
+        let _ = state
+            .network
+            .publish_redundant_payload(revoked_doc.kid.as_str(), payload_bytes)
+            .await;
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "name": kinetic_core::types::normalize_name(&name),
+        "did": revoked_doc.kid.as_str(),
+        "deactivated": true,
+        "kid_doc": revoked_doc
+    })))
+}
+
