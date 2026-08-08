@@ -204,6 +204,10 @@ pub fn app(state: ApiState) -> Router {
         .route("/kid", axum::routing::post(handle_generate_kid))
         .route("/kid/{name}/rotate", axum::routing::post(handle_rotate_kid))
         .route("/kid/{name}/revoke", axum::routing::post(handle_revoke_kid))
+        .route(
+            "/kid/{name}/manifest",
+            axum::routing::post(handle_update_kid_manifest),
+        )
         .route("/vdf/register", axum::routing::post(handle_vdf_register))
         .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
         .route(
@@ -229,6 +233,10 @@ pub fn app(state: ApiState) -> Router {
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
         .route("/kid", axum::routing::get(handle_list_kids))
         .route("/kid/{name}", axum::routing::get(handle_get_kid))
+        .route(
+            "/kid/{name}/manifest",
+            axum::routing::get(handle_get_kid_manifest),
+        )
         .route("/time", axum::routing::get(handle_get_time))
         .route(
             "/gossip/subscribe/{topic}",

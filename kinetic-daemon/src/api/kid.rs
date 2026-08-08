@@ -190,3 +190,75 @@ pub async fn handle_revoke_kid(
     })))
 }
 
+/// Retrieves the locally stored CapabilityManifest for a given identity name if present.
+pub async fn handle_get_kid_manifest(
+    Path(name): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    match kinetic_core::types::load_local_manifest(&name) {
+        Ok(Some(manifest)) => Ok(Json(serde_json::json!({
+            "name": kinetic_core::types::normalize_name(&name),
+            "manifest": manifest,
+        }))),
+        Ok(None) => Ok(Json(serde_json::json!({
+            "name": kinetic_core::types::normalize_name(&name),
+            "manifest": null,
+        }))),
+        Err(e) => {
+            let api_err = kinetic_core::ApiError::from(e);
+            Err((
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
+            ))
+        }
+    }
+}
+
+/// Request payload for updating an identity's capability manifest.
+#[derive(serde::Deserialize)]
+pub struct UpdateManifestRequest {
+    /// List of service entries to publish in the manifest.
+    pub services: Vec<kinetic_kid::manifest::ServiceEntry>,
+}
+
+/// Creates, signs, persists, and publishes a new version of the capability manifest for an identity.
+pub async fn handle_update_kid_manifest(
+    axum::extract::Extension(role): axum::extract::Extension<Role>,
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+    Json(req): Json<UpdateManifestRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_publish() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+        ));
+    }
+
+    let (manifest, auth_manifest) = kinetic_core::types::save_and_sign_local_manifest(&name, req.services).map_err(|e| {
+        let api_err = kinetic_core::ApiError::from(e);
+        (
+            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(serde_json::to_value(api_err).unwrap_or_default()),
+        )
+    })?;
+
+    // Publish to DHT under hex(sha256(did#manifest))
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(format!("{}#manifest", manifest.kid).as_bytes());
+    let manifest_key = hex::encode(hasher.finalize());
+
+    if let Ok(payload_bytes) = serde_json::to_vec(&auth_manifest) {
+        let _ = state
+            .network
+            .publish_redundant_payload(&manifest_key, payload_bytes)
+            .await;
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "name": kinetic_core::types::normalize_name(&name),
+        "manifest": manifest,
+    })))
+}
+

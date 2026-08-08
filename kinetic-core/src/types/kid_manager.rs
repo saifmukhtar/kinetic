@@ -36,8 +36,9 @@ use crate::error::IdentityError;
 use crate::types::identity::load_keypair;
 use crate::types::names::{extract_apex_name, normalize_name};
 use kinetic_kid::document::{ControllerKey, KidDocument};
+use kinetic_kid::manifest::{CapabilityManifest, ServiceEntry};
 use kinetic_kid::KineticDid;
-use kinetic_types::identity::AuthorizedKid;
+use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 
 /// Metadata and payloads resulting from a generated or inherited KID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -469,6 +470,115 @@ pub fn revoke_local_kid(name: &str) -> Result<KidDocument, IdentityError> {
     Ok(signed_doc)
 }
 
+/// Loads a local `CapabilityManifest` document for a given name if it exists,
+/// checking the exact name first and falling back to apex if inherited.
+pub fn load_local_manifest(name: &str) -> Result<Option<CapabilityManifest>, IdentityError> {
+    let fqdn = normalize_name(name);
+    let dir = get_kids_dir();
+    let manifest_path = dir.join(format!("{}.manifest.json", fqdn));
+
+    if manifest_path.exists() {
+        let content = fs::read_to_string(&manifest_path)?;
+        let manifest: CapabilityManifest = serde_json::from_str(&content)
+            .map_err(|e| IdentityError::Json(format!("Malformed manifest: {}", e)))?;
+        return Ok(Some(manifest));
+    }
+
+    let apex = extract_apex_name(&fqdn);
+    if fqdn != apex {
+        let apex_manifest_path = dir.join(format!("{}.manifest.json", apex));
+        if apex_manifest_path.exists() {
+            let content = fs::read_to_string(&apex_manifest_path)?;
+            let manifest: CapabilityManifest = serde_json::from_str(&content)
+                .map_err(|e| IdentityError::Json(format!("Malformed apex manifest: {}", e)))?;
+            return Ok(Some(manifest));
+        }
+    }
+
+    Ok(None)
+}
+
+/// Creates, signs with the local KID key, wraps in `AuthorizedManifest`, and persists
+/// a `CapabilityManifest` for the given domain name.
+pub fn save_and_sign_local_manifest(
+    name: &str,
+    services: Vec<ServiceEntry>,
+) -> Result<(CapabilityManifest, AuthorizedManifest), IdentityError> {
+    let fqdn = normalize_name(name);
+    let (doc, _) = load_local_kid(&fqdn)?;
+
+    if doc.deactivated {
+        return Err(IdentityError::KidSigningFailed(format!(
+            "Cannot update manifest for deactivated identity {fqdn}"
+        )));
+    }
+
+    // Resolve key path (checking specific name key, then fallback to apex key)
+    let (_, key_path) = get_kid_paths(&fqdn);
+    let effective_key_path = if key_path.exists() {
+        key_path
+    } else {
+        let apex = extract_apex_name(&fqdn);
+        let (_, apex_key_path) = get_kid_paths(&apex);
+        if apex_key_path.exists() {
+            apex_key_path
+        } else {
+            return Err(IdentityError::KidNotFound(format!(
+                "Private key not found for {fqdn} or apex"
+            )));
+        }
+    };
+
+    let signing_key = load_raw_signing_key(&effective_key_path)?;
+
+    // Determine version number (increment if existing manifest found)
+    let next_version = match load_local_manifest(&fqdn)? {
+        Some(existing) => existing.version.saturating_add(1),
+        None => 1,
+    };
+
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let manifest = CapabilityManifest {
+        doc_type: "kinetic.manifest.v1".to_string(),
+        kid: doc.kid.clone(),
+        version: next_version,
+        valid_from: current_time,
+        expires_at: None,
+        services,
+        signature: None,
+    };
+
+    let signed_manifest = manifest
+        .sign(&signing_key)
+        .map_err(|e| IdentityError::KidSigningFailed(format!("Manifest signing failed: {}", e)))?;
+
+    // Persist manifest to kids/{fqdn}.manifest.json
+    let dir = get_kids_dir();
+    let manifest_path = dir.join(format!("{}.manifest.json", fqdn));
+    let json_data = serde_json::to_string_pretty(&signed_manifest)
+        .map_err(|e| IdentityError::Json(format!("{}", e)))?;
+    write_json_document(&manifest_path, &json_data)?;
+
+    // Wrap in AuthorizedManifest signed by identity.key
+    let mut auth_manifest = AuthorizedManifest {
+        name: fqdn.clone(),
+        manifest: signed_manifest.clone(),
+        kid_doc: Some(doc),
+        owner_signature: vec![],
+    };
+
+    let signable = auth_manifest.signable_bytes(NETWORK_ID);
+    let owner_key = load_keypair("identity.key")?;
+    use ml_dsa::SignatureEncoding;
+    auth_manifest.owner_signature = owner_key.sign(&signable).to_bytes().to_vec();
+
+    Ok((signed_manifest, auth_manifest))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -537,6 +647,38 @@ mod tests {
 
         let revoked = revoke_local_kid("api.saif.kin").unwrap();
         assert!(revoked.deactivated);
+
+        // 6. Capability Manifest lifecycle
+        let services = vec![ServiceEntry {
+            id: "web".to_string(),
+            service_type: "website".to_string(),
+            protocol: "https".to_string(),
+            endpoint: "https://saif.kin".to_string(),
+        }];
+        let (saved_manifest, auth_manifest) =
+            save_and_sign_local_manifest("saif.kin", services.clone()).unwrap();
+        assert_eq!(saved_manifest.version, 1);
+        assert_eq!(saved_manifest.services.len(), 1);
+        assert!(saved_manifest.verify(&rotated.kid_doc).is_ok());
+        assert_eq!(auth_manifest.name, "saif.kin");
+
+        // Load local manifest
+        let loaded = load_local_manifest("saif.kin").unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().version, 1);
+
+        // Save again increments version
+        let (v2_manifest, _) =
+            save_and_sign_local_manifest("saif.kin", services).unwrap();
+        assert_eq!(v2_manifest.version, 2);
+
+        // Deactivated identity cannot update manifest
+        let deactivated_err =
+            save_and_sign_local_manifest("api.saif.kin", vec![]).unwrap_err();
+        assert!(matches!(
+            deactivated_err,
+            IdentityError::KidSigningFailed(_)
+        ));
 
         unsafe {
             std::env::remove_var(crate::constants::ENV_DATA_DIR);
