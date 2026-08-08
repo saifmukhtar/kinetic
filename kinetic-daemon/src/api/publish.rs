@@ -530,8 +530,15 @@ pub async fn handle_publish_manifest(
             }
         };
 
-    // 2. Verify the manifest against the registered KID
-    if let Err(e) = auth_manifest.manifest.verify(&kid_doc) {
+    // 2. Verify the manifest against the registered KID using network time
+    let current_network_time = match kinetic_core::drand::DrandClient::new(Some(state.storage.clone())).load_cached_kyn() {
+        Ok(raw_kyn) => kinetic_core::types::clock::network_kyn_to_unix_secs(raw_kyn.kyn),
+        Err(_) => std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    };
+    if let Err(e) = auth_manifest.manifest.verify_at_time(&kid_doc, current_network_time) {
         return Err((
             StatusCode::BAD_REQUEST,
             format!("Invalid Manifest signature: {}", e),

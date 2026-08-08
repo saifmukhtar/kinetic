@@ -62,7 +62,8 @@ impl CapabilityManifest {
             .map_err(|e| KidError::CanonicalizationError(e.to_string()))
     }
 
-    /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document.
+    /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document
+    /// at the current local system/browser time.
     ///
     /// # Errors
     ///
@@ -73,6 +74,25 @@ impl CapabilityManifest {
     /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
     /// - Returns [`KidError::Base64Error`] if signature decoding fails.
     pub fn verify(&self, kid_document: &KidDocument) -> Result<(), KidError> {
+        let current_time = web_time::SystemTime::now()
+            .duration_since(web_time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        self.verify_at_time(kid_document, current_time)
+    }
+
+    /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document
+    /// against an explicit network Unix timestamp (e.g. Drand consensus kyn timestamp).
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`KidError::TooManyKeys`] if key count, service count, or URI bounds are exceeded.
+    /// - Returns [`KidError::UnauthorizedManifestSignature`] if manifest DID does not match document DID or signature is invalid.
+    /// - Returns [`KidError::InvalidValidFrom`] if `valid_from` is in the future beyond 5 minutes skew relative to `current_time_secs`.
+    /// - Returns [`KidError::ManifestExpired`] if `expires_at` timestamp has passed relative to `current_time_secs`.
+    /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
+    /// - Returns [`KidError::Base64Error`] if signature decoding fails.
+    pub fn verify_at_time(&self, kid_document: &KidDocument, current_time_secs: u64) -> Result<(), KidError> {
         if kid_document.controller_keys.len() > 20 {
             return Err(KidError::TooManyKeys);
         }
@@ -81,15 +101,11 @@ impl CapabilityManifest {
             return Err(KidError::UnauthorizedManifestSignature);
         }
 
-        let current_time = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        if self.valid_from > current_time + 300 {
+        if self.valid_from > current_time_secs + 300 {
             return Err(KidError::InvalidValidFrom);
         }
         if let Some(expires) = self.expires_at {
-            if current_time >= expires {
+            if current_time_secs >= expires {
                 return Err(KidError::ManifestExpired);
             }
         }

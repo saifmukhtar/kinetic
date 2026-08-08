@@ -178,7 +178,7 @@ mod tests {
             signature: None,
         };
 
-        let signed_manifest = manifest.sign(&keypair).unwrap();
+        let signed_manifest = manifest.clone().sign(&keypair).unwrap();
 
         assert!(signed_manifest.verify(&doc).is_ok());
 
@@ -202,6 +202,30 @@ mod tests {
         assert!(matches!(
             signed_manifest.verify(&bad_doc),
             Err(KidError::UnauthorizedManifestSignature)
+        ));
+
+        // Test explicit verify_at_time with Drand / explicit timestamps
+        assert!(signed_manifest.verify_at_time(&doc, 1000).is_ok());
+        assert!(signed_manifest.verify_at_time(&doc, 10000).is_ok());
+
+        // Manifest with future valid_from beyond 300s skew must fail
+        assert!(matches!(
+            signed_manifest.verify_at_time(&doc, 500),
+            Err(KidError::InvalidValidFrom)
+        ));
+
+        // Manifest with expiration
+        let mut expiring_manifest = manifest.clone();
+        expiring_manifest.expires_at = Some(2000);
+        let signed_expiring = expiring_manifest.sign(&keypair).unwrap();
+        assert!(signed_expiring.verify_at_time(&doc, 1500).is_ok());
+        assert!(matches!(
+            signed_expiring.verify_at_time(&doc, 2000),
+            Err(KidError::ManifestExpired)
+        ));
+        assert!(matches!(
+            signed_expiring.verify_at_time(&doc, 2500),
+            Err(KidError::ManifestExpired)
         ));
     }
 }
