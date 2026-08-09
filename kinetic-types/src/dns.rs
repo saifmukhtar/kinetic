@@ -2,7 +2,7 @@
 //!
 //! Defines the canonical representation of DNS zone files published to the Kinetic network.
 //! In addition to standard internet record types (`A`, `AAAA`, `CNAME`, `TXT`), Kinetic DNS
-//! supports decentralized primitives including P2P Peer IDs (`PeerId`), Key Identifiers (`KID`),
+//! supports decentralized primitives including P2P Peer IDs (`PeerId`), Kinetic Identity Documents (`KID`),
 //! and IPFS content identifiers (`IPFS`).
 
 use serde::{Deserialize, Serialize};
@@ -30,7 +30,7 @@ pub enum DnsRecord {
     TXT(String),
     /// libp2p Peer ID record for direct peer-to-peer transport routing.
     PeerId(String),
-    /// Key Identifier (KID) reference pointing to an authorized identity document.
+    /// Kinetic Identity Document (KID) reference pointing to an authorized identity document.
     KID(String),
     /// IPFS Content Identifier (CID) for decentralized static content delivery.
     IPFS(String),

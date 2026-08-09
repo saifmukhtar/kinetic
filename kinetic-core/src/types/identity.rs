@@ -1,4 +1,4 @@
-//! Cryptographic identity, Key Identifier (KID) documents, and post-quantum key management.
+//! Cryptographic identity, Kinetic Identity Document (KID) documents, and post-quantum key management.
 //!
 //! This module handles ML-DSA-65 post-quantum signing keypairs, PBKDF2-HMAC-SHA512 key derivation
 //! (600,000 iterations), atomic file writes with strict POSIX `0o600` permissions, and memory zeroization.

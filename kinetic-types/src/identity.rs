@@ -1,4 +1,4 @@
-//! Authorized Key Identifier (KID) documents and capability manifests.
+//! Authorized Kinetic Identity Document (KID) documents and capability manifests.
 //!
 //! Provides the authorization containers binding decentralized identities (KIDs) and capability
 //! manifests to `.kin` names.
@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Authorized Key Identifier (KID) document bound to a `.kin` name.
+/// Authorized Kinetic Identity Document (KID) document bound to a `.kin` name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedKid {
     /// Name associated with this KID.

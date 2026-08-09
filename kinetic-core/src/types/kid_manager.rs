@@ -1,7 +1,7 @@
-//! Canonical Key Identifier (KID) Management Engine for the Kinetic Network.
+//! Canonical Kinetic Identity Document (KID) Management Engine for the Kinetic Network.
 //!
 //! This module provides a single source of truth for creating, inheriting, loading,
-//! listing, and cryptographically rotating post-quantum Key Identifier (KID) documents
+//! listing, and cryptographically rotating post-quantum Kinetic Identity Documents (KIDs)
 //! and their underlying ML-DSA-65 keys across the CLI, Daemon, and Network layers.
 //!
 //! ## Core Invariants & The 4 Identity Cases
@@ -201,7 +201,7 @@ pub fn authorize_kid_document(
     Ok(auth_kid)
 }
 
-/// Creates or inherits a Key Identifier (KID) for a given domain name.
+/// Creates or inherits a Kinetic Identity Document (KID) for a given domain name.
 ///
 /// Implements:
 /// - **Case 1 (Apex Domain)**: Generates a new ML-DSA-65 keypair and `KidDocument`.
