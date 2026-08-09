@@ -76,6 +76,8 @@ enum Commands {
     Port {
         port: Option<u16>,
     },
+    /// Print the static Host PeerID for DNS configuration
+    Id,
 }
 
 #[tokio::main]
@@ -88,6 +90,15 @@ async fn main() -> Result<()> {
         Some(Commands::Start) => service::start_background_service()?,
         Some(Commands::Stop) => service::stop_background_service()?,
         Some(Commands::Port { port }) => configure_port(*port).await?,
+        Some(Commands::Id) => {
+            let key_path = kinetic_core::config::get_base_dir().join("host.key");
+            let host_key = host_key::load_or_generate_host_key(&key_path);
+            let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
+            println!("============================================================");
+            println!("Your Static Host PeerID: {}", host_peer_id);
+            println!("(Paste this PeerID into your .kin DNS records)");
+            println!("============================================================");
+        }
         Some(Commands::Run) | None => {
             run_host().await?;
         }
