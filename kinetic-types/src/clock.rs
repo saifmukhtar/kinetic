@@ -127,4 +127,50 @@ mod tests {
     fn test_unix_secs_to_kyn_zero_period() {
         assert_eq!(unix_secs_to_kyn(100, 50, 0), 0);
     }
+
+    #[test]
+    fn test_from_kyn_boundaries() {
+        let genesis = 1000;
+
+        // Before genesis
+        let t1 = KineticTime::from_kyn(999, genesis);
+        assert_eq!(t1.total_kyns, 0);
+
+        // Exactly genesis
+        let t2 = KineticTime::from_kyn(1000, genesis);
+        assert_eq!((t2.prism, t2.facet, t2.kyn, t2.total_kyns), (0, 0, 0, 0));
+
+        // 1 Kyn later
+        let t3 = KineticTime::from_kyn(1001, genesis);
+        assert_eq!((t3.prism, t3.facet, t3.kyn, t3.total_kyns), (0, 0, 1, 1));
+
+        // Exactly 1 Facet (1,200 kyns)
+        let t4 = KineticTime::from_kyn(1000 + 1200, genesis);
+        assert_eq!((t4.prism, t4.facet, t4.kyn, t4.total_kyns), (0, 1, 0, 1200));
+
+        // Exactly 1 Prism (28,800 kyns)
+        let t5 = KineticTime::from_kyn(1000 + 28800, genesis);
+        assert_eq!((t5.prism, t5.facet, t5.kyn, t5.total_kyns), (1, 0, 0, 28800));
+
+        // Complex time: 1 Prism + 2 Facets + 3 Kyns = 28800 + 2400 + 3 = 31203
+        let t6 = KineticTime::from_kyn(1000 + 31203, genesis);
+        assert_eq!((t6.prism, t6.facet, t6.kyn, t6.total_kyns), (1, 2, 3, 31203));
+    }
+
+    #[test]
+    fn test_large_epochs() {
+        let genesis = 0;
+        
+        // 1 Matrix (7 Prisms = 7 * 28800 = 201,600)
+        let t_matrix = KineticTime::from_kyn(201_600, genesis);
+        assert_eq!(t_matrix.matrix(), 1);
+        
+        // 1 Lattice (30 Prisms = 30 * 28800 = 864,000)
+        let t_lattice = KineticTime::from_kyn(864_000, genesis);
+        assert_eq!(t_lattice.lattice(), 1);
+        
+        // 1 Apex (365 Prisms = 365 * 28800 = 10,512,000)
+        let t_apex = KineticTime::from_kyn(10_512_000, genesis);
+        assert_eq!(t_apex.apex(), 1);
+    }
 }
