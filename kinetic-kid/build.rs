@@ -29,9 +29,15 @@ fn main() {
 
     println!("cargo:rustc-env=KINETIC_DID_PREFIX={}", did_prefix);
 
-    let max_public_key = parsed["advanced"]["limits"]["kid_max_public_key_bytes"].as_u64().unwrap_or(8192);
-    let max_location = parsed["advanced"]["limits"]["kid_max_location_bytes"].as_u64().unwrap_or(2048);
-    let max_endpoint = parsed["advanced"]["limits"]["kid_max_endpoint_bytes"].as_u64().unwrap_or(256);
+    let max_public_key = parsed["advanced"]["limits"]["kid_max_public_key_bytes"]
+        .as_u64()
+        .unwrap_or(8192);
+    let max_location = parsed["advanced"]["limits"]["kid_max_location_bytes"]
+        .as_u64()
+        .unwrap_or(2048);
+    let max_endpoint = parsed["advanced"]["limits"]["kid_max_endpoint_bytes"]
+        .as_u64()
+        .unwrap_or(256);
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let dest_path = std::path::Path::new(&out_dir).join("kid_limits.rs");

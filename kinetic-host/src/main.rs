@@ -27,8 +27,8 @@
 pub mod api;
 /// P2P Gossipsub network handlers.
 pub mod gossip;
-/// Drand heartbeat and dynamic routing publisher.
-pub mod heartbeat;
+/// Drand epoch manager and dynamic routing publisher.
+pub mod epoch;
 /// Host identity key management.
 pub mod host_key;
 /// P2P reverse proxy logic.
@@ -260,10 +260,9 @@ async fn run_host() -> Result<()> {
         backend_port
     );
 
-    // 6. Start Drand Heartbeat & Dynamic Routing Publisher
     let local_peer_id_str = Arc::new(std::sync::RwLock::new(local_peer_id.to_string()));
 
-    tokio::spawn(heartbeat::start_dynamic_routing_publisher(
+    tokio::spawn(epoch::start_dynamic_routing_publisher(
         host_key.clone(),
         local_peer_id_str.clone(),
         host_peer_id.to_string(),
@@ -271,7 +270,7 @@ async fn run_host() -> Result<()> {
         drand_kyn_rx.clone(),
     ));
 
-    tokio::spawn(heartbeat::start_drand_heartbeat(
+    tokio::spawn(epoch::start_drand_heartbeat(
         drand_client.clone(),
         drand_kyn_tx,
         local_peer_id,

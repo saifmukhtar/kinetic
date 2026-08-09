@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 use kinetic_kid::{ControllerKey, KidDocument, KineticDid};
 use ml_dsa::MlDsa65;
 use ml_dsa::{Generate, Keypair, SigningKey};
