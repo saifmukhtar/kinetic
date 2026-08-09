@@ -70,7 +70,14 @@ impl CapabilityManifest {
     }
 
     /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document
-    /// at the current local system/browser time.
+    /// against the local client's wall-clock time.
+    ///
+    /// # Security Warning: Client-Side Use Only
+    ///
+    /// This function uses the local unverified system clock (`web_time::SystemTime::now()`) and is strictly
+    /// for offline, client-side, or CLI use. It is vulnerable to clock drift and local time manipulation.
+    /// **Consensus nodes and daemons MUST NOT use this function.** They must use [`CapabilityManifest::verify_at_time`] and inject
+    /// the secure deterministic network consensus timestamp (e.g., Drand beacon time).
     ///
     /// # Errors
     ///
@@ -81,7 +88,7 @@ impl CapabilityManifest {
     /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
     /// - Returns [`KidError::Base64Error`] if signature decoding fails.
     /// - Returns [`KidError::InvalidSignature`] if signature bytes are invalid.
-    pub fn verify(&self, kid_document: &KidDocument) -> Result<(), KidError> {
+    pub fn verify_local(&self, kid_document: &KidDocument) -> Result<(), KidError> {
         let current_time = web_time::SystemTime::now()
             .duration_since(web_time::UNIX_EPOCH)
             .unwrap_or_default()
