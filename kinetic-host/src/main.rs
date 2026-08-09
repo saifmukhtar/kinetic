@@ -30,7 +30,7 @@ pub mod gossip;
 /// Drand heartbeat and dynamic routing publisher.
 pub mod heartbeat;
 /// Host identity key management.
-pub mod identity;
+pub mod host_key;
 /// P2P reverse proxy logic.
 pub mod proxy;
 /// Background system service installer.
@@ -138,7 +138,7 @@ async fn run_host() -> Result<()> {
 
     // 4. Load Static Network Identity (The Permanent Host Key)
     let key_path = kinetic_core::config::get_base_dir().join("host.key");
-    let host_key = identity::load_or_generate_host_key(&key_path);
+    let host_key = host_key::load_or_generate_host_key(&key_path);
     let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
     info!("Infrastructure Node static Host Identity: {}", host_peer_id);
 
