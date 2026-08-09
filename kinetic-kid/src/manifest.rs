@@ -81,7 +81,9 @@ impl CapabilityManifest {
     ///
     /// # Errors
     ///
-    /// - Returns [`KidError::TooManyKeys`] if key count, service count, or URI bounds are exceeded.
+    /// - Returns [`KidError::KeyLimitExceeded`] if key count bounds are exceeded.
+    /// - Returns [`KidError::ServiceLimitExceeded`] if service bounds are exceeded.
+    /// - Returns [`KidError::StringLengthExceeded`] if string length bounds are exceeded.
     /// - Returns [`KidError::UnauthorizedManifestSignature`] if manifest DID does not match document DID or signature is not authorized.
     /// - Returns [`KidError::InvalidValidFrom`] if `valid_from` is in the future beyond 5 minutes skew.
     /// - Returns [`KidError::ManifestExpired`] if `expires_at` timestamp has passed.
@@ -101,7 +103,9 @@ impl CapabilityManifest {
     ///
     /// # Errors
     ///
-    /// - Returns [`KidError::TooManyKeys`] if key count, service count, or URI bounds are exceeded.
+    /// - Returns [`KidError::KeyLimitExceeded`] if key count bounds are exceeded.
+    /// - Returns [`KidError::ServiceLimitExceeded`] if service bounds are exceeded.
+    /// - Returns [`KidError::StringLengthExceeded`] if string length bounds are exceeded.
     /// - Returns [`KidError::UnauthorizedManifestSignature`] if manifest DID does not match document DID or signature is not authorized.
     /// - Returns [`KidError::InvalidValidFrom`] if `valid_from` is in the future beyond 5 minutes skew relative to `current_time_secs`.
     /// - Returns [`KidError::ManifestExpired`] if `expires_at` timestamp has passed relative to `current_time_secs`.
@@ -110,7 +114,7 @@ impl CapabilityManifest {
     /// - Returns [`KidError::InvalidSignature`] if signature bytes are invalid.
     pub fn verify_at_time(&self, kid_document: &KidDocument, current_time_secs: u64) -> Result<(), KidError> {
         if kid_document.controller_keys.len() > 20 {
-            return Err(KidError::TooManyKeys);
+            return Err(KidError::KeyLimitExceeded);
         }
 
         if self.kid != kid_document.kid {
@@ -126,15 +130,20 @@ impl CapabilityManifest {
             }
         }
         if self.services.len() > 50 {
-            return Err(KidError::TooManyKeys);
+            return Err(KidError::ServiceLimitExceeded);
         }
         for svc in &self.services {
-            if svc.id.len() > 256
-                || svc.service_type.len() > 256
-                || svc.protocol.len() > 64
-                || svc.endpoint.len() > crate::LIMITS_KID_MAX_ENDPOINT_BYTES
-            {
-                return Err(KidError::TooManyKeys);
+            if svc.id.len() > 256 {
+                return Err(KidError::StringLengthExceeded("service.id".to_string()));
+            }
+            if svc.service_type.len() > 256 {
+                return Err(KidError::StringLengthExceeded("service.service_type".to_string()));
+            }
+            if svc.protocol.len() > 64 {
+                return Err(KidError::StringLengthExceeded("service.protocol".to_string()));
+            }
+            if svc.endpoint.len() > crate::LIMITS_KID_MAX_ENDPOINT_BYTES {
+                return Err(KidError::StringLengthExceeded("service.endpoint".to_string()));
             }
         }
 

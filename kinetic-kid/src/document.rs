@@ -89,36 +89,44 @@ impl KidDocument {
     ///
     /// # Errors
     ///
-    /// - Returns [`KidError::TooManyKeys`] if key count or URL bounds are exceeded.
+    /// - Returns [`KidError::KeyLimitExceeded`] if controller or revocation key count bounds are exceeded.
+    /// - Returns [`KidError::LocationLimitExceeded`] if manifest location bounds are exceeded.
+    /// - Returns [`KidError::StringLengthExceeded`] if any identifier or url string is too long.
     /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
     /// - Returns [`KidError::Base64Error`] if signature base64url decoding fails.
     /// - Returns [`KidError::InvalidSignature`] if no listed key produces a valid ML-DSA-65 signature.
     pub fn verify(&self) -> Result<(), KidError> {
         if self.controller_keys.len() > 20 || self.revocation_keys.len() > 20 {
-            return Err(KidError::TooManyKeys);
+            return Err(KidError::KeyLimitExceeded);
         }
         for key in &self.controller_keys {
-            if key.id.len() > 256 || key.public_key.len() > crate::LIMITS_KID_MAX_PUBLIC_KEY_BYTES || key.key_type.len() > 32 {
-                return Err(KidError::TooManyKeys);
+            if key.id.len() > 256 {
+                return Err(KidError::StringLengthExceeded("controller_key.id".to_string()));
+            }
+            if key.public_key.len() > crate::LIMITS_KID_MAX_PUBLIC_KEY_BYTES {
+                return Err(KidError::StringLengthExceeded("controller_key.public_key".to_string()));
+            }
+            if key.key_type.len() > 32 {
+                return Err(KidError::StringLengthExceeded("controller_key.key_type".to_string()));
             }
         }
         for rk in &self.revocation_keys {
             if rk.len() > crate::LIMITS_KID_MAX_PUBLIC_KEY_BYTES {
-                return Err(KidError::TooManyKeys);
+                return Err(KidError::StringLengthExceeded("revocation_keys.item".to_string()));
             }
         }
         if let Some(manifest) = &self.manifest {
             if manifest.locations.len() > 20 {
-                return Err(KidError::TooManyKeys);
+                return Err(KidError::LocationLimitExceeded);
             }
             for loc in &manifest.locations {
                 if loc.len() > crate::LIMITS_KID_MAX_LOCATION_BYTES {
-                    return Err(KidError::TooManyKeys);
+                    return Err(KidError::StringLengthExceeded("manifest.location".to_string()));
                 }
             }
             if let Some(hash) = &manifest.hash {
                 if hash.len() > 256 {
-                    return Err(KidError::TooManyKeys);
+                    return Err(KidError::StringLengthExceeded("manifest.hash".to_string()));
                 }
             }
         }

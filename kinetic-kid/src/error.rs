@@ -36,9 +36,18 @@ pub enum KidError {
     /// The manifest signature was produced by a key not listed in the KID document.
     #[error("Manifest signed by unauthorized key")]
     UnauthorizedManifestSignature,
-    /// The document contains too many keys or endpoints, exceeding maximum bounds.
-    #[error("Document exceeds maximum size bounds (DoS protection)")]
-    TooManyKeys,
+    /// The identity document exceeds maximum key bounds.
+    #[error("Identity document exceeds maximum key bounds (max 20)")]
+    KeyLimitExceeded,
+    /// The manifest pointer exceeds maximum location bounds.
+    #[error("Manifest pointer exceeds maximum location bounds (max 20)")]
+    LocationLimitExceeded,
+    /// The capability manifest exceeds maximum service endpoints.
+    #[error("Capability manifest exceeds maximum service endpoints (max 50)")]
+    ServiceLimitExceeded,
+    /// A string field exceeds its maximum allowed byte length.
+    #[error("Field '{0}' exceeds maximum allowed byte length")]
+    StringLengthExceeded(String),
     /// The valid_from timestamp is set in the future beyond acceptable skew.
     #[error("Manifest valid_from is in the future")]
     InvalidValidFrom,
@@ -91,11 +100,14 @@ impl KidError {
             Self::Base64Error(_) => "KIN-KID-009",
             Self::KeyParseError(_) => "KIN-KID-010",
             Self::UnauthorizedManifestSignature => "KIN-KID-011",
-            Self::TooManyKeys => "KIN-KID-012",
+            Self::KeyLimitExceeded => "KIN-KID-012",
             Self::InvalidValidFrom => "KIN-KID-013",
             Self::ManifestExpired => "KIN-KID-014",
             Self::DidKeyMismatch => "KIN-KID-015",
             Self::UnauthorizedKidUpdate => "KIN-KID-016",
+            Self::LocationLimitExceeded => "KIN-KID-017",
+            Self::ServiceLimitExceeded => "KIN-KID-018",
+            Self::StringLengthExceeded(_) => "KIN-KID-019",
         }
     }
 
@@ -109,7 +121,10 @@ impl KidError {
         match self {
             Self::InvalidSignature
             | Self::UnauthorizedManifestSignature
-            | Self::TooManyKeys
+            | Self::KeyLimitExceeded
+            | Self::LocationLimitExceeded
+            | Self::ServiceLimitExceeded
+            | Self::StringLengthExceeded(_)
             | Self::DidKeyMismatch
             | Self::UnauthorizedKidUpdate => Severity::Error,
             _ => Severity::Warning,
@@ -150,8 +165,17 @@ impl KidError {
             Self::UnauthorizedManifestSignature => {
                 "The capability manifest was signed by an unauthorized key.".to_string()
             }
-            Self::TooManyKeys => {
-                "Identity document exceeds maximum key or endpoint bounds.".to_string()
+            Self::KeyLimitExceeded => {
+                "Identity document exceeds maximum key bounds (max 20).".to_string()
+            }
+            Self::LocationLimitExceeded => {
+                "Manifest pointer exceeds maximum location bounds (max 20).".to_string()
+            }
+            Self::ServiceLimitExceeded => {
+                "Capability manifest exceeds maximum service endpoints (max 50).".to_string()
+            }
+            Self::StringLengthExceeded(field) => {
+                format!("Field '{}' exceeds maximum allowed byte length.", field)
             }
             Self::InvalidValidFrom => {
                 "Capability manifest valid_from timestamp is set in the future.".to_string()
