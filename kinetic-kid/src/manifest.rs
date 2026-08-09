@@ -35,9 +35,16 @@ pub struct CapabilityManifest {
     pub kid: KineticDid,
     /// Monotonically increasing version number; resolvers prefer higher versions.
     pub version: u64,
-    /// Unix timestamp (seconds) from which this manifest is considered valid.
+    /// Unix timestamp (seconds) defining when this manifest becomes active.
+    ///
+    /// Verified against the network's consensus clock (e.g., Drand beacon timestamps)
+    /// to prevent malicious forward-dating. The network permits a maximum 300-second 
+    /// (5-minute) clock skew allowance.
     pub valid_from: u64,
-    /// Unix timestamp (seconds) after which this manifest is invalid.
+    /// Optional Unix timestamp (seconds) dictating when this manifest expires.
+    ///
+    /// If provided, network nodes will reject or drop this manifest once the consensus
+    /// clock passes this time, forcing the controller to publish a fresh manifest.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<u64>,
     /// Ordered list of service endpoints this DID owner is advertising.

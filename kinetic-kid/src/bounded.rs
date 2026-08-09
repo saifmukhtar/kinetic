@@ -1,5 +1,10 @@
-//! Bounded Serde deserialization helpers to defend against OOM memory bomb attacks.
-
+//! Bounded Serde deserialization helpers for DoS and OOM protection.
+//!
+//! Standard JSON deserializers allocate memory based on sequence length hints, which 
+//! exposes the node to JSON memory bomb attacks (e.g., an array claiming 10 million items).
+//! This module implements strict streaming boundaries that enforce compile-time limits 
+//! (derived from `network.json`) *during* stream parsing, instantly aborting on violation 
+//! before excessive memory can be allocated.
 use serde::de::{Error, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use std::fmt;
@@ -58,7 +63,10 @@ where
     }
 }
 
-/// Helper for Serde to deserialize a `Vec` with a strict upper bound of 20 elements.
+/// Deserializes a `Vec` with a strict memory-safe upper bound of 20 elements.
+///
+/// Used for protecting high-risk cryptographic arrays (like `controller_keys` and
+/// `revocation_keys`) against deserialization memory exhaustion attacks.
 ///
 /// # Errors
 ///
@@ -71,7 +79,9 @@ where
     deserializer.deserialize_seq(BoundedVecVisitor::new(20))
 }
 
-/// Helper for Serde to deserialize a `Vec` with a strict upper bound of 50 elements.
+/// Deserializes a `Vec` with a strict memory-safe upper bound of 50 elements.
+///
+/// Used for protecting manifest `services` arrays against deserialization memory exhaustion attacks.
 ///
 /// # Errors
 ///

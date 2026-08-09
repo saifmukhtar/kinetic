@@ -2,7 +2,13 @@ use crate::error::KidError;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// A strict parser for the `did:kin:<method-specific-id>` identifier.
+/// A Decentralized Identifier (DID) representing a self-sovereign identity on the Kinetic network.
+///
+/// The identifier format is strictly `did:kin:<method-specific-id>`.
+/// The method-specific ID must be exactly 64 lowercase hexadecimal characters,
+/// representing the SHA-256 hash of the identity's primary ML-DSA-65 public key.
+/// This cryptographically binds the DID string to its genesis controller key,
+/// establishing a verifiable root of trust without requiring a central registry.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KineticDid {
     id: String,

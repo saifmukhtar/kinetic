@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::did::KineticDid;
 use crate::error::KidError;
 
-/// A verification key listed as a controller of a [`KidDocument`].
+/// An active verification key authorized to act on behalf of the identity.
+///
+/// Controller keys are considered "hot" keys. They are used in daily operations
+/// to sign `CapabilityManifest`s, authorize the rotation of existing keys, and
+/// prove ownership of the DID. They are explicitly NOT used for emergency deactivation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ControllerKey {
     /// A fragment URI identifying this key within the DID document (e.g. `did:kin:…#key-0`).
@@ -50,7 +54,12 @@ pub struct KidDocument {
     /// Optional pointer to a [`CapabilityManifest`](crate::manifest::CapabilityManifest).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manifest: Option<ManifestPointer>,
-    /// Base64url-encoded public keys authorised to revoke this document.
+    /// Cold-storage fallback keys authorized exclusively to revoke this identity.
+    ///
+    /// These Base64url-encoded ML-DSA-65 public keys cannot sign manifests or authorize
+    /// standard updates. Their sole purpose is to sign a `deactivated: true` document
+    /// in the event that the primary controller keys are compromised or lost, permanently
+    /// burning the identity. Limited to 20 keys.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     #[serde(deserialize_with = "crate::bounded::deserialize_max_20")]
     pub revocation_keys: Vec<String>,
