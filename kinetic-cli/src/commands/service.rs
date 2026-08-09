@@ -19,6 +19,12 @@ pub enum ServiceCommands {
     Status,
     /// Tail the logs for the background service
     Logs,
+    /// Check the static identity of the node (Host/Daemon only)
+    Id,
+    /// Configure the routing port (Host only)
+    Port {
+        port: Option<u16>,
+    },
 }
 
 /// Handles service lifecycle commands for external Kinetic binaries.
@@ -99,12 +105,20 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     }
 
     // Map ServiceCommands → the argv the target binary understands.
-    let subcommand = match cmd {
-        ServiceCommands::Install => "install",
-        ServiceCommands::Uninstall => "uninstall",
-        ServiceCommands::Run => "run",
-        ServiceCommands::Start => "start",
-        ServiceCommands::Stop => "stop",
+    let (subcommand, extra_args) = match cmd {
+        ServiceCommands::Install => ("install", vec![]),
+        ServiceCommands::Uninstall => ("uninstall", vec![]),
+        ServiceCommands::Run => ("run", vec![]),
+        ServiceCommands::Start => ("start", vec![]),
+        ServiceCommands::Stop => ("stop", vec![]),
+        ServiceCommands::Id => ("id", vec![]),
+        ServiceCommands::Port { port } => {
+            if let Some(p) = port {
+                ("port", vec![p.to_string()])
+            } else {
+                ("port", vec![])
+            }
+        },
         _ => unreachable!(),
     };
 
@@ -168,9 +182,13 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         std::process::Command::new("sudo")
             .arg(binary)
             .arg(subcommand)
+            .args(&extra_args)
             .status()
     } else {
-        std::process::Command::new(binary).arg(subcommand).status()
+        std::process::Command::new(binary)
+            .arg(subcommand)
+            .args(&extra_args)
+            .status()
     };
 
     match status {
