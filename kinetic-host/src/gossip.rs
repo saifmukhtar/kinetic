@@ -17,22 +17,35 @@ pub async fn start_gossip_listener(
                 kinetic_core::governance::SignedGovernanceMessage,
             >(&payload)
             {
-                let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() else {
-                    continue;
+                let (should_save, cloned_state) = {
+                    let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() else {
+                        tracing::error!("FATAL: Global governance state mutex is poisoned!");
+                        continue;
+                    };
+                    match kinetic_core::governance::process_governance_message(&mut state, &signed_msg)
+                    {
+                        Ok(Some(effect)) => {
+                            tracing::info!("Governance state updated via gossip. Effect: {:?}", effect);
+                            (true, state.clone())
+                        }
+                        Ok(None) => {
+                            tracing::info!("Governance state updated via gossip. No immediate effect.");
+                            (true, state.clone())
+                        }
+                        Err(e) => {
+                            tracing::debug!("Governance gossip message rejected: {:?}", e);
+                            (false, state.clone())
+                        }
+                    }
                 };
-                match kinetic_core::governance::process_governance_message(&mut state, &signed_msg)
-                {
-                    Ok(Some(effect)) => {
-                        tracing::info!("Governance state updated via gossip. Effect: {:?}", effect);
-                        let _ = state.save_to_disk(&gov_state_path);
-                    }
-                    Ok(None) => {
-                        tracing::info!("Governance state updated via gossip. No immediate effect.");
-                        let _ = state.save_to_disk(&gov_state_path);
-                    }
-                    Err(e) => {
-                        tracing::debug!("Governance gossip message rejected: {:?}", e);
-                    }
+
+                if should_save {
+                    let path_clone = gov_state_path.clone();
+                    tokio::task::spawn_blocking(move || {
+                        if let Err(e) = cloned_state.save_to_disk(&path_clone) {
+                            tracing::error!("CRITICAL: Failed to save governance state to disk: {}", e);
+                        }
+                    });
                 }
             }
         }
