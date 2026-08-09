@@ -18,13 +18,19 @@ pub async fn forward_request(
     let mut builder =
         reqwest_client.request(req.method.parse().unwrap_or(reqwest::Method::GET), &url);
 
+    let mut original_host = None;
     for (k, v) in req.headers {
         if k.to_lowercase() == "host" {
-            continue;
+            original_host = Some(v.clone());
         }
         builder = builder.header(k.as_ref(), v.as_ref());
     }
-    builder = builder.header("Host", format!("{}:{}", backend_host, local_port));
+    
+    if let Some(h) = original_host {
+        builder = builder.header("X-Forwarded-Host", h.as_ref());
+    } else {
+        builder = builder.header("Host", format!("{}:{}", backend_host, local_port));
+    }
     builder = builder.body(req.body);
 
     match builder.send().await {
@@ -86,22 +92,21 @@ pub async fn handle_incoming_proxy_requests(
         ProxyRequest,
         libp2p::request_response::ResponseChannel<ProxyResponse>,
     )>,
-    local_port: u16,
-    backend_host: String,
 ) {
     let reqwest_client = reqwest::Client::builder()
         .no_proxy()
         .build()
         .unwrap_or_default();
-    info!(
-        "Listening for incoming P2P Proxy requests, forwarding to {}:{}",
-        backend_host, local_port
-    );
+    info!("Listening for incoming P2P Proxy requests, forwarding based on dynamic config");
 
     while let Some((req, channel)) = rx.recv().await {
         let reqwest_client = reqwest_client.clone();
         let client_clone = client.clone();
-        let backend_host_clone = backend_host.clone();
+        
+        let config_path = kinetic_core::config::get_base_dir().join("host_config.json");
+        let host_config = crate::config::HostConfig::load_or_default(&config_path);
+        let backend_host_clone = host_config.backend_host;
+        let local_port = host_config.backend_port;
 
         tokio::spawn(async move {
             let decoded_path = percent_encoding::percent_decode_str(&req.path)

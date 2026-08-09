@@ -35,6 +35,8 @@ pub mod host_key;
 pub mod proxy;
 /// Background system service installer.
 pub mod service;
+/// Configuration for the host proxy backend.
+pub mod config;
 
 #[cfg(test)]
 mod proxy_tests;
@@ -70,6 +72,10 @@ enum Commands {
     Start,
     /// Stop the host service (background)
     Stop,
+    /// Configure the backend proxy port interactively
+    Port {
+        port: Option<u16>,
+    },
 }
 
 #[tokio::main]
@@ -81,6 +87,7 @@ async fn main() -> Result<()> {
         Some(Commands::Uninstall) => service::uninstall_service()?,
         Some(Commands::Start) => service::start_background_service()?,
         Some(Commands::Stop) => service::stop_background_service()?,
+        Some(Commands::Port { port }) => configure_port(*port).await?,
         Some(Commands::Run) | None => {
             run_host().await?;
         }
@@ -240,17 +247,13 @@ async fn run_host() -> Result<()> {
     ));
 
     let backend_port = std::env::var(kinetic_core::constants::ENV_HOST_BACKEND_PORT)
-        .unwrap_or_else(|_| "80".to_string())
-        .parse::<u16>()
+        .ok()
+        .and_then(|p| p.parse::<u16>().ok())
         .unwrap_or(80);
-    let backend_host = std::env::var(kinetic_core::constants::ENV_HOST_BACKEND_HOST)
-        .unwrap_or_else(|_| config.daemon.bind_ip.clone());
 
     tokio::spawn(proxy::handle_incoming_proxy_requests(
         network_client.clone(),
         incoming_rx,
-        backend_port,
-        backend_host,
     ));
     info!(
         "Proxy handler started. Proxying P2P traffic to local port {}",
@@ -290,6 +293,45 @@ async fn run_host() -> Result<()> {
         .parse::<std::net::IpAddr>()
         .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
     api::start_health_api(host_peer_id, bind_ip).await?;
+
+    Ok(())
+}
+
+async fn configure_port(arg_port: Option<u16>) -> Result<()> {
+    let port = if let Some(p) = arg_port {
+        p
+    } else {
+        println!("What port is your web server running on? [80]");
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        let input = input.trim();
+        if input.is_empty() {
+            80
+        } else {
+            input.parse().unwrap_or(80)
+        }
+    };
+
+    println!("Checking if anything is running on localhost:{}...", port);
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(2)).build()?;
+    match client.get(format!("http://127.0.0.1:{}", port)).send().await {
+        Ok(_) => {
+            println!("[SUCCESS] Detected a running web server on port {}. Traffic will be routed here.", port);
+        }
+        Err(_) => {
+            println!("[WARNING] We couldn't detect anything running on port {}.", port);
+            println!("If you are running a server, there might be a connection issue.");
+            println!("If not, please start your web server. The port has been saved successfully regardless.");
+        }
+    }
+
+    let config_path = kinetic_core::config::get_base_dir().join("host_config.json");
+    let config = crate::config::HostConfig {
+        backend_port: port,
+        backend_host: "127.0.0.1".to_string(),
+    };
+    config.save(&config_path)?;
+    println!("Configuration saved to {:?}", config_path);
 
     Ok(())
 }

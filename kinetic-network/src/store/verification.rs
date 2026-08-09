@@ -633,7 +633,7 @@ pub(crate) fn verify_authorized_manifest(
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
     auth_manifest
         .manifest
-        .verify(kid_doc)
+        .verify_local(kid_doc)
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
     if let Some(existing) = existing_record {
