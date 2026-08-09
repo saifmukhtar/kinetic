@@ -1,9 +1,9 @@
 //! Bounded Serde deserialization helpers for DoS and OOM protection.
 //!
-//! Standard JSON deserializers allocate memory based on sequence length hints, which 
+//! Standard JSON deserializers allocate memory based on sequence length hints, which
 //! exposes the node to JSON memory bomb attacks (e.g., an array claiming 10 million items).
-//! This module implements strict streaming boundaries that enforce compile-time limits 
-//! (derived from `network.json`) *during* stream parsing, instantly aborting on violation 
+//! This module implements strict streaming boundaries that enforce compile-time limits
+//! (derived from `network.json`) *during* stream parsing, instantly aborting on violation
 //! before excessive memory can be allocated.
 use serde::de::{Error, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer};
@@ -39,10 +39,10 @@ where
     where
         A: SeqAccess<'de>,
     {
-        if let Some(size) = seq.size_hint() {
-            if size > self.max {
-                return Err(A::Error::invalid_length(size, &self));
-            }
+        if let Some(size) = seq.size_hint()
+            && size > self.max
+        {
+            return Err(A::Error::invalid_length(size, &self));
         }
 
         let mut vec = Vec::with_capacity(seq.size_hint().unwrap_or(0).min(self.max));

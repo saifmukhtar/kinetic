@@ -46,7 +46,7 @@ pub use manifest::{CapabilityManifest, ServiceEntry};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
     use ml_dsa::SigningKey;
     use ml_dsa::{Generate, KeyExport, Keypair};
 

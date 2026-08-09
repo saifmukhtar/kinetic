@@ -1,6 +1,6 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
-use ml_dsa::signature::{Signer, Verifier};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 use ml_dsa::KeyInit;
+use ml_dsa::signature::{Signer, Verifier};
 use serde::{Deserialize, Serialize};
 
 use crate::did::KineticDid;
@@ -101,18 +101,26 @@ impl KidDocument {
         }
         for key in &self.controller_keys {
             if key.id.len() > 256 {
-                return Err(KidError::StringLengthExceeded("controller_key.id".to_string()));
+                return Err(KidError::StringLengthExceeded(
+                    "controller_key.id".to_string(),
+                ));
             }
             if key.public_key.len() > crate::LIMITS_KID_MAX_PUBLIC_KEY_BYTES {
-                return Err(KidError::StringLengthExceeded("controller_key.public_key".to_string()));
+                return Err(KidError::StringLengthExceeded(
+                    "controller_key.public_key".to_string(),
+                ));
             }
             if key.key_type.len() > 32 {
-                return Err(KidError::StringLengthExceeded("controller_key.key_type".to_string()));
+                return Err(KidError::StringLengthExceeded(
+                    "controller_key.key_type".to_string(),
+                ));
             }
         }
         for rk in &self.revocation_keys {
             if rk.len() > crate::LIMITS_KID_MAX_PUBLIC_KEY_BYTES {
-                return Err(KidError::StringLengthExceeded("revocation_keys.item".to_string()));
+                return Err(KidError::StringLengthExceeded(
+                    "revocation_keys.item".to_string(),
+                ));
             }
         }
         if let Some(manifest) = &self.manifest {
@@ -121,13 +129,15 @@ impl KidDocument {
             }
             for loc in &manifest.locations {
                 if loc.len() > crate::LIMITS_KID_MAX_LOCATION_BYTES {
-                    return Err(KidError::StringLengthExceeded("manifest.location".to_string()));
+                    return Err(KidError::StringLengthExceeded(
+                        "manifest.location".to_string(),
+                    ));
                 }
             }
-            if let Some(hash) = &manifest.hash {
-                if hash.len() > 256 {
-                    return Err(KidError::StringLengthExceeded("manifest.hash".to_string()));
-                }
+            if let Some(hash) = &manifest.hash
+                && hash.len() > 256
+            {
+                return Err(KidError::StringLengthExceeded("manifest.hash".to_string()));
             }
         }
 
@@ -154,31 +164,25 @@ impl KidDocument {
         if self.deactivated {
             // Document is deactivated (revoked), the signature MUST be from a revocation key
             for rk_b64 in &self.revocation_keys {
-                if let Ok(pk_bytes) = b64_url.decode(rk_b64) {
-                    if let Ok(public_key) =
+                if let Ok(pk_bytes) = b64_url.decode(rk_b64)
+                    && let Ok(public_key) =
                         ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
-                    {
-                        if public_key.verify(&msg_bytes, &signature).is_ok() {
-                            return Ok(());
-                        }
-                    }
+                    && public_key.verify(&msg_bytes, &signature).is_ok()
+                {
+                    return Ok(());
                 }
             }
         } else {
             // Document is active, the signature MUST be from a controller key
             for key in &self.controller_keys {
-                if key.key_type.eq_ignore_ascii_case("MlDsa65") || key.key_type.eq_ignore_ascii_case("ML-DSA-65") {
-                    if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
-                        if let Ok(public_key) =
-                            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
-                                pk_bytes.as_slice(),
-                            )
-                        {
-                            if public_key.verify(&msg_bytes, &signature).is_ok() {
-                                return Ok(());
-                            }
-                        }
-                    }
+                if (key.key_type.eq_ignore_ascii_case("MlDsa65")
+                    || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
+                    && let Ok(pk_bytes) = b64_url.decode(&key.public_key)
+                    && let Ok(public_key) =
+                        ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
+                    && public_key.verify(&msg_bytes, &signature).is_ok()
+                {
+                    return Ok(());
                 }
             }
         }
@@ -262,16 +266,17 @@ impl KidDocument {
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
         previous_doc.controller_keys.iter().any(|ck| {
-            if !ck.key_type.eq_ignore_ascii_case("MlDsa65") && !ck.key_type.eq_ignore_ascii_case("ML-DSA-65") {
+            if !ck.key_type.eq_ignore_ascii_case("MlDsa65")
+                && !ck.key_type.eq_ignore_ascii_case("ML-DSA-65")
+            {
                 return false;
             }
-            if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
-                if let Ok(vk) =
+            if let Ok(pk_bytes) = b64_url.decode(&ck.public_key)
+                && let Ok(vk) =
                     ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
-                {
-                    use ml_dsa::signature::Verifier;
-                    return vk.verify(&msg_bytes, &ml_sig).is_ok();
-                }
+            {
+                use ml_dsa::signature::Verifier;
+                return vk.verify(&msg_bytes, &ml_sig).is_ok();
             }
             false
         })

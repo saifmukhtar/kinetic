@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +38,7 @@ pub struct CapabilityManifest {
     /// Unix timestamp (seconds) defining when this manifest becomes active.
     ///
     /// Verified against the network's consensus clock (e.g., Drand beacon timestamps)
-    /// to prevent malicious forward-dating. The network permits a maximum 300-second 
+    /// to prevent malicious forward-dating. The network permits a maximum 300-second
     /// (5-minute) clock skew allowance.
     pub valid_from: u64,
     /// Optional Unix timestamp (seconds) dictating when this manifest expires.
@@ -112,7 +112,11 @@ impl CapabilityManifest {
     /// - Returns [`KidError::MissingSignature`] if the signature field is absent.
     /// - Returns [`KidError::Base64Error`] if signature decoding fails.
     /// - Returns [`KidError::InvalidSignature`] if signature bytes are invalid.
-    pub fn verify_at_time(&self, kid_document: &KidDocument, current_time_secs: u64) -> Result<(), KidError> {
+    pub fn verify_at_time(
+        &self,
+        kid_document: &KidDocument,
+        current_time_secs: u64,
+    ) -> Result<(), KidError> {
         if kid_document.controller_keys.len() > 20 {
             return Err(KidError::KeyLimitExceeded);
         }
@@ -124,10 +128,10 @@ impl CapabilityManifest {
         if self.valid_from > current_time_secs + 300 {
             return Err(KidError::InvalidValidFrom);
         }
-        if let Some(expires) = self.expires_at {
-            if current_time_secs >= expires {
-                return Err(KidError::ManifestExpired);
-            }
+        if let Some(expires) = self.expires_at
+            && current_time_secs >= expires
+        {
+            return Err(KidError::ManifestExpired);
         }
         if self.services.len() > 50 {
             return Err(KidError::ServiceLimitExceeded);
@@ -137,13 +141,19 @@ impl CapabilityManifest {
                 return Err(KidError::StringLengthExceeded("service.id".to_string()));
             }
             if svc.service_type.len() > 256 {
-                return Err(KidError::StringLengthExceeded("service.service_type".to_string()));
+                return Err(KidError::StringLengthExceeded(
+                    "service.service_type".to_string(),
+                ));
             }
             if svc.protocol.len() > 64 {
-                return Err(KidError::StringLengthExceeded("service.protocol".to_string()));
+                return Err(KidError::StringLengthExceeded(
+                    "service.protocol".to_string(),
+                ));
             }
             if svc.endpoint.len() > crate::LIMITS_KID_MAX_ENDPOINT_BYTES {
-                return Err(KidError::StringLengthExceeded("service.endpoint".to_string()));
+                return Err(KidError::StringLengthExceeded(
+                    "service.endpoint".to_string(),
+                ));
             }
         }
 
@@ -158,16 +168,17 @@ impl CapabilityManifest {
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
         for key in &kid_document.controller_keys {
-            if key.key_type.eq_ignore_ascii_case("MlDsa65") || key.key_type.eq_ignore_ascii_case("ML-DSA-65") {
-                if let Ok(pk_bytes) = b64_url.decode(&key.public_key) {
-                    use ml_dsa::KeyInit;
-                    if let Ok(public_key) =
-                        ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
-                    {
-                        use ml_dsa::signature::Verifier;
-                        if public_key.verify(&msg_bytes, &signature).is_ok() {
-                            return Ok(());
-                        }
+            if (key.key_type.eq_ignore_ascii_case("MlDsa65")
+                || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
+                && let Ok(pk_bytes) = b64_url.decode(&key.public_key)
+            {
+                use ml_dsa::KeyInit;
+                if let Ok(public_key) =
+                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
+                {
+                    use ml_dsa::signature::Verifier;
+                    if public_key.verify(&msg_bytes, &signature).is_ok() {
+                        return Ok(());
                     }
                 }
             }
@@ -182,8 +193,8 @@ impl CapabilityManifest {
     ///
     /// - Returns [`KidError::CanonicalizationError`] if JCS canonicalization fails.
     pub fn sign(mut self, keypair: &ml_dsa::SigningKey<ml_dsa::MlDsa65>) -> Result<Self, KidError> {
-        use ml_dsa::signature::Signer;
         use ml_dsa::SignatureEncoding;
+        use ml_dsa::signature::Signer;
         let msg_str = self.canonicalize()?;
         let mut msg_bytes = b"kinetic-manifest-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());

@@ -56,11 +56,15 @@ pub enum KidError {
     ManifestExpired,
     /// The `kid` DID identifier does not match the SHA-256 hash of the primary controller key.
     /// Returned by `verify_genesis()` when publishing a KID document for the first time.
-    #[error("KID document genesis binding failed: DID does not match SHA-256 of primary controller key (KIN-KID-015)")]
+    #[error(
+        "KID document genesis binding failed: DID does not match SHA-256 of primary controller key (KIN-KID-015)"
+    )]
     DidKeyMismatch,
     /// A KID document update was rejected because it was not signed by a key
     /// that appeared in the previously stored version of this document.
-    #[error("KID document update rejected: not authorized by any key in the existing document (KIN-KID-016)")]
+    #[error(
+        "KID document update rejected: not authorized by any key in the existing document (KIN-KID-016)"
+    )]
     UnauthorizedKidUpdate,
 }
 
