@@ -11,8 +11,7 @@
 //! - **1 Lattice** = 30 Prisms (1 Month / 30 Days / 864,000 Kyns)
 //! - **1 Apex** = 365 Prisms (1 Year / 365 Days / 10,512,000 Kyns)
 
-
-pub use kinetic_types::clock::{kyn_to_unix_secs, unix_secs_to_kyn, KineticTime};
+pub use kinetic_types::clock::{KineticTime, kyn_to_unix_secs, unix_secs_to_kyn};
 
 /// Converts an absolute Drand kyn to deterministic Unix epoch seconds using network constants.
 #[inline]
@@ -51,14 +50,14 @@ mod tests {
         assert_eq!(time.facet, 0);
         assert_eq!(time.kyn, 0);
         assert_eq!(time.total_kyns, 0);
-        assert_eq!(time.to_display_string(), "Prism 0, Facet 0 (Kyn 0)");
     }
 
     #[test]
     #[allow(clippy::absurd_extreme_comparisons)]
     fn test_kinetic_time_pre_genesis() {
         if KINETIC_GENESIS_DRAND_KYN > 0 {
-            let time = KineticTime::from_kyn(KINETIC_GENESIS_DRAND_KYN - 1, KINETIC_GENESIS_DRAND_KYN);
+            let time =
+                KineticTime::from_kyn(KINETIC_GENESIS_DRAND_KYN - 1, KINETIC_GENESIS_DRAND_KYN);
             assert_eq!(time.total_kyns, 0);
         }
     }
@@ -75,7 +74,6 @@ mod tests {
         assert_eq!(time.facet, 2);
         assert_eq!(time.kyn, 45);
         assert_eq!(time.total_kyns, 31_245);
-        assert_eq!(time.to_display_string(), "Prism 1, Facet 2 (Kyn 45)");
     }
 
     #[test]

@@ -150,7 +150,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                             if let Some(records) = zone.records.get("@") {
                                 for record in records {
                                     if let kinetic_core::types::DnsRecord::KID(did) = record {
-                                        info!("E2E Auth: Domain specifies KID: {}. Fetching from daemon...", did);
+                                        info!(
+                                            "E2E Auth: Domain specifies KID: {}. Fetching from daemon...",
+                                            did
+                                        );
                                         let kid_url =
                                             format!("{}/api/resolve-kid/{}", api_url, did);
                                         match http_client.get(&kid_url).send().await {
@@ -162,9 +165,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                     use base64::Engine;
                                                     let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(domain_record.pubkey());
 
-                                                    if let Some(keys) = kid_json["kid_document"]
-                                                        ["controller_keys"]
-                                                        .as_array()
+                                                    if let Some(keys) =
+                                                        kid_json["kid_document"]["controller_keys"]
+                                                            .as_array()
                                                     {
                                                         for key in keys {
                                                             if key["public_key"].as_str()
@@ -176,7 +179,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                         }
                                                     }
                                                     if !matched {
-                                                        warn!("E2E Auth Failed: Record pubkey does not match authorized KID {}", did);
+                                                        warn!(
+                                                            "E2E Auth Failed: Record pubkey does not match authorized KID {}",
+                                                            did
+                                                        );
                                                         let response = builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
                                                         let _ = response_handle
                                                             .send_response(response)
@@ -184,7 +190,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                         header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
                                                         return header.into();
                                                     } else {
-                                                        info!("E2E Auth Successful: Record pubkey matches Authorized KID {}", did);
+                                                        info!(
+                                                            "E2E Auth Successful: Record pubkey matches Authorized KID {}",
+                                                            did
+                                                        );
                                                     }
                                                 }
                                             }
@@ -232,11 +241,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 if sub.ends_with('.') {
                                     sub.pop();
                                 }
-                                if sub.is_empty() {
-                                    "@".to_string()
-                                } else {
-                                    sub
-                                }
+                                if sub.is_empty() { "@".to_string() } else { sub }
                             };
 
                             if let Some(records) = zone
@@ -262,7 +267,14 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 let q_type = query.query_type();
                                 let mut response_records = Vec::new();
 
+                                // To respect Web2 RFCs at the DNS edge, if a CNAME exists, it must be the ONLY record returned.
+                                // We filter out the KID (and anything else) for Web2 OS resolvers.
+                                let has_cname = records.iter().any(|r| matches!(r, kinetic_core::types::DnsRecord::CNAME(_)));
+
                                 for record in records {
+                                    if has_cname && !matches!(record, kinetic_core::types::DnsRecord::CNAME(_)) {
+                                        continue; // Only return CNAME to legacy Web2 resolvers
+                                    }
                                     match record {
                                         kinetic_core::types::DnsRecord::A(ip)
                                             if q_type == hickory_proto::rr::RecordType::A =>
@@ -270,7 +282,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             if !kinetic_core::net::is_ssrf_safe(
                                                 std::net::IpAddr::V4(*ip),
                                             ) {
-                                                warn!("Blocked SSRF attempt: A record points to forbidden IP {}", ip);
+                                                warn!(
+                                                    "Blocked SSRF attempt: A record points to forbidden IP {}",
+                                                    ip
+                                                );
                                                 continue;
                                             }
                                             response_records.push(Record::from_rdata(
@@ -285,7 +300,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             if !kinetic_core::net::is_ssrf_safe(
                                                 std::net::IpAddr::V6(*ip),
                                             ) {
-                                                warn!("Blocked SSRF attempt: AAAA record points to forbidden IP {}", ip);
+                                                warn!(
+                                                    "Blocked SSRF attempt: AAAA record points to forbidden IP {}",
+                                                    ip
+                                                );
                                                 continue;
                                             }
                                             response_records.push(Record::from_rdata(
@@ -302,13 +320,19 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 || target.ends_with(".localhost")
                                                 || target.ends_with(".local")
                                             {
-                                                warn!("Blocked SSRF attempt: CNAME record points to local domain {}", target);
+                                                warn!(
+                                                    "Blocked SSRF attempt: CNAME record points to local domain {}",
+                                                    target
+                                                );
                                                 continue;
                                             }
 
                                             if let Ok(ip) = target.parse::<std::net::IpAddr>() {
                                                 if !kinetic_core::net::is_ssrf_safe(ip) {
-                                                    warn!("Blocked SSRF attempt: CNAME record points to forbidden IP {}", ip);
+                                                    warn!(
+                                                        "Blocked SSRF attempt: CNAME record points to forbidden IP {}",
+                                                        ip
+                                                    );
                                                     continue;
                                                 }
                                             }

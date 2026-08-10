@@ -3,14 +3,13 @@
 //! Handles standard DNS record types ([`A`](DnsRecord::A), [`AAAA`](DnsRecord::AAAA), [`CNAME`](DnsRecord::CNAME), [`TXT`](DnsRecord::TXT))
 //! as well as Kinetic-native decentralized record types ([`PeerId`](DnsRecord::PeerId), [`KID`](DnsRecord::KID), [`IPFS`](DnsRecord::IPFS)).
 
-
 pub use kinetic_types::dns::{DnsRecord, DnsZone, HostRoutingRecord};
 
 /// Extension trait for DnsZone containing validation and parsing logic.
 pub trait DnsZoneExt: Sized {
     /// Parses a raw JSON payload into a [`DnsZone`] and validates its structure.
     fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError>;
-    
+
     /// Validates all records within the DNS zone for structural correctness and network limits.
     fn validate(&self) -> Result<(), crate::error::DnsError>;
 }
@@ -78,10 +77,18 @@ impl DnsZoneExt for DnsZone {
             }
 
             let has_cname = records.iter().any(|r| matches!(r, DnsRecord::CNAME(_)));
-            if has_cname && records.len() > 1 {
-                return Err(crate::error::DnsError::InvalidCnameConfiguration(
-                    label.clone(),
-                ));
+            if has_cname {
+                // By default (RFC 1034), a CNAME must be the only record on its label.
+                // However, RFC 4035 (DNSSEC) explicitly allows cryptographic identity records
+                // (like RRSIG and NSEC) to coexist with CNAMEs because they provide proof of identity
+                // rather than conflicting routing data. We map this exception to Web3 by allowing
+                // the `KID` (Kinetic Identity Document) record to coexist with a CNAME.
+                let has_forbidden = records.iter().any(|r| !matches!(r, DnsRecord::CNAME(_) | DnsRecord::KID(_)));
+                if has_forbidden {
+                    return Err(crate::error::DnsError::InvalidCnameConfiguration(
+                        label.clone(),
+                    ));
+                }
             }
 
             for record in records {
@@ -219,6 +226,20 @@ mod tests {
             zone.validate().unwrap_err(),
             DnsError::InvalidCnameConfiguration("www".to_string())
         );
+    }
+
+    #[test]
+    fn test_cname_kid_coexistence() {
+        // CNAME and KID are allowed to coexist (RFC 4035 / Web3 mapping)
+        let mut zone = DnsZone::default();
+        zone.records.insert(
+            "www".to_string(),
+            vec![
+                DnsRecord::CNAME("target.kin".to_string()),
+                DnsRecord::KID("did:kin:123".to_string()),
+            ],
+        );
+        assert!(zone.validate().is_ok());
     }
 
     #[test]
