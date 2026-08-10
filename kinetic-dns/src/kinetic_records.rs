@@ -316,12 +316,19 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             // By DNS RFC, a CNAME should be returned regardless of what the user asked for (A/AAAA/TXT).
                                             // The OS resolver will receive the CNAME and recursively follow it.
 
-                                            if target.eq_ignore_ascii_case("localhost")
-                                                || target.ends_with(".localhost")
-                                                || target.ends_with(".local")
-                                            {
+                                            let target_lower = target.to_lowercase();
+                                            let mut is_blocked_cname = false;
+
+                                            for &blocked_name in kinetic_core::types::names::PUBLIC_NAMES {
+                                                if target_lower == blocked_name || target_lower.ends_with(&format!(".{}", blocked_name)) {
+                                                    is_blocked_cname = true;
+                                                    break;
+                                                }
+                                            }
+
+                                            if is_blocked_cname {
                                                 warn!(
-                                                    "Blocked SSRF attempt: CNAME record points to local domain {}",
+                                                    "Blocked SSRF attempt: CNAME record points to forbidden local/internal domain {}",
                                                     target
                                                 );
                                                 continue;
