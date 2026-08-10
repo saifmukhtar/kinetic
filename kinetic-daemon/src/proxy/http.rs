@@ -11,7 +11,10 @@ pub async fn handle_proxy_request(
     config: Arc<kinetic_core::config::KineticConfig>,
     node_peer_id: String,
 ) -> Result<Response<axum::body::Body>, std::convert::Infallible> {
-    let loop_header = req.headers().get("x-kinetic-loop-protect").and_then(|h| h.to_str().ok());
+    let loop_header = req
+        .headers()
+        .get("x-kinetic-loop-protect")
+        .and_then(|h| h.to_str().ok());
     if loop_header == Some(&node_peer_id) {
         return Ok(Response::builder()
             .status(StatusCode::LOOP_DETECTED)
@@ -93,7 +96,9 @@ pub async fn handle_proxy_request(
     info!("Proxying plain HTTP request for {} -> {}", host_name, path);
 
     // Resolve PeerId/IP from DHT
-    match forward_to_backend_direct(req, &host_name, &client, Arc::clone(&config), &node_peer_id).await {
+    match forward_to_backend_direct(req, &host_name, &client, Arc::clone(&config), &node_peer_id)
+        .await
+    {
         Ok(resp) => Ok(resp),
         Err(e) => {
             warn!("Proxy request failed: {}", e);
@@ -205,11 +210,8 @@ pub async fn forward_to_backend_direct(
                 current_domain = target;
                 continue;
             } else {
-                tracing::warn!(
-                    "CNAME points to external domain {} which proxy cannot resolve",
-                    target
-                );
-                return Err(ProxyError::NameNotFound(current_domain.clone()));
+                tracing::info!("CNAME points to external Web2 domain {}. Handing off to Web2 Bridge.", target);
+                return crate::proxy::web2_bridge::forward_to_web2_backend(req, &target).await;
             }
         }
 
@@ -324,14 +326,18 @@ pub async fn forward_to_backend_direct(
 
         // Auto-upgrade public IPs to HTTPS and port 443
         let scheme = if is_ssrf { "http" } else { "https" };
-        let port = if !is_ssrf && original_port == 80 { 443 } else { original_port };
+        let port = if !is_ssrf && original_port == 80 {
+            443
+        } else {
+            original_port
+        };
 
         let formatted_host = if ip_addr.is_ipv6() {
             format!("[{}]", ip_addr)
         } else {
             ip_addr.to_string()
         };
-        
+
         let backend_url = format!(
             "{}://{}:{}{}",
             scheme,
@@ -385,7 +391,8 @@ pub async fn forward_to_backend_direct(
         {
             tracing::info!(
                 "Resolved HostRoutingRecord for static Host ID {}: dynamically routing to Ephemeral Peer ID {}",
-                peer_id, record.current_peer_id
+                peer_id,
+                record.current_peer_id
             );
             if let Ok(dynamic_peer_id) = record.current_peer_id.parse::<libp2p::PeerId>() {
                 peer_id = dynamic_peer_id;

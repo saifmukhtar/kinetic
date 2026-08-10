@@ -22,10 +22,14 @@ pub mod p2p;
 pub mod security;
 /// Network tunneling for proxy requests
 pub mod tunnel;
+/// Web2 CNAME bridge and SSRF safe resolution
+pub mod web2_bridge;
+
 pub use http::*;
 pub use p2p::*;
 use security::*;
 pub use tunnel::*;
+pub use web2_bridge::*;
 
 /// Errors that can occur during proxy operations.
 #[derive(Debug, thiserror::Error)]
