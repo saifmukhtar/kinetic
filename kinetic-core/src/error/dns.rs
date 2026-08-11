@@ -31,8 +31,8 @@ pub enum DnsError {
     #[error("Invalid label character: {0}")]
     InvalidLabelCharacters(String),
 
-    /// A CNAME record was provided alongside other records for the same label.
-    #[error("CNAME record for '{0}' must be the only record")]
+    /// A CNAME record was provided alongside incompatible records (KID is the only allowed coexistence).
+    #[error("CNAME record for '{0}' must be the only routing record (KID is allowed)")]
     InvalidCnameConfiguration(String),
 
     /// A TXT record exceeds the maximum allowed length (255 bytes).
@@ -126,7 +126,7 @@ impl DnsError {
                 "A DNS record label contains invalid characters.".to_string()
             }
             Self::InvalidCnameConfiguration(_) => {
-                "A CNAME record must be the only record for its label.".to_string()
+                "A CNAME record must be the only routing record for its label, except for cryptographic KID records.".to_string()
             }
             Self::TxtRecordTooLong(_) => {
                 "A TXT record is too long (maximum 255 bytes).".to_string()

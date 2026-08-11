@@ -45,7 +45,7 @@ impl DnsZoneExt for DnsZone {
     /// - Returns [`DnsError::TooManyRecords`](crate::error::DnsError::TooManyRecords) if the zone contains more than 50 total records.
     /// - Returns [`DnsError::InvalidLabelLength`](crate::error::DnsError::InvalidLabelLength) if a label is empty or exceeds 63 characters.
     /// - Returns [`DnsError::InvalidLabelCharacters`](crate::error::DnsError::InvalidLabelCharacters) if a label contains invalid characters or leading/trailing hyphens.
-    /// - Returns [`DnsError::InvalidCnameConfiguration`](crate::error::DnsError::InvalidCnameConfiguration) if a CNAME coexists with other records on the same label.
+    /// - Returns [`DnsError::InvalidCnameConfiguration`](crate::error::DnsError::InvalidCnameConfiguration) if a CNAME coexists with other records (except `KID`) on the same label.
     /// - Returns [`DnsError::TxtRecordTooLong`](crate::error::DnsError::TxtRecordTooLong) if a TXT record exceeds 255 bytes.
     /// - Returns [`DnsError::InvalidCnameTarget`](crate::error::DnsError::InvalidCnameTarget) if a CNAME target is empty or > 253 characters.
     /// - Returns [`DnsError::InvalidPeerId`](crate::error::DnsError::InvalidPeerId) if a `PeerId` string fails libp2p parsing.
