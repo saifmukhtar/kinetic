@@ -31,17 +31,18 @@ In `permissionless` mode, the network operates as an immutable force of nature.
 ## 3. Decision-Making Process (The Governance Rule Book)
 
 ### Routine Changes
-Minor bug fixes, documentation updates, and standard refactoring can be merged via pull requests. However, they will not be pushed to the network unless an OTA update is authorized.
+Minor bug fixes, documentation updates, and standard refactoring can be merged via pull requests and shipped via regular binary releases.
 
-### Architectural Changes & OTA Updates
-Significant changes (e.g., modifying VDF parameters, altering the DHT routing logic) require an official network update.
-1. **Proposal:** A new binary is compiled, hashed, and proposed to the network alongside mirrors for downloading.
-2. **Authorization (Sovereign Only):** The Root Key signs the proposal hash.
-3. **Execution:** Once the network verifies the Root signature (or rejects it instantly if in Permissionless mode), the network automatically downloads, verifies the hash, and hot-swaps the running binary via `self_replace`.
+### Network Governance Actions
+Critical protocol parameters and apex namespace assignments are managed via cryptographically signed `SignedGovernanceMessage` payloads:
+1. **Prime Name Mapping (`MapPrime` / `UnmapPrime`):** Assigning single-character apex labels.
+2. **Infrastructure Mapping (`MapInfra` / `UnmapInfra`):** Routing core infrastructure domains.
+3. **Key Rotation (`RotateRootKey`):** Updating the 1,952-byte ML-DSA-65 Root Key.
+4. **Emergency Controls (`EmergencyHalt` / `EmergencyResume`):** Pausing or resuming network operations.
 
 ## 4. Conflict Resolution & Emergencies
 
-- **Emergency Reset:** If the network is catastrophically compromised while in Sovereign mode, the Root Key can issue an Emergency Halt or Key Rotation.
-- **Permissionless Forking:** If a network running in Permissionless mode encounters a catastrophic bug, the community must socially coordinate a hard fork via a new genesis block, as the protocol itself cannot be altered.
+- **Emergency Halt / Resume:** If the network is catastrophically compromised while in Sovereign mode, the Root Key can issue an `EmergencyHalt` or `RotateRootKey` command that executes immediately upon cryptographic signature verification.
+- **Permissionless Forking:** If a network running in Permissionless mode encounters a catastrophic bug, the community must coordinate a fork with a new network genesis via `network.json`, as the running protocol engine itself cannot be modified by any central key.
 
 For interpersonal conflicts or Code of Conduct violations, refer to the `CODE_OF_CONDUCT.md`.

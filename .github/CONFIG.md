@@ -26,14 +26,16 @@ Settings related to local services, storage, and the HTTP API.
 
 * **`bind_ip`** (👁️ *Hidden by default*)
   * Local IP address to bind to for daemon services (Default: `127.0.0.2`).
+* **`pac_bind_ip`** (👁️ *Hidden by default*)
+  * IP address used by the PAC script and the proxy (Default: `127.0.0.2`).
 * **`api_port`** (👁️ *Hidden by default*)
-  * Port for the daemon's authenticated HTTP API.
+  * Port for the daemon's authenticated HTTP API (Default: `16002`).
 * **`proxy_port`** (👁️ *Hidden by default*)
-  * Port for the built-in HTTP reverse proxy.
+  * Port for the built-in HTTP reverse proxy (Default: `17001`).
 * **`backend_port`** (👁️ *Hidden by default*)
-  * Port for the local backend HTTP server.
+  * Port for the local backend HTTP server (Default: `80`).
 * **`pac_port`** (👁️ *Hidden by default*)
-  * Port for the Proxy Auto-Config (PAC) server.
+  * Port for the Proxy Auto-Config (PAC) server (Default: `16001`).
 
 ---
 
@@ -46,19 +48,21 @@ Settings for peer-to-peer (P2P) networking, peer discovery, and listening ports.
   * List of domains used to discover additional bootstrap peers via DNS.
 * **`enable_mdns`** (✅ **Visible by default**)
   * Whether to enable mDNS peer discovery on the local Wi-Fi network.
+* **`enable_anonymous_telemetry`** (✅ **Visible by default**)
+  * Send anonymous statistics with a transient ghost SessionID to map network health (`true`/`false`).
 
 * **`daemon_port`** (👁️ *Hidden by default*)
-  * TCP listening port for the P2P daemon.
+  * TCP listening port for the P2P daemon (Default: `6070`).
 * **`daemon_quic_port`** (👁️ *Hidden by default*)
-  * QUIC listening port for the P2P daemon.
+  * QUIC listening port for the P2P daemon (Default: `6070`).
 * **`node_port`** (👁️ *Hidden by default*)
-  * TCP listening port for the public P2P node.
+  * TCP listening port for the public P2P node (Default: `6071`).
 * **`node_quic_port`** (👁️ *Hidden by default*)
-  * QUIC listening port for the public P2P node.
+  * QUIC listening port for the public P2P node (Default: `6071`).
 * **`host_port`** (👁️ *Hidden by default*)
-  * TCP listening port for the public P2P host.
+  * TCP listening port for the public P2P host (Default: `6072`).
 * **`host_quic_port`** (👁️ *Hidden by default*)
-  * QUIC listening port for the public P2P host.
+  * QUIC listening port for the public P2P host (Default: `6072`).
 * **`external_address`** (👁️ *Hidden by default*)
   * Force advertise a specific public multiaddr (useful for public nodes running behind complex NATs).
 

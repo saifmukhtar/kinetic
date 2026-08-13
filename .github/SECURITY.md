@@ -55,15 +55,17 @@ best-effort, not contractual:
   prefer to remain anonymous.
  
 ## Scope
- 
-**In scope:** the Rust workspace crates (`kinetic-core/`, `kinetic-network/`,
-`kinetic-daemon/`, `kinetic-vdf/`, `kinetic-dns/`, `kinetic-kid/`, `kinetic-storage/`,
-`kinetic-cli/`, `kinetic-host/`, `kinetic-node/`, `kinetic-wasm/`, `kinetic-forge/`,
-`kinetic-keygen/`), the SDKs, and the Tauri desktop client (`kinetic-client/desktop/`).
- 
+
+**In scope:** the Rust workspace crates (`kinetic-core/`, `kinetic-types/`, `kinetic-verify/`,
+`kinetic-network/`, `kinetic-daemon/`, `kinetic-vdf/`, `kinetic-vdfrs/`, `kinetic-tlock/`,
+`kinetic-dns/`, `kinetic-pac/`, `kinetic-kid/`, `kinetic-storage/`, `kinetic-cli/`,
+`kinetic-host/`, `kinetic-node/`, `kinetic-wasm/`, `kinetic-forge/`, `kinetic-test/`),
+the external OS/keygen helper (`kinetic-OS/kinetic-keygen`), the SDKs (`kinetic-sdk`),
+the Android browser (`kinetic-android`), and the Tauri desktop client (`kinetic-desktop/`).
+
 Representative concerns: DHT record poisoning, Sybil/eclipse, reactor-starvation
-DoS, signature/verification bypass, drand randomness binding, governance quorum /
-timelock / reset correctness, SSRF / DNS-rebinding / path traversal in the DNS
+DoS, signature/verification bypass, drand randomness binding, governance root key verification /
+emergency halt correctness, SSRF / DNS-rebinding / path traversal in the DNS
 and proxy, local key/token file permissions, and the light-client trust model.
  
 **Out of scope:** issues requiring an already-compromised local OS/root; attacks

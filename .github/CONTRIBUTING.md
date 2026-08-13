@@ -8,7 +8,7 @@ There are many ways to contribute to Kinetic:
 - **Core Rust Development:** Fixing bugs, optimizing the VDF engine `(kinetic-vdf/)`, or enhancing the Kademlia DHT logic `(kinetic-network/)`.
 - **Documentation:** Improving the mdBook, writing tutorials, or updating the IETF Internet-Drafts.
 - **Testing:** Writing end-to-end tests for the DHT swarm or finding edge cases in the deterministic XOR tie-breaker.
-- **UI/UX:** Enhancing the Tauri desktop app `(kinetic-client/desktop/src-tauri)`.
+- **UI/UX:** Enhancing the Tauri desktop app `(kinetic-desktop/src-tauri)`.
 
 ## 2. Reporting Issues
 

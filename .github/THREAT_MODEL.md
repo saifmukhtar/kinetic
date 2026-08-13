@@ -91,35 +91,34 @@ We assume the adversary **cannot**:
 - **Bootstrap nodes / seed domains are reachable and not fully compromised.**
   These are a known centralization point (see §7).
 - **The root governance key is generated offline and kept air-gapped.**
-  The `kinetic-core/src/constants.rs` file must replace the
-  `REPLACE_ME_*` placeholders in `ROOT_PUBLIC_KEY_HEX` before any real T0 deployment.
+  The production ML-DSA-65 root key is pinned and tested via SHA-256 fingerprint in `prod_keys::ROOT_PUBLIC_KEY_HEX`.
 - **The local machine is not already compromised.** Kinetic protects key files
   with `0o600`, but cannot defend against a local attacker who is already root.
 - **In T1/T2, the human members controlling reset/governance are honest.**
- 
+
 ---
- 
+
 ## 6. In scope vs. out of scope
- 
+
 **In scope:** DHT record poisoning/overwrite; Sybil/eclipse; reactor starvation
 via CPU/memory-heavy work on the async executor; unbounded resource growth;
-signature/verification bypasses; drand randomness binding; governance quorum,
-timelock, and reset correctness; SSRF/DNS-rebinding/path-traversal in the DNS +
+signature/verification bypasses; drand randomness binding; governance signature verification,
+emergency halt correctness; SSRF/DNS-rebinding/path-traversal in the DNS +
 proxy; local key/token permissions; light-client (wasm/mobile) trust model.
- 
+
 **Out of scope (documented, not defended):** a compromised local OS/root; a
 global adversary who defeats the underlying crypto; loss of the user's own seed
 phrase; availability of third-party infrastructure the operator chooses (custom
 drand, custom bootstrap); theft of the offline Root key; correctness of
 forks that disable security features intentionally.
- 
+
 ---
- 
+
 ## 7. Known centralization points (and mitigations)
- 
+
 Kinetic is decentralized in operation but has bootstrapping dependencies. Naming
 them explicitly is part of the threat model:
- 
+
 1. **Hardcoded bootstrap nodes** (`network.json → bootstrap_nodes`) and **seed
    domains** — a network-level or nation-state adversary could seize/block these.
    *Mitigation:* ship multiple diverse bootstrap addresses; allow operator-supplied
@@ -130,38 +129,38 @@ them explicitly is part of the threat model:
    signature *and* that `randomness == H(signature)`, and query multiple providers.
 3. **`docs_url` / error pages** — informational only; must never be trusted for
    security decisions.
- 
+
 ---
- 
+
 ## 8. Component-level threats (map to the audit)
- 
+
 | Component | Primary threats | Notes |
 |-----------|-----------------|-------|
 | `kinetic-network` (swarm/DHT) | Reactor starvation (sync VDF/PoW on the event loop), Sybil, eclipse, record poisoning, unbounded maps | Highest-risk crate on T0. Offload CPU/crypto to `spawn_blocking` with bounded concurrency. Enforces 16 MiB Argon2id PoW `(Source: kinetic-network/src/pow.rs:62)`. |
-| `kinetic-core` (drand, governance, names) | Randomness binding, quorum math, timelock bypass, fail-open on corrupt state, name-validation as path sanitizer | Governance/reset path is the T1/T2 crown jewel. Enforces Sovereign Root key rules `(Source: kinetic-core/src/governance/engine/sovereign.rs)`. |
+| `kinetic-core` (drand, governance, names) | Randomness binding, fail-open on corrupt state, name-validation as path sanitizer | Governance path is the T1/T2 crown jewel. Enforces Sovereign Root key rules `(Source: kinetic-core/src/governance/engine/sovereign.rs)`. |
 | `kinetic-vdf` (Chia FFI) | `unsafe` FFI invariants, discriminant integrity, timing | Verify all invariants before raw pointer use. Discriminant derivation must match exactly between evaluate and verify. |
 | `kinetic-daemon` (DNS/proxy/CA/API) | SSRF, DNS-rebinding, path traversal, local-CA name-constraints, host-header validation, API auth/permissions | Local CA must be name-constrained so it can never MITM non-`.kin` traffic. |
-| `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. Enforces max 50 records per zone `(Source: kinetic-core/src/types/dns.rs:135)`. |
+| `kinetic-dns` | Serving unverified records, cache poisoning, SSRF filter drift | DNS layer should not be the trust boundary; verify upstream of the cache. Enforces max 50 records per zone `(Source: kinetic-core/src/types/dns.rs:56)`. |
 | `kinetic-kid` | DID hijack, manifest rollback, revocation enforcement | DID↔pubkey binding is strong; manifest version/`valid_from` and revocation (via explicit revocation keys) need enforcement. Max 20 keys. |
 | `kinetic-wasm` / mobile light client | Accepting records without VDF verification, frozen drand clock | Light clients must not accept "N identical payloads" as proof. |
 | `kinetic-storage` | Fail-open corruption recovery, unbounded storage | Separate cache (safe to reset) from authoritative local state (fail closed). |
-| `kinetic-client/desktop` (Tauri App) | IPC compromise, Webview XSS, unauthorized local key/token access | Tauri architecture places frontend webview in untrusted scope and Rust backend in trusted scope. IPC messages must be heavily sanitized `(Source: kinetic-client/desktop/src-tauri)`. |
+| `kinetic-desktop` (Tauri App) | IPC compromise, Webview XSS, unauthorized local key/token access | Tauri architecture places frontend webview in untrusted scope and Rust backend in trusted scope. IPC messages must be heavily sanitized `(Source: kinetic-desktop/src-tauri)`. |
 | `kinetic-cli` / `kinetic-forge` | Key lifecycle (discarded controller keys), plaintext beacon defaults, path handling | User-facing footguns. |
- 
+
 ---
- 
+
 ## 9. Security goals summary (what "secure" means here)
- 
+
 - **T0:** an adversary with large but bounded compute cannot poison a name/KID a
-  correct node will accept, cannot cheaply freeze a node, and cannot push a
-  binary update without quorum + timelock.
-- **T1/T2:** an adversary cannot press or forge the reset/governance action, cannot
+  correct node will accept, cannot cheaply freeze a node, and cannot push an
+  unauthorized governance action without the authentic ML-DSA-65 Root key.
+- **T1/T2:** an adversary cannot forge the reset/governance action, cannot
   impersonate a member's key, and cannot exhaust the operator's node; squatting is
   neutralized by the community reset rather than by cryptographic cost.
- 
+
 ---
- 
+
 ## 10. Reporting
- 
+
 Security issues: see [`SECURITY.md`](./SECURITY.md). Please report privately
 before public disclosure.
