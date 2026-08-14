@@ -157,7 +157,9 @@ impl NameRecord {
                     .map_err(|_| crate::vdf::VdfVerifyError::MalformedPublicKey)?;
 
                 let mut signable = Vec::new();
+                signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
                 signable.extend_from_slice(name.as_bytes());
+                signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
                 signable.extend_from_slice(payload);
                 signable.extend_from_slice(network_salt);
 
