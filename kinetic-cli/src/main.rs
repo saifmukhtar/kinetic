@@ -22,7 +22,7 @@ mod commands;
 mod utils;
 
 use clap::Parser;
-use commands::{handle_service_command, Commands};
+use commands::{Commands, handle_service_command};
 use kinetic_core::config::KineticConfig;
 use tracing_subscriber::FmtSubscriber;
 

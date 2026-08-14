@@ -1,5 +1,5 @@
 use kinetic_core::types::RevealExt;
-use kinetic_core::types::{Reveal, VdfProof, MAX_PAYLOAD_SIZE};
+use kinetic_core::types::{MAX_PAYLOAD_SIZE, Reveal, VdfProof};
 
 #[test]
 fn test_003_oom_payload_bomb() {
@@ -10,7 +10,7 @@ fn test_003_oom_payload_bomb() {
 
     let reveal = Reveal {
         protocol_version: 1,
-        name: format!("{}{}", "malicious", kinetic_core::constants::TLD_SUFFIX),
+        name: format!("{}{}", "malicious", kinetic_core::constants::NSP_SUFFIX),
         payload: oversized_payload,
         salt: [0u8; 32],
         drand_kyn: 100,

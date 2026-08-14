@@ -6,11 +6,12 @@
 
 use futures_timer::Delay;
 use js_sys::Function;
-use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
 use kinetic_network::NetworkEventLoop;
+use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
 use kinetic_storage::SledStorage;
 use libp2p::identity::Keypair;
 
+use kinetic_core::types::DnsZoneExt;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -18,13 +19,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
 use wasm_bindgen::prelude::*;
-use kinetic_core::types::DnsZoneExt;
 
 /// Configuration for a specific Kinetic network fork.
 #[wasm_bindgen(getter_with_clone)]
 #[derive(Clone, serde::Deserialize)]
 pub struct AtlasNetworkConfig {
-    /// The TLD (e.g. "kin")
+    /// The NSP (e.g. "kin")
     pub id: String,
     /// Display name
     pub name: String,
@@ -82,13 +82,13 @@ impl UniversalKineticNode {
                 Delay::new(Duration::from_secs(60)).await;
                 let now = js_sys::Date::now();
                 let mut lock = swarms_clone.borrow_mut();
-                lock.retain(|tld, handle| {
+                lock.retain(|nsp, handle| {
                     if now - handle.last_used > 10.0 * 60.0 * 1000.0 {
                         let this = JsValue::null();
                         let _ = on_event.call2(
                             &this,
                             &JsValue::from_str("status"),
-                            &JsValue::from_str(&format!("Shutting down idle swarm for {}", tld)),
+                            &JsValue::from_str(&format!("Shutting down idle swarm for {}", nsp)),
                         );
                         false
                     } else {
@@ -152,16 +152,16 @@ impl UniversalKineticNode {
     pub fn get_supported_tlds(&self) -> js_sys::Array {
         let registry = self.registry.borrow();
         let arr = js_sys::Array::new_with_length(registry.len() as u32);
-        for (i, tld) in registry.keys().enumerate() {
-            arr.set(i as u32, JsValue::from_str(tld));
+        for (i, nsp) in registry.keys().enumerate() {
+            arr.set(i as u32, JsValue::from_str(nsp));
         }
         arr
     }
 
-    async fn get_or_spawn_swarm(&self, tld: &str) -> Result<NetworkClient, JsValue> {
+    async fn get_or_spawn_swarm(&self, nsp: &str) -> Result<NetworkClient, JsValue> {
         {
             let mut lock = self.swarms.borrow_mut();
-            if let Some(handle) = lock.get_mut(tld) {
+            if let Some(handle) = lock.get_mut(nsp) {
                 handle.last_used = js_sys::Date::now();
                 return Ok(handle.client.clone());
             }
@@ -169,12 +169,12 @@ impl UniversalKineticNode {
 
         let config = {
             let reg = self.registry.borrow();
-            reg.get(tld)
+            reg.get(nsp)
                 .cloned()
-                .ok_or_else(|| JsValue::from_str(&format!("TLD not found in registry: {}", tld)))?
+                .ok_or_else(|| JsValue::from_str(&format!("NSP not found in registry: {}", nsp)))?
         };
 
-        self.emit_event("status", &format!("Spawning new swarm for .{}", tld));
+        self.emit_event("status", &format!("Spawning new swarm for .{}", nsp));
 
         let mut bootstrap_nodes = vec![];
         for addr in config.bootstrap_nodes.iter() {
@@ -222,7 +222,7 @@ impl UniversalKineticNode {
         });
 
         self.swarms.borrow_mut().insert(
-            tld.to_string(),
+            nsp.to_string(),
             SwarmHandle {
                 client: client.clone(),
                 last_used: js_sys::Date::now(),
@@ -235,8 +235,8 @@ impl UniversalKineticNode {
     /// Resolves a full domain name (e.g. "mywebsite.kin")
     #[wasm_bindgen]
     pub async fn resolve_domain(&self, full_domain: String) -> Result<JsValue, JsValue> {
-        let tld = full_domain.split('.').next_back().unwrap_or(&full_domain);
-        let client = self.get_or_spawn_swarm(tld).await?;
+        let nsp = full_domain.split('.').next_back().unwrap_or(&full_domain);
+        let client = self.get_or_spawn_swarm(nsp).await?;
 
         let bytes = client
             .resolve_redundant_payload(&full_domain)
@@ -250,14 +250,11 @@ impl UniversalKineticNode {
             return Err(JsValue::from_str("Record name mismatch"));
         }
 
-        // Validate signature against the dynamic network_id
-        let network_id = self
-            .registry
-            .borrow()
-            .get(tld)
-            .map(|c| c.network_id.clone())
-            .unwrap_or_else(|| kinetic_core::constants::NETWORK_ID.to_string());
-        if record.verify_signature(&network_id).is_err() {
+        // Validate signature against the mathematical network salt
+        if record
+            .verify_signature(kinetic_core::constants::NETWORK_SALT)
+            .is_err()
+        {
             return Err(JsValue::from_str("Invalid record signature"));
         }
 
@@ -270,15 +267,15 @@ impl UniversalKineticNode {
         Ok(js_obj)
     }
 
-    /// Sends an HTTP GET proxy request over a specific TLD's P2P network.
+    /// Sends an HTTP GET proxy request over a specific NSP's P2P network.
     #[wasm_bindgen]
     pub async fn fetch_proxy(
         &self,
-        tld: String,
+        nsp: String,
         peer_id_str: String,
         path: String,
     ) -> Result<js_sys::Uint8Array, JsValue> {
-        let client = self.get_or_spawn_swarm(&tld).await?;
+        let client = self.get_or_spawn_swarm(&nsp).await?;
 
         let peer_id: libp2p::PeerId = peer_id_str
             .parse()

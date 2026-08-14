@@ -1,6 +1,6 @@
+use crate::client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, ProxyResponse};
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
-use crate::client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, ProxyResponse};
 
 #[cfg(not(target_arch = "wasm32"))]
 use super::fullnode;
@@ -36,7 +36,7 @@ impl super::core::NetworkEventLoop {
         } else {
             #[cfg(target_arch = "wasm32")]
             panic!("FullNode mode is not supported on WebAssembly");
-            
+
             #[cfg(not(target_arch = "wasm32"))]
             fullnode::build_full_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         };
@@ -86,21 +86,18 @@ impl super::core::NetworkEventLoop {
                 ) {
                     for (key_bytes, val_bytes) in iter {
                         let prefix_len = kinetic_core::constants::DB_PREFIX_BANNED_PEER.len();
-                        if key_bytes.len() > prefix_len {
-                            if let Ok(peer_id_str) = std::str::from_utf8(&key_bytes[prefix_len..]) {
-                                if let Ok(peer_id) = peer_id_str.parse::<libp2p::PeerId>() {
-                                    if val_bytes.len() == 8 {
-                                        let expire = u64::from_be_bytes(
-                                            val_bytes[..8].try_into().unwrap_or([0; 8]),
-                                        );
-                                        let now = config.initial_drand_kyn;
-                                        if expire > now {
-                                            peers.put(peer_id, expire);
-                                        } else {
-                                            let _ = storage.delete(&key_bytes);
-                                        }
-                                    }
-                                }
+                        if key_bytes.len() > prefix_len
+                            && let Ok(peer_id_str) = std::str::from_utf8(&key_bytes[prefix_len..])
+                            && let Ok(peer_id) = peer_id_str.parse::<libp2p::PeerId>()
+                            && val_bytes.len() == 8
+                        {
+                            let expire =
+                                u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
+                            let now = config.initial_drand_kyn;
+                            if expire > now {
+                                peers.put(peer_id, expire);
+                            } else {
+                                let _ = storage.delete(&key_bytes);
                             }
                         }
                     }
@@ -122,5 +119,4 @@ impl super::core::NetworkEventLoop {
 
         Ok((client, event_loop))
     }
-
 }

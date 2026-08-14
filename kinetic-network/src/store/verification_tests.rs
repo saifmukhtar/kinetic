@@ -3,8 +3,8 @@ mod tests {
     use crate::error::KineticStoreError;
     use crate::store::verification::verify_host_routing_record;
     use kinetic_core::types::HostRoutingRecord;
-    use libp2p::identity::Keypair;
     use libp2p::PeerId;
+    use libp2p::identity::Keypair;
     #[test]
     fn test_host_routing_freshness() {
         let peer_id = PeerId::from(Keypair::generate_ed25519().public()); // Random but we won't verify sig if timestamp is stale
@@ -58,11 +58,11 @@ mod tests {
         use crate::store::verification::verify_authorized_kid;
         use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
         use kinetic_kid::document::KidDocument;
-        use ml_dsa::signature::Signer;
         use ml_dsa::Generate;
         use ml_dsa::KeyExport;
         use ml_dsa::Keypair;
         use ml_dsa::SignatureEncoding;
+        use ml_dsa::signature::Signer;
 
         let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
         let ml_pub = ml_kp.verifying_key();
@@ -85,7 +85,7 @@ mod tests {
             authorization: None,
         };
 
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
         let pub_key_b64 = b64_url.encode(ml_pub.to_bytes());
 
         use sha2::{Digest, Sha256};
@@ -131,7 +131,7 @@ mod tests {
         };
 
         // Sign the kid_doc with our ML-DSA key
-        let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID);
+        let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT);
         auth_kid.owner_signature = ml_kp.sign(&signable).to_vec();
 
         // Pass it through validation! (We mock existing_record as Some to bypass genesis bindings in this simple test)

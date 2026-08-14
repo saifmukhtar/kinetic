@@ -1,6 +1,6 @@
 //! Criterion benchmark suite for VDF evaluation and proof verification performance.
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::Commitment;
 use kinetic_vdf::ChiaVdfEngine;

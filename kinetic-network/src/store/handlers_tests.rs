@@ -3,8 +3,8 @@ mod tests {
     use crate::store::core::KineticRecordStore;
     use kinetic_core::types::{Reveal, VdfProof};
     use kinetic_storage::SledStorage;
-    use libp2p::identity::Keypair;
     use libp2p::PeerId;
+    use libp2p::identity::Keypair;
     use std::sync::Arc;
     use tempfile::tempdir;
 
@@ -142,7 +142,7 @@ mod tests {
         // Sign the stale heartbeat
         use ml_dsa::signature::Signer;
         hb.signature = ml_kp
-            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_ID))
+            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT))
             .to_vec();
 
         let result = store.handle_heartbeat(&hb);

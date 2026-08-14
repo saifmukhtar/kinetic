@@ -39,15 +39,15 @@ impl AuthorizedKid {
     /// # Returns
     ///
     /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
-    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
-        let prefix_suffix = b"-auth-kid-v1";
+    pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
+        let name_separator = b"-kid-manifest-v1";
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
         let mut bytes = Vec::with_capacity(
-            network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 4 + canon_bytes.len(),
+            network_salt.len() + name_separator.len() + 4 + self.name.len() + 4 + canon_bytes.len(),
         );
-        bytes.extend_from_slice(network_id.as_bytes());
-        bytes.extend_from_slice(prefix_suffix);
+        bytes.extend_from_slice(network_salt);
+        bytes.extend_from_slice(name_separator);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&(canon_bytes.len() as u32).to_be_bytes());
@@ -78,15 +78,15 @@ impl AuthorizedManifest {
     /// # Returns
     ///
     /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
-    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
-        let prefix_suffix = b"-auth-manifest-v1";
+    pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
+        let name_separator = b"-auth-manifest-v1";
         let canon_bytes = self.manifest.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
         let mut bytes = Vec::with_capacity(
-            network_id.len() + prefix_suffix.len() + 4 + self.name.len() + 4 + canon_bytes.len(),
+            network_salt.len() + name_separator.len() + 4 + self.name.len() + 4 + canon_bytes.len(),
         );
-        bytes.extend_from_slice(network_id.as_bytes());
-        bytes.extend_from_slice(prefix_suffix);
+        bytes.extend_from_slice(network_salt);
+        bytes.extend_from_slice(name_separator);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
         bytes.extend_from_slice(&(canon_bytes.len() as u32).to_be_bytes());

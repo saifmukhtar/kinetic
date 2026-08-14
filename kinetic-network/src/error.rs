@@ -154,10 +154,12 @@ impl KineticStoreError {
             Self::InvalidName => "Name is not a valid Kinetic apex domain".to_string(),
             Self::NetworkHalted => "Network Registration Halted".to_string(),
             Self::DelegatedCapabilityMissing => {
-                "The delegated manifest does not grant the required capability for this action.".to_string()
+                "The delegated manifest does not grant the required capability for this action."
+                    .to_string()
             }
             Self::DelegatedAuthorizationInvalid => {
-                "The delegated authorization proof could not be verified against the master key.".to_string()
+                "The delegated authorization proof could not be verified against the master key."
+                    .to_string()
             }
         }
     }

@@ -1,7 +1,7 @@
 //! CLI wizard for bootstrapping and scaffolding isolated private Kinetic networks (`network.json`).
 
 use anyhow::{Context, Result};
-use dialoguer::{theme::ColorfulTheme, Confirm, Input};
+use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 
 use std::fs;
 use std::path::PathBuf;
@@ -19,15 +19,19 @@ fn main() -> Result<()> {
     );
     println!();
 
-
-    let tld: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("What is the top-level domain (TLD) for this network? (e.g. uni)")
+    let nsp: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("What is the Namespace (NSP) for this network? (e.g. uni)")
         .validate_with(|input: &String| -> Result<(), &str> {
             if input.is_empty() {
-                return Err("TLD cannot be empty.");
+                return Err("NSP cannot be empty.");
             }
-            if input.chars().any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit()) {
-                return Err("TLD must contain only lowercase letters and numbers (no spaces, no dots).");
+            if input
+                .chars()
+                .any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit())
+            {
+                return Err(
+                    "NSP must contain only lowercase letters and numbers (no spaces, no dots).",
+                );
             }
             Ok(())
         })
@@ -45,8 +49,13 @@ fn main() -> Result<()> {
             if input.is_empty() {
                 return Err("Network ID cannot be empty.");
             }
-            if input.chars().any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-') {
-                return Err("Network ID must contain only lowercase letters, numbers, and hyphens.");
+            if input
+                .chars()
+                .any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-')
+            {
+                return Err(
+                    "Network ID must contain only lowercase letters, numbers, and hyphens.",
+                );
             }
             Ok(())
         })
@@ -126,7 +135,7 @@ fn main() -> Result<()> {
 
     println!("Updating network.json...");
     patch_constants(
-        &tld,
+        &nsp,
         &base_domain,
         &network_id_str,
         &drand_pubkey,
@@ -182,7 +191,7 @@ fn main() -> Result<()> {
 
 #[allow(clippy::too_many_arguments)]
 fn patch_constants(
-    tld: &str,
+    nsp: &str,
     base_domain: &str,
     network_id: &str,
     drand_pubkey: &str,
@@ -201,10 +210,12 @@ fn patch_constants(
         )?;
         serde_json::from_str(&content).context("Failed to parse existing network.json")?
     } else {
-        anyhow::bail!("network.json not found in the current directory! You must run kinetic-forge from the repository root.");
+        anyhow::bail!(
+            "network.json not found in the current directory! You must run kinetic-forge from the repository root."
+        );
     };
 
-    config["network"]["tld"] = serde_json::json!(tld);
+    config["network"]["nsp"] = serde_json::json!(nsp);
     config["network"]["base_domain"] = serde_json::json!(base_domain);
     config["network"]["network_id"] = serde_json::json!(network_id);
     config["drand"]["drand_genesis_time"] = serde_json::json!(drand_genesis);
@@ -242,10 +253,12 @@ fn patch_cargo_bin_names(network_id: &str) -> Result<()> {
                 .parse::<toml_edit::DocumentMut>()
                 .context("Failed to parse Cargo.toml")?;
 
-            if let Some(bin_array) = doc.get_mut("bin").and_then(|i| i.as_array_of_tables_mut()) {
-                if let Some(bin) = bin_array.iter_mut().next() {
-                    bin["name"] = toml_edit::value(new_bin_name.as_str());
-                }
+            if let Some(bin) = doc
+                .get_mut("bin")
+                .and_then(|i| i.as_array_of_tables_mut())
+                .and_then(|arr| arr.iter_mut().next())
+            {
+                bin["name"] = toml_edit::value(new_bin_name.as_str());
             }
 
             fs::write(&path, doc.to_string())?;

@@ -4,7 +4,7 @@ This document explains how Kinetic is put together, so a new contributor (or an
 auditor) can navigate the codebase and understand where trust boundaries lie.
  
 Kinetic is an **engine**: the public `.kin` network is the reference deployment,
-but every network-defining value (TLD, DID prefix, governance model, drand beacon,
+but every network-defining value (NSP, DID prefix, governance model, drand beacon,
 bootstrap nodes, cost parameters) is read from `network.json` at build time and
 baked into constants by `build.rs`. Forks change `network.json` and recompile.
  
@@ -127,7 +127,7 @@ baked into constants by `build.rs`. Forks change `network.json` and recompile.
   `CONSENSUS_MINIMUM_COMMIT_AGE_KYNS`, `STEAL_TARGET_KYNS`, `M_REDUNDANCY`, …) live directly in
   `network.json` and are compiled into `constants.rs`.
 - **Governance root key** is `ROOT_PUBLIC_KEY_HEX`. In production builds, the verified ML-DSA-65 root key is pinned and checked via SHA-256 fingerprint in unit tests (`prod_keys::ROOT_PUBLIC_KEY_HEX`).
-- `kinetic-forge` automates a fork: it rewrites `network.json` (TLD, DID prefix,
+- `kinetic-forge` automates a fork: it rewrites `network.json` (NSP, DID prefix,
   drand config, etc.) and runs a release build.
 
 ---

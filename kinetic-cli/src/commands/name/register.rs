@@ -1,9 +1,9 @@
 //! New .kin name registration engine featuring Drand entropy, two-phase commitment, and VDF proof generation.
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
-use kinetic_core::config::{get_zones_dir, KineticConfig};
+use kinetic_core::config::{KineticConfig, get_zones_dir};
 use kinetic_core::traits::VdfEngine;
-use kinetic_core::types::{load_keypair, Commitment, Reveal};
+use kinetic_core::types::{Commitment, Reveal, load_keypair};
 use ml_dsa::signature::Signer;
 use ml_dsa::{KeyExport, Keypair, SignatureEncoding};
 use reqwest::Client;
@@ -56,16 +56,16 @@ pub async fn handle(
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path.to_string_lossy())?;
     let pubkey = keypair.verifying_key().to_bytes();
-    
+
     let mut drand_hasher = sha2::Sha256::new();
-    drand_hasher.update(&hex::decode(&drand_data.signature).unwrap());
+    drand_hasher.update(hex::decode(&drand_data.signature).unwrap());
     let mut drand_rand = [0u8; 32];
     drand_rand.copy_from_slice(&drand_hasher.finalize());
 
     let mut hasher = sha2::Sha256::new();
     hasher.update(fqdn.as_bytes());
     hasher.update(salt);
-    hasher.update(&drand_rand);
+    hasher.update(drand_rand);
     hasher.update(pubkey);
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&hasher.finalize());
@@ -94,13 +94,13 @@ pub async fn handle(
     }
     info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
 
-    let required_iterations = kinetic_core::consensus_math::ConsensusParams::default()
-        .required_iterations(&fqdn);
+    let required_iterations =
+        kinetic_core::consensus_math::ConsensusParams::default().required_iterations(&fqdn);
     let actual_iterations = std::cmp::max(iterations, required_iterations);
 
     let label = kinetic_core::types::names::extract_apex_name(&fqdn);
     let label = label
-        .strip_suffix(kinetic_core::constants::TLD_SUFFIX)
+        .strip_suffix(kinetic_core::constants::NSP_SUFFIX)
         .unwrap_or(&label);
 
     let expected_minutes = (actual_iterations as f64
@@ -128,7 +128,9 @@ pub async fn handle(
         warn!(
             "(Note: This expected time assumes an Intel Core i5-11400H equivalent CPU or better)."
         );
-        warn!("If your computer sleeps, restarts, or loses power during this process, ALL PROGRESS WILL BE LOST.");
+        warn!(
+            "If your computer sleeps, restarts, or loses power during this process, ALL PROGRESS WILL BE LOST."
+        );
         warn!("================================================================");
         info!("Starting in 15 seconds. Press Ctrl+C NOW to cancel...");
         tokio::time::sleep(Duration::from_secs(15)).await;
@@ -214,7 +216,7 @@ pub async fn handle(
         miner_pubkey: None,
     };
 
-    let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
+    let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
     // 4. Submit to local Daemon via REST API

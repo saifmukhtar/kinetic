@@ -15,7 +15,10 @@ pub(crate) fn build_full_swarm(
     vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     tx: tokio::sync::mpsc::Sender<crate::client::Command>,
 ) -> Result<(libp2p::Swarm<KineticBehavior>, NetworkClient), anyhow::Error> {
-    info!("Initializing Kinetic FULL Node P2P Swarm on {:?}", config.listen_addrs);
+    info!(
+        "Initializing Kinetic FULL Node P2P Swarm on {:?}",
+        config.listen_addrs
+    );
 
     let yamux_config = || {
         let mut config = libp2p::yamux::Config::default();
@@ -36,7 +39,10 @@ pub(crate) fn build_full_swarm(
     let builder_tcp = match build_tcp(true) {
         Ok(b) => b,
         Err(e) => {
-            tracing::warn!("Failed to build TCP transport with port_reuse(true): {}. Falling back to port_reuse(false).", e);
+            tracing::warn!(
+                "Failed to build TCP transport with port_reuse(true): {}. Falling back to port_reuse(false).",
+                e
+            );
             build_tcp(false)?
         }
     };
@@ -66,13 +72,16 @@ pub(crate) fn build_full_swarm(
                 max_reveals_per_hour,
                 vdf_engine.clone(),
             );
-            
+
             let mut kad_config = kad::Config::default();
             kad_config
-                .set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(format!(
-                    "/{}/kad/2.0.0",
-                    kinetic_core::constants::NETWORK_ID
-                )).unwrap()])
+                .set_protocol_names(vec![
+                    libp2p::StreamProtocol::try_from_owned(format!(
+                        "/{}/kad/2.0.0",
+                        kinetic_core::constants::NETWORK_SALT_HEX
+                    ))
+                    .unwrap(),
+                ])
                 .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
                 .set_provider_record_ttl(Some(std::time::Duration::from_secs(
                     kinetic_core::constants::KADEMLIA_PROVIDER_RECORD_TTL_SECS,
@@ -101,25 +110,28 @@ pub(crate) fn build_full_swarm(
             let gossipsub = libp2p::gossipsub::Behaviour::new(
                 libp2p::gossipsub::MessageAuthenticity::Signed(key.clone()),
                 gossipsub_config,
-            ).expect("Valid gossipsub config");
+            )
+            .expect("Valid gossipsub config");
 
             let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(
-                format!("/{}/1.0.0", kinetic_core::constants::NETWORK_ID),
+                format!("/{}/1.0.0", kinetic_core::constants::NETWORK_SALT_HEX),
                 key.public(),
             ));
-            
+
             let dcutr = libp2p::dcutr::Behaviour::new(peer_id);
             let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::new());
-            let proxy = libp2p::request_response::cbor::Behaviour::<ProxyRequest, ProxyResponse>::new(
-                [(
-                    libp2p::StreamProtocol::try_from_owned(format!(
-                        "/{}/proxy/1.0.0",
-                        kinetic_core::constants::NETWORK_ID
-                    )).unwrap(),
-                    libp2p::request_response::ProtocolSupport::Full,
-                )],
-                libp2p::request_response::Config::default(),
-            );
+            let proxy =
+                libp2p::request_response::cbor::Behaviour::<ProxyRequest, ProxyResponse>::new(
+                    [(
+                        libp2p::StreamProtocol::try_from_owned(format!(
+                            "/{}/proxy/1.0.0",
+                            kinetic_core::constants::NETWORK_SALT_HEX
+                        ))
+                        .unwrap(),
+                        libp2p::request_response::ProtocolSupport::Full,
+                    )],
+                    libp2p::request_response::Config::default(),
+                );
 
             let cdn = libp2p::request_response::cbor::Behaviour::<
                 kinetic_types::cdn::CdnRequest,
@@ -128,7 +140,7 @@ pub(crate) fn build_full_swarm(
                 [(
                     libp2p::StreamProtocol::try_from_owned(format!(
                         "/{}/cdn/1.0.0",
-                        kinetic_core::constants::NETWORK_ID
+                        kinetic_core::constants::NETWORK_SALT_HEX
                     ))
                     .unwrap(),
                     libp2p::request_response::ProtocolSupport::Full,
@@ -141,10 +153,8 @@ pub(crate) fn build_full_swarm(
 
             let mdns = if enable_mdns && !test_mode {
                 libp2p::swarm::behaviour::toggle::Toggle::from(Some(
-                    libp2p::mdns::tokio::Behaviour::new(
-                        libp2p::mdns::Config::default(),
-                        peer_id,
-                    ).expect("Valid mdns config"),
+                    libp2p::mdns::tokio::Behaviour::new(libp2p::mdns::Config::default(), peer_id)
+                        .expect("Valid mdns config"),
                 ))
             } else {
                 libp2p::swarm::behaviour::toggle::Toggle::from(None)
@@ -183,22 +193,21 @@ pub(crate) fn build_full_swarm(
             let relay_server = if test_mode {
                 libp2p::swarm::behaviour::toggle::Toggle::from(None)
             } else {
-                libp2p::swarm::behaviour::toggle::Toggle::from(Some(
-                    libp2p::relay::Behaviour::new(
-                        peer_id,
-                        libp2p::relay::Config {
-                            max_circuits: 1024,
-                            max_circuits_per_peer: 10,
-                            circuit_src_rate_limiters: vec![],
-                            max_circuit_duration: std::time::Duration::from_secs(2 * 60),
-                            max_circuit_bytes: kinetic_core::constants::LIMITS_P2P_MAX_CIRCUIT_BYTES as u64,
-                            reservation_rate_limiters: vec![],
-                            max_reservations: 1024,
-                            max_reservations_per_peer: 2,
-                            reservation_duration: std::time::Duration::from_secs(5 * 60),
-                        },
-                    ),
-                ))
+                libp2p::swarm::behaviour::toggle::Toggle::from(Some(libp2p::relay::Behaviour::new(
+                    peer_id,
+                    libp2p::relay::Config {
+                        max_circuits: 1024,
+                        max_circuits_per_peer: 10,
+                        circuit_src_rate_limiters: vec![],
+                        max_circuit_duration: std::time::Duration::from_secs(2 * 60),
+                        max_circuit_bytes: kinetic_core::constants::LIMITS_P2P_MAX_CIRCUIT_BYTES
+                            as u64,
+                        reservation_rate_limiters: vec![],
+                        max_reservations: 1024,
+                        max_reservations_per_peer: 2,
+                        reservation_duration: std::time::Duration::from_secs(5 * 60),
+                    },
+                )))
             };
 
             KineticBehavior {
@@ -218,17 +227,15 @@ pub(crate) fn build_full_swarm(
             }
         })
         .unwrap()
-        .with_swarm_config(|c| {
-            c.with_idle_connection_timeout(web_time::Duration::from_secs(300))
-        })
+        .with_swarm_config(|c| c.with_idle_connection_timeout(web_time::Duration::from_secs(300)))
         .build();
 
     // Full nodes listen on TCP and QUIC
     for addr in &config.listen_addrs {
-        if !addr.is_empty() {
-            if let Err(e) = swarm.listen_on(addr.clone()) {
-                tracing::warn!("Failed to bind TCP on {}: {}", addr, e);
-            }
+        if !addr.is_empty()
+            && let Err(e) = swarm.listen_on(addr.clone())
+        {
+            tracing::warn!("Failed to bind TCP on {}: {}", addr, e);
         }
     }
     for quic_addr in &config.quic_listen_addrs {
@@ -243,7 +250,7 @@ pub(crate) fn build_full_swarm(
             }
         }
     }
-    
+
     if let Some(addr) = &config.external_address {
         tracing::info!("Adding configured external address: {}", addr);
         swarm.add_external_address(addr.clone());

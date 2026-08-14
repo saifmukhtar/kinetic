@@ -22,10 +22,10 @@ impl Default for HostConfig {
 impl HostConfig {
     /// Load the configuration from disk, or return the default if it doesn't exist.
     pub fn load_or_default(path: &PathBuf) -> Self {
-        if let Ok(bytes) = std::fs::read(path) {
-            if let Ok(config) = serde_json::from_slice(&bytes) {
-                return config;
-            }
+        if let Ok(bytes) = std::fs::read(path)
+            && let Ok(config) = serde_json::from_slice(&bytes)
+        {
+            return config;
         }
         Self::default()
     }

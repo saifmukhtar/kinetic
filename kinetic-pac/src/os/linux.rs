@@ -271,7 +271,10 @@ pub fn detect_linux_configurator() -> Box<dyn ProxyConfigurator> {
             Box::new(GnomeConfigurator)
         }
         _ => {
-            info!("Unknown or unsupported Linux desktop environment ({}). Using fallback proxy configurator.", desktop);
+            info!(
+                "Unknown or unsupported Linux desktop environment ({}). Using fallback proxy configurator.",
+                desktop
+            );
             Box::new(FallbackConfigurator)
         }
     }

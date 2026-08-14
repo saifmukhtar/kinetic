@@ -115,7 +115,7 @@ Using the interactive `kinetic-forge` wizard:
 cargo run --release --bin kinetic-forge
 ```
 
-1. **Configure Network Constants:** Define custom TLDs, bootstrap nodes, and target VDF delay parameters in `network.json`.
+1. **Configure Network Constants:** Define custom NSPs, bootstrap nodes, and target VDF delay parameters in `network.json`.
 2. **Compile Engine:** Constants are compiled directly into the binary suite via `build.rs` for maximum performance and zero config drift.
 3. **Governance:** Maintain sovereign governance keys with emergency timelocks and 69% maintenance council ratifications.
 
@@ -192,7 +192,7 @@ Explore the mathematical proofs, RFC drafts, and security models powering Kineti
 - 🌐 **[4. Network & Execution Spec](./whitepaper/kinetic-network.md):** libp2p Kademlia DHT, gossip subtopics, and Split-DNS.
 - 🛡️ **[5. Security & Threat Mitigation](./whitepaper/kinetic-security.md):** Formal resistance to Sybil, Eclipse, and Front-Running attacks.
 - 🏛️ **[6. Governance Engine](./whitepaper/kinetic-governance.md):** Council multisig rules and timelock emergency resets.
-- 🔨 **[7. Kinetic Engine Forking (`kinetic-forge`)](./whitepaper/kinetic-forge.md):** Custom TLD network deployment guide.
+- 🔨 **[7. Kinetic Engine Forking (`kinetic-forge`)](./whitepaper/kinetic-forge.md):** Custom NSP network deployment guide.
 
 ### 📜 IETF Internet-Draft Specifications
 - 📑 **[draft-mukhtar-kinetic-network-00](https://www.ietf.org/archive/id/draft-mukhtar-kinetic-network-00.html):** The Kinetic Network Protocol Specification.

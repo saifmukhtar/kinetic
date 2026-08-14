@@ -139,10 +139,11 @@ impl super::core::NetworkEventLoop {
                     is_host_routing = true;
                     parsed.push((p, ParsedPayload::HostRouting(host_route)));
                 }
-            } else if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&p) {
-                if reveal.name == query_name && reveal.validate().is_ok() {
-                    parsed.push((p, ParsedPayload::Reveal(reveal)));
-                }
+            } else if let Ok(reveal) = serde_json::from_slice::<kinetic_core::types::Reveal>(&p)
+                && reveal.name == query_name
+                && reveal.validate().is_ok()
+            {
+                parsed.push((p, ParsedPayload::Reveal(reveal)));
             }
         }
 
@@ -182,7 +183,11 @@ impl super::core::NetworkEventLoop {
                 .into_iter()
                 .filter_map(|(p, parsed_payload)| {
                     if let ParsedPayload::HostRouting(record) = parsed_payload {
-                        if crate::store::verification::verify_host_routing_record(&record, current_kyn).is_err()
+                        if crate::store::verification::verify_host_routing_record(
+                            &record,
+                            current_kyn,
+                        )
+                        .is_err()
                         {
                             return None;
                         }
@@ -226,7 +231,7 @@ impl super::core::NetworkEventLoop {
                     let dev_mode = kinetic_core::config::is_dev_mode();
                     let valid_sig = dev_mode
                         || reveal
-                            .verify_signature(kinetic_core::constants::NETWORK_ID)
+                            .verify_signature(kinetic_core::constants::NETWORK_SALT)
                             .is_ok();
 
                     if !valid_sig {
@@ -238,10 +243,10 @@ impl super::core::NetworkEventLoop {
                         continue;
                     }
 
+                    use drand_verify::Pubkey;
                     use kinetic_core::traits::VdfEngine;
                     use kinetic_vdf::ChiaVdfEngine;
                     use sha2::{Digest, Sha256};
-                    use drand_verify::Pubkey;
 
                     let drand_sig_bytes = match hex::decode(&reveal.drand_signature) {
                         Ok(b) => b,
@@ -256,20 +261,24 @@ impl super::core::NetworkEventLoop {
                     };
 
                     if !dev_mode {
-                        let pubkey_bytes: [u8; 96] = match hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY) {
-                            Ok(b) => match b.try_into() {
-                                Ok(arr) => arr,
+                        let pubkey_bytes: [u8; 96] =
+                            match hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY) {
+                                Ok(b) => match b.try_into() {
+                                    Ok(arr) => arr,
+                                    Err(_) => continue,
+                                },
                                 Err(_) => continue,
-                            },
-                            Err(_) => continue,
-                        };
+                            };
 
                         let pk = match drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes) {
                             Ok(p) => p,
                             Err(_) => continue,
                         };
 
-                        if !pk.verify(reveal.drand_kyn, &[], &drand_sig_bytes).unwrap_or(false) {
+                        if !pk
+                            .verify(reveal.drand_kyn, &[], &drand_sig_bytes)
+                            .unwrap_or(false)
+                        {
                             tracing::warn!(
                                 error_code = "KIN-RES-011",
                                 "Skipping candidate: invalid drand BLS signature"
@@ -286,7 +295,7 @@ impl super::core::NetworkEventLoop {
                     let mut hasher = Sha256::new();
                     hasher.update(reveal.name.as_bytes());
                     hasher.update(reveal.salt);
-                    hasher.update(&drand_bytes);
+                    hasher.update(drand_bytes);
                     hasher.update(&reveal.pubkey);
                     let mut hash = [0u8; 32];
                     hash.copy_from_slice(&hasher.finalize());

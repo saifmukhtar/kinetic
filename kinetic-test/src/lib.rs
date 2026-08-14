@@ -5,8 +5,8 @@ mod tests {
     use kinetic_core::types::Commitment;
     use kinetic_network::{NetworkClient, NetworkConfig, NetworkEventLoop};
     use kinetic_storage::SledStorage;
-    use libp2p::identity::Keypair;
     use libp2p::PeerId;
+    use libp2p::identity::Keypair;
     use std::sync::Arc;
     use std::time::Duration;
     use tempfile::tempdir;
@@ -100,7 +100,9 @@ mod tests {
         if let Ok(res_b) = resolved_b {
             assert_eq!(res_b, payload);
         } else {
-            println!("Node B failed to resolve (likely Kademlia routing table not fully sync'd in 3s) but A succeeded.");
+            println!(
+                "Node B failed to resolve (likely Kademlia routing table not fully sync'd in 3s) but A succeeded."
+            );
         }
     }
 
@@ -183,8 +185,7 @@ mod tests {
             Arc::new(kinetic_vdf::ChiaVdfEngine::new());
 
         let (client, event_loop) =
-            NetworkEventLoop::new(config, key_a, storage, kyn_rx, None, None, vdf_engine)
-                .unwrap();
+            NetworkEventLoop::new(config, key_a, storage, kyn_rx, None, None, vdf_engine).unwrap();
 
         let _handle = tokio::spawn(async move {
             event_loop.run().await;
@@ -239,8 +240,7 @@ mod tests {
         };
 
         let (client, event_loop) =
-            NetworkEventLoop::new(config, key_a, storage, kyn_rx, None, None, vdf_engine)
-                .unwrap();
+            NetworkEventLoop::new(config, key_a, storage, kyn_rx, None, None, vdf_engine).unwrap();
 
         let _handle = tokio::spawn(async move {
             event_loop.run().await;

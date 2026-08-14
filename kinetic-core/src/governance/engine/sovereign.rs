@@ -6,7 +6,7 @@
 
 use crate::error::GovernanceError;
 use crate::governance::types::{
-    verify_signature, GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
+    GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage, verify_signature,
 };
 use crate::traits::GovernanceEngine;
 
@@ -19,16 +19,17 @@ impl GovernanceEngine for SovereignEngine {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds [`crate::constants::MAX_AGE_SECONDS`].
+    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds [`crate::constants::MAX_AGE_KYNS`].
     /// - Returns [`GovernanceError::InvalidPremiumNameLength`] if a premium name is not 1 character.
     /// - Returns [`GovernanceError::InsufficientSignatures`] if the Root key signature is missing or invalid.
     fn verify_action(
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_time_sec: u64,
+        current_kyn: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        if current_time_sec.abs_diff(msg.timestamp_sec) > crate::constants::MAX_AGE_SECONDS {
+        let max_age_kyns = crate::constants::MAX_AGE_KYNS;
+        if current_kyn.abs_diff(msg.timestamp_kyn) > max_age_kyns {
             return Err(GovernanceError::StaleProposal);
         }
 
@@ -42,30 +43,46 @@ impl GovernanceEngine for SovereignEngine {
 
         if root_signed {
             match &msg.action {
-                GovernanceAction::GrantPremiumName { name, .. } => {
-                    let label = name
-                        .strip_suffix(crate::constants::TLD_SUFFIX)
-                        .unwrap_or(name);
-                    if label.len() != 1 {
-                        return Err(GovernanceError::InvalidPremiumNameLength);
+                GovernanceAction::MapPrime { name, .. } => {
+                    if name.len() != 1
+                        || !name
+                            .chars()
+                            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+                    {
+                        return Err(GovernanceError::UnnormalizedName);
+                    }
+                    if state.mapped_prime_names.contains_key(name) {
+                        return Err(GovernanceError::AlreadyMapped);
                     }
                 }
-                GovernanceAction::RevokePremiumName { name } => {
-                    let label = name
-                        .strip_suffix(crate::constants::TLD_SUFFIX)
-                        .unwrap_or(name);
-                    if label.len() != 1 {
-                        return Err(GovernanceError::InvalidPremiumNameLength);
+                GovernanceAction::UnmapPrime { name } => {
+                    if name.len() != 1
+                        || !name
+                            .chars()
+                            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+                    {
+                        return Err(GovernanceError::UnnormalizedName);
+                    }
+                    if !state.mapped_prime_names.contains_key(name) {
+                        return Err(GovernanceError::NotMapped);
                     }
                 }
-                GovernanceAction::GrantInfrastructureName { name, .. } => {
-                    if !crate::types::infrastructure::is_infrastructure_name(name) {
-                        return Err(GovernanceError::InvalidInfrastructureName);
+                GovernanceAction::MapInfra { name, .. } => {
+                    if !crate::types::infrastructure::INFRASTRUCTURE_NAMES.contains(&name.as_str())
+                    {
+                        return Err(GovernanceError::UnnormalizedName);
+                    }
+                    if state.mapped_infra_names.contains_key(name) {
+                        return Err(GovernanceError::AlreadyMapped);
                     }
                 }
-                GovernanceAction::RevokeInfrastructureName { name } => {
-                    if !crate::types::infrastructure::is_infrastructure_name(name) {
-                        return Err(GovernanceError::InvalidInfrastructureName);
+                GovernanceAction::UnmapInfra { name } => {
+                    if !crate::types::infrastructure::INFRASTRUCTURE_NAMES.contains(&name.as_str())
+                    {
+                        return Err(GovernanceError::UnnormalizedName);
+                    }
+                    if !state.mapped_infra_names.contains_key(name) {
+                        return Err(GovernanceError::NotMapped);
                     }
                 }
                 GovernanceAction::RotateRootKey { new_key } => {
@@ -73,13 +90,13 @@ impl GovernanceEngine for SovereignEngine {
                         return Err(GovernanceError::KeyLengthMismatch);
                     }
                 }
-                GovernanceAction::EmergencyHalt | GovernanceAction::EmergencyResume { .. } => {
+                GovernanceAction::EmergencyHalt | GovernanceAction::EmergencyResume => {
                     // No additional verification needed for halt/resume,
                     // root key signature is sufficient authorization.
                 }
             }
 
-            let effect = self.execute_action(state, msg, current_time_sec);
+            let effect = self.execute_action(state, msg, current_kyn);
             return Ok(effect);
         }
 
@@ -90,31 +107,43 @@ impl GovernanceEngine for SovereignEngine {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        _current_time_sec: u64,
+        current_kyn: u64,
     ) -> Option<GovernanceEffect> {
         let action_hash = GovernanceState::hash_action(msg);
-        state.executed_hashes.insert(action_hash, msg.timestamp_sec);
+        state.executed_hashes.insert(action_hash, msg.timestamp_kyn);
 
         match &msg.action {
-            GovernanceAction::GrantPremiumName {
+            GovernanceAction::MapPrime {
                 name,
                 target_pubkey,
-            } => Some(GovernanceEffect::PremiumNameGranted {
-                name: name.clone(),
-                target_pubkey: target_pubkey.clone(),
-            }),
-            GovernanceAction::RevokePremiumName { name } => {
-                Some(GovernanceEffect::PremiumNameRevoked { name: name.clone() })
+            } => {
+                state
+                    .mapped_prime_names
+                    .insert(name.clone(), target_pubkey.clone());
+                Some(GovernanceEffect::PrimeMapped {
+                    name: name.clone(),
+                    target_pubkey: target_pubkey.clone(),
+                })
             }
-            GovernanceAction::GrantInfrastructureName {
+            GovernanceAction::UnmapPrime { name } => {
+                state.mapped_prime_names.remove(name);
+                Some(GovernanceEffect::PrimeUnmapped { name: name.clone() })
+            }
+            GovernanceAction::MapInfra {
                 name,
                 target_pubkey,
-            } => Some(GovernanceEffect::InfrastructureNameGranted {
-                name: name.clone(),
-                target_pubkey: target_pubkey.clone(),
-            }),
-            GovernanceAction::RevokeInfrastructureName { name } => {
-                Some(GovernanceEffect::InfrastructureNameRevoked { name: name.clone() })
+            } => {
+                state
+                    .mapped_infra_names
+                    .insert(name.clone(), target_pubkey.clone());
+                Some(GovernanceEffect::InfraMapped {
+                    name: name.clone(),
+                    target_pubkey: target_pubkey.clone(),
+                })
+            }
+            GovernanceAction::UnmapInfra { name } => {
+                state.mapped_infra_names.remove(name);
+                Some(GovernanceEffect::InfraUnmapped { name: name.clone() })
             }
             GovernanceAction::RotateRootKey { new_key } => {
                 state.active_root_key = Some(new_key.clone());
@@ -125,18 +154,19 @@ impl GovernanceEngine for SovereignEngine {
             GovernanceAction::EmergencyHalt => {
                 if !state.is_halted {
                     state.is_halted = true;
+                    if state.halt_start_kyn.is_none() {
+                        state.halt_start_kyn = Some(current_kyn);
+                    }
                 }
                 Some(GovernanceEffect::NetworkHalted)
             }
-            GovernanceAction::EmergencyResume { paused_kyns } => {
+            GovernanceAction::EmergencyResume => {
                 if state.is_halted {
                     state.is_halted = false;
-                    state.total_paused_kyns =
-                        state.total_paused_kyns.saturating_add(*paused_kyns);
-                        
-                    let end_kyn = msg.timestamp_sec.saturating_sub(crate::constants::KINETIC_GENESIS_TIME) / 3;
-                    let start_kyn = end_kyn.saturating_sub(*paused_kyns);
-                    state.pause_history.push((start_kyn, end_kyn));
+                    let start_kyn = state.halt_start_kyn.take().unwrap_or(current_kyn);
+                    let paused_kyns = current_kyn.saturating_sub(start_kyn);
+                    state.total_paused_kyns = state.total_paused_kyns.saturating_add(paused_kyns);
+                    state.pause_history.push((start_kyn, current_kyn));
                 }
                 Some(GovernanceEffect::NetworkResumed)
             }

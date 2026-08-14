@@ -3,8 +3,8 @@
 use hickory_proto::rr::{Name, Record};
 use hickory_resolver::system_conf::read_system_conf;
 use hickory_resolver::{
-    config::{ResolverConfig, ResolverOpts},
     TokioAsyncResolver,
+    config::{ResolverConfig, ResolverOpts},
 };
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, ResponseHandler, ResponseInfo};

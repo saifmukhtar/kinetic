@@ -131,9 +131,12 @@ impl From<GovernanceError> for ApiError {
             | GovernanceError::NotPendingOrVetoed => (409, "Conflict"),
             GovernanceError::InsufficientSignatures => (401, "Unauthorized"),
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
-            GovernanceError::KeyLengthMismatch | GovernanceError::InvalidPremiumNameLength | GovernanceError::InvalidInfrastructureName => {
-                (400, "Bad Request")
-            }
+            GovernanceError::KeyLengthMismatch
+            | GovernanceError::InvalidPremiumNameLength
+            | GovernanceError::InvalidInfrastructureName
+            | GovernanceError::AlreadyMapped
+            | GovernanceError::NotMapped
+            | GovernanceError::UnnormalizedName => (400, "Bad Request"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -287,7 +290,9 @@ impl From<IdentityError> for ApiError {
             | IdentityError::CorruptedIdentityFile(_)
             | IdentityError::KidSigningFailed(_)
             | IdentityError::Json(_) => (500, "Internal Server Error"),
-            IdentityError::IdentityNotFound(_) | IdentityError::KidNotFound(_) => (404, "Not Found"),
+            IdentityError::IdentityNotFound(_) | IdentityError::KidNotFound(_) => {
+                (404, "Not Found")
+            }
             IdentityError::InvalidSeedPhrase(_) => (400, "Bad Request"),
             IdentityError::DecryptionFailed(_) => (401, "Unauthorized"),
             IdentityError::KidAlreadyExists(_) => (409, "Conflict"),

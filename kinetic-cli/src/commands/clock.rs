@@ -44,13 +44,12 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
         "http://{}:{}/api/time",
         config.daemon.bind_ip, config.daemon.api_port
     );
-    if let Ok(resp) = client.get(&api_url).send().await {
-        if resp.status().is_success() {
-            if let Ok(time) = resp.json::<KineticTime>().await {
-                current_time = Some(time);
-                fetched_from_api = true;
-            }
-        }
+    if let Ok(resp) = client.get(&api_url).send().await
+        && resp.status().is_success()
+        && let Ok(time) = resp.json::<KineticTime>().await
+    {
+        current_time = Some(time);
+        fetched_from_api = true;
     }
 
     // 2. Offline Fallback: calculate mathematically using SystemTime
@@ -68,7 +67,10 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
                 0
             };
 
-            KineticTime::from_kyn(current_kyn, kinetic_core::constants::KINETIC_GENESIS_DRAND_KYN)
+            KineticTime::from_kyn(
+                current_kyn,
+                kinetic_core::constants::KINETIC_GENESIS_DRAND_KYN,
+            )
         }
     };
 
@@ -78,5 +80,8 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
         "🔴 [Offline/Mathematical]"
     };
 
-    println!("{} {}", sync_status, time.to_display_string());
+    println!(
+        "{} {} Prisms, {} Facets, {} Kyns (Total Kyns: {})",
+        sync_status, time.prism, time.facet, time.kyn, time.total_kyns
+    );
 }

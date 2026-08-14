@@ -45,7 +45,7 @@ impl super::core::NetworkEventLoop {
                 // Pre-compute local fallback before offloading
                 let keys = kinetic_core::types::derive_storage_keys(
                     &name,
-                    kinetic_core::constants::NETWORK_ID,
+                    kinetic_core::constants::NETWORK_SALT,
                 );
                 let mut local_fallback = None;
                 for key_bytes in &keys {
@@ -237,14 +237,17 @@ impl super::core::NetworkEventLoop {
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
                 let pow_valid = self.is_valid_pow(&peer_id);
 
-                if !pow_valid && is_bootstrap {
-                    if let Some(conn_time) = self.bootstrap_connection_time.get(&peer_id) {
-                        if conn_time.elapsed() > web_time::Duration::from_secs(24 * 3600) {
-                            tracing::warn!("Bootstrap peer {} failed to provide valid PoW after 24 hours. Disconnecting.", peer_id);
-                            let _ = self.swarm.disconnect_peer_id(peer_id);
-                            return;
-                        }
-                    }
+                if !pow_valid
+                    && is_bootstrap
+                    && let Some(conn_time) = self.bootstrap_connection_time.get(&peer_id)
+                    && conn_time.elapsed() > web_time::Duration::from_secs(24 * 3600)
+                {
+                    tracing::warn!(
+                        "Bootstrap peer {} failed to provide valid PoW after 24 hours. Disconnecting.",
+                        peer_id
+                    );
+                    let _ = self.swarm.disconnect_peer_id(peer_id);
+                    return;
                 }
 
                 if self.disable_pow || pow_valid || is_bootstrap {

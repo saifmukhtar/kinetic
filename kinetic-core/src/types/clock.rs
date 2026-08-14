@@ -9,7 +9,7 @@
 //! - **1 Prism** = 28,800 Kyns (1 Day / 24 Hours)
 //! - **1 Matrix** = 7 Prisms (1 Week / 7 Days / 201,600 Kyns)
 //! - **1 Lattice** = 30 Prisms (1 Month / 30 Days / 864,000 Kyns)
-//! - **1 Apex** = 365 Prisms (1 Year / 365 Days / 10,512,000 Kyns)
+//! - **1 Aeon** = 365 Prisms (1 Year / 365 Days / 10,512,000 Kyns)
 
 pub use kinetic_types::clock::{KineticTime, kyn_to_unix_secs, unix_secs_to_kyn};
 

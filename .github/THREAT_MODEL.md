@@ -15,7 +15,7 @@ proves **computational effort** via a Verifiable Delay Function (VDF), bound to 
 public randomness beacon (drand). Names, identity documents (KIDs), and capability
 manifests live in a libp2p Kademlia DHT and are resolved through a local daemon
 that also serves split-DNS and an HTTP proxy for `.kin` traffic. The cost
-function, governance model, and TLD are **compile-time configurable** (see
+function, governance model, and NSP are **compile-time configurable** (see
 `network.json` + `kinetic-core/build.rs`), so forks can trade security for simplicity.
  
 ---

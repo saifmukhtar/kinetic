@@ -73,7 +73,7 @@ fn teardown_macos_alias(ip: &str) {
 
 fn configure_os_dns(dns_port: u16) -> Result<()> {
     let os = std::env::consts::OS;
-    let tld = kinetic_core::constants::TLD;
+    let nsp = kinetic_core::constants::NSP;
     let network_id = kinetic_core::constants::NETWORK_ID;
     let bind_ip = kinetic_core::constants::LOCAL_BIND_IP;
 
@@ -83,7 +83,7 @@ fn configure_os_dns(dns_port: u16) -> Result<()> {
             let conf_path = conf_dir.join(format!("{}.conf", network_id));
             let content = format!(
                 "[Resolve]\nDNS={}:{}\nDomains=~{}\n",
-                bind_ip, dns_port, tld
+                bind_ip, dns_port, nsp
             );
             std::fs::write(&conf_path, content)?;
             println!("Wrote systemd-resolved config to {:?}", conf_path);
@@ -97,7 +97,7 @@ fn configure_os_dns(dns_port: u16) -> Result<()> {
 
         let conf_dir = std::path::Path::new("/etc/resolver");
         std::fs::create_dir_all(conf_dir).ok();
-        let conf_path = conf_dir.join(tld);
+        let conf_path = conf_dir.join(nsp);
         let content = format!("nameserver {}\nport {}\n", bind_ip, dns_port);
         std::fs::write(&conf_path, content)?;
         println!("Wrote macOS resolver config to {:?}", conf_path);
@@ -107,18 +107,18 @@ fn configure_os_dns(dns_port: u16) -> Result<()> {
                 "-Command",
                 &format!(
                     "Add-DnsClientNrptRule -Namespace '.{}' -NameServers '{}'",
-                    tld, bind_ip
+                    nsp, bind_ip
                 ),
             ])
             .status();
-        println!("Added Windows NRPT rule for .{}", tld);
+        println!("Added Windows NRPT rule for .{}", nsp);
     }
     Ok(())
 }
 
 fn remove_os_dns() {
     let os = std::env::consts::OS;
-    let tld = kinetic_core::constants::TLD;
+    let nsp = kinetic_core::constants::NSP;
     let network_id = kinetic_core::constants::NETWORK_ID;
 
     if os == "linux" {
@@ -128,7 +128,7 @@ fn remove_os_dns() {
             .args(["restart", "systemd-resolved"])
             .status();
     } else if os == "macos" {
-        let conf_path = format!("/etc/resolver/{}", tld);
+        let conf_path = format!("/etc/resolver/{}", nsp);
         std::fs::remove_file(&conf_path).ok();
         let _bind_ip = kinetic_core::constants::LOCAL_BIND_IP;
         #[cfg(target_os = "macos")]
@@ -137,7 +137,7 @@ fn remove_os_dns() {
         let _ = std::process::Command::new("powershell")
             .args([
                 "-Command",
-                &format!("Get-DnsClientNrptRule | Where-Object {{ $_.Namespace -eq '.{}' }} | Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue", tld)
+                &format!("Get-DnsClientNrptRule | Where-Object {{ $_.Namespace -eq '.{}' }} | Remove-DnsClientNrptRule -Force -ErrorAction SilentlyContinue", nsp)
             ])
             .status();
     }

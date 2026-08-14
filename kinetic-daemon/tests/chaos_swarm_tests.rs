@@ -7,7 +7,7 @@ use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use std::convert::Infallible;
 use tokio::task::JoinSet;
-use turmoil::{net::TcpListener, net::TcpStream, Builder};
+use turmoil::{Builder, net::TcpListener, net::TcpStream};
 
 async fn hello_world(_req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
     Ok(Response::new(Full::new(Bytes::from("Daemon kyn active"))))

@@ -1,6 +1,6 @@
 //! Node health-check and status REST API router.
 
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use libp2p::PeerId;
 
 /// Builds the Axum router for the Kinetic Node Health-check API.

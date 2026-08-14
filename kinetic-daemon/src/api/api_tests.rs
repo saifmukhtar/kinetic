@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::api::{app, ApiState};
+    use crate::api::{ApiState, app};
     use axum::{
         body::Body,
         http::{Request, StatusCode},
@@ -40,7 +40,7 @@ mod tests {
             vdf_tasks: Arc::new(Mutex::new(std::collections::HashMap::new())),
             vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
             bind_ip: "127.0.0.1".to_string(),
-            atlas_tlds: std::sync::Arc::new(std::sync::RwLock::new(
+            atlas_nsps: std::sync::Arc::new(std::sync::RwLock::new(
                 std::collections::HashSet::new(),
             )),
         };
@@ -121,6 +121,7 @@ mod tests {
 
         let req_body = serde_json::json!({
             "record": {
+                "record_type": "Standard",
                 "protocol_version": 1,
                 "name": "sub.example.kin",
                 "payload": [1, 2, 3],
@@ -158,6 +159,7 @@ mod tests {
         // Protocol version 1 (should be 2) to trigger structural validator error
         let req_body = serde_json::json!({
             "record": {
+                "record_type": "Standard",
                 "protocol_version": 0,
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
@@ -212,6 +214,7 @@ mod tests {
 
         let req_body = serde_json::json!({
             "record": {
+                "record_type": "Standard",
                 "protocol_version": 1,
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
@@ -273,7 +276,10 @@ mod tests {
         storage
             .put(
                 reveal_key.as_bytes(),
-                &serde_json::to_vec(&mock_reveal).unwrap(),
+                &serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+                    mock_reveal,
+                )))
+                .unwrap(),
             )
             .unwrap();
 

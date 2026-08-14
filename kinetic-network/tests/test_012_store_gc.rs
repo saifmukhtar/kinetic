@@ -1,8 +1,8 @@
 use kinetic_network::store::KineticRecordStore;
 use kinetic_storage::SledStorage;
-use libp2p::kad::store::RecordStore;
-use libp2p::kad::RecordKey;
 use libp2p::PeerId;
+use libp2p::kad::RecordKey;
+use libp2p::kad::store::RecordStore;
 use tempfile::tempdir;
 
 #[tokio::test]

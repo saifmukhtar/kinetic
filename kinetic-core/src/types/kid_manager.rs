@@ -25,19 +25,19 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 use ml_dsa::signature::Signer;
 use ml_dsa::{Generate, KeyExport, KeyInit, Keypair, MlDsa65, SigningKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::constants::{DID_PREFIX, NETWORK_ID};
+use crate::constants::DID_PREFIX;
 use crate::error::IdentityError;
 use crate::types::identity::load_keypair;
 use crate::types::names::{extract_apex_name, normalize_name};
+use kinetic_kid::KineticDid;
 use kinetic_kid::document::{ControllerKey, KidDocument};
 use kinetic_kid::manifest::{CapabilityManifest, ServiceEntry};
-use kinetic_kid::KineticDid;
 use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 
 /// Metadata and payloads resulting from a generated or inherited KID.
@@ -194,7 +194,7 @@ pub fn authorize_kid_document(
         owner_signature: vec![],
     };
 
-    let signable = auth_kid.signable_bytes(NETWORK_ID);
+    let signable = auth_kid.signable_bytes(crate::constants::NETWORK_SALT);
     use ml_dsa::SignatureEncoding;
     auth_kid.owner_signature = identity_keypair.sign(&signable).to_bytes().to_vec();
 
@@ -254,11 +254,11 @@ pub fn get_or_create_kid_for_name(
     // 1. Generate new ML-DSA-65 keypair
     let keypair = SigningKey::<MlDsa65>::generate();
     let pub_key_bytes = keypair.verifying_key().to_bytes();
-    let pub_key_b64 = b64_url.encode(&pub_key_bytes);
+    let pub_key_b64 = b64_url.encode(pub_key_bytes);
 
     // 2. Derive deterministic DID string: did:kin:<SHA256(PublicKey)>
     let mut hasher = Sha256::new();
-    hasher.update(&pub_key_bytes);
+    hasher.update(pub_key_bytes);
     let did_str = format!("{}{}", DID_PREFIX, hex::encode(hasher.finalize()));
 
     let kid_did = KineticDid::new(&did_str)
@@ -345,7 +345,7 @@ pub fn rotate_name_kid(name: &str) -> Result<RotatedKid, IdentityError> {
     // 2. Generate new keypair
     let new_keypair = SigningKey::<MlDsa65>::generate();
     let new_pub_bytes = new_keypair.verifying_key().to_bytes();
-    let new_pub_b64 = b64_url.encode(&new_pub_bytes);
+    let new_pub_b64 = b64_url.encode(new_pub_bytes);
 
     let primary_id = format!("{}#primary", doc.kid);
     doc.controller_keys = vec![ControllerKey {
@@ -418,25 +418,24 @@ pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("json") {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(doc) = serde_json::from_str::<KidDocument>(&content) {
-                    let stem = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or_default()
-                        .to_string();
-                    let key_path = path.with_extension("key");
-                    summaries.push(LocalKidSummary {
-                        name: stem,
-                        did: doc.kid.as_str().to_string(),
-                        created_at: doc.created_at,
-                        doc_path: path,
-                        has_key: key_path.exists(),
-                        deactivated: doc.deactivated,
-                    });
-                }
-            }
+        if path.extension().and_then(|s| s.to_str()) == Some("json")
+            && let Ok(content) = fs::read_to_string(&path)
+            && let Ok(doc) = serde_json::from_str::<KidDocument>(&content)
+        {
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default()
+                .to_string();
+            let key_path = path.with_extension("key");
+            summaries.push(LocalKidSummary {
+                name: stem,
+                did: doc.kid.as_str().to_string(),
+                created_at: doc.created_at,
+                doc_path: path,
+                has_key: key_path.exists(),
+                deactivated: doc.deactivated,
+            });
         }
     }
 
@@ -578,7 +577,7 @@ pub fn save_and_sign_local_manifest(
         owner_signature: vec![],
     };
 
-    let signable = auth_manifest.signable_bytes(NETWORK_ID);
+    let signable = auth_manifest.signable_bytes(crate::constants::NETWORK_SALT);
     let owner_key = load_keypair("identity.key")?;
     use ml_dsa::SignatureEncoding;
     auth_manifest.owner_signature = owner_key.sign(&signable).to_bytes().to_vec();
@@ -602,6 +601,8 @@ mod tests {
             std::env::set_var(crate::constants::ENV_DATA_DIR, dir.path());
             std::env::set_var(crate::constants::ENV_KEY_PATH, &id_path);
         }
+
+        std::fs::write(&id_path, [0u8; 32]).unwrap();
 
         // 1. Case 1: Apex Domain KID generation
         let apex = get_or_create_kid_for_name("saif.kin", true, false).unwrap();
@@ -666,7 +667,7 @@ mod tests {
             save_and_sign_local_manifest("saif.kin", services.clone()).unwrap();
         assert_eq!(saved_manifest.version, 1);
         assert_eq!(saved_manifest.services.len(), 1);
-        assert!(saved_manifest.verify(&rotated.kid_doc).is_ok());
+        assert!(saved_manifest.verify_local(&rotated.kid_doc).is_ok());
         assert_eq!(auth_manifest.name, "saif.kin");
 
         // Load local manifest
@@ -675,13 +676,11 @@ mod tests {
         assert_eq!(loaded.unwrap().version, 1);
 
         // Save again increments version
-        let (v2_manifest, _) =
-            save_and_sign_local_manifest("saif.kin", services).unwrap();
+        let (v2_manifest, _) = save_and_sign_local_manifest("saif.kin", services).unwrap();
         assert_eq!(v2_manifest.version, 2);
 
         // Deactivated identity cannot update manifest
-        let deactivated_err =
-            save_and_sign_local_manifest("api.saif.kin", vec![]).unwrap_err();
+        let deactivated_err = save_and_sign_local_manifest("api.saif.kin", vec![]).unwrap_err();
         assert!(matches!(
             deactivated_err,
             IdentityError::KidSigningFailed(_)

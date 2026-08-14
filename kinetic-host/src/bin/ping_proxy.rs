@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use kinetic_network::{client::ProxyRequest, NetworkConfig, NetworkEventLoop, NetworkMode};
+use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode, client::ProxyRequest};
 use kinetic_storage::SledStorage;
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -28,12 +28,11 @@ async fn fetch_drand_kyn() -> u64 {
     let ping_endpoint = kinetic_core::constants::DRAND_HTTP_ENDPOINTS
         .first()
         .unwrap_or(&"");
-    if let Ok(res) = client.get(*ping_endpoint).send().await {
-        if let Ok(json) = res.json::<serde_json::Value>().await {
-            if let Some(kyn) = json["round"].as_u64() {
-                return kyn;
-            }
-        }
+    if let Ok(res) = client.get(*ping_endpoint).send().await
+        && let Ok(json) = res.json::<serde_json::Value>().await
+        && let Some(kyn) = json["round"].as_u64()
+    {
+        return kyn;
     }
     0
 }
@@ -76,7 +75,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         initial_drand_kyn: 0,
         external_address: None,
         max_reveals_per_hour: 100,
-        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE).unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
+        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
+            .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
         test_mode: false,
         disable_storage_sync: true,
@@ -111,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         format!(
             "{}{}",
             args.host_prefix,
-            kinetic_core::constants::TLD_SUFFIX
+            kinetic_core::constants::NSP_SUFFIX
         )
         .into(),
     ));

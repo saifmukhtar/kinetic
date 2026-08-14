@@ -10,6 +10,7 @@ kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-vdf = { path = "../kinetic-vdf" }
 kinetic-kid = { path = "../kinetic-kid" }
+kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
 tokio = { workspace = true, features = ["net"] }
 anyhow.workspace = true
 tracing.workspace = true

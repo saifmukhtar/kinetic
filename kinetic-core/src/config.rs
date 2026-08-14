@@ -271,6 +271,10 @@ pub struct P2pConfig {
     /// Optional externally reachable multiaddr (e.g. for nodes behind NAT).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_address: Option<String>,
+    /// Send anonymous statistics to map network health.
+    /// Enabled by default to ensure an accurate network map, but uses a ghost SessionID for absolute privacy.
+    #[serde(default = "default_true")]
+    pub enable_anonymous_telemetry: bool,
 }
 
 fn default_p2p_daemon() -> u16 {
@@ -354,6 +358,7 @@ impl Default for KineticConfig {
                 seed_domain: vec![format!("seed.{}", crate::constants::BASE_DOMAIN)],
                 enable_mdns: true,
                 external_address: None,
+                enable_anonymous_telemetry: true,
             },
             drand: DrandConfig::default(),
         }
@@ -379,11 +384,14 @@ impl KineticConfig {
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
-        let config = match fs::read_to_string(&config_path) {
+        match fs::read_to_string(&config_path) {
             Ok(config_str) => match toml::from_str(&config_str) {
                 Ok(config) => config,
                 Err(e) => {
-                    tracing::error!("Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.", e);
+                    tracing::error!(
+                        "Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
+                        e
+                    );
                     std::process::exit(1);
                 }
             },
@@ -399,12 +407,13 @@ impl KineticConfig {
                 default_cfg
             }
             Err(e) => {
-                tracing::error!("Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.", e);
+                tracing::error!(
+                    "Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
+                    e
+                );
                 std::process::exit(1);
             }
-        };
-
-        config
+        }
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -454,7 +463,7 @@ pub fn get_zones_dir() -> PathBuf {
 
 /// Returns the platform-appropriate base directory for Kinetic data files.
 ///
-/// Automatically namespaced by `{TLD}-{NETWORK_ID}` (e.g. `~/.local/share/kinetic/`)
+/// Automatically namespaced by `{NSP}-{NETWORK_ID}` (e.g. `~/.local/share/kinetic/`)
 /// to ensure multiple network instances or forks coexist without disk collisions.
 /// Overrideable with the `KINETIC_DATA_DIR` environment variable.
 pub fn get_base_dir() -> PathBuf {
@@ -501,9 +510,11 @@ mod tests {
         let bundled_json_path = PathBuf::from("default_network.json");
 
         if root_json_path.exists() && bundled_json_path.exists() {
-            let root_content = fs::read_to_string(&root_json_path).expect("Failed to read root network.json");
-            let bundled_content = fs::read_to_string(&bundled_json_path).expect("Failed to read bundled default_network.json");
-            
+            let root_content =
+                fs::read_to_string(&root_json_path).expect("Failed to read root network.json");
+            let bundled_content = fs::read_to_string(&bundled_json_path)
+                .expect("Failed to read bundled default_network.json");
+
             assert_eq!(
                 root_content, bundled_content,
                 "The bundled default_network.json in kinetic-core must perfectly match the root network.json!"

@@ -21,6 +21,7 @@ ml-dsa = "0.1.1"
 kinetic-vdf = { version = "0.2.0", path = "../kinetic-vdf" }
 hex = "0.4.3"
 serde = { version = "1.0.228", features = ["derive", "rc"] }
+uuid = { version = "1.2.3", features = ["v4"] }
 lru = "0.12.3"
 argon2 = "0.5"
 web-time = "1.1.0"

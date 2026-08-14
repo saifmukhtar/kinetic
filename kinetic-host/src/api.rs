@@ -1,7 +1,7 @@
 //! Host health-check and static Peer ID REST API listener.
 
 use anyhow::Result;
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use std::net::SocketAddr;
 use tracing::info;
 

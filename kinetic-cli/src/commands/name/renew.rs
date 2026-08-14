@@ -1,9 +1,9 @@
 //! Name renewal engine with cryptographic proof chaining and owner VDF difficulty discounts.
 
 use crate::utils::parse_and_format_api_error;
-use kinetic_core::config::{get_zones_dir, KineticConfig};
+use kinetic_core::config::{KineticConfig, get_zones_dir};
 use kinetic_core::traits::VdfEngine;
-use kinetic_core::types::{load_keypair, Commitment};
+use kinetic_core::types::{Commitment, load_keypair};
 use ml_dsa::{KeyExport, Keypair, SignatureEncoding};
 use reqwest::Client;
 use sha2::Digest;
@@ -34,9 +34,10 @@ pub async fn handle(
         let record: kinetic_core::types::NameRecord = serde_json::from_str(&content)?;
         match record {
             kinetic_core::types::NameRecord::Standard(r) => *r,
-            kinetic_core::types::NameRecord::Premium { .. } => {
+            kinetic_core::types::NameRecord::Prime { .. }
+            | kinetic_core::types::NameRecord::Infra { .. } => {
                 return Err(anyhow::anyhow!(
-                    "Name '{}' is Premium. Premium names do not expire or require VDF renewal.",
+                    "Name '{}' is Prime/Infra. These names do not expire or require VDF renewal.",
                     fqdn
                 ));
             }
@@ -67,15 +68,15 @@ pub async fn handle(
     getrandom::fill(&mut salt).expect("Failed to generate random salt");
 
     let mut drand_hasher = sha2::Sha256::new();
-    drand_hasher.update(&hex::decode(&drand_data.signature).unwrap());
+    drand_hasher.update(hex::decode(&drand_data.signature).unwrap());
     let mut drand_rand = [0u8; 32];
     drand_rand.copy_from_slice(&drand_hasher.finalize());
 
     let mut hasher = sha2::Sha256::new();
     hasher.update(fqdn.as_bytes());
-    hasher.update(&salt);
-    hasher.update(&drand_rand);
-    hasher.update(&pubkey);
+    hasher.update(salt);
+    hasher.update(drand_rand);
+    hasher.update(pubkey);
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&hasher.finalize());
     let challenge = Commitment { hash };
@@ -153,7 +154,7 @@ pub async fn handle(
     };
 
     use ml_dsa::signature::Signer;
-    let prev_signable = previous_proof.signable_bytes(kinetic_core::constants::NETWORK_ID);
+    let prev_signable = previous_proof.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     previous_proof.signature = keypair.sign(&prev_signable).to_bytes().to_vec();
 
     let mut new_reveal = kinetic_core::types::Reveal {
@@ -173,7 +174,7 @@ pub async fn handle(
     };
 
     new_reveal.signature = keypair
-        .sign(&new_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
+        .sign(&new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
         .to_bytes()
         .to_vec();
 

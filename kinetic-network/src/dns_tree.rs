@@ -36,10 +36,10 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
                         let hash = hash_part.split_whitespace().next().unwrap_or(hash_part);
                         root_hash = Some(hash.to_string());
                     }
-                } else if txt_str.starts_with("/ip4/") || txt_str.starts_with("/ip6/") {
-                    if let Ok(ma) = txt_str.parse::<Multiaddr>() {
-                        addrs.push(ma);
-                    }
+                } else if (txt_str.starts_with("/ip4/") || txt_str.starts_with("/ip6/"))
+                    && let Ok(ma) = txt_str.parse::<Multiaddr>()
+                {
+                    addrs.push(ma);
                 }
             }
         }

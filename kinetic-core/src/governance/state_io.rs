@@ -75,8 +75,15 @@ impl GovernanceState {
                     new_name.push(format!(".corrupt.{}", now));
                     let corrupt_path = path.with_file_name(new_name);
                     let _ = std::fs::rename(path, &corrupt_path);
-                    tracing::error!("CRITICAL: Governance state corrupted: {}. Refusing to start with a reset state.", e);
-                    panic!("Governance state at {} is corrupt; manual recovery required (backup at {}).", path.display(), corrupt_path.display());
+                    tracing::error!(
+                        "CRITICAL: Governance state corrupted: {}. Refusing to start with a reset state.",
+                        e
+                    );
+                    panic!(
+                        "Governance state at {} is corrupt; manual recovery required (backup at {}).",
+                        path.display(),
+                        corrupt_path.display()
+                    );
                 }
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {

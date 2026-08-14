@@ -2,9 +2,9 @@
 
 use super::*;
 use axum::{
+    Json,
     extract::{Extension, State},
     http::StatusCode,
-    Json,
 };
 
 /// Handles requests to retrieve the current daemon configuration.

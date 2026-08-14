@@ -1,10 +1,10 @@
 use axum::{
+    Json,
     extract::{Path, State},
     response::{
-        sse::{Event, Sse},
         IntoResponse,
+        sse::{Event, Sse},
     },
-    Json,
 };
 use serde_json::Value;
 use std::{convert::Infallible, time::Duration};
@@ -24,11 +24,10 @@ pub async fn handle_gossip_subscribe(
         loop {
             match rx.recv().await {
                 Ok((msg_topic, payload, _, _)) => {
-                    if msg_topic == topic {
-                        if let Ok(payload_str) = String::from_utf8(payload) {
+                    if msg_topic == topic
+                        && let Ok(payload_str) = String::from_utf8(payload) {
                             yield Ok(Event::default().data(payload_str));
                         }
-                    }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
                     tracing::warn!("SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);

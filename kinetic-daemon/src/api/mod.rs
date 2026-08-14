@@ -1,6 +1,6 @@
 //! HTTP REST API router, authentication middleware, state management, and server bootstrap.
 
-use axum::{extract::State, http::StatusCode, routing::post, Router};
+use axum::{Router, extract::State, http::StatusCode, routing::post};
 use kinetic_core::traits::StorageEngine;
 
 use kinetic_network::NetworkClient;
@@ -8,12 +8,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-/// API endpoints for Atlas TLD sync.
+/// API endpoints for Atlas NSP sync.
 pub mod atlas;
 /// API endpoints for configuration management.
 pub mod config;
 /// API endpoints for streaming Gossip.
 pub mod gossip;
+/// API endpoints for KID local management.
+pub mod kid;
 /// API endpoints for publishing names and content.
 pub mod publish;
 /// API endpoints for resolving names to payloads.
@@ -24,18 +26,16 @@ pub mod time;
 pub mod vdf;
 /// API endpoints for DNS zone management.
 pub mod zone;
-/// API endpoints for KID local management.
-pub mod kid;
 
 use atlas::*;
 use config::*;
 use gossip::*;
+use kid::*;
 use publish::*;
 use resolve::*;
 use time::*;
 use vdf::*;
 use zone::*;
-use kid::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
@@ -124,8 +124,8 @@ pub struct ApiState {
         libp2p::gossipsub::MessageId,
         libp2p::PeerId,
     )>,
-    /// Set of foreign TLDs registered by the kinetic-atlas bridge.
-    pub atlas_tlds: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
+    /// Set of foreign NSPs registered by the kinetic-atlas bridge.
+    pub atlas_nsps: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
 }
 
 /// Payload for publishing a direct reveal configuration.
@@ -330,7 +330,7 @@ pub async fn start_server(
     )>,
     bind_ip: String,
     port: u16,
-    atlas_tlds: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
+    atlas_nsps: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
 ) -> anyhow::Result<()> {
     let tokens = ensure_api_tokens()?;
 
@@ -342,7 +342,7 @@ pub async fn start_server(
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
         bind_ip: bind_ip.clone(),
         gossip_tx,
-        atlas_tlds,
+        atlas_nsps,
     };
 
     // Start background VDF Mempool worker

@@ -1,7 +1,7 @@
 {
   "network": {
     "network_id": "kinetic",
-    "tld": "kin",
+    "nsp": "kin",
     "base_domain": "saifmukhtar.dev",
     "docs_url": "https://kinetic.saifmukhtar.dev",
     "ipfs_gateway": "https://ipfs.io/ipfs/",
@@ -23,7 +23,7 @@
   },
   "governance": {
     "governance_model": "sovereign",
-    "max_age_seconds": 604800
+    "max_age_kyns": 201600
   },
   "consensus": {
     "vdf_squatter_multipliers": {

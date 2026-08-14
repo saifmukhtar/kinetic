@@ -1,8 +1,8 @@
 use super::*;
 use axum::{
+    Json,
     extract::{Extension, Path, State},
     http::StatusCode,
-    Json,
 };
 use serde::Deserialize;
 
@@ -26,7 +26,8 @@ fn default_inherit() -> bool {
 }
 
 /// Handles API requests to list all local KID documents stored on the filesystem.
-pub async fn handle_list_kids() -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+pub async fn handle_list_kids()
+-> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let summaries = kinetic_core::types::list_local_kids().map_err(|e| {
         let api_err = kinetic_core::ApiError::from(e);
         (
@@ -66,7 +67,9 @@ pub async fn handle_generate_kid(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
 
@@ -116,7 +119,9 @@ pub async fn handle_rotate_kid(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
 
@@ -153,7 +158,9 @@ pub async fn handle_revoke_kid(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
 
@@ -165,13 +172,14 @@ pub async fn handle_revoke_kid(
         )
     })?;
 
-    let auth_kid = kinetic_core::types::authorize_kid_document(&name, &revoked_doc).map_err(|e| {
-        let api_err = kinetic_core::ApiError::from(e);
-        (
-            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(serde_json::to_value(api_err).unwrap_or_default()),
-        )
-    })?;
+    let auth_kid =
+        kinetic_core::types::authorize_kid_document(&name, &revoked_doc).map_err(|e| {
+            let api_err = kinetic_core::ApiError::from(e);
+            (
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
+            )
+        })?;
 
     // Publish revoked document to DHT
     if let Ok(payload_bytes) = serde_json::to_vec(&auth_kid) {
@@ -230,17 +238,20 @@ pub async fn handle_update_kid_manifest(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
 
-    let (manifest, auth_manifest) = kinetic_core::types::save_and_sign_local_manifest(&name, req.services).map_err(|e| {
-        let api_err = kinetic_core::ApiError::from(e);
-        (
-            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(serde_json::to_value(api_err).unwrap_or_default()),
-        )
-    })?;
+    let (manifest, auth_manifest) =
+        kinetic_core::types::save_and_sign_local_manifest(&name, req.services).map_err(|e| {
+            let api_err = kinetic_core::ApiError::from(e);
+            (
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
+            )
+        })?;
 
     // Publish to DHT under hex(sha256(did#manifest))
     use sha2::{Digest, Sha256};
@@ -261,4 +272,3 @@ pub async fn handle_update_kid_manifest(
         "manifest": manifest,
     })))
 }
-

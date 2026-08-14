@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -52,7 +53,7 @@ struct TimeoutsConfig {
 
 #[derive(Deserialize)]
 struct NetworkSection {
-    tld: String,
+    nsp: String,
     base_domain: String,
     network_id: String,
     docs_url: String,
@@ -73,7 +74,7 @@ struct DrandSection {
 #[derive(Deserialize)]
 struct GovernanceSection {
     governance_model: String,
-    max_age_seconds: u64,
+    max_age_kyns: u64,
 }
 
 #[derive(Deserialize)]
@@ -125,18 +126,18 @@ fn main() {
     let mut out = String::new();
 
     out.push_str(&format!(
-        "/// The default Top Level Domain (TLD) for the Kinetic network.\npub const TLD: &str = \"{}\";\n\n",
-        config.network.tld
+        "/// The default Namespace (NSP) for the Kinetic network.\npub const NSP: &str = \"{}\";\n\n",
+        config.network.nsp
     ));
 
     out.push_str(&format!(
-        "/// The suffix format for Kinetic names, including the preceding dot.\npub const TLD_SUFFIX: &str = \".{}\";\n\n",
-        config.network.tld
+        "/// The suffix format for Kinetic names, including the preceding dot.\npub const NSP_SUFFIX: &str = \".{}\";\n\n",
+        config.network.nsp
     ));
 
     out.push_str(&format!(
         "/// The prefix used for Decentralized Identifiers (DIDs) on the Kinetic network.\npub const DID_PREFIX: &str = \"did:{}:\";\n\n",
-        config.network.tld
+        config.network.nsp
     ));
 
     out.push_str(&format!(
@@ -197,11 +198,9 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The maximum time (in seconds) a governance proposal is valid before it expires.\npub const MAX_AGE_SECONDS: u64 = {};\n\n",
-        config.governance.max_age_seconds
+        "/// The maximum age (in kyns) a governance proposal is valid before it expires.\npub const MAX_AGE_KYNS: u64 = {};\n\n",
+        config.governance.max_age_kyns
     ));
-
-
 
     out.push_str(&format!(
         "/// The default number of iterations used during development and simulation mode.\npub const DEV_MODE_ITERATIONS: u64 = {};\n\n",
@@ -314,8 +313,6 @@ fn main() {
     ));
     out.push_str(&format!("/// Maximum bytes for a VDF proof\npub const CONSENSUS_VDF_MAX_PROOF_BYTES: usize = {};\n\n", config.consensus.vdf_max_proof_bytes));
 
-
-
     out.push_str(&format!(
         "/// Maximum P2P packet size\npub const LIMITS_P2P_MAX_PACKET_SIZE: usize = {};\n",
         config.advanced.limits.p2p_max_packet_size
@@ -358,7 +355,72 @@ fn main() {
         config.advanced.timeouts.dns_cache_ttl_seconds
     ));
     out.push_str(&format!("/// Network prune interval in seconds\npub const TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS: u64 = {};\n", config.advanced.timeouts.network_prune_interval_seconds));
-    out.push_str(&format!("/// Maximum age of a host route in seconds\npub const TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS: u64 = {};\n", config.advanced.timeouts.host_route_max_age_seconds));
+    out.push_str(&format!("/// Maximum age of a host route in seconds\npub const TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS: u64 = {};\n\n", config.advanced.timeouts.host_route_max_age_seconds));
+
+    // Compile-time Governance Network Salt Calculation
+    // Extract the ROOT_PUBLIC_KEY_HEX from src/constants.rs so we can bake the salted hashes into the binary.
+    let constants_src =
+        fs::read_to_string("src/constants.rs").expect("build.rs failed to read src/constants.rs");
+
+    // Simple parser to find the prod and test keys
+    let prod_key = extract_root_key(&constants_src, "prod_keys");
+    let test_key = extract_root_key(&constants_src, "test_keys");
+
+    // Compute the PROD salt
+    let mut hasher = Sha256::new();
+    hasher.update(config.network.network_id.as_bytes());
+    hasher.update(prod_key.as_bytes());
+    let prod_salt = hasher.finalize();
+
+    // Compute the TEST salt
+    let mut hasher_test = Sha256::new();
+    hasher_test.update(config.network.network_id.as_bytes());
+    hasher_test.update(test_key.as_bytes());
+    let test_salt = hasher_test.finalize();
+
+    out.push_str(&format!(
+        "/// The mathematical network salt for production, derived from NETWORK_ID + ROOT_PUBLIC_KEY.\n\
+         pub const NETWORK_SALT_PROD: [u8; 32] = {:?};\n\n",
+        prod_salt.as_slice()
+    ));
+
+    out.push_str(&format!(
+        "/// The mathematical network salt for production, hex encoded.\n\
+         pub const NETWORK_SALT_HEX_PROD: &str = \"{}\";\n\n",
+        hex::encode(prod_salt)
+    ));
+
+    out.push_str(&format!(
+        "/// The mathematical network salt for testing, derived from NETWORK_ID + ROOT_PUBLIC_KEY.\n\
+         pub const NETWORK_SALT_TEST: [u8; 32] = {:?};\n\n",
+        test_salt.as_slice()
+    ));
+
+    out.push_str(&format!(
+        "/// The mathematical network salt for testing, hex encoded.\n\
+         pub const NETWORK_SALT_HEX_TEST: &str = \"{}\";\n\n",
+        hex::encode(test_salt)
+    ));
 
     fs::write(&dest_path, out).expect("Failed to write network_constants.rs");
+}
+
+fn extract_root_key(src: &str, module_name: &str) -> String {
+    let mod_start = src
+        .find(&format!("pub mod {}", module_name))
+        .unwrap_or_else(|| panic!("Could not find {} module in constants.rs", module_name));
+
+    let key_marker = "pub const ROOT_PUBLIC_KEY_HEX: &str = \"";
+    let key_start = src[mod_start..]
+        .find(key_marker)
+        .unwrap_or_else(|| panic!("Could not find ROOT_PUBLIC_KEY_HEX in {}", module_name))
+        + mod_start
+        + key_marker.len();
+
+    let key_end = src[key_start..]
+        .find("\"")
+        .unwrap_or_else(|| panic!("Malformed ROOT_PUBLIC_KEY_HEX in {}", module_name))
+        + key_start;
+
+    src[key_start..key_end].to_string()
 }

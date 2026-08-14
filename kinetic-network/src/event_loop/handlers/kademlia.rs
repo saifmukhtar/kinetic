@@ -1,5 +1,5 @@
-use libp2p::kad;
 use crate::event_loop::core::NetworkEventLoop;
+use libp2p::kad;
 
 pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
     match e {
@@ -9,10 +9,10 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 if let Some(mapped_name) = event_loop.query_id_to_name.get(&id) {
                     match mapped_name {
                         crate::event_loop::core::QueryType::Quorum(name) => {
-                            if let Some(pending) = event_loop.pending_quorums.get_mut(name) {
-                                if peer_record.record.value == pending.target_payload {
-                                    pending.match_count += 1;
-                                }
+                            if let Some(pending) = event_loop.pending_quorums.get_mut(name)
+                                && peer_record.record.value == pending.target_payload
+                            {
+                                pending.match_count += 1;
                             }
                         }
                         crate::event_loop::core::QueryType::Get(name) => {
@@ -24,9 +24,9 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                     }
                 }
             }
-            kad::QueryResult::GetRecord(Ok(
-                kad::GetRecordOk::FinishedWithNoAdditionalRecord { .. },
-            ))
+            kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FinishedWithNoAdditionalRecord {
+                ..
+            }))
             | kad::QueryResult::GetRecord(Err(_)) => {
                 tracing::debug!("GetRecord Finished/Err for query {:?}", id);
                 if let Some(mapped_name) = event_loop.query_id_to_name.remove(&id) {
@@ -55,19 +55,15 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                             complete = true;
                         }
                     }
-                    if complete {
-                        if let Some(pending) = event_loop.pending_puts.remove(&name) {
-                            if pending.success_count > 0 {
-                                tracing::debug!(name = %name, success = %pending.success_count, "Publish succeeded over network");
-                                let _ = pending.responder.send(Ok(()));
-                            } else {
-                                tracing::warn!(error_code = "KIN-PUB-004", name = %name, "Publish: all DHT puts failed over network");
-                                let _ = pending.responder.send(Err(
-                                    kinetic_core::error::PublishError::AllFailed {
-                                        count: 0,
-                                    },
-                                ));
-                            }
+                    if complete && let Some(pending) = event_loop.pending_puts.remove(&name) {
+                        if pending.success_count > 0 {
+                            tracing::debug!(name = %name, success = %pending.success_count, "Publish succeeded over network");
+                            let _ = pending.responder.send(Ok(()));
+                        } else {
+                            tracing::warn!(error_code = "KIN-PUB-004", name = %name, "Publish: all DHT puts failed over network");
+                            let _ = pending.responder.send(Err(
+                                kinetic_core::error::PublishError::AllFailed { count: 0 },
+                            ));
                         }
                     }
                 }
@@ -83,7 +79,10 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 },
         } => {
             if event_loop.light_nodes.contains(&source) {
-                tracing::warn!("Light node {} attempted to PutRecord (Write). Rejecting and disconnecting.", source);
+                tracing::warn!(
+                    "Light node {} attempted to PutRecord (Write). Rejecting and disconnecting.",
+                    source
+                );
                 let _ = event_loop.swarm.disconnect_peer_id(source);
                 let expire_time = web_time::SystemTime::now()
                     .duration_since(web_time::UNIX_EPOCH)
@@ -94,41 +93,39 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 return;
             }
 
-            if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&record.value) {
-                if parsed.get("vdf_proof").is_some() {
-                    if let Ok(reveal) =
-                        serde_json::from_value::<kinetic_core::types::Reveal>(parsed)
-                    {
-                        let store = event_loop.swarm.behaviour_mut().kademlia.store_mut();
-                        let storage = store.storage.clone();
-                        let engine = store.vdf_engine.clone();
-                        let current_drand_kyn = store.current_drand_kyn;
+            if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&record.value)
+                && parsed.get("vdf_proof").is_some()
+                && let Ok(reveal) = serde_json::from_value::<kinetic_core::types::Reveal>(parsed)
+            {
+                let store = event_loop.swarm.behaviour_mut().kademlia.store_mut();
+                let storage = store.storage.clone();
+                let engine = store.vdf_engine.clone();
+                let current_drand_kyn = store.current_drand_kyn;
 
-                        if let Some(loopback) = &event_loop.loopback_tx {
-                            let loopback_clone = loopback.clone();
-                            let record_clone = record.clone();
-                            crate::event_loop::utils::spawn(async move {
-                                let verdict =
-                                    crate::event_loop::utils::spawn_blocking(move || {
-                                        crate::store::verification::verify_reveal(
-                                            &reveal,
-                                            &storage,
-                                            current_drand_kyn,
-                                            &engine,
-                                        )
-                                    })
-                                    .await;
+                if let Some(loopback) = &event_loop.loopback_tx {
+                    let loopback_clone = loopback.clone();
+                    let record_clone = record.clone();
+                    crate::event_loop::utils::spawn(async move {
+                        let verdict = crate::event_loop::utils::spawn_blocking(move || {
+                            crate::store::verification::verify_reveal(
+                                &reveal,
+                                &storage,
+                                current_drand_kyn,
+                                &engine,
+                            )
+                        })
+                        .await;
 
-                                let _ = loopback_clone.send(crate::event_loop::core::LoopbackCommand::CommitVerifiedRecord {
-                                    source,
-                                    record: record_clone,
-                                    verdict,
-                                });
-                            });
-                        }
-                        return;
-                    }
+                        let _ = loopback_clone.send(
+                            crate::event_loop::core::LoopbackCommand::CommitVerifiedRecord {
+                                source,
+                                record: record_clone,
+                                verdict,
+                            },
+                        );
+                    });
                 }
+                return;
             }
 
             let put_result = event_loop
@@ -146,17 +143,19 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         .get(&source)
                         .copied()
                         .unwrap_or((0, now));
-                    let new_val = if now.duration_since(last_time)
-                        > web_time::Duration::from_secs(60)
-                    {
-                        (1, now)
-                    } else {
-                        (count + 1, now)
-                    };
+                    let new_val =
+                        if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
+                            (1, now)
+                        } else {
+                            (count + 1, now)
+                        };
                     event_loop.bad_vdf_counts.put(source, new_val);
 
                     if new_val.0 >= 3 {
-                        tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
+                        tracing::warn!(
+                            "Peer {} sent 3 invalid records within 60s — disconnecting and banning",
+                            source
+                        );
                         let _ = event_loop.swarm.disconnect_peer_id(source);
                         let expire_time = web_time::SystemTime::now()
                             .duration_since(web_time::UNIX_EPOCH)

@@ -80,7 +80,7 @@ pub(crate) fn verify_host_routing_record(
     let sig = Signature::from_slice(&record.signature)
         .map_err(|_| KineticStoreError::MalformedSignature)?;
 
-    let signable = record.signable_bytes(kinetic_core::constants::NETWORK_ID);
+    let signable = record.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     verifying_key
         .verify(&signable, &sig)
         .map_err(|_| KineticStoreError::InvalidHostRouteSignature)
@@ -126,9 +126,9 @@ pub(crate) fn compute_required_iterations(
         return Err(err);
     }
 
+    use drand_verify::Pubkey;
     use kinetic_core::types::Commitment;
     use sha2::{Digest, Sha256};
-    use drand_verify::Pubkey;
 
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
 
@@ -209,7 +209,7 @@ pub(crate) fn compute_required_iterations(
         let mut prev_drand_rand = [0u8; 32];
         prev_drand_rand.copy_from_slice(&drand_hasher.finalize());
 
-        prev_hasher.update(&prev_drand_rand);
+        prev_hasher.update(prev_drand_rand);
         prev_hasher.update(&reveal.pubkey);
         let mut prev_hash = [0u8; 32];
         prev_hash.copy_from_slice(&prev_hasher.finalize());
@@ -237,7 +237,7 @@ pub(crate) fn compute_required_iterations(
         if prev_valid && prev.iterations >= prev_req && is_not_too_old {
             let normalized_name = kinetic_core::types::normalize_name(&reveal.name);
             let name_len = normalized_name
-                .strip_suffix(kinetic_core::constants::TLD_SUFFIX)
+                .strip_suffix(kinetic_core::constants::NSP_SUFFIX)
                 .unwrap_or(&normalized_name)
                 .len();
             let discount_iterations = match name_len {
@@ -299,10 +299,10 @@ pub(crate) fn verify_reveal(
     current_drand_kyn: u64,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> Result<(), KineticStoreError> {
-    if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-        if state.is_halted {
-            return Err(KineticStoreError::NetworkHalted);
-        }
+    if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
+        && state.is_halted
+    {
+        return Err(KineticStoreError::NetworkHalted);
     }
     if let Err(e) = reveal.validate() {
         let err = KineticStoreError::InvalidName;
@@ -314,15 +314,15 @@ pub(crate) fn verify_reveal(
         return Err(err);
     }
 
+    use drand_verify::Pubkey;
     use kinetic_core::types::Commitment;
     use sha2::{Digest, Sha256};
-    use drand_verify::Pubkey;
 
     let dev_mode = kinetic_core::config::is_dev_mode();
 
     if !dev_mode
         && reveal
-            .verify_signature(kinetic_core::constants::NETWORK_ID)
+            .verify_signature(kinetic_core::constants::NETWORK_SALT)
             .is_err()
     {
         let err = KineticStoreError::InvalidSignature;
@@ -375,7 +375,7 @@ pub(crate) fn verify_reveal(
     let mut hasher = Sha256::new();
     hasher.update(reveal.name.as_bytes());
     hasher.update(reveal.salt);
-    hasher.update(&drand_rand);
+    hasher.update(drand_rand);
     hasher.update(&reveal.pubkey);
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&hasher.finalize());
@@ -388,7 +388,10 @@ pub(crate) fn verify_reveal(
     let commit_kyn = get_u64_from_sled(storage, &commit_key);
 
     if let Some(commit_kyn) = commit_kyn {
-        if !dev_mode && current_drand_kyn.saturating_sub(commit_kyn) < kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS {
+        if !dev_mode
+            && current_drand_kyn.saturating_sub(commit_kyn)
+                < kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
+        {
             let err = KineticStoreError::StaleReveal;
             err.log_warning(
                 "KIN-STORE-027",
@@ -513,7 +516,7 @@ pub(crate) fn verify_authorized_kid(
 
     if pubkey
         .verify(
-            &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID),
+            &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
             &sig,
         )
         .is_err()
@@ -545,16 +548,15 @@ pub(crate) fn verify_authorized_kid(
             // Update: new document must be signed by a key from the previous document.
             if let Ok(old_auth_kid) =
                 serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&record.value)
+                && !auth_kid.kid_doc.is_authorized_update(&old_auth_kid.kid_doc)
             {
-                if !auth_kid.kid_doc.is_authorized_update(&old_auth_kid.kid_doc) {
-                    let err = KineticStoreError::InvalidKidSignature;
-                    err.log_warning(
+                let err = KineticStoreError::InvalidKidSignature;
+                err.log_warning(
                         "KIN-STORE-037",
                         &auth_kid.name,
                         "Rejecting AuthorizedKid update: not signed by any key in the existing document",
                     );
-                    return Err(err);
-                }
+                return Err(err);
             }
             // If the existing record can't be parsed as an AuthorizedKid (e.g. corrupted),
             // we fall back to allowing the update — the domain owner's Ed25519 signature
@@ -610,7 +612,7 @@ pub(crate) fn verify_authorized_manifest(
 
     if pubkey
         .verify(
-            &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID),
+            &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
             &sig,
         )
         .is_err()
@@ -636,20 +638,18 @@ pub(crate) fn verify_authorized_manifest(
         .verify_local(kid_doc)
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
 
-    if let Some(existing) = existing_record {
-        if let Ok(old_manifest) =
+    if let Some(existing) = existing_record
+        && let Ok(old_manifest) =
             serde_json::from_slice::<kinetic_core::types::AuthorizedManifest>(&existing.value)
-        {
-            if auth_manifest.manifest.version <= old_manifest.manifest.version {
-                let err = KineticStoreError::InvalidManifestSignature;
-                err.log_warning(
-                    "KIN-STORE-034",
-                    &auth_manifest.name,
-                    "Rejecting AuthorizedManifest: Version rollback detected",
-                );
-                return Err(err);
-            }
-        }
+        && auth_manifest.manifest.version <= old_manifest.manifest.version
+    {
+        let err = KineticStoreError::InvalidManifestSignature;
+        err.log_warning(
+            "KIN-STORE-034",
+            &auth_manifest.name,
+            "Rejecting AuthorizedManifest: Version rollback detected",
+        );
+        return Err(err);
     }
 
     tracing::info!(

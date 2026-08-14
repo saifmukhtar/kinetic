@@ -4,6 +4,8 @@
 pub mod command;
 /// Core client implementation.
 pub mod core;
+/// Anonymous network telemetry service.
+pub mod telemetry;
 /// Types used by the network client.
 pub mod types;
 

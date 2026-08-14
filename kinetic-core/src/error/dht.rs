@@ -11,8 +11,8 @@
 //!
 //! All three rich error types expose `code()`, `error_type_uri()`, `is_retryable()`,
 //! `severity()`, `user_message()`, and `details()` to satisfy the Kinetic error taxonomy.
-use super::vdf::VdfRejectReason;
 use super::Severity;
+use super::vdf::VdfRejectReason;
 use thiserror::Error;
 
 /// Why a DHT record was rejected by the local store.
@@ -371,11 +371,21 @@ impl RegistrationError {
     /// Clean user-facing message with no developer details.
     pub fn user_message(&self) -> String {
         match self {
-            Self::InvalidName { name } => format!("'{}' contains invalid characters. Use only lowercase letters, digits, and hyphens.", name),
+            Self::InvalidName { name } => format!(
+                "'{}' contains invalid characters. Use only lowercase letters, digits, and hyphens.",
+                name
+            ),
             Self::VdfFailed(_) => "The VDF computation failed. Please try again.".to_string(),
-            Self::CommitmentMismatch => "The registration data is inconsistent. Please restart the registration process.".to_string(),
-            Self::AlreadyOwned { name } => format!("'{}' is already registered by someone else.", name),
-            Self::AlreadyInProgress { name } => format!("A registration is already in progress for '{}'.", name),
+            Self::CommitmentMismatch => {
+                "The registration data is inconsistent. Please restart the registration process."
+                    .to_string()
+            }
+            Self::AlreadyOwned { name } => {
+                format!("'{}' is already registered by someone else.", name)
+            }
+            Self::AlreadyInProgress { name } => {
+                format!("A registration is already in progress for '{}'.", name)
+            }
             Self::NetworkRejected { reason } => format!("Registration was rejected: {}", reason),
             Self::Internal { .. } => "An internal error occurred during registration.".to_string(),
         }

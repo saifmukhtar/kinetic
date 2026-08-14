@@ -64,7 +64,7 @@ pub async fn handle_identity_command(
             use ml_dsa::{Generate, KeyExport, Keypair};
             let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
 
-            use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+            use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
             let pub_key_b64 = b64_url.encode(keypair.verifying_key().to_bytes());
 
             let mut hasher = sha2::Sha256::new();
@@ -136,7 +136,7 @@ pub async fn handle_identity_command(
                     kid_doc: doc,
                     owner_signature: vec![],
                 };
-                let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID);
+                let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT);
                 use ml_dsa::SignatureEncoding;
                 auth_kid.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
 
@@ -170,7 +170,7 @@ pub async fn handle_identity_command(
                     kid_doc: kid_doc_opt,
                     owner_signature: vec![],
                 };
-                let signable = auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID);
+                let signable = auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT);
                 use ml_dsa::SignatureEncoding;
                 auth_manifest.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
 
@@ -252,7 +252,7 @@ pub async fn handle_identity_command(
             info!("Generating new ML-DSA-65 keypair for rotated identity...");
             use ml_dsa::{Generate, KeyExport, Keypair};
             let new_keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
-            use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+            use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
             let new_pub_b64 = b64_url.encode(new_keypair.verifying_key().to_bytes());
 
             // Replace primary controller key
@@ -303,8 +303,8 @@ pub async fn handle_identity_command(
 mod tests {
     use super::*;
     use axum::{
-        routing::{get, post},
         Router,
+        routing::{get, post},
     };
     use std::env;
     use tokio::net::TcpListener;
@@ -334,10 +334,11 @@ mod tests {
         let doc: kinetic_kid::document::KidDocument = serde_json::from_str(&data).unwrap();
 
         assert_eq!(doc.doc_type, "kinetic.kid.v1");
-        assert!(doc
-            .kid
-            .as_str()
-            .starts_with(kinetic_core::constants::DID_PREFIX));
+        assert!(
+            doc.kid
+                .as_str()
+                .starts_with(kinetic_core::constants::DID_PREFIX)
+        );
         assert!(!doc.controller_keys.is_empty());
         assert!(doc.signature.is_some());
 
@@ -430,7 +431,7 @@ mod tests {
         let cmd3 = IdentityCommands::Publish {
             kid: "nonexistent.json".to_string(),
             manifest: "nonexistent.json".to_string(),
-            name: format!("test{}", kinetic_core::constants::TLD_SUFFIX),
+            name: format!("test{}", kinetic_core::constants::NSP_SUFFIX),
         };
         let res3 = handle_identity_command(cmd3, &config, &client).await;
         assert!(res3.is_ok()); // Logs skipping

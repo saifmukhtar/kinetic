@@ -1,7 +1,7 @@
 use kinetic_core::types::vdf::{PreviousProof, Reveal, VdfProof};
 use kinetic_network::store::core::KineticRecordStore;
 use kinetic_storage::SledStorage;
-use libp2p::{kad, PeerId};
+use libp2p::{PeerId, kad};
 use proptest::prelude::*;
 use std::num::NonZeroUsize;
 use std::sync::Arc;

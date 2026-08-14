@@ -24,9 +24,11 @@ pub fn install_service() -> Result<()> {
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["run"
-            .parse()
-            .map_err(|_| anyhow::anyhow!("Failed to parse run"))?],
+        args: vec![
+            "run"
+                .parse()
+                .map_err(|_| anyhow::anyhow!("Failed to parse run"))?,
+        ],
         contents: None,
         username: std::env::var("SUDO_USER")
             .ok()

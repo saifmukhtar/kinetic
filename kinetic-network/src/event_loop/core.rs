@@ -4,7 +4,7 @@
 //! It maintains the Kademlia DHT, Gossipsub mesh, AutoNAT traversals, and background
 //! verification workers for inbound blocks.
 
-use libp2p::{kad, PeerId, Swarm};
+use libp2p::{PeerId, Swarm, kad};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::info;
@@ -304,7 +304,10 @@ impl NetworkEventLoop {
                         self.bad_vdf_counts.put(source, new_val);
 
                         if new_val.0 >= 3 {
-                            tracing::warn!("Peer {} sent 3 invalid records within 60s — disconnecting and banning", source);
+                            tracing::warn!(
+                                "Peer {} sent 3 invalid records within 60s — disconnecting and banning",
+                                source
+                            );
                             let _ = self.swarm.disconnect_peer_id(source);
                             let expire_kyn = self.current_drand_kyn + 28800;
                             self.banned_peers.put(source, expire_kyn);
@@ -321,7 +324,7 @@ impl NetworkEventLoop {
                         .kademlia
                         .store_mut()
                         .put_verified_record(record.clone());
-                    
+
                     // Advertise that we are caching this record (Edge Caching / Option 3)
                     let _ = self
                         .swarm
@@ -384,7 +387,10 @@ impl NetworkEventLoop {
                     };
 
                     if self.light_nodes.len() >= 50 {
-                        tracing::warn!("Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion", peer_id);
+                        tracing::warn!(
+                            "Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion",
+                            peer_id
+                        );
                         let _ = self.swarm.disconnect_peer_id(peer_id);
                     } else {
                         let count = self.light_node_ips.entry(identifier.clone()).or_insert(0);

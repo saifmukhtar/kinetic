@@ -5,7 +5,7 @@
 //! `put` requests to strictly enforce Kinetic protocol rules, such as VDF proof
 //! validation, Ed25519 signature checks, and heartbeat timestamp progression,
 //! before persisting records to the underlying `sled` database.
-use libp2p::{kad, PeerId};
+use libp2p::{PeerId, kad};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -92,56 +92,56 @@ impl KineticRecordStore {
                                 reveal,
                                 initial_drand_kyn,
                                 vdf_engine.as_ref(),
-                            ) {
-                                if reveal.iterations >= req {
-                                    let dev_mode = kinetic_core::config::is_dev_mode();
-                                    if dev_mode
-                                        || reveal
-                                            .verify_signature(kinetic_core::constants::NETWORK_ID)
-                                            .is_ok()
-                                    {
-                                        use kinetic_core::types::Commitment;
-                                        use sha2::{Digest, Sha256};
-                                        let drand_sig_bytes = hex::decode(&reveal.drand_signature)
-                                            .unwrap_or_else(|_| vec![0u8; 32]);
-                                        let mut drand_hasher = Sha256::new();
-                                        drand_hasher.update(&drand_sig_bytes);
-                                        let mut drand_rand = [0u8; 32];
-                                        drand_rand.copy_from_slice(&drand_hasher.finalize());
+                            ) && reveal.iterations >= req
+                            {
+                                let dev_mode = kinetic_core::config::is_dev_mode();
+                                if dev_mode
+                                    || reveal
+                                        .verify_signature(kinetic_core::constants::NETWORK_SALT)
+                                        .is_ok()
+                                {
+                                    use kinetic_core::types::Commitment;
+                                    use sha2::{Digest, Sha256};
+                                    let drand_sig_bytes = hex::decode(&reveal.drand_signature)
+                                        .unwrap_or_else(|_| vec![0u8; 32]);
+                                    let mut drand_hasher = Sha256::new();
+                                    drand_hasher.update(&drand_sig_bytes);
+                                    let mut drand_rand = [0u8; 32];
+                                    drand_rand.copy_from_slice(&drand_hasher.finalize());
 
-                                        let mut hasher = Sha256::new();
-                                        hasher.update(reveal.name.as_bytes());
-                                        hasher.update(reveal.salt);
-                                        hasher.update(&drand_rand);
-                                        hasher.update(&reveal.pubkey);
-                                        let mut hash = [0u8; 32];
-                                        hash.copy_from_slice(&hasher.finalize());
-                                        let challenge = Commitment { hash };
+                                    let mut hasher = Sha256::new();
+                                    hasher.update(reveal.name.as_bytes());
+                                    hasher.update(reveal.salt);
+                                    hasher.update(drand_rand);
+                                    hasher.update(&reveal.pubkey);
+                                    let mut hash = [0u8; 32];
+                                    hash.copy_from_slice(&hasher.finalize());
+                                    let challenge = Commitment { hash };
 
-                                        #[cfg(not(target_arch = "wasm32"))]
-                                        let is_valid_vdf = tokio::task::block_in_place(|| {
-                                            vdf_engine.verify(
-                                                &challenge,
-                                                &reveal.vdf_proof,
-                                                reveal.iterations,
-                                            )
-                                        });
-                                        #[cfg(target_arch = "wasm32")]
-                                        let is_valid_vdf = vdf_engine.verify(
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    let is_valid_vdf = tokio::task::block_in_place(|| {
+                                        vdf_engine.verify(
                                             &challenge,
                                             &reveal.vdf_proof,
                                             reveal.iterations,
-                                        );
+                                        )
+                                    });
+                                    #[cfg(target_arch = "wasm32")]
+                                    let is_valid_vdf = vdf_engine.verify(
+                                        &challenge,
+                                        &reveal.vdf_proof,
+                                        reveal.iterations,
+                                    );
 
-                                        if matches!(is_valid_vdf, Ok(true)) {
-                                            is_valid = true;
-                                        }
+                                    if matches!(is_valid_vdf, Ok(true)) {
+                                        is_valid = true;
                                     }
                                 }
                             }
                         }
-                        kinetic_core::types::NameRecord::Premium { .. } => {
-                            // Premium domains injected by governance are implicitly valid.
+                        kinetic_core::types::NameRecord::Prime { .. }
+                        | kinetic_core::types::NameRecord::Infra { .. } => {
+                            // Domains injected by governance are implicitly valid.
                             is_valid = true;
                         }
                     }
@@ -180,7 +180,7 @@ impl KineticRecordStore {
             if let Ok(val) = serde_json::to_vec(reveal) {
                 let keys = kinetic_core::types::derive_storage_keys(
                     name,
-                    kinetic_core::constants::NETWORK_ID,
+                    kinetic_core::constants::NETWORK_SALT,
                 );
                 for key_bytes in keys {
                     let k = kad::RecordKey::new(&key_bytes);
@@ -251,8 +251,25 @@ impl KineticRecordStore {
                         expired_names.push(name.clone());
                     }
                 }
-                kinetic_core::types::NameRecord::Premium { .. } => {
-                    // Premium names do not expire via drand resquaring, and don't require heartbeats.
+                kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
+                    let grant_kyn = kinetic_core::types::clock::unix_secs_to_kyn(
+                        *granted_at,
+                        kinetic_core::constants::DRAND_GENESIS_TIME,
+                        kinetic_core::constants::DRAND_PERIOD,
+                    );
+                    let last_hb = self
+                        .last_heartbeats_by_name
+                        .get(name)
+                        .copied()
+                        .unwrap_or(grant_kyn);
+                    let hb_age = current_kyn.saturating_sub(last_hb);
+
+                    if hb_age > idle_timeout {
+                        expired_names.push(name.clone());
+                    }
+                }
+                kinetic_core::types::NameRecord::Infra { .. } => {
+                    // Infrastructure names are fully immortal and do not expire.
                     continue;
                 }
             }
@@ -268,7 +285,7 @@ impl KineticRecordStore {
 
             let keys = kinetic_core::types::derive_storage_keys(
                 &name,
-                kinetic_core::constants::NETWORK_ID,
+                kinetic_core::constants::NETWORK_SALT,
             );
             for key_bytes in keys {
                 let k = kad::RecordKey::new(&key_bytes);
@@ -280,7 +297,7 @@ impl KineticRecordStore {
 
             let hb_keys = kinetic_core::types::derive_heartbeat_keys(
                 &name,
-                kinetic_core::constants::NETWORK_ID,
+                kinetic_core::constants::NETWORK_SALT,
             );
             for key_bytes in hb_keys {
                 let k = kad::RecordKey::new(&key_bytes);
@@ -312,12 +329,11 @@ impl KineticRecordStore {
             return Some(r.clone());
         }
         let key = [crate::store::constants::KRS_REVEAL_PREFIX, name.as_bytes()].concat();
-        if let Ok(Some(bytes)) = self.storage.get(&key) {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
-            {
-                self.reveals_by_name.put(name.to_string(), record.clone());
-                return Some(record);
-            }
+        if let Ok(Some(bytes)) = self.storage.get(&key)
+            && let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
+        {
+            self.reveals_by_name.put(name.to_string(), record.clone());
+            return Some(record);
         }
         None
     }
@@ -463,9 +479,15 @@ impl KineticRecordStore {
             } else if parsed.get("host_id").is_some() {
                 match serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed) {
                     Ok(host_route) => {
-                        match crate::store::verification::verify_host_routing_record(&host_route, self.current_drand_kyn) {
+                        match crate::store::verification::verify_host_routing_record(
+                            &host_route,
+                            self.current_drand_kyn,
+                        ) {
                             Ok(()) => {
-                                tracing::info!("KineticRecordStore::put accepted verified HostRoutingRecord for {}", host_route.host_id);
+                                tracing::info!(
+                                    "KineticRecordStore::put accepted verified HostRoutingRecord for {}",
+                                    host_route.host_id
+                                );
                             }
                             Err(err) => {
                                 tracing::warn!(error_code = "KIN-STORE-021", host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);

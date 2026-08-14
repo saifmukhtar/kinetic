@@ -1,7 +1,7 @@
 //! Governance gossip message handler, state update processor, and disk persistence engine.
 
 use kinetic_core::governance::{
-    process_governance_message, SignedGovernanceMessage, GLOBAL_GOVERNANCE_STATE,
+    GLOBAL_GOVERNANCE_STATE, SignedGovernanceMessage, process_governance_message,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -20,7 +20,12 @@ pub fn handle_kinetic_governance_gossip(
             let mut state = GLOBAL_GOVERNANCE_STATE
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let result = process_governance_message(&mut state, &signed_msg);
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let current_kyn = kinetic_core::types::clock::unix_secs_to_network_kyn(current_time);
+            let result = process_governance_message(&mut state, &signed_msg, current_kyn);
             (state.clone(), result)
         };
 
@@ -33,11 +38,11 @@ pub fn handle_kinetic_governance_gossip(
                     use kinetic_core::types::NameRecord;
 
                     match &effect {
-                        GovernanceEffect::PremiumNameGranted {
+                        GovernanceEffect::PrimeMapped {
                             name,
                             target_pubkey,
                         } => {
-                            let record = NameRecord::Premium {
+                            let record = NameRecord::Prime {
                                 name: name.clone(),
                                 pubkey: target_pubkey.clone(),
                                 granted_at: std::time::SystemTime::now()
@@ -51,16 +56,18 @@ pub fn handle_kinetic_governance_gossip(
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             if let Ok(json_bytes) = serde_json::to_vec(&record) {
                                 let _ = storage.put(key.as_bytes(), &json_bytes);
-                                tracing::info!(
-                                    "Injected NameRecord::Premium into Sled for {}",
-                                    name
-                                );
+                                tracing::info!("Injected NameRecord::Prime into Sled for {}", name);
                             }
                         }
-                        GovernanceEffect::PremiumNameRevoked { name } => {
+                        GovernanceEffect::PrimeUnmapped { name } => {
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             let _ = storage.delete(key.as_bytes());
-                            tracing::info!("Revoked NameRecord::Premium from Sled for {}", name);
+                            tracing::info!("Revoked NameRecord::Prime from Sled for {}", name);
+                        }
+                        GovernanceEffect::InfraUnmapped { name } => {
+                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
+                            let _ = storage.delete(key.as_bytes());
+                            tracing::info!("Revoked NameRecord::Infra from Sled for {}", name);
                         }
                         _ => {}
                     }
@@ -107,11 +114,11 @@ mod tests {
         let path = Arc::new(dir.path().join("gov.bin"));
 
         let msg = SignedGovernanceMessage {
-            action: GovernanceAction::GrantPremiumName {
+            action: GovernanceAction::MapPrime {
                 name: "x".to_string(),
                 target_pubkey: vec![],
             },
-            timestamp_sec: 0,
+            timestamp_kyn: 0,
             signatures: vec![],
         };
         let payload = serde_json::to_vec(&msg).unwrap();
@@ -150,7 +157,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = Arc::new(dir.path().join("gov.bin"));
 
-        let extra_fields = b"{\"action\": {\"GrantPremiumName\": {\"name\": \"x\", \"target_pubkey\": []}}, \"timestamp_sec\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
+        let extra_fields = b"{\"action\": {\"MapPrime\": {\"name\": \"x\", \"target_pubkey\": []}}, \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
         // Should parse and handle or ignore the extra field without panicking
         handle_kinetic_governance_gossip(extra_fields, path, None);
@@ -164,11 +171,11 @@ mod tests {
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
         let msg = SignedGovernanceMessage {
-            action: GovernanceAction::GrantPremiumName {
+            action: GovernanceAction::MapPrime {
                 name: "x".to_string(),
                 target_pubkey: vec![],
             },
-            timestamp_sec: 0,
+            timestamp_kyn: 0,
             signatures: vec![],
         };
         let payload = serde_json::to_vec(&msg).unwrap();

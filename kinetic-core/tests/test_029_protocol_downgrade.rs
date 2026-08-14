@@ -5,7 +5,7 @@ use kinetic_core::types::{Reveal, VdfProof};
 fn test_protocol_downgrade_prevention() {
     let reveal_v1 = Reveal {
         protocol_version: 1,
-        name: format!("{}{}", "satoshi", kinetic_core::constants::TLD_SUFFIX),
+        name: format!("{}{}", "satoshi", kinetic_core::constants::NSP_SUFFIX),
         payload: vec![1, 2, 3],
         salt: [0u8; 32],
         drand_kyn: 100,
@@ -21,13 +21,13 @@ fn test_protocol_downgrade_prevention() {
         authorization: None,
     };
 
-    let bytes_v1 = reveal_v1.signable_bytes(env!("KINETIC_NETWORK_ID"));
+    let bytes_v1 = reveal_v1.signable_bytes(kinetic_core::constants::NETWORK_SALT);
 
     // Simulate attacker intercepting V1 payload and upgrading it to V2
     let mut reveal_v0 = reveal_v1.clone();
     reveal_v0.protocol_version = 0;
 
-    let bytes_v0 = reveal_v0.signable_bytes(env!("KINETIC_NETWORK_ID"));
+    let bytes_v0 = reveal_v0.signable_bytes(kinetic_core::constants::NETWORK_SALT);
 
     // Verify that the signable bytes are different purely because of the protocol version
     assert_ne!(
@@ -35,8 +35,9 @@ fn test_protocol_downgrade_prevention() {
         "Signable bytes must differ across protocol versions"
     );
 
-    // The first byte of the payload after the prefix should be the version byte
-    let prefix = concat!(env!("KINETIC_NETWORK_ID"), "-vdf-reveal-v1").as_bytes();
+    let mut prefix = Vec::new();
+    prefix.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
+    prefix.extend_from_slice(b"vdf-reveal-v1");
     assert_eq!(bytes_v1[prefix.len()], 1);
     assert_eq!(bytes_v0[prefix.len()], 0);
 

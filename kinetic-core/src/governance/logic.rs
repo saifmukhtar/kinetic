@@ -12,11 +12,12 @@
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
-use super::types::{
-    GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes, SignedGovernanceMessage,
-};
 use crate::constants::ROOT_PUBLIC_KEY_HEX;
 use crate::error::GovernanceError;
+use crate::governance::types::{
+    GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes, SignedGovernanceMessage,
+};
+use crate::traits::GovernanceEngine;
 
 /// Validates that the static cryptographic keys required for governance have been correctly initialized.
 ///
@@ -47,14 +48,17 @@ impl GovernanceState {
     /// # Returns
     ///
     /// A new `GovernanceState` ready for genesis block processing.
-    pub fn new(genesis_timestamp_sec: u64) -> Self {
+    pub fn new(genesis_kyn: u64) -> Self {
         Self {
-            genesis_timestamp_sec,
+            genesis_kyn,
             active_root_key: None,
             is_halted: false,
+            halt_start_kyn: None,
             total_paused_kyns: 0,
             pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
+            mapped_prime_names: HashMap::new(),
+            mapped_infra_names: HashMap::new(),
         }
     }
 
@@ -75,15 +79,15 @@ impl GovernanceState {
         array
     }
 
-    /// Removes expired timelocks and stale partial proposals to prevent unbounded memory growth.
+    /// Garbage collects the `executed_hashes` set.
     ///
-    /// Items are pruned if they have been executed for more than the network's `MAX_AGE_SECONDS`.
-    /// This ensures the in-memory governance state remains bounded even across long-running daemon processes.
-    pub fn prune(&mut self, current_time_sec: u64) {
+    /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
+    /// This keeps the state file bounded.
+    pub fn prune_executed_hashes(&mut self, current_kyn: u64) {
         // Remove executed hashes older than the max age
-        self.executed_hashes.retain(|_, exec_time| {
-            current_time_sec <= *exec_time + crate::constants::MAX_AGE_SECONDS
-        });
+        let max_age_kyns = crate::constants::MAX_AGE_KYNS;
+        self.executed_hashes
+            .retain(|_, exec_kyn| current_kyn <= *exec_kyn + max_age_kyns);
     }
 
     /// Retrieves the static root verifying key.
@@ -135,18 +139,20 @@ impl GovernanceState {
 pub fn process_governance_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
-) -> Result<Option<GovernanceEffect>, crate::error::GovernanceError> {
-    let current_time_sec = web_time::SystemTime::now()
-        .duration_since(web_time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-
-    state.prune(current_time_sec);
+    current_kyn: u64,
+) -> Result<Option<GovernanceEffect>, GovernanceError> {
+    state.prune_executed_hashes(current_kyn);
 
     let action_hash = GovernanceState::hash_action(msg);
     if state.executed_hashes.contains_key(&action_hash) {
-        return Err(crate::error::GovernanceError::StaleProposal);
+        return Err(GovernanceError::StaleProposal);
     }
 
-    state.verify_action(msg, current_time_sec)
+    let effect = crate::governance::engine::sovereign::SovereignEngine.verify_action(
+        state,
+        msg,
+        current_kyn,
+    )?;
+    crate::governance::engine::sovereign::SovereignEngine.execute_action(state, msg, current_kyn);
+    Ok(effect)
 }

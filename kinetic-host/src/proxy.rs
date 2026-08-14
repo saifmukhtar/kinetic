@@ -25,7 +25,7 @@ pub async fn forward_request(
         }
         builder = builder.header(k.as_ref(), v.as_ref());
     }
-    
+
     if let Some(h) = original_host {
         builder = builder.header("X-Forwarded-Host", h.as_ref());
     } else {
@@ -102,7 +102,7 @@ pub async fn handle_incoming_proxy_requests(
     while let Some((req, channel)) = rx.recv().await {
         let reqwest_client = reqwest_client.clone();
         let client_clone = client.clone();
-        
+
         let config_path = kinetic_core::config::get_base_dir().join("host_config.json");
         let host_config = crate::config::HostConfig::load_or_default(&config_path);
         let backend_host_clone = host_config.backend_host;

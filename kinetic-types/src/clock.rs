@@ -8,7 +8,7 @@
 //! - **1 Facet** = 1,200 Kyns (1 Hour)
 //! - **1 Prism** = 28,800 Kyns (1 Day / 24 Hours)
 //!
-//! Higher-order units (Matrix, Lattice, Apex) are derivable from `prism` by the
+//! Higher-order units (Matrix, Lattice, Aeon) are derivable from `prism` by the
 //! caller and are intentionally omitted from this type to keep it a pure data contract.
 
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 /// - **Facet**: 1,200 Kyns (1 Hour)
 /// - **Prism**: 28,800 Kyns (1 Day)
 ///
-/// Higher-order units (Matrix = 7 Prisms, Lattice = 30 Prisms, Apex = 365 Prisms)
+/// Higher-order units (Matrix = 7 Prisms, Lattice = 30 Prisms, Aeon = 365 Prisms)
 /// are intentionally not provided as methods — callers derive them from `prism` directly.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KineticTime {
@@ -75,9 +75,7 @@ impl KineticTime {
             total_kyns,
         }
     }
-
 }
-
 
 /// Converts an absolute Drand kyn number to deterministic Unix epoch seconds.
 ///
@@ -172,8 +170,8 @@ mod tests {
         let t_lattice = KineticTime::from_kyn(864_000, genesis);
         assert_eq!(t_lattice.prism / 30, 1);
 
-        // 1 Apex = 365 Prisms = 365 × 28,800 = 10,512,000 kyns
-        let t_apex = KineticTime::from_kyn(10_512_000, genesis);
-        assert_eq!(t_apex.prism / 365, 1);
+        // 1 Aeon = 365 Prisms = 365 × 28,800 = 10,512,000 kyns
+        let t_aeon = KineticTime::from_kyn(10_512_000, genesis);
+        assert_eq!(t_aeon.prism / 365, 1);
     }
 }

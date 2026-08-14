@@ -87,7 +87,7 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
                     return Err(CaError::Io(std::io::Error::new(
                         std::io::ErrorKind::NotFound,
                         "CA Private Key missing from both OS Keychain and disk.",
-                    )))
+                    )));
                 }
             };
 
@@ -120,7 +120,7 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         params.name_constraints = Some(NameConstraints {
             permitted_subtrees: vec![
                 GeneralSubtree::DnsName("kin".to_string()),
-                GeneralSubtree::DnsName(kinetic_core::constants::TLD_SUFFIX.to_string()),
+                GeneralSubtree::DnsName(kinetic_core::constants::NSP_SUFFIX.to_string()),
             ],
             excluded_subtrees: vec![],
         });
@@ -347,10 +347,10 @@ impl LeafCertCache {
     ) -> Result<Arc<ServerConfig>, CaError> {
         let now = Instant::now();
 
-        if let Some((config, created)) = self.entries.get(domain) {
-            if now.duration_since(*created) < std::time::Duration::from_secs(3600) {
-                return Ok(Arc::clone(config));
-            }
+        if let Some((config, created)) = self.entries.get(domain)
+            && now.duration_since(*created) < std::time::Duration::from_secs(3600)
+        {
+            return Ok(Arc::clone(config));
         }
 
         // Evict if at capacity before inserting
@@ -375,7 +375,7 @@ impl LeafCertCache {
 
 #[cfg(test)]
 mod tests {
-    use super::{load_or_create_root_ca, LeafCertCache};
+    use super::{LeafCertCache, load_or_create_root_ca};
     use tempfile::tempdir;
 
     #[test]

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use axum::{extract::Path, routing::get, Json, Router};
+    use axum::{Json, Router, extract::Path, routing::get};
     use hickory_client::client::{AsyncClient, ClientHandle};
     use hickory_client::udp::UdpClientStream;
     use hickory_server::ServerFuture;
@@ -13,7 +13,7 @@ mod tests {
     // A mock handler for the Daemon REST API
     async fn mock_resolve_name(
         Path(name): Path<String>,
-    ) -> Result<Json<Reveal>, axum::http::StatusCode> {
+    ) -> Result<Json<kinetic_core::types::NameRecord>, axum::http::StatusCode> {
         let name = name.trim_end_matches('.');
         if name == "testdns.kin" {
             let key_a = libp2p::identity::Keypair::generate_ed25519();
@@ -52,9 +52,11 @@ mod tests {
             let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
             reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
             reveal.signature = keypair
-                .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
+                .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
                 .to_vec();
-            Ok(Json(reveal))
+            Ok(Json(kinetic_core::types::NameRecord::Standard(Box::new(
+                reveal,
+            ))))
         } else {
             Err(axum::http::StatusCode::NOT_FOUND)
         }

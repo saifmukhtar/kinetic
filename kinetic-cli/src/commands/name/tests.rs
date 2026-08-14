@@ -1,6 +1,6 @@
-use super::handle_name_command;
 use super::NameCommands;
-use axum::{routing::get, Router};
+use super::handle_name_command;
+use axum::{Router, routing::get};
 use kinetic_core::config::KineticConfig;
 use reqwest::Client;
 use tokio::net::TcpListener;
@@ -13,7 +13,7 @@ async fn test_name_resolve_mock_api() {
         "/resolve/{name}",
         get(
             |axum::extract::Path(name): axum::extract::Path<String>| async move {
-                if name == format!("test{}", kinetic_core::constants::TLD_SUFFIX) {
+                if name == format!("test{}", kinetic_core::constants::NSP_SUFFIX) {
                     axum::response::Response::builder()
                         .status(200)
                         .body(axum::body::Body::from("mocked data"))
@@ -41,14 +41,14 @@ async fn test_name_resolve_mock_api() {
 
     // Resolve successfully
     let cmd = NameCommands::Resolve {
-        name: format!("test{}", kinetic_core::constants::TLD_SUFFIX),
+        name: format!("test{}", kinetic_core::constants::NSP_SUFFIX),
     };
     let res = handle_name_command(cmd, &config, &client).await;
     assert!(res.is_ok());
 
     // Resolve not found
     let cmd2 = NameCommands::Resolve {
-        name: format!("invalid{}", kinetic_core::constants::TLD_SUFFIX),
+        name: format!("invalid{}", kinetic_core::constants::NSP_SUFFIX),
     };
     let res2 = handle_name_command(cmd2, &config, &client).await;
     assert!(res2.is_ok()); // Logs error but doesn't fail process
@@ -60,7 +60,7 @@ async fn test_name_publish_no_zone() {
     let client = Client::new();
     // Trying to publish a name that we haven't registered
     let cmd = NameCommands::Publish {
-        name: format!("nonexistent{}", kinetic_core::constants::TLD_SUFFIX),
+        name: format!("nonexistent{}", kinetic_core::constants::NSP_SUFFIX),
     };
     let res = handle_name_command(cmd, &config, &client).await;
     assert!(res.is_err());

@@ -1,7 +1,7 @@
-use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
 use kinetic_network::NetworkEventLoop;
+use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
 use kinetic_storage::SledStorage;
-use libp2p::{identity, Multiaddr, PeerId};
+use libp2p::{Multiaddr, PeerId, identity};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::tempdir;
@@ -45,8 +45,16 @@ async fn spawn_test_node(
 
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
         std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
-    let (client, event_loop) =
-        NetworkEventLoop::new(config, keypair, storage, watch::channel(0).1, None, None, vdf_engine).unwrap();
+    let (client, event_loop) = NetworkEventLoop::new(
+        config,
+        keypair,
+        storage,
+        watch::channel(0).1,
+        None,
+        None,
+        vdf_engine,
+    )
+    .unwrap();
 
     let handle = tokio::spawn(async move {
         event_loop.run().await;
@@ -82,23 +90,25 @@ async fn test_chaos_routing_partition() {
 
     // Node 5 publishes a payload (since Node 5 has all other nodes in its bootstrap list)
     let test_key = "chaos-key-test.kin";
-    let test_payload = serde_json::to_vec(&kinetic_core::types::Reveal {
-        protocol_version: 1,
-        name: test_key.to_string(),
-        payload: vec![],
-        salt: [0; 32],
-        drand_kyn: 1000,
-        drand_signature: "0".repeat(192),
-        vdf_proof: kinetic_core::types::VdfProof {
-            proof_bytes: vec![0; 100],
+    let test_payload = serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+        kinetic_core::types::Reveal {
+            protocol_version: 1,
+            name: test_key.to_string(),
+            payload: vec![],
+            salt: [0; 32],
+            drand_kyn: 1000,
+            drand_signature: "0".repeat(192),
+            vdf_proof: kinetic_core::types::VdfProof {
+                proof_bytes: vec![0; 100],
+            },
+            iterations: 1000,
+            pubkey: vec![0; 1952],
+            signature: vec![0; 4627],
+            previous_proof: None,
+            miner_pubkey: None,
+            authorization: None,
         },
-        iterations: 1000,
-        pubkey: vec![0; 1952],
-        signature: vec![0; 4627],
-        previous_proof: None,
-        miner_pubkey: None,
-        authorization: None,
-    })
+    )))
     .unwrap();
 
     println!("Publishing payload from Node 5...");

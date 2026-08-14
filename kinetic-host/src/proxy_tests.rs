@@ -3,8 +3,8 @@ mod tests {
     use crate::proxy::forward_request;
     use axum::extract::{Query, Request};
     use axum::{
-        routing::{delete, get, head, options, patch, post, put},
         Router,
+        routing::{delete, get, head, options, patch, post, put},
     };
     use kinetic_network::ProxyRequest;
 
@@ -197,9 +197,11 @@ mod tests {
         // Port 1 is usually not running a web server
         let res = forward_request(&client, req, 1, "127.0.0.1").await;
         assert_eq!(res.status, 502);
-        assert!(String::from_utf8(res.body.to_vec())
-            .unwrap()
-            .contains("Bad Gateway"));
+        assert!(
+            String::from_utf8(res.body.to_vec())
+                .unwrap()
+                .contains("Bad Gateway")
+        );
     }
 
     // 9
@@ -415,13 +417,15 @@ mod tests {
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 200);
         // Axum will append a content-type and content-length
-        assert!(res
-            .headers
-            .iter()
-            .any(|(k, _)| k.as_ref() == "content-type"));
-        assert!(res
-            .headers
-            .iter()
-            .any(|(k, _)| k.as_ref() == "content-length"));
+        assert!(
+            res.headers
+                .iter()
+                .any(|(k, _)| k.as_ref() == "content-type")
+        );
+        assert!(
+            res.headers
+                .iter()
+                .any(|(k, _)| k.as_ref() == "content-length")
+        );
     }
 }

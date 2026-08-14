@@ -121,10 +121,10 @@ mod native {
             let iter = self.db.scan_prefix(prefix);
             let mut results = Vec::new();
             for item in iter {
-                if let Some(l) = limit {
-                    if results.len() >= l {
-                        break;
-                    }
+                if let Some(l) = limit
+                    && results.len() >= l
+                {
+                    break;
                 }
                 let (k, v) = item.map_err(|e| StorageError::OperationFailed(e.to_string()))?;
                 results.push((k.to_vec(), v.to_vec()));

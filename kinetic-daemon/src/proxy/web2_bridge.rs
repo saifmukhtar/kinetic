@@ -1,11 +1,11 @@
 use crate::proxy::ProxyError;
-use hyper::{Request, Response};
 use hyper::body::Incoming;
+use hyper::{Request, Response};
+use kinetic_core::net::is_ssrf_safe;
 use reqwest::Client;
 use std::time::Duration;
-use tracing::{info, warn};
-use kinetic_core::net::is_ssrf_safe;
 use tokio::net::lookup_host;
+use tracing::{info, warn};
 
 /// Forwards an HTTP request to an external Web2 domain (e.g. GitHub Pages, Vercel)
 /// while maintaining strict SSRF protection and preventing DNS rebinding.

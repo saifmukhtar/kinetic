@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use ed25519_dalek::{Signer as EdSigner, SigningKey as EdSigningKey, Verifier as EdVerifier};
 use getrandom::getrandom;
 use ml_dsa::signature::{Signer as MlSigner, Verifier as MlVerifier};

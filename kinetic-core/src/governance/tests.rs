@@ -32,30 +32,32 @@ mod tests {
     #[test]
     fn test_premium_grants() {
         let root_sk = get_root_sk();
-        let current_time = web_time::SystemTime::now()
+        let current_kyn = web_time::SystemTime::now()
             .duration_since(web_time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(current_time);
+        let mut state = GovernanceState::new(current_kyn);
 
         let (_, target_pubkey) = generate_key(99);
 
         // Test invalid length
         let mut msg_invalid_len = SignedGovernanceMessage {
-            action: GovernanceAction::GrantPremiumName {
+            action: GovernanceAction::MapPrime {
                 name: "ab".to_string(),
                 target_pubkey: target_pubkey.clone(),
             },
-            timestamp_sec: current_time,
+            timestamp_kyn: current_kyn,
             signatures: vec![],
         };
         msg_invalid_len
             .signatures
             .push(sign_action(&msg_invalid_len, &root_sk));
 
-        let err = process_governance_message(&mut state, &msg_invalid_len).unwrap_err();
+        let err =
+            process_governance_message(&mut state, &msg_invalid_len, msg_invalid_len.timestamp_kyn)
+                .unwrap_err();
         assert!(
-            matches!(err, crate::error::GovernanceError::InvalidPremiumNameLength),
+            matches!(err, crate::error::GovernanceError::UnnormalizedName),
             "Got error: {:?}",
             err
         );
@@ -64,23 +66,23 @@ mod tests {
         for i in 0..5 {
             let name = (b'a' + i) as char;
             let mut msg = SignedGovernanceMessage {
-                action: GovernanceAction::GrantPremiumName {
+                action: GovernanceAction::MapPrime {
                     name: name.to_string(),
                     target_pubkey: target_pubkey.clone(),
                 },
-                timestamp_sec: current_time,
+                timestamp_kyn: current_kyn,
                 signatures: vec![],
             };
             msg.signatures.push(sign_action(&msg, &root_sk));
-            let effect = process_governance_message(&mut state, &msg).unwrap();
+            let effect = process_governance_message(&mut state, &msg, msg.timestamp_kyn).unwrap();
 
-            if let Some(GovernanceEffect::PremiumNameGranted {
+            if let Some(GovernanceEffect::PrimeMapped {
                 name: granted_name, ..
             }) = effect
             {
                 assert_eq!(granted_name, name.to_string());
             } else {
-                panic!("Expected PremiumNameGranted");
+                panic!("Expected PrimeMapped");
             }
         }
     }
@@ -88,11 +90,11 @@ mod tests {
     #[test]
     fn test_rotate_root_key() {
         let root_sk = get_root_sk();
-        let current_time = web_time::SystemTime::now()
+        let current_kyn = web_time::SystemTime::now()
             .duration_since(web_time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(current_time);
+        let mut state = GovernanceState::new(current_kyn);
 
         // Generate a new Root Key
         let (new_root_sk, new_root_pubkey) = generate_key(123);
@@ -102,14 +104,15 @@ mod tests {
             action: GovernanceAction::RotateRootKey {
                 new_key: new_root_pubkey.clone(),
             },
-            timestamp_sec: current_time,
+            timestamp_kyn: current_kyn,
             signatures: vec![],
         };
         rotate_msg
             .signatures
             .push(sign_action(&rotate_msg, &root_sk));
 
-        let effect = process_governance_message(&mut state, &rotate_msg).unwrap();
+        let effect =
+            process_governance_message(&mut state, &rotate_msg, rotate_msg.timestamp_kyn).unwrap();
         assert!(matches!(
             effect,
             Some(GovernanceEffect::RootKeyRotated { .. })
@@ -120,16 +123,17 @@ mod tests {
 
         // Action 2: Try granting a name using the OLD root key (should fail)
         let mut grant_msg = SignedGovernanceMessage {
-            action: GovernanceAction::GrantPremiumName {
+            action: GovernanceAction::MapPrime {
                 name: "b".to_string(),
                 target_pubkey: new_root_pubkey.clone(), // Doesn't matter
             },
-            timestamp_sec: current_time + 1, // Advance time so hash is different
+            timestamp_kyn: current_kyn + 1, // Advance time so hash is different
             signatures: vec![],
         };
         grant_msg.signatures.push(sign_action(&grant_msg, &root_sk)); // signed with old key
 
-        let err = process_governance_message(&mut state, &grant_msg).unwrap_err();
+        let err = process_governance_message(&mut state, &grant_msg, grant_msg.timestamp_kyn)
+            .unwrap_err();
         assert!(matches!(
             err,
             crate::error::GovernanceError::InsufficientSignatures
@@ -141,11 +145,9 @@ mod tests {
             .signatures
             .push(sign_action(&grant_msg, &new_root_sk)); // signed with NEW key
 
-        let effect = process_governance_message(&mut state, &grant_msg).unwrap();
-        assert!(matches!(
-            effect,
-            Some(GovernanceEffect::PremiumNameGranted { .. })
-        ));
+        let effect =
+            process_governance_message(&mut state, &grant_msg, grant_msg.timestamp_kyn).unwrap();
+        assert!(matches!(effect, Some(GovernanceEffect::PrimeMapped { .. })));
     }
 
     use proptest::prelude::*;
@@ -158,14 +160,14 @@ mod tests {
             timestamp in any::<u64>(),
         ) {
             let (_, target_pubkey) = generate_key(99);
-            let action = GovernanceAction::GrantPremiumName {
+            let action = GovernanceAction::MapPrime {
                 name,
                 target_pubkey,
             };
 
             let msg = SignedGovernanceMessage {
                 action: action.clone(),
-                timestamp_sec: timestamp,
+                timestamp_kyn: timestamp,
                 signatures: vec![], // Signatures aren't part of canonical hash
             };
 
@@ -186,12 +188,12 @@ mod tests {
     #[test]
     fn test_emergency_halt_resume() {
         let (root_sk, root_pubkey) = generate_key(1);
-        let current_time = std::time::SystemTime::now()
+        let current_kyn = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(current_time);
+        let mut state = GovernanceState::new(current_kyn);
         state.active_root_key = Some(root_pubkey);
 
         assert!(!state.is_halted);
@@ -199,27 +201,27 @@ mod tests {
 
         let mut halt_msg = SignedGovernanceMessage {
             action: GovernanceAction::EmergencyHalt,
-            timestamp_sec: current_time,
+            timestamp_kyn: current_kyn,
             signatures: vec![],
         };
         halt_msg.signatures.push(sign_action(&halt_msg, &root_sk));
 
-        let effect = process_governance_message(&mut state, &halt_msg).unwrap();
+        let effect =
+            process_governance_message(&mut state, &halt_msg, halt_msg.timestamp_kyn).unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
         assert!(state.is_halted);
 
         let mut resume_msg = SignedGovernanceMessage {
-            action: GovernanceAction::EmergencyResume {
-                paused_kyns: 1000,
-            },
-            timestamp_sec: current_time + 1,
+            action: GovernanceAction::EmergencyResume,
+            timestamp_kyn: current_kyn + 1000,
             signatures: vec![],
         };
         resume_msg
             .signatures
             .push(sign_action(&resume_msg, &root_sk));
 
-        let effect = process_governance_message(&mut state, &resume_msg).unwrap();
+        let effect =
+            process_governance_message(&mut state, &resume_msg, resume_msg.timestamp_kyn).unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::NetworkResumed)));
         assert!(!state.is_halted);
         assert_eq!(state.total_paused_kyns, 1000);
@@ -228,46 +230,61 @@ mod tests {
     #[test]
     fn test_revoke_premium_name() {
         let (root_sk, root_pubkey) = generate_key(1);
-        let current_time = std::time::SystemTime::now()
+        let current_kyn = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(current_time);
+        let mut state = GovernanceState::new(current_kyn);
         state.active_root_key = Some(root_pubkey);
 
-        // Try to revoke a 2-character name (should fail)
+        // Try to UnmapPrime (should fail)
         let mut fail_msg = SignedGovernanceMessage {
-            action: GovernanceAction::RevokePremiumName {
+            action: GovernanceAction::UnmapPrime {
                 name: "ab".to_string(),
             },
-            timestamp_sec: current_time,
+            timestamp_kyn: current_kyn,
             signatures: vec![],
         };
         fail_msg.signatures.push(sign_action(&fail_msg, &root_sk));
 
-        let err = process_governance_message(&mut state, &fail_msg).unwrap_err();
+        let err =
+            process_governance_message(&mut state, &fail_msg, fail_msg.timestamp_kyn).unwrap_err();
         assert!(matches!(
             err,
-            crate::error::GovernanceError::InvalidPremiumNameLength
+            crate::error::GovernanceError::UnnormalizedName
         ));
+
+        // First, successfully map the name so it exists in state
+        let mut map_msg = SignedGovernanceMessage {
+            action: GovernanceAction::MapPrime {
+                name: "a".to_string(),
+                target_pubkey: vec![0; 1952],
+            },
+            timestamp_kyn: current_kyn + 1,
+            signatures: vec![],
+        };
+        map_msg.signatures.push(sign_action(&map_msg, &root_sk));
+        let _ = process_governance_message(&mut state, &map_msg, map_msg.timestamp_kyn).unwrap();
 
         // Try to revoke a 1-character name (should succeed)
         let mut success_msg = SignedGovernanceMessage {
-            action: GovernanceAction::RevokePremiumName {
+            action: GovernanceAction::UnmapPrime {
                 name: "a".to_string(),
             },
-            timestamp_sec: current_time + 1,
+            timestamp_kyn: current_kyn + 2,
             signatures: vec![],
         };
         success_msg
             .signatures
             .push(sign_action(&success_msg, &root_sk));
 
-        let effect = process_governance_message(&mut state, &success_msg).unwrap();
+        let effect =
+            process_governance_message(&mut state, &success_msg, success_msg.timestamp_kyn)
+                .unwrap();
         assert!(matches!(
             effect,
-            Some(GovernanceEffect::PremiumNameRevoked { .. })
+            Some(GovernanceEffect::PrimeUnmapped { .. })
         ));
     }
 }

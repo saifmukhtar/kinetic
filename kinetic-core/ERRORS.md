@@ -612,7 +612,7 @@ Errors from the council governance engine. These are returned when a `SignedGove
 | **HTTP Status** | `409 Conflict` |
 | **Retryable** | No |
 
-**What it is:** The governance proposal's timestamp is older than the allowed replay window (`MAX_AGE_SECONDS`).
+**What it is:** The governance proposal's timestamp is older than the allowed replay window (`MAX_AGE_KYNS`).
 
 **Why it occurs:** The proposal was not submitted in time after being signed, or a replay attack was attempted using an old signed message.
 
@@ -1277,18 +1277,18 @@ Errors from name structural validation. These are returned before any network op
 
 ---
 
-### KIN-NAM-006 — InvalidTLD
+### KIN-NAM-006 — InvalidNSP
 
 | Field | Value |
 |---|---|
-| **Variant** | `NamesError::InvalidTLD` |
-| **Severity** | Warning |
-| **HTTP Status** | `400 Bad Request` |
-| **Retryable** | No |
+| **Variant** | `NamesError::InvalidNSP` |
+| **Severity** | Info |
+| **Log Level** | Debug |
+| **HTTP Code** | 400 Bad Request |
 
-**What it is:** The submitted name does not end with the `.kin` network TLD suffix.
+**What it is:** The submitted name does not end with the `.kin` network NSP suffix.
 
-**Why it occurs:** A name from another TLD (`.com`, `.eth`, `.crypto`) was submitted to the Kinetic API, or the `.kin` suffix was omitted.
+**Why it occurs:** A name from another suffix (`.com`, `.eth`, `.crypto`) was submitted to the Kinetic API, or the `.kin` suffix was omitted.
 
 **Solution:** Always append `.kin` to the name (e.g. `myname.kin`).
 

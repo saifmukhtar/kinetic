@@ -1,12 +1,12 @@
 //! Domain name validation, normalization, and RFC reserved name checks.
 
-/// Canonical TLD name string for the Kinetic network.
-pub const TLD: &str = "kin";
+/// Canonical Namespace (NSP) string for the Kinetic network.
+pub const NSP: &str = "kin";
 
 /// Normalizes a given name string.
 ///
-/// Converts the name to lowercase, strips trailing dots, and appends the canonical
-/// Kinetic TLD suffix ([`crate::constants::TLD_SUFFIX`]) if missing.
+/// Ensures a domain name is lowercase, trimmed, and ends with the
+/// Kinetic NSP suffix ([`crate::constants::NSP_SUFFIX`]) if missing.
 ///
 /// # Examples
 ///
@@ -21,8 +21,8 @@ pub fn normalize_name(name: &str) -> String {
     while norm.ends_with('.') {
         norm.pop();
     }
-    if !norm.ends_with(crate::constants::TLD_SUFFIX) {
-        norm.push_str(crate::constants::TLD_SUFFIX);
+    if !norm.ends_with(crate::constants::NSP_SUFFIX) {
+        norm.push_str(crate::constants::NSP_SUFFIX);
     }
     norm
 }
@@ -30,13 +30,13 @@ pub fn normalize_name(name: &str) -> String {
 /// Checks whether a given name is a Category 1 reserved public utility name.
 ///
 /// Hardcoded reserved names (e.g. `localhost`, `test`, `example`) are permanently
-/// locked and cannot be registered under any TLD instance.
+/// locked and cannot be registered under any NSP instance.
 pub fn is_reserved_name(name: &str) -> bool {
-    let tld = crate::constants::TLD_SUFFIX;
+    let nsp = crate::constants::NSP_SUFFIX;
     let name_lower = name.to_lowercase();
     PUBLIC_NAMES
         .iter()
-        .any(|&r| format!("{}{}", r, tld) == name_lower)
+        .any(|&r| format!("{}{}", r, nsp) == name_lower)
 }
 
 /// Category 1: Public Utility Names (Based on RFC 2606 & RFC 6761).
@@ -56,6 +56,7 @@ pub const PUBLIC_NAMES: &[&str] = &[
     "corp",
     "lan",
     "internal",
+    "home",
 ];
 
 /// Validates whether a given name is a valid apex name that can be registered.
@@ -65,7 +66,7 @@ pub const PUBLIC_NAMES: &[&str] = &[
 ///
 /// # Errors
 ///
-/// - Returns [`crate::error::NamesError::InvalidTLD`] if the name does not end with the network TLD suffix.
+/// - Returns [`crate::error::NamesError::InvalidNSP`] if the name does not end with the network NSP suffix.
 /// - Returns [`crate::error::NamesError::NameTooLong`] if the total name length exceeds 253 characters or is empty.
 /// - Returns [`crate::error::NamesError::LabelTooLong`] if any individual dot-separated label exceeds 63 characters.
 /// - Returns [`crate::error::NamesError::InvalidCharacter`] if a label contains non-LDH characters or invalid hyphen/digit placements.
@@ -74,8 +75,8 @@ pub const PUBLIC_NAMES: &[&str] = &[
 /// - Returns [`crate::error::NamesError::InfrastructureName`] if the label is a locked Category 2 network infrastructure name.
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     let name_lower = name.to_lowercase();
-    if !name_lower.ends_with(crate::constants::TLD_SUFFIX) {
-        let err = crate::error::NamesError::InvalidTLD;
+    if !name_lower.ends_with(crate::constants::NSP_SUFFIX) {
+        let err = crate::error::NamesError::InvalidNSP;
         return Err(err);
     }
 
@@ -144,66 +145,105 @@ mod tests {
     fn test_normalize_name() {
         assert_eq!(
             normalize_name("SAIFMUKHTAR.KIN"),
-            format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)
+            format!("{}{}", "saifmukhtar", crate::constants::NSP_SUFFIX)
         );
         assert_eq!(
             normalize_name("saifmukhtar..."),
-            format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)
+            format!("{}{}", "saifmukhtar", crate::constants::NSP_SUFFIX)
         );
         assert_eq!(
             normalize_name("saifmukhtar"),
-            format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)
+            format!("{}{}", "saifmukhtar", crate::constants::NSP_SUFFIX)
         );
         assert_eq!(
             normalize_name("blog.saifmukhtar.kin."),
-            format!("{}{}", "blog.saifmukhtar", crate::constants::TLD_SUFFIX)
+            format!("{}{}", "blog.saifmukhtar", crate::constants::NSP_SUFFIX)
         );
     }
 
     #[test]
     fn test_is_valid_apex_name() {
-        assert!(is_valid_apex_name(&format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)).is_ok());
-        assert!(is_valid_apex_name(&format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)).is_ok());
         assert!(
-            is_valid_apex_name(&format!("{}{}", "saifmukhtar-123", crate::constants::TLD_SUFFIX)).is_ok()
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "saifmukhtar",
+                crate::constants::NSP_SUFFIX
+            ))
+            .is_ok()
+        );
+        assert!(
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "saifmukhtar",
+                crate::constants::NSP_SUFFIX
+            ))
+            .is_ok()
+        );
+        assert!(
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "saifmukhtar-123",
+                crate::constants::NSP_SUFFIX
+            ))
+            .is_ok()
         );
         assert_eq!(
-            is_valid_apex_name(&format!("{}{}", "007", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!("{}{}", "007", crate::constants::NSP_SUFFIX)),
             Err(crate::error::NamesError::InvalidCharacter)
         );
 
         assert_eq!(
-            is_valid_apex_name(&format!("{}{}", "blog.saifmukhtar", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "blog.saifmukhtar",
+                crate::constants::NSP_SUFFIX
+            )),
             Err(crate::error::NamesError::NotAnApexName)
         );
         assert_eq!(
-            is_valid_apex_name(&format!("{}{}", "saifmukhtar_123", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "saifmukhtar_123",
+                crate::constants::NSP_SUFFIX
+            )),
             Err(crate::error::NamesError::InvalidCharacter)
         );
         assert_eq!(
-            is_valid_apex_name(&format!("{}{}", "saifmukhtar!", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "saifmukhtar!",
+                crate::constants::NSP_SUFFIX
+            )),
             Err(crate::error::NamesError::InvalidCharacter)
         );
         assert_eq!(
-            is_valid_apex_name(&format!("{}{}", "-saifmukhtar", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "-saifmukhtar",
+                crate::constants::NSP_SUFFIX
+            )),
             Err(crate::error::NamesError::InvalidCharacter)
         );
         assert_eq!(
-            is_valid_apex_name(&format!("{}{}", "saifmukhtar-", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "saifmukhtar-",
+                crate::constants::NSP_SUFFIX
+            )),
             Err(crate::error::NamesError::InvalidCharacter)
         );
 
         // Test RFC Category 1 Reserved Names
         assert_eq!(
-            is_valid_apex_name(&format!("test{}", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!("test{}", crate::constants::NSP_SUFFIX)),
             Err(crate::error::NamesError::ReservedName)
         );
         assert_eq!(
-            is_valid_apex_name(&format!("localhost{}", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!("localhost{}", crate::constants::NSP_SUFFIX)),
             Err(crate::error::NamesError::ReservedName)
         );
         assert_eq!(
-            is_valid_apex_name(&format!("null{}", crate::constants::TLD_SUFFIX)),
+            is_valid_apex_name(&format!("null{}", crate::constants::NSP_SUFFIX)),
             Err(crate::error::NamesError::ReservedName)
         );
     }
@@ -211,20 +251,28 @@ mod tests {
     #[test]
     fn test_extract_apex_name() {
         assert_eq!(
-            extract_apex_name(&format!("{}{}", "blog.saifmukhtar", crate::constants::TLD_SUFFIX)),
-            format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)
+            extract_apex_name(&format!(
+                "{}{}",
+                "blog.saifmukhtar",
+                crate::constants::NSP_SUFFIX
+            )),
+            format!("{}{}", "saifmukhtar", crate::constants::NSP_SUFFIX)
         );
         assert_eq!(
-            extract_apex_name(&format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)),
-            format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)
+            extract_apex_name(&format!(
+                "{}{}",
+                "saifmukhtar",
+                crate::constants::NSP_SUFFIX
+            )),
+            format!("{}{}", "saifmukhtar", crate::constants::NSP_SUFFIX)
         );
         assert_eq!(
             extract_apex_name(&format!(
                 "{}{}",
                 "api.v1.saifmukhtar",
-                crate::constants::TLD_SUFFIX
+                crate::constants::NSP_SUFFIX
             )),
-            format!("{}{}", "saifmukhtar", crate::constants::TLD_SUFFIX)
+            format!("{}{}", "saifmukhtar", crate::constants::NSP_SUFFIX)
         );
     }
 }
@@ -264,7 +312,7 @@ mod proptests {
         #[test]
         fn doesnt_crash_normalize_name(s in any::<String>()) {
             let normalized = normalize_name(&s);
-            assert!(normalized.ends_with(crate::constants::TLD_SUFFIX));
+            assert!(normalized.ends_with(crate::constants::NSP_SUFFIX));
         }
 
         #[test]

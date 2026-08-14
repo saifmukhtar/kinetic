@@ -224,8 +224,7 @@ impl DrandClient {
                         .duration_since(web_time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    let estimated_kyn = (now
-                        .saturating_sub(crate::constants::DRAND_GENESIS_TIME))
+                    let estimated_kyn = (now.saturating_sub(crate::constants::DRAND_GENESIS_TIME))
                         / crate::constants::DRAND_PERIOD;
                     let age = estimated_kyn.saturating_sub(kyn.kyn);
 
@@ -363,13 +362,12 @@ impl DrandClient {
     /// - Returns [`DrandError::NoCachedKyn`](crate::error::DrandError::NoCachedKyn) if storage is empty or missing (outside dev mode).
     /// - Returns [`DrandError::Storage`](crate::error::DrandError::Storage) if database reading fails.
     pub fn load_cached_kyn(&self) -> Result<RawKyn, DrandError> {
-        if let Some(storage) = &self.storage {
-            if let Ok(Some(bytes)) = storage.get(crate::constants::DB_PREFIX_LAST_DRAND) {
-                if let Ok(mut kyn) = serde_json::from_slice::<RawKyn>(&bytes) {
-                    kyn.is_from_cache = true;
-                    return Ok(kyn);
-                }
-            }
+        if let Some(storage) = &self.storage
+            && let Ok(Some(bytes)) = storage.get(crate::constants::DB_PREFIX_LAST_DRAND)
+            && let Ok(mut kyn) = serde_json::from_slice::<RawKyn>(&bytes)
+        {
+            kyn.is_from_cache = true;
+            return Ok(kyn);
         }
 
         if crate::config::is_dev_mode() {
@@ -403,10 +401,7 @@ mod tests {
         };
 
         // Should cryptographically verify against QUICKNET_PUBLIC_KEY
-        assert!(
-            kyn.verify(),
-            "Valid Quicknet kyn failed BLS verification"
-        );
+        assert!(kyn.verify(), "Valid Quicknet kyn failed BLS verification");
     }
 
     #[test]

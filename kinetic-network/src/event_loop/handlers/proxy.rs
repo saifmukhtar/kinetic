@@ -1,6 +1,6 @@
+use crate::client::{ProxyRequest, ProxyResponse};
 use crate::event_loop::core::NetworkEventLoop;
 use libp2p::request_response::{Event, Message};
-use crate::client::{ProxyRequest, ProxyResponse};
 
 pub(crate) async fn handle(
     event_loop: &mut NetworkEventLoop,

@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use kinetic_core::types::names::{extract_apex_name, is_valid_apex_name, normalize_name};
 use std::hint::black_box;
 

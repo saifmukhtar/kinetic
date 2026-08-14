@@ -12,9 +12,9 @@
 //!
 //! In **Sovereign mode**, the Root key acts as a single-signer authority.
 
-use ml_dsa::signature::Verifier;
 use ml_dsa::KeyInit;
 use ml_dsa::MlDsa65;
+use ml_dsa::signature::Verifier;
 use std::collections::HashMap;
 
 pub use kinetic_types::governance::{
@@ -28,10 +28,10 @@ pub use kinetic_types::governance::{
 /// Returns `true` if the signature is cryptographically valid for `pubkey`; `false` if key decoding,
 /// signature parsing, or verification fails.
 pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
-    if let Ok(pk) = ml_dsa::VerifyingKey::<MlDsa65>::new_from_slice(pubkey) {
-        if let Ok(signature) = ml_dsa::Signature::<MlDsa65>::try_from(sig) {
-            return pk.verify(msg, &signature).is_ok();
-        }
+    if let Ok(pk) = ml_dsa::VerifyingKey::<MlDsa65>::new_from_slice(pubkey)
+        && let Ok(signature) = ml_dsa::Signature::<MlDsa65>::try_from(sig)
+    {
+        return pk.verify(msg, &signature).is_ok();
     }
     false
 }
@@ -40,26 +40,26 @@ pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GovernanceEffect {
     /// Inform node subsystems of a premium name grant.
-    PremiumNameGranted {
+    PrimeMapped {
         /// Granted 1-character name.
         name: String,
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
     /// Inform node subsystems of a premium name revocation.
-    PremiumNameRevoked {
+    PrimeUnmapped {
         /// Revoked 1-character name.
         name: String,
     },
     /// Inform node subsystems of an infrastructure name grant.
-    InfrastructureNameGranted {
+    InfraMapped {
         /// Granted Category 2 name.
         name: String,
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
     /// Inform node subsystems of an infrastructure name revocation.
-    InfrastructureNameRevoked {
+    InfraUnmapped {
         /// Revoked Category 2 name.
         name: String,
     },
@@ -77,13 +77,16 @@ pub enum GovernanceEffect {
 /// Persistent on-disk state container for the network governance subsystem.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GovernanceState {
-    /// Unix timestamp of network genesis.
-    pub genesis_timestamp_sec: u64,
-    /// If Some, this key overrides the hardcoded genesis ROOT_PUBLIC_KEY_HEX.
+    /// Genesis Kyn when governance tracking started.
+    pub genesis_kyn: u64,
+    /// Active ML-DSA-65 root public key controlling the network.
     pub active_root_key: Option<PublicKeyBytes>,
-    /// Whether the network registration engine is currently paused.
+    /// Master boolean flag if the network is currently paused.
     #[serde(default)]
     pub is_halted: bool,
+    /// The exact Kyn when the network was halted (if currently halted).
+    #[serde(default)]
+    pub halt_start_kyn: Option<u64>,
     /// Total number of drand kyns the network has been paused for since genesis.
     #[serde(default)]
     pub total_paused_kyns: u64,
@@ -93,6 +96,12 @@ pub struct GovernanceState {
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, u64>,
+    /// Active 1-character premium names and their associated ML-DSA-65 public keys.
+    #[serde(default)]
+    pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
+    /// Active infrastructure names and their associated ML-DSA-65 public keys.
+    #[serde(default)]
+    pub mapped_infra_names: HashMap<String, PublicKeyBytes>,
 }
 
 impl GovernanceState {
@@ -123,12 +132,15 @@ mod tests {
 
     fn mock_state() -> GovernanceState {
         GovernanceState {
-            genesis_timestamp_sec: 0,
+            genesis_kyn: 0,
             active_root_key: None,
             is_halted: false,
+            halt_start_kyn: None,
             total_paused_kyns: 0,
-            pause_history: vec![],
+            pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
+            mapped_prime_names: HashMap::new(),
+            mapped_infra_names: HashMap::new(),
         }
     }
 
@@ -140,7 +152,7 @@ mod tests {
 
         // Name is registered AFTER the pause, at kyn 2000
         let target_kyn = 2000;
-        
+
         // It should get 0 paused kyns back (fixing the double-granting flaw)
         assert_eq!(state.paused_kyns_since(target_kyn), 0);
     }

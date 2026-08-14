@@ -9,26 +9,26 @@
 //! and resist single-peer failures. Each key is derived as:
 //! `SHA-256(name_bytes || [i] || "{NETWORK_ID}-dht-v1")`
 //!
-//! The `{NETWORK_ID}` suffix prevents key collisions between different Kinetic TLD networks.
+//! The `{NETWORK_ID}` suffix prevents key collisions between different Kinetic NSP networks.
 
 pub use kinetic_types::name_record::{
-    derive_heartbeat_keys, derive_storage_keys, Heartbeat, M_REDUNDANCY, NameRecord,
+    Heartbeat, M_REDUNDANCY, NameRecord, derive_heartbeat_keys, derive_storage_keys,
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::TLD_SUFFIX;
+    use crate::constants::NSP_SUFFIX;
 
     #[test]
     fn test_derive_storage_keys() {
         let keys = derive_storage_keys(
-            &format!("{}{}", "saifmukhtar", TLD_SUFFIX),
-            env!("KINETIC_NETWORK_ID"),
+            &format!("{}{}", "saifmukhtar", NSP_SUFFIX),
+            crate::constants::NETWORK_SALT,
         );
         assert_eq!(keys.len(), 32);
 
-        let keys2 = derive_storage_keys("SAIFMUKHTAR.KIN", env!("KINETIC_NETWORK_ID"));
+        let keys2 = derive_storage_keys("SAIFMUKHTAR.KIN", crate::constants::NETWORK_SALT);
         assert_eq!(keys, keys2);
 
         for i in 0..keys.len() {

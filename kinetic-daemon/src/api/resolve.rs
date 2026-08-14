@@ -2,9 +2,9 @@
 
 use super::*;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 
 use tracing::info;
@@ -23,15 +23,13 @@ pub async fn handle_resolve_name(
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     match state.network.resolve_redundant_payload(&fqdn).await {
-        Ok(payload) => {
-            match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
-                Ok(record) => Ok(Json(record)),
-                Err(_) => Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({"error": "Invalid NameRecord payload on DHT"})),
-                )),
-            }
-        }
+        Ok(payload) => match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
+            Ok(record) => Ok(Json(record)),
+            Err(_) => Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "Invalid NameRecord payload on DHT"})),
+            )),
+        },
         Err(kinetic_core::error::ResolutionError::NotFound { .. }) => {
             // Fallback to local storage if DHT lookup fails or returns nothing
             // This rescues users who lost their local reveal.json and the DHT dropped their record
@@ -139,10 +137,10 @@ pub async fn handle_resolve_kid(
                 }
             };
 
-        if let Some(manifest) = manifest_opt {
-            if let Ok(val) = serde_json::to_value(manifest) {
-                response["manifest_document"] = val;
-            }
+        if let Some(manifest) = manifest_opt
+            && let Ok(val) = serde_json::to_value(manifest)
+        {
+            response["manifest_document"] = val;
         }
     }
 

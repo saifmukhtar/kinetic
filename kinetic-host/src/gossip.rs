@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use libp2p::gossipsub::MessageId;
 use libp2p::PeerId;
+use libp2p::gossipsub::MessageId;
 
 /// Starts an async loop to listen for governance gossip messages, update global state, and save to disk.
 pub async fn start_gossip_listener(
@@ -12,24 +12,47 @@ pub async fn start_gossip_listener(
     gov_state_path: Arc<PathBuf>,
 ) {
     while let Ok((topic, payload, _, _)) = gossip_rx.recv().await {
-        if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
-            if let Ok(signed_msg) = serde_json::from_slice::<
-                kinetic_core::governance::SignedGovernanceMessage,
-            >(&payload)
+        if topic == kinetic_core::constants::GOSSIP_TOPIC_GLOBAL {
+            if payload.is_empty() {
+                continue;
+            }
+            let opcode = payload[0];
+            let actual_payload = &payload[1..];
+
+            if opcode == kinetic_types::network::NetworkOpcode::Governance as u8
+                && let Ok(signed_msg) = serde_json::from_slice::<
+                    kinetic_core::governance::SignedGovernanceMessage,
+                >(actual_payload)
             {
                 let (should_save, cloned_state) = {
-                    let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() else {
+                    let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                    else {
                         tracing::error!("FATAL: Global governance state mutex is poisoned!");
                         continue;
                     };
-                    match kinetic_core::governance::process_governance_message(&mut state, &signed_msg)
-                    {
+                    let current_time = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    let current_kyn =
+                        kinetic_core::types::clock::unix_secs_to_network_kyn(current_time);
+
+                    match kinetic_core::governance::process_governance_message(
+                        &mut state,
+                        &signed_msg,
+                        current_kyn,
+                    ) {
                         Ok(Some(effect)) => {
-                            tracing::info!("Governance state updated via gossip. Effect: {:?}", effect);
+                            tracing::info!(
+                                "Governance state updated via gossip. Effect: {:?}",
+                                effect
+                            );
                             (true, state.clone())
                         }
                         Ok(None) => {
-                            tracing::info!("Governance state updated via gossip. No immediate effect.");
+                            tracing::info!(
+                                "Governance state updated via gossip. No immediate effect."
+                            );
                             (true, state.clone())
                         }
                         Err(e) => {
@@ -38,12 +61,14 @@ pub async fn start_gossip_listener(
                         }
                     }
                 };
-
                 if should_save {
                     let path_clone = gov_state_path.clone();
                     tokio::task::spawn_blocking(move || {
                         if let Err(e) = cloned_state.save_to_disk(&path_clone) {
-                            tracing::error!("CRITICAL: Failed to save governance state to disk: {}", e);
+                            tracing::error!(
+                                "CRITICAL: Failed to save governance state to disk: {}",
+                                e
+                            );
                         }
                     });
                 }

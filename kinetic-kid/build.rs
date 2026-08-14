@@ -22,10 +22,10 @@ fn main() {
     let json_content = fs::read_to_string(&network_json_path).expect("Failed to read network.json");
     let parsed: serde_json::Value =
         serde_json::from_str(&json_content).expect("Failed to parse network.json");
-    let tld = parsed["network"]["tld"]
+    let nsp = parsed["network"]["nsp"]
         .as_str()
-        .expect("network.tld missing");
-    let did_prefix = format!("did:{}:", tld);
+        .expect("network.nsp missing");
+    let did_prefix = format!("did:{}:", nsp);
 
     println!("cargo:rustc-env=KINETIC_DID_PREFIX={}", did_prefix);
 

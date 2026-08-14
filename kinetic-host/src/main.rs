@@ -25,18 +25,18 @@
 
 /// Health-check REST API.
 pub mod api;
-/// P2P Gossipsub network handlers.
-pub mod gossip;
+/// Configuration for the host proxy backend.
+pub mod config;
 /// Drand epoch manager and dynamic routing publisher.
 pub mod epoch;
+/// P2P Gossipsub network handlers.
+pub mod gossip;
 /// Host identity key management.
 pub mod host_key;
 /// P2P reverse proxy logic.
 pub mod proxy;
 /// Background system service installer.
 pub mod service;
-/// Configuration for the host proxy backend.
-pub mod config;
 
 #[cfg(test)]
 mod proxy_tests;
@@ -73,9 +73,7 @@ enum Commands {
     /// Stop the host service (background)
     Stop,
     /// Configure the backend proxy port interactively
-    Port {
-        port: Option<u16>,
-    },
+    Port { port: Option<u16> },
     /// Print the static Host PeerID for DNS configuration
     Id,
 }
@@ -112,7 +110,10 @@ async fn run_host() -> Result<()> {
         tracing::error!(
             "The network cannot boot in production mode with a bricked governance plane."
         );
-        tracing::error!("Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}", e);
+        tracing::error!(
+            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
+            e
+        );
         std::process::exit(1);
     }
 
@@ -214,7 +215,8 @@ async fn run_host() -> Result<()> {
             .as_ref()
             .and_then(|a| a.parse().ok()),
         max_reveals_per_hour: 100,
-        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE).unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
+        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
+            .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
         test_mode: false,
         disable_storage_sync: false,
@@ -251,6 +253,13 @@ async fn run_host() -> Result<()> {
         network_loop.run().await;
     })));
     info!("P2P Network architecture wired");
+
+    kinetic_network::client::telemetry::start_telemetry_service(
+        network_client.clone(),
+        drand_client.clone(),
+        config.clone(),
+        kinetic_types::network::NodeType::Host,
+    );
 
     tokio::spawn(gossip::start_gossip_listener(
         gossip_rx,
@@ -323,15 +332,29 @@ async fn configure_port(arg_port: Option<u16>) -> Result<()> {
     };
 
     println!("Checking if anything is running on localhost:{}...", port);
-    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(2)).build()?;
-    match client.get(format!("http://127.0.0.1:{}", port)).send().await {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()?;
+    match client
+        .get(format!("http://127.0.0.1:{}", port))
+        .send()
+        .await
+    {
         Ok(_) => {
-            println!("[SUCCESS] Detected a running web server on port {}. Traffic will be routed here.", port);
+            println!(
+                "[SUCCESS] Detected a running web server on port {}. Traffic will be routed here.",
+                port
+            );
         }
         Err(_) => {
-            println!("[WARNING] We couldn't detect anything running on port {}.", port);
+            println!(
+                "[WARNING] We couldn't detect anything running on port {}.",
+                port
+            );
             println!("If you are running a server, there might be a connection issue.");
-            println!("If not, please start your web server. The port has been saved successfully regardless.");
+            println!(
+                "If not, please start your web server. The port has been saved successfully regardless."
+            );
         }
     }
 

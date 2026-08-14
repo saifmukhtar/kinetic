@@ -162,9 +162,11 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
-        args: vec!["run"
-            .parse()
-            .map_err(|_| anyhow::anyhow!("Failed to parse run"))?],
+        args: vec![
+            "run"
+                .parse()
+                .map_err(|_| anyhow::anyhow!("Failed to parse run"))?,
+        ],
         contents: None,
         username: user,
         working_directory: None,
@@ -222,7 +224,10 @@ async fn run_daemon() -> Result<()> {
         tracing::error!(
             "The network cannot boot in production mode with a bricked governance plane."
         );
-        tracing::error!("Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}", e);
+        tracing::error!(
+            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
+            e
+        );
         std::process::exit(1);
     }
 
@@ -237,7 +242,9 @@ async fn run_daemon() -> Result<()> {
             "FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
             config.daemon.backend_port
         );
-        tracing::error!("This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml.");
+        tracing::error!(
+            "This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml."
+        );
         std::process::exit(1);
     }
 
@@ -343,7 +350,8 @@ async fn run_daemon() -> Result<()> {
             .as_ref()
             .and_then(|a| a.parse().ok()),
         max_reveals_per_hour: 100,
-        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE).unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
+        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
+            .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
         test_mode: false,
         disable_storage_sync: false,
@@ -390,43 +398,42 @@ async fn run_daemon() -> Result<()> {
                 kinetic_core::config::ports::API_DAEMON
             );
             tracing::info!("Trying to fetch governance state from {}...", url);
-            if let Ok(resp) = client.get(&url).send().await {
-                if resp.status().is_success() {
-                    if let Ok(bytes) = resp.bytes().await {
-                        if let Ok(downloaded_state) = bincode::deserialize::<
-                            kinetic_core::governance::GovernanceState,
-                        >(&bytes)
-                        {
-                            // Enforce strict content validation to prevent MITM attacks over HTTP
-                            if downloaded_state.genesis_timestamp_sec
-                                != kinetic_core::constants::KINETIC_GENESIS_TIME
-                            {
-                                tracing::warn!("Seed node provided governance state for wrong network genesis.");
-                                continue;
-                            }
-
-                            if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
-                                tracing::warn!(
-                                    "Failed to save downloaded governance state to disk: {}",
-                                    e
-                                );
-                            } else {
-                                tracing::info!(
-                                    "Successfully bootstrapped governance state from seed node."
-                                );
-                                success = true;
-                                break;
-                            }
-                        } else {
-                            tracing::warn!("Seed node provided invalid governance state bytes.");
-                        }
+            if let Ok(resp) = client.get(&url).send().await
+                && resp.status().is_success()
+                && let Ok(bytes) = resp.bytes().await
+            {
+                if let Ok(downloaded_state) =
+                    bincode::deserialize::<kinetic_core::governance::GovernanceState>(&bytes)
+                {
+                    // Enforce strict content validation to prevent MITM attacks over HTTP
+                    if downloaded_state.genesis_kyn
+                        != kinetic_core::constants::KINETIC_GENESIS_DRAND_KYN
+                    {
+                        tracing::warn!(
+                            "Seed node provided governance state for wrong network genesis."
+                        );
+                        continue;
                     }
+
+                    if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
+                        tracing::warn!("Failed to save downloaded governance state to disk: {}", e);
+                    } else {
+                        tracing::info!(
+                            "Successfully bootstrapped governance state from seed node."
+                        );
+                        success = true;
+                        break;
+                    }
+                } else {
+                    tracing::warn!("Seed node provided invalid governance state bytes.");
                 }
             }
         }
 
         if !success {
-            tracing::warn!("Failed to fetch governance state from any bootstrap node. Initializing a default genesis state.");
+            tracing::warn!(
+                "Failed to fetch governance state from any bootstrap node. Initializing a default genesis state."
+            );
         }
     }
 
@@ -460,9 +467,9 @@ async fn run_daemon() -> Result<()> {
         network_loop.run().await;
     });
 
-    // Subscribe to Quicknet Kyn Gossip
+    // Subscribe to Global Gossip
     let _ = network_client
-        .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
+        .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL)
         .await;
     info!("P2P Network architecture wired");
 
@@ -485,6 +492,13 @@ async fn run_daemon() -> Result<()> {
         drand_client.clone(),
         drand_kyn_tx.clone(),
         Some(storage.clone()),
+    );
+
+    kinetic_network::client::telemetry::start_telemetry_service(
+        network_client.clone(),
+        drand_client.clone(),
+        config.clone(),
+        kinetic_types::network::NodeType::Daemon,
     );
 
     let base_config_dir = kinetic_core::config::get_base_dir();
@@ -531,7 +545,7 @@ async fn run_daemon() -> Result<()> {
         .await;
     });
 
-    let atlas_tlds = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new()));
+    let atlas_nsps = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new()));
 
     let api_future = api::start_server(
         network_client.clone(),
@@ -539,7 +553,7 @@ async fn run_daemon() -> Result<()> {
         gossip_tx.clone(),
         config.daemon.bind_ip.clone(),
         config.daemon.api_port,
-        atlas_tlds.clone(),
+        atlas_nsps.clone(),
     );
 
     info!("Kinetic Daemon architecture successfully bootstrapped. Spawning loops...");
@@ -563,11 +577,11 @@ async fn run_daemon() -> Result<()> {
     let proxies_dir = global_base.join("proxies");
     let _ = std::fs::create_dir_all(&proxies_dir);
 
-    let tld_clean = kinetic_core::constants::TLD_SUFFIX.trim_start_matches('.');
-    let proxy_json_path = proxies_dir.join(format!("{}.json", tld_clean));
+    let nsp_clean = kinetic_core::constants::NSP_SUFFIX.trim_start_matches('.');
+    let proxy_json_path = proxies_dir.join(format!("{}.json", nsp_clean));
 
     let proxy_info = serde_json::json!({
-        "tld": kinetic_core::constants::TLD_SUFFIX,
+        "nsp": kinetic_core::constants::NSP_SUFFIX,
         "proxy_ip": config.daemon.pac_bind_ip,
         "proxy_port": config.daemon.proxy_port,
     });
@@ -587,7 +601,7 @@ async fn run_daemon() -> Result<()> {
         );
         let dns_handler = kinetic_dns::KineticDnsHandler::new(
             api_url,
-            atlas_tlds.clone(),
+            atlas_nsps.clone(),
             config.daemon.atlas_port,
         );
         let mut server = hickory_server::ServerFuture::new(dns_handler);

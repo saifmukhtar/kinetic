@@ -152,7 +152,10 @@ async fn run_node() -> Result<()> {
         tracing::error!(
             "The network cannot boot in production mode with a bricked governance plane."
         );
-        tracing::error!("Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}", e);
+        tracing::error!(
+            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
+            e
+        );
         std::process::exit(1);
     }
 
@@ -245,7 +248,8 @@ async fn run_node() -> Result<()> {
             .as_ref()
             .and_then(|a| a.parse().ok()),
         max_reveals_per_hour: 100,
-        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE).unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
+        lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
+            .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
         test_mode: false,
         disable_storage_sync: false,
@@ -283,9 +287,9 @@ async fn run_node() -> Result<()> {
         tracing::warn!("Network loop exited");
     });
 
-    // Subscribe to Quicknet Kyn Gossip
+    // Subscribe to Global Gossip
     let _ = network_client
-        .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_DRAND)
+        .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL)
         .await;
     info!("P2P Network architecture wired");
 
@@ -293,6 +297,14 @@ async fn run_node() -> Result<()> {
     let drand_client_gossip = drand_client.clone();
     let drand_kyn_tx_gossip = drand_kyn_tx.clone();
     let gossip_storage = storage.clone();
+
+    kinetic_network::client::telemetry::start_telemetry_service(
+        network_client.clone(),
+        drand_client.clone(),
+        config.clone(),
+        kinetic_types::network::NodeType::Node,
+    );
+
     tokio::spawn(async move {
         loop {
             let (topic, payload, _, _) = match gossip_rx.recv().await {
@@ -300,23 +312,27 @@ async fn run_node() -> Result<()> {
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             };
-            if topic == kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE {
-                gossip::handle_kinetic_governance_gossip(
-                    &payload,
-                    gossip_gov_path.clone(),
-                    Some(gossip_storage.clone()),
-                );
-            } else if topic == kinetic_core::constants::GOSSIP_TOPIC_DRAND {
-                if let Ok(kyn) = serde_json::from_slice::<RawKyn>(&payload) {
-                    if kyn.verify() {
-                        if let Ok(latest) = drand_client_gossip.load_cached_kyn() {
-                            if (kyn.kyn > latest.kyn || latest.is_unavailable)
-                                && drand_client_gossip.cache_kyn(&kyn).is_ok()
-                            {
-                                let _ = drand_kyn_tx_gossip.send(kyn.kyn);
-                            }
-                        }
-                    }
+            if topic == kinetic_core::constants::GOSSIP_TOPIC_GLOBAL {
+                if payload.is_empty() {
+                    continue;
+                }
+                let opcode = payload[0];
+                let actual_payload = &payload[1..];
+
+                if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                    gossip::handle_kinetic_governance_gossip(
+                        actual_payload,
+                        gossip_gov_path.clone(),
+                        Some(gossip_storage.clone()),
+                    );
+                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8
+                    && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
+                    && kyn.verify()
+                    && let Ok(latest) = drand_client_gossip.load_cached_kyn()
+                    && (kyn.kyn > latest.kyn || latest.is_unavailable)
+                    && drand_client_gossip.cache_kyn(&kyn).is_ok()
+                {
+                    let _ = drand_kyn_tx_gossip.send(kyn.kyn);
                 }
             }
         }
@@ -356,22 +372,19 @@ async fn run_node() -> Result<()> {
                 }
             }
 
-            if should_fetch_http {
-                if let Ok(kyn) = hb_drand.fetch_latest().await {
-                    if !kyn.is_unavailable && !kyn.is_from_cache {
-                        let _ = drand_kyn_tx.send(kyn.kyn);
-                        // Broadcast to P2P network if we are fetching HTTP
-                        if !p2p_only {
-                            if let Ok(payload) = serde_json::to_vec(&kyn) {
-                                let _ = hb_network
-                                    .broadcast_gossip(
-                                        kinetic_core::constants::GOSSIP_TOPIC_DRAND,
-                                        payload,
-                                    )
-                                    .await;
-                            }
-                        }
-                    }
+            if should_fetch_http
+                && let Ok(kyn) = hb_drand.fetch_latest().await
+                && !kyn.is_unavailable
+                && !kyn.is_from_cache
+            {
+                let _ = drand_kyn_tx.send(kyn.kyn);
+                // Broadcast to P2P network if we are fetching HTTP
+                if !p2p_only && let Ok(payload) = serde_json::to_vec(&kyn) {
+                    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Drand as u8];
+                    envelope.extend(payload);
+                    let _ = hb_network
+                        .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL, envelope)
+                        .await;
                 }
             }
         }

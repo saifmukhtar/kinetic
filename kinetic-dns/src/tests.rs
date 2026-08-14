@@ -2,16 +2,16 @@ use crate::KineticDnsHandler;
 use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use hickory_proto::op::Message;
 use hickory_proto::rr::{Name, RecordType};
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
+
 use std::net::{Ipv4Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
-use kinetic_core::types::DnsZoneExt;
 
 #[derive(Clone)]
 struct MockResponseHandler {
@@ -63,7 +63,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
     let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
     reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
     reveal.signature = keypair
-        .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
+        .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
         .to_bytes()
         .to_vec();
     reveal
@@ -86,12 +86,26 @@ async fn start_mock_daemon() -> String {
                     );
                     let payload = serde_json::to_vec(&zone).unwrap();
                     let reveal = mock_reveal("test1.kin", payload);
-                    (StatusCode::OK, serde_json::to_vec(&reveal).unwrap()).into_response()
+                    (
+                        StatusCode::OK,
+                        serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+                            reveal,
+                        )))
+                        .unwrap(),
+                    )
+                        .into_response()
                 }
                 "invalid-payload.kin" => (StatusCode::OK, vec![0, 1, 2, 3]).into_response(),
                 "invalid-zone.kin" => {
                     let reveal = mock_reveal("invalid-zone.kin", vec![1, 2, 3, 4]); // Invalid JSON for DnsZone
-                    (StatusCode::OK, serde_json::to_vec(&reveal).unwrap()).into_response()
+                    (
+                        StatusCode::OK,
+                        serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+                            reveal,
+                        )))
+                        .unwrap(),
+                    )
+                        .into_response()
                 }
                 "500.kin" => (StatusCode::INTERNAL_SERVER_ERROR, "Error").into_response(),
                 _ => (StatusCode::NOT_FOUND, "Not found").into_response(),

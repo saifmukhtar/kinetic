@@ -36,8 +36,7 @@ pub fn start_pow_miner_loop(
                 continue;
             }
             let peer_id = libp2p::PeerId::from_public_key(&current_local_key.public());
-            let current_epoch =
-                kinetic_network::pow::get_staggered_epoch(&peer_id.to_bytes(), kyn);
+            let current_epoch = kinetic_network::pow::get_staggered_epoch(&peer_id.to_bytes(), kyn);
 
             let needs_validation = match last_verified_epoch {
                 Some(epoch) => epoch != current_epoch,
@@ -127,67 +126,59 @@ pub fn start_republisher(
         loop {
             interval.tick().await;
             let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
-            if let Ok(Some(bytes)) = republish_storage.get(owned_key) {
-                if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
-                    for (i, name) in names.into_iter().enumerate() {
-                        let reveal_key =
-                            format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, name);
-                        if let Ok(Some(reveal_bytes)) = republish_storage.get(reveal_key.as_bytes())
-                        {
-                            if let Ok(reveal) =
-                                serde_json::from_slice::<kinetic_core::types::Reveal>(&reveal_bytes)
-                            {
-                                let rn_commit = republish_network.clone();
-                                let n_commit = name.clone();
-                                let n_reveal = name.clone();
+            if let Ok(Some(bytes)) = republish_storage.get(owned_key)
+                && let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes)
+            {
+                for (i, name) in names.into_iter().enumerate() {
+                    let reveal_key =
+                        format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, name);
+                    if let Ok(Some(reveal_bytes)) = republish_storage.get(reveal_key.as_bytes())
+                        && let Ok(reveal) =
+                            serde_json::from_slice::<kinetic_core::types::Reveal>(&reveal_bytes)
+                    {
+                        let rn_commit = republish_network.clone();
+                        let n_commit = name.clone();
+                        let n_reveal = name.clone();
 
-                                tokio::spawn(async move {
-                                    tokio::time::sleep(std::time::Duration::from_millis(
-                                        i as u64 * 100,
-                                    ))
-                                    .await;
+                        tokio::spawn(async move {
+                            tokio::time::sleep(std::time::Duration::from_millis(i as u64 * 100))
+                                .await;
 
-                                    use sha2::Digest;
-                                    let mut hasher = sha2::Sha256::new();
-                                    hasher.update(reveal.name.as_bytes());
-                                    hasher.update(reveal.salt);
-                                    if let Ok(drand_rand) = hex::decode(&reveal.drand_signature) {
-                                        hasher.update(&drand_rand);
-                                        hasher.update(&reveal.pubkey);
-                                        let mut hash = [0u8; 32];
-                                        hash.copy_from_slice(&hasher.finalize());
-                                        let commitment = kinetic_core::types::Commitment { hash };
+                            use sha2::Digest;
+                            let mut hasher = sha2::Sha256::new();
+                            hasher.update(reveal.name.as_bytes());
+                            hasher.update(reveal.salt);
+                            if let Ok(drand_rand) = hex::decode(&reveal.drand_signature) {
+                                hasher.update(&drand_rand);
+                                hasher.update(&reveal.pubkey);
+                                let mut hash = [0u8; 32];
+                                hash.copy_from_slice(&hasher.finalize());
+                                let commitment = kinetic_core::types::Commitment { hash };
 
-                                        if let Ok(commit_bytes) = serde_json::to_vec(&commitment) {
-                                            tracing::info!(
-                                                "Republisher: Publishing commitment for {}",
-                                                n_commit
-                                            );
-                                            // Republish the commitment to satisfy the commitment gate on new DHT nodes
-                                            let _ = rn_commit
-                                                .publish_redundant_payload(&n_commit, commit_bytes)
-                                                .await;
+                                if let Ok(commit_bytes) = serde_json::to_vec(&commitment) {
+                                    tracing::info!(
+                                        "Republisher: Publishing commitment for {}",
+                                        n_commit
+                                    );
+                                    // Republish the commitment to satisfy the commitment gate on new DHT nodes
+                                    let _ = rn_commit
+                                        .publish_redundant_payload(&n_commit, commit_bytes)
+                                        .await;
 
-                                            // Wait 12 Drand rounds (36 seconds) so the commitment matures (>10 rounds required)
-                                            tokio::time::sleep(std::time::Duration::from_secs(36))
-                                                .await;
+                                    // Wait 12 Drand rounds (36 seconds) so the commitment matures (>10 rounds required)
+                                    tokio::time::sleep(std::time::Duration::from_secs(36)).await;
 
-                                            tracing::info!(
-                                                "Republisher: Publishing reveal for {}",
-                                                n_reveal
-                                            );
-                                            // Republish the reveal
-                                            let _ = rn_commit
-                                                .publish_redundant_payload(
-                                                    &n_reveal,
-                                                    reveal_bytes.to_vec(),
-                                                )
-                                                .await;
-                                        }
-                                    }
-                                });
+                                    tracing::info!(
+                                        "Republisher: Publishing reveal for {}",
+                                        n_reveal
+                                    );
+                                    // Republish the reveal
+                                    let _ = rn_commit
+                                        .publish_redundant_payload(&n_reveal, reveal_bytes.to_vec())
+                                        .await;
+                                }
                             }
-                        }
+                        });
                     }
                 }
             }

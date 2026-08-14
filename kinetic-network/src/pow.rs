@@ -1,7 +1,7 @@
 //! Argon2id Proof-of-Work (PoW) mining and validation for S/Kademlia anti-Sybil peer identity protection.
 
 use argon2::{Algorithm, Argon2, Params, Version};
-use libp2p::{identity::Keypair, PeerId};
+use libp2p::{PeerId, identity::Keypair};
 use tracing::info;
 
 /// The number of drand kyns in a single PoW epoch (e.g., 1440 for 12 hours at 30s per kyn).

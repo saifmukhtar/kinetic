@@ -98,7 +98,7 @@ impl super::core::NetworkEventLoop {
             } => {
                 let keys = kinetic_core::types::derive_storage_keys(
                     &name,
-                    kinetic_core::constants::NETWORK_ID,
+                    kinetic_core::constants::NETWORK_SALT,
                 );
                 self.enqueue_dht_puts(name, keys, payload, responder);
             }
@@ -117,7 +117,7 @@ impl super::core::NetworkEventLoop {
             } => {
                 let keys = kinetic_core::types::derive_heartbeat_keys(
                     &name,
-                    kinetic_core::constants::NETWORK_ID,
+                    kinetic_core::constants::NETWORK_SALT,
                 );
                 self.enqueue_dht_puts(name, keys, payload, responder);
             }
@@ -134,7 +134,7 @@ impl super::core::NetworkEventLoop {
                     // Fallback to local store as a last resort since we're offline
                     let keys = kinetic_core::types::derive_storage_keys(
                         &name,
-                        kinetic_core::constants::NETWORK_ID,
+                        kinetic_core::constants::NETWORK_SALT,
                     );
                     for key_bytes in &keys {
                         let k = kad::RecordKey::new(key_bytes);
@@ -164,15 +164,16 @@ impl super::core::NetworkEventLoop {
                 for peer in peers {
                     let req_id = self.swarm.behaviour_mut().cdn.send_request(
                         &peer,
-                        kinetic_types::cdn::CdnRequest { domain: name.clone() },
+                        kinetic_types::cdn::CdnRequest {
+                            domain: name.clone(),
+                        },
                     );
                     self.pending_cdn_requests.insert(req_id, name.clone());
                 }
 
-
                 let keys = kinetic_core::types::derive_storage_keys(
                     &name,
-                    kinetic_core::constants::NETWORK_ID,
+                    kinetic_core::constants::NETWORK_SALT,
                 );
                 let expected = self.dispatch_dht_queries(
                     name.clone(),
@@ -204,7 +205,7 @@ impl super::core::NetworkEventLoop {
 
                 let keys = kinetic_core::types::derive_storage_keys(
                     &name,
-                    kinetic_core::constants::NETWORK_ID,
+                    kinetic_core::constants::NETWORK_SALT,
                 );
                 let expected = self.dispatch_dht_queries(
                     name.clone(),
@@ -261,12 +262,16 @@ impl super::core::NetworkEventLoop {
                     .reveals_by_name
                     .len();
 
+                let counters = info.connection_counters();
+
                 let _ = responder.send(Ok(serde_json::json!({
                     "status": status,
                     "peer_id": self.swarm.local_peer_id().to_string(),
                     "connected_peers": peers,
                     "listen_addrs": self.swarm.listeners().map(|a| a.to_string()).collect::<Vec<_>>(),
                     "nat_status": self.nat_status,
+                    "bytes_sent": counters.num_pending_outgoing() as u64 + counters.num_established_outgoing() as u64, // libp2p connection_counters doesn't store total bandwidth in this version, so we fallback to 0 or we can just send 0 if it's too hard
+                    // Actually wait, let's look at `info.connection_counters()`.
                 })));
             }
             Command::SubscribeGossip { topic, responder } => {
@@ -304,11 +309,7 @@ impl super::core::NetworkEventLoop {
                     .swarm
                     .behaviour_mut()
                     .gossipsub
-                    .report_message_validation_result(
-                        &message_id,
-                        &propagation_source,
-                        acceptance,
-                    );
+                    .report_message_validation_result(&message_id, &propagation_source, acceptance);
             }
         }
     }

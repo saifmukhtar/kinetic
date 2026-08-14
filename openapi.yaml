@@ -760,7 +760,7 @@ paths:
   /internal/atlas/sync:
     post:
       operationId: syncAtlas
-      summary: Trigger a synchronization of the foreign TLD bridge
+      summary: Trigger a synchronization of the foreign NSP bridge
       description: Requires Atlas or Admin role.
       tags: [Private]
       security:

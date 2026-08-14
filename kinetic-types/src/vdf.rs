@@ -6,6 +6,7 @@
 //! 2. **Phase 2 (Reveal)**: Revealing name metadata, salt, drand randomness, and the computed
 //!    [`VdfProof`] inside a [`Reveal`] structure verified with post-quantum ML-DSA-65 signatures.
 
+#![allow(clippy::collapsible_if)]
 use crate::error::Severity;
 use serde::{Deserialize, Serialize};
 
@@ -45,7 +46,9 @@ impl VdfVerifyError {
     pub fn severity(&self) -> Severity {
         match self {
             Self::MalformedPublicKey | Self::MalformedSignature => Severity::Warning,
-            Self::InvalidSignature | Self::DelegatedCapabilityMissing | Self::DelegatedAuthorizationInvalid => Severity::Error,
+            Self::InvalidSignature
+            | Self::DelegatedCapabilityMissing
+            | Self::DelegatedAuthorizationInvalid => Severity::Error,
         }
     }
 
@@ -60,17 +63,18 @@ impl VdfVerifyError {
             Self::MalformedPublicKey => {
                 "The name owner's ML-DSA-65 public key is corrupted or invalid.".to_string()
             }
-            Self::MalformedSignature => {
-                "The ML-DSA-65 signature format is malformed.".to_string()
-            }
+            Self::MalformedSignature => "The ML-DSA-65 signature format is malformed.".to_string(),
             Self::InvalidSignature => {
-                "The post-quantum ownership signature failed cryptographic verification.".to_string()
+                "The post-quantum ownership signature failed cryptographic verification."
+                    .to_string()
             }
             Self::DelegatedCapabilityMissing => {
-                "The delegated manifest does not grant the required capability for this action.".to_string()
+                "The delegated manifest does not grant the required capability for this action."
+                    .to_string()
             }
             Self::DelegatedAuthorizationInvalid => {
-                "The delegated authorization proof could not be verified against the master key.".to_string()
+                "The delegated authorization proof could not be verified against the master key."
+                    .to_string()
             }
         }
     }
@@ -129,10 +133,10 @@ pub struct PreviousProof {
 
 impl PreviousProof {
     /// Serializes the previous proof container into length-prefixed bytes for payload chaining.
-    pub fn proof_bytes(&self, network_id: &str) -> Vec<u8> {
-        let prefix_str = format!("{}-vdf-prev-v1", network_id);
-        let prefix = prefix_str.as_bytes();
-        let capacity = prefix.len()
+    pub fn proof_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
+        let prefix = b"vdf-prev-proof-v1";
+        let capacity = network_salt.len()
+            + prefix.len()
             + 32 // salt
             + 8 // drand_kyn
             + 4 + self.drand_signature.len()
@@ -141,6 +145,7 @@ impl PreviousProof {
             + 4 + self.signature.len();
 
         let mut bytes = Vec::with_capacity(capacity);
+        bytes.extend_from_slice(network_salt);
         bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.drand_kyn.to_be_bytes());
@@ -160,10 +165,10 @@ impl PreviousProof {
     }
 
     /// Serializes the fields of the previous proof that are covered by its signature.
-    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
-        let prefix_str = format!("{}-vdf-prev-v1", network_id);
-        let prefix = prefix_str.as_bytes();
-        let capacity = prefix.len()
+    pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
+        let prefix = b"vdf-prev-v1";
+        let capacity = network_salt.len()
+            + prefix.len()
             + 32 // salt
             + 8 // drand_kyn
             + 4 + self.drand_signature.len()
@@ -171,6 +176,7 @@ impl PreviousProof {
             + 4 + self.vdf_proof.proof_bytes.len();
 
         let mut bytes = Vec::with_capacity(capacity);
+        bytes.extend_from_slice(network_salt);
         bytes.extend_from_slice(prefix);
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.drand_kyn.to_be_bytes());
@@ -222,10 +228,10 @@ pub struct Reveal {
 
 impl Reveal {
     /// Verifies the ML-DSA-65 post-quantum signature over [`signable_bytes`](Reveal::signable_bytes).
-    pub fn verify_signature(&self, network_id: &str) -> Result<(), VdfVerifyError> {
-        use ml_dsa::signature::Verifier;
+    pub fn verify_signature(&self, network_salt: &[u8; 32]) -> Result<(), VdfVerifyError> {
         use ml_dsa::KeyInit;
-        let signable = self.signable_bytes(network_id);
+        use ml_dsa::signature::Verifier;
+        let signable = self.signable_bytes(network_salt);
 
         let pubkey =
             ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(self.pubkey.as_slice())
@@ -235,25 +241,36 @@ impl Reveal {
             .map_err(|_| VdfVerifyError::MalformedSignature)?;
 
         if let Some(auth) = &self.authorization {
-            let auth_signable = auth.signable_bytes(network_id);
-            let auth_sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth.owner_signature.as_slice())
+            let auth_signable = auth.signable_bytes(network_salt);
+            let auth_sig =
+                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth.owner_signature.as_slice())
+                    .map_err(|_| VdfVerifyError::DelegatedAuthorizationInvalid)?;
+
+            pubkey
+                .verify(&auth_signable, &auth_sig)
                 .map_err(|_| VdfVerifyError::DelegatedAuthorizationInvalid)?;
-            
-            pubkey.verify(&auth_signable, &auth_sig)
-                .map_err(|_| VdfVerifyError::DelegatedAuthorizationInvalid)?;
-            
-            let has_cap = auth.manifest.services.iter().any(|s| s.service_type == "kinetic.capability.dns_update");
+
+            let has_cap = auth
+                .manifest
+                .services
+                .iter()
+                .any(|s| s.service_type == "kinetic.capability.dns_update");
             if !has_cap {
                 return Err(VdfVerifyError::DelegatedCapabilityMissing);
             }
-            
-            let kid_doc = auth.kid_doc.as_ref().ok_or(VdfVerifyError::DelegatedAuthorizationInvalid)?;
+
+            let kid_doc = auth
+                .kid_doc
+                .as_ref()
+                .ok_or(VdfVerifyError::DelegatedAuthorizationInvalid)?;
             let mut verified = false;
             for ck in &kid_doc.controller_keys {
-                use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64_url, Engine};
+                use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                 if ck.key_type == "ML-DSA-65" {
                     if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
-                        if let Ok(vk) = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes) {
+                        if let Ok(vk) =
+                            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
+                        {
                             if vk.verify(&signable, &sig).is_ok() {
                                 verified = true;
                                 break;
@@ -276,7 +293,7 @@ impl Reveal {
                 ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice())
                     .map_err(|_| VdfVerifyError::MalformedSignature)?;
 
-            let prev_signable = prev.signable_bytes(network_id);
+            let prev_signable = prev.signable_bytes(network_salt);
             pubkey
                 .verify(&prev_signable, &prev_sig)
                 .map_err(|_| VdfVerifyError::InvalidSignature)?;
@@ -286,16 +303,16 @@ impl Reveal {
     }
 
     /// Serializes the reveal payload into a canonical byte string for ML-DSA-65 signature.
-    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
-        let prefix_str = format!("{}-vdf-reveal-v1", network_id);
-        let prefix = prefix_str.as_bytes();
+    pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
+        let prefix = b"vdf-reveal-v1";
         let prev_proof_bytes = self
             .previous_proof
             .as_ref()
-            .map(|p| p.proof_bytes(network_id))
+            .map(|p| p.proof_bytes(network_salt))
             .unwrap_or_default();
 
-        let mut capacity = prefix.len()
+        let mut capacity = network_salt.len()
+            + prefix.len()
             + 1 // protocol_version
             + 4 + self.name.len()
             + 4 + self.payload.len()
@@ -317,6 +334,7 @@ impl Reveal {
         }
 
         let mut bytes = Vec::with_capacity(capacity);
+        bytes.extend_from_slice(network_salt);
         bytes.extend_from_slice(prefix);
         bytes.push(self.protocol_version);
 

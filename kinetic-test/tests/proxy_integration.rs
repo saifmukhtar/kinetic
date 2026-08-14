@@ -1,10 +1,10 @@
 use kinetic_network::{
-    client::types::{ProxyRequest, ProxyResponse},
     NetworkClient, NetworkConfig, NetworkEventLoop,
+    client::types::{ProxyRequest, ProxyResponse},
 };
 use kinetic_storage::SledStorage;
-use libp2p::identity::Keypair;
 use libp2p::PeerId;
+use libp2p::identity::Keypair;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::tempdir;

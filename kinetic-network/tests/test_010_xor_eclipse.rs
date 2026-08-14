@@ -51,7 +51,7 @@ fn test_010_xor_eclipse() {
         authorization: None,
     };
     real_reveal.signature = keypair
-        .sign(&real_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
+        .sign(&real_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
         .to_bytes()
         .to_vec();
 
@@ -59,9 +59,9 @@ fn test_010_xor_eclipse() {
     // but the VDF is invalid.
     let mut fake_reveal = real_reveal.clone();
     fake_reveal.vdf_proof.proof_bytes = kyn_bytes.to_vec(); // will xor to 0, which is perfectly close
-                                                              // re-sign so signature is valid
+    // re-sign so signature is valid
     fake_reveal.signature = keypair
-        .sign(&fake_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID))
+        .sign(&fake_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
         .to_bytes()
         .to_vec();
 

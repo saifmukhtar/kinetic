@@ -1,6 +1,6 @@
 //! CLI query handlers for listing, inspecting, and resolving .kin names.
 
-use kinetic_core::config::{get_zones_dir, KineticConfig};
+use kinetic_core::config::{KineticConfig, get_zones_dir};
 
 use reqwest::Client;
 use tracing::{info, warn};
@@ -32,10 +32,11 @@ pub async fn handle_list(config: &KineticConfig, client: &Client) -> anyhow::Res
             if let Ok(entries) = std::fs::read_dir(&zones_dir) {
                 info!("Local names found in {}:", zones_dir.display());
                 for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if name.ends_with(".json") && !name.ends_with(".reveal.json") {
-                            info!("- {}", name.trim_end_matches(".json"));
-                        }
+                    if let Some(name) = entry.file_name().to_str()
+                        && name.ends_with(".json")
+                        && !name.ends_with(".reveal.json")
+                    {
+                        info!("- {}", name.trim_end_matches(".json"));
                     }
                 }
             } else {
@@ -91,8 +92,12 @@ pub async fn handle_info(
                     info!("  Created at Drand kyn: {}", r.drand_kyn);
                     info!("  VDF Iterations: {}", r.iterations);
                 }
-                kinetic_core::types::NameRecord::Premium { granted_at, .. } => {
-                    info!("  Type: Premium");
+                kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
+                    info!("  Type: Prime");
+                    info!("  Granted at: {}", granted_at);
+                }
+                kinetic_core::types::NameRecord::Infra { granted_at, .. } => {
+                    info!("  Type: Infra");
                     info!("  Granted at: {}", granted_at);
                 }
             }

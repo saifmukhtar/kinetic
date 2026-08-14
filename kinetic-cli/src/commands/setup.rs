@@ -162,11 +162,11 @@ fn setup_firefox() -> anyhow::Result<()> {
                             ])
                             .status();
 
-                        if let Ok(s) = status {
-                            if s.success() {
-                                println!("   -> Injected into profile: {}", entry.path().display());
-                                injected += 1;
-                            }
+                        if let Ok(s) = status
+                            && s.success()
+                        {
+                            println!("   -> Injected into profile: {}", entry.path().display());
+                            injected += 1;
                         }
                     }
                 }
@@ -174,7 +174,10 @@ fn setup_firefox() -> anyhow::Result<()> {
         }
 
         if injected > 0 {
-            println!("🎉 Success! The Kinetic Root CA has been securely injected into {} Firefox profile(s).", injected);
+            println!(
+                "🎉 Success! The Kinetic Root CA has been securely injected into {} Firefox profile(s).",
+                injected
+            );
             println!("Firefox will now resolve .kin names without security warnings.");
         } else {
             println!("⚠️ Found Firefox profiles, but none contained a cert9.db database.");
@@ -187,7 +190,9 @@ fn setup_firefox() -> anyhow::Result<()> {
             println!("and select the certificate located at:");
             println!("\n    {}\n", cert_path.display());
         } else if cfg!(target_os = "macos") {
-            println!("To let Kinetic configure Firefox automatically, run `brew install nss` and rerun this command.");
+            println!(
+                "To let Kinetic configure Firefox automatically, run `brew install nss` and rerun this command."
+            );
             println!(
                 "Alternatively, you can manually import the certificate in Firefox settings from:"
             );
@@ -209,10 +214,14 @@ fn setup_firefox() -> anyhow::Result<()> {
             {
                 println!("Run `sudo pacman -S nss` and rerun this command.");
             } else {
-                println!("Please install the 'nss-tools' package using your OS package manager and rerun this command.");
+                println!(
+                    "Please install the 'nss-tools' package using your OS package manager and rerun this command."
+                );
             }
 
-            println!("\nAlternatively, you can manually import the certificate in Firefox settings from:");
+            println!(
+                "\nAlternatively, you can manually import the certificate in Firefox settings from:"
+            );
             println!("\n    {}\n", cert_path.display());
         }
     }

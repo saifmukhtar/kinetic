@@ -61,7 +61,7 @@ pub trait VdfEngine: Send + Sync {
 ///
 /// The canonical implementation in `kinetic-storage` wraps a Sled B-tree database.
 /// All keys in Kinetic are namespaced with a `{NETWORK_ID}_` prefix so that multiple
-/// TLD networks can share a physical database file without key collisions.
+/// NSP networks can share a physical database file without key collisions.
 pub trait StorageEngine: Send + Sync {
     /// Stores a key-value byte pair, overwriting any existing entry.
     ///
@@ -141,7 +141,7 @@ pub trait GovernanceEngine: Send + Sync {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_time_sec: u64,
+        current_kyn: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError>;
 
     /// Executes a previously verified governance action, applying state changes.
@@ -157,6 +157,6 @@ pub trait GovernanceEngine: Send + Sync {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_time_sec: u64,
+        current_kyn: u64,
     ) -> Option<GovernanceEffect>;
 }

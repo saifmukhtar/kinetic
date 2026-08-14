@@ -1,8 +1,8 @@
-use std::time::Instant;
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::Commitment;
 use kinetic_vdf::ChiaVdfEngine;
 use kinetic_vdfrs::PureRustVdfEngine;
+use std::time::Instant;
 
 fn main() {
     println!("================================================================================");
@@ -21,8 +21,12 @@ fn main() {
 
     let iteration_counts = [100u64, 1_000, 10_000, 50_000, 100_000, 250_000, 500_000];
 
-    println!("| Iterations | Prove Time (C++) | Pure Rust Verify (Avg) | C++ Verify (Avg) | Pure Rust Valid? | Tamper Rejection? |");
-    println!("|------------|------------------|------------------------|------------------|------------------|-------------------|");
+    println!(
+        "| Iterations | Prove Time (C++) | Pure Rust Verify (Avg) | C++ Verify (Avg) | Pure Rust Valid? | Tamper Rejection? |"
+    );
+    println!(
+        "|------------|------------------|------------------------|------------------|------------------|-------------------|"
+    );
 
     for (c_name, challenge) in &challenges {
         println!("\n--- Testing with {} ---", c_name);
@@ -43,7 +47,8 @@ fn main() {
                 pure_valid = pure_engine.verify(challenge, &proof, iters).unwrap();
                 pure_durations.push(start.elapsed());
             }
-            let pure_avg = pure_durations.iter().sum::<std::time::Duration>() / (verify_runs as u32);
+            let pure_avg =
+                pure_durations.iter().sum::<std::time::Duration>() / (verify_runs as u32);
 
             // 3. Benchmark C++ Verifier (chiavdf) over 5 runs
             let mut cpp_durations = Vec::new();
@@ -61,8 +66,12 @@ fn main() {
             // 4. Test Tamper Rejection
             let mut tampered_proof = proof.clone();
             tampered_proof.proof_bytes[10] ^= 0xFF; // Flip bits
-            let rejected_tampered = pure_engine.verify(challenge, &tampered_proof, iters).is_err()
-                || !pure_engine.verify(challenge, &tampered_proof, iters).unwrap_or(true);
+            let rejected_tampered = pure_engine
+                .verify(challenge, &tampered_proof, iters)
+                .is_err()
+                || !pure_engine
+                    .verify(challenge, &tampered_proof, iters)
+                    .unwrap_or(true);
 
             let wrong_iter_rejected = match pure_engine.verify(challenge, &proof, iters + 1) {
                 Ok(v) => !v,
@@ -78,7 +87,11 @@ fn main() {
                 pure_avg,
                 cpp_avg,
                 if pure_valid { "✅ PASS" } else { "❌ FAIL" },
-                if tamper_ok { "✅ REJECTED" } else { "❌ ACCEPTED" }
+                if tamper_ok {
+                    "✅ REJECTED"
+                } else {
+                    "❌ ACCEPTED"
+                }
             );
         }
     }
@@ -86,7 +99,9 @@ fn main() {
     println!("\n================================================================================");
     println!("                     BENCHMARK SUMMARY & ASYMPTOTIC PROOF                       ");
     println!("================================================================================");
-    println!("1. Proving time scales LINEARLY O(T) with iteration count (e.g. 500k iters = ~0.65s).");
+    println!(
+        "1. Proving time scales LINEARLY O(T) with iteration count (e.g. 500k iters = ~0.65s)."
+    );
     println!("2. Pure Rust verification time remains CONSTANT/LOGARITHMIC O(log T) (~12-16ms).");
     println!("3. Speedup factor (Proving Time / Verification Time) at 500,000 iters: > 40x.");
     println!("4. 100% of valid proofs verified; 100% of tampered/wrong-iteration proofs rejected.");

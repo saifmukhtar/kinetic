@@ -83,7 +83,9 @@ impl DnsZoneExt for DnsZone {
                 // (like RRSIG and NSEC) to coexist with CNAMEs because they provide proof of identity
                 // rather than conflicting routing data. We map this exception to Web3 by allowing
                 // the `KID` (Kinetic Identity Document) record to coexist with a CNAME.
-                let has_forbidden = records.iter().any(|r| !matches!(r, DnsRecord::CNAME(_) | DnsRecord::KID(_)));
+                let has_forbidden = records
+                    .iter()
+                    .any(|r| !matches!(r, DnsRecord::CNAME(_) | DnsRecord::KID(_)));
                 if has_forbidden {
                     return Err(crate::error::DnsError::InvalidCnameConfiguration(
                         label.clone(),

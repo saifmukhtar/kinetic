@@ -9,13 +9,13 @@
 //!
 //! | Opcode | Action Variant | Description |
 //! |---|---|---|
-//! | `0x0A` | [`GovernanceAction::GrantPremiumName`] | Grant a 1-character apex name (Root key only) |
+//! | `0x0A` | [`GovernanceAction::MapPrime`] | Grant a 1-character prime name (Root key only) |
 //! | `0x0B` | [`GovernanceAction::RotateRootKey`] | Rotate network authority to a new ML-DSA-65 key |
 //! | `0x0C` | [`GovernanceAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
 //! | `0x0D` | [`GovernanceAction::EmergencyResume`] | Resume registrations and advance pause offset |
-//! | `0x0E` | [`GovernanceAction::RevokePremiumName`] | Revoke a previously granted 1-character apex name |
-//! | `0x0F` | [`GovernanceAction::GrantInfrastructureName`] | Grant a Category 2 infrastructure name (Root key only) |
-//! | `0x10` | [`GovernanceAction::RevokeInfrastructureName`] | Revoke a Category 2 infrastructure name (Root key only) |
+//! | `0x0E` | [`GovernanceAction::UnmapPrime`] | Revoke a previously granted 1-character prime name |
+//! | `0x0F` | [`GovernanceAction::MapInfra`] | Grant a Category 2 infrastructure name (Root key only) |
+//! | `0x10` | [`GovernanceAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Root key only) |
 
 use crate::error::Severity;
 use thiserror::Error;
@@ -31,26 +31,26 @@ pub type SignatureBytes = Vec<u8>;
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GovernanceAction {
     /// Grant a 1-character premium name (Root key only).
-    GrantPremiumName {
+    MapPrime {
         /// Target 1-character name label.
         name: String,
         /// Recipient's ML-DSA-65 public key.
         target_pubkey: PublicKeyBytes,
     },
     /// Revoke a 1-character premium name (Root key only).
-    RevokePremiumName {
+    UnmapPrime {
         /// Target 1-character name label.
         name: String,
     },
     /// Grant a Category 2 network infrastructure name (Root key only).
-    GrantInfrastructureName {
+    MapInfra {
         /// Target infrastructure name label (e.g., "seed", "api").
         name: String,
         /// Recipient's ML-DSA-65 public key.
         target_pubkey: PublicKeyBytes,
     },
     /// Revoke a Category 2 network infrastructure name (Root key only).
-    RevokeInfrastructureName {
+    UnmapInfra {
         /// Target infrastructure name label.
         name: String,
     },
@@ -62,10 +62,7 @@ pub enum GovernanceAction {
     /// Emergency pause for network registration and renewals.
     EmergencyHalt,
     /// Resume network registration and renewals, adding to the global pause offset.
-    EmergencyResume {
-        /// The exact number of drand kyns the network was halted for.
-        paused_kyns: u64,
-    },
+    EmergencyResume,
 }
 
 /// Proposal message container with signatures from authorized council members.
@@ -73,9 +70,9 @@ pub enum GovernanceAction {
 pub struct SignedGovernanceMessage {
     /// Target governance action payload.
     pub action: GovernanceAction,
-    /// Proposal creation Unix timestamp in seconds.
-    pub timestamp_sec: u64,
-    /// Collected ML-DSA-65 signatures supporting this proposal.
+    /// Unix timestamp in drand kyns when the proposal was signed.
+    pub timestamp_kyn: u64,
+    /// Array of ML-DSA-65 signatures.
     pub signatures: Vec<SignatureBytes>,
 }
 
@@ -86,15 +83,16 @@ impl SignedGovernanceMessage {
     ///
     /// | Opcode | Action Variant |
     /// |---|---|
-    /// | `0x0A` | `GrantPremiumName` |
+    /// | `0x0A` | `MapPrime` |
     /// | `0x0B` | `RotateRootKey` |
     /// | `0x0C` | `EmergencyHalt` |
     /// | `0x0D` | `EmergencyResume` |
-    /// | `0x0E` | `RevokePremiumName` |
-    /// | `0x0F` | `GrantInfrastructureName` |
-    /// | `0x10` | `RevokeInfrastructureName` |
+    /// | `0x0E` | `UnmapPrime` |
+    /// | `0x0F` | `MapInfra` |
+    /// | `0x10` | `UnmapInfra` |
     ///
-    /// The message closes with `u64_be(timestamp_sec)`.
+    /// After the action payload, length-prefixed signatures (using a simple 1-byte count + N x 3309 bytes arrays) are written.
+    /// The message closes with `u64_be(timestamp_kyn)`.
     ///
     /// # Returns
     ///
@@ -103,7 +101,7 @@ impl SignedGovernanceMessage {
     pub fn to_canonical_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
-            GovernanceAction::GrantPremiumName {
+            GovernanceAction::MapPrime {
                 name,
                 target_pubkey,
             } => {
@@ -113,13 +111,13 @@ impl SignedGovernanceMessage {
                 buf.extend_from_slice(name_bytes);
                 buf.extend_from_slice(target_pubkey.as_slice());
             }
-            GovernanceAction::RevokePremiumName { name } => {
+            GovernanceAction::UnmapPrime { name } => {
                 buf.push(0x0E);
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
             }
-            GovernanceAction::GrantInfrastructureName {
+            GovernanceAction::MapInfra {
                 name,
                 target_pubkey,
             } => {
@@ -129,7 +127,7 @@ impl SignedGovernanceMessage {
                 buf.extend_from_slice(name_bytes);
                 buf.extend_from_slice(target_pubkey.as_slice());
             }
-            GovernanceAction::RevokeInfrastructureName { name } => {
+            GovernanceAction::UnmapInfra { name } => {
                 buf.push(0x10);
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
@@ -142,13 +140,12 @@ impl SignedGovernanceMessage {
             GovernanceAction::EmergencyHalt => {
                 buf.push(0x0C);
             }
-            GovernanceAction::EmergencyResume { paused_kyns } => {
+            GovernanceAction::EmergencyResume => {
                 buf.push(0x0D);
-                buf.extend_from_slice(&paused_kyns.to_be_bytes());
             }
         }
 
-        buf.extend_from_slice(&self.timestamp_sec.to_be_bytes());
+        buf.extend_from_slice(&self.timestamp_kyn.to_be_bytes());
         buf
     }
 }
@@ -184,7 +181,9 @@ impl GovernanceTypeError {
     /// Severity level for logging and telemetry.
     pub fn severity(&self) -> Severity {
         match self {
-            Self::BufferTooSmall | Self::InvalidUtf8 | Self::InvalidPubkeyLength => Severity::Warning,
+            Self::BufferTooSmall | Self::InvalidUtf8 | Self::InvalidPubkeyLength => {
+                Severity::Warning
+            }
             Self::UnknownOpcode(_) => Severity::Error,
         }
     }
@@ -201,13 +200,16 @@ impl GovernanceTypeError {
                 "The governance payload buffer is truncated or smaller than required.".to_string()
             }
             Self::UnknownOpcode(op) => {
-                format!("The governance action opcode (0x{op:02X}) is unrecognized by this protocol version.")
+                format!(
+                    "The governance action opcode (0x{op:02X}) is unrecognized by this protocol version."
+                )
             }
             Self::InvalidUtf8 => {
                 "The governance proposal contains an invalid UTF-8 name label.".to_string()
             }
             Self::InvalidPubkeyLength => {
-                "The governance public key length does not match the ML-DSA-65 parameter size.".to_string()
+                "The governance public key length does not match the ML-DSA-65 parameter size."
+                    .to_string()
             }
         }
     }
@@ -232,8 +234,7 @@ impl GovernanceAction {
         }
 
         let timestamp_bytes = &bytes[bytes.len() - 8..];
-        let timestamp_sec = u64::from_be_bytes(timestamp_bytes.try_into().unwrap());
-
+        let timestamp_kyn = u64::from_be_bytes(timestamp_bytes.try_into().unwrap());
         let payload = &bytes[0..bytes.len() - 8];
         if payload.is_empty() {
             return Err(GovernanceTypeError::BufferTooSmall);
@@ -244,7 +245,7 @@ impl GovernanceAction {
 
         let action = match opcode {
             0x0A => {
-                // GrantPremiumName
+                // MapPrime
                 if action_data.len() < 4 {
                     return Err(GovernanceTypeError::BufferTooSmall);
                 }
@@ -256,13 +257,19 @@ impl GovernanceAction {
                     .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
-                GovernanceAction::GrantPremiumName {
+                if pubkey_bytes.len() != 1952 {
+                    return Err(GovernanceTypeError::InvalidPubkeyLength);
+                }
+                GovernanceAction::MapPrime {
                     name,
                     target_pubkey: pubkey_bytes.to_vec(),
                 }
             }
             0x0B => {
                 // RotateRootKey
+                if action_data.len() != 1952 {
+                    return Err(GovernanceTypeError::InvalidPubkeyLength);
+                }
                 GovernanceAction::RotateRootKey {
                     new_key: action_data.to_vec(),
                 }
@@ -273,14 +280,10 @@ impl GovernanceAction {
             }
             0x0D => {
                 // EmergencyResume
-                if action_data.len() < 8 {
-                    return Err(GovernanceTypeError::BufferTooSmall);
-                }
-                let paused_kyns = u64::from_be_bytes(action_data[0..8].try_into().unwrap());
-                GovernanceAction::EmergencyResume { paused_kyns }
+                GovernanceAction::EmergencyResume
             }
             0x0E => {
-                // RevokePremiumName
+                // UnmapPrime
                 if action_data.len() < 4 {
                     return Err(GovernanceTypeError::BufferTooSmall);
                 }
@@ -291,10 +294,10 @@ impl GovernanceAction {
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
                     .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
 
-                GovernanceAction::RevokePremiumName { name }
+                GovernanceAction::UnmapPrime { name }
             }
             0x0F => {
-                // GrantInfrastructureName
+                // MapInfra
                 if action_data.len() < 4 {
                     return Err(GovernanceTypeError::BufferTooSmall);
                 }
@@ -306,13 +309,16 @@ impl GovernanceAction {
                     .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
-                GovernanceAction::GrantInfrastructureName {
+                if pubkey_bytes.len() != 1952 {
+                    return Err(GovernanceTypeError::InvalidPubkeyLength);
+                }
+                GovernanceAction::MapInfra {
                     name,
                     target_pubkey: pubkey_bytes.to_vec(),
                 }
             }
             0x10 => {
-                // RevokeInfrastructureName
+                // UnmapInfra
                 if action_data.len() < 4 {
                     return Err(GovernanceTypeError::BufferTooSmall);
                 }
@@ -323,11 +329,99 @@ impl GovernanceAction {
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
                     .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
 
-                GovernanceAction::RevokeInfrastructureName { name }
+                GovernanceAction::UnmapInfra { name }
             }
             _ => return Err(GovernanceTypeError::UnknownOpcode(opcode)),
         };
 
-        Ok((action, timestamp_sec))
+        Ok((action, timestamp_kyn))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    #[test]
+    fn test_invalid_opcode() {
+        // Opcode 0xFF is not a valid governance action
+        let mut buf = vec![0xFF];
+        buf.extend_from_slice(&[0; 8]); // Dummy timestamp
+        let result = GovernanceAction::parse_canonical_payload(&buf);
+        assert_eq!(result, Err(GovernanceTypeError::UnknownOpcode(0xFF)));
+    }
+
+    #[test]
+    fn test_truncated_buffers() {
+        // Buffer < 9 bytes should fail
+        let buf = vec![0x0A, 0, 0, 0, 0, 0, 0, 0]; // 8 bytes
+        assert_eq!(
+            GovernanceAction::parse_canonical_payload(&buf),
+            Err(GovernanceTypeError::BufferTooSmall)
+        );
+
+        let buf = vec![]; // 0 bytes
+        assert_eq!(
+            GovernanceAction::parse_canonical_payload(&buf),
+            Err(GovernanceTypeError::BufferTooSmall)
+        );
+    }
+
+    #[test]
+    fn test_invalid_pubkey_length() {
+        let name = "s";
+        let mut buf = vec![0x0A];
+        buf.extend_from_slice(&(name.len() as u32).to_be_bytes());
+        buf.extend_from_slice(name.as_bytes());
+
+        // 3-byte public key (invalid)
+        buf.extend_from_slice(&[1, 2, 3]);
+        buf.extend_from_slice(&[0; 8]); // Timestamp
+
+        let result = GovernanceAction::parse_canonical_payload(&buf);
+        assert_eq!(result, Err(GovernanceTypeError::InvalidPubkeyLength));
+    }
+
+    #[test]
+    fn test_invalid_utf8_name() {
+        let mut buf = vec![0x0A];
+        let bad_name: &[u8] = &[0xFF, 0xFE]; // Invalid UTF-8
+        buf.extend_from_slice(&(bad_name.len() as u32).to_be_bytes());
+        buf.extend_from_slice(bad_name);
+        buf.extend_from_slice(&[0; 1952]); // Valid pubkey length
+        buf.extend_from_slice(&[0; 8]); // Timestamp
+
+        let result = GovernanceAction::parse_canonical_payload(&buf);
+        assert_eq!(result, Err(GovernanceTypeError::InvalidUtf8));
+    }
+
+    #[test]
+    fn test_roundtrip_valid_map_prime() {
+        let action = GovernanceAction::MapPrime {
+            name: "x".to_string(),
+            target_pubkey: vec![42; 1952],
+        };
+        let msg = SignedGovernanceMessage {
+            action: action.clone(),
+            timestamp_kyn: 123456,
+            signatures: vec![],
+        };
+
+        let buf = msg.to_canonical_bytes();
+        let (parsed_action, parsed_time) = GovernanceAction::parse_canonical_payload(&buf).unwrap();
+
+        assert_eq!(parsed_action, action);
+        assert_eq!(parsed_time, 123456);
+    }
+
+    proptest! {
+        #[test]
+        fn doesnt_crash_on_random_garbage(
+            raw_payload in any::<Vec<u8>>()
+        ) {
+            // Fuzzer guarantees this will not panic under any garbage P2P input
+            let _ = GovernanceAction::parse_canonical_payload(&raw_payload);
+        }
     }
 }

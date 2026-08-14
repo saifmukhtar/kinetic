@@ -1,8 +1,8 @@
 use kinetic_core::types::Reveal;
 use kinetic_network::store::KineticRecordStore;
 use kinetic_storage::SledStorage;
-use libp2p::identity::Keypair;
 use libp2p::PeerId;
+use libp2p::identity::Keypair;
 use std::sync::Arc;
 use tempfile::tempdir;
 

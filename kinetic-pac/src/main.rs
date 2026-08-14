@@ -5,7 +5,7 @@
 //! routing requests for `.kin` and other configured domains to the Kinetic HTTP proxy,
 //! while allowing normal internet traffic to bypass the proxy.
 
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use service_manager::{
@@ -139,12 +139,11 @@ impl PacManager {
     /// # Errors
     /// Returns a [`PacError`] if IO fails on the lockfile or the OS rejects the configuration.
     pub fn install(&self, pac_url: &str) -> Result<(), PacError> {
-        if self.lock_path.exists() {
-            if let Ok(Ok(saved)) =
+        if self.lock_path.exists()
+            && let Ok(Ok(saved)) =
                 File::open(&self.lock_path).map(serde_json::from_reader::<_, SavedState>)
-            {
-                let _ = self.configurator.restore_state(&saved);
-            }
+        {
+            let _ = self.configurator.restore_state(&saved);
         }
         let previous = self.configurator.save_previous_state()?;
         let tmp_path = self.lock_path.with_extension("tmp");
@@ -182,7 +181,7 @@ impl PacManager {
 /// Represents a serialized proxy backend registered by other Kinetic components.
 #[derive(Deserialize, Debug)]
 struct RegisteredProxy {
-    tld: String,
+    nsp: String,
     proxy_port: u16,
     #[serde(default = "default_ip")]
     proxy_ip: String,
@@ -316,46 +315,40 @@ async fn run_server() -> anyhow::Result<()> {
                 // Scan proxies dir for JSON files
                 if let Ok(entries) = std::fs::read_dir(&proxies_dir) {
                     for entry in entries.flatten() {
-                        if let Some(ext) = entry.path().extension() {
-                            if ext == "json" {
-                                if let Ok(contents) = std::fs::read_to_string(entry.path()) {
-                                    if let Ok(proxy_info) =
-                                        serde_json::from_str::<RegisteredProxy>(&contents)
-                                    {
-                                        if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err()
-                                        {
-                                            tracing::warn!(
-                                                "Invalid IP address in proxy config: {}",
-                                                proxy_info.proxy_ip
-                                            );
-                                            continue;
-                                        }
+                        if let Some(ext) = entry.path().extension()
+                            && ext == "json"
+                            && let Ok(contents) = std::fs::read_to_string(entry.path())
+                            && let Ok(proxy_info) =
+                                serde_json::from_str::<RegisteredProxy>(&contents)
+                        {
+                            if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
+                                tracing::warn!(
+                                    "Invalid IP address in proxy config: {}",
+                                    proxy_info.proxy_ip
+                                );
+                                continue;
+                            }
 
-                                        let tld = if proxy_info.tld.starts_with('.') {
-                                            proxy_info.tld.clone()
-                                        } else {
-                                            format!(".{}", proxy_info.tld)
-                                        };
+                            let nsp = if proxy_info.nsp.starts_with('.') {
+                                proxy_info.nsp.clone()
+                            } else {
+                                format!(".{}", proxy_info.nsp)
+                            };
 
-                                        let is_atlas = entry
-                                            .file_name()
-                                            .to_string_lossy()
-                                            .starts_with("atlas_");
-                                        let entry = proxy_map.entry(tld).or_insert((None, None));
+                            let is_atlas =
+                                entry.file_name().to_string_lossy().starts_with("atlas_");
+                            let entry = proxy_map.entry(nsp).or_insert((None, None));
 
-                                        if is_atlas {
-                                            entry.1 = Some(proxy_info);
-                                        } else {
-                                            entry.0 = Some(proxy_info);
-                                        }
-                                    }
-                                }
+                            if is_atlas {
+                                entry.1 = Some(proxy_info);
+                            } else {
+                                entry.0 = Some(proxy_info);
                             }
                         }
                     }
                 }
 
-                for (tld, proxies) in proxy_map {
+                for (nsp, proxies) in proxy_map {
                     let mut proxy_string = String::new();
 
                     if let Some(native) = proxies.0 {
@@ -384,11 +377,11 @@ async fn run_server() -> anyhow::Result<()> {
 
                     pac_script.push_str(&format!(
                         "    if (shExpMatch(host, \"*{}\")) return \"{}\";\n",
-                        tld, proxy_string
+                        nsp, proxy_string
                     ));
                     pac_script.push_str(&format!(
                         "    if (shExpMatch(host, \"*{}.\")) return \"{}\";\n",
-                        tld, proxy_string
+                        nsp, proxy_string
                     ));
                 }
 

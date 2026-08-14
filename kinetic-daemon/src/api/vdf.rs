@@ -2,9 +2,9 @@
 
 use super::*;
 use axum::{
+    Json,
     extract::{Extension, Path, State},
     http::StatusCode,
-    Json,
 };
 
 use serde::Deserialize;
@@ -158,7 +158,7 @@ pub async fn handle_vdf_register(
             return;
         }
         let mut drand_hasher = sha2::Sha256::new();
-        drand_hasher.update(&hex::decode(&drand_data.signature).unwrap());
+        drand_hasher.update(hex::decode(&drand_data.signature).unwrap());
         let mut drand_rand = [0u8; 32];
         drand_rand.copy_from_slice(&drand_hasher.finalize());
 
@@ -166,7 +166,7 @@ pub async fn handle_vdf_register(
         let mut hasher = sha2::Sha256::new();
         hasher.update(fqdn.as_bytes());
         hasher.update(salt);
-        hasher.update(&drand_rand);
+        hasher.update(drand_rand);
         hasher.update(pubkey);
         let mut hash = [0u8; 32];
         hash.copy_from_slice(&hasher.finalize());
@@ -179,8 +179,8 @@ pub async fn handle_vdf_register(
             "Computing VDF... (this may take a while)",
             30,
         );
-        let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-            .required_iterations(&fqdn);
+        let required_iters =
+            kinetic_core::consensus_math::ConsensusParams::default().required_iterations(&fqdn);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
         let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
@@ -244,7 +244,9 @@ pub async fn handle_vdf_register(
         }
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
-        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS * kinetic_core::constants::DRAND_PERIOD) + 2;
+        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
+            * kinetic_core::constants::DRAND_PERIOD)
+            + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,
@@ -293,9 +295,9 @@ pub async fn handle_vdf_register(
             miner_pubkey: None,
         };
 
-        use ml_dsa::signature::Signer;
         use ml_dsa::SignatureEncoding;
-        let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
+        use ml_dsa::signature::Signer;
+        let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
         reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
         // Publish to Network
@@ -331,10 +333,10 @@ pub async fn handle_vdf_register(
         let fqdn_clone = fqdn.clone();
         let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap();
         let mut owned = Vec::new();
-        if let Ok(Some(bytes)) = storage_clone.get(kinetic_core::constants::DB_PREFIX_OWNED_NAMES) {
-            if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
-                owned = names;
-            }
+        if let Ok(Some(bytes)) = storage_clone.get(kinetic_core::constants::DB_PREFIX_OWNED_NAMES)
+            && let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes)
+        {
+            owned = names;
         }
         if !owned.contains(&fqdn_clone) {
             owned.push(fqdn_clone.clone());
@@ -352,14 +354,14 @@ pub async fn handle_vdf_register(
         let zones_dir = kinetic_core::config::get_zones_dir();
         let _ = std::fs::create_dir_all(&zones_dir);
         let path = zones_dir.join(format!("{}.json", fqdn));
-        if let Ok(s) = serde_json::to_string_pretty(&zone) {
-            if let Err(e) = std::fs::write(&path, s) {
-                tracing::warn!(
-                    error_code = "KIN-IMPL-005",
-                    "Failed to write zone file: {}",
-                    e
-                );
-            }
+        if let Ok(s) = serde_json::to_string_pretty(&zone)
+            && let Err(e) = std::fs::write(&path, s)
+        {
+            tracing::warn!(
+                error_code = "KIN-IMPL-005",
+                "Failed to write zone file: {}",
+                e
+            );
         }
 
         update_task_status(&tasks_clone, &task_id_clone, "Complete", 100);
@@ -460,11 +462,12 @@ pub async fn handle_vdf_renew(
             };
         let old_reveal = match old_record {
             kinetic_core::types::NameRecord::Standard(r) => r,
-            kinetic_core::types::NameRecord::Premium { .. } => {
+            kinetic_core::types::NameRecord::Prime { .. }
+            | kinetic_core::types::NameRecord::Infra { .. } => {
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    "Premium names do not require VDF resquaring".to_string(),
+                    "Prime/Infra names do not require VDF resquaring".to_string(),
                 );
                 return;
             }
@@ -507,7 +510,7 @@ pub async fn handle_vdf_renew(
             return;
         }
         let mut drand_hasher = sha2::Sha256::new();
-        drand_hasher.update(&hex::decode(&drand_data.signature).unwrap());
+        drand_hasher.update(hex::decode(&drand_data.signature).unwrap());
         let mut drand_rand = [0u8; 32];
         drand_rand.copy_from_slice(&drand_hasher.finalize());
 
@@ -515,7 +518,7 @@ pub async fn handle_vdf_renew(
         let mut hasher = sha2::Sha256::new();
         hasher.update(fqdn.as_bytes());
         hasher.update(salt);
-        hasher.update(&drand_rand);
+        hasher.update(drand_rand);
         hasher.update(pubkey_bytes);
         let mut hash = [0u8; 32];
         hash.copy_from_slice(&hasher.finalize());
@@ -529,8 +532,8 @@ pub async fn handle_vdf_renew(
             30,
         );
 
-        let required_iters = kinetic_core::consensus_math::ConsensusParams::default()
-            .required_iterations(&fqdn);
+        let required_iters =
+            kinetic_core::consensus_math::ConsensusParams::default().required_iterations(&fqdn);
         // Renewals get an 80% discount
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);
@@ -594,7 +597,9 @@ pub async fn handle_vdf_renew(
         }
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
-        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS * kinetic_core::constants::DRAND_PERIOD) + 2;
+        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
+            * kinetic_core::constants::DRAND_PERIOD)
+            + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,
@@ -632,9 +637,9 @@ pub async fn handle_vdf_renew(
             miner_pubkey: None,
         };
 
-        use ml_dsa::signature::Signer;
         use ml_dsa::SignatureEncoding;
-        let signable = new_reveal.signable_bytes(kinetic_core::constants::NETWORK_ID);
+        use ml_dsa::signature::Signer;
+        let signable = new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
         new_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
 
         let reveal_bytes = match serde_json::to_vec(&new_reveal) {
@@ -678,11 +683,11 @@ pub(crate) fn update_task_status(
     status: &str,
     progress: u64,
 ) {
-    if let Ok(mut map) = tasks.lock() {
-        if let Some(task) = map.get_mut(id) {
-            task.status = status.to_string();
-            task.progress = progress;
-        }
+    if let Ok(mut map) = tasks.lock()
+        && let Some(task) = map.get_mut(id)
+    {
+        task.status = status.to_string();
+        task.progress = progress;
     }
 }
 
@@ -691,11 +696,11 @@ pub(crate) fn update_task_error(
     id: &str,
     err: String,
 ) {
-    if let Ok(mut map) = tasks.lock() {
-        if let Some(task) = map.get_mut(id) {
-            task.error = Some(err);
-            task.status = "Failed".to_string();
-        }
+    if let Ok(mut map) = tasks.lock()
+        && let Some(task) = map.get_mut(id)
+    {
+        task.error = Some(err);
+        task.status = "Failed".to_string();
     }
 }
 

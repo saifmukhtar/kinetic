@@ -1,10 +1,10 @@
 //! Name zone routing updates and commit-reveal network publishing logic.
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
-use kinetic_core::config::{get_zones_dir, KineticConfig};
+use kinetic_core::config::{KineticConfig, get_zones_dir};
 use kinetic_core::types::load_keypair;
-use ml_dsa::signature::Signer;
 use ml_dsa::SignatureEncoding;
+use ml_dsa::signature::Signer;
 use reqwest::Client;
 use serde_json::json;
 use tracing::{info, warn};
@@ -60,10 +60,16 @@ pub async fn update_zone_logic(
     match &mut existing_record {
         kinetic_core::types::NameRecord::Standard(r) => {
             r.payload = new_payload;
-            let signable = r.signable_bytes(kinetic_core::constants::NETWORK_ID);
+            let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
             r.signature = keypair.sign(&signable).to_bytes().to_vec();
         }
-        kinetic_core::types::NameRecord::Premium {
+        kinetic_core::types::NameRecord::Prime {
+            name,
+            payload,
+            signature,
+            ..
+        }
+        | kinetic_core::types::NameRecord::Infra {
             name,
             payload,
             signature,
@@ -74,7 +80,7 @@ pub async fn update_zone_logic(
             let mut signable = Vec::new();
             signable.extend_from_slice(name.as_bytes());
             signable.extend_from_slice(payload);
-            signable.extend_from_slice(kinetic_core::constants::NETWORK_ID.as_bytes());
+            signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
             *signature = keypair.sign(&signable).to_bytes().to_vec();
         }
     }

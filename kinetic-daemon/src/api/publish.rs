@@ -1,7 +1,7 @@
 //! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Governance actions.
 
 use super::*;
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{Json, extract::State, http::StatusCode};
 use kinetic_core::types::RevealExt;
 
 use tracing::{error, info};
@@ -138,10 +138,10 @@ pub async fn handle_publish(
 
             let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap();
             let mut owned = Vec::new();
-            if let Ok(Some(bytes)) = state.storage.get(owned_key) {
-                if let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes) {
-                    owned = names;
-                }
+            if let Ok(Some(bytes)) = state.storage.get(owned_key)
+                && let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes)
+            {
+                owned = names;
             }
             if !owned.contains(&fqdn_clone) {
                 owned.push(fqdn_clone.clone());
@@ -260,7 +260,7 @@ pub async fn handle_commit(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
-            ))
+            ));
         }
     };
 
@@ -356,8 +356,7 @@ pub async fn handle_publish_kid(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
-            {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
                 use ml_dsa::KeyInit;
                 if let Ok(pubkey) =
                     ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
@@ -368,7 +367,7 @@ pub async fn handle_publish_kid(
                     ) {
                         pubkey
                             .verify(
-                                &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_ID),
+                                &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
                                 &sig,
                             )
                             .is_ok()
@@ -383,7 +382,10 @@ pub async fn handle_publish_kid(
             }
         }
         _ => {
-            tracing::warn!("Could not find local reveal for name {} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.", auth_kid.name);
+            tracing::warn!(
+                "Could not find local reveal for name {} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.",
+                auth_kid.name
+            );
             true // If we don't have it cached, we let the network decide.
         }
     };
@@ -402,7 +404,7 @@ pub async fn handle_publish_kid(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Serialization failed: {}", e),
-            ))
+            ));
         }
     };
     let fqdn = auth_kid.kid_doc.kid.as_str().to_string(); // Use DID as the DHT key
@@ -460,8 +462,7 @@ pub async fn handle_publish_manifest(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
-            {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
                 use ml_dsa::KeyInit;
                 if let Ok(pubkey) =
                     ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
@@ -472,7 +473,8 @@ pub async fn handle_publish_manifest(
                     ) {
                         pubkey
                             .verify(
-                                &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_ID),
+                                &auth_manifest
+                                    .signable_bytes(kinetic_core::constants::NETWORK_SALT),
                                 &sig,
                             )
                             .is_ok()
@@ -487,7 +489,10 @@ pub async fn handle_publish_manifest(
             }
         }
         _ => {
-            tracing::warn!("Could not find local reveal for name {} to verify AuthorizedManifest. Forwarding to DHT anyway.", auth_manifest.name);
+            tracing::warn!(
+                "Could not find local reveal for name {} to verify AuthorizedManifest. Forwarding to DHT anyway.",
+                auth_manifest.name
+            );
             true
         }
     };
@@ -524,21 +529,28 @@ pub async fn handle_publish_manifest(
                         return Err((
                             StatusCode::INTERNAL_SERVER_ERROR,
                             "Invalid KID payload on DHT".to_string(),
-                        ))
+                        ));
                     }
                 }
             }
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time = match kinetic_core::drand::DrandClient::new(Some(state.storage.clone())).load_cached_kyn() {
+    let current_network_time = match kinetic_core::drand::DrandClient::new(Some(
+        state.storage.clone(),
+    ))
+    .load_cached_kyn()
+    {
         Ok(raw_kyn) => kinetic_core::types::clock::network_kyn_to_unix_secs(raw_kyn.kyn),
         Err(_) => std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs(),
     };
-    if let Err(e) = auth_manifest.manifest.verify_at_time(&kid_doc, current_network_time) {
+    if let Err(e) = auth_manifest
+        .manifest
+        .verify_at_time(&kid_doc, current_network_time)
+    {
         return Err((
             StatusCode::BAD_REQUEST,
             format!("Invalid Manifest signature: {}", e),
@@ -557,7 +569,7 @@ pub async fn handle_publish_manifest(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Serialization failed: {}", e),
-            ))
+            ));
         }
     };
     match state
@@ -607,7 +619,12 @@ pub async fn handle_publish_governance(
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap();
-        match kinetic_core::governance::process_governance_message(&mut gov, &msg) {
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let current_kyn = kinetic_core::types::clock::unix_secs_to_network_kyn(current_time);
+        match kinetic_core::governance::process_governance_message(&mut gov, &msg, current_kyn) {
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");
                 if let Err(e) = gov.save_to_disk(&path) {
@@ -640,16 +657,16 @@ pub async fn handle_publish_governance(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Serialization failed: {}", e),
-            ))
+            ));
         }
     };
 
+    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Governance as u8];
+    envelope.extend(payload_bytes);
+
     match state
         .network
-        .broadcast_gossip(
-            kinetic_core::constants::GOSSIP_TOPIC_GOVERNANCE,
-            payload_bytes,
-        )
+        .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL, envelope)
         .await
     {
         Ok(_) => {

@@ -3,8 +3,8 @@ use kinetic_core::types::NameRecord;
 
 use kinetic_network::store::core::KineticRecordStore;
 use libp2p::identity;
-use libp2p::kad::store::RecordStore;
 use libp2p::kad::Record;
+use libp2p::kad::store::RecordStore;
 use tempfile::tempdir;
 
 #[tokio::test]
@@ -94,7 +94,7 @@ async fn test_016_governance_integration_premium() {
     );
 
     // Create a premium record
-    let domain_record = NameRecord::Premium {
+    let domain_record = NameRecord::Prime {
         name: "test_premium".to_string(),
         pubkey: vec![1; 32],
         granted_at: 0,

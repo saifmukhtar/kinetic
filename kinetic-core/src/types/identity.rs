@@ -17,7 +17,6 @@
 //!
 //! The `KINETIC_NETWORK_ID` prefix prevents cross-network replay attacks.
 
-
 pub use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 
 /// Loads an ML-DSA-65 post-quantum signing keypair from disk.
@@ -55,9 +54,10 @@ pub fn load_keypair(
                 (&array).into(),
             ));
         } else {
-            return Err(crate::error::IdentityError::CorruptedIdentityFile(
-                format!("Expected 32 bytes, found {}. Please restore from a backup or manually delete the file to generate a new identity.", bytes.len())
-            ));
+            return Err(crate::error::IdentityError::CorruptedIdentityFile(format!(
+                "Expected 32 bytes, found {}. Please restore from a backup or manually delete the file to generate a new identity.",
+                bytes.len()
+            )));
         }
     }
 
@@ -71,8 +71,8 @@ pub fn load_encrypted_keypair(
     password: &str,
 ) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
     use aes_gcm::{
-        aead::{Aead, KeyInit},
         Aes256Gcm, Nonce,
+        aead::{Aead, KeyInit},
     };
     use pbkdf2::pbkdf2_hmac;
     use sha2::Sha512;
@@ -240,9 +240,11 @@ mod tests {
             owner_signature: vec![1, 2, 3],
         };
 
-        let bytes = auth_kid.signable_bytes(env!("KINETIC_NETWORK_ID"));
-        let prefix = format!("{}-auth-kid-v1", env!("KINETIC_NETWORK_ID"));
-        assert!(bytes.starts_with(prefix.as_bytes()));
+        let bytes = auth_kid.signable_bytes(crate::constants::NETWORK_SALT);
+        let mut prefix = Vec::new();
+        prefix.extend_from_slice(crate::constants::NETWORK_SALT);
+        prefix.extend_from_slice(b"-kid-manifest-v1");
+        assert!(bytes.starts_with(&prefix));
         assert!(bytes.windows(8).any(|w| w == b"test.kin"));
     }
 
@@ -266,9 +268,11 @@ mod tests {
             owner_signature: vec![1, 2, 3],
         };
 
-        let bytes = auth_manifest.signable_bytes(env!("KINETIC_NETWORK_ID"));
-        let prefix = format!("{}-auth-manifest-v1", env!("KINETIC_NETWORK_ID"));
-        assert!(bytes.starts_with(prefix.as_bytes()));
+        let bytes = auth_manifest.signable_bytes(crate::constants::NETWORK_SALT);
+        let mut prefix = Vec::new();
+        prefix.extend_from_slice(crate::constants::NETWORK_SALT);
+        prefix.extend_from_slice(b"-auth-manifest-v1");
+        assert!(bytes.starts_with(&prefix));
         assert!(bytes.windows(8).any(|w| w == b"test.kin"));
     }
 
@@ -330,8 +334,8 @@ mod tests {
         // 5. Encrypted Keypair logic (manual encryption simulation)
         let encrypted_path = dir.path().join("encrypted.aes");
         use aes_gcm::{
-            aead::{Aead, KeyInit},
             Aes256Gcm, Nonce,
+            aead::{Aead, KeyInit},
         };
         use pbkdf2::pbkdf2_hmac;
         use sha2::Sha512;

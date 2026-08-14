@@ -59,4 +59,3 @@ impl VdfEngine for PureRustVdfEngine {
             .map_err(|_| VdfError::InvalidProof)
     }
 }
-

@@ -22,9 +22,7 @@ pub enum ServiceCommands {
     /// Check the static identity of the node (Host/Daemon only)
     Id,
     /// Configure the routing port (Host only)
-    Port {
-        port: Option<u16>,
-    },
+    Port { port: Option<u16> },
 }
 
 /// Handles service lifecycle commands for external Kinetic binaries.
@@ -95,7 +93,10 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
                     anyhow::bail!("Failed to tail logs with journalctl.");
                 }
             } else if cfg!(target_os = "macos") {
-                eprintln!("To view logs on macOS, check /tmp/{}.err or /tmp/{}.out (or appropriate log directory).", binary, binary);
+                eprintln!(
+                    "To view logs on macOS, check /tmp/{}.err or /tmp/{}.out (or appropriate log directory).",
+                    binary, binary
+                );
             } else {
                 eprintln!("Logs are not supported on this OS.");
             }
@@ -118,7 +119,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
             } else {
                 ("port", vec![])
             }
-        },
+        }
         _ => unreachable!(),
     };
 
@@ -133,12 +134,12 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         let role_hint = if binary.ends_with("-daemon") {
             format!(
                 "manage {} names and run the local P2P proxy",
-                kinetic_core::constants::TLD_SUFFIX
+                kinetic_core::constants::NSP_SUFFIX
             )
         } else if binary.ends_with("-host") {
             format!(
                 "host a website or service reachable at a {} name (VPS / homelab)",
-                kinetic_core::constants::TLD_SUFFIX
+                kinetic_core::constants::NSP_SUFFIX
             )
         } else if binary.ends_with("-node") {
             format!(
@@ -148,12 +149,12 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         } else if binary.ends_with("-dns") {
             format!(
                 "enable system-wide {} DNS resolution (e.g. for curl)",
-                kinetic_core::constants::TLD_SUFFIX
+                kinetic_core::constants::NSP_SUFFIX
             )
         } else if binary.ends_with("-pac") {
             format!(
                 "manage system-wide automatic proxy configuration for {} names",
-                kinetic_core::constants::TLD_SUFFIX
+                kinetic_core::constants::NSP_SUFFIX
             )
         } else {
             "use this Kinetic component".to_string()

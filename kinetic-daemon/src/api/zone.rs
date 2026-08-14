@@ -2,9 +2,9 @@
 
 use super::*;
 use axum::{
+    Json,
     extract::{Extension, Path, State},
     http::StatusCode,
-    Json,
 };
 
 /// Handles API requests to retrieve a local zone file for a given name.
@@ -32,7 +32,7 @@ pub async fn handle_get_zone(
                     Json(
                         serde_json::json!({ "error": format!("Invalid zone file format: {}", e) }),
                     ),
-                ))
+                ));
             }
         }
     }
@@ -76,7 +76,7 @@ pub async fn handle_post_zone(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({ "error": format!("Serialization failed: {}", e) })),
-            ))
+            ));
         }
     };
     if let Err(e) = std::fs::write(&path, content) {
@@ -126,7 +126,7 @@ pub async fn handle_publish_zone(
                 Json(
                     serde_json::json!({ "error": "Zone file not found. Save your zone first via POST /zone/{name}." }),
                 ),
-            ))
+            ));
         }
     };
     let zone: kinetic_core::types::DnsZone = match serde_json::from_str(&content) {
@@ -135,7 +135,7 @@ pub async fn handle_publish_zone(
             return Err((
                 StatusCode::UNPROCESSABLE_ENTITY,
                 Json(serde_json::json!({ "error": "Invalid zone file format" })),
-            ))
+            ));
         }
     };
 
@@ -149,17 +149,16 @@ pub async fn handle_publish_zone(
                 Json(
                     serde_json::json!({ "error": "No registration record found for this name. Register the name first." }),
                 ),
-            ))
+            ));
         }
     };
-    let mut record: kinetic_core::types::NameRecord = match serde_json::from_slice(&reveal_bytes)
-    {
+    let mut record: kinetic_core::types::NameRecord = match serde_json::from_slice(&reveal_bytes) {
         Ok(r) => r,
         Err(_) => {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({ "error": "Stored registration data is corrupted." })),
-            ))
+            ));
         }
     };
 
@@ -171,7 +170,7 @@ pub async fn handle_publish_zone(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({ "error": "Could not load identity keypair." })),
-            ))
+            ));
         }
     };
 
@@ -199,12 +198,13 @@ pub async fn handle_publish_zone(
     match &mut record {
         kinetic_core::types::NameRecord::Standard(r) => {
             r.payload = payload;
-            let signable = r.signable_bytes(kinetic_core::constants::NETWORK_ID);
-            use ml_dsa::signature::Signer;
+            let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
             use ml_dsa::SignatureEncoding;
+            use ml_dsa::signature::Signer;
             r.signature = keypair.sign(&signable).to_bytes().to_vec();
         }
-        kinetic_core::types::NameRecord::Premium { payload: p, .. } => {
+        kinetic_core::types::NameRecord::Prime { payload: p, .. }
+        | kinetic_core::types::NameRecord::Infra { payload: p, .. } => {
             *p = payload;
         }
     }
@@ -221,7 +221,7 @@ pub async fn handle_publish_zone(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
-            ))
+            ));
         }
     };
     match state

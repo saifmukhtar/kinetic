@@ -26,13 +26,13 @@ pub async fn handle_proxy_request(
         let raw_host = req.uri().host().unwrap_or("").to_string();
         let domain_name = kinetic_core::types::normalize_name(&raw_host);
 
-        if !domain_name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
+        if !domain_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
             // Reject non-.kin CONNECT — we are not a general proxy
             return Ok(Response::builder()
                 .status(StatusCode::FORBIDDEN)
                 .body(axum::body::Body::from(format!(
                     "Kinetic proxy only handles {} names",
-                    kinetic_core::constants::TLD_SUFFIX
+                    kinetic_core::constants::NSP_SUFFIX
                 )))
                 .unwrap_or_else(|_| {
                     Response::new(axum::body::Body::from("Internal Proxy Error"))
@@ -84,7 +84,7 @@ pub async fn handle_proxy_request(
         .to_string();
 
     let host_name = kinetic_core::types::normalize_name(&host);
-    if !host_name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
+    if !host_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
             .body(axum::body::Body::from(
@@ -205,12 +205,15 @@ pub async fn forward_to_backend_direct(
         }
 
         if let Some(target) = cname_target {
-            if target.ends_with(kinetic_core::constants::TLD_SUFFIX) {
+            if target.ends_with(kinetic_core::constants::NSP_SUFFIX) {
                 tracing::info!("CNAME recursion from {} to {}", current_domain, target);
                 current_domain = target;
                 continue;
             } else {
-                tracing::info!("CNAME points to external Web2 domain {}. Handing off to Web2 Bridge.", target);
+                tracing::info!(
+                    "CNAME points to external Web2 domain {}. Handing off to Web2 Bridge.",
+                    target
+                );
                 return crate::proxy::web2_bridge::forward_to_web2_backend(req, &target).await;
             }
         }
@@ -417,10 +420,11 @@ pub async fn forward_to_backend_direct(
         ];
         for (name, value) in req.headers() {
             let name_lower = name.as_str().to_lowercase();
-            if !strip_req_headers.contains(&name_lower.as_str()) && name_lower != "host" {
-                if let Ok(val_str) = value.to_str() {
-                    headers.push((name_lower.into(), val_str.into()));
-                }
+            if !strip_req_headers.contains(&name_lower.as_str())
+                && name_lower != "host"
+                && let Ok(val_str) = value.to_str()
+            {
+                headers.push((name_lower.into(), val_str.into()));
             }
         }
         headers.push(("host".into(), domain.into()));

@@ -58,19 +58,19 @@ impl HostRoutingRecord {
     /// # Returns
     ///
     /// Concatenated byte vector prefixed with the network routing header string (`{network_id}-routing-v1`).
-    pub fn signable_bytes(&self, network_id: &str) -> Vec<u8> {
-        let prefix_suffix = b"-routing-v1";
+    pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
+        let name_separator = b"-dns-routing-v1";
         let mut bytes = Vec::with_capacity(
-            network_id.len()
-                + prefix_suffix.len()
+            network_salt.len()
+                + name_separator.len()
                 + 4
                 + self.host_id.len()
                 + 4
                 + self.current_peer_id.len()
                 + 8,
         );
-        bytes.extend_from_slice(network_id.as_bytes());
-        bytes.extend_from_slice(prefix_suffix);
+        bytes.extend_from_slice(network_salt);
+        bytes.extend_from_slice(name_separator);
         bytes.extend_from_slice(&(self.host_id.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.host_id.as_bytes());
         bytes.extend_from_slice(&(self.current_peer_id.len() as u32).to_be_bytes());

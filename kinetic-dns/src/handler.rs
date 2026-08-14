@@ -3,9 +3,9 @@
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 
+use crate::KineticDnsHandler;
 use crate::kinetic_records::resolve_kinetic;
 use crate::upstream::resolve_upstream;
-use crate::KineticDnsHandler;
 
 #[async_trait::async_trait]
 impl RequestHandler for KineticDnsHandler {
@@ -25,7 +25,7 @@ impl RequestHandler for KineticDnsHandler {
             clean_name.pop();
         }
 
-        if clean_name.ends_with(kinetic_core::constants::TLD_SUFFIX) {
+        if clean_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
             let domain_name = kinetic_core::types::normalize_name(&clean_name);
             let apex_domain = kinetic_core::types::extract_apex_name(&domain_name);
 
@@ -44,9 +44,9 @@ impl RequestHandler for KineticDnsHandler {
             .await
         } else {
             let mut is_atlas = false;
-            if let Ok(tlds) = self.atlas_tlds.read() {
-                for tld in tlds.iter() {
-                    if clean_name == **tld || clean_name.ends_with(&format!(".{}", tld)) {
+            if let Ok(nsps) = self.atlas_nsps.read() {
+                for nsp in nsps.iter() {
+                    if clean_name == **nsp || clean_name.ends_with(&format!(".{}", nsp)) {
                         is_atlas = true;
                         break;
                     }

@@ -151,7 +151,10 @@ impl NetworkClient {
         // structural serialization overhead without rejecting valid payloads.
         if payload_bytes.len() > 80_000 {
             return Err(PublishError::Internal {
-                message: format!("Payload size ({} bytes) exceeds the 80000-byte P2P network limit. Please compress or link to external storage.", payload_bytes.len()),
+                message: format!(
+                    "Payload size ({} bytes) exceeds the 80000-byte P2P network limit. Please compress or link to external storage.",
+                    payload_bytes.len()
+                ),
                 source: None,
             });
         }
@@ -251,7 +254,7 @@ impl NetworkClient {
         }
         #[cfg(target_arch = "wasm32")]
         {
-            use futures::future::{select, Either};
+            use futures::future::{Either, select};
             use futures_timer::Delay;
             match select(Box::pin(rx), Delay::new(std::time::Duration::from_secs(10))).await {
                 Either::Left((Ok(res), _)) => res,

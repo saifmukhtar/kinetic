@@ -54,7 +54,7 @@ impl ConsensusParams {
         let normalized_name = crate::types::names::normalize_name(name);
         let apex = crate::types::names::extract_apex_name(&normalized_name);
         let label = apex
-            .strip_suffix(crate::constants::TLD_SUFFIX)
+            .strip_suffix(crate::constants::NSP_SUFFIX)
             .unwrap_or(&apex);
         self.required_iterations_by_label(label)
     }

@@ -23,7 +23,9 @@ pub enum NamesError {
     LabelTooLong,
 
     /// The name contains invalid characters not permitted by the LDH rule.
-    #[error("Name contains invalid characters (only lowercase letters, digits, and internal hyphens allowed)")]
+    #[error(
+        "Name contains invalid characters (only lowercase letters, digits, and internal hyphens allowed)"
+    )]
     InvalidCharacter,
 
     /// The name is a permanently reserved public utility name (e.g., localhost).
@@ -34,9 +36,9 @@ pub enum NamesError {
     #[error("Name is a protected infrastructure name (e.g., seed, explorer)")]
     InfrastructureName,
 
-    /// The name has an invalid TLD.
-    #[error("Name has an invalid Top-Level Domain")]
-    InvalidTLD,
+    /// The name missing or invalid network NSP suffix.
+    #[error("Name missing or invalid network NSP suffix")]
+    InvalidNSP,
 
     /// The name is a subname, but the operation requires an apex name.
     #[error("Only apex names are allowed (subnames must be managed by the apex owner)")]
@@ -52,7 +54,7 @@ impl NamesError {
             Self::InvalidCharacter => "KIN-NAM-003",
             Self::ReservedName => "KIN-NAM-004",
             Self::InfrastructureName => "KIN-NAM-005",
-            Self::InvalidTLD => "KIN-NAM-006",
+            Self::InvalidNSP => "KIN-NAM-006",
             Self::NotAnApexName => "KIN-NAM-007",
         }
     }
@@ -90,8 +92,8 @@ impl NamesError {
             Self::InfrastructureName => {
                 "This name is reserved for critical network infrastructure.".to_string()
             }
-            Self::InvalidTLD => {
-                "The name does not end with a valid network TLD.".to_string()
+            Self::InvalidNSP => {
+                "The name does not end with a valid network NSP suffix.".to_string()
             }
             Self::NotAnApexName => {
                 "Only apex names (e.g. 'example.kin') can be registered directly.".to_string()

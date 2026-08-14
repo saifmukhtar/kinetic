@@ -131,7 +131,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
             match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload_bytes) {
                 Ok(domain_record) => {
                     if domain_record
-                        .verify_signature(kinetic_core::constants::NETWORK_ID)
+                        .verify_signature(kinetic_core::constants::NETWORK_SALT)
                         .is_err()
                     {
                         warn!(
@@ -269,10 +269,17 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
                                 // To respect Web2 RFCs at the DNS edge, if a CNAME exists, it must be the ONLY record returned.
                                 // We filter out the KID (and anything else) for Web2 OS resolvers.
-                                let has_cname = records.iter().any(|r| matches!(r, kinetic_core::types::DnsRecord::CNAME(_)));
+                                let has_cname = records
+                                    .iter()
+                                    .any(|r| matches!(r, kinetic_core::types::DnsRecord::CNAME(_)));
 
                                 for record in records {
-                                    if has_cname && !matches!(record, kinetic_core::types::DnsRecord::CNAME(_)) {
+                                    if has_cname
+                                        && !matches!(
+                                            record,
+                                            kinetic_core::types::DnsRecord::CNAME(_)
+                                        )
+                                    {
                                         continue; // Only return CNAME to legacy Web2 resolvers
                                     }
                                     match record {
@@ -319,8 +326,13 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             let target_lower = target.to_lowercase();
                                             let mut is_blocked_cname = false;
 
-                                            for &blocked_name in kinetic_core::types::names::PUBLIC_NAMES {
-                                                if target_lower == blocked_name || target_lower.ends_with(&format!(".{}", blocked_name)) {
+                                            for &blocked_name in
+                                                kinetic_core::types::names::PUBLIC_NAMES
+                                            {
+                                                if target_lower == blocked_name
+                                                    || target_lower
+                                                        .ends_with(&format!(".{}", blocked_name))
+                                                {
                                                     is_blocked_cname = true;
                                                     break;
                                                 }
@@ -334,14 +346,14 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 continue;
                                             }
 
-                                            if let Ok(ip) = target.parse::<std::net::IpAddr>() {
-                                                if !kinetic_core::net::is_ssrf_safe(ip) {
-                                                    warn!(
-                                                        "Blocked SSRF attempt: CNAME record points to forbidden IP {}",
-                                                        ip
-                                                    );
-                                                    continue;
-                                                }
+                                            if let Ok(ip) = target.parse::<std::net::IpAddr>()
+                                                && !kinetic_core::net::is_ssrf_safe(ip)
+                                            {
+                                                warn!(
+                                                    "Blocked SSRF attempt: CNAME record points to forbidden IP {}",
+                                                    ip
+                                                );
+                                                continue;
                                             }
 
                                             if let Ok(cname) = Name::from_str(target) {

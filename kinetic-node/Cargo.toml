@@ -11,6 +11,7 @@ simulation = ["kinetic-core/simulation"]
 kinetic-core = { path = "../kinetic-core" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
+kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
 kinetic-vdf = { path = "../kinetic-vdf" }
 tokio = { workspace = true, features = ["net"] }
 anyhow.workspace = true

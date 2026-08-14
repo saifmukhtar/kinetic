@@ -25,9 +25,7 @@ pub(crate) fn build_light_swarm(
                 .upgrade(libp2p::core::upgrade::Version::V1Lazy)
                 .authenticate(libp2p::noise::Config::new(key).unwrap())
                 .multiplex(libp2p::yamux::Config::default())
-                .map(|(peer, muxer), _| {
-                    (peer, libp2p::core::muxing::StreamMuxerBox::new(muxer))
-                })
+                .map(|(peer, muxer), _| (peer, libp2p::core::muxing::StreamMuxerBox::new(muxer)))
         })
         .expect("Valid websocket websys transport");
 
@@ -79,13 +77,16 @@ pub(crate) fn build_light_swarm(
                 max_reveals_per_hour,
                 vdf_engine.clone(),
             );
-            
+
             let mut kad_config = kad::Config::default();
             kad_config
-                .set_protocol_names(vec![libp2p::StreamProtocol::try_from_owned(format!(
-                    "/{}/kad/2.0.0",
-                    kinetic_core::constants::NETWORK_ID
-                )).unwrap()])
+                .set_protocol_names(vec![
+                    libp2p::StreamProtocol::try_from_owned(format!(
+                        "/{}/kad/2.0.0",
+                        kinetic_core::constants::NETWORK_SALT_HEX
+                    ))
+                    .unwrap(),
+                ])
                 .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
                 .set_provider_record_ttl(Some(std::time::Duration::from_secs(
                     kinetic_core::constants::KADEMLIA_PROVIDER_RECORD_TTL_SECS,
@@ -102,12 +103,12 @@ pub(crate) fn build_light_swarm(
             kademlia.set_mode(Some(kad::Mode::Client));
 
             let gossipsub_config = libp2p::gossipsub::ConfigBuilder::default()
-                .heartbeat_interval(web_time::Duration::from_secs(10)) 
+                .heartbeat_interval(web_time::Duration::from_secs(10))
                 .prune_backoff(web_time::Duration::from_secs(60))
-                .mesh_n(4) 
-                .mesh_n_low(3) 
-                .mesh_n_high(8) 
-                .mesh_outbound_min(2) 
+                .mesh_n(4)
+                .mesh_n_low(3)
+                .mesh_n_high(8)
+                .mesh_outbound_min(2)
                 .gossip_lazy(1)
                 .validation_mode(libp2p::gossipsub::ValidationMode::Strict)
                 .max_transmit_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
@@ -118,25 +119,28 @@ pub(crate) fn build_light_swarm(
             let gossipsub = libp2p::gossipsub::Behaviour::new(
                 libp2p::gossipsub::MessageAuthenticity::Signed(key.clone()),
                 gossipsub_config,
-            ).expect("Valid gossipsub config");
+            )
+            .expect("Valid gossipsub config");
 
             let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(
-                format!("/{}/1.0.0", kinetic_core::constants::NETWORK_ID),
+                format!("/{}/1.0.0", kinetic_core::constants::NETWORK_SALT_HEX),
                 key.public(),
             ));
-            
+
             let dcutr = libp2p::dcutr::Behaviour::new(peer_id);
             let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::new());
-            let proxy = libp2p::request_response::cbor::Behaviour::<ProxyRequest, ProxyResponse>::new(
-                [(
-                    libp2p::StreamProtocol::try_from_owned(format!(
-                        "/{}/proxy/1.0.0",
-                        kinetic_core::constants::NETWORK_ID
-                    )).unwrap(),
-                    libp2p::request_response::ProtocolSupport::Full,
-                )],
-                libp2p::request_response::Config::default(),
-            );
+            let proxy =
+                libp2p::request_response::cbor::Behaviour::<ProxyRequest, ProxyResponse>::new(
+                    [(
+                        libp2p::StreamProtocol::try_from_owned(format!(
+                            "/{}/proxy/1.0.0",
+                            kinetic_core::constants::NETWORK_SALT_HEX
+                        ))
+                        .unwrap(),
+                        libp2p::request_response::ProtocolSupport::Full,
+                    )],
+                    libp2p::request_response::Config::default(),
+                );
 
             let cdn = libp2p::request_response::cbor::Behaviour::<
                 kinetic_types::cdn::CdnRequest,
@@ -145,7 +149,7 @@ pub(crate) fn build_light_swarm(
                 [(
                     libp2p::StreamProtocol::try_from_owned(format!(
                         "/{}/cdn/1.0.0",
-                        kinetic_core::constants::NETWORK_ID
+                        kinetic_core::constants::NETWORK_SALT_HEX
                     ))
                     .unwrap(),
                     libp2p::request_response::ProtocolSupport::Full,
@@ -161,10 +165,8 @@ pub(crate) fn build_light_swarm(
             #[cfg(not(target_arch = "wasm32"))]
             let mdns = if config.enable_mdns && !test_mode {
                 libp2p::swarm::behaviour::toggle::Toggle::from(Some(
-                    libp2p::mdns::tokio::Behaviour::new(
-                        libp2p::mdns::Config::default(),
-                        peer_id,
-                    ).expect("Valid mdns config"),
+                    libp2p::mdns::tokio::Behaviour::new(libp2p::mdns::Config::default(), peer_id)
+                        .expect("Valid mdns config"),
                 ))
             } else {
                 libp2p::swarm::behaviour::toggle::Toggle::from(None)
