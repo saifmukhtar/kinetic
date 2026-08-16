@@ -2729,6 +2729,7 @@ dependencies = [
  "libp2p-stream 0.4.0-alpha",
  "mime_guess",
  "ml-dsa",
+ "percent-encoding",
  "proptest",
  "rand 0.10.2",
  "rand_chacha 0.10.0",
