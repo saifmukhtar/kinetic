@@ -5,11 +5,11 @@
 //!
 //! ## Cross-Network Replay Protection
 //!
-//! Every authorization payload prefixes serialized bytes with the unique `network_id` string:
+//! Every authorization payload prefixes serialized bytes with the unique 32-byte `network_salt`:
 //! - [`AuthorizedKid::signable_bytes`] produces:
-//!   `{network_id}-auth-kid-v1` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
+//!   `network_salt` + `b"-auth-kid-v1"` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
 //! - [`AuthorizedManifest::signable_bytes`] produces:
-//!   `{network_id}-auth-manifest-v1` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
+//!   `network_salt` + `b"-auth-manifest-v1"` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
 //!
 //! This deterministic framing guarantees that signatures generated for the production `.kin` network
 //! cannot be replayed on alternative or test networks (e.g. `.corp` or `.local`).
@@ -31,16 +31,16 @@ impl AuthorizedKid {
     /// Serializes this KID authorization into a canonical byte string for owner signature verification.
     ///
     /// The byte layout is:
-    /// `{NETWORK_ID}-auth-kid-v1` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
+    /// `network_salt` (32 bytes) + `b"-auth-kid-v1"` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
     ///
-    /// The `{NETWORK_ID}` prefix prevents a signature produced on one Kinetic network (e.g. `.kin`)
+    /// The 32-byte `network_salt` prefix prevents a signature produced on one Kinetic network (e.g. `.kin`)
     /// from being replayed on another (e.g. `.corp`).
     ///
     /// # Returns
     ///
     /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
-        let name_separator = b"-kid-manifest-v1";
+        let name_separator = b"-auth-kid-v1";
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
         let canon_bytes = canon_bytes.as_bytes();
         let mut bytes = Vec::with_capacity(
@@ -73,7 +73,7 @@ impl AuthorizedManifest {
     /// Serializes this manifest authorization into a canonical byte string for owner signature verification.
     ///
     /// The byte layout is:
-    /// `{NETWORK_ID}-auth-manifest-v1` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
+    /// `network_salt` (32 bytes) + `b"-auth-manifest-v1"` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
     ///
     /// # Returns
     ///

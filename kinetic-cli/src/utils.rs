@@ -27,23 +27,19 @@ pub fn parse_and_format_api_error(
 /// This creates a JSON file in the configured zones directory using the given FQDN as the filename.
 ///
 /// # Errors
-/// Returns an `std::io::Error` with `InvalidInput` if the FQDN apex name is invalid.
-/// Returns an `std::io::Error` if the directory cannot be created or the file cannot be written.
+/// Returns an `anyhow::Error` if the FQDN apex name is invalid, or if the directory cannot be created or the file cannot be written.
 pub fn save_zone_file(
     fqdn: &str,
     zone: &kinetic_core::types::DnsZone,
-) -> Result<(), std::io::Error> {
+) -> anyhow::Result<()> {
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(fqdn) {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            format!("Invalid apex name: {:?}", e),
-        ));
+        anyhow::bail!("Invalid apex name: {:?}", e);
     }
     let zones_dir = get_zones_dir();
-    std::fs::create_dir_all(&zones_dir)?;
+    std::fs::create_dir_all(&zones_dir).context("Failed to create zones directory")?;
     let path = zones_dir.join(format!("{}.json", fqdn));
-    let json_str = serde_json::to_string_pretty(zone)?;
-    std::fs::write(path, json_str)
+    let json_str = serde_json::to_string_pretty(zone).context("Failed to serialize zone data")?;
+    std::fs::write(path, json_str).context("Failed to write zone file to disk")
 }
 
 /// Retrieves the API authentication token from the configured token path.

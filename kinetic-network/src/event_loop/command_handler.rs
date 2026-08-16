@@ -165,7 +165,7 @@ impl super::core::NetworkEventLoop {
                     let req_id = self.swarm.behaviour_mut().cdn.send_request(
                         &peer,
                         kinetic_types::cdn::CdnRequest {
-                            domain: name.clone(),
+                            name: name.clone(),
                         },
                     );
                     self.pending_cdn_requests.insert(req_id, name.clone());

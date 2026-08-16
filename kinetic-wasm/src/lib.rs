@@ -12,6 +12,7 @@ use kinetic_storage::SledStorage;
 use libp2p::identity::Keypair;
 
 use kinetic_core::types::DnsZoneExt;
+use kinetic_verify::signatures::VerifySignature;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;

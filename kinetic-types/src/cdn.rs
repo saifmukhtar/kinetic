@@ -5,11 +5,11 @@
 
 use serde::{Deserialize, Serialize};
 
-/// CDN request payload to resolve a domain name.
+/// CDN request payload to resolve a .kin name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CdnRequest {
-    /// Request target domain name (e.g., `mysite.kin`).
-    pub domain: std::sync::Arc<str>,
+    /// Request target name (e.g., `mysite.kin`).
+    pub name: std::sync::Arc<str>,
 }
 
 /// CDN response payload returning a cached NameRecord.

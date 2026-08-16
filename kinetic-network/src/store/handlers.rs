@@ -3,6 +3,7 @@
 use crate::error::KineticStoreError;
 use crate::store::constants::*;
 use crate::store::core::KineticRecordStore;
+use kinetic_verify::signatures::VerifySignature;
 
 impl KineticRecordStore {
     pub(crate) fn handle_record(
@@ -195,10 +196,10 @@ impl KineticRecordStore {
                             record.verify_signature(kinetic_core::constants::NETWORK_SALT)
                     {
                         let err = match e {
-                            kinetic_types::vdf::VdfVerifyError::DelegatedCapabilityMissing => {
+                            kinetic_verify::SignatureVerifyError::DelegatedCapabilityMissing => {
                                 KineticStoreError::DelegatedCapabilityMissing
                             }
-                            kinetic_types::vdf::VdfVerifyError::DelegatedAuthorizationInvalid => {
+                            kinetic_verify::SignatureVerifyError::DelegatedAuthorizationInvalid => {
                                 KineticStoreError::DelegatedAuthorizationInvalid
                             }
                             _ => KineticStoreError::InvalidSignature,
@@ -220,10 +221,10 @@ impl KineticRecordStore {
                 && let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT)
             {
                 let err = match e {
-                    kinetic_types::vdf::VdfVerifyError::DelegatedCapabilityMissing => {
+                    kinetic_verify::SignatureVerifyError::DelegatedCapabilityMissing => {
                         KineticStoreError::DelegatedCapabilityMissing
                     }
-                    kinetic_types::vdf::VdfVerifyError::DelegatedAuthorizationInvalid => {
+                    kinetic_verify::SignatureVerifyError::DelegatedAuthorizationInvalid => {
                         KineticStoreError::DelegatedAuthorizationInvalid
                     }
                     _ => KineticStoreError::InvalidSignature,

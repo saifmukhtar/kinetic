@@ -426,25 +426,27 @@ impl KineticConfig {
     ///
     /// # Errors
     ///
-    /// Returns [`std::io::Error`] if file creation, TOML serialization, or writing fails.
+    /// Returns [`crate::error::KineticError`] if file creation, TOML serialization, or writing fails.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn save(&self) -> Result<(), std::io::Error> {
+    pub fn save(&self) -> Result<(), crate::error::KineticError> {
         let config_path = std::env::var(crate::constants::ENV_CONFIG_PATH)
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
         if let Some(parent) = config_path.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent)
+                .map_err(|e| crate::error::KineticError::ConfigError(format!("Failed to create config directory: {}", e)))?;
         }
 
         let toml_str = toml::to_string_pretty(self)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| crate::error::KineticError::ConfigError(format!("Failed to serialize config: {}", e)))?;
         fs::write(&config_path, toml_str)
+            .map_err(|e| crate::error::KineticError::ConfigError(format!("Failed to write config file: {}", e)))
     }
 
     #[cfg(target_arch = "wasm32")]
     /// Stub implementation for saving configuration in Wasm environments.
-    pub fn save(&self) -> Result<(), std::io::Error> {
+    pub fn save(&self) -> Result<(), crate::error::KineticError> {
         Ok(())
     }
 }

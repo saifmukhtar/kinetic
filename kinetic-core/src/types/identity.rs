@@ -243,7 +243,7 @@ mod tests {
         let bytes = auth_kid.signable_bytes(crate::constants::NETWORK_SALT);
         let mut prefix = Vec::new();
         prefix.extend_from_slice(crate::constants::NETWORK_SALT);
-        prefix.extend_from_slice(b"-kid-manifest-v1");
+        prefix.extend_from_slice(b"-auth-kid-v1");
         assert!(bytes.starts_with(&prefix));
         assert!(bytes.windows(8).any(|w| w == b"test.kin"));
     }

@@ -2724,6 +2724,7 @@ dependencies = [
  "kinetic-storage",
  "kinetic-types",
  "kinetic-vdf",
+ "kinetic-verify",
  "libp2p",
  "libp2p-stream 0.4.0-alpha",
  "mime_guess",
@@ -2772,6 +2773,7 @@ dependencies = [
  "hickory-server",
  "kinetic-core",
  "kinetic-network",
+ "kinetic-verify",
  "ml-dsa",
  "moka",
  "privdrop",
@@ -2872,6 +2874,7 @@ dependencies = [
  "kinetic-storage",
  "kinetic-types",
  "kinetic-vdf",
+ "kinetic-verify",
  "libp2p",
  "libp2p-stream 0.1.0-alpha.1",
  "lru 0.12.5",
@@ -2987,11 +2990,10 @@ version = "0.2.0"
 name = "kinetic-types"
 version = "0.2.0"
 dependencies = [
- "base64 0.22.1",
  "bytes",
  "kinetic-kid",
- "ml-dsa",
  "proptest",
+ "rand 0.8.7",
  "serde",
  "serde_bytes",
  "serde_json",
@@ -3030,8 +3032,12 @@ dependencies = [
 name = "kinetic-verify"
 version = "0.2.0"
 dependencies = [
+ "base64 0.23.1",
+ "kinetic-kid",
  "kinetic-types",
  "ml-dsa",
+ "proptest",
+ "rand 0.8.7",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -3049,6 +3055,7 @@ dependencies = [
  "kinetic-network",
  "kinetic-storage",
  "kinetic-vdfrs",
+ "kinetic-verify",
  "libp2p",
  "reqwest",
  "serde",

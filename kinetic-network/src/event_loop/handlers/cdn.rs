@@ -9,10 +9,10 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnReques
             Message::Request {
                 request, channel, ..
             } => {
-                let domain = request.domain.as_ref();
+                let name = request.name.as_ref();
                 let record = {
                     let keys = kinetic_core::types::derive_storage_keys(
-                        domain,
+                        name,
                         kinetic_core::constants::NETWORK_SALT,
                     );
                     let mut result = None;

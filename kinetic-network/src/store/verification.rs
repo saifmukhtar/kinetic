@@ -6,6 +6,7 @@
 
 use crate::error::KineticStoreError;
 use kinetic_core::types::RevealExt;
+use kinetic_verify::signatures::VerifySignature;
 
 /// Finding 13 (Critical): Verify a HostRoutingRecord's signature and timestamp freshness.
 ///

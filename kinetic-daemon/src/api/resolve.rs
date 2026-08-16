@@ -6,6 +6,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use kinetic_verify::signatures::VerifySignature;
 
 use tracing::info;
 
@@ -24,7 +25,19 @@ pub async fn handle_resolve_name(
 
     match state.network.resolve_redundant_payload(&fqdn).await {
         Ok(payload) => match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
-            Ok(record) => Ok(Json(record)),
+            Ok(record) => {
+                let dev_mode = kinetic_core::config::is_dev_mode();
+                if !dev_mode {
+                    if let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT) {
+                        tracing::warn!("Rejecting spoofed NameRecord from network (CDN cache poisoning): {:?}", e);
+                        return Err((
+                            StatusCode::FORBIDDEN,
+                            Json(serde_json::json!({"error": "NameRecord cryptographic signature verification failed. The record is spoofed or corrupted."})),
+                        ));
+                    }
+                }
+                Ok(Json(record))
+            }
             Err(_) => Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": "Invalid NameRecord payload on DHT"})),

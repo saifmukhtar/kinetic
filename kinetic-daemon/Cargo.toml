@@ -23,6 +23,7 @@ kinetic-storage = { path = "../kinetic-storage" }
 kinetic-dns = { path = "../kinetic-dns" }
 kinetic-kid = { path = "../kinetic-kid" }
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
+kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
 sha2 = "0.10"
 hex = "0.4.3"
 tokio = { workspace = true, features = ["net"] }

@@ -128,110 +128,7 @@ impl NameRecord {
         }
     }
 
-    /// Verifies the ownership signature attached to this name record.
-    pub fn verify_signature(
-        &self,
-        network_salt: &[u8; 32],
-    ) -> Result<(), crate::vdf::VdfVerifyError> {
-        match self {
-            Self::Standard(reveal) => reveal.verify_signature(network_salt),
-            Self::Prime {
-                name,
-                payload,
-                signature,
-                pubkey,
-                authorization,
-                ..
-            }
-            | Self::Infra {
-                name,
-                payload,
-                signature,
-                pubkey,
-                authorization,
-                ..
-            } => {
-                use ml_dsa::KeyInit;
-                use ml_dsa::signature::Verifier;
-                let verifying_key = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pubkey)
-                    .map_err(|_| crate::vdf::VdfVerifyError::MalformedPublicKey)?;
 
-                let mut signable = Vec::new();
-                signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
-                signable.extend_from_slice(name.as_bytes());
-                signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
-                signable.extend_from_slice(payload);
-                signable.extend_from_slice(network_salt);
-
-                // Note: The signature could either be from the Name Owner directly, OR from
-                // an authorized delegated key (if `authorization` is present).
-                if let Some(auth) = authorization {
-                    let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(signature.as_slice())
-                        .map_err(|_| crate::vdf::VdfVerifyError::MalformedSignature)?;
-
-                    let kid_doc = auth
-                        .kid_doc
-                        .as_ref()
-                        .ok_or(crate::vdf::VdfVerifyError::DelegatedAuthorizationInvalid)?;
-
-                    let mut verified = false;
-                    for ck in &kid_doc.controller_keys {
-                        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                        if ck.key_type == "ML-DSA-65" {
-                            if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
-                                if let Ok(vk) =
-                                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
-                                        &pk_bytes,
-                                    )
-                                {
-                                    if vk.verify(&signable, &sig).is_ok() {
-                                        verified = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if verified {
-                        // 2. We also MUST verify that the Owner actually granted this capability.
-                        let auth_signable = auth.signable_bytes(network_salt);
-                        let auth_sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
-                            auth.owner_signature.as_slice(),
-                        )
-                        .map_err(|_| crate::vdf::VdfVerifyError::DelegatedAuthorizationInvalid)?;
-
-                        verifying_key
-                            .verify(&auth_signable, &auth_sig)
-                            .map_err(|_| {
-                                crate::vdf::VdfVerifyError::DelegatedAuthorizationInvalid
-                            })?;
-
-                        let has_cap = auth
-                            .manifest
-                            .services
-                            .iter()
-                            .any(|s| s.service_type == "kinetic.capability.dns_update");
-                        if !has_cap {
-                            return Err(crate::vdf::VdfVerifyError::DelegatedCapabilityMissing);
-                        }
-
-                        Ok(())
-                    } else {
-                        Err(crate::vdf::VdfVerifyError::InvalidSignature)
-                    }
-                } else {
-                    verifying_key
-                        .verify(
-                            &signable,
-                            &ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(signature.as_slice())
-                                .map_err(|_| crate::vdf::VdfVerifyError::MalformedSignature)?,
-                        )
-                        .map_err(|_| crate::vdf::VdfVerifyError::InvalidSignature)
-                }
-            }
-        }
-    }
 }
 
 /// Redundancy factor for DHT storage and heartbeat replication across the network.
@@ -324,4 +221,5 @@ mod tests {
         // Heartbeat keys must not collide with storage keys
         assert_ne!(hb_keys, storage_keys);
     }
+
 }

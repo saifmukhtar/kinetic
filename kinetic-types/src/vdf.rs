@@ -7,83 +7,8 @@
 //!    [`VdfProof`] inside a [`Reveal`] structure verified with post-quantum ML-DSA-65 signatures.
 
 #![allow(clippy::collapsible_if)]
-use crate::error::Severity;
 use serde::{Deserialize, Serialize};
 
-/// Errors arising from ML-DSA-65 post-quantum signature verification on VDF reveal and name payloads.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum VdfVerifyError {
-    /// Provided public key bytes could not be parsed into a valid ML-DSA-65 verifying key.
-    #[error("Malformed ML-DSA-65 public key")]
-    MalformedPublicKey,
-    /// Signature byte slice does not conform to the ML-DSA-65 signature structure.
-    #[error("Malformed ML-DSA-65 signature bytes")]
-    MalformedSignature,
-    /// Cryptographic verification failed over the canonical signable bytes.
-    #[error("Invalid ML-DSA-65 post-quantum signature")]
-    InvalidSignature,
-    /// The delegated manifest does not grant the required capability.
-    #[error("Delegated capability missing from authorized manifest")]
-    DelegatedCapabilityMissing,
-    /// The delegated authorization proof is structurally invalid or fails signature check.
-    #[error("Delegated authorization proof is invalid")]
-    DelegatedAuthorizationInvalid,
-}
-
-impl VdfVerifyError {
-    /// Protocol error code following the Kinetic error taxonomy.
-    pub fn code(&self) -> &'static str {
-        match self {
-            Self::MalformedPublicKey => "KIN-VDF-040",
-            Self::MalformedSignature => "KIN-VDF-041",
-            Self::InvalidSignature => "KIN-VDF-042",
-            Self::DelegatedCapabilityMissing => "KIN-VDF-043",
-            Self::DelegatedAuthorizationInvalid => "KIN-VDF-044",
-        }
-    }
-
-    /// Severity level for logging and telemetry.
-    pub fn severity(&self) -> Severity {
-        match self {
-            Self::MalformedPublicKey | Self::MalformedSignature => Severity::Warning,
-            Self::InvalidSignature
-            | Self::DelegatedCapabilityMissing
-            | Self::DelegatedAuthorizationInvalid => Severity::Error,
-        }
-    }
-
-    /// Whether this verification error can be retried without modifying inputs.
-    pub fn is_retryable(&self) -> bool {
-        false
-    }
-
-    /// Clean, user-facing error message suitable for frontend display.
-    pub fn user_message(&self) -> String {
-        match self {
-            Self::MalformedPublicKey => {
-                "The name owner's ML-DSA-65 public key is corrupted or invalid.".to_string()
-            }
-            Self::MalformedSignature => "The ML-DSA-65 signature format is malformed.".to_string(),
-            Self::InvalidSignature => {
-                "The post-quantum ownership signature failed cryptographic verification."
-                    .to_string()
-            }
-            Self::DelegatedCapabilityMissing => {
-                "The delegated manifest does not grant the required capability for this action."
-                    .to_string()
-            }
-            Self::DelegatedAuthorizationInvalid => {
-                "The delegated authorization proof could not be verified against the master key."
-                    .to_string()
-            }
-        }
-    }
-
-    /// RFC 7807 problem details type URI.
-    pub fn error_type_uri(&self) -> String {
-        format!("https://kinetic.network/errors/{}", self.code())
-    }
-}
 
 fn default_protocol_version() -> u8 {
     1
@@ -227,80 +152,7 @@ pub struct Reveal {
 }
 
 impl Reveal {
-    /// Verifies the ML-DSA-65 post-quantum signature over [`signable_bytes`](Reveal::signable_bytes).
-    pub fn verify_signature(&self, network_salt: &[u8; 32]) -> Result<(), VdfVerifyError> {
-        use ml_dsa::KeyInit;
-        use ml_dsa::signature::Verifier;
-        let signable = self.signable_bytes(network_salt);
 
-        let pubkey =
-            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(self.pubkey.as_slice())
-                .map_err(|_| VdfVerifyError::MalformedPublicKey)?;
-
-        let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(self.signature.as_slice())
-            .map_err(|_| VdfVerifyError::MalformedSignature)?;
-
-        if let Some(auth) = &self.authorization {
-            let auth_signable = auth.signable_bytes(network_salt);
-            let auth_sig =
-                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth.owner_signature.as_slice())
-                    .map_err(|_| VdfVerifyError::DelegatedAuthorizationInvalid)?;
-
-            pubkey
-                .verify(&auth_signable, &auth_sig)
-                .map_err(|_| VdfVerifyError::DelegatedAuthorizationInvalid)?;
-
-            let has_cap = auth
-                .manifest
-                .services
-                .iter()
-                .any(|s| s.service_type == "kinetic.capability.dns_update");
-            if !has_cap {
-                return Err(VdfVerifyError::DelegatedCapabilityMissing);
-            }
-
-            let kid_doc = auth
-                .kid_doc
-                .as_ref()
-                .ok_or(VdfVerifyError::DelegatedAuthorizationInvalid)?;
-            let mut verified = false;
-            for ck in &kid_doc.controller_keys {
-                use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                if ck.key_type == "ML-DSA-65" {
-                    if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
-                        if let Ok(vk) =
-                            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
-                        {
-                            if vk.verify(&signable, &sig).is_ok() {
-                                verified = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            if !verified {
-                return Err(VdfVerifyError::InvalidSignature);
-            }
-        } else {
-            pubkey
-                .verify(&signable, &sig)
-                .map_err(|_| VdfVerifyError::InvalidSignature)?;
-        }
-
-        if let Some(prev) = &self.previous_proof {
-            let prev_sig =
-                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(prev.signature.as_slice())
-                    .map_err(|_| VdfVerifyError::MalformedSignature)?;
-
-            let prev_signable = prev.signable_bytes(network_salt);
-            pubkey
-                .verify(&prev_signable, &prev_sig)
-                .map_err(|_| VdfVerifyError::InvalidSignature)?;
-        }
-
-        Ok(())
-    }
 
     /// Serializes the reveal payload into a canonical byte string for ML-DSA-65 signature.
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
@@ -378,15 +230,32 @@ impl Reveal {
     }
 }
 
-/// Request parameters for initiating a new VDF computation job.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VdfJobRequest {
-    /// 32-byte target SHA-256 challenge commitment hash.
-    pub challenge_hash: [u8; 32],
-    /// Character length of the name label being registered.
-    pub name_length: u8,
-    /// Evaluated Hashcash proof-of-work nonce.
-    pub hashcash_nonce: u64,
-    /// Associated drand randomness kyn number.
-    pub drand_kyn: u64,
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+
+    #[test]
+    fn test_previous_proof_serialization() {
+        let prev = PreviousProof {
+            salt: [2u8; 32],
+            drand_kyn: 12345,
+            drand_signature: "deadbeef".to_string(),
+            iterations: 1000,
+            vdf_proof: VdfProof { proof_bytes: vec![1, 2, 3, 4] },
+            signature: vec![5, 6, 7],
+        };
+        let network_salt = &[9u8; 32];
+        let bytes = prev.proof_bytes(network_salt);
+        
+        // Assert domain separation prefix is included
+        let prefix = b"vdf-prev-proof-v1";
+        assert_eq!(&bytes[32..32 + prefix.len()], prefix);
+
+        let signable = prev.signable_bytes(network_salt);
+        let signable_prefix = b"vdf-prev-v1";
+        assert_eq!(&signable[32..32 + signable_prefix.len()], signable_prefix);
+    }
+
 }

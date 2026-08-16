@@ -128,12 +128,6 @@ pub enum KineticError {
     #[error("Internal engine error: {0}")]
     Internal(String),
 
-    /// An OS I/O failure.
-    ///
-    /// Wraps [`std::io::Error`] directly for cases where file or socket I/O
-    /// fails at a level below any domain-specific handler.
-    #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
 
     /// A configuration value was missing or invalid.
     ///

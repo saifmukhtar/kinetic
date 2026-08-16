@@ -24,6 +24,7 @@ console_error_panic_hook = "0.1"
 
 # Kinetic internal crates
 kinetic-core = { path = "../kinetic-core" }
+kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-vdfrs = { path = "../kinetic-vdfrs" }
