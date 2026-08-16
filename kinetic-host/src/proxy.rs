@@ -18,19 +18,14 @@ pub async fn forward_request(
     let mut builder =
         reqwest_client.request(req.method.parse().unwrap_or(reqwest::Method::GET), &url);
 
-    let mut original_host = None;
     for (k, v) in req.headers {
         if k.to_lowercase() == "host" {
-            original_host = Some(v.clone());
+            continue; // Never forward remote Host header to prevent Virtual Host SSRF
         }
         builder = builder.header(k.as_ref(), v.as_ref());
     }
 
-    if let Some(h) = original_host {
-        builder = builder.header("X-Forwarded-Host", h.as_ref());
-    } else {
-        builder = builder.header("Host", format!("{}:{}", backend_host, local_port));
-    }
+    builder = builder.header("Host", format!("{}:{}", backend_host, local_port));
     builder = builder.body(req.body);
 
     match builder.send().await {
