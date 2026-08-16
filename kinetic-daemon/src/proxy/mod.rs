@@ -55,6 +55,12 @@ pub enum ProxyError {
     /// Generic HTTP error.
     #[error("HTTP error: {0}")]
     Http(#[from] hyper::http::Error),
+    /// Peer is offline or network timed out.
+    #[error("Peer unreachable or request timed out: {0}")]
+    PeerUnreachable(String),
+    /// Security policy violation (e.g., SSRF).
+    #[error("Security violation: {0}")]
+    SecurityViolation(String),
     /// Unclassified or internal proxy error.
     #[error("Other Error: {0}")]
     Other(String),

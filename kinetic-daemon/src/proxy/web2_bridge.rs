@@ -43,8 +43,8 @@ pub async fn forward_to_web2_backend(
             "Web2 Bridge SSRF Blocked: {} resolved to a private/internal IP ({})",
             target_domain, ip_addr
         );
-        return Err(ProxyError::Other(
-            "SSRF Protection: Web2 Bridge target resolved to a private IP.".to_string(),
+        return Err(ProxyError::SecurityViolation(
+            "Web2 Bridge target resolved to a private IP.".to_string(),
         ));
     }
 

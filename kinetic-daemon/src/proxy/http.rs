@@ -102,8 +102,14 @@ pub async fn handle_proxy_request(
         Ok(resp) => Ok(resp),
         Err(e) => {
             warn!("Proxy request failed: {}", e);
+            let status = match e {
+                ProxyError::SecurityViolation(_) => StatusCode::FORBIDDEN,
+                ProxyError::PeerUnreachable(_) => StatusCode::GATEWAY_TIMEOUT,
+                ProxyError::NameNotFound(_) => StatusCode::NOT_FOUND,
+                _ => StatusCode::BAD_GATEWAY,
+            };
             Ok(Response::builder()
-                .status(StatusCode::BAD_GATEWAY)
+                .status(status)
                 .body(axum::body::Body::from(format!("Proxy Error: {}", e)))
                 .unwrap_or_else(|_| Response::new(axum::body::Body::from("Internal Proxy Error"))))
         }
@@ -319,7 +325,7 @@ pub async fn forward_to_backend_direct(
         let is_ssrf = is_ssrf_risk(ip_addr) || ip_addr.is_unspecified();
 
         if is_ssrf && !kinetic_core::config::is_dev_mode() {
-            return Err(ProxyError::Other("SSRF Protection: Cannot proxy to loopback or private IPs. (Use Dev Mode to bypass)".to_string()));
+            return Err(ProxyError::SecurityViolation("Cannot proxy to loopback or private IPs. (Use Dev Mode to bypass)".to_string()));
         } else if is_ssrf {
             tracing::warn!(
                 "DEV MODE: Forwarding to private IP {}. This would be blocked in production.",
@@ -462,7 +468,7 @@ pub async fn forward_to_backend_direct(
             .await
             .map_err(|e| {
                 tracing::error!("send_proxy_request failed: {:?}", e);
-                ProxyError::InvalidPayload
+                ProxyError::PeerUnreachable(format!("{:?}", e))
             })?;
 
         let mut resp_builder = Response::builder().status(proxy_resp.status);
