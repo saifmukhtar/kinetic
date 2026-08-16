@@ -85,3 +85,54 @@ pub struct TelemetryHeartbeat {
     /// Total Megabytes received since boot.
     pub mb_received: u32,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json;
+
+    #[test]
+    fn test_network_opcode_parsing() {
+        // Valid OpCodes
+        assert_eq!(NetworkOpcode::from_u8(0x01), Some(NetworkOpcode::Governance));
+        assert_eq!(NetworkOpcode::from_u8(0x02), Some(NetworkOpcode::Drand));
+        assert_eq!(NetworkOpcode::from_u8(0x03), Some(NetworkOpcode::Telemetry));
+
+        // Invalid OpCodes
+        assert_eq!(NetworkOpcode::from_u8(0x00), None);
+        assert_eq!(NetworkOpcode::from_u8(0x04), None);
+        assert_eq!(NetworkOpcode::from_u8(0xFF), None);
+    }
+
+    #[test]
+    fn test_telemetry_heartbeat_serialization() {
+        let heartbeat = TelemetryHeartbeat {
+            session_id: "uuid-1234".to_string(),
+            version: "0.2.0".to_string(),
+            os: OsType::Linux,
+            connected_peers: 42,
+            uptime_seconds: 3600,
+            node_type: NodeType::Daemon,
+            network_mode: NetworkMode::LightNode,
+            reachability: Reachability::Public,
+            latest_kyn: 123456,
+            mb_sent: 15,
+            mb_received: 30,
+        };
+
+        // Ensure it serializes successfully
+        let json_str = serde_json::to_string(&heartbeat).expect("Failed to serialize heartbeat");
+        assert!(json_str.contains("uuid-1234"));
+        assert!(json_str.contains("Linux"));
+        assert!(json_str.contains("LightNode"));
+        assert!(json_str.contains("Public"));
+
+        // Ensure it deserializes back perfectly
+        let deserialized: TelemetryHeartbeat =
+            serde_json::from_str(&json_str).expect("Failed to deserialize heartbeat");
+
+        assert_eq!(deserialized.session_id, "uuid-1234");
+        assert_eq!(deserialized.connected_peers, 42);
+        assert_eq!(deserialized.latest_kyn, 123456);
+    }
+}
