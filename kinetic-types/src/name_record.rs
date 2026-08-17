@@ -127,8 +127,6 @@ impl NameRecord {
             Self::Prime { signature, .. } | Self::Infra { signature, .. } => signature,
         }
     }
-
-
 }
 
 /// Redundancy factor for DHT storage and heartbeat replication across the network.
@@ -221,5 +219,4 @@ mod tests {
         // Heartbeat keys must not collide with storage keys
         assert_ne!(hb_keys, storage_keys);
     }
-
 }

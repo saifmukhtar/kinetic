@@ -88,3 +88,51 @@ pub fn is_ssrf_safe(ip: IpAddr) -> bool {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::IpAddr;
+
+    #[test]
+    fn test_valid_public_ips() {
+        assert!(is_ssrf_safe("1.1.1.1".parse::<IpAddr>().unwrap()));
+        assert!(is_ssrf_safe("8.8.8.8".parse::<IpAddr>().unwrap()));
+        assert!(is_ssrf_safe("2606:4700:4700::1111".parse::<IpAddr>().unwrap()));
+    }
+
+    #[test]
+    fn test_loopback_ips() {
+        assert!(!is_ssrf_safe("127.0.0.1".parse::<IpAddr>().unwrap()));
+        assert!(!is_ssrf_safe("127.12.34.56".parse::<IpAddr>().unwrap()));
+        assert!(!is_ssrf_safe("::1".parse::<IpAddr>().unwrap()));
+    }
+
+    #[test]
+    fn test_private_ips() {
+        assert!(!is_ssrf_safe("10.0.0.1".parse::<IpAddr>().unwrap()));
+        assert!(!is_ssrf_safe("192.168.1.1".parse::<IpAddr>().unwrap()));
+        assert!(!is_ssrf_safe("172.16.0.1".parse::<IpAddr>().unwrap()));
+        assert!(!is_ssrf_safe("fc00::1".parse::<IpAddr>().unwrap())); // IPv6 Unique Local
+        assert!(!is_ssrf_safe("fd12::34".parse::<IpAddr>().unwrap())); // IPv6 Unique Local
+    }
+
+    #[test]
+    fn test_advanced_ipv6_wrappers() {
+        // IPv4-mapped IPv6 pointing to loopback
+        assert!(!is_ssrf_safe("::ffff:127.0.0.1".parse::<IpAddr>().unwrap()));
+        // IPv4-compatible IPv6 pointing to loopback
+        assert!(!is_ssrf_safe("::127.0.0.1".parse::<IpAddr>().unwrap()));
+        // IPv6 NAT64
+        assert!(!is_ssrf_safe("64:ff9b::192.0.2.33".parse::<IpAddr>().unwrap()));
+    }
+
+    #[test]
+    fn test_cgnat_and_zero() {
+        assert!(!is_ssrf_safe("0.0.0.0".parse::<IpAddr>().unwrap()));
+        assert!(!is_ssrf_safe("100.64.0.1".parse::<IpAddr>().unwrap()));
+        assert!(!is_ssrf_safe("100.127.255.254".parse::<IpAddr>().unwrap()));
+        // But 100.63.x.x is public, not CGNAT
+        assert!(is_ssrf_safe("100.63.255.255".parse::<IpAddr>().unwrap()));
+    }
+}

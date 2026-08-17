@@ -9,7 +9,6 @@
 #![allow(clippy::collapsible_if)]
 use serde::{Deserialize, Serialize};
 
-
 fn default_protocol_version() -> u8 {
     1
 }
@@ -152,8 +151,6 @@ pub struct Reveal {
 }
 
 impl Reveal {
-
-
     /// Serializes the reveal payload into a canonical byte string for ML-DSA-65 signature.
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
         let prefix = b"vdf-reveal-v1";
@@ -234,8 +231,6 @@ impl Reveal {
 mod tests {
     use super::*;
 
-
-
     #[test]
     fn test_previous_proof_serialization() {
         let prev = PreviousProof {
@@ -243,12 +238,14 @@ mod tests {
             drand_kyn: 12345,
             drand_signature: "deadbeef".to_string(),
             iterations: 1000,
-            vdf_proof: VdfProof { proof_bytes: vec![1, 2, 3, 4] },
+            vdf_proof: VdfProof {
+                proof_bytes: vec![1, 2, 3, 4],
+            },
             signature: vec![5, 6, 7],
         };
         let network_salt = &[9u8; 32];
         let bytes = prev.proof_bytes(network_salt);
-        
+
         // Assert domain separation prefix is included
         let prefix = b"vdf-prev-proof-v1";
         assert_eq!(&bytes[32..32 + prefix.len()], prefix);
@@ -257,5 +254,4 @@ mod tests {
         let signable_prefix = b"vdf-prev-v1";
         assert_eq!(&signable[32..32 + signable_prefix.len()], signable_prefix);
     }
-
 }
