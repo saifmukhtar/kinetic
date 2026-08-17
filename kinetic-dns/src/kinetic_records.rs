@@ -287,12 +287,12 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                         kinetic_core::types::DnsRecord::A(ip)
                                             if q_type == hickory_proto::rr::RecordType::A =>
                                         {
-                                            if !kinetic_core::net::is_ssrf_safe(
+                                            if let Err(e) = kinetic_core::net::validate_ssrf_safe(
                                                 std::net::IpAddr::V4(*ip),
                                             ) {
                                                 warn!(
-                                                    "Blocked SSRF attempt: A record points to forbidden IP {}",
-                                                    ip
+                                                    "Blocked SSRF attempt: A record points to forbidden IP {}. Reason: {}",
+                                                    ip, e
                                                 );
                                                 continue;
                                             }
@@ -305,12 +305,12 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                         kinetic_core::types::DnsRecord::AAAA(ip)
                                             if q_type == hickory_proto::rr::RecordType::AAAA =>
                                         {
-                                            if !kinetic_core::net::is_ssrf_safe(
+                                            if let Err(e) = kinetic_core::net::validate_ssrf_safe(
                                                 std::net::IpAddr::V6(*ip),
                                             ) {
                                                 warn!(
-                                                    "Blocked SSRF attempt: AAAA record points to forbidden IP {}",
-                                                    ip
+                                                    "Blocked SSRF attempt: AAAA record points to forbidden IP {}. Reason: {}",
+                                                    ip, e
                                                 );
                                                 continue;
                                             }
@@ -347,14 +347,14 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 continue;
                                             }
 
-                                            if let Ok(ip) = target.parse::<std::net::IpAddr>()
-                                                && !kinetic_core::net::is_ssrf_safe(ip)
-                                            {
-                                                warn!(
-                                                    "Blocked SSRF attempt: CNAME record points to forbidden IP {}",
-                                                    ip
-                                                );
-                                                continue;
+                                            if let Ok(ip) = target.parse::<std::net::IpAddr>() {
+                                                if let Err(e) = kinetic_core::net::validate_ssrf_safe(ip) {
+                                                    warn!(
+                                                        "Blocked SSRF attempt: CNAME record points to forbidden IP {}. Reason: {}",
+                                                        ip, e
+                                                    );
+                                                    continue;
+                                                }
                                             }
 
                                             if let Ok(cname) = Name::from_str(target) {

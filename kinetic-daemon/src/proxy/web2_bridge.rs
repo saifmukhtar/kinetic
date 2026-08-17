@@ -1,7 +1,7 @@
 use crate::proxy::ProxyError;
 use hyper::body::Incoming;
 use hyper::{Request, Response};
-use kinetic_core::net::is_ssrf_safe;
+// Removed is_ssrf_safe import because we use it fully qualified now
 use reqwest::Client;
 use std::time::Duration;
 use tokio::net::lookup_host;
@@ -38,13 +38,15 @@ pub async fn forward_to_web2_backend(
     let ip_addr = socket_addr.ip();
 
     // 2. Strict SSRF Protection Check
-    if !is_ssrf_safe(ip_addr) || ip_addr.is_unspecified() {
+    let ssrf_result = kinetic_core::net::validate_ssrf_safe(ip_addr);
+    if ssrf_result.is_err() || ip_addr.is_unspecified() {
+        let reason = if ip_addr.is_unspecified() { "Unspecified IP".to_string() } else { ssrf_result.unwrap_err().to_string() };
         warn!(
-            "Web2 Bridge SSRF Blocked: {} resolved to a private/internal IP ({})",
-            target_domain, ip_addr
+            "Web2 Bridge SSRF Blocked: {} resolved to a dangerous IP ({}). Reason: {}",
+            target_domain, ip_addr, reason
         );
         return Err(ProxyError::SecurityViolation(
-            "Web2 Bridge target resolved to a private IP.".to_string(),
+            format!("Web2 Bridge target resolved to a dangerous IP. Reason: {}", reason),
         ));
     }
 

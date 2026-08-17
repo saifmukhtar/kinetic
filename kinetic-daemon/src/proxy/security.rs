@@ -1,7 +1,7 @@
 //! SSRF risk evaluation utilities and IP address safety verification.
 
-pub(crate) fn is_ssrf_risk(ip: std::net::IpAddr) -> bool {
-    !kinetic_core::net::is_ssrf_safe(ip)
+pub(crate) fn validate_ssrf_risk(ip: std::net::IpAddr) -> Result<(), kinetic_core::net::SsrfError> {
+    kinetic_core::net::validate_ssrf_safe(ip)
 }
 
 #[cfg(test)]
@@ -19,7 +19,7 @@ mod tests {
             d in 0u8..=255
         ) {
             let ip = IpAddr::V4(Ipv4Addr::new(a, b, c, d));
-            prop_assert!(is_ssrf_risk(ip));
+            prop_assert!(validate_ssrf_risk(ip).is_err());
         }
 
         #[test]
@@ -30,7 +30,7 @@ mod tests {
             d in 0u8..=255
         ) {
             let ip = IpAddr::V4(Ipv4Addr::new(a, b, c, d));
-            prop_assert!(is_ssrf_risk(ip));
+            prop_assert!(validate_ssrf_risk(ip).is_err());
         }
 
         #[test]
@@ -40,8 +40,8 @@ mod tests {
             c in 0u8..=255,
             d in 0u8..=255
         ) {
-            let ip = IpAddr::V4(Ipv4Addr::new(a, b, c, d));
-            prop_assert!(!is_ssrf_risk(ip));
+            let ip = std::net::IpAddr::V4(Ipv4Addr::new(a, b, c, d));
+            prop_assert!(validate_ssrf_risk(ip).is_ok());
         }
     }
 }
