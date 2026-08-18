@@ -8,17 +8,26 @@ use tracing::info;
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn shutdown_signal() {
     let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
+        match tokio::signal::ctrl_c().await {
+            Ok(_) => {}
+            Err(e) => {
+                tracing::warn!("Failed to bind Ctrl+C handler: {}. The node will continue running but graceful keyboard shutdown is disabled.", e);
+                std::future::pending::<()>().await;
+            }
+        }
     };
 
     #[cfg(unix)]
     let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(e) => {
+                tracing::warn!("Failed to bind SIGTERM handler: {}. The node will continue running but graceful system shutdown is disabled.", e);
+                std::future::pending::<()>().await;
+            }
+        }
     };
 
     #[cfg(not(unix))]
