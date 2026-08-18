@@ -262,7 +262,7 @@ pub fn get_or_create_kid_for_name(
     let did_str = format!("{}{}", DID_PREFIX, hex::encode(hasher.finalize()));
 
     let kid_did = KineticDid::new(&did_str)
-        .map_err(|e| IdentityError::Json(format!("Invalid DID derived: {:?}", e)))?;
+        .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
     let now_ts = current_network_unix_timestamp();
 
@@ -517,9 +517,7 @@ pub fn save_and_sign_local_manifest(
     let (doc, _) = load_local_kid(&fqdn)?;
 
     if doc.deactivated {
-        return Err(IdentityError::KidSigningFailed(format!(
-            "Cannot update manifest for deactivated identity {fqdn}"
-        )));
+        return Err(IdentityError::KidDeactivated(fqdn.to_string()));
     }
 
     // Resolve key path (checking specific name key, then fallback to apex key)
@@ -683,7 +681,7 @@ mod tests {
         let deactivated_err = save_and_sign_local_manifest("api.saif.kin", vec![]).unwrap_err();
         assert!(matches!(
             deactivated_err,
-            IdentityError::KidSigningFailed(_)
+            IdentityError::KidDeactivated(_)
         ));
 
         unsafe {

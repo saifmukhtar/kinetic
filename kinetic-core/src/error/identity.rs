@@ -47,6 +47,14 @@ pub enum IdentityError {
     #[error("Failed to sign KID document: {0}")]
     KidSigningFailed(String),
 
+    /// A DID string was malformed or invalid.
+    #[error("Invalid DID: {0}")]
+    InvalidDid(String),
+
+    /// Attempted to operate on a deactivated KID.
+    #[error("KID is deactivated: {0}")]
+    KidDeactivated(String),
+
     /// JSON serialization or deserialization failed.
     #[error("JSON error: {0}")]
     Json(String),
@@ -64,6 +72,8 @@ impl PartialEq for IdentityError {
             (Self::KidNotFound(a), Self::KidNotFound(b)) => a == b,
             (Self::InvalidRotation(a), Self::InvalidRotation(b)) => a == b,
             (Self::KidSigningFailed(a), Self::KidSigningFailed(b)) => a == b,
+            (Self::InvalidDid(a), Self::InvalidDid(b)) => a == b,
+            (Self::KidDeactivated(a), Self::KidDeactivated(b)) => a == b,
             (Self::Json(a), Self::Json(b)) => a == b,
             _ => false,
         }
@@ -85,7 +95,9 @@ impl IdentityError {
             Self::KidNotFound(_) => "KIN-IDN-007",
             Self::InvalidRotation(_) => "KIN-IDN-008",
             Self::KidSigningFailed(_) => "KIN-IDN-009",
-            Self::Json(_) => "KIN-IDN-010",
+            Self::InvalidDid(_) => "KIN-IDN-010",
+            Self::KidDeactivated(_) => "KIN-IDN-011",
+            Self::Json(_) => "KIN-IDN-012",
         }
     }
 
@@ -103,8 +115,9 @@ impl IdentityError {
             | Self::DecryptionFailed(_)
             | Self::InvalidRotation(_)
             | Self::KidSigningFailed(_)
+            | Self::InvalidDid(_)
             | Self::Json(_) => Severity::Error,
-            Self::InvalidSeedPhrase(_) | Self::KidAlreadyExists(_) | Self::KidNotFound(_) => {
+            Self::InvalidSeedPhrase(_) | Self::KidAlreadyExists(_) | Self::KidNotFound(_) | Self::KidDeactivated(_) => {
                 Severity::Warning
             }
         }
@@ -141,6 +154,12 @@ impl IdentityError {
             }
             Self::KidSigningFailed(msg) => {
                 format!("Failed to sign KID document: {msg}")
+            }
+            Self::InvalidDid(msg) => {
+                format!("Invalid DID format: {msg}")
+            }
+            Self::KidDeactivated(name) => {
+                format!("The KID document for {name} has been permanently deactivated.")
             }
             Self::Json(msg) => {
                 format!("JSON processing error: {msg}")

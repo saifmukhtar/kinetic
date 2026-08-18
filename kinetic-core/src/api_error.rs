@@ -294,10 +294,11 @@ impl From<IdentityError> for ApiError {
             IdentityError::IdentityNotFound(_) | IdentityError::KidNotFound(_) => {
                 (404, "Not Found")
             }
-            IdentityError::InvalidSeedPhrase(_) => (400, "Bad Request"),
+            IdentityError::InvalidSeedPhrase(_) | IdentityError::InvalidDid(_) => (400, "Bad Request"),
             IdentityError::DecryptionFailed(_) => (401, "Unauthorized"),
             IdentityError::KidAlreadyExists(_) => (409, "Conflict"),
             IdentityError::InvalidRotation(_) => (422, "Unprocessable Entity"),
+            IdentityError::KidDeactivated(_) => (410, "Gone"),
         };
         ApiError {
             error_type: e.error_type_uri(),
