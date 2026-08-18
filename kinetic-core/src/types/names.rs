@@ -79,7 +79,10 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
         return Err(crate::error::NamesError::NameTooLong);
     }
     for part in norm.split('.') {
-        if part.len() > 63 || part.is_empty() {
+        if part.is_empty() {
+            return Err(crate::error::NamesError::EmptyLabel);
+        }
+        if part.len() > 63 {
             return Err(crate::error::NamesError::LabelTooLong);
         }
 
@@ -92,7 +95,7 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
 
         // Labels cannot start or end with a hyphen
         if part.starts_with('-') || part.ends_with('-') {
-            return Err(crate::error::NamesError::InvalidCharacter);
+            return Err(crate::error::NamesError::InvalidHyphenPlacement);
         }
     }
 
@@ -196,6 +199,16 @@ mod tests {
             )),
             Err(crate::error::NamesError::NotAnApexName)
         );
+        // Edge Case: Empty label
+        assert_eq!(
+            is_valid_apex_name(&format!(
+                "{}{}",
+                "blog..saifmukhtar",
+                crate::constants::NSP_SUFFIX
+            )),
+            Err(crate::error::NamesError::EmptyLabel)
+        );
+
         assert_eq!(
             is_valid_apex_name(&format!(
                 "{}{}",
@@ -218,7 +231,7 @@ mod tests {
                 "-saifmukhtar",
                 crate::constants::NSP_SUFFIX
             )),
-            Err(crate::error::NamesError::InvalidCharacter)
+            Err(crate::error::NamesError::InvalidHyphenPlacement)
         );
         assert_eq!(
             is_valid_apex_name(&format!(
@@ -226,7 +239,7 @@ mod tests {
                 "saifmukhtar-",
                 crate::constants::NSP_SUFFIX
             )),
-            Err(crate::error::NamesError::InvalidCharacter)
+            Err(crate::error::NamesError::InvalidHyphenPlacement)
         );
 
         // Test RFC Category 1 Reserved Names

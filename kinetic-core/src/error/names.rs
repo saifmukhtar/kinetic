@@ -22,11 +22,19 @@ pub enum NamesError {
     #[error("Label is empty or exceeds the 63 character limit")]
     LabelTooLong,
 
+    /// A single label (word between dots) is empty.
+    #[error("Label is empty (e.g. consecutive dots)")]
+    EmptyLabel,
+
     /// The name contains invalid characters not permitted by the LDH rule.
     #[error(
         "Name contains invalid characters (only lowercase letters, digits, and internal hyphens allowed)"
     )]
     InvalidCharacter,
+
+    /// A hyphen is placed at the start or end of a label.
+    #[error("Labels cannot start or end with a hyphen")]
+    InvalidHyphenPlacement,
 
     /// The name is a permanently reserved public utility name (e.g., localhost).
     #[error("Name is a protected public utility name (e.g., localhost, test)")]
@@ -35,10 +43,6 @@ pub enum NamesError {
     /// The name is reserved for critical network infrastructure.
     #[error("Name is a protected infrastructure name (e.g., seed, explorer)")]
     InfrastructureName,
-
-    /// The name missing or invalid network NSP suffix.
-    #[error("Name missing or invalid network NSP suffix")]
-    InvalidNSP,
 
     /// The name is a subname, but the operation requires an apex name.
     #[error("Only apex names are allowed (subnames must be managed by the apex owner)")]
@@ -51,11 +55,12 @@ impl NamesError {
         match self {
             Self::NameTooLong => "KIN-NAM-001",
             Self::LabelTooLong => "KIN-NAM-002",
-            Self::InvalidCharacter => "KIN-NAM-003",
-            Self::ReservedName => "KIN-NAM-004",
-            Self::InfrastructureName => "KIN-NAM-005",
-            Self::InvalidNSP => "KIN-NAM-006",
-            Self::NotAnApexName => "KIN-NAM-007",
+            Self::EmptyLabel => "KIN-NAM-003",
+            Self::InvalidCharacter => "KIN-NAM-004",
+            Self::InvalidHyphenPlacement => "KIN-NAM-005",
+            Self::ReservedName => "KIN-NAM-006",
+            Self::InfrastructureName => "KIN-NAM-007",
+            Self::NotAnApexName => "KIN-NAM-008",
         }
     }
 
@@ -83,17 +88,20 @@ impl NamesError {
             Self::LabelTooLong => {
                 "A label within the name exceeds the 63-character limit.".to_string()
             }
+            Self::EmptyLabel => {
+                "A label within the name is empty (e.g. consecutive dots).".to_string()
+            }
             Self::InvalidCharacter => {
                 "The name contains invalid characters. Only lowercase letters, digits, and internal hyphens are allowed.".to_string()
+            }
+            Self::InvalidHyphenPlacement => {
+                "Labels cannot start or end with a hyphen.".to_string()
             }
             Self::ReservedName => {
                 "This name is a permanently protected public utility name.".to_string()
             }
             Self::InfrastructureName => {
                 "This name is reserved for critical network infrastructure.".to_string()
-            }
-            Self::InvalidNSP => {
-                "The name does not end with a valid network NSP suffix.".to_string()
             }
             Self::NotAnApexName => {
                 "Only apex names (e.g. 'example.kin') can be registered directly.".to_string()
