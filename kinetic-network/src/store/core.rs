@@ -244,7 +244,7 @@ impl KineticRecordStore {
                         .unwrap_or(reveal.drand_kyn);
                     let hb_age = current_kyn.saturating_sub(last_hb);
 
-                    if !kinetic_core::types::infrastructure::requires_heartbeat(name) {
+                    if !kinetic_core::types::protocol::requires_heartbeat(name) {
                         continue;
                     }
 

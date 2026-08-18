@@ -68,18 +68,18 @@ impl GovernanceEngine for SovereignEngine {
                     }
                 }
                 GovernanceAction::MapInfra { name, .. } => {
-                    if !crate::types::infrastructure::INFRASTRUCTURE_NAMES.contains(&name.as_str())
+                    if !crate::types::protocol::PROTOCOL_NAMES.contains(&name.as_str())
                     {
-                        return Err(GovernanceError::UnnormalizedName);
+                        return Err(GovernanceError::InvalidProtocolName);
                     }
                     if state.mapped_infra_names.contains_key(name) {
                         return Err(GovernanceError::AlreadyMapped);
                     }
                 }
                 GovernanceAction::UnmapInfra { name } => {
-                    if !crate::types::infrastructure::INFRASTRUCTURE_NAMES.contains(&name.as_str())
+                    if !crate::types::protocol::PROTOCOL_NAMES.contains(&name.as_str())
                     {
-                        return Err(GovernanceError::UnnormalizedName);
+                        return Err(GovernanceError::InvalidProtocolName);
                     }
                     if !state.mapped_infra_names.contains_key(name) {
                         return Err(GovernanceError::NotMapped);

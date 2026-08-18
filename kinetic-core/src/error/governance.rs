@@ -51,9 +51,9 @@ pub enum GovernanceError {
     /// A premium name grant/revoke was attempted on a name that is not exactly 1 character long.
     #[error("Premium name grants must be exactly 1 character long")]
     InvalidPremiumNameLength,
-    /// An infrastructure name grant/revoke was attempted on a name not in the Category 2 list.
-    #[error("Infrastructure name grants must target a valid Category 2 infrastructure name")]
-    InvalidInfrastructureName,
+    /// A protocol name grant/revoke was attempted on a name not in the Category 2 list.
+    #[error("Protocol name grants must target a valid Category 2 protocol name")]
+    InvalidProtocolName,
     /// A name grant was attempted on a name that is already mapped.
     #[error("Name is already mapped, explicitly unmap it first")]
     AlreadyMapped,
@@ -81,7 +81,7 @@ impl GovernanceError {
 
             Self::InsufficientSignatures => "KIN-GOV-016",
             Self::InvalidPremiumNameLength => "KIN-GOV-019",
-            Self::InvalidInfrastructureName => "KIN-GOV-020",
+            Self::InvalidProtocolName => "KIN-GOV-020",
             Self::AlreadyMapped => "KIN-GOV-013",
             Self::NotMapped => "KIN-GOV-014",
             Self::UnnormalizedName => "KIN-GOV-024",
@@ -103,7 +103,7 @@ impl GovernanceError {
             | Self::GovernanceDisabled
             | Self::InsufficientSignatures
             | Self::InvalidPremiumNameLength
-            | Self::InvalidInfrastructureName
+            | Self::InvalidProtocolName
             | Self::AlreadyMapped
             | Self::NotMapped
             | Self::UnnormalizedName => Severity::Warning,
@@ -137,7 +137,7 @@ impl GovernanceError {
                 "The message lacks the required cryptographic signatures to meet the council quorum threshold.".to_string()
             }
             Self::InvalidPremiumNameLength => "Premium names governed by this action must be exactly 1 character long.".to_string(),
-            Self::InvalidInfrastructureName => "Infrastructure names governed by this action must be valid Category 2 names.".to_string(),
+            Self::InvalidProtocolName => "Protocol names governed by this action must be valid Category 2 names.".to_string(),
             Self::AlreadyMapped => "The requested name is already mapped. It must be explicitly unmapped first.".to_string(),
             Self::NotMapped => "The requested name is not currently mapped.".to_string(),
             Self::UnnormalizedName => "The name payload must be strictly normalized (no .kin suffix, lowercase).".to_string(),

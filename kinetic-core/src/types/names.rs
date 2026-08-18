@@ -71,7 +71,7 @@ pub const RESERVED_NAMES: &[&str] = &[
 /// - Returns [`crate::error::NamesError::InvalidCharacter`] if a label contains non-LDH characters or invalid hyphen/digit placements.
 /// - Returns [`crate::error::NamesError::NotAnApexName`] if the input is a subdomain (e.g. `blog.example.kin`) instead of an apex name (`example.kin`).
 /// - Returns [`crate::error::NamesError::ReservedName`] if the label matches a Category 1 public utility name.
-/// - Returns [`crate::error::NamesError::InfrastructureName`] if the label is a locked Category 2 network infrastructure name.
+/// - Returns [`crate::error::NamesError::ProtocolName`] if the label is a locked Category 2 network protocol name.
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     let norm = normalize_name(name);
 
@@ -109,9 +109,9 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
         return Err(crate::error::NamesError::ReservedName);
     }
 
-    // Category 2: Infrastructure Names (Locked until Phase 2)
-    if crate::types::infrastructure::is_infrastructure_name(&norm) {
-        return Err(crate::error::NamesError::InfrastructureName);
+    // Category 2: Protocol Names (Locked until Phase 2)
+    if crate::types::protocol::is_protocol_name(&norm) {
+        return Err(crate::error::NamesError::ProtocolName);
     }
 
     Ok(())
@@ -291,15 +291,15 @@ mod names_tests {
     use super::*;
 
     #[test]
-    fn test_lock_infrastructure_names() {
+    fn test_lock_protocol_names() {
         // These should be rejected because they are locked Category 2
         assert_eq!(
             is_valid_apex_name("docs.kin"),
-            Err(crate::error::NamesError::InfrastructureName)
+            Err(crate::error::NamesError::ProtocolName)
         );
         assert_eq!(
             is_valid_apex_name("seed.kin"),
-            Err(crate::error::NamesError::InfrastructureName)
+            Err(crate::error::NamesError::ProtocolName)
         );
         assert_eq!(
             is_valid_apex_name("subdomain.explorer.kin"),

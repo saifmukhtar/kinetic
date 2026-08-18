@@ -133,7 +133,7 @@ impl From<GovernanceError> for ApiError {
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
             GovernanceError::KeyLengthMismatch
             | GovernanceError::InvalidPremiumNameLength
-            | GovernanceError::InvalidInfrastructureName
+            | GovernanceError::InvalidProtocolName
             | GovernanceError::AlreadyMapped
             | GovernanceError::NotMapped
             | GovernanceError::UnnormalizedName => (400, "Bad Request"),

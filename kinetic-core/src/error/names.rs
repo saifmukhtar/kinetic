@@ -7,7 +7,7 @@
 //! - **Length limits**: total ≤253 chars; each label ≤63 chars (RFC 1035).
 //! - **Apex-only**: subnames are managed by the apex owner, not the DHT directly.
 //! - **Category 1 reserved** (RFC 2606/6761): `localhost`, `test`, `example`, etc.
-//! - **Category 2 infrastructure**: `seed`, `explorer`, `docs`, etc. locked until Phase 2.
+//! - **Category 2 protocol names**: `seed`, `explorer`, `docs`, etc. locked until Phase 2.
 use super::Severity;
 use thiserror::Error;
 
@@ -40,9 +40,9 @@ pub enum NamesError {
     #[error("Name is a protected public utility name (e.g., localhost, test)")]
     ReservedName,
 
-    /// The name is reserved for critical network infrastructure.
-    #[error("Name is a protected infrastructure name (e.g., seed, explorer)")]
-    InfrastructureName,
+    /// The name is reserved for critical network protocol functionality.
+    #[error("Name is a protected protocol name (e.g., seed, explorer)")]
+    ProtocolName,
 
     /// The name is a subname, but the operation requires an apex name.
     #[error("Only apex names are allowed (subnames must be managed by the apex owner)")]
@@ -59,7 +59,7 @@ impl NamesError {
             Self::InvalidCharacter => "KIN-NAM-004",
             Self::InvalidHyphenPlacement => "KIN-NAM-005",
             Self::ReservedName => "KIN-NAM-006",
-            Self::InfrastructureName => "KIN-NAM-007",
+            Self::ProtocolName => "KIN-NAM-007",
             Self::NotAnApexName => "KIN-NAM-008",
         }
     }
@@ -100,8 +100,8 @@ impl NamesError {
             Self::ReservedName => {
                 "This name is a permanently protected public utility name.".to_string()
             }
-            Self::InfrastructureName => {
-                "This name is reserved for critical network infrastructure.".to_string()
+            Self::ProtocolName => {
+                "This name is reserved for critical network protocol functionality.".to_string()
             }
             Self::NotAnApexName => {
                 "Only apex names (e.g. 'example.kin') can be registered directly.".to_string()
