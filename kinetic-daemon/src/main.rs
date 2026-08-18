@@ -362,7 +362,7 @@ async fn run_daemon() -> Result<()> {
 
     let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| base_config_dir.join("governance.key"));
+        .unwrap_or_else(|_| base_config_dir.join("governance.db"));
 
     if !gov_state_path.exists() {
         tracing::info!(
