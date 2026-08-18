@@ -165,9 +165,7 @@ impl VerifySignature for NameRecord {
 
                         verifying_key
                             .verify(&auth_signable, &auth_sig)
-                            .map_err(|_| {
-                                SignatureVerifyError::DelegatedAuthorizationInvalid
-                            })?;
+                            .map_err(|_| SignatureVerifyError::DelegatedAuthorizationInvalid)?;
 
                         let has_cap = auth
                             .manifest
@@ -199,11 +197,14 @@ impl VerifySignature for NameRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::SignatureVerifyError;
     use kinetic_types::name_record::NameRecord;
     use kinetic_types::vdf::{Reveal, VdfProof};
-    use crate::error::SignatureVerifyError;
 
-    fn generate_keypair() -> (ml_dsa::SigningKey<ml_dsa::MlDsa65>, ml_dsa::VerifyingKey<ml_dsa::MlDsa65>) {
+    fn generate_keypair() -> (
+        ml_dsa::SigningKey<ml_dsa::MlDsa65>,
+        ml_dsa::VerifyingKey<ml_dsa::MlDsa65>,
+    ) {
         use ml_dsa::Keypair;
         let mut seed = [0u8; 32];
         rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut seed);
@@ -212,9 +213,14 @@ mod tests {
         (sk, vk)
     }
 
-    fn sign_payload(sk: &ml_dsa::SigningKey<ml_dsa::MlDsa65>, name: &str, payload: &[u8], salt: &[u8]) -> Vec<u8> {
-        use ml_dsa::signature::Signer;
+    fn sign_payload(
+        sk: &ml_dsa::SigningKey<ml_dsa::MlDsa65>,
+        name: &str,
+        payload: &[u8],
+        salt: &[u8],
+    ) -> Vec<u8> {
         use ml_dsa::SignatureEncoding;
+        use ml_dsa::signature::Signer;
         let mut signable = Vec::new();
         signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
         signable.extend_from_slice(name.as_bytes());
@@ -231,9 +237,9 @@ mod tests {
         let network_salt = &[1u8; 32];
         let name = "kin";
         let payload = b"dns-payload-data";
-        
+
         let sig = sign_payload(&sk, name, payload, network_salt);
-        
+
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: vk.to_bytes().to_vec(),
@@ -253,9 +259,9 @@ mod tests {
         let network_salt = &[1u8; 32];
         let name = "kin";
         let payload = b"dns-payload-data";
-        
+
         let mut sig = sign_payload(&sk, name, payload, network_salt);
-        
+
         // Corrupt the signature slightly
         sig[0] ^= 1;
 
@@ -277,12 +283,12 @@ mod tests {
         let (sk, vk) = generate_keypair();
         let mainnet_salt = &[1u8; 32];
         let testnet_salt = &[2u8; 32];
-        
+
         let name = "kin";
         let payload = b"data";
-        
+
         let sig = sign_payload(&sk, name, payload, mainnet_salt);
-        
+
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: vk.to_bytes().to_vec(),
@@ -296,12 +302,20 @@ mod tests {
         assert!(record.verify_signature(testnet_salt).is_err());
     }
 
-    fn generate_auth(owner_sk: &ml_dsa::SigningKey<ml_dsa::MlDsa65>, bot_vk: &ml_dsa::VerifyingKey<ml_dsa::MlDsa65>, capability: &str, network_salt: &[u8; 32]) -> kinetic_types::identity::AuthorizedManifest {
+    fn generate_auth(
+        owner_sk: &ml_dsa::SigningKey<ml_dsa::MlDsa65>,
+        bot_vk: &ml_dsa::VerifyingKey<ml_dsa::MlDsa65>,
+        capability: &str,
+        network_salt: &[u8; 32],
+    ) -> kinetic_types::identity::AuthorizedManifest {
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
         use ml_dsa::signature::Signer;
         use ml_dsa::{KeyExport, SignatureEncoding};
-        
-        let dummy_did = kinetic_kid::did::KineticDid::new("did:kin:0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+
+        let dummy_did = kinetic_kid::did::KineticDid::new(
+            "did:kin:0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        .unwrap();
 
         let mut auth = kinetic_types::identity::AuthorizedManifest {
             name: "kin".to_string(),
@@ -335,7 +349,7 @@ mod tests {
             }),
             owner_signature: vec![],
         };
-        
+
         let auth_signable = auth.signable_bytes(network_salt);
         auth.owner_signature = owner_sk.sign(&auth_signable).to_bytes().to_vec();
         auth
@@ -347,15 +361,20 @@ mod tests {
         let (owner_sk, owner_vk) = generate_keypair();
         let (bot_sk, bot_vk) = generate_keypair();
         let network_salt = &[1u8; 32];
-        
-        let auth = generate_auth(&owner_sk, &bot_vk, "kinetic.capability.dns_update", network_salt);
+
+        let auth = generate_auth(
+            &owner_sk,
+            &bot_vk,
+            "kinetic.capability.dns_update",
+            network_salt,
+        );
 
         let name = "kin";
         let payload = b"data";
-        
+
         // BOT signs the payload!
         let sig = sign_payload(&bot_sk, name, payload, network_salt);
-        
+
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: owner_vk.to_bytes().to_vec(),
@@ -375,15 +394,15 @@ mod tests {
         let (owner_sk, owner_vk) = generate_keypair();
         let (bot_sk, bot_vk) = generate_keypair();
         let network_salt = &[1u8; 32];
-        
+
         // WRONG CAPABILITY!
         let auth = generate_auth(&owner_sk, &bot_vk, "kinetic.capability.chat", network_salt);
 
         let name = "kin";
         let payload = b"data";
-        
+
         let sig = sign_payload(&bot_sk, name, payload, network_salt);
-        
+
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: owner_vk.to_bytes().to_vec(),
@@ -394,7 +413,10 @@ mod tests {
         };
 
         // MUST FAIL because capability is missing
-        assert!(matches!(record.verify_signature(network_salt), Err(SignatureVerifyError::DelegatedCapabilityMissing)));
+        assert!(matches!(
+            record.verify_signature(network_salt),
+            Err(SignatureVerifyError::DelegatedCapabilityMissing)
+        ));
     }
 
     #[test]
@@ -403,16 +425,21 @@ mod tests {
         let (owner_sk, owner_vk) = generate_keypair();
         let (bot_sk, bot_vk) = generate_keypair();
         let network_salt = &[1u8; 32];
-        
-        let mut auth = generate_auth(&owner_sk, &bot_vk, "kinetic.capability.dns_update", network_salt);
+
+        let mut auth = generate_auth(
+            &owner_sk,
+            &bot_vk,
+            "kinetic.capability.dns_update",
+            network_salt,
+        );
         // Corrupt owner signature!
         auth.owner_signature[10] ^= 1;
 
         let name = "kin";
         let payload = b"data";
-        
+
         let sig = sign_payload(&bot_sk, name, payload, network_salt);
-        
+
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: owner_vk.to_bytes().to_vec(),
@@ -423,7 +450,10 @@ mod tests {
         };
 
         // MUST FAIL because owner grant is corrupt
-        assert!(matches!(record.verify_signature(network_salt), Err(SignatureVerifyError::DelegatedAuthorizationInvalid)));
+        assert!(matches!(
+            record.verify_signature(network_salt),
+            Err(SignatureVerifyError::DelegatedAuthorizationInvalid)
+        ));
     }
 
     #[test]
@@ -432,22 +462,27 @@ mod tests {
         let (owner_sk, owner_vk) = generate_keypair();
         let (bot_sk, bot_vk) = generate_keypair();
         let network_salt = &[1u8; 32];
-        
+
         // Owner authorizes the bot for "test-domain" ONLY
-        let mut auth = generate_auth(&owner_sk, &bot_vk, "kinetic.capability.dns_update", network_salt);
+        let mut auth = generate_auth(
+            &owner_sk,
+            &bot_vk,
+            "kinetic.capability.dns_update",
+            network_salt,
+        );
         auth.name = "test-domain".to_string();
         // Resign the auth object since we changed the name
-        use ml_dsa::signature::Signer;
         use ml_dsa::SignatureEncoding;
+        use ml_dsa::signature::Signer;
         let auth_signable = auth.signable_bytes(network_salt);
         auth.owner_signature = owner_sk.sign(&auth_signable).to_bytes().to_vec();
 
         // Bot tries to use this authorization to hijack "prod-domain" (which is also owned by the same owner)
         let name = "prod-domain";
         let payload = b"malicious-payload";
-        
+
         let sig = sign_payload(&bot_sk, name, payload, network_salt);
-        
+
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: owner_vk.to_bytes().to_vec(), // Owner's pubkey
@@ -458,7 +493,10 @@ mod tests {
         };
 
         // MUST FAIL because the auth object's name does not match the record's name
-        assert!(matches!(record.verify_signature(network_salt), Err(SignatureVerifyError::DelegatedScopeViolation)));
+        assert!(matches!(
+            record.verify_signature(network_salt),
+            Err(SignatureVerifyError::DelegatedScopeViolation)
+        ));
     }
 
     use proptest::prelude::*;
@@ -479,7 +517,7 @@ mod tests {
                 signature: sig,
                 authorization: None,
             };
-            
+
             // Should gracefully fail without panicking
             let _ = record.verify_signature(network_salt);
         }
@@ -499,7 +537,9 @@ mod tests {
             drand_kyn: 9999,
             drand_signature: "aabbcc".to_string(),
             iterations: 500,
-            vdf_proof: VdfProof { proof_bytes: vec![0, 0, 0] },
+            vdf_proof: VdfProof {
+                proof_bytes: vec![0, 0, 0],
+            },
             pubkey: vk.to_bytes().to_vec(),
             signature: vec![],
             authorization: None,
@@ -509,8 +549,8 @@ mod tests {
 
         // Sign the Reveal
         let signable = reveal.signable_bytes(network_salt);
-        use ml_dsa::signature::Signer;
         use ml_dsa::SignatureEncoding;
+        use ml_dsa::signature::Signer;
         reveal.signature = sk.sign(&signable).to_bytes().to_vec();
 
         // Must verify successfully
@@ -518,6 +558,9 @@ mod tests {
 
         // Corrupt signature
         reveal.signature[0] ^= 0xFF;
-        assert!(matches!(reveal.verify_signature(network_salt), Err(SignatureVerifyError::InvalidSignature)));
+        assert!(matches!(
+            reveal.verify_signature(network_salt),
+            Err(SignatureVerifyError::InvalidSignature)
+        ));
     }
 }

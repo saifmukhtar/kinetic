@@ -76,7 +76,10 @@ impl DnsZoneExt for DnsZone {
                 }
             }
 
-            let cname_count = records.iter().filter(|r| matches!(r, DnsRecord::CNAME(_))).count();
+            let cname_count = records
+                .iter()
+                .filter(|r| matches!(r, DnsRecord::CNAME(_)))
+                .count();
             if cname_count > 1 {
                 return Err(crate::error::DnsError::MultipleCnames(label.clone()));
             }
@@ -110,7 +113,9 @@ impl DnsZoneExt for DnsZone {
                         }
                         for c in cname.chars() {
                             if !c.is_ascii_alphanumeric() && c != '-' && c != '.' {
-                                return Err(crate::error::DnsError::InvalidCnameTarget(label.clone()));
+                                return Err(crate::error::DnsError::InvalidCnameTarget(
+                                    label.clone(),
+                                ));
                             }
                         }
                     }

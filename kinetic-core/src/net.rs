@@ -119,35 +119,77 @@ mod tests {
 
     #[test]
     fn test_loopback_ips() {
-        assert_eq!(validate_ssrf_safe("127.0.0.1".parse::<IpAddr>().unwrap()), Err(SsrfError::Loopback));
-        assert_eq!(validate_ssrf_safe("127.12.34.56".parse::<IpAddr>().unwrap()), Err(SsrfError::Loopback));
-        assert_eq!(validate_ssrf_safe("::1".parse::<IpAddr>().unwrap()), Err(SsrfError::Loopback));
+        assert_eq!(
+            validate_ssrf_safe("127.0.0.1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Loopback)
+        );
+        assert_eq!(
+            validate_ssrf_safe("127.12.34.56".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Loopback)
+        );
+        assert_eq!(
+            validate_ssrf_safe("::1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Loopback)
+        );
     }
 
     #[test]
     fn test_private_ips() {
-        assert_eq!(validate_ssrf_safe("10.0.0.1".parse::<IpAddr>().unwrap()), Err(SsrfError::Private));
-        assert_eq!(validate_ssrf_safe("192.168.1.1".parse::<IpAddr>().unwrap()), Err(SsrfError::Private));
-        assert_eq!(validate_ssrf_safe("172.16.0.1".parse::<IpAddr>().unwrap()), Err(SsrfError::Private));
-        assert_eq!(validate_ssrf_safe("fc00::1".parse::<IpAddr>().unwrap()), Err(SsrfError::Private)); // IPv6 Unique Local
-        assert_eq!(validate_ssrf_safe("fd12::34".parse::<IpAddr>().unwrap()), Err(SsrfError::Private)); // IPv6 Unique Local
+        assert_eq!(
+            validate_ssrf_safe("10.0.0.1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Private)
+        );
+        assert_eq!(
+            validate_ssrf_safe("192.168.1.1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Private)
+        );
+        assert_eq!(
+            validate_ssrf_safe("172.16.0.1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Private)
+        );
+        assert_eq!(
+            validate_ssrf_safe("fc00::1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Private)
+        ); // IPv6 Unique Local
+        assert_eq!(
+            validate_ssrf_safe("fd12::34".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Private)
+        ); // IPv6 Unique Local
     }
 
     #[test]
     fn test_advanced_ipv6_wrappers() {
         // IPv4-mapped IPv6 pointing to loopback
-        assert_eq!(validate_ssrf_safe("::ffff:127.0.0.1".parse::<IpAddr>().unwrap()), Err(SsrfError::Ipv6MappedExploit));
+        assert_eq!(
+            validate_ssrf_safe("::ffff:127.0.0.1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Ipv6MappedExploit)
+        );
         // IPv4-compatible IPv6 pointing to loopback
-        assert_eq!(validate_ssrf_safe("::127.0.0.1".parse::<IpAddr>().unwrap()), Err(SsrfError::Ipv6MappedExploit));
+        assert_eq!(
+            validate_ssrf_safe("::127.0.0.1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Ipv6MappedExploit)
+        );
         // IPv6 NAT64
-        assert_eq!(validate_ssrf_safe("64:ff9b::192.0.2.33".parse::<IpAddr>().unwrap()), Err(SsrfError::Nat64));
+        assert_eq!(
+            validate_ssrf_safe("64:ff9b::192.0.2.33".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Nat64)
+        );
     }
 
     #[test]
     fn test_cgnat_and_zero() {
-        assert_eq!(validate_ssrf_safe("0.0.0.0".parse::<IpAddr>().unwrap()), Err(SsrfError::Unspecified));
-        assert_eq!(validate_ssrf_safe("100.64.0.1".parse::<IpAddr>().unwrap()), Err(SsrfError::CgNat));
-        assert_eq!(validate_ssrf_safe("100.127.255.254".parse::<IpAddr>().unwrap()), Err(SsrfError::CgNat));
+        assert_eq!(
+            validate_ssrf_safe("0.0.0.0".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::Unspecified)
+        );
+        assert_eq!(
+            validate_ssrf_safe("100.64.0.1".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::CgNat)
+        );
+        assert_eq!(
+            validate_ssrf_safe("100.127.255.254".parse::<IpAddr>().unwrap()),
+            Err(SsrfError::CgNat)
+        );
         // But 100.63.x.x is public, not CGNAT
         assert!(validate_ssrf_safe("100.63.255.255".parse::<IpAddr>().unwrap()).is_ok());
     }

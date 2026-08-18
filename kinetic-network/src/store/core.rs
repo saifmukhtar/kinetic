@@ -10,8 +10,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use kinetic_core::traits::StorageEngine;
-use libp2p::kad::store::RecordStore;
 use kinetic_verify::signatures::VerifySignature;
+use libp2p::kad::store::RecordStore;
 
 use crate::error::KineticStoreError;
 use lru::LruCache;

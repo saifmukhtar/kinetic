@@ -55,10 +55,10 @@ pub mod network;
 pub mod shutdown;
 /// SSRF security validation error types.
 pub mod ssrf;
-/// Telemetry and logging error types.
-pub mod telemetry;
 /// Sled storage engine error types.
 pub mod storage;
+/// Telemetry and logging error types.
+pub mod telemetry;
 
 /// chiavdf Verifiable Delay Function error types.
 pub mod vdf;
@@ -136,7 +136,6 @@ pub enum KineticError {
     /// variants for expected failure modes.
     #[error("Internal engine error: {0}")]
     Internal(String),
-
 
     /// A configuration value was missing or invalid.
     ///

@@ -14,7 +14,7 @@ pub fn load_or_generate_host_key(key_path: &PathBuf) -> Keypair {
             tracing::warn!("Corrupted static identity found, generating new one");
             let k = Keypair::generate_ed25519();
             if let Ok(encoded) = k.to_protobuf_encoding()
-                && let Err(e) = write_secret(key_path, &encoded)
+                && let Err(e) = kinetic_core::secure_fs::write_secret(key_path, &encoded)
             {
                 tracing::warn!("Failed to save static infrastructure identity: {}", e);
             }
@@ -23,32 +23,11 @@ pub fn load_or_generate_host_key(key_path: &PathBuf) -> Keypair {
     } else {
         let k = Keypair::generate_ed25519();
         if let Ok(encoded) = k.to_protobuf_encoding()
-            && let Err(e) = write_secret(key_path, &encoded)
+            && let Err(e) = kinetic_core::secure_fs::write_secret(key_path, &encoded)
         {
             tracing::warn!("Failed to save static infrastructure identity: {}", e);
         }
         tracing::info!("Generated new static infrastructure identity");
         k
     }
-}
-
-#[cfg(unix)]
-fn write_secret(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
-    use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
-    let tmp = path.with_extension("tmp");
-    let mut f = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&tmp)?;
-    f.write_all(bytes)?;
-    f.sync_all()?;
-    std::fs::rename(tmp, path)
-}
-
-#[cfg(not(unix))]
-fn write_secret(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
-    std::fs::write(path, bytes)
 }

@@ -153,12 +153,10 @@ pub fn save_keypair_from_mnemonic(
     network_salt: &[u8; 32],
 ) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
     use bip39::{Language, Mnemonic};
+    use ml_dsa::KeyExport;
     use pbkdf2::pbkdf2_hmac;
     use sha2::Sha512;
-    use std::fs::{self, OpenOptions};
-    use std::io::Write;
-    #[cfg(unix)]
-    use std::os::unix::fs::OpenOptionsExt;
+    use std::fs;
     use std::path::PathBuf;
     use zeroize::Zeroize;
 
@@ -195,20 +193,7 @@ pub fn save_keypair_from_mnemonic(
         let _ = fs::create_dir_all(parent);
     }
 
-    let tmp_path = key_path.with_extension("tmp");
-    let _ = fs::remove_file(&tmp_path);
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-
-    #[cfg(unix)]
-    options.mode(0o600);
-
-    let mut file = options.open(&tmp_path)?;
-    use ml_dsa::KeyExport;
-    file.write_all(&signing_key.to_bytes())?;
-    file.sync_all()?;
-
-    fs::rename(tmp_path, &key_path)?;
+    crate::secure_fs::write_secret(&key_path, &signing_key.to_bytes())?;
 
     Ok(signing_key)
 }

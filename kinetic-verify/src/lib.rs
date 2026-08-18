@@ -9,7 +9,5 @@ pub const RESQUARING_EPOCH_KYNS: u64 = 5_256_000;
 /// Maximum allowed byte size for a name reveal payload (64 KB).
 pub const MAX_PAYLOAD_SIZE: usize = 65_536;
 
-pub use kinetic_types::vdf::{
-    CommitRequest, Commitment, PreviousProof, Reveal, VdfProof,
-};
 pub use error::SignatureVerifyError;
+pub use kinetic_types::vdf::{CommitRequest, Commitment, PreviousProof, Reveal, VdfProof};

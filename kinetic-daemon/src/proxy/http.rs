@@ -326,13 +326,25 @@ pub async fn forward_to_backend_direct(
         let is_ssrf = ssrf_result.is_err() || ip_addr.is_unspecified();
 
         if is_ssrf && !kinetic_core::config::is_dev_mode() {
-            let reason = if ip_addr.is_unspecified() { "Unspecified IP".to_string() } else { ssrf_result.unwrap_err().to_string() };
-            return Err(ProxyError::SecurityViolation(format!("Cannot proxy to loopback or private IPs. Reason: {}. (Use Dev Mode to bypass)", reason)));
+            let reason = if ip_addr.is_unspecified() {
+                "Unspecified IP".to_string()
+            } else {
+                ssrf_result.unwrap_err().to_string()
+            };
+            return Err(ProxyError::SecurityViolation(format!(
+                "Cannot proxy to loopback or private IPs. Reason: {}. (Use Dev Mode to bypass)",
+                reason
+            )));
         } else if is_ssrf {
-            let reason = if ip_addr.is_unspecified() { "Unspecified IP".to_string() } else { ssrf_result.unwrap_err().to_string() };
+            let reason = if ip_addr.is_unspecified() {
+                "Unspecified IP".to_string()
+            } else {
+                ssrf_result.unwrap_err().to_string()
+            };
             tracing::warn!(
                 "DEV MODE: Forwarding to private IP {}. Reason: {}. This would be blocked in production.",
-                ip_addr, reason
+                ip_addr,
+                reason
             );
         }
 

@@ -102,12 +102,24 @@ mod tests {
 
     #[test]
     fn test_signature_verify_error_taxonomy() {
-        assert_eq!(SignatureVerifyError::DelegatedScopeViolation.code(), "KIN-VDF-045");
-        assert_eq!(SignatureVerifyError::DelegatedScopeViolation.severity(), Severity::Error);
+        assert_eq!(
+            SignatureVerifyError::DelegatedScopeViolation.code(),
+            "KIN-VDF-045"
+        );
+        assert_eq!(
+            SignatureVerifyError::DelegatedScopeViolation.severity(),
+            Severity::Error
+        );
         assert!(!SignatureVerifyError::DelegatedScopeViolation.is_retryable());
 
-        assert_eq!(SignatureVerifyError::DelegatedKidDocumentMissing.code(), "KIN-VDF-046");
-        assert_eq!(SignatureVerifyError::DelegatedKidDocumentMissing.severity(), Severity::Error);
+        assert_eq!(
+            SignatureVerifyError::DelegatedKidDocumentMissing.code(),
+            "KIN-VDF-046"
+        );
+        assert_eq!(
+            SignatureVerifyError::DelegatedKidDocumentMissing.severity(),
+            Severity::Error
+        );
         assert!(!SignatureVerifyError::DelegatedKidDocumentMissing.is_retryable());
     }
 }

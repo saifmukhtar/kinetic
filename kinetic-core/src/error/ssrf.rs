@@ -69,12 +69,20 @@ impl SsrfError {
         match self {
             Self::Loopback => "Security block: Loopback proxying is prohibited.".to_string(),
             Self::Private => "Security block: Private network proxying is prohibited.".to_string(),
-            Self::Unspecified => "Security block: Unspecified address proxying is prohibited.".to_string(),
+            Self::Unspecified => {
+                "Security block: Unspecified address proxying is prohibited.".to_string()
+            }
             Self::CgNat => "Security block: Carrier-Grade NAT bypass exploit blocked.".to_string(),
-            Self::LocalNetworkRouting => "Security block: Local network routing bypass exploit blocked.".to_string(),
-            Self::Ipv6MappedExploit => "Security block: IPv4-mapped IPv6 bypass exploit blocked.".to_string(),
+            Self::LocalNetworkRouting => {
+                "Security block: Local network routing bypass exploit blocked.".to_string()
+            }
+            Self::Ipv6MappedExploit => {
+                "Security block: IPv4-mapped IPv6 bypass exploit blocked.".to_string()
+            }
             Self::Nat64 => "Security block: NAT64 translation bypass exploit blocked.".to_string(),
-            Self::Reserved => "Security block: Reserved IP address proxying is prohibited.".to_string(),
+            Self::Reserved => {
+                "Security block: Reserved IP address proxying is prohibited.".to_string()
+            }
         }
     }
 }

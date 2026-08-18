@@ -7,7 +7,6 @@ use tokio::sync::oneshot;
 #[allow(unused_imports)]
 use kinetic_verify::signatures::VerifySignature;
 
-
 pub(crate) struct PendingGet {
     pub(crate) responders: Vec<oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>>,
     pub(crate) expected_responses: usize,

@@ -45,6 +45,8 @@ pub mod net;
 /// Idempotency key helpers for deduplicating daemon API requests.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod request_id;
+/// Secure filesystem utilities for atomic, permissions-enforced secret storage.
+pub mod secure_fs;
 /// Cross-platform graceful shutdown signal listener.
 pub mod shutdown;
 /// Core trait definitions: [`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine).

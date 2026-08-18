@@ -29,10 +29,15 @@ pub async fn handle_resolve_name(
                 let dev_mode = kinetic_core::config::is_dev_mode();
                 if !dev_mode {
                     if let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT) {
-                        tracing::warn!("Rejecting spoofed NameRecord from network (CDN cache poisoning): {:?}", e);
+                        tracing::warn!(
+                            "Rejecting spoofed NameRecord from network (CDN cache poisoning): {:?}",
+                            e
+                        );
                         return Err((
                             StatusCode::FORBIDDEN,
-                            Json(serde_json::json!({"error": "NameRecord cryptographic signature verification failed. The record is spoofed or corrupted."})),
+                            Json(
+                                serde_json::json!({"error": "NameRecord cryptographic signature verification failed. The record is spoofed or corrupted."}),
+                            ),
                         ));
                     }
                 }

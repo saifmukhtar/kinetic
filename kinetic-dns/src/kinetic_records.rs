@@ -348,7 +348,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             }
 
                                             if let Ok(ip) = target.parse::<std::net::IpAddr>() {
-                                                if let Err(e) = kinetic_core::net::validate_ssrf_safe(ip) {
+                                                if let Err(e) =
+                                                    kinetic_core::net::validate_ssrf_safe(ip)
+                                                {
                                                     warn!(
                                                         "Blocked SSRF attempt: CNAME record points to forbidden IP {}. Reason: {}",
                                                         ip, e

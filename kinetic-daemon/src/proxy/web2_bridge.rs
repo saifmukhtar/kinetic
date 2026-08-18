@@ -40,14 +40,19 @@ pub async fn forward_to_web2_backend(
     // 2. Strict SSRF Protection Check
     let ssrf_result = kinetic_core::net::validate_ssrf_safe(ip_addr);
     if ssrf_result.is_err() || ip_addr.is_unspecified() {
-        let reason = if ip_addr.is_unspecified() { "Unspecified IP".to_string() } else { ssrf_result.unwrap_err().to_string() };
+        let reason = if ip_addr.is_unspecified() {
+            "Unspecified IP".to_string()
+        } else {
+            ssrf_result.unwrap_err().to_string()
+        };
         warn!(
             "Web2 Bridge SSRF Blocked: {} resolved to a dangerous IP ({}). Reason: {}",
             target_domain, ip_addr, reason
         );
-        return Err(ProxyError::SecurityViolation(
-            format!("Web2 Bridge target resolved to a dangerous IP. Reason: {}", reason),
-        ));
+        return Err(ProxyError::SecurityViolation(format!(
+            "Web2 Bridge target resolved to a dangerous IP. Reason: {}",
+            reason
+        )));
     }
 
     // 3. Build the reqwest client securely.
