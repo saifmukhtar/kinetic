@@ -27,9 +27,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 ) -> ResponseInfo {
     let query = request.query();
 
-    // Intercept Category 1 PUBLIC_NAMES
+    // Intercept Category 1 RESERVED_NAMES
     let parts: Vec<&str> = apex_domain.split('.').collect();
-    if !parts.is_empty() && kinetic_core::types::PUBLIC_NAMES.contains(&parts[0]) {
+    if !parts.is_empty() && kinetic_core::types::RESERVED_NAMES.contains(&parts[0]) {
         if parts[0] == "localhost" {
             let mut response_records = Vec::new();
             let name = Name::from_str(query_name).unwrap_or_else(|_| Name::root());
@@ -71,7 +71,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                 return header.into();
             }
         } else {
-            // For all other PUBLIC_NAMES, instantly return NXDOMAIN (Not Found)
+            // For all other RESERVED_NAMES, instantly return NXDOMAIN (Not Found)
             let response =
                 builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
             let _ = response_handle.send_response(response).await;
@@ -328,7 +328,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             let mut is_blocked_cname = false;
 
                                             for &blocked_name in
-                                                kinetic_core::types::names::PUBLIC_NAMES
+                                                kinetic_core::types::names::RESERVED_NAMES
                                             {
                                                 if target_lower == blocked_name
                                                     || target_lower

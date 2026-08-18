@@ -34,7 +34,7 @@ pub fn normalize_name(name: &str) -> String {
 pub fn is_reserved_name(name: &str) -> bool {
     let nsp = crate::constants::NSP_SUFFIX;
     let name_lower = name.to_lowercase();
-    PUBLIC_NAMES
+    RESERVED_NAMES
         .iter()
         .any(|&r| format!("{}{}", r, nsp) == name_lower)
 }
@@ -42,7 +42,7 @@ pub fn is_reserved_name(name: &str) -> bool {
 /// Category 1: Public Utility Names (Based on RFC 2606 & RFC 6761).
 ///
 /// These names are permanently locked across the network to prevent collisions.
-pub const PUBLIC_NAMES: &[&str] = &[
+pub const RESERVED_NAMES: &[&str] = &[
     "test",
     "example",
     "invalid",
@@ -74,12 +74,6 @@ pub const PUBLIC_NAMES: &[&str] = &[
 /// - Returns [`crate::error::NamesError::ReservedName`] if the label matches a Category 1 public utility name.
 /// - Returns [`crate::error::NamesError::InfrastructureName`] if the label is a locked Category 2 network infrastructure name.
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
-    let name_lower = name.to_lowercase();
-    if !name_lower.ends_with(crate::constants::NSP_SUFFIX) {
-        let err = crate::error::NamesError::InvalidNSP;
-        return Err(err);
-    }
-
     let norm = normalize_name(name);
 
     if norm.len() > 253 || norm.is_empty() {
@@ -112,7 +106,7 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     }
 
     // Ensure the registered label is not a Category 1 reserved public utility name.
-    if is_reserved_name(&name_lower) {
+    if is_reserved_name(&norm) {
         return Err(crate::error::NamesError::ReservedName);
     }
 
