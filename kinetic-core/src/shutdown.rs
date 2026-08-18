@@ -11,7 +11,11 @@ pub async fn shutdown_signal() {
         match tokio::signal::ctrl_c().await {
             Ok(_) => {}
             Err(e) => {
-                tracing::warn!("Failed to bind Ctrl+C handler: {}. The node will continue running but graceful keyboard shutdown is disabled.", e);
+                tracing::warn!(
+                    error = ?crate::error::shutdown::ShutdownError::SigIntBindingFailed(e.to_string()),
+                    "{}",
+                    crate::error::shutdown::ShutdownError::SigIntBindingFailed(e.to_string()).user_message()
+                );
                 std::future::pending::<()>().await;
             }
         }
@@ -24,7 +28,11 @@ pub async fn shutdown_signal() {
                 signal.recv().await;
             }
             Err(e) => {
-                tracing::warn!("Failed to bind SIGTERM handler: {}. The node will continue running but graceful system shutdown is disabled.", e);
+                tracing::warn!(
+                    error = ?crate::error::shutdown::ShutdownError::SigTermBindingFailed(e.to_string()),
+                    "{}",
+                    crate::error::shutdown::ShutdownError::SigTermBindingFailed(e.to_string()).user_message()
+                );
                 std::future::pending::<()>().await;
             }
         }

@@ -15,7 +15,15 @@ tokio::task_local! {
 pub fn current() -> std::sync::Arc<String> {
     CURRENT_REQUEST_ID
         .try_with(|id| id.clone())
-        .unwrap_or_else(|_| std::sync::Arc::new("no-request-id".to_string()))
+        .unwrap_or_else(|_| {
+            let err = crate::error::telemetry::TelemetryError::MissingCorrelationId;
+            tracing::warn!(
+                error = ?err,
+                code = err.code(),
+                "{}", err.user_message()
+            );
+            std::sync::Arc::new("no-request-id".to_string())
+        })
 }
 
 /// Runs future `f` within a new auto-generated request ID scope (`"req-N"`).

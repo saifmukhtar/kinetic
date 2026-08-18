@@ -31,6 +31,9 @@
 //! | `KIN-NAM-NNN` | `NamesError` | Name validation |
 //! | `KIN-STO-NNN` | `StorageError` | Sled storage engine |
 //! | `KIN-NET-NNN` | `NetworkClientError` + `KineticStoreError` | P2P network client and store layer |
+//! | `KIN-SEC-NNN` | `SsrfError` | IP Server-Side Request Forgery filtering |
+//! | `KIN-SHU-NNN` | `ShutdownError` | Graceful daemon shutdown |
+//! | `KIN-TEL-NNN` | `TelemetryError` | Tracing and correlation correlation IDs |
 
 use thiserror::Error;
 
@@ -48,6 +51,12 @@ pub mod identity;
 pub mod names;
 /// libp2p network client error types.
 pub mod network;
+/// Daemon shutdown signal error types.
+pub mod shutdown;
+/// SSRF security validation error types.
+pub mod ssrf;
+/// Telemetry and logging error types.
+pub mod telemetry;
 /// Sled storage engine error types.
 pub mod storage;
 

@@ -4,34 +4,7 @@
 
 use std::net::IpAddr;
 
-/// Specifies the exact reason why an IP address was blocked by the SSRF security middleware.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum SsrfError {
-    /// The IP address is a local loopback address (e.g., 127.0.0.1 or ::1).
-    #[error("Loopback address detected")]
-    Loopback,
-    /// The IP address is in a private subnet (e.g., 10.0.0.0/8, 192.168.0.0/16).
-    #[error("Private address detected")]
-    Private,
-    /// The IP address is the unspecified address (e.g., 0.0.0.0 or ::).
-    #[error("Unspecified network address")]
-    Unspecified,
-    /// The IP address is inside a Carrier-Grade NAT block (e.g., 100.64.0.0/10).
-    #[error("Carrier-Grade NAT detected")]
-    CgNat,
-    /// The IP address routes locally via multicast, broadcast, or link-local routing.
-    #[error("Multicast, broadcast, or link-local address")]
-    LocalNetworkRouting,
-    /// The IP address is an IPv6 address that maps or translates directly to an internal IPv4 address.
-    #[error("IPv4-mapped IPv6 address exploit")]
-    Ipv6MappedExploit,
-    /// The IP address uses NAT64 to mask an internal destination.
-    #[error("NAT64 translation block")]
-    Nat64,
-    /// The IP address is a reserved, experimental, or documentation address block.
-    #[error("Reserved or documentation IP address")]
-    Reserved,
-}
+pub use crate::error::ssrf::SsrfError;
 
 /// Checks whether an IP address is safe to connect to or proxy through.
 ///
