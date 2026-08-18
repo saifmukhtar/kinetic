@@ -66,8 +66,7 @@ pub const RESERVED_NAMES: &[&str] = &[
 ///
 /// # Errors
 ///
-/// - Returns [`crate::error::NamesError::InvalidNSP`] if the name does not end with the network NSP suffix.
-/// - Returns [`crate::error::NamesError::NameTooLong`] if the total name length exceeds 253 characters or is empty.
+/// - Returns [`crate::error::NamesError::NameTooLong`] if the total name length exceeds 253 characters.
 /// - Returns [`crate::error::NamesError::LabelTooLong`] if any individual dot-separated label exceeds 63 characters.
 /// - Returns [`crate::error::NamesError::InvalidCharacter`] if a label contains non-LDH characters or invalid hyphen/digit placements.
 /// - Returns [`crate::error::NamesError::NotAnApexName`] if the input is a subdomain (e.g. `blog.example.kin`) instead of an apex name (`example.kin`).
@@ -76,7 +75,7 @@ pub const RESERVED_NAMES: &[&str] = &[
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     let norm = normalize_name(name);
 
-    if norm.len() > 253 || norm.is_empty() {
+    if norm.len() > 253 {
         return Err(crate::error::NamesError::NameTooLong);
     }
     for part in norm.split('.') {
@@ -165,13 +164,19 @@ mod tests {
             ))
             .is_ok()
         );
-        assert!(
-            is_valid_apex_name(&format!(
-                "{}{}",
-                "saifmukhtar",
-                crate::constants::NSP_SUFFIX
-            ))
-            .is_ok()
+        
+        // Edge Case: Total name length exceeds 253 characters
+        let long_name = "a".repeat(250) + crate::constants::NSP_SUFFIX;
+        assert_eq!(
+            is_valid_apex_name(&long_name),
+            Err(crate::error::NamesError::NameTooLong)
+        );
+
+        // Edge Case: Label length exceeds 63 characters
+        let long_label = "a".repeat(64) + crate::constants::NSP_SUFFIX;
+        assert_eq!(
+            is_valid_apex_name(&long_label),
+            Err(crate::error::NamesError::LabelTooLong)
         );
         assert!(
             is_valid_apex_name(&format!(
