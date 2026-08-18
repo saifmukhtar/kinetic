@@ -90,11 +90,8 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
             }
         }
 
-        // Labels cannot start with a hyphen or a digit, and cannot end with a hyphen
-        if part.starts_with('-')
-            || part.ends_with('-')
-            || part.starts_with(|c: char| c.is_ascii_digit())
-        {
+        // Labels cannot start or end with a hyphen
+        if part.starts_with('-') || part.ends_with('-') {
             return Err(crate::error::NamesError::InvalidCharacter);
         }
     }
@@ -186,9 +183,9 @@ mod tests {
             ))
             .is_ok()
         );
-        assert_eq!(
-            is_valid_apex_name(&format!("{}{}", "007", crate::constants::NSP_SUFFIX)),
-            Err(crate::error::NamesError::InvalidCharacter)
+        assert!(
+            is_valid_apex_name(&format!("{}{}", "007", crate::constants::NSP_SUFFIX))
+            .is_ok()
         );
 
         assert_eq!(
