@@ -17,7 +17,7 @@
 
 mod api;
 mod gossip;
-mod identity;
+mod node_key;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -200,7 +200,7 @@ async fn run_node() -> Result<()> {
 
     // 4. Load Static Network Identity
     let key_path = kinetic_core::config::get_base_dir().join("node.key");
-    let local_key = identity::load_or_generate_key(&key_path);
+    let local_key = node_key::load_or_generate_key(&key_path);
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
     tracing::info!(
