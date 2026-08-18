@@ -150,7 +150,7 @@ pub fn load_encrypted_keypair(
 pub fn save_keypair_from_mnemonic(
     filename: &str,
     phrase: &str,
-    network_id: &str,
+    network_salt: &[u8; 32],
 ) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
     use bip39::{Language, Mnemonic};
     use pbkdf2::pbkdf2_hmac;
@@ -167,8 +167,11 @@ pub fn save_keypair_from_mnemonic(
 
     let mut seed = mnemonic.to_seed("");
 
-    // Use a fixed, network-specific salt for deterministic PBKDF2
-    let salt = format!("{}-seed-key-v1", network_id);
+    // Use the cryptographically strong network salt for deterministic PBKDF2
+    // We append a purpose string for domain separation
+    let mut salt = Vec::with_capacity(32 + 12);
+    salt.extend_from_slice(network_salt);
+    salt.extend_from_slice(b"-seed-key-v1");
 
     let mut derived = [0u8; 32];
     #[cfg(debug_assertions)]
@@ -176,7 +179,7 @@ pub fn save_keypair_from_mnemonic(
     #[cfg(not(debug_assertions))]
     let iterations = 5_000_000;
 
-    pbkdf2_hmac::<Sha512>(&seed, salt.as_bytes(), iterations, &mut derived);
+    pbkdf2_hmac::<Sha512>(&seed, &salt, iterations, &mut derived);
 
     let signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&derived).into());
 
@@ -312,7 +315,7 @@ mod tests {
         let result = save_keypair_from_mnemonic(
             "test.bin",
             "not a valid seed phrase",
-            env!("KINETIC_NETWORK_ID"),
+            crate::constants::NETWORK_SALT,
         );
         assert!(matches!(
             result,
@@ -326,7 +329,7 @@ mod tests {
         }
         let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
         let saved_key =
-            save_keypair_from_mnemonic("test.bin", phrase, env!("KINETIC_NETWORK_ID")).unwrap();
+            save_keypair_from_mnemonic("test.bin", phrase, crate::constants::NETWORK_SALT).unwrap();
         let loaded_key = load_keypair("test.bin").unwrap();
         use ml_dsa::KeyExport;
         assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());

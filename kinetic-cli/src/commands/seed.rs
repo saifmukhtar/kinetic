@@ -74,7 +74,7 @@ pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
             save_keypair_from_mnemonic(
                 &identity_path.to_string_lossy(),
                 &phrase,
-                kinetic_core::constants::NETWORK_ID,
+                kinetic_core::constants::NETWORK_SALT,
             )?;
             info!("Identity derived and saved to {:?}", identity_path);
         }
@@ -86,7 +86,7 @@ pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
             match save_keypair_from_mnemonic(
                 &identity_path.to_string_lossy(),
                 &phrase,
-                kinetic_core::constants::NETWORK_ID,
+                kinetic_core::constants::NETWORK_SALT,
             ) {
                 Ok(_) => {
                     info!("Successfully restored identity to {:?}!", identity_path);

@@ -54,6 +54,10 @@ pub enum DnsError {
     /// An IPFS CID string is invalid.
     #[error("Invalid IPFS CID string: {0}")]
     InvalidIpfsCid(String),
+
+    /// Multiple CNAME records are assigned to the same label.
+    #[error("Multiple CNAME records found for label '{0}', which violates RFC 1034")]
+    MultipleCnames(String),
 }
 
 impl PartialEq for DnsError {
@@ -70,6 +74,7 @@ impl PartialEq for DnsError {
             (Self::InvalidPeerId(a), Self::InvalidPeerId(b)) => a == b,
             (Self::InvalidKid(a), Self::InvalidKid(b)) => a == b,
             (Self::InvalidIpfsCid(a), Self::InvalidIpfsCid(b)) => a == b,
+            (Self::MultipleCnames(a), Self::MultipleCnames(b)) => a == b,
             _ => false,
         }
     }
@@ -92,6 +97,7 @@ impl DnsError {
             Self::InvalidPeerId(_) => "KIN-DNS-009",
             Self::InvalidKid(_) => "KIN-DNS-010",
             Self::InvalidIpfsCid(_) => "KIN-DNS-011",
+            Self::MultipleCnames(_) => "KIN-DNS-012",
         }
     }
 
@@ -137,6 +143,9 @@ impl DnsError {
                 "A KID string is invalid or missing the 'did:kin:' prefix.".to_string()
             }
             Self::InvalidIpfsCid(_) => "An IPFS CID string is invalid.".to_string(),
+            Self::MultipleCnames(_) => {
+                "Multiple CNAME records are not allowed for a single label.".to_string()
+            }
         }
     }
 }

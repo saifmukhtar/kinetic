@@ -76,8 +76,11 @@ impl DnsZoneExt for DnsZone {
                 }
             }
 
-            let has_cname = records.iter().any(|r| matches!(r, DnsRecord::CNAME(_)));
-            if has_cname {
+            let cname_count = records.iter().filter(|r| matches!(r, DnsRecord::CNAME(_))).count();
+            if cname_count > 1 {
+                return Err(crate::error::DnsError::MultipleCnames(label.clone()));
+            }
+            if cname_count > 0 {
                 // By default (RFC 1034), a CNAME must be the only record on its label.
                 // However, RFC 4035 (DNSSEC) explicitly allows cryptographic identity records
                 // (like RRSIG and NSEC) to coexist with CNAMEs because they provide proof of identity
@@ -104,6 +107,11 @@ impl DnsZoneExt for DnsZone {
                     DnsRecord::CNAME(cname) => {
                         if cname.is_empty() || cname.len() > 253 {
                             return Err(crate::error::DnsError::InvalidCnameTarget(label.clone()));
+                        }
+                        for c in cname.chars() {
+                            if !c.is_ascii_alphanumeric() && c != '-' && c != '.' {
+                                return Err(crate::error::DnsError::InvalidCnameTarget(label.clone()));
+                            }
                         }
                     }
                     DnsRecord::PeerId(peer_id_str) => {
@@ -290,6 +298,34 @@ mod tests {
         assert_eq!(
             zone.validate().unwrap_err(),
             DnsError::InvalidKid("did:eth:123".to_string())
+        );
+    }
+    #[test]
+    fn test_error_multiple_cnames() {
+        let mut zone = DnsZone::default();
+        zone.records.insert(
+            "www".to_string(),
+            vec![
+                DnsRecord::CNAME("target1.kin".to_string()),
+                DnsRecord::CNAME("target2.kin".to_string()),
+            ],
+        );
+        assert_eq!(
+            zone.validate().unwrap_err(),
+            DnsError::MultipleCnames("www".to_string())
+        );
+    }
+
+    #[test]
+    fn test_error_invalid_cname_target_chars() {
+        let mut zone = DnsZone::default();
+        zone.records.insert(
+            "www".to_string(),
+            vec![DnsRecord::CNAME("https://hacker.com/?q=evil".to_string())],
+        );
+        assert_eq!(
+            zone.validate().unwrap_err(),
+            DnsError::InvalidCnameTarget("www".to_string())
         );
     }
 }

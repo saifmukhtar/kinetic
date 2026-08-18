@@ -267,7 +267,8 @@ impl From<DnsError> for ApiError {
             | DnsError::InvalidCnameTarget(_)
             | DnsError::InvalidPeerId(_)
             | DnsError::InvalidKid(_)
-            | DnsError::InvalidIpfsCid(_) => (400, "Bad Request"),
+            | DnsError::InvalidIpfsCid(_)
+            | DnsError::MultipleCnames(_) => (400, "Bad Request"),
         };
         ApiError {
             error_type: e.error_type_uri(),
