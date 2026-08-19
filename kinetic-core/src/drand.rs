@@ -268,10 +268,10 @@ impl DrandClient {
     ///
     /// # Errors
     ///
-    /// - Returns [`DrandError::HttpError`] (`KIN-DRA-002`) if the final attempt returns a non-2xx HTTP status.
-    /// - Returns [`DrandError::Network`] (`KIN-DRA-003`) on connection failure or response body exceeds 64 KB.
-    /// - Returns [`DrandError::JsonError`] (`KIN-DRA-006`) if the response body fails JSON deserialization.
-    /// - Returns [`DrandError::AllEndpointsFailed`] (`KIN-DRA-005`) if all 3 attempts are exhausted without success.
+    /// - Returns [`DrandError::HttpError`] (`KIN-DRA-003`) if the final attempt returns a non-2xx HTTP status.
+    /// - Returns [`DrandError::Network`] (`KIN-DRA-002`) on connection failure or response body exceeds 64 KB.
+    /// - Returns [`DrandError::Serde`] (`KIN-DRA-005`) if the response body fails JSON deserialization.
+    /// - Returns [`DrandError::AllEndpointsFailed`] (`KIN-DRA-001`) if all 3 attempts are exhausted without success.
     async fn fetch_with_backoff(&self, url: &str) -> Result<RawKyn, DrandError> {
         let mut delay = Duration::from_millis(500);
         let max_attempts = 3;
