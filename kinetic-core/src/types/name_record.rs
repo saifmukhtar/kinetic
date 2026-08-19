@@ -7,9 +7,9 @@
 //!
 //! Every name is stored at `M_REDUNDANCY` (32) distinct DHT keys to improve availability
 //! and resist single-peer failures. Each key is derived as:
-//! `SHA-256(name_bytes || [i] || "{NETWORK_ID}-dht-v1")`
+//! `SHA-256(network_salt || "storage" || normalized_name || [i])`
 //!
-//! The `{NETWORK_ID}` suffix prevents key collisions between different Kinetic NSP networks.
+//! The `network_salt` prevents key collisions between different Kinetic NSP networks.
 
 pub use kinetic_types::name_record::{
     Heartbeat, M_REDUNDANCY, NameRecord, derive_heartbeat_keys, derive_storage_keys,
