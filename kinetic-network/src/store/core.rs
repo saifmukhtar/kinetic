@@ -224,7 +224,7 @@ impl KineticRecordStore {
         }
 
         let max_age_kyns = kinetic_core::types::RESQUARING_EPOCH_KYNS;
-        let idle_timeout = (7 * 24 * 3600) / 3; // 7 days of 3-second Drand kyns
+        let idle_timeout = (7 * 24 * 3600) / 3; println!("current_kyn: {}, idle_timeout: {}", current_kyn, idle_timeout); // 7 days of 3-second Drand kyns
 
         let mut expired_names = Vec::new();
 
@@ -242,7 +242,7 @@ impl KineticRecordStore {
                         .get(name)
                         .copied()
                         .unwrap_or(reveal.drand_kyn);
-                    let hb_age = current_kyn.saturating_sub(last_hb);
+                    let hb_age = current_kyn.saturating_sub(last_hb); println!("Name: {}, last_hb: {}, hb_age: {}", name, last_hb, hb_age);
 
                     if !kinetic_core::types::protocol::requires_heartbeat(name) {
                         continue;
@@ -263,7 +263,7 @@ impl KineticRecordStore {
                         .get(name)
                         .copied()
                         .unwrap_or(grant_kyn);
-                    let hb_age = current_kyn.saturating_sub(last_hb);
+                    let hb_age = current_kyn.saturating_sub(last_hb); println!("Name: {}, last_hb: {}, hb_age: {}", name, last_hb, hb_age);
 
                     if hb_age > idle_timeout {
                         expired_names.push(name.clone());
@@ -575,8 +575,8 @@ mod tests {
     use libp2p::identity::Keypair;
     use tempfile::tempdir;
 
-    #[test]
-    fn test_store_rejects_garbage() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_store_rejects_garbage() {
         let dir = tempdir().unwrap();
         let sled_storage = Arc::new(SledStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
@@ -600,5 +600,95 @@ mod tests {
 
         let res = store.put(record);
         assert!(res.is_err()); // Should reject
+    }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_thermodynamic_pruning_removes_idle_names() {
+        let dir = tempdir().unwrap();
+        let sled_storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+        let keypair = Keypair::generate_ed25519();
+        let peer_id = PeerId::from(keypair.public());
+        let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+            std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+            
+        let mut store = KineticRecordStore::new(
+            peer_id,
+            sled_storage.clone(),
+            1000000, // Very high drand kyn
+            NonZeroUsize::new(100).unwrap(),
+            100,
+            vdf_engine,
+        );
+
+        let name = "a.kin"; // Prime name, requires heartbeats
+        let record = kinetic_core::types::NameRecord::Prime {
+            name: name.to_string(),
+            pubkey: vec![],
+            granted_at: 0,
+            payload: vec![],
+            signature: vec![],
+            authorization: None,
+        };
+        
+        let record_bytes = serde_json::to_vec(&record).unwrap();
+        let derived_keys = kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_SALT);
+        let kad_key = kad::RecordKey::new(&derived_keys[0]);
+        
+        let kad_record = kad::Record::new(kad_key.clone(), record_bytes);
+        store.put_record_internal(kad_record, true).unwrap();
+        
+        assert!(store.get_record_with_fallback(name).is_some());
+
+        store.current_drand_kyn += 300000; store.prune();
+        
+        // Wait for async deletion task to run
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+        
+        // It should be pruned!
+        assert!(store.reveals_by_name.get(name).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_thermodynamic_pruning_preserves_exempt_names() {
+        let dir = tempdir().unwrap();
+        let sled_storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+        let keypair = Keypair::generate_ed25519();
+        let peer_id = PeerId::from(keypair.public());
+        let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+            std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+            
+        let mut store = KineticRecordStore::new(
+            peer_id,
+            sled_storage.clone(),
+            1000000,
+            NonZeroUsize::new(100).unwrap(),
+            100,
+            vdf_engine,
+        );
+
+        let name = "seed.kin"; // Exempt protocol name
+        let record = kinetic_core::types::NameRecord::Infra {
+            name: name.to_string(),
+            pubkey: vec![],
+            granted_at: 0,
+            payload: vec![],
+            signature: vec![],
+            authorization: None,
+        };
+        
+        let record_bytes = serde_json::to_vec(&record).unwrap();
+        let derived_keys = kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_SALT);
+        let kad_key = kad::RecordKey::new(&derived_keys[0]);
+        
+        let kad_record = kad::Record::new(kad_key.clone(), record_bytes);
+        store.put_record_internal(kad_record, true).unwrap();
+        
+        assert!(store.get_record_with_fallback(name).is_some());
+        
+        store.current_drand_kyn += 300000; store.prune();
+        
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+        
+        // It should NOT be pruned!
+        assert!(store.get_record_with_fallback(name).is_some());
     }
 }

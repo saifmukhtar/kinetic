@@ -66,3 +66,24 @@ pub fn requires_heartbeat(name: &str) -> bool {
     // Protocol names are exempt from heartbeats and pruning
     !is_protocol_name(name)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_protocol_names_exempt_from_heartbeats() {
+        assert!(!requires_heartbeat("seed.kin"));
+        assert!(!requires_heartbeat("docs.kin"));
+        assert!(!requires_heartbeat("api.kin"));
+        assert!(!requires_heartbeat("status.kin"));
+    }
+
+    #[test]
+    fn test_normal_names_require_heartbeats() {
+        assert!(requires_heartbeat("satoshi.kin"));
+        assert!(requires_heartbeat("a.kin")); // Prime names require heartbeats
+        assert!(requires_heartbeat("blog.satoshi.kin"));
+        assert!(requires_heartbeat("something.kin"));
+    }
+}
