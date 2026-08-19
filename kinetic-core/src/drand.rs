@@ -425,4 +425,58 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_kyn_usability_for_registration() {
+        // A live, available kyn should be usable for registration
+        let mut kyn = RawKyn {
+            kyn: 1000,
+            randomness: String::new(),
+            signature: String::new(),
+            is_from_cache: false,
+            is_unavailable: false,
+        };
+        assert!(kyn.is_usable_for_registration());
+
+        // A cached kyn is NOT usable for registration
+        kyn.is_from_cache = true;
+        assert!(!kyn.is_usable_for_registration());
+
+        // An unavailable sentinel is NOT usable
+        let sentinel = RawKyn::unavailable();
+        assert!(!sentinel.is_usable_for_registration());
+    }
+
+    #[test]
+    fn test_kyn_usability_for_heartbeat_staleness() {
+        // A live, available kyn is always usable for heartbeat
+        let mut kyn = RawKyn {
+            kyn: 1000,
+            randomness: String::new(),
+            signature: String::new(),
+            is_from_cache: false,
+            is_unavailable: false,
+        };
+        assert!(kyn.is_usable_for_heartbeat(1000));
+        assert!(kyn.is_usable_for_heartbeat(5000)); // live kyns don't check staleness locally here
+
+        // A cached kyn checks staleness against the provided current_live_kyn
+        kyn.is_from_cache = true;
+        
+        // Exact same kyn (0 staleness)
+        assert!(kyn.is_usable_for_heartbeat(1000));
+        
+        // Max allowed staleness (200 rounds)
+        assert!(kyn.is_usable_for_heartbeat(1200));
+        
+        // Exceeds max staleness (201 rounds)
+        assert!(!kyn.is_usable_for_heartbeat(1201));
+
+        // Edge case: current_live_kyn is somehow behind the cached kyn
+        assert!(kyn.is_usable_for_heartbeat(999));
+
+        // An unavailable sentinel is never usable
+        let sentinel = RawKyn::unavailable();
+        assert!(!sentinel.is_usable_for_heartbeat(1000));
+    }
 }
