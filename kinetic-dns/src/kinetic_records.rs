@@ -347,16 +347,15 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 continue;
                                             }
 
-                                            if let Ok(ip) = target.parse::<std::net::IpAddr>() {
-                                                if let Err(e) =
+                                            if let Ok(ip) = target.parse::<std::net::IpAddr>()
+                                                && let Err(e) =
                                                     kinetic_core::net::validate_ssrf_safe(ip)
-                                                {
-                                                    warn!(
-                                                        "Blocked SSRF attempt: CNAME record points to forbidden IP {}. Reason: {}",
-                                                        ip, e
-                                                    );
-                                                    continue;
-                                                }
+                                            {
+                                                warn!(
+                                                    "Blocked SSRF attempt: CNAME record points to forbidden IP {}. Reason: {}",
+                                                    ip, e
+                                                );
+                                                continue;
                                             }
 
                                             if let Ok(cname) = Name::from_str(target) {

@@ -51,17 +51,14 @@ impl VerifySignature for Reveal {
             let mut verified = false;
             for ck in &kid_doc.controller_keys {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                if ck.key_type == "ML-DSA-65" {
-                    if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
-                        if let Ok(vk) =
-                            ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
-                        {
-                            if vk.verify(&signable, &sig).is_ok() {
-                                verified = true;
-                                break;
-                            }
-                        }
-                    }
+                if ck.key_type == "ML-DSA-65"
+                    && let Ok(pk_bytes) = b64_url.decode(&ck.public_key)
+                    && let Ok(vk) =
+                        ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
+                    && vk.verify(&signable, &sig).is_ok()
+                {
+                    verified = true;
+                    break;
                 }
             }
 
@@ -139,19 +136,14 @@ impl VerifySignature for NameRecord {
                     let mut verified = false;
                     for ck in &kid_doc.controller_keys {
                         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                        if ck.key_type == "ML-DSA-65" {
-                            if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
-                                if let Ok(vk) =
-                                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(
-                                        &pk_bytes,
-                                    )
-                                {
-                                    if vk.verify(&signable, &sig).is_ok() {
-                                        verified = true;
-                                        break;
-                                    }
-                                }
-                            }
+                        if ck.key_type == "ML-DSA-65"
+                            && let Ok(pk_bytes) = b64_url.decode(&ck.public_key)
+                            && let Ok(vk) =
+                                ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
+                            && vk.verify(&signable, &sig).is_ok()
+                        {
+                            verified = true;
+                            break;
                         }
                     }
 

@@ -78,10 +78,21 @@ pub async fn handle_identity_command(
 
             let kid_did = kinetic_kid::did::KineticDid::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
+            let drand_client = kinetic_core::drand::DrandClient::new(None);
+            let current_kyn = match drand_client.fetch_latest().await {
+                Ok(kyn) => kyn.kyn,
+                Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs(),
+                ),
+            };
+
             let doc = kinetic_kid::document::KidDocument {
                 doc_type: "kinetic.kid.v1".to_string(),
                 kid: kid_did,
-                created_at: kinetic_core::types::kid_manager::current_network_unix_timestamp(),
+                created_at: kinetic_core::types::clock::network_kyn_to_unix_secs(current_kyn),
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: format!("{}#primary", did_str),
                     key_type: "MlDsa65".to_string(),

@@ -265,7 +265,7 @@ pub fn get_or_create_kid_for_name(
     let kid_did = KineticDid::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
-    let now_ts = current_network_unix_timestamp();
+    let now_ts = crate::types::clock::network_kyn_to_unix_secs(current_kyn);
 
     let doc = KidDocument {
         doc_type: "kinetic.kid.v1".to_string(),
@@ -546,7 +546,7 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    let current_time = current_network_unix_timestamp();
+    let current_time = crate::types::clock::network_kyn_to_unix_secs(current_kyn);
 
     let manifest = CapabilityManifest {
         doc_type: "kinetic.manifest.v1".to_string(),
@@ -595,7 +595,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let id_path = dir.path().join("identity.key");
         let seed = [42u8; 32];
-        fs::write(&id_path, &seed).unwrap();
+        fs::write(&id_path, seed).unwrap();
 
         unsafe {
             std::env::set_var(crate::constants::ENV_DATA_DIR, dir.path());
@@ -680,11 +680,9 @@ mod tests {
         assert_eq!(v2_manifest.version, 2);
 
         // Deactivated identity cannot update manifest
-        let deactivated_err = save_and_sign_local_manifest("api.saif.kin", vec![], 100).unwrap_err();
-        assert!(matches!(
-            deactivated_err,
-            IdentityError::KidDeactivated(_)
-        ));
+        let deactivated_err =
+            save_and_sign_local_manifest("api.saif.kin", vec![], 100).unwrap_err();
+        assert!(matches!(deactivated_err, IdentityError::KidDeactivated(_)));
 
         unsafe {
             std::env::remove_var(crate::constants::ENV_DATA_DIR);

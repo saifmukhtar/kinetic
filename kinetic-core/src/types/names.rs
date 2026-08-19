@@ -164,7 +164,7 @@ mod tests {
             ))
             .is_ok()
         );
-        
+
         // Edge Case: Total name length exceeds 253 characters
         let long_name = "a".repeat(250) + crate::constants::NSP_SUFFIX;
         assert_eq!(
@@ -186,10 +186,7 @@ mod tests {
             ))
             .is_ok()
         );
-        assert!(
-            is_valid_apex_name(&format!("{}{}", "007", crate::constants::NSP_SUFFIX))
-            .is_ok()
-        );
+        assert!(is_valid_apex_name(&format!("{}{}", "007", crate::constants::NSP_SUFFIX)).is_ok());
 
         assert_eq!(
             is_valid_apex_name(&format!(

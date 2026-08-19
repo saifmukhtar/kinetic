@@ -35,6 +35,15 @@ pub fn start_gossip_processor(
                         kinetic_core::governance::SignedGovernanceMessage,
                     >(actual_payload)
                     {
+                        let current_kyn = match drand_client_gossip.fetch_latest().await {
+                            Ok(kyn) => kyn.kyn,
+                            Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+                                std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs(),
+                            ),
+                        };
                         let Ok(mut state) =
                             kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
                         else {
@@ -45,12 +54,6 @@ pub fn start_gossip_processor(
                             );
                             continue;
                         };
-                        let current_time = std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs();
-                        let current_kyn =
-                            kinetic_core::types::clock::unix_secs_to_network_kyn(current_time);
 
                         match kinetic_core::governance::process_governance_message(
                             &mut state,

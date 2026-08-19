@@ -158,9 +158,11 @@ impl IdentityError {
             | Self::MalformedManifest(_)
             | Self::SerializationFailed(_)
             | Self::ManifestSigningFailed(_) => Severity::Error,
-            Self::InvalidSeedPhrase(_) | Self::KidAlreadyExists(_) | Self::KidNotFound(_) | Self::KidDeactivated(_) | Self::KidPrivateKeyNotFound(_) => {
-                Severity::Warning
-            }
+            Self::InvalidSeedPhrase(_)
+            | Self::KidAlreadyExists(_)
+            | Self::KidNotFound(_)
+            | Self::KidDeactivated(_)
+            | Self::KidPrivateKeyNotFound(_) => Severity::Warning,
         }
     }
 

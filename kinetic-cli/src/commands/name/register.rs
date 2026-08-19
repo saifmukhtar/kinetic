@@ -182,7 +182,18 @@ pub async fn handle(
     // 3. Construct the DnsZone and auto-generate/inherit KID
     let mut records = std::collections::HashMap::new();
 
-    let kid_res = kinetic_core::types::get_or_create_kid_for_name(&fqdn, true, false)?;
+    let drand_client = kinetic_core::drand::DrandClient::new(None);
+    let current_kyn = match drand_client.fetch_latest().await {
+        Ok(kyn) => kyn.kyn,
+        Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        ),
+    };
+
+    let kid_res = kinetic_core::types::get_or_create_kid_for_name(&fqdn, true, false, current_kyn)?;
     if kid_res.is_inherited {
         info!("Inheriting apex KID for {}: {}", fqdn, kid_res.did);
     } else {

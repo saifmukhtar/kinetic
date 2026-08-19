@@ -294,12 +294,18 @@ impl From<IdentityError> for ApiError {
             IdentityError::IdentityNotFound(_) | IdentityError::KidNotFound(_) => {
                 (404, "Not Found")
             }
-            IdentityError::InvalidSeedPhrase(_) | IdentityError::InvalidDid(_) => (400, "Bad Request"),
+            IdentityError::InvalidSeedPhrase(_) | IdentityError::InvalidDid(_) => {
+                (400, "Bad Request")
+            }
             IdentityError::DecryptionFailed(_) => (401, "Unauthorized"),
             IdentityError::KidAlreadyExists(_) => (409, "Conflict"),
             IdentityError::InvalidRotation(_) => (422, "Unprocessable Entity"),
             IdentityError::KidDeactivated(_) => (410, "Gone"),
-            IdentityError::MalformedKidDocument(_) | IdentityError::MalformedApexKidDocument(_) | IdentityError::MalformedManifest(_) | IdentityError::SerializationFailed(_) | IdentityError::ManifestSigningFailed(_) => (500, "Internal Server Error"),
+            IdentityError::MalformedKidDocument(_)
+            | IdentityError::MalformedApexKidDocument(_)
+            | IdentityError::MalformedManifest(_)
+            | IdentityError::SerializationFailed(_)
+            | IdentityError::ManifestSigningFailed(_) => (500, "Internal Server Error"),
             IdentityError::KidPrivateKeyNotFound(_) => (404, "Not Found"),
         };
         ApiError {

@@ -20,7 +20,15 @@
 /// Because they are critical to the network's operation, they are exempt
 /// from heartbeat and thermodynamic pruning rules so they never accidentally expire.
 pub const PROTOCOL_NAMES: &[&str] = &[
-    "seed", "node", "docs", "status", "api", "blog", "rpc", "foundation", "metrics"
+    "seed",
+    "node",
+    "docs",
+    "status",
+    "api",
+    "blog",
+    "rpc",
+    "foundation",
+    "metrics",
 ];
 
 /// Checks if a given name is classified as a Category 2 network protocol name.

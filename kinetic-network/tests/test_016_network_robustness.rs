@@ -87,7 +87,7 @@ async fn test_03_test_mode_flag_applied() {
         vdf_engine,
     )
     .unwrap();
-    assert_eq!(event_loop.has_bootstrapped(), false);
+    assert!(!event_loop.has_bootstrapped());
 }
 
 #[tokio::test]
@@ -135,7 +135,7 @@ async fn test_05_kademlia_bootstrap_deferred_until_connected() {
         vdf_engine,
     )
     .unwrap();
-    assert_eq!(event_loop.has_bootstrapped(), false);
+    assert!(!event_loop.has_bootstrapped());
 }
 
 #[tokio::test]

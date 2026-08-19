@@ -80,10 +80,22 @@ pub async fn handle_generate_kid(
         base_fqdn
     };
 
+    let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+    let current_kyn = match drand_client.fetch_latest().await {
+        Ok(kyn) => kyn.kyn,
+        Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        ),
+    };
+
     let res = kinetic_core::types::get_or_create_kid_for_name(
         &final_name,
         req.inherit_subname,
         req.force,
+        current_kyn,
     )
     .map_err(|e| {
         let api_err = kinetic_core::ApiError::from(e);
@@ -244,14 +256,27 @@ pub async fn handle_update_kid_manifest(
         ));
     }
 
+    let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+    let current_kyn = match drand_client.fetch_latest().await {
+        Ok(kyn) => kyn.kyn,
+        Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        ),
+    };
+
     let (manifest, auth_manifest) =
-        kinetic_core::types::save_and_sign_local_manifest(&name, req.services).map_err(|e| {
-            let api_err = kinetic_core::ApiError::from(e);
-            (
-                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap_or_default()),
-            )
-        })?;
+        kinetic_core::types::save_and_sign_local_manifest(&name, req.services, current_kyn)
+            .map_err(|e| {
+                let api_err = kinetic_core::ApiError::from(e);
+                (
+                    StatusCode::from_u16(api_err.status)
+                        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    Json(serde_json::to_value(api_err).unwrap_or_default()),
+                )
+            })?;
 
     // Publish to DHT under hex(sha256(did#manifest))
     use sha2::{Digest, Sha256};

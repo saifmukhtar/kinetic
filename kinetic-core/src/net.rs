@@ -84,7 +84,7 @@ pub fn validate_ssrf_safe(ip: IpAddr) -> Result<(), SsrfError> {
             // Check for IPv4-mapped IPv6 address that wraps a dangerous v4
             if let Some(v4_mapped) = v6.to_ipv4_mapped() {
                 // If it resolves to an error, we can map it to a specific exploit log
-                if let Err(_) = validate_ssrf_safe(IpAddr::V4(v4_mapped)) {
+                if validate_ssrf_safe(IpAddr::V4(v4_mapped)).is_err() {
                     return Err(SsrfError::Ipv6MappedExploit);
                 }
             }

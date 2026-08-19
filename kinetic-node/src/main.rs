@@ -320,10 +320,20 @@ async fn run_node() -> Result<()> {
                 let actual_payload = &payload[1..];
 
                 if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                    let current_kyn = match drand_client_gossip.fetch_latest().await {
+                        Ok(kyn) => kyn.kyn,
+                        Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs(),
+                        ),
+                    };
                     gossip::handle_kinetic_governance_gossip(
                         actual_payload,
                         gossip_gov_path.clone(),
                         Some(gossip_storage.clone()),
+                        current_kyn,
                     );
                 } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)

@@ -15,19 +15,19 @@
 pub mod clock;
 pub mod dns;
 pub mod identity;
-pub mod protocol;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod kid_manager;
 pub mod name_record;
 pub mod names;
+pub mod protocol;
 pub mod vdf;
 
 pub use clock::*;
 pub use dns::*;
 pub use identity::*;
-pub use protocol::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use kid_manager::*;
 pub use name_record::*;
 pub use names::*;
+pub use protocol::*;
 pub use vdf::*;
