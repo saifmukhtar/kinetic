@@ -72,3 +72,83 @@ impl RevealExt for Reveal {
         Ok(())
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn valid_reveal() -> Reveal {
+        Reveal {
+            name: format!("{}{}", "satoshi", crate::constants::NSP_SUFFIX),
+            pubkey: vec![0u8; 1952],
+            payload: vec![0u8; 100],
+            signature: vec![0u8; 4627],
+            previous_proof: None,
+            iterations: 1000,
+            vdf_proof: VdfProof { proof_bytes: vec![0u8; 100] },
+            drand_kyn: 1000,
+            drand_signature: "a".repeat(192),
+            salt: [0u8; 32],
+            protocol_version: 1,
+            authorization: None,
+            miner_pubkey: None,
+        }
+    }
+
+    #[test]
+    fn test_valid_reveal_passes() {
+        let reveal = valid_reveal();
+        assert!(reveal.validate().is_ok());
+    }
+
+    #[test]
+    fn test_invalid_protocol_version() {
+        let mut reveal = valid_reveal();
+        reveal.protocol_version = 2;
+        assert!(reveal.validate().is_err());
+    }
+
+    #[test]
+    fn test_invalid_name() {
+        let mut reveal = valid_reveal();
+        reveal.name = "invalid_name!".to_string();
+        assert!(reveal.validate().is_err());
+    }
+
+    #[test]
+    fn test_payload_too_large() {
+        let mut reveal = valid_reveal();
+        reveal.payload = vec![0u8; MAX_PAYLOAD_SIZE + 1];
+        assert!(reveal.validate().is_err());
+    }
+
+    #[test]
+    fn test_invalid_drand_signature_length() {
+        let mut reveal = valid_reveal();
+        reveal.drand_signature = "a".repeat(191);
+        assert!(reveal.validate().is_err());
+        
+        reveal.drand_signature = "a".repeat(193);
+        assert!(reveal.validate().is_err());
+    }
+
+    #[test]
+    fn test_invalid_pubkey_length() {
+        let mut reveal = valid_reveal();
+        reveal.pubkey = vec![0u8; 1951];
+        assert!(reveal.validate().is_err());
+    }
+
+    #[test]
+    fn test_invalid_signature_length() {
+        let mut reveal = valid_reveal();
+        reveal.signature = vec![0u8; 4626];
+        assert!(reveal.validate().is_err());
+    }
+
+    #[test]
+    fn test_vdf_proof_too_large() {
+        let mut reveal = valid_reveal();
+        reveal.vdf_proof.proof_bytes = vec![0u8; 2049];
+        assert!(reveal.validate().is_err());
+    }
+}
