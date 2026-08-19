@@ -58,6 +58,30 @@ pub enum IdentityError {
     /// JSON serialization or deserialization failed.
     #[error("JSON error: {0}")]
     Json(String),
+
+    /// A KID document was malformed or missing fields.
+    #[error("Malformed KID document: {0}")]
+    MalformedKidDocument(String),
+
+    /// An apex KID document was malformed or missing fields.
+    #[error("Malformed apex KID document: {0}")]
+    MalformedApexKidDocument(String),
+
+    /// A capability manifest was malformed or missing fields.
+    #[error("Malformed capability manifest: {0}")]
+    MalformedManifest(String),
+
+    /// Failed to serialize the document into JSON.
+    #[error("Serialization failed: {0}")]
+    SerializationFailed(String),
+
+    /// Cryptographic signing of a manifest failed.
+    #[error("Failed to sign manifest: {0}")]
+    ManifestSigningFailed(String),
+
+    /// A private key file was not found.
+    #[error("KID private key not found: {0}")]
+    KidPrivateKeyNotFound(String),
 }
 
 impl PartialEq for IdentityError {
@@ -75,6 +99,12 @@ impl PartialEq for IdentityError {
             (Self::InvalidDid(a), Self::InvalidDid(b)) => a == b,
             (Self::KidDeactivated(a), Self::KidDeactivated(b)) => a == b,
             (Self::Json(a), Self::Json(b)) => a == b,
+            (Self::MalformedKidDocument(a), Self::MalformedKidDocument(b)) => a == b,
+            (Self::MalformedApexKidDocument(a), Self::MalformedApexKidDocument(b)) => a == b,
+            (Self::MalformedManifest(a), Self::MalformedManifest(b)) => a == b,
+            (Self::SerializationFailed(a), Self::SerializationFailed(b)) => a == b,
+            (Self::ManifestSigningFailed(a), Self::ManifestSigningFailed(b)) => a == b,
+            (Self::KidPrivateKeyNotFound(a), Self::KidPrivateKeyNotFound(b)) => a == b,
             _ => false,
         }
     }
@@ -98,6 +128,12 @@ impl IdentityError {
             Self::InvalidDid(_) => "KIN-IDN-010",
             Self::KidDeactivated(_) => "KIN-IDN-011",
             Self::Json(_) => "KIN-IDN-012",
+            Self::MalformedKidDocument(_) => "KIN-IDN-013",
+            Self::MalformedApexKidDocument(_) => "KIN-IDN-014",
+            Self::MalformedManifest(_) => "KIN-IDN-015",
+            Self::SerializationFailed(_) => "KIN-IDN-016",
+            Self::ManifestSigningFailed(_) => "KIN-IDN-017",
+            Self::KidPrivateKeyNotFound(_) => "KIN-IDN-018",
         }
     }
 
@@ -116,8 +152,13 @@ impl IdentityError {
             | Self::InvalidRotation(_)
             | Self::KidSigningFailed(_)
             | Self::InvalidDid(_)
-            | Self::Json(_) => Severity::Error,
-            Self::InvalidSeedPhrase(_) | Self::KidAlreadyExists(_) | Self::KidNotFound(_) | Self::KidDeactivated(_) => {
+            | Self::Json(_)
+            | Self::MalformedKidDocument(_)
+            | Self::MalformedApexKidDocument(_)
+            | Self::MalformedManifest(_)
+            | Self::SerializationFailed(_)
+            | Self::ManifestSigningFailed(_) => Severity::Error,
+            Self::InvalidSeedPhrase(_) | Self::KidAlreadyExists(_) | Self::KidNotFound(_) | Self::KidDeactivated(_) | Self::KidPrivateKeyNotFound(_) => {
                 Severity::Warning
             }
         }
@@ -163,6 +204,24 @@ impl IdentityError {
             }
             Self::Json(msg) => {
                 format!("JSON processing error: {msg}")
+            }
+            Self::MalformedKidDocument(msg) => {
+                format!("The KID document is malformed: {msg}")
+            }
+            Self::MalformedApexKidDocument(msg) => {
+                format!("The apex KID document is malformed: {msg}")
+            }
+            Self::MalformedManifest(msg) => {
+                format!("The capability manifest is malformed: {msg}")
+            }
+            Self::SerializationFailed(msg) => {
+                format!("Failed to serialize the document: {msg}")
+            }
+            Self::ManifestSigningFailed(msg) => {
+                format!("Failed to cryptographically sign the manifest: {msg}")
+            }
+            Self::KidPrivateKeyNotFound(name) => {
+                format!("The private key file for {name} could not be found.")
             }
         }
     }

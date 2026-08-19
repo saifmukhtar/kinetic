@@ -170,7 +170,7 @@ fn write_json_document(path: &Path, json_str: &str) -> Result<(), IdentityError>
 /// Loads a raw ML-DSA-65 signing key from disk.
 fn load_raw_signing_key(path: &Path) -> Result<SigningKey<MlDsa65>, IdentityError> {
     if !path.exists() {
-        return Err(IdentityError::KidNotFound(
+        return Err(IdentityError::KidPrivateKeyNotFound(
             path.to_string_lossy().to_string(),
         ));
     }
@@ -217,6 +217,7 @@ pub fn get_or_create_kid_for_name(
     name: &str,
     inherit_subname: bool,
     force: bool,
+    current_kyn: u64,
 ) -> Result<GeneratedKid, IdentityError> {
     let fqdn = normalize_name(name);
     let apex = extract_apex_name(&fqdn);
@@ -230,7 +231,7 @@ pub fn get_or_create_kid_for_name(
         if apex_doc_path.exists() {
             let doc_data = fs::read_to_string(&apex_doc_path)?;
             let apex_doc: KidDocument = serde_json::from_str(&doc_data)
-                .map_err(|e| IdentityError::Json(format!("Malformed apex KID document: {}", e)))?;
+                .map_err(|e| IdentityError::MalformedApexKidDocument(format!("{}", e)))?;
 
             let auth_kid = authorize_kid_document(&fqdn, &apex_doc)?;
 
@@ -287,7 +288,7 @@ pub fn get_or_create_kid_for_name(
         .map_err(|e| IdentityError::KidSigningFailed(format!("{}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
-        .map_err(|e| IdentityError::Json(format!("{}", e)))?;
+        .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
 
     // 4. Securely persist files
     write_private_key_securely(&key_path, &keypair.to_bytes())?;
@@ -339,7 +340,7 @@ pub fn rotate_name_kid(name: &str) -> Result<RotatedKid, IdentityError> {
     // 1. Read existing document and key
     let doc_str = fs::read_to_string(&doc_path)?;
     let mut doc: KidDocument = serde_json::from_str(&doc_str)
-        .map_err(|e| IdentityError::Json(format!("Corrupted KID document: {}", e)))?;
+        .map_err(|e| IdentityError::MalformedKidDocument(format!("{}", e)))?;
     let old_key = load_raw_signing_key(&key_path)?;
 
     // 2. Generate new keypair
@@ -361,7 +362,7 @@ pub fn rotate_name_kid(name: &str) -> Result<RotatedKid, IdentityError> {
         .map_err(|e| IdentityError::KidSigningFailed(format!("Rotation signing failed: {}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
-        .map_err(|e| IdentityError::Json(format!("{}", e)))?;
+        .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
 
     // 4. Atomically persist updated files
     write_private_key_securely(&key_path, &new_keypair.to_bytes())?;
@@ -388,7 +389,7 @@ pub fn load_local_kid(name: &str) -> Result<(KidDocument, PathBuf), IdentityErro
     if doc_path.exists() {
         let content = fs::read_to_string(&doc_path)?;
         let doc: KidDocument = serde_json::from_str(&content)
-            .map_err(|e| IdentityError::Json(format!("Malformed KID document: {}", e)))?;
+            .map_err(|e| IdentityError::MalformedKidDocument(format!("{}", e)))?;
         return Ok((doc, doc_path));
     }
 
@@ -399,7 +400,7 @@ pub fn load_local_kid(name: &str) -> Result<(KidDocument, PathBuf), IdentityErro
         if apex_doc_path.exists() {
             let content = fs::read_to_string(&apex_doc_path)?;
             let doc: KidDocument = serde_json::from_str(&content)
-                .map_err(|e| IdentityError::Json(format!("Malformed apex KID document: {}", e)))?;
+                .map_err(|e| IdentityError::MalformedApexKidDocument(format!("{}", e)))?;
             return Ok((doc, apex_doc_path));
         }
     }
@@ -461,7 +462,7 @@ pub fn revoke_local_kid(name: &str) -> Result<KidDocument, IdentityError> {
 
     let content = fs::read_to_string(&doc_path)?;
     let mut doc: KidDocument = serde_json::from_str(&content)
-        .map_err(|e| IdentityError::Json(format!("Malformed KID: {}", e)))?;
+        .map_err(|e| IdentityError::MalformedKidDocument(format!("{}", e)))?;
     let key = load_raw_signing_key(&key_path)?;
 
     doc.deactivated = true;
@@ -472,7 +473,7 @@ pub fn revoke_local_kid(name: &str) -> Result<KidDocument, IdentityError> {
         .map_err(|e| IdentityError::KidSigningFailed(format!("{}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
-        .map_err(|e| IdentityError::Json(format!("{}", e)))?;
+        .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
 
     write_json_document(&doc_path, &json_data)?;
 
@@ -489,7 +490,7 @@ pub fn load_local_manifest(name: &str) -> Result<Option<CapabilityManifest>, Ide
     if manifest_path.exists() {
         let content = fs::read_to_string(&manifest_path)?;
         let manifest: CapabilityManifest = serde_json::from_str(&content)
-            .map_err(|e| IdentityError::Json(format!("Malformed manifest: {}", e)))?;
+            .map_err(|e| IdentityError::MalformedManifest(format!("{}", e)))?;
         return Ok(Some(manifest));
     }
 
@@ -499,7 +500,7 @@ pub fn load_local_manifest(name: &str) -> Result<Option<CapabilityManifest>, Ide
         if apex_manifest_path.exists() {
             let content = fs::read_to_string(&apex_manifest_path)?;
             let manifest: CapabilityManifest = serde_json::from_str(&content)
-                .map_err(|e| IdentityError::Json(format!("Malformed apex manifest: {}", e)))?;
+                .map_err(|e| IdentityError::MalformedManifest(format!("{}", e)))?;
             return Ok(Some(manifest));
         }
     }
@@ -512,6 +513,7 @@ pub fn load_local_manifest(name: &str) -> Result<Option<CapabilityManifest>, Ide
 pub fn save_and_sign_local_manifest(
     name: &str,
     services: Vec<ServiceEntry>,
+    current_kyn: u64,
 ) -> Result<(CapabilityManifest, AuthorizedManifest), IdentityError> {
     let fqdn = normalize_name(name);
     let (doc, _) = load_local_kid(&fqdn)?;
@@ -558,13 +560,13 @@ pub fn save_and_sign_local_manifest(
 
     let signed_manifest = manifest
         .sign(&signing_key)
-        .map_err(|e| IdentityError::KidSigningFailed(format!("Manifest signing failed: {}", e)))?;
+        .map_err(|e| IdentityError::ManifestSigningFailed(format!("{}", e)))?;
 
     // Persist manifest to kids/{fqdn}.manifest.json
     let dir = get_kids_dir();
     let manifest_path = dir.join(format!("{}.manifest.json", fqdn));
     let json_data = serde_json::to_string_pretty(&signed_manifest)
-        .map_err(|e| IdentityError::Json(format!("{}", e)))?;
+        .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
     write_json_document(&manifest_path, &json_data)?;
 
     // Wrap in AuthorizedManifest signed by identity.key
@@ -603,7 +605,7 @@ mod tests {
         std::fs::write(&id_path, [0u8; 32]).unwrap();
 
         // 1. Case 1: Apex Domain KID generation
-        let apex = get_or_create_kid_for_name("saif.kin", true, false).unwrap();
+        let apex = get_or_create_kid_for_name("saif.kin", true, false, 100).unwrap();
         assert_eq!(apex.name, "saif.kin");
         assert!(!apex.is_inherited);
         assert!(apex.did.starts_with(DID_PREFIX));
@@ -613,15 +615,15 @@ mod tests {
         assert!(apex.kid_doc.verify_genesis().is_ok());
 
         // Test Overwrite Guard (KIN-IDN-006)
-        let err = get_or_create_kid_for_name("saif.kin", true, false).unwrap_err();
+        let err = get_or_create_kid_for_name("saif.kin", true, false, 100).unwrap_err();
         assert_eq!(err.code(), "KIN-IDN-006");
 
         // Test force overwrite
-        let force_res = get_or_create_kid_for_name("saif.kin", true, true).unwrap();
+        let force_res = get_or_create_kid_for_name("saif.kin", true, true, 100).unwrap();
         assert_eq!(force_res.name, "saif.kin");
 
         // 2. Case 2: Subname inheritance (Default)
-        let sub = get_or_create_kid_for_name("blog.saif.kin", true, false).unwrap();
+        let sub = get_or_create_kid_for_name("blog.saif.kin", true, false, 100).unwrap();
         assert_eq!(sub.name, "blog.saif.kin");
         assert!(sub.is_inherited);
         assert_eq!(sub.did, force_res.did);
@@ -629,7 +631,7 @@ mod tests {
         assert_eq!(sub.doc_path, force_res.doc_path);
 
         // 3. Case 3: Subname isolation (Delegation / Opt-out)
-        let isolated_sub = get_or_create_kid_for_name("api.saif.kin", false, false).unwrap();
+        let isolated_sub = get_or_create_kid_for_name("api.saif.kin", false, false, 100).unwrap();
         assert_eq!(isolated_sub.name, "api.saif.kin");
         assert!(!isolated_sub.is_inherited);
         assert_ne!(isolated_sub.did, force_res.did);
@@ -662,7 +664,7 @@ mod tests {
             endpoint: "https://saif.kin".to_string(),
         }];
         let (saved_manifest, auth_manifest) =
-            save_and_sign_local_manifest("saif.kin", services.clone()).unwrap();
+            save_and_sign_local_manifest("saif.kin", services.clone(), 100).unwrap();
         assert_eq!(saved_manifest.version, 1);
         assert_eq!(saved_manifest.services.len(), 1);
         assert!(saved_manifest.verify_local(&rotated.kid_doc).is_ok());
@@ -674,11 +676,11 @@ mod tests {
         assert_eq!(loaded.unwrap().version, 1);
 
         // Save again increments version
-        let (v2_manifest, _) = save_and_sign_local_manifest("saif.kin", services).unwrap();
+        let (v2_manifest, _) = save_and_sign_local_manifest("saif.kin", services, 100).unwrap();
         assert_eq!(v2_manifest.version, 2);
 
         // Deactivated identity cannot update manifest
-        let deactivated_err = save_and_sign_local_manifest("api.saif.kin", vec![]).unwrap_err();
+        let deactivated_err = save_and_sign_local_manifest("api.saif.kin", vec![], 100).unwrap_err();
         assert!(matches!(
             deactivated_err,
             IdentityError::KidDeactivated(_)

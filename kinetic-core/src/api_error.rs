@@ -299,6 +299,8 @@ impl From<IdentityError> for ApiError {
             IdentityError::KidAlreadyExists(_) => (409, "Conflict"),
             IdentityError::InvalidRotation(_) => (422, "Unprocessable Entity"),
             IdentityError::KidDeactivated(_) => (410, "Gone"),
+            IdentityError::MalformedKidDocument(_) | IdentityError::MalformedApexKidDocument(_) | IdentityError::MalformedManifest(_) | IdentityError::SerializationFailed(_) | IdentityError::ManifestSigningFailed(_) => (500, "Internal Server Error"),
+            IdentityError::KidPrivateKeyNotFound(_) => (404, "Not Found"),
         };
         ApiError {
             error_type: e.error_type_uri(),
