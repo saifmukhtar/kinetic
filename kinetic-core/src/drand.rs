@@ -290,7 +290,7 @@ impl DrandClient {
                         let bytes = resp
                             .bytes()
                             .await
-                            .map_err(|e| DrandError::Network(e.to_string()))?;
+                            .map_err(DrandError::Reqwest)?;
                         if bytes.len() > crate::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
                             return Err(DrandError::Network(
                                 "Drand response exceeded 64 KB limit".to_string(),
@@ -333,7 +333,7 @@ impl DrandClient {
                     gloo_timers::future::sleep(delay).await;
                     delay *= 2; // exponential backoff
                 }
-                Err(e) => return Err(DrandError::Network(e.to_string())),
+                Err(e) => return Err(DrandError::Reqwest(e)),
             }
         }
         Err(DrandError::AllEndpointsFailed)
