@@ -14,7 +14,7 @@
 /// Category 2: Kinetic Protocol Names.
 ///
 /// These names represent critical network protocol functionality (docs, bootstrap nodes, explorer).
-/// To prevent squatters from claiming critical network protocol names, these names CANNOT be
+/// To prevent malicious actors from claiming critical network protocol names, these names CANNOT be
 /// mined by users. They are permanently locked and can only be allocated or reassigned by
 /// the Kinetic Council via governance proposals.
 /// Because they are critical to the network's operation, they are exempt

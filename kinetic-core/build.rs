@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 #[derive(Deserialize)]
-struct SquatterMultipliers {
+struct NdcMultipliers {
     len_0_to_1: u64,
     len_2: u64,
     len_3: u64,
@@ -21,7 +21,7 @@ struct SquatterMultipliers {
 #[derive(Deserialize)]
 struct ConsensusConfig {
     minimum_commit_age_kyns: u64,
-    vdf_squatter_multipliers: SquatterMultipliers,
+    ndc_multipliers: NdcMultipliers,
     vdf_discount_min_iterations: u64,
     vdf_discount_percentage: u64,
     vdf_max_iterations: u64,
@@ -275,34 +275,34 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 0 to 1\npub const CONSENSUS_SQUATTER_LEN_0_TO_1: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_0_to_1
+        "/// Multiplier for NDC length 0 to 1\npub const CONSENSUS_NDC_LEN_0_TO_1: u64 = {};\n", config.consensus.ndc_multipliers.len_0_to_1
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 2\npub const CONSENSUS_SQUATTER_LEN_2: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_2
+        "/// Multiplier for NDC length 2\npub const CONSENSUS_NDC_LEN_2: u64 = {};\n", config.consensus.ndc_multipliers.len_2
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 3\npub const CONSENSUS_SQUATTER_LEN_3: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_3
+        "/// Multiplier for NDC length 3\npub const CONSENSUS_NDC_LEN_3: u64 = {};\n", config.consensus.ndc_multipliers.len_3
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 4\npub const CONSENSUS_SQUATTER_LEN_4: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_4
+        "/// Multiplier for NDC length 4\npub const CONSENSUS_NDC_LEN_4: u64 = {};\n", config.consensus.ndc_multipliers.len_4
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 5\npub const CONSENSUS_SQUATTER_LEN_5: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_5
+        "/// Multiplier for NDC length 5\npub const CONSENSUS_NDC_LEN_5: u64 = {};\n", config.consensus.ndc_multipliers.len_5
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 6\npub const CONSENSUS_SQUATTER_LEN_6: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_6
+        "/// Multiplier for NDC length 6\npub const CONSENSUS_NDC_LEN_6: u64 = {};\n", config.consensus.ndc_multipliers.len_6
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 7\npub const CONSENSUS_SQUATTER_LEN_7: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_7
+        "/// Multiplier for NDC length 7\npub const CONSENSUS_NDC_LEN_7: u64 = {};\n", config.consensus.ndc_multipliers.len_7
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 8 to 10\npub const CONSENSUS_SQUATTER_LEN_8_TO_10: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_8_to_10
+        "/// Multiplier for NDC length 8 to 10\npub const CONSENSUS_NDC_LEN_8_TO_10: u64 = {};\n", config.consensus.ndc_multipliers.len_8_to_10
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 11 to 17\npub const CONSENSUS_SQUATTER_LEN_11_TO_17: u64 = {};\n", config.consensus.vdf_squatter_multipliers.len_11_to_17
+        "/// Multiplier for NDC length 11 to 17\npub const CONSENSUS_NDC_LEN_11_TO_17: u64 = {};\n", config.consensus.ndc_multipliers.len_11_to_17
     ));
     out.push_str(&format!(
-        "/// Multiplier for squatter cliff length 18 to 20\npub const CONSENSUS_SQUATTER_LEN_18_TO_20: u64 = {};\n\n", config.consensus.vdf_squatter_multipliers.len_18_to_20
+        "/// Multiplier for NDC length 18 to 20\npub const CONSENSUS_NDC_LEN_18_TO_20: u64 = {};\n\n", config.consensus.ndc_multipliers.len_18_to_20
     ));
 
     out.push_str(&format!("/// Minimum iterations for VDF discount\npub const CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS: u64 = {};\n", config.consensus.vdf_discount_min_iterations));

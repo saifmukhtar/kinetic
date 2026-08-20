@@ -32,7 +32,7 @@ The full documentation for Kinetic has been moved to its own repository. You can
 Instead of paying money to registrars, you pay with **sequential computational time**. By evaluating a **Verifiable Delay Function (VDF)** over imaginary quadratic class groups, your machine proves it expended un-parallelizable time to claim a name.
 
 - 💎 **Zero Cost:** Name registrations require exactly **$0.00**.
-- 🛡️ **Squatter-Resistant:** Short names scale on a steep mathematical "Squatter Cliff" (a 2-char name requires 30 days of CPU squarings; 21–63 char names take 30 minutes). Mass name squatting and bot sniper farms are physically impossible.
+- 🛡️ **Sybil-Resistant:** Short names scale on a steep mathematical Name Difficulty Curve (a 2-char name requires 30 days of CPU squarings; 21–63 char names take 30 minutes). Mass name squatting and bot sniper farms are physically impossible.
 - 🔐 **Post-Quantum Ownership:** Names are cryptographically bound to an **ML-DSA-65 (FIPS 204)** quantum-resistant identity key.
 - 🌍 **Native Split-DNS Interception:** Integrates transparently into your OS network stack, resolving `.kin` names natively in any Web2 browser while passing standard internet queries through unaffected.
 
@@ -187,7 +187,7 @@ Explore the mathematical proofs, RFC drafts, and security models powering Kineti
 
 ### 📜 Official Whitepapers (`whitepaper/`)
 - 📄 **[1. Vision & Executive Summary](./whitepaper/kinetic-vision.md):** The case for sovereign time-secured namespaces.
-- ⚡ **[2. Consensus & Proof of Patience](./whitepaper/kinetic-consensus.md):** Squatter Cliff mathematical proofs & VDF class group squarings.
+- ⚡ **[2. Consensus & Proof of Patience](./whitepaper/kinetic-consensus.md):** Name Difficulty Curve (NDC) mathematical proofs & VDF class group squarings.
 - 🆔 **[3. Decentralized Identity Architecture (KID)](./whitepaper/kinetic-identity.md):** Post-quantum ML-DSA-65 identity documents.
 - 🌐 **[4. Network & Execution Spec](./whitepaper/kinetic-network.md):** libp2p Kademlia DHT, gossip subtopics, and Split-DNS.
 - 🛡️ **[5. Security & Threat Mitigation](./whitepaper/kinetic-security.md):** Formal resistance to Sybil, Eclipse, and Front-Running attacks.

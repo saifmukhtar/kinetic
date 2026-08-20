@@ -26,7 +26,7 @@
     "max_age_kyns": 201600
   },
   "consensus": {
-    "vdf_squatter_multipliers": {
+    "ndc_multipliers": {
       "len_0_to_1": 52596000,
       "len_2": 43200,
       "len_3": 34560,

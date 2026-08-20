@@ -1,8 +1,8 @@
-//! Consensus difficulty math, Squatter Cliff curve, and inverse-square name takeover calculations.
+//! Consensus difficulty math, Name Difficulty Curve (NDC), and inverse-square name takeover calculations.
 //!
-//! # VDF Squatter Cliff Curve
+//! # Name Difficulty Curve (NDC)
 //!
-//! To prevent high-value short names from being trivially squatted, Kinetic requires
+//! To prevent high-value short names from being trivially registered, Kinetic requires
 //! exponential VDF iteration effort for shorter name labels:
 //! - **1-char labels**: 100 years of sequential computation (permanently locked).
 //! - **2-char labels**: 30 days of computation.
@@ -39,7 +39,7 @@ impl ConsensusParams {
 
     /// Calculates the required VDF iterations for a full `.kin` name.
     ///
-    /// Normalizes the name, extracts the apex label, and evaluates difficulty against the Squatter Cliff curve.
+    /// Normalizes the name, extracts the apex label, and evaluates difficulty against the Name Difficulty Curve (NDC).
     ///
     /// # Examples
     ///
@@ -59,7 +59,7 @@ impl ConsensusParams {
         self.required_iterations_by_label(label)
     }
 
-    /// Calculates required VDF iterations for a raw name label based on the Squatter Cliff curve.
+    /// Calculates required VDF iterations for a raw name label based on the Name Difficulty Curve (NDC).
     ///
     /// In dev mode (`is_dev_mode()`), returns a fixed low iteration count ([`DEV_MODE_ITERATIONS`](crate::constants::DEV_MODE_ITERATIONS)).
     pub fn required_iterations_by_label(&self, label: &str) -> u64 {
@@ -74,18 +74,18 @@ impl ConsensusParams {
         let calc =
             |multiplier: u64| -> u64 { ((base as u128 * multiplier as u128) / tm as u128) as u64 };
 
-        // "Squatter Cliff" curve dynamically adjusting to the hardware time target
+        // Name Difficulty Curve (NDC) dynamically adjusting to the hardware time target
         match len {
-            0 | 1 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_0_TO_1), // 100 years (Reserved/Impossible)
-            2 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_2),          // 30 days
-            3 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_3),          // 24 days
-            4 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_4),          // 15 days
-            5 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_5),          // 1 day
-            6 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_6),          // 12 hours
-            7 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_7),          // 2.5 hours
-            8..=10 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_8_TO_10), // 2 hours
-            11..=17 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_11_TO_17), // 1.5 hours
-            18..=20 => calc(crate::constants::CONSENSUS_SQUATTER_LEN_18_TO_20), // 1 hour
+            0 | 1 => calc(crate::constants::CONSENSUS_NDC_LEN_0_TO_1), // 100 years (Reserved/Impossible)
+            2 => calc(crate::constants::CONSENSUS_NDC_LEN_2),          // 30 days
+            3 => calc(crate::constants::CONSENSUS_NDC_LEN_3),          // 24 days
+            4 => calc(crate::constants::CONSENSUS_NDC_LEN_4),          // 15 days
+            5 => calc(crate::constants::CONSENSUS_NDC_LEN_5),          // 1 day
+            6 => calc(crate::constants::CONSENSUS_NDC_LEN_6),          // 12 hours
+            7 => calc(crate::constants::CONSENSUS_NDC_LEN_7),          // 2.5 hours
+            8..=10 => calc(crate::constants::CONSENSUS_NDC_LEN_8_TO_10), // 2 hours
+            11..=17 => calc(crate::constants::CONSENSUS_NDC_LEN_11_TO_17), // 1.5 hours
+            18..=20 => calc(crate::constants::CONSENSUS_NDC_LEN_18_TO_20), // 1 hour
             21..=63 => base, // Baseline (always takes exactly `tm` minutes)
             _ => base,       // Fallback
         }
