@@ -77,7 +77,7 @@ impl From<PublishError> for ApiError {
     fn from(e: PublishError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
             PublishError::Offline => (503, "Node Offline"),
-            PublishError::InvalidProof(_) => (400, "Invalid VDF Proof"),
+            PublishError::InvalidProof(_) => (422, "Invalid VDF Proof"),
             PublishError::AlreadyOwned { .. } => (409, "Name Already Owned"),
             PublishError::AllFailed { .. } => (503, "Publish Failed"),
             PublishError::Rejected(_) => (422, "Publish Rejected"),
@@ -231,10 +231,9 @@ impl From<VdfError> for ApiError {
 impl From<DrandError> for ApiError {
     fn from(e: DrandError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            DrandError::AllEndpointsFailed | DrandError::Network(_) | DrandError::Reqwest(_) => {
+            DrandError::AllEndpointsFailed | DrandError::Network(_) | DrandError::Reqwest(_) | DrandError::HttpError(_) => {
                 (502, "Bad Gateway")
             }
-            DrandError::HttpError(s) => (*s, "Upstream Error"),
             DrandError::NoCachedKyn => (404, "Not Found"),
             DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
             DrandError::InvalidSignature => (422, "Cryptographic Verification Failed"),
@@ -301,11 +300,10 @@ impl From<IdentityError> for ApiError {
             IdentityError::KidAlreadyExists(_) => (409, "Conflict"),
             IdentityError::InvalidRotation(_) => (422, "Unprocessable Entity"),
             IdentityError::KidDeactivated(_) => (410, "Gone"),
+            IdentityError::SerializationFailed(_) | IdentityError::ManifestSigningFailed(_) => (500, "Internal Server Error"),
             IdentityError::MalformedKidDocument(_)
             | IdentityError::MalformedApexKidDocument(_)
-            | IdentityError::MalformedManifest(_)
-            | IdentityError::SerializationFailed(_)
-            | IdentityError::ManifestSigningFailed(_) => (500, "Internal Server Error"),
+            | IdentityError::MalformedManifest(_) => (422, "Unprocessable Entity"),
             IdentityError::KidPrivateKeyNotFound(_) => (404, "Not Found"),
         };
         ApiError {
