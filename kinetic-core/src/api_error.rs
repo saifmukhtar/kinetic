@@ -336,3 +336,31 @@ impl From<NamesError> for ApiError {
         }
     }
 }
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::{ResolutionError, DrandError, IdentityError, PublishError};
+
+    #[test]
+    fn test_status_code_mappings() {
+        // Test 404 mapping
+        let err = ResolutionError::NotFound { name: "test.kin".to_string(), peers_queried: 5 };
+        assert_eq!(ApiError::from(err).status, 404);
+
+        // Test proxy leak fix (Drand 404 shouldn't leak to client)
+        let drand_err = DrandError::HttpError(404);
+        assert_eq!(ApiError::from(drand_err).status, 502);
+
+        // Test blame-shifting fix (Malformed docs shouldn't be 500)
+        let id_err = IdentityError::MalformedManifest("bad".to_string());
+        assert_eq!(ApiError::from(id_err).status, 422);
+
+        // Test crypto consistency (Invalid Proof should be 422, not 400)
+        let pub_err = PublishError::InvalidProof(crate::error::VdfRejectReason::MalformedProof);
+        assert_eq!(ApiError::from(pub_err).status, 422);
+    }
+}
