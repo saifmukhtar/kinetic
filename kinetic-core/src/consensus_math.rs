@@ -71,21 +71,26 @@ impl ConsensusParams {
         let base = self.calculate_hardware_anchor();
         let tm = crate::constants::TARGET_MINUTES as u64;
 
-        let calc =
-            |multiplier: u64| -> u64 { ((base as u128 * multiplier as u128) / tm as u128) as u64 };
+        // The configured NDC constants are absolute target times in minutes.
+        // This closure scales the `base` iterations (which takes `tm` minutes) 
+        // to equal exactly `target_minutes` of sequential CPU work.
+        let calc = |target_minutes: u64| -> u64 {
+            ((base as u128 * target_minutes as u128) / tm as u128) as u64
+        };
 
-        // Name Difficulty Curve (NDC) dynamically adjusting to the hardware time target
+        // Name Difficulty Curve (NDC) dynamically adjusting to the hardware time target.
+        // The constants passed in represent the raw target time in minutes.
         match len {
-            0 | 1 => calc(crate::constants::CONSENSUS_NDC_LEN_0_TO_1), // 100 years (Reserved/Impossible)
-            2 => calc(crate::constants::CONSENSUS_NDC_LEN_2),          // 30 days
-            3 => calc(crate::constants::CONSENSUS_NDC_LEN_3),          // 24 days
-            4 => calc(crate::constants::CONSENSUS_NDC_LEN_4),          // 15 days
-            5 => calc(crate::constants::CONSENSUS_NDC_LEN_5),          // 1 day
-            6 => calc(crate::constants::CONSENSUS_NDC_LEN_6),          // 12 hours
-            7 => calc(crate::constants::CONSENSUS_NDC_LEN_7),          // 2.5 hours
-            8..=10 => calc(crate::constants::CONSENSUS_NDC_LEN_8_TO_10), // 2 hours
-            11..=17 => calc(crate::constants::CONSENSUS_NDC_LEN_11_TO_17), // 1.5 hours
-            18..=20 => calc(crate::constants::CONSENSUS_NDC_LEN_18_TO_20), // 1 hour
+            0 | 1 => calc(crate::constants::CONSENSUS_NDC_LEN_0_TO_1), // 52,596,000 mins = 100 years
+            2 => calc(crate::constants::CONSENSUS_NDC_LEN_2),          // 43,200 mins = 30 days
+            3 => calc(crate::constants::CONSENSUS_NDC_LEN_3),          // 34,560 mins = 24 days
+            4 => calc(crate::constants::CONSENSUS_NDC_LEN_4),          // 21,600 mins = 15 days
+            5 => calc(crate::constants::CONSENSUS_NDC_LEN_5),          // 1,440 mins = 1 day
+            6 => calc(crate::constants::CONSENSUS_NDC_LEN_6),          // 720 mins = 12 hours
+            7 => calc(crate::constants::CONSENSUS_NDC_LEN_7),          // 150 mins = 2.5 hours
+            8..=10 => calc(crate::constants::CONSENSUS_NDC_LEN_8_TO_10), // 120 mins = 2 hours
+            11..=17 => calc(crate::constants::CONSENSUS_NDC_LEN_11_TO_17), // 90 mins = 1.5 hours
+            18..=20 => calc(crate::constants::CONSENSUS_NDC_LEN_18_TO_20), // 60 mins = 1 hour
             21..=63 => base, // Baseline (always takes exactly `tm` minutes)
             _ => base,       // Fallback
         }
