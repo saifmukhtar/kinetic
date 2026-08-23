@@ -22,13 +22,14 @@ fn leading_zeros(hash: &[u8]) -> u32 {
 }
 
 /// Computes the Argon2id hash for the given peer bytes and epoch.
-fn compute_pow_hash(argon2: &Argon2, peer_bytes: &[u8], epoch: u64) -> [u8; 32] {
+fn compute_pow_hash(argon2: &Argon2, peer_bytes: &[u8], epoch: u64) -> Option<[u8; 32]> {
     let mut output = [0u8; 32];
     // Argon2 requires a salt of at least 8 bytes, and epoch.to_be_bytes() is 8 bytes.
-    argon2
-        .hash_password_into(peer_bytes, &epoch.to_be_bytes(), &mut output)
-        .expect("Argon2 memory allocation failed during PoW hash");
-    output
+    if let Err(e) = argon2.hash_password_into(peer_bytes, &epoch.to_be_bytes(), &mut output) {
+        tracing::error!("Argon2 memory allocation failed during PoW hash: {}", e);
+        return None;
+    }
+    Some(output)
 }
 
 /// Computes a peer-specific epoch to stagger identity churn across the network.
@@ -42,7 +43,7 @@ pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: u64) -> u64 {
         offset_bytes[8 - len..].copy_from_slice(peer_bytes);
     }
     let offset = u64::from_be_bytes(offset_bytes) % EPOCH_KYNS;
-    (kyn + offset) / EPOCH_KYNS
+    kyn.saturating_add(offset) / EPOCH_KYNS
 }
 
 /// Validates if a PeerId has sufficient proof-of-work for the current or previous epoch.
@@ -63,16 +64,18 @@ pub fn is_valid_sybil_pow(peer_id: &PeerId, current_kyn: u64, difficulty: u32) -
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     // Check current epoch
-    let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch);
-    if leading_zeros(&hash) >= difficulty {
-        return true;
+    if let Some(hash) = compute_pow_hash(&argon2, &peer_bytes, current_epoch) {
+        if leading_zeros(&hash) >= difficulty {
+            return true;
+        }
     }
 
     // Check previous epoch (allows 12-hour overlap so nodes don't drop exactly at the boundary)
     if current_epoch > 0 {
-        let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch - 1);
-        if leading_zeros(&hash) >= difficulty {
-            return true;
+        if let Some(hash) = compute_pow_hash(&argon2, &peer_bytes, current_epoch - 1) {
+            if leading_zeros(&hash) >= difficulty {
+                return true;
+            }
         }
     }
 
@@ -111,7 +114,7 @@ pub fn mine_sybil_keypair(current_kyn: u64, difficulty: u32) -> Keypair {
         let peer_bytes = peer_id.to_bytes();
         let current_epoch = get_staggered_epoch(&peer_bytes, current_kyn);
 
-        let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch);
+        let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch).expect("Argon2 memory allocation failed during mining");
 
         attempts += 1;
         if leading_zeros(&hash) >= difficulty {
