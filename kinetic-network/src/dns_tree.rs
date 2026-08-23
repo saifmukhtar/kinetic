@@ -37,7 +37,7 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
                         root_hash = Some(hash.to_string());
                     }
                 } else if (txt_str.starts_with("/ip4/") || txt_str.starts_with("/ip6/"))
-                    && let Ok(ma) = txt_str.parse::<Multiaddr>()
+                    && let Ok(ma) = txt_str.trim().parse::<Multiaddr>()
                 {
                     addrs.push(ma);
                 }
@@ -70,12 +70,13 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
                             if txt_str.starts_with("kintree-branch:") {
                                 let parts = txt_str.trim_start_matches("kintree-branch:");
                                 for h in parts.split(',') {
+                                    let h = h.trim();
                                     if !h.is_empty() {
                                         branches_to_visit.push(h.to_string());
                                     }
                                 }
                             } else if txt_str.starts_with("kintree-leaf:") {
-                                let ma_str = txt_str.trim_start_matches("kintree-leaf:");
+                                let ma_str = txt_str.trim_start_matches("kintree-leaf:").trim();
                                 if let Ok(ma) = ma_str.parse::<Multiaddr>() {
                                     addrs.push(ma);
                                 }
