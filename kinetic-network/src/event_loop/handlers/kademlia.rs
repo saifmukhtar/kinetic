@@ -22,6 +22,48 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         }
                         crate::event_loop::core::QueryType::Put(_) => {}
                     }
+                } else if let Some((source, parked_record)) = event_loop.pending_reveals.remove(&id) {
+                    tracing::debug!("Found missing commitment via DHT. Retrying reveal verification...");
+                    // 1. Manually insert the fetched commitment into our local store
+                    let _ = event_loop
+                        .swarm
+                        .behaviour_mut()
+                        .kademlia
+                        .store_mut()
+                        .put_record(peer_record.record);
+                        
+                    // 2. Re-trigger the async verification for the parked Reveal
+                    if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&parked_record.value)
+                        && let Ok(reveal) = serde_json::from_value::<kinetic_core::types::Reveal>(parsed)
+                    {
+                        let store = event_loop.swarm.behaviour_mut().kademlia.store_mut();
+                        let storage = store.storage.clone();
+                        let engine = store.vdf_engine.clone();
+                        let current_drand_kyn = store.current_drand_kyn;
+
+                        if let Some(loopback) = &event_loop.loopback_tx {
+                            let loopback_clone = loopback.clone();
+                            crate::event_loop::utils::spawn(async move {
+                                let verdict = crate::event_loop::utils::spawn_blocking(move || {
+                                    crate::store::verification::verify_reveal(
+                                        &reveal,
+                                        &storage,
+                                        current_drand_kyn,
+                                        &engine,
+                                    )
+                                })
+                                .await;
+
+                                let _ = loopback_clone.send(
+                                    crate::event_loop::core::LoopbackCommand::CommitVerifiedRecord {
+                                        source,
+                                        record: parked_record,
+                                        verdict,
+                                    },
+                                );
+                            });
+                        }
+                    }
                 }
             }
             kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FinishedWithNoAdditionalRecord {
@@ -39,6 +81,8 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         }
                         crate::event_loop::core::QueryType::Put(_) => {}
                     }
+                } else if let Some((source, _)) = event_loop.pending_reveals.remove(&id) {
+                    tracing::debug!("Failed to find missing commitment for peer {} via DHT. Dropping reveal.", source);
                 }
             }
             kad::QueryResult::PutRecord(res) => {
@@ -60,7 +104,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                             tracing::debug!(name = %name, success = %pending.success_count, "Publish succeeded over network");
                             let _ = pending.responder.send(Ok(()));
                         } else {
-                            tracing::warn!(error_code = "KIN-PUB-004", name = %name, "Publish: all DHT puts failed over network");
+                            tracing::warn!(error_code = "KIN-PUB-005", name = %name, "Publish: all DHT puts failed over network");
                             let _ = pending.responder.send(Err(
                                 kinetic_core::error::PublishError::AllFailed { count: 0 },
                             ));
