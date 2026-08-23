@@ -35,7 +35,7 @@ impl super::core::NetworkEventLoop {
             lightnode::build_light_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         } else {
             #[cfg(target_arch = "wasm32")]
-            panic!("FullNode mode is not supported on WebAssembly");
+            return Err(anyhow::anyhow!("FullNode mode is not supported on WebAssembly"));
 
             #[cfg(not(target_arch = "wasm32"))]
             fullnode::build_full_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
@@ -66,6 +66,7 @@ impl super::core::NetworkEventLoop {
             pending_gets: rustc_hash::FxHashMap::default(),
             pending_quorums: rustc_hash::FxHashMap::default(),
             pending_puts: rustc_hash::FxHashMap::default(),
+            pending_reveals: rustc_hash::FxHashMap::default(),
             query_id_to_name: rustc_hash::FxHashMap::default(),
             pending_proxy_requests: rustc_hash::FxHashMap::default(),
             pending_cdn_requests: rustc_hash::FxHashMap::default(),
