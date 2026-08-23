@@ -14,6 +14,13 @@ impl super::core::NetworkEventLoop {
         payload: Vec<u8>,
         responder: tokio::sync::oneshot::Sender<Result<(), kinetic_core::error::PublishError>>,
     ) {
+        if self.pending_puts.contains_key(&name) {
+            let _ = responder.send(Err(kinetic_core::error::PublishError::Rejected(
+                "A publish operation for this domain is already in progress".to_string(),
+            )));
+            return;
+        }
+
         let mut expected = 0;
         let mut _validation_failures = 0;
         for key_bytes in &keys {
@@ -195,6 +202,13 @@ impl super::core::NetworkEventLoop {
                 payload,
                 responder,
             } => {
+                if self.pending_quorums.contains_key(&name) {
+                    let _ = responder.send(Err(kinetic_core::error::NetworkClientError::Other(
+                        "A quorum verification for this domain is already in progress".to_string(),
+                    )));
+                    return;
+                }
+
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
                     tracing::warn!("Offline mode: Failing fast for VerifyQuorum (0 peers)");
