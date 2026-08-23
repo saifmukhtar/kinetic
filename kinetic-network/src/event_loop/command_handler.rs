@@ -275,16 +275,14 @@ impl super::core::NetworkEventLoop {
                     .reveals_by_name
                     .len();
 
-                let counters = info.connection_counters();
-
                 let _ = responder.send(Ok(serde_json::json!({
                     "status": status,
                     "peer_id": self.swarm.local_peer_id().to_string(),
                     "connected_peers": peers,
                     "listen_addrs": self.swarm.listeners().map(|a| a.to_string()).collect::<Vec<_>>(),
                     "nat_status": self.nat_status,
-                    "bytes_sent": counters.num_pending_outgoing() as u64 + counters.num_established_outgoing() as u64, // libp2p connection_counters doesn't store total bandwidth in this version, so we fallback to 0 or we can just send 0 if it's too hard
-                    // Actually wait, let's look at `info.connection_counters()`.
+                    "bytes_sent": 0, // libp2p connection_counters doesn't store total bandwidth in this version, so we fallback to 0
+                    "bytes_received": 0,
                 })));
             }
             Command::SubscribeGossip { topic, responder } => {
