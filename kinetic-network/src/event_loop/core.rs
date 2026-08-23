@@ -32,7 +32,7 @@ pub(crate) enum LoopbackCommand {
     CommitGossipValidation {
         message_id: libp2p::gossipsub::MessageId,
         source: libp2p::PeerId,
-        is_valid: bool,
+        is_valid: Option<bool>,
     },
     ConnectionPoWVerified {
         peer_id: libp2p::PeerId,
@@ -41,6 +41,11 @@ pub(crate) enum LoopbackCommand {
         remote_addr: libp2p::Multiaddr,
     },
     DialResolvedSeed(libp2p::Multiaddr),
+    CdnResolutionVerified {
+        domain: std::sync::Arc<str>,
+        record_bytes: Vec<u8>,
+        peer: libp2p::PeerId,
+    },
 }
 
 /// The central event loop that drives the libp2p swarm and handles networking events.
@@ -54,6 +59,7 @@ pub struct NetworkEventLoop {
     pub(crate) pending_gets: FxHashMap<std::sync::Arc<str>, PendingGet>,
     pub(crate) pending_quorums: FxHashMap<std::sync::Arc<str>, PendingQuorum>,
     pub(crate) pending_puts: FxHashMap<std::sync::Arc<str>, PendingPut>,
+    pub(crate) pending_reveals: FxHashMap<kad::QueryId, (libp2p::PeerId, kad::Record)>,
     pub(crate) query_id_to_name: FxHashMap<kad::QueryId, QueryType>,
     pub(crate) pending_proxy_requests: FxHashMap<
         libp2p::request_response::OutboundRequestId,
@@ -232,7 +238,7 @@ impl NetworkEventLoop {
                                         tracing::warn!("Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
                                     }
                                     for multiaddr in addrs {
-                                        if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow) {
+                                        if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {
                                             let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
                                         } else {
                                             tracing::warn!("Rejected unroutable DNS seed multiaddr: {}", multiaddr);
@@ -287,8 +293,16 @@ impl NetworkEventLoop {
                 record,
                 verdict,
             } => {
-                if let Err(e) = verdict {
-                    if e.severity() == kinetic_core::error::Severity::Error {
+                match verdict {
+                    Err(crate::error::KineticStoreError::MissingCommitment { commit_key }) => {
+                        tracing::debug!("Commitment missing locally. Querying DHT to verify reveal...");
+                        let key = libp2p::kad::RecordKey::new(&commit_key);
+                        let query_id = self.swarm.behaviour_mut().kademlia.get_record(key);
+                        self.pending_reveals.insert(query_id, (source, record));
+                        return;
+                    }
+                    Err(e) => {
+                        if e.severity() == kinetic_core::error::Severity::Error {
                         let now = web_time::Instant::now();
                         let (count, last_time) = self
                             .bad_vdf_counts
@@ -313,7 +327,8 @@ impl NetworkEventLoop {
                             self.banned_peers.put(source, expire_kyn);
                         }
                     }
-                } else {
+                    }
+                    Ok(()) => {
                     tracing::debug!(
                         "Offloaded DHT record verification succeeded for peer {}",
                         source
@@ -332,16 +347,17 @@ impl NetworkEventLoop {
                         .kademlia
                         .start_providing(record.key.clone());
                 }
+                }
             }
             LoopbackCommand::CommitGossipValidation {
                 message_id,
                 source,
                 is_valid,
             } => {
-                let acceptance = if is_valid {
-                    libp2p::gossipsub::MessageAcceptance::Accept
-                } else {
-                    libp2p::gossipsub::MessageAcceptance::Reject
+                let acceptance = match is_valid {
+                    Some(true) => libp2p::gossipsub::MessageAcceptance::Accept,
+                    Some(false) => libp2p::gossipsub::MessageAcceptance::Reject,
+                    None => libp2p::gossipsub::MessageAcceptance::Ignore,
                 };
 
                 let _ = self
@@ -350,7 +366,7 @@ impl NetworkEventLoop {
                     .gossipsub
                     .report_message_validation_result(&message_id, &source, acceptance);
 
-                if !is_valid {
+                if let Some(false) = is_valid {
                     self.record_invalid_gossip(source);
                     // Disconnect after recording — banned_peers is updated inside record_invalid_gossip.
                     if self.is_banned(&source) {
@@ -422,6 +438,22 @@ impl NetworkEventLoop {
                     && self.swarm.dial(multiaddr.clone()).is_ok()
                 {
                     tracing::info!("Dialing resolved fallback DNS seed node: {}", multiaddr);
+                }
+            }
+            LoopbackCommand::CdnResolutionVerified { domain, record_bytes, peer } => {
+                if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes) {
+                    if self.swarm.behaviour_mut().kademlia.store_mut().handle_record(&record, true).is_ok() {
+                        tracing::info!(
+                            "CDN Hit! Accelerated resolution of {} via {}",
+                            domain,
+                            peer
+                        );
+                        if let Some(mut pending) = self.pending_gets.remove(&domain) {
+                            for tx in pending.responders.drain(..) {
+                                let _ = tx.send(Ok(record_bytes.clone()));
+                            }
+                        }
+                    }
                 }
             }
         }

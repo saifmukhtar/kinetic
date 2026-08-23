@@ -50,24 +50,44 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnReques
                         serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes)
                 {
                     let skip_verify = kinetic_core::config::is_dev_mode();
-                    if event_loop
-                        .swarm
-                        .behaviour_mut()
-                        .kademlia
-                        .store_mut()
-                        .handle_record(&record, skip_verify)
-                        .is_ok()
-                    {
-                        tracing::info!(
-                            "CDN Hit! Accelerated resolution of {} via {}",
-                            domain,
-                            peer
-                        );
-                        if let Some(mut pending) = event_loop.pending_gets.remove(&domain) {
-                            for tx in pending.responders.drain(..) {
-                                let _ = tx.send(Ok(record_bytes.clone()));
+                    let loopback = event_loop.loopback_tx.clone();
+                    
+                    if let Some(tx) = loopback {
+                        let store_ref = event_loop.swarm.behaviour_mut().kademlia.store_mut();
+                        let storage = store_ref.storage.clone();
+                        let engine = store_ref.vdf_engine.clone();
+                        let current_drand_kyn = store_ref.current_drand_kyn;
+                        let peer = peer.clone();
+                        
+                        crate::event_loop::utils::spawn(async move {
+                            let is_valid = if skip_verify {
+                                true
+                            } else {
+                                crate::event_loop::utils::spawn_blocking(move || {
+                                    if let kinetic_core::types::NameRecord::Standard(reveal) = &record {
+                                        crate::store::verification::verify_reveal(
+                                            reveal,
+                                            &storage,
+                                            current_drand_kyn,
+                                            &engine,
+                                        ).is_ok()
+                                    } else {
+                                        true
+                                    }
+                                })
+                                .await
+                            };
+
+                            if is_valid {
+                                let _ = tx.send(
+                                    crate::event_loop::core::LoopbackCommand::CdnResolutionVerified {
+                                        domain,
+                                        record_bytes,
+                                        peer,
+                                    },
+                                );
                             }
-                        }
+                        });
                     }
                 }
             }
