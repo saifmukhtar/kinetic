@@ -40,8 +40,8 @@ pub mod ports {
 
     /// Default HTTP reverse-proxy port for intercepting `.kin` requests (17001).
     pub const PROXY: u16 = 17001;
-    /// Default UDP DNS resolver port for native OS queries (53).
-    pub const DNS: u16 = 53;
+    /// Default UDP NRS resolver port for native OS queries (53).
+    pub const NRS: u16 = 53;
     /// Default local backend HTTP port (80).
     pub const BACKEND: u16 = 80;
     /// Default Proxy Auto-Config (PAC) server port (16001).
@@ -122,8 +122,8 @@ pub struct DaemonConfig {
     pub api_port: u16,
 
     /// Port for the built-in DNS resolver (default: [`ports::DNS`]).
-    #[serde(default = "default_dns_port")]
-    pub dns_port: u16,
+    #[serde(default = "default_nrs_port")]
+    pub nrs_port: u16,
     /// Port for the built-in HTTP reverse proxy (default: [`ports::PROXY`]).
     #[serde(default = "default_proxy_port")]
     pub proxy_port: u16,
@@ -135,7 +135,7 @@ pub struct DaemonConfig {
     pub backend_port: u16,
     /// Whether to start the built-in UDP DNS resolver on boot (default: `true`).
     #[serde(default = "default_true")]
-    pub enable_dns: bool,
+    pub enable_nrs: bool,
     /// Path to the directory where the embedded storage database is persisted.
     pub storage_dir: PathBuf,
     /// Network operating mode. Supported values: `"FullNode"` (participates in DHT storage & routing)
@@ -187,8 +187,8 @@ fn default_api_port() -> u16 {
     ports::API_DAEMON
 }
 
-fn default_dns_port() -> u16 {
-    ports::DNS
+fn default_nrs_port() -> u16 {
+    ports::NRS
 }
 
 fn default_proxy_port() -> u16 {
@@ -268,6 +268,12 @@ pub struct P2pConfig {
     /// Whether to enable mDNS peer discovery on the local network.
     #[serde(default = "default_true")]
     pub enable_mdns: bool,
+    /// Whether to enable UPnP automatic port forwarding.
+    #[serde(default = "default_true")]
+    pub enable_upnp: bool,
+    /// Whether to act as a public Relay Server for NAT-trapped peers.
+    #[serde(default = "default_true")]
+    pub enable_relay_server: bool,
     /// Optional externally reachable multiaddr (e.g. for nodes behind NAT).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_address: Option<String>,
@@ -333,10 +339,10 @@ impl Default for KineticConfig {
                 bind_ip: crate::constants::LOCAL_BIND_IP.to_string(),
                 pac_bind_ip: crate::constants::LOCAL_BIND_IP.to_string(),
                 api_port: ports::API_DAEMON,
-                dns_port: ports::DNS,
+                nrs_port: ports::NRS,
                 proxy_port: ports::PROXY,
                 backend_port: ports::BACKEND,
-                enable_dns: true,
+                enable_nrs: true,
                 storage_dir,
                 network_mode: "FullNode".to_string(),
                 auto_update: true,
@@ -357,6 +363,8 @@ impl Default for KineticConfig {
                     .collect(),
                 seed_domain: vec![format!("seed.{}", crate::constants::BASE_DOMAIN)],
                 enable_mdns: true,
+                enable_upnp: true,
+                enable_relay_server: true,
                 external_address: None,
                 enable_anonymous_telemetry: true,
             },
@@ -384,7 +392,7 @@ impl KineticConfig {
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
 
-        match fs::read_to_string(&config_path) {
+        let config = match fs::read_to_string(&config_path) {
             Ok(config_str) => match toml::from_str(&config_str) {
                 Ok(config) => config,
                 Err(e) => {
@@ -396,12 +404,48 @@ impl KineticConfig {
                 }
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                // Create default config only if it doesn't exist
                 let default_cfg = Self::default();
                 if let Some(parent) = config_path.parent() {
-                    let _ = fs::create_dir_all(parent);
-                    if let Ok(toml_str) = toml::to_string_pretty(&default_cfg) {
-                        let _ = fs::write(&config_path, toml_str);
+                    if let Err(e) = fs::create_dir_all(parent) {
+                        tracing::error!(
+                            "Failed to create config directory {:?}: {}. Refusing to start.",
+                            parent,
+                            e
+                        );
+                        std::process::exit(1);
+                    }
+
+                    let toml_str = toml::to_string_pretty(&default_cfg)
+                        .expect("Failed to serialize default config");
+
+                    match std::fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(&config_path)
+                    {
+                        Ok(mut file) => {
+                            use std::io::Write;
+                            if let Err(e) = file.write_all(toml_str.as_bytes()) {
+                                tracing::error!(
+                                    "Failed to write default config to {:?}: {}. Refusing to start.",
+                                    config_path,
+                                    e
+                                );
+                                std::process::exit(1);
+                            }
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                            // Another kinetic binary beat us to it in a TOCTOU race condition.
+                            // We can safely proceed with the default config.
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                "Failed to create default config at {:?}: {}. Refusing to start.",
+                                config_path,
+                                e
+                            );
+                            std::process::exit(1);
+                        }
                     }
                 }
                 default_cfg
@@ -413,7 +457,10 @@ impl KineticConfig {
                 );
                 std::process::exit(1);
             }
-        }
+        };
+
+        config.validate();
+        config
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -435,18 +482,21 @@ impl KineticConfig {
 
         if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent).map_err(|e| {
-                crate::error::KineticError::ConfigError(format!(
-                    "Failed to create config directory: {}",
-                    e
-                ))
+                crate::error::KineticError::Config(
+                    crate::error::ConfigError::DirectoryCreationFailed(e.to_string()),
+                )
             })?;
         }
 
         let toml_str = toml::to_string_pretty(self).map_err(|e| {
-            crate::error::KineticError::ConfigError(format!("Failed to serialize config: {}", e))
+            crate::error::KineticError::Config(crate::error::ConfigError::SerializationFailed(
+                e.to_string(),
+            ))
         })?;
         fs::write(&config_path, toml_str).map_err(|e| {
-            crate::error::KineticError::ConfigError(format!("Failed to write config file: {}", e))
+            crate::error::KineticError::Config(crate::error::ConfigError::WriteFailed(
+                e.to_string(),
+            ))
         })
     }
 
@@ -454,6 +504,47 @@ impl KineticConfig {
     /// Stub implementation for saving configuration in Wasm environments.
     pub fn save(&self) -> Result<(), crate::error::KineticError> {
         Ok(())
+    }
+
+    /// Validates the configuration for internal consistency.
+    pub fn validate(&self) {
+        let mut tcp_ports = vec![
+            self.daemon.api_port,
+            self.daemon.proxy_port,
+            self.daemon.backend_port,
+            self.daemon.pac_port,
+            self.network.daemon_port,
+            self.network.node_port,
+            self.network.host_port,
+        ];
+        let tcp_len = tcp_ports.len();
+        tcp_ports.sort_unstable();
+        tcp_ports.dedup();
+
+        if tcp_ports.len() != tcp_len {
+            tracing::error!(
+                "Configuration Error: TCP port collision detected in config.toml! Ensure all TCP ports (api, proxy, p2p, backend, pac) are strictly unique."
+            );
+            std::process::exit(1);
+        }
+
+        let mut udp_ports = vec![
+            self.daemon.nrs_port,
+            self.daemon.atlas_port,
+            self.network.daemon_quic_port,
+            self.network.node_quic_port,
+            self.network.host_quic_port,
+        ];
+        let udp_len = udp_ports.len();
+        udp_ports.sort_unstable();
+        udp_ports.dedup();
+
+        if udp_ports.len() != udp_len {
+            tracing::error!(
+                "Configuration Error: UDP port collision detected in config.toml! Ensure all UDP ports (nrs, atlas, quic) are strictly unique."
+            );
+            std::process::exit(1);
+        }
     }
 }
 
@@ -479,18 +570,22 @@ pub fn get_base_dir() -> PathBuf {
         return PathBuf::from(path);
     }
 
-    let network_dir = crate::constants::NETWORK_ID;
+    // Take first 4 chars of the HEX salt for deterministic multi-network isolation
+    let salt_prefix = &crate::constants::NETWORK_SALT_HEX[0..4];
+    let network_dir = format!("{}-{}", crate::constants::NSP, salt_prefix);
 
     #[cfg(not(target_arch = "wasm32"))]
     {
         dirs::data_local_dir()
             .unwrap_or_else(|| PathBuf::from("."))
+            .join("kinetic")
+            .join("networks")
             .join(network_dir)
     }
 
     #[cfg(target_arch = "wasm32")]
     {
-        PathBuf::from(format!("/{}", network_dir))
+        PathBuf::from(format!("/kinetic/networks/{}", network_dir))
     }
 }
 
@@ -509,7 +604,7 @@ mod tests {
         assert_eq!(config.daemon.api_port, ports::API_DAEMON);
         assert_eq!(config.network.daemon_port, ports::P2P_DAEMON);
         assert!(config.network.enable_mdns);
-        assert!(config.daemon.enable_dns);
+        assert!(config.daemon.enable_nrs);
     }
 
     #[test]

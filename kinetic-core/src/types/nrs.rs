@@ -1,21 +1,21 @@
 //! DNS zone models, record types, and host routing structures.
 //!
-//! Handles standard DNS record types ([`A`](DnsRecord::A), [`AAAA`](DnsRecord::AAAA), [`CNAME`](DnsRecord::CNAME), [`TXT`](DnsRecord::TXT))
-//! as well as Kinetic-native decentralized record types ([`PeerId`](DnsRecord::PeerId), [`KID`](DnsRecord::KID), [`IPFS`](DnsRecord::IPFS)).
+//! Handles standard DNS record types ([`A`](NrsRecord::A), [`AAAA`](NrsRecord::AAAA), [`CNAME`](NrsRecord::CNAME), [`TXT`](NrsRecord::TXT))
+//! as well as Kinetic-native decentralized record types ([`PeerId`](NrsRecord::PeerId), [`KID`](NrsRecord::KID), [`IPFS`](NrsRecord::IPFS)).
 
-pub use kinetic_types::dns::{DnsRecord, DnsZone, HostRoutingRecord};
+pub use kinetic_types::nrs::{HostRoutingRecord, NrsRecord, NrsZone};
 
-/// Extension trait for DnsZone containing validation and parsing logic.
-pub trait DnsZoneExt: Sized {
-    /// Parses a raw JSON payload into a [`DnsZone`] and validates its structure.
-    fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError>;
+/// Extension trait for NrsZone containing validation and parsing logic.
+pub trait NrsZoneExt: Sized {
+    /// Parses a raw JSON payload into a [`NrsZone`] and validates its structure.
+    fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::NrsError>;
 
     /// Validates all records within the DNS zone for structural correctness and network limits.
-    fn validate(&self) -> Result<(), crate::error::DnsError>;
+    fn validate(&self) -> Result<(), crate::error::NrsError>;
 }
 
-impl DnsZoneExt for DnsZone {
-    /// Parses a raw JSON payload into a [`DnsZone`] and validates its structure.
+impl NrsZoneExt for NrsZone {
+    /// Parses a raw JSON payload into a [`NrsZone`] and validates its structure.
     ///
     /// Uses `serde_json`'s built-in recursion limit to prevent
     /// stack-overflow DoS attacks ("JSON bombs") when handling untrusted network data.
@@ -23,11 +23,11 @@ impl DnsZoneExt for DnsZone {
     /// # Errors
     ///
     /// - Returns `JsonError` if JSON deserialization fails.
-    /// - Returns `DnsError` variants from `validate` if the logical payload validation rules fail.
-    fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::DnsError> {
-        let mut zone = serde_json::from_slice::<DnsZone>(payload)?;
+    /// - Returns `NrsError` variants from `validate` if the logical payload validation rules fail.
+    fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::NrsError> {
+        let mut zone = serde_json::from_slice::<NrsZone>(payload)?;
 
-        let mut lower_records: std::collections::HashMap<String, Vec<DnsRecord>> =
+        let mut lower_records: std::collections::HashMap<String, Vec<NrsRecord>> =
             std::collections::HashMap::new();
         for (k, v) in zone.records.drain() {
             lower_records.entry(k.to_lowercase()).or_default().extend(v);
@@ -42,34 +42,34 @@ impl DnsZoneExt for DnsZone {
     ///
     /// # Errors
     ///
-    /// - Returns [`DnsError::TooManyRecords`](crate::error::DnsError::TooManyRecords) if the zone contains more than 50 total records.
-    /// - Returns [`DnsError::InvalidLabelLength`](crate::error::DnsError::InvalidLabelLength) if a label is empty or exceeds 63 characters.
-    /// - Returns [`DnsError::InvalidLabelCharacters`](crate::error::DnsError::InvalidLabelCharacters) if a label contains invalid characters or leading/trailing hyphens.
-    /// - Returns [`DnsError::InvalidCnameConfiguration`](crate::error::DnsError::InvalidCnameConfiguration) if a CNAME coexists with other records (except `KID`) on the same label.
-    /// - Returns [`DnsError::TxtRecordTooLong`](crate::error::DnsError::TxtRecordTooLong) if a TXT record exceeds 255 bytes.
-    /// - Returns [`DnsError::InvalidCnameTarget`](crate::error::DnsError::InvalidCnameTarget) if a CNAME target is empty or > 253 characters.
-    /// - Returns [`DnsError::InvalidPeerId`](crate::error::DnsError::InvalidPeerId) if a `PeerId` string fails libp2p parsing.
-    /// - Returns [`DnsError::InvalidKid`](crate::error::DnsError::InvalidKid) if a `KID` string does not begin with `did:kin:`.
-    /// - Returns [`DnsError::InvalidIpfsCid`](crate::error::DnsError::InvalidIpfsCid) if an `IPFS` CID string is invalid.
-    fn validate(&self) -> Result<(), crate::error::DnsError> {
+    /// - Returns [`NrsError::TooManyRecords`](crate::error::NrsError::TooManyRecords) if the zone contains more than 50 total records.
+    /// - Returns [`NrsError::InvalidLabelLength`](crate::error::NrsError::InvalidLabelLength) if a label is empty or exceeds 63 characters.
+    /// - Returns [`NrsError::InvalidLabelCharacters`](crate::error::NrsError::InvalidLabelCharacters) if a label contains invalid characters or leading/trailing hyphens.
+    /// - Returns [`NrsError::InvalidCnameConfiguration`](crate::error::NrsError::InvalidCnameConfiguration) if a CNAME coexists with other records (except `KID`) on the same label.
+    /// - Returns [`NrsError::TxtRecordTooLong`](crate::error::NrsError::TxtRecordTooLong) if a TXT record exceeds 255 bytes.
+    /// - Returns [`NrsError::InvalidCnameTarget`](crate::error::NrsError::InvalidCnameTarget) if a CNAME target is empty or > 253 characters.
+    /// - Returns [`NrsError::InvalidPeerId`](crate::error::NrsError::InvalidPeerId) if a `PeerId` string fails libp2p parsing.
+    /// - Returns [`NrsError::InvalidKid`](crate::error::NrsError::InvalidKid) if a `KID` string does not begin with `did:kin:`.
+    /// - Returns [`NrsError::InvalidIpfsCid`](crate::error::NrsError::InvalidIpfsCid) if an `IPFS` CID string is invalid.
+    fn validate(&self) -> Result<(), crate::error::NrsError> {
         let total_records: usize = self.records.values().map(|vec| vec.len()).sum();
         if total_records > 50 {
-            return Err(crate::error::DnsError::TooManyRecords);
+            return Err(crate::error::NrsError::TooManyRecords);
         }
 
         for (label, records) in &self.records {
             if label.is_empty() || label.len() > 63 {
-                return Err(crate::error::DnsError::InvalidLabelLength(label.clone()));
+                return Err(crate::error::NrsError::InvalidLabelLength(label.clone()));
             }
             if label != "@" && label != "*" {
                 if label.starts_with('-') || label.ends_with('-') {
-                    return Err(crate::error::DnsError::InvalidLabelCharacters(
+                    return Err(crate::error::NrsError::InvalidLabelCharacters(
                         label.clone(),
                     ));
                 }
                 for c in label.chars() {
                     if !c.is_ascii_alphanumeric() && c != '-' && c != '_' {
-                        return Err(crate::error::DnsError::InvalidLabelCharacters(
+                        return Err(crate::error::NrsError::InvalidLabelCharacters(
                             label.clone(),
                         ));
                     }
@@ -78,10 +78,10 @@ impl DnsZoneExt for DnsZone {
 
             let cname_count = records
                 .iter()
-                .filter(|r| matches!(r, DnsRecord::CNAME(_)))
+                .filter(|r| matches!(r, NrsRecord::CNAME(_)))
                 .count();
             if cname_count > 1 {
-                return Err(crate::error::DnsError::MultipleCnames(label.clone()));
+                return Err(crate::error::NrsError::MultipleCnames(label.clone()));
             }
             if cname_count > 0 {
                 // By default (RFC 1034), a CNAME must be the only record on its label.
@@ -91,9 +91,9 @@ impl DnsZoneExt for DnsZone {
                 // the `KID` (Kinetic Identity Document) record to coexist with a CNAME.
                 let has_forbidden = records
                     .iter()
-                    .any(|r| !matches!(r, DnsRecord::CNAME(_) | DnsRecord::KID(_)));
+                    .any(|r| !matches!(r, NrsRecord::CNAME(_) | NrsRecord::KID(_)));
                 if has_forbidden {
-                    return Err(crate::error::DnsError::InvalidCnameConfiguration(
+                    return Err(crate::error::NrsError::InvalidCnameConfiguration(
                         label.clone(),
                     ));
                 }
@@ -101,44 +101,44 @@ impl DnsZoneExt for DnsZone {
 
             for record in records {
                 match record {
-                    DnsRecord::A(_) | DnsRecord::AAAA(_) => {}
-                    DnsRecord::TXT(txt) => {
+                    NrsRecord::A(_) | NrsRecord::AAAA(_) => {}
+                    NrsRecord::TXT(txt) => {
                         if txt.len() > 255 {
-                            return Err(crate::error::DnsError::TxtRecordTooLong(label.clone()));
+                            return Err(crate::error::NrsError::TxtRecordTooLong(label.clone()));
                         }
                     }
-                    DnsRecord::CNAME(cname) => {
+                    NrsRecord::CNAME(cname) => {
                         if cname.is_empty() || cname.len() > 253 {
-                            return Err(crate::error::DnsError::InvalidCnameTarget(label.clone()));
+                            return Err(crate::error::NrsError::InvalidCnameTarget(label.clone()));
                         }
                         for c in cname.chars() {
                             if !c.is_ascii_alphanumeric() && c != '-' && c != '.' {
-                                return Err(crate::error::DnsError::InvalidCnameTarget(
+                                return Err(crate::error::NrsError::InvalidCnameTarget(
                                     label.clone(),
                                 ));
                             }
                         }
                     }
-                    DnsRecord::PeerId(peer_id_str) => {
+                    NrsRecord::PeerId(peer_id_str) => {
                         use std::str::FromStr;
                         if libp2p_identity::PeerId::from_str(peer_id_str).is_err() {
-                            return Err(crate::error::DnsError::InvalidPeerId(peer_id_str.clone()));
+                            return Err(crate::error::NrsError::InvalidPeerId(peer_id_str.clone()));
                         }
                     }
-                    DnsRecord::KID(kid_str) => {
+                    NrsRecord::KID(kid_str) => {
                         if !kid_str.starts_with(crate::constants::DID_PREFIX) {
-                            return Err(crate::error::DnsError::InvalidKid(kid_str.clone()));
+                            return Err(crate::error::NrsError::InvalidKid(kid_str.clone()));
                         }
                     }
-                    DnsRecord::IPFS(cid) => {
+                    NrsRecord::IPFS(cid) => {
                         if cid.is_empty() || cid.len() > 100 {
-                            return Err(crate::error::DnsError::InvalidIpfsCid(cid.clone()));
+                            return Err(crate::error::NrsError::InvalidIpfsCid(cid.clone()));
                         }
                         if !cid.starts_with("Qm") && !cid.starts_with('b') {
-                            return Err(crate::error::DnsError::InvalidIpfsCid(cid.clone()));
+                            return Err(crate::error::NrsError::InvalidIpfsCid(cid.clone()));
                         }
                     }
-                    DnsRecord::Other => {}
+                    NrsRecord::Other => {}
                 }
             }
         }
@@ -149,15 +149,15 @@ impl DnsZoneExt for DnsZone {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::DnsError;
+    use crate::error::NrsError;
 
     #[test]
     fn test_parse_payload_success() {
         let json = r#"{"records": {"@": [{"type": "PeerId", "value": "12D3KooWNvSVhMTBqYq5AStb2H8s1uA5PpH8Zt9vEHQo6bC8vJ2K"}]}}"#;
-        let zone = DnsZone::parse_payload(json.as_bytes()).unwrap();
+        let zone = NrsZone::parse_payload(json.as_bytes()).unwrap();
         if let Some(records) = zone.records.get("@") {
             assert_eq!(records.len(), 1);
-            if let DnsRecord::PeerId(ref pid) = records[0] {
+            if let NrsRecord::PeerId(ref pid) = records[0] {
                 assert_eq!(pid, "12D3KooWNvSVhMTBqYq5AStb2H8s1uA5PpH8Zt9vEHQo6bC8vJ2K");
             } else {
                 panic!("Expected PeerId");
@@ -169,88 +169,88 @@ mod tests {
 
     #[test]
     fn test_error_too_many_records() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         let mut records = Vec::new();
         for _ in 0..51 {
-            records.push(DnsRecord::TXT("test".to_string()));
+            records.push(NrsRecord::TXT("test".to_string()));
         }
         zone.records.insert("@".to_string(), records);
 
         let result = zone.validate();
-        assert_eq!(result.unwrap_err(), DnsError::TooManyRecords);
+        assert_eq!(result.unwrap_err(), NrsError::TooManyRecords);
     }
 
     #[test]
     fn test_error_invalid_label_length() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         let long_label = "a".repeat(64);
         zone.records
-            .insert(long_label.clone(), vec![DnsRecord::TXT("test".to_string())]);
+            .insert(long_label.clone(), vec![NrsRecord::TXT("test".to_string())]);
 
         let result = zone.validate();
         assert_eq!(
             result.unwrap_err(),
-            DnsError::InvalidLabelLength(long_label)
+            NrsError::InvalidLabelLength(long_label)
         );
 
-        let mut zone_empty = DnsZone::default();
+        let mut zone_empty = NrsZone::default();
         zone_empty
             .records
-            .insert("".to_string(), vec![DnsRecord::TXT("test".to_string())]);
+            .insert("".to_string(), vec![NrsRecord::TXT("test".to_string())]);
         assert_eq!(
             zone_empty.validate().unwrap_err(),
-            DnsError::InvalidLabelLength("".to_string())
+            NrsError::InvalidLabelLength("".to_string())
         );
     }
 
     #[test]
     fn test_error_invalid_label_characters() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         zone.records.insert(
             "-starts-with-hyphen".to_string(),
-            vec![DnsRecord::TXT("test".to_string())],
+            vec![NrsRecord::TXT("test".to_string())],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
-            DnsError::InvalidLabelCharacters("-starts-with-hyphen".to_string())
+            NrsError::InvalidLabelCharacters("-starts-with-hyphen".to_string())
         );
 
-        let mut zone2 = DnsZone::default();
+        let mut zone2 = NrsZone::default();
         zone2.records.insert(
             "invalid!char".to_string(),
-            vec![DnsRecord::TXT("test".to_string())],
+            vec![NrsRecord::TXT("test".to_string())],
         );
         assert_eq!(
             zone2.validate().unwrap_err(),
-            DnsError::InvalidLabelCharacters("invalid!char".to_string())
+            NrsError::InvalidLabelCharacters("invalid!char".to_string())
         );
     }
 
     #[test]
     fn test_error_invalid_cname_configuration() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         zone.records.insert(
             "www".to_string(),
             vec![
-                DnsRecord::CNAME("target.kin".to_string()),
-                DnsRecord::TXT("other record".to_string()),
+                NrsRecord::CNAME("target.kin".to_string()),
+                NrsRecord::TXT("other record".to_string()),
             ],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
-            DnsError::InvalidCnameConfiguration("www".to_string())
+            NrsError::InvalidCnameConfiguration("www".to_string())
         );
     }
 
     #[test]
     fn test_cname_kid_coexistence() {
         // CNAME and KID are allowed to coexist (RFC 4035 / Web3 mapping)
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         zone.records.insert(
             "www".to_string(),
             vec![
-                DnsRecord::CNAME("target.kin".to_string()),
-                DnsRecord::KID("did:kin:123".to_string()),
+                NrsRecord::CNAME("target.kin".to_string()),
+                NrsRecord::KID("did:kin:123".to_string()),
             ],
         );
         assert!(zone.validate().is_ok());
@@ -258,79 +258,79 @@ mod tests {
 
     #[test]
     fn test_error_txt_record_too_long() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         let long_txt = "a".repeat(256);
         zone.records
-            .insert("@".to_string(), vec![DnsRecord::TXT(long_txt)]);
+            .insert("@".to_string(), vec![NrsRecord::TXT(long_txt)]);
         assert_eq!(
             zone.validate().unwrap_err(),
-            DnsError::TxtRecordTooLong("@".to_string())
+            NrsError::TxtRecordTooLong("@".to_string())
         );
     }
 
     #[test]
     fn test_error_invalid_cname_target() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         let long_cname = "a".repeat(254);
         zone.records
-            .insert("@".to_string(), vec![DnsRecord::CNAME(long_cname)]);
+            .insert("@".to_string(), vec![NrsRecord::CNAME(long_cname)]);
         assert_eq!(
             zone.validate().unwrap_err(),
-            DnsError::InvalidCnameTarget("@".to_string())
+            NrsError::InvalidCnameTarget("@".to_string())
         );
     }
 
     #[test]
     fn test_error_invalid_peer_id() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         zone.records.insert(
             "@".to_string(),
-            vec![DnsRecord::PeerId("not-a-peer-id".to_string())],
+            vec![NrsRecord::PeerId("not-a-peer-id".to_string())],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
-            DnsError::InvalidPeerId("not-a-peer-id".to_string())
+            NrsError::InvalidPeerId("not-a-peer-id".to_string())
         );
     }
 
     #[test]
     fn test_error_invalid_kid() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         zone.records.insert(
             "@".to_string(),
-            vec![DnsRecord::KID("did:eth:123".to_string())],
+            vec![NrsRecord::KID("did:eth:123".to_string())],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
-            DnsError::InvalidKid("did:eth:123".to_string())
+            NrsError::InvalidKid("did:eth:123".to_string())
         );
     }
     #[test]
     fn test_error_multiple_cnames() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         zone.records.insert(
             "www".to_string(),
             vec![
-                DnsRecord::CNAME("target1.kin".to_string()),
-                DnsRecord::CNAME("target2.kin".to_string()),
+                NrsRecord::CNAME("target1.kin".to_string()),
+                NrsRecord::CNAME("target2.kin".to_string()),
             ],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
-            DnsError::MultipleCnames("www".to_string())
+            NrsError::MultipleCnames("www".to_string())
         );
     }
 
     #[test]
     fn test_error_invalid_cname_target_chars() {
-        let mut zone = DnsZone::default();
+        let mut zone = NrsZone::default();
         zone.records.insert(
             "www".to_string(),
-            vec![DnsRecord::CNAME("https://hacker.com/?q=evil".to_string())],
+            vec![NrsRecord::CNAME("https://hacker.com/?q=evil".to_string())],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
-            DnsError::InvalidCnameTarget("www".to_string())
+            NrsError::InvalidCnameTarget("www".to_string())
         );
     }
 }

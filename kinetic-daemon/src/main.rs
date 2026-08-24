@@ -37,8 +37,8 @@ use tracing_subscriber::FmtSubscriber;
 use kinetic_core::config::KineticConfig;
 use kinetic_core::types::load_keypair;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
-use kinetic_storage::SledStorage;
-use kinetic_vdf::ChiaVdfEngine;
+use kinetic_storage::KineticStorage;
+use kinetic_vdf_rsa::RsaVdfEngine;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -235,7 +235,7 @@ async fn run_daemon() -> Result<()> {
 
     if config.daemon.backend_port == config.daemon.api_port
         || config.daemon.backend_port == config.daemon.proxy_port
-        || config.daemon.backend_port == config.daemon.dns_port
+        || config.daemon.backend_port == config.daemon.nrs_port
         || config.daemon.backend_port == config.network.daemon_port
     {
         tracing::error!(
@@ -262,13 +262,13 @@ async fn run_daemon() -> Result<()> {
         .storage_dir
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 path in storage_dir"))?;
-    let storage = Arc::new(SledStorage::new(storage_path)?);
+    let storage = Arc::new(KineticStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
-    let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(ChiaVdfEngine::new());
+    let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(RsaVdfEngine::new());
     info!("VDF Engine initialized");
 
-    let daemon_keypair = load_keypair("identity.key")?;
+    let daemon_keypair = load_keypair(std::path::Path::new("identity.key"))?;
     use ml_dsa::{KeyExport, Keypair};
     info!(
         "Daemon identity loaded: {:?}",
@@ -343,6 +343,8 @@ async fn run_daemon() -> Result<()> {
             .map(Into::into)
             .collect(),
         enable_mdns: config.network.enable_mdns,
+        enable_upnp: config.network.enable_upnp,
+        enable_relay_server: config.network.enable_relay_server,
         initial_drand_kyn,
         external_address: config
             .network
@@ -594,12 +596,12 @@ async fn run_daemon() -> Result<()> {
         );
     }
 
-    if config.daemon.enable_dns {
+    if config.daemon.enable_nrs {
         let api_url = format!(
             "http://{}:{}",
             config.daemon.bind_ip, config.daemon.api_port
         );
-        let dns_handler = kinetic_dns::KineticDnsHandler::new(
+        let dns_handler = kinetic_nrs::KineticDnsHandler::new(
             api_url,
             atlas_nsps.clone(),
             config.daemon.atlas_port,
@@ -608,14 +610,14 @@ async fn run_daemon() -> Result<()> {
 
         let udp_socket = tokio::net::UdpSocket::bind(format!(
             "{}:{}",
-            config.daemon.bind_ip, config.daemon.dns_port
+            config.daemon.bind_ip, config.daemon.nrs_port
         ))
         .await?;
         server.register_socket(udp_socket);
 
         let tcp_listener = tokio::net::TcpListener::bind(format!(
             "{}:{}",
-            config.daemon.bind_ip, config.daemon.dns_port
+            config.daemon.bind_ip, config.daemon.nrs_port
         ))
         .await?;
         server.register_listener(tcp_listener, std::time::Duration::from_secs(5));
@@ -623,7 +625,7 @@ async fn run_daemon() -> Result<()> {
         tokio::spawn(async move {
             info!(
                 "Built-in DNS Server starting on port {}",
-                config.daemon.dns_port
+                config.daemon.nrs_port
             );
             if let Err(e) = server.block_until_done().await {
                 tracing::error!("DNS Server error: {}", e);

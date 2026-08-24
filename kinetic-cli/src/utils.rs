@@ -28,7 +28,7 @@ pub fn parse_and_format_api_error(
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if the FQDN apex name is invalid, or if the directory cannot be created or the file cannot be written.
-pub fn save_zone_file(fqdn: &str, zone: &kinetic_core::types::DnsZone) -> anyhow::Result<()> {
+pub fn save_zone_file(fqdn: &str, zone: &kinetic_core::types::NrsZone) -> anyhow::Result<()> {
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(fqdn) {
         anyhow::bail!("Invalid apex name: {:?}", e);
     }

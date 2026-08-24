@@ -5,8 +5,9 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use crate::error::{
-    DnsError, DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError,
-    PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
+    ConfigError, DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError,
+    NrsError, PublishError, RecordRejectReason, RegistrationError, ResolutionError, StorageError,
+    VdfError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -125,14 +126,14 @@ impl From<RegistrationError> for ApiError {
 impl From<GovernanceError> for ApiError {
     fn from(e: GovernanceError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            GovernanceError::MissingRootKey => (500, "Configuration Error"),
-            GovernanceError::StaleProposal
-            | GovernanceError::TimelockNotExpired
-            | GovernanceError::NotPendingOrVetoed => (409, "Conflict"),
+            GovernanceError::MissingRootKey | GovernanceError::MalformedRootKey => {
+                (500, "Configuration Error")
+            }
+            GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
             GovernanceError::InsufficientSignatures => (401, "Unauthorized"),
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
             GovernanceError::KeyLengthMismatch
-            | GovernanceError::InvalidPremiumNameLength
+            | GovernanceError::InvalidPrimeLength
             | GovernanceError::InvalidProtocolName
             | GovernanceError::AlreadyMapped
             | GovernanceError::NotMapped
@@ -186,7 +187,11 @@ impl From<StorageError> for ApiError {
         let (status, title): (u16, &'static str) = match &e {
             StorageError::DatabaseLocked => (423, "Locked"),
             StorageError::Corruption(_) => (500, "Storage Corruption"),
-            StorageError::OperationFailed(_) => (500, "Storage Operation Failed"),
+            StorageError::ReadFailed(_)
+            | StorageError::WriteFailed(_)
+            | StorageError::DeleteFailed(_)
+            | StorageError::ScanFailed(_)
+            | StorageError::OpenFailed(_) => (500, "Storage Operation Failed"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -213,6 +218,7 @@ impl From<VdfError> for ApiError {
             }
             VdfError::UnsupportedPlatform => (501, "Not Implemented"),
             VdfError::InvalidProof => (400, "Bad Request"),
+            VdfError::InvalidChallenge => (400, "Bad Request"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -231,9 +237,11 @@ impl From<VdfError> for ApiError {
 impl From<DrandError> for ApiError {
     fn from(e: DrandError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            DrandError::AllEndpointsFailed | DrandError::Network(_) | DrandError::Reqwest(_) | DrandError::HttpError(_) => {
-                (502, "Bad Gateway")
-            }
+            DrandError::AllEndpointsFailed
+            | DrandError::StreamReadFailed(_)
+            | DrandError::ResponseTooLarge(_)
+            | DrandError::Reqwest(_)
+            | DrandError::HttpError(_) => (502, "Bad Gateway"),
             DrandError::NoCachedKyn => (404, "Not Found"),
             DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
             DrandError::InvalidSignature => (422, "Cryptographic Verification Failed"),
@@ -253,21 +261,21 @@ impl From<DrandError> for ApiError {
     }
 }
 
-impl From<DnsError> for ApiError {
-    fn from(e: DnsError) -> Self {
+impl From<NrsError> for ApiError {
+    fn from(e: NrsError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            DnsError::NestedTooDeeply
-            | DnsError::ParseError(_)
-            | DnsError::TooManyRecords
-            | DnsError::InvalidLabelLength(_)
-            | DnsError::InvalidLabelCharacters(_)
-            | DnsError::InvalidCnameConfiguration(_)
-            | DnsError::TxtRecordTooLong(_)
-            | DnsError::InvalidCnameTarget(_)
-            | DnsError::InvalidPeerId(_)
-            | DnsError::InvalidKid(_)
-            | DnsError::InvalidIpfsCid(_)
-            | DnsError::MultipleCnames(_) => (400, "Bad Request"),
+            NrsError::NestedTooDeeply
+            | NrsError::ParseError(_)
+            | NrsError::TooManyRecords
+            | NrsError::InvalidLabelLength(_)
+            | NrsError::InvalidLabelCharacters(_)
+            | NrsError::InvalidCnameConfiguration(_)
+            | NrsError::TxtRecordTooLong(_)
+            | NrsError::InvalidCnameTarget(_)
+            | NrsError::InvalidPeerId(_)
+            | NrsError::InvalidKid(_)
+            | NrsError::InvalidIpfsCid(_)
+            | NrsError::MultipleCnames(_) => (400, "Bad Request"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -300,7 +308,9 @@ impl From<IdentityError> for ApiError {
             IdentityError::KidAlreadyExists(_) => (409, "Conflict"),
             IdentityError::InvalidRotation(_) => (422, "Unprocessable Entity"),
             IdentityError::KidDeactivated(_) => (410, "Gone"),
-            IdentityError::SerializationFailed(_) | IdentityError::ManifestSigningFailed(_) => (500, "Internal Server Error"),
+            IdentityError::SerializationFailed(_) | IdentityError::ManifestSigningFailed(_) => {
+                (500, "Internal Server Error")
+            }
             IdentityError::MalformedKidDocument(_)
             | IdentityError::MalformedApexKidDocument(_)
             | IdentityError::MalformedManifest(_) => (422, "Unprocessable Entity"),
@@ -337,18 +347,18 @@ impl From<NamesError> for ApiError {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::{ResolutionError, DrandError, IdentityError, PublishError};
+    use crate::error::{DrandError, IdentityError, PublishError, ResolutionError};
 
     #[test]
     fn test_status_code_mappings() {
         // Test 404 mapping
-        let err = ResolutionError::NotFound { name: "test.kin".to_string(), peers_queried: 5 };
+        let err = ResolutionError::NotFound {
+            name: "test.kin".to_string(),
+            peers_queried: 5,
+        };
         assert_eq!(ApiError::from(err).status, 404);
 
         // Test proxy leak fix (Drand 404 shouldn't leak to client)

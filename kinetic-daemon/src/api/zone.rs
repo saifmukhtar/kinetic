@@ -1,4 +1,4 @@
-//! HTTP REST API handlers for managing local DNS zone files and re-signing/publishing updated records to the DHT.
+//! HTTP REST API handlers for managing local NRS zone files and re-signing/publishing updated records to the DHT.
 
 use super::*;
 use axum::{
@@ -6,6 +6,32 @@ use axum::{
     extract::{Extension, Path, State},
     http::StatusCode,
 };
+use tracing::info;
+
+/// Represents the status of a reserved name in the local network configuration.
+#[derive(serde::Serialize)]
+pub struct ReservedNameStatus {
+    /// The reserved name (e.g., "example", "localhost").
+    pub name: String,
+    /// True if a local zone override file exists for this name.
+    pub active: bool,
+}
+
+/// Handles API requests to get the list of reserved names and their active local status.
+pub async fn handle_get_reserved_names() -> Result<Json<Vec<ReservedNameStatus>>, StatusCode> {
+    let local_dir = kinetic_core::config::get_zones_dir().join("local");
+
+    let mut statuses = Vec::new();
+    for r in kinetic_core::types::RESERVED_NAMES {
+        let path = local_dir.join(format!("{}.json", r));
+        statuses.push(ReservedNameStatus {
+            name: r.to_string(),
+            active: path.exists(),
+        });
+    }
+
+    Ok(Json(statuses))
+}
 
 /// Handles API requests to retrieve a local zone file for a given name.
 ///
@@ -50,7 +76,7 @@ pub async fn handle_get_zone(
 pub async fn handle_post_zone(
     Extension(role): Extension<Role>,
     Path(name): Path<String>,
-    Json(zone): Json<kinetic_core::types::DnsZone>,
+    Json(zone): Json<kinetic_core::types::NrsZone>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     if !role.can_publish() {
         return Err((
@@ -129,7 +155,7 @@ pub async fn handle_publish_zone(
             ));
         }
     };
-    let zone: kinetic_core::types::DnsZone = match serde_json::from_str(&content) {
+    let zone: kinetic_core::types::NrsZone = match serde_json::from_str(&content) {
         Ok(z) => z,
         Err(_) => {
             return Err((
@@ -164,7 +190,7 @@ pub async fn handle_publish_zone(
 
     // 3. Load the daemon keypair and re-sign with the updated payload
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let keypair = match kinetic_core::types::load_keypair(&identity_path.to_string_lossy()) {
+    let keypair = match kinetic_core::types::load_keypair(&identity_path) {
         Ok(k) => k,
         Err(_) => {
             return Err((
@@ -242,4 +268,133 @@ pub async fn handle_publish_zone(
             ),
         )),
     }
+}
+
+/// Handles API requests to save changes to a reserved local zone file (e.g. example.kin).
+pub async fn handle_post_local_zone(
+    Extension(role): Extension<Role>,
+    Path(name): Path<String>,
+    Json(zone): Json<kinetic_core::types::NrsZone>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_publish() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
+        ));
+    }
+
+    let fqdn = kinetic_core::types::normalize_name(&name);
+    if !kinetic_core::types::names::is_reserved_name(&fqdn) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(
+                serde_json::json!({ "error": "This endpoint is strictly for reserved local names (e.g. example.kin)." }),
+            ),
+        ));
+    }
+
+    let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
+    let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
+
+    let local_dir = kinetic_core::config::get_zones_dir().join("local");
+    let _ = std::fs::create_dir_all(&local_dir);
+    let path = local_dir.join(format!("{}.json", apex_no_tld));
+
+    let content = match serde_json::to_string_pretty(&zone) {
+        Ok(c) => c,
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Serialization failed: {}", e) })),
+            ));
+        }
+    };
+
+    if let Err(e) = std::fs::write(&path, content) {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("File write failed: {}", e) })),
+        ));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// Handles API requests to delete a reserved local zone file.
+pub async fn handle_delete_local_zone(
+    Extension(role): Extension<Role>,
+    Path(name): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    if !role.can_publish() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
+        ));
+    }
+
+    let fqdn = kinetic_core::types::normalize_name(&name);
+    if !kinetic_core::types::names::is_reserved_name(&fqdn) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(
+                serde_json::json!({ "error": "This endpoint is strictly for reserved local names (e.g. example.kin)." }),
+            ),
+        ));
+    }
+
+    let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
+    let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
+
+    let path = kinetic_core::config::get_zones_dir()
+        .join("local")
+        .join(format!("{}.json", apex_no_tld));
+
+    if path.exists() {
+        if let Err(e) = std::fs::remove_file(&path) {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("File delete failed: {}", e) })),
+            ));
+        }
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// Handles API requests to retrieve a reserved local zone file.
+pub async fn handle_get_local_zone(
+    Path(name): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let fqdn = kinetic_core::types::normalize_name(&name);
+
+    if !kinetic_core::types::names::is_reserved_name(&fqdn) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(
+                serde_json::json!({ "error": "This endpoint is strictly for reserved local names (e.g. example.kin)." }),
+            ),
+        ));
+    }
+
+    let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
+    let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
+
+    let path = kinetic_core::config::get_zones_dir()
+        .join("local")
+        .join(format!("{}.json", apex_no_tld));
+
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        if let Ok(zone) = serde_json::from_str::<serde_json::Value>(&content) {
+            return Ok(Json(zone));
+        }
+    }
+
+    Err((
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Local zone override not found" })),
+    ))
 }

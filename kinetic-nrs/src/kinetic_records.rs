@@ -3,7 +3,7 @@
 use hickory_proto::rr::{Name, RData, Record};
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, ResponseHandler, ResponseInfo};
-use kinetic_core::types::DnsZoneExt;
+use kinetic_core::types::NrsZoneExt;
 use kinetic_verify::signatures::VerifySignature;
 use moka::future::Cache;
 use std::str::FromStr;
@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tracing::{error, info, warn};
 
 /// Resolves a `.kin` domain by querying the daemon API and checking the local cache.
-/// Returns standard DNS records (A, AAAA, CNAME, TXT) converted from the Kinetic DHT `DnsZone`.
+/// Returns standard DNS records (A, AAAA, CNAME, TXT) converted from the Kinetic DHT `NrsZone`.
 #[allow(clippy::too_many_arguments)]
 pub async fn resolve_kinetic<R: ResponseHandler>(
     request: &Request,
@@ -27,9 +27,11 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 ) -> ResponseInfo {
     let query = request.query();
 
-    // Intercept Category 1 RESERVED_NAMES
+    // Intercept Category 1 RESERVED_NAMES (but only resolve localhost directly)
     let parts: Vec<&str> = apex_domain.split('.').collect();
-    if !parts.is_empty() && kinetic_core::types::RESERVED_NAMES.contains(&parts[0]) {
+    let is_reserved = !parts.is_empty() && kinetic_core::types::RESERVED_NAMES.contains(&parts[0]);
+
+    if is_reserved {
         if parts[0] == "localhost" {
             let mut response_records = Vec::new();
             let name = Name::from_str(query_name).unwrap_or_else(|_| Name::root());
@@ -70,19 +72,15 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                 let _ = response_handle.send_response(response).await;
                 return header.into();
             }
-        } else {
-            // For all other RESERVED_NAMES, instantly return NXDOMAIN (Not Found)
-            let response =
-                builder.error_msg(request.header(), hickory_proto::op::ResponseCode::NXDomain);
-            let _ = response_handle.send_response(response).await;
-            header.set_response_code(hickory_proto::op::ResponseCode::NXDomain);
-            return header.into();
         }
+        // For other reserved names (like internal.kin), DO NOT return NXDOMAIN!
+        // Fall through to query the Daemon API for local overrides.
     }
 
     let api_url_clone = api_url.to_string();
     let http_client_clone = http_client.clone();
     let apex_domain_clone = apex_domain.to_string();
+    let is_reserved_clone = is_reserved;
 
     let cache_result = cache
         .try_get_with(apex_domain.to_string(), async move {
@@ -105,20 +103,34 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                             payload.extend_from_slice(&chunk);
                         }
                         if limit_exceeded {
-                            warn!("API response exceeded 100KB limit");
+                            warn!(error_code = "KIN-DNS-001", "API response exceeded 100KB limit for {}", apex_domain_clone);
                             Ok::<_, Arc<anyhow::Error>>(None)
                         } else {
+                            if !is_reserved_clone {
+                                match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
+                                    Ok(domain_record) => {
+                                        if domain_record.verify_signature(kinetic_core::constants::NETWORK_SALT).is_err() {
+                                            warn!(error_code = "KIN-DNS-002", "Rejecting .kin resolution: record signature invalid for {}", apex_domain_clone);
+                                            return Err(Arc::new(anyhow::anyhow!("Invalid signature")));
+                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!(error_code = "KIN-DNS-003", "Invalid NameRecord format for {}: {}", apex_domain_clone, e);
+                                        return Err(Arc::new(anyhow::anyhow!("Invalid format")));
+                                    }
+                                }
+                            }
                             Ok::<_, Arc<anyhow::Error>>(Some(payload))
                         }
                     } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
                         Ok(None)
                     } else {
-                        warn!("API returned status: {}", resp.status());
+                        warn!(error_code = "KIN-DNS-004", "Daemon API returned status: {}", resp.status());
                         Err(Arc::new(anyhow::anyhow!("API error: {}", resp.status())))
                     }
                 }
                 Err(e) => {
-                    warn!("API request failed: {}", e);
+                    warn!(error_code = "KIN-DNS-005", "Daemon API request failed: {}", e);
                     Err(Arc::new(e.into()))
                 }
             }
@@ -131,26 +143,11 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
             match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload_bytes) {
                 Ok(domain_record) => {
-                    if domain_record
-                        .verify_signature(kinetic_core::constants::NETWORK_SALT)
-                        .is_err()
-                    {
-                        warn!(
-                            "Rejecting .kin resolution: record signature invalid for {}",
-                            apex_domain
-                        );
-                        let response = builder
-                            .error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
-                        let _ = response_handle.send_response(response).await;
-                        header.set_response_code(hickory_proto::op::ResponseCode::ServFail);
-                        return header.into();
-                    }
-
-                    match kinetic_core::types::DnsZone::parse_payload(domain_record.payload()) {
+                    match kinetic_core::types::NrsZone::parse_payload(domain_record.payload()) {
                         Ok(zone) => {
                             if let Some(records) = zone.records.get("@") {
                                 for record in records {
-                                    if let kinetic_core::types::DnsRecord::KID(did) = record {
+                                    if let kinetic_core::types::NrsRecord::KID(did) = record {
                                         info!(
                                             "E2E Auth: Domain specifies KID: {}. Fetching from daemon...",
                                             did
@@ -216,7 +213,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 return header.into();
                                             }
                                             Err(e) => {
-                                                warn!("E2E Auth Request failed: {}", e);
+                                                warn!(
+                                                    error_code = "KIN-DNS-010",
+                                                    "E2E Auth Request failed: {}", e
+                                                );
                                                 let response = builder.error_msg(
                                                     request.header(),
                                                     hickory_proto::op::ResponseCode::ServFail,
@@ -237,7 +237,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 "@".to_string()
                             } else {
                                 let mut sub = domain_name
-                                    .trim_end_matches(&format!(".{}", apex_domain))
+                                    .strip_suffix(&format!(".{}", apex_domain))
+                                    .unwrap_or(domain_name)
                                     .to_string();
                                 if sub.ends_with('.') {
                                     sub.pop();
@@ -253,7 +254,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 let name = match Name::from_str(query_name) {
                                     Ok(n) => n,
                                     Err(e) => {
-                                        error!("Invalid query name format: {}", e);
+                                        error!(
+                                            error_code = "KIN-DNS-006",
+                                            "Invalid query name format: {}", e
+                                        );
                                         let response = builder.error_msg(
                                             request.header(),
                                             hickory_proto::op::ResponseCode::FormErr,
@@ -272,27 +276,29 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 // We filter out the KID (and anything else) for Web2 OS resolvers.
                                 let has_cname = records
                                     .iter()
-                                    .any(|r| matches!(r, kinetic_core::types::DnsRecord::CNAME(_)));
+                                    .any(|r| matches!(r, kinetic_core::types::NrsRecord::CNAME(_)));
 
                                 for record in records {
                                     if has_cname
                                         && !matches!(
                                             record,
-                                            kinetic_core::types::DnsRecord::CNAME(_)
+                                            kinetic_core::types::NrsRecord::CNAME(_)
                                         )
                                     {
                                         continue; // Only return CNAME to legacy Web2 resolvers
                                     }
                                     match record {
-                                        kinetic_core::types::DnsRecord::A(ip)
+                                        kinetic_core::types::NrsRecord::A(ip)
                                             if q_type == hickory_proto::rr::RecordType::A =>
                                         {
                                             if let Err(e) = kinetic_core::net::validate_ssrf_safe(
                                                 std::net::IpAddr::V4(*ip),
                                             ) {
                                                 warn!(
+                                                    error_code = "KIN-DNS-007",
                                                     "Blocked SSRF attempt: A record points to forbidden IP {}. Reason: {}",
-                                                    ip, e
+                                                    ip,
+                                                    e
                                                 );
                                                 continue;
                                             }
@@ -302,15 +308,17 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 RData::A((*ip).into()),
                                             ));
                                         }
-                                        kinetic_core::types::DnsRecord::AAAA(ip)
+                                        kinetic_core::types::NrsRecord::AAAA(ip)
                                             if q_type == hickory_proto::rr::RecordType::AAAA =>
                                         {
                                             if let Err(e) = kinetic_core::net::validate_ssrf_safe(
                                                 std::net::IpAddr::V6(*ip),
                                             ) {
                                                 warn!(
+                                                    error_code = "KIN-DNS-007",
                                                     "Blocked SSRF attempt: AAAA record points to forbidden IP {}. Reason: {}",
-                                                    ip, e
+                                                    ip,
+                                                    e
                                                 );
                                                 continue;
                                             }
@@ -320,7 +328,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 RData::AAAA((*ip).into()),
                                             ));
                                         }
-                                        kinetic_core::types::DnsRecord::CNAME(target) => {
+                                        kinetic_core::types::NrsRecord::CNAME(target) => {
                                             // By DNS RFC, a CNAME should be returned regardless of what the user asked for (A/AAAA/TXT).
                                             // The OS resolver will receive the CNAME and recursively follow it.
 
@@ -341,6 +349,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
                                             if is_blocked_cname {
                                                 warn!(
+                                                    error_code = "KIN-DNS-008",
                                                     "Blocked SSRF attempt: CNAME record points to forbidden local/internal domain {}",
                                                     target
                                                 );
@@ -352,8 +361,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                     kinetic_core::net::validate_ssrf_safe(ip)
                                             {
                                                 warn!(
+                                                    error_code = "KIN-DNS-009",
                                                     "Blocked SSRF attempt: CNAME record points to forbidden IP {}. Reason: {}",
-                                                    ip, e
+                                                    target,
+                                                    e
                                                 );
                                                 continue;
                                             }
@@ -368,7 +379,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 ));
                                             }
                                         }
-                                        kinetic_core::types::DnsRecord::TXT(txt)
+                                        kinetic_core::types::NrsRecord::TXT(txt)
                                             if q_type == hickory_proto::rr::RecordType::TXT
                                                 || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
@@ -380,7 +391,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 )),
                                             ));
                                         }
-                                        kinetic_core::types::DnsRecord::PeerId(pid)
+                                        kinetic_core::types::NrsRecord::PeerId(pid)
                                             if q_type == hickory_proto::rr::RecordType::TXT
                                                 || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
@@ -392,7 +403,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 )),
                                             ));
                                         }
-                                        kinetic_core::types::DnsRecord::KID(kid)
+                                        kinetic_core::types::NrsRecord::KID(kid)
                                             if q_type == hickory_proto::rr::RecordType::TXT
                                                 || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
@@ -404,7 +415,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 )),
                                             ));
                                         }
-                                        kinetic_core::types::DnsRecord::IPFS(cid)
+                                        kinetic_core::types::NrsRecord::IPFS(cid)
                                             if q_type == hickory_proto::rr::RecordType::TXT
                                                 || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
@@ -435,18 +446,33 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     return header.into();
                                 }
                             } else {
-                                warn!("No records found for subdomain: {}", subdomain);
+                                warn!(
+                                    error_code = "KIN-DNS-011",
+                                    "No records found for subdomain: {}", subdomain
+                                );
                             }
                         }
-                        Err(e) => warn!("Payload was not a valid DnsZone: {}", e),
+                        Err(e) => warn!(
+                            error_code = "KIN-DNS-012",
+                            "Payload was not a valid NrsZone: {}", e
+                        ),
                     }
                 }
-                Err(e) => warn!("Payload was not a valid NameRecord: {}", e),
+                Err(e) => warn!(
+                    error_code = "KIN-DNS-013",
+                    "Payload was not a valid NameRecord: {}", e
+                ),
             }
         }
-        Ok(None) => warn!("No payload found for .kin query (NXDOMAIN cached)"),
+        Ok(None) => warn!(
+            error_code = "KIN-DNS-014",
+            "No payload found for .kin query (NXDOMAIN cached)"
+        ),
         Err(e) => {
-            error!("Error resolving .kin query via DHT/Cache: {:?}", e);
+            error!(
+                error_code = "KIN-DNS-015",
+                "Error resolving .kin query via DHT/Cache: {:?}", e
+            );
             let response =
                 builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
             let _ = response_handle.send_response(response).await;

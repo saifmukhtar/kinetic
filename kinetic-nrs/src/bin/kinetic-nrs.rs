@@ -16,7 +16,7 @@ use tokio::net::UdpSocket;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_dns::KineticDnsHandler;
+use kinetic_nrs::KineticDnsHandler;
 
 #[derive(Parser)]
 #[command(
@@ -157,7 +157,7 @@ fn install_service() -> Result<()> {
             "--dns-port".into(),
             kinetic_core::config::KineticConfig::load()
                 .daemon
-                .dns_port
+                .nrs_port
                 .to_string()
                 .into(),
         ],
@@ -169,7 +169,7 @@ fn install_service() -> Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    if let Err(e) = configure_os_dns(kinetic_core::config::KineticConfig::load().daemon.dns_port) {
+    if let Err(e) = configure_os_dns(kinetic_core::config::KineticConfig::load().daemon.nrs_port) {
         println!("Warning: Failed to configure OS DNS: {}", e);
     }
 
@@ -207,7 +207,7 @@ fn stop_background_service() -> Result<()> {
     Ok(())
 }
 
-async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
+async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     let subscriber = FmtSubscriber::builder()
@@ -230,15 +230,15 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
     #[cfg(target_os = "macos")]
     setup_macos_alias(bind_ip);
 
-    match UdpSocket::bind(format!("{}:{}", bind_ip, dns_port)).await {
+    match UdpSocket::bind(format!("{}:{}", bind_ip, nrs_port)).await {
         Ok(socket) => {
             server.register_socket(socket);
 
-            if let Ok(ipv6_socket) = UdpSocket::bind(format!("[::1]:{}", dns_port)).await {
+            if let Ok(ipv6_socket) = UdpSocket::bind(format!("[::1]:{}", nrs_port)).await {
                 server.register_socket(ipv6_socket);
             }
 
-            info!("DNS proxy ready on {}:{} (and [::1])", bind_ip, dns_port);
+            info!("DNS proxy ready on {}:{} (and [::1])", bind_ip, nrs_port);
 
             #[cfg(unix)]
             {
@@ -273,13 +273,13 @@ async fn run_server(api_url: String, dns_port: u16) -> Result<()> {
         Err(e) => {
             warn!(
                 "Failed to bind DNS proxy to {}:{}: {}",
-                bind_ip, dns_port, e
+                bind_ip, nrs_port, e
             );
             warn!("Falling back to non-privileged port. Use sudo for native DNS interception.");
-            let fallback_port = if dns_port == 53 {
+            let fallback_port = if nrs_port == 53 {
                 5353
             } else {
-                dns_port + 1000
+                nrs_port + 1000
             };
 
             match UdpSocket::bind(format!("{}:{}", bind_ip, fallback_port)).await {

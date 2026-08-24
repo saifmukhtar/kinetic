@@ -46,7 +46,7 @@ pub async fn handle(
 
     // 2. Generate the VDF Proof
     info!("Initializing Chia VDF Engine. Generating cryptographic proof...");
-    let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
+    let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
 
     // Generate a random salt to prevent pre-computation attacks
     let mut salt = [0u8; 32];
@@ -54,7 +54,7 @@ pub async fn handle(
 
     // Construct commitment: H(name || salt || drand_signature || pubkey)
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let keypair = load_keypair(&identity_path.to_string_lossy())?;
+    let keypair = load_keypair(&identity_path)?;
     let pubkey = keypair.verifying_key().to_bytes();
 
     let mut drand_hasher = sha2::Sha256::new();
@@ -179,7 +179,7 @@ pub async fn handle(
     info!("VDF Proof successfully generated!");
     info!("Proof: {}", hex::encode(&proof.proof_bytes));
 
-    // 3. Construct the DnsZone and auto-generate/inherit KID
+    // 3. Construct the NrsZone and auto-generate/inherit KID
     let mut records = std::collections::HashMap::new();
 
     let drand_client = kinetic_core::drand::DrandClient::new(None);
@@ -193,7 +193,13 @@ pub async fn handle(
         ),
     };
 
-    let kid_res = kinetic_core::types::get_or_create_kid_for_name(&fqdn, true, false, current_kyn)?;
+    let kid_res = kinetic_core::types::get_or_create_kid_for_name(
+        &fqdn,
+        true,
+        false,
+        current_kyn,
+        &identity_path,
+    )?;
     if kid_res.is_inherited {
         info!("Inheriting apex KID for {}: {}", fqdn, kid_res.did);
     } else {
@@ -203,11 +209,11 @@ pub async fn handle(
     // Map the apex of the zone to this KID
     records.insert(
         "@".to_string(),
-        vec![kinetic_core::types::DnsRecord::KID(kid_res.did)],
+        vec![kinetic_core::types::NrsRecord::KID(kid_res.did)],
     );
 
-    let zone = kinetic_core::types::DnsZone { records };
-    let payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
+    let zone = kinetic_core::types::NrsZone { records };
+    let payload = serde_json::to_vec(&zone).expect("Failed to serialize NrsZone");
 
     let mut reveal = Reveal {
         protocol_version: 1,

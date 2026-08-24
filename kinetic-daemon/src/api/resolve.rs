@@ -23,6 +23,38 @@ pub async fn handle_resolve_name(
 ) -> Result<Json<kinetic_core::types::NameRecord>, (StatusCode, Json<serde_json::Value>)> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
+    if kinetic_core::types::names::is_reserved_name(&fqdn) {
+        let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
+        let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
+        let local_zone_file = kinetic_core::config::get_zones_dir()
+            .join("local")
+            .join(format!("{}.json", apex_no_tld));
+
+        if let Ok(content) = std::fs::read_to_string(&local_zone_file) {
+            if let Ok(zone) = serde_json::from_str::<kinetic_core::types::NrsZone>(&content) {
+                let payload = serde_json::to_vec(&zone).unwrap_or_default();
+                let dummy_json = serde_json::json!({
+                    "owner_kid": "reserved_local",
+                    "payload": payload,
+                    "signature": [],
+                    "timestamp": 0
+                });
+                if let Ok(record) =
+                    serde_json::from_value::<kinetic_core::types::NameRecord>(dummy_json)
+                {
+                    return Ok(Json(record));
+                }
+            }
+        }
+
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(
+                serde_json::json!({"error": format!("Reserved name {} has no local override in zones/local/", fqdn)}),
+            ),
+        ));
+    }
+
     match state.network.resolve_redundant_payload(&fqdn).await {
         Ok(payload) => match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
             Ok(record) => {

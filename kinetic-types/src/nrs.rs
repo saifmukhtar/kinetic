@@ -1,25 +1,25 @@
-//! DNS zone definitions, record schemas, and host routing records.
+//! NRS zone definitions, record schemas, and host routing records.
 //!
-//! Defines the canonical representation of DNS zone files published to the Kinetic network.
-//! In addition to standard internet record types (`A`, `AAAA`, `CNAME`, `TXT`), Kinetic DNS
+//! Defines the canonical representation of NRS zone files published to the Kinetic network.
+//! In addition to standard internet record types (`A`, `AAAA`, `CNAME`, `TXT`), Kinetic NRS
 //! supports decentralized primitives including P2P Peer IDs (`PeerId`), Kinetic Identity Documents (`KID`),
 //! and IPFS content identifiers (`IPFS`).
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Parsed DNS zone mapping subdomain labels to collections of [`DnsRecord`] entries.
+/// Parsed NRS zone mapping subdomain labels to collections of [`NrsRecord`] entries.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct DnsZone {
-    /// Mapping from subdomain label (e.g. `@`, `www`, `api`) to a list of associated DNS records.
+pub struct NrsZone {
+    /// Mapping from subdomain label (e.g. `@`, `www`, `api`) to a list of associated NRS records.
     #[serde(default)]
-    pub records: HashMap<String, Vec<DnsRecord>>,
+    pub records: HashMap<String, Vec<NrsRecord>>,
 }
 
-/// Strongly typed DNS record variant supported by the Kinetic network resolver.
+/// Strongly typed NRS record variant supported by the Kinetic network resolver.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "value")]
-pub enum DnsRecord {
+pub enum NrsRecord {
     /// Standard IPv4 address record.
     A(std::net::Ipv4Addr),
     /// Standard IPv6 address record.
@@ -34,7 +34,7 @@ pub enum DnsRecord {
     KID(String),
     /// IPFS Content Identifier (CID) for decentralized static content delivery.
     IPFS(String),
-    /// Fallback variant capturing unknown or future DNS record types.
+    /// Fallback variant capturing unknown or future NRS record types.
     #[serde(other)]
     Other,
 }
@@ -59,7 +59,7 @@ impl HostRoutingRecord {
     ///
     /// Concatenated byte vector prefixed with the network routing header string (`{network_id}-routing-v1`).
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
-        let name_separator = b"-dns-routing-v1";
+        let name_separator = b"-nrs-routing-v1";
         let mut bytes = Vec::with_capacity(
             network_salt.len()
                 + name_separator.len()

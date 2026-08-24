@@ -25,7 +25,7 @@
 //! | `KIN-REG-NNN` | [`RegistrationError`] | Name registration flow |
 //! | `KIN-VDF-NNN` | `VdfError` | VDF engine operations |
 //! | `KIN-GOV-NNN` | `GovernanceError` | Council governance |
-//! | `KIN-DNS-NNN` | `DnsError` | DNS zone parsing |
+//! | `KIN-NRS-NNN` | `NrsError` | NRS zone parsing |
 //! | `KIN-DRA-NNN` | `DrandError` | Drand beacon |
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
 //! | `KIN-NAM-NNN` | `NamesError` | Name validation |
@@ -37,10 +37,10 @@
 
 use thiserror::Error;
 
+/// Configuration parsing and persistence error types.
+pub mod config;
 /// DHT record rejection and resolution/publish/registration error types.
 pub mod dht;
-/// DNS Zone parsing and validation error types.
-pub mod dns;
 /// Drand Quicknet kyn acquisition and verification error types.
 pub mod drand;
 /// Council governance and parameter-update error types.
@@ -51,6 +51,8 @@ pub mod identity;
 pub mod names;
 /// libp2p network client error types.
 pub mod network;
+/// NRS Zone parsing and validation error types.
+pub mod nrs;
 /// Daemon shutdown signal error types.
 pub mod shutdown;
 /// SSRF security validation error types.
@@ -63,13 +65,14 @@ pub mod telemetry;
 /// chiavdf Verifiable Delay Function error types.
 pub mod vdf;
 
+pub use config::ConfigError;
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};
-pub use dns::DnsError;
 pub use drand::DrandError;
 pub use governance::GovernanceError;
 pub use identity::IdentityError;
 pub use names::NamesError;
 pub use network::NetworkClientError;
+pub use nrs::NrsError;
 pub use storage::StorageError;
 pub use vdf::{VdfError, VdfRejectReason};
 
@@ -142,7 +145,7 @@ pub enum KineticError {
     /// Raised by [`KineticConfig::load`](crate::config::KineticConfig::load) on
     /// parse failures and by startup validation when required fields are absent.
     #[error("Configuration error: {0}")]
-    ConfigError(String),
+    Config(#[from] config::ConfigError),
 
     /// A cryptographic operation failed.
     ///

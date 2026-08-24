@@ -8,7 +8,7 @@
 //! ## Subsystem Architecture
 //!
 //! - [`clock`]: Branded time hierarchy ([`KineticTime`](clock::KineticTime)) based on network beacons (Kyns, Facets, Prisms, Matrices, Lattices, Apexes).
-//! - [`dns`]: DNS zone definitions, record variants (`A`, `AAAA`, `CNAME`, `TXT`, `PeerId`, `KID`, `IPFS`), and P2P routing records.
+//! - [`nrs`]: NRS zone definitions, record variants (`A`, `AAAA`, `CNAME`, `TXT`, `PeerId`, `KID`, `IPFS`), and P2P routing records.
 //! - [`name_record`]: Name records ([`NameRecord`](name_record::NameRecord)), heartbeat liveness proofs ([`Heartbeat`](name_record::Heartbeat)), and signature verification.
 //! - [`error`]: Common error taxonomy metadata and severity classifications ([`Severity`](error::Severity)).
 //! - [`governance`]: Governance actions, signed proposal containers ([`SignedGovernanceMessage`](governance::SignedGovernanceMessage)), binary opcodes, and parser error types.
@@ -20,11 +20,11 @@
 
 pub mod cdn;
 pub mod clock;
-pub mod dns;
 pub mod error;
 pub mod governance;
 pub mod identity;
 pub mod name_record;
 pub mod network;
+pub mod nrs;
 pub mod proxy;
 pub mod vdf;

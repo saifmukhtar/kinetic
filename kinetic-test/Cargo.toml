@@ -7,14 +7,14 @@ license.workspace = true
 [dependencies]
 kinetic-core = { path = "../kinetic-core" }
 kinetic-network = { path = "../kinetic-network" }
-kinetic-vdf = { path = "../kinetic-vdf" }
+kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 kinetic-storage = { path = "../kinetic-storage" }
 libp2p = { version = "0.53", features = ["tokio", "tcp", "noise", "yamux", "dns", "kad", "request-response", "macros", "gossipsub"] }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-kinetic-dns = { path = "../kinetic-dns" }
+kinetic-nrs = { path = "../kinetic-nrs" }
 hickory-client = "0.24"
 hickory-server = "0.24"
 hickory-proto = "0.24"

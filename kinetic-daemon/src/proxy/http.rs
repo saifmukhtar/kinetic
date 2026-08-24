@@ -1,7 +1,7 @@
 //! HTTP request routing, CNAME recursion, IPFS gateway proxying, P2P peer forwarding, and SSRF loop protection.
 
 use super::*;
-use kinetic_core::types::DnsZoneExt;
+use kinetic_core::types::NrsZoneExt;
 /// Handles an incoming HTTP or HTTPS (CONNECT) proxy request, determining how to route it.
 pub async fn handle_proxy_request(
     req: Request<Incoming>,
@@ -143,10 +143,10 @@ pub async fn forward_to_backend_direct(
         let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
             .map_err(|_| ProxyError::InvalidPayload)?;
 
-        let zone = match kinetic_core::types::DnsZone::parse_payload(record.payload()) {
+        let zone = match kinetic_core::types::NrsZone::parse_payload(record.payload()) {
             Ok(z) => z,
             Err(e) => {
-                tracing::warn!("Proxy Error: Invalid DnsZone payload: {}", e);
+                tracing::warn!("Proxy Error: Invalid NrsZone payload: {}", e);
                 return Err(ProxyError::InvalidPayload);
             }
         };
@@ -179,26 +179,26 @@ pub async fn forward_to_backend_direct(
         for record in records {
             tracing::info!("Proxy considering record: {:?}", record);
             match record {
-                kinetic_core::types::DnsRecord::A(ip) => {
+                kinetic_core::types::NrsRecord::A(ip) => {
                     target_str = ip.to_string();
                     break;
                 }
-                kinetic_core::types::DnsRecord::AAAA(ip) => {
+                kinetic_core::types::NrsRecord::AAAA(ip) => {
                     target_str = ip.to_string();
                     break;
                 }
-                kinetic_core::types::DnsRecord::TXT(_) => {
+                kinetic_core::types::NrsRecord::TXT(_) => {
                     continue; // Do NOT parse TXT records as IPs for proxying
                 }
-                kinetic_core::types::DnsRecord::PeerId(peer_id) => {
+                kinetic_core::types::NrsRecord::PeerId(peer_id) => {
                     target_str = peer_id.clone();
                     break;
                 }
-                kinetic_core::types::DnsRecord::CNAME(target) => {
+                kinetic_core::types::NrsRecord::CNAME(target) => {
                     cname_target = Some(target.clone());
                     break;
                 }
-                kinetic_core::types::DnsRecord::IPFS(cid) => {
+                kinetic_core::types::NrsRecord::IPFS(cid) => {
                     target_str = format!("ipfs://{}", cid);
                     break;
                 }
@@ -311,7 +311,7 @@ pub async fn forward_to_backend_direct(
         if (ip_addr.is_loopback() || ip_addr.is_unspecified())
             && (original_port == config.daemon.proxy_port
                 || original_port == config.daemon.api_port
-                || original_port == config.daemon.dns_port
+                || original_port == config.daemon.nrs_port
                 || original_port == config.daemon.backend_port
                 || original_port == config.network.daemon_port
                 || original_port == config.daemon.pac_port)

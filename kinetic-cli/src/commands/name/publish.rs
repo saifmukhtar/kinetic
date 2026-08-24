@@ -19,7 +19,7 @@ use tracing::{info, warn};
 /// the existing record cannot be found, or the DHT publish fails.
 pub async fn update_zone_logic(
     fqdn: String,
-    zone: kinetic_core::types::DnsZone,
+    zone: kinetic_core::types::NrsZone,
     config: &KineticConfig,
     client: &Client,
     _display_val: String,
@@ -29,7 +29,7 @@ pub async fn update_zone_logic(
         return Ok(());
     }
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let keypair = load_keypair(&identity_path.to_string_lossy())?;
+    let keypair = load_keypair(&identity_path)?;
 
     // Check for local reveal file first for massive UX improvement
     let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
@@ -56,7 +56,7 @@ pub async fn update_zone_logic(
         resolve_res.json().await?
     };
 
-    let new_payload = serde_json::to_vec(&zone).expect("Failed to serialize DnsZone");
+    let new_payload = serde_json::to_vec(&zone).expect("Failed to serialize NrsZone");
     match &mut existing_record {
         kinetic_core::types::NameRecord::Standard(r) => {
             r.payload = new_payload;
@@ -130,8 +130,8 @@ pub async fn handle(name: String, config: &KineticConfig, client: &Client) -> an
     }
 
     let file_contents = std::fs::read_to_string(&zone_file)?;
-    let zone: kinetic_core::types::DnsZone = serde_json::from_str(&file_contents)
-        .map_err(|e| anyhow::anyhow!("Invalid DnsZone JSON in {}: {}", zone_file.display(), e))?;
+    let zone: kinetic_core::types::NrsZone = serde_json::from_str(&file_contents)
+        .map_err(|e| anyhow::anyhow!("Invalid NrsZone JSON in {}: {}", zone_file.display(), e))?;
 
     update_zone_logic(fqdn, zone, config, client, "ZonePublish".to_string()).await?;
     Ok(())

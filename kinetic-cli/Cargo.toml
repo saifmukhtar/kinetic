@@ -20,7 +20,7 @@ getrandom = "0.4.3"
 hex = "0.4.3"
 bip39 = "2.2.2"
 kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
-kinetic-vdf = { version = "0.2.0", path = "../kinetic-vdf" }
+kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 kinetic-kid = { version = "0.2.0", path = "../kinetic-kid" }
 libp2p = { version = "0.53", features = ["ed25519"] }
 rand = "0.10.1"
@@ -45,3 +45,4 @@ axum = "0.8.9"
 tokio.workspace = true
 mockito = "1.7.2"
 tempfile = "3"
+

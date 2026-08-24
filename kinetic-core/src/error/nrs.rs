@@ -1,33 +1,33 @@
-//! DNS zone payload validation error types (`KIN-DNS-NNN`).
+//! NRS zone payload validation error types (`KIN-NRS-NNN`).
 //!
-//! Errors produced during [`DnsZone`](crate::types::dns::DnsZone) parsing and record-level
-//! validation. A DNS zone is the JSON payload embedded inside a Kinetic reveal record;
+//! Errors produced during [`NrsZone`](crate::types::nrs::NrsZone) parsing and record-level
+//! validation. A NRS zone is the JSON payload embedded inside a Kinetic reveal record;
 //! every field must pass these checks before the zone is stored in the DHT.
 //!
 //! The 50-record limit and JSON nesting depth cap enforce the 80 KB DHT record size ceiling.
 use super::Severity;
 use thiserror::Error;
 
-/// Error type for DNS zone payloads and record validation.
+/// Error type for NRS zone payloads and record validation.
 #[derive(Error, Debug)]
-pub enum DnsError {
-    /// The DNS JSON payload is nested too deeply.
+pub enum NrsError {
+    /// The NRS JSON payload is nested too deeply.
     #[error("Payload rejected: JSON nested too deeply")]
     NestedTooDeeply,
 
-    /// The DNS JSON payload could not be parsed.
-    #[error("Failed to parse DNS zone: {0}")]
+    /// The NRS JSON payload could not be parsed.
+    #[error("Failed to parse NRS zone: {0}")]
     ParseError(#[from] serde_json::Error),
 
     /// The zone contains more than the maximum allowed number of records.
-    #[error("Maximum of 50 DNS records allowed per zone to prevent network bloat")]
+    #[error("Maximum of 50 NRS records allowed per zone to prevent network bloat")]
     TooManyRecords,
 
-    /// A DNS label has an invalid length (empty or >62 chars).
+    /// A NRS label has an invalid length (empty or >62 chars).
     #[error("Invalid label length: {0}")]
     InvalidLabelLength(String),
 
-    /// A DNS label contains invalid characters.
+    /// A NRS label contains invalid characters.
     #[error("Invalid label character: {0}")]
     InvalidLabelCharacters(String),
 
@@ -60,7 +60,7 @@ pub enum DnsError {
     MultipleCnames(String),
 }
 
-impl PartialEq for DnsError {
+impl PartialEq for NrsError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::NestedTooDeeply, Self::NestedTooDeeply) => true,
@@ -80,24 +80,24 @@ impl PartialEq for DnsError {
     }
 }
 
-impl Eq for DnsError {}
+impl Eq for NrsError {}
 
-impl DnsError {
+impl NrsError {
     /// Stable protocol error code.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::NestedTooDeeply => "KIN-DNS-001",
-            Self::ParseError(_) => "KIN-DNS-002",
-            Self::TooManyRecords => "KIN-DNS-003",
-            Self::InvalidLabelLength(_) => "KIN-DNS-004",
-            Self::InvalidLabelCharacters(_) => "KIN-DNS-005",
-            Self::InvalidCnameConfiguration(_) => "KIN-DNS-006",
-            Self::TxtRecordTooLong(_) => "KIN-DNS-007",
-            Self::InvalidCnameTarget(_) => "KIN-DNS-008",
-            Self::InvalidPeerId(_) => "KIN-DNS-009",
-            Self::InvalidKid(_) => "KIN-DNS-010",
-            Self::InvalidIpfsCid(_) => "KIN-DNS-011",
-            Self::MultipleCnames(_) => "KIN-DNS-012",
+            Self::NestedTooDeeply => "KIN-NRS-001",
+            Self::ParseError(_) => "KIN-NRS-002",
+            Self::TooManyRecords => "KIN-NRS-003",
+            Self::InvalidLabelLength(_) => "KIN-NRS-004",
+            Self::InvalidLabelCharacters(_) => "KIN-NRS-005",
+            Self::InvalidCnameConfiguration(_) => "KIN-NRS-006",
+            Self::TxtRecordTooLong(_) => "KIN-NRS-007",
+            Self::InvalidCnameTarget(_) => "KIN-NRS-008",
+            Self::InvalidPeerId(_) => "KIN-NRS-009",
+            Self::InvalidKid(_) => "KIN-NRS-010",
+            Self::InvalidIpfsCid(_) => "KIN-NRS-011",
+            Self::MultipleCnames(_) => "KIN-NRS-012",
         }
     }
 
@@ -108,7 +108,7 @@ impl DnsError {
 
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
-        // DNS validation failures are usually bad requests (Warning level from the node's perspective).
+        // NRS validation failures are usually bad requests (Warning level from the node's perspective).
         Severity::Warning
     }
 
@@ -121,15 +121,15 @@ impl DnsError {
     pub fn user_message(&self) -> String {
         match self {
             Self::NestedTooDeeply => {
-                "The DNS zone contains data that is nested too deeply.".to_string()
+                "The NRS zone contains data that is nested too deeply.".to_string()
             }
-            Self::ParseError(_) => "Failed to parse the DNS zone data.".to_string(),
+            Self::ParseError(_) => "Failed to parse the NRS zone data.".to_string(),
             Self::TooManyRecords => {
-                "The DNS zone contains too many records (maximum 50).".to_string()
+                "The NRS zone contains too many records (maximum 50).".to_string()
             }
-            Self::InvalidLabelLength(_) => "A DNS record label has an invalid length.".to_string(),
+            Self::InvalidLabelLength(_) => "A NRS record label has an invalid length.".to_string(),
             Self::InvalidLabelCharacters(_) => {
-                "A DNS record label contains invalid characters.".to_string()
+                "A NRS record label contains invalid characters.".to_string()
             }
             Self::InvalidCnameConfiguration(_) => {
                 "A CNAME record must be the only routing record for its label, except for cryptographic KID records.".to_string()

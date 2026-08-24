@@ -17,10 +17,10 @@ simulation = ["kinetic-core/simulation", "kinetic-kid/simulation"]
 
 [dependencies]
 kinetic-core = { path = "../kinetic-core" }
-kinetic-vdf = { path = "../kinetic-vdf" }
+kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
-kinetic-dns = { path = "../kinetic-dns" }
+kinetic-nrs = { path = "../kinetic-nrs" }
 kinetic-kid = { path = "../kinetic-kid" }
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
 kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }

@@ -1,5 +1,5 @@
 [package]
-name = "kinetic-dns"
+name = "kinetic-nrs"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

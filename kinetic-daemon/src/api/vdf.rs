@@ -135,7 +135,7 @@ pub async fn handle_vdf_register(
         // window before the reveal appears.
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
         let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-        let keypair = match kinetic_core::types::load_keypair(&identity_path.to_string_lossy()) {
+        let keypair = match kinetic_core::types::load_keypair(&identity_path) {
             Ok(k) => k,
             Err(e) => {
                 update_task_error(
@@ -183,7 +183,7 @@ pub async fn handle_vdf_register(
             kinetic_core::consensus_math::ConsensusParams::default().required_iterations(&fqdn);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
-        let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
+        let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
         let challenge_clone = challenge.clone();
 
         let permit_res = state.vdf_semaphore.clone().acquire_owned().await;
@@ -259,7 +259,7 @@ pub async fn handle_vdf_register(
 
         // Construct Reveal
         let records = HashMap::new();
-        let zone = kinetic_core::types::DnsZone { records };
+        let zone = kinetic_core::types::NrsZone { records };
         let payload = match serde_json::to_vec(&zone) {
             Ok(b) => b,
             Err(e) => {
@@ -487,7 +487,7 @@ pub async fn handle_vdf_renew(
         // Step 3: Commitment — generate privately; broadcast AFTER VDF (Option B / C-1 fix).
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
         let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-        let keypair = match kinetic_core::types::load_keypair(&identity_path.to_string_lossy()) {
+        let keypair = match kinetic_core::types::load_keypair(&identity_path) {
             Ok(k) => k,
             Err(e) => {
                 update_task_error(
@@ -538,7 +538,7 @@ pub async fn handle_vdf_renew(
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);
 
-        let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
+        let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
         let challenge_clone = challenge.clone();
 
         let permit_res = state.vdf_semaphore.clone().acquire_owned().await;

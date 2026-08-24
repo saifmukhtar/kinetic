@@ -4,7 +4,7 @@ members = [
     "kinetic-vdf",
     "kinetic-network",
     "kinetic-storage",
-    "kinetic-dns",
+    "kinetic-nrs",
     "kinetic-daemon", "kinetic-cli", "kinetic-test", "kinetic-kid", "kinetic-node",
     "kinetic-host", "kinetic-wasm", "kinetic-forge", "kinetic-pac"
 , "kinetic-verify", "kinetic-types", "kinetic-tlock", "scratch/gossip_test", "kinetic-vdfrs"]

@@ -62,7 +62,7 @@ components:
         - status
         - iterations
         - progress
-    DnsRecord:
+    NrsRecord:
       type: object
       properties:
         type:
@@ -73,7 +73,7 @@ components:
       required:
         - type
         - value
-    DnsZone:
+    NrsZone:
       type: object
       properties:
         records:
@@ -81,7 +81,7 @@ components:
           additionalProperties:
             type: array
             items:
-              $ref: '#/components/schemas/DnsRecord'
+              $ref: '#/components/schemas/NrsRecord'
     VdfProof:
       type: object
       properties:
@@ -403,10 +403,29 @@ paths:
                     $ref: '#/components/schemas/KidDocument'
                   manifest_document:
                     $ref: '#/components/schemas/CapabilityManifest'
-  /zone/{name}:
+  /names/reserved:
     get:
-      operationId: getZone
-      summary: Get local DNS zone file
+      operationId: getReservedNames
+      summary: Get the list of all reserved names for the current network
+      tags: [Public]
+      responses:
+        '200':
+          description: List of reserved names with their active local status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    active:
+                      type: boolean
+  /zone/local/{name}:
+    get:
+      operationId: getLocalReservedZone
+      summary: Get local NRS override for a reserved name
       tags: [Public]
       parameters:
         - in: path
@@ -420,10 +439,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DnsZone'
+                $ref: '#/components/schemas/NrsZone'
     post:
-      operationId: saveZone
-      summary: Save local DNS zone file
+      operationId: saveLocalReservedZone
+      summary: Save local NRS override for a reserved name
       description: Requires Publish or Admin role.
       tags: [Private]
       security:
@@ -439,7 +458,63 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DnsZone'
+              $ref: '#/components/schemas/NrsZone'
+      responses:
+        '200':
+          description: Saved
+    delete:
+      operationId: deleteLocalReservedZone
+      summary: Delete local NRS override for a reserved name
+      description: Requires Publish or Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+  /zone/{name}:
+    get:
+      operationId: getZone
+      summary: Get local NRS zone file
+      tags: [Public]
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Found Zone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NrsZone'
+    post:
+      operationId: saveZone
+      summary: Save local NRS zone file
+      description: Requires Publish or Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NrsZone'
       responses:
         '200':
           description: Saved

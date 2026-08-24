@@ -8,10 +8,10 @@ use futures_timer::Delay;
 use js_sys::Function;
 use kinetic_network::NetworkEventLoop;
 use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 use libp2p::identity::Keypair;
 
-use kinetic_core::types::DnsZoneExt;
+use kinetic_core::types::NrsZoneExt;
 use kinetic_verify::signatures::VerifySignature;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -192,7 +192,7 @@ impl UniversalKineticNode {
         }
 
         let storage =
-            Arc::new(SledStorage::new_temp().map_err(|e| JsValue::from_str(&e.to_string()))?);
+            Arc::new(KineticStorage::new_temp().map_err(|e| JsValue::from_str(&e.to_string()))?);
         let (_drand_tx, drand_rx) = watch::channel(0);
 
         let net_config = NetworkConfig {
@@ -206,13 +206,15 @@ impl UniversalKineticNode {
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
             disable_pow: false,
+            enable_relay_server: false,
+            enable_upnp: false,
             enable_mdns: false,
             test_mode: false,
             disable_storage_sync: false,
         };
 
         let local_key = Keypair::generate_ed25519();
-        let vdf_engine = Arc::new(kinetic_vdfrs::PureRustVdfEngine::new());
+        let vdf_engine = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
         let (client, event_loop) = NetworkEventLoop::new(
             net_config, local_key, storage, drand_rx, None, None, vdf_engine,
         )
@@ -259,7 +261,7 @@ impl UniversalKineticNode {
             return Err(JsValue::from_str("Invalid record signature"));
         }
 
-        let zone = kinetic_core::types::DnsZone::parse_payload(record.payload())
+        let zone = kinetic_core::types::NrsZone::parse_payload(record.payload())
             .map_err(|e| JsValue::from_str(&format!("Invalid zone format: {}", e)))?;
 
         let js_obj = serde_wasm_bindgen::to_value(&zone)
