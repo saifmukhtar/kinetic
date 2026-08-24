@@ -1,5 +1,5 @@
 [package]
-name = "kinetic-core-fuzz"
+name = "kinetic-storage-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2021"
@@ -18,8 +18,8 @@ kinetic-core = { path = "../../kinetic-core" }
 path = ".."
 
 [[bin]]
-name = "fuzz_storage_ops"
-path = "fuzz_targets/fuzz_storage_ops.rs"
+name = "storage_ops"
+path = "fuzz_targets/storage_ops.rs"
 test = false
 doc = false
 bench = false

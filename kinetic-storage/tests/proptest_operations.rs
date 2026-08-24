@@ -1,5 +1,5 @@
 use kinetic_core::traits::StorageEngine;
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 use proptest::prelude::*;
 use tempfile::tempdir;
 
@@ -28,7 +28,7 @@ proptest! {
         ops in prop::collection::vec(arbitrary_storage_op(), 1..100)
     ) {
         let dir = tempdir().unwrap();
-        let storage = SledStorage::new(dir.path()).unwrap();
+        let storage = KineticStorage::new(dir.path()).unwrap();
 
         for op in ops {
             match op {
