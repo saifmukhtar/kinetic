@@ -36,7 +36,7 @@ use tracing_subscriber::FmtSubscriber;
 use kinetic_core::config::KineticConfig;
 use kinetic_core::drand::{DrandClient, RawKyn};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 
 #[derive(Parser)]
 #[command(name = "kinetic-node", version, about = "Kinetic Infrastructure Node")]
@@ -153,8 +153,10 @@ async fn run_node() -> Result<()> {
             "The network cannot boot in production mode with a bricked governance plane."
         );
         tracing::error!(
-            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
-            e
+            error_code = e.code(),
+            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {} ({})",
+            e.user_message(),
+            e.code()
         );
         std::process::exit(1);
     }
@@ -178,7 +180,7 @@ async fn run_node() -> Result<()> {
         .storage_dir
         .to_str()
         .unwrap_or(default_storage.to_str().unwrap_or("./kinetic_db"));
-    let storage = Arc::new(SledStorage::new(storage_path)?);
+    let storage = Arc::new(KineticStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
@@ -240,7 +242,9 @@ async fn run_node() -> Result<()> {
             .into_iter()
             .map(Into::into)
             .collect(),
-        enable_mdns: false,
+        enable_mdns: config.network.enable_mdns,
+        enable_upnp: config.network.enable_upnp,
+        enable_relay_server: config.network.enable_relay_server,
         initial_drand_kyn,
         external_address: config
             .network
@@ -271,7 +275,7 @@ async fn run_node() -> Result<()> {
 
     let (gossip_tx, mut gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-        Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config,
         local_key,
