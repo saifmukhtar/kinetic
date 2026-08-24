@@ -51,7 +51,7 @@ pub const WALLET_PBKDF2_ITERATIONS: u32 = 600000;
 pub const KEYGEN_PBKDF2_ITERATIONS: u32 = 2048;
 
 /// Argon2 memory cost in KB
-pub const ARGON2_MEMORY_COST_KB: u32 = 16384;
+pub const ARGON2_MEMORY_COST_KB: u32 = 65536;
 
 // --- PRODUCTION KEYS ---
 /// Production keys
@@ -153,6 +153,26 @@ mod tests {
         assert_eq!(
             hash_hex, expected_fingerprint,
             "CRITICAL SECURITY ALERT: The production ROOT_PUBLIC_KEY_HEX does not match the expected SHA-256 fingerprint! Was the root key changed?"
+        );
+    }
+
+    #[test]
+    fn test_testnet_root_key_fingerprint() {
+        // Ensures the testnet key is not accidentally replaced or mutated.
+        let pub_bytes = hex::decode(test_keys::ROOT_PUBLIC_KEY_HEX)
+            .expect("Testnet root key must be valid hex");
+
+        let mut hasher = Sha256::new();
+        hasher.update(&pub_bytes);
+        let hash = hasher.finalize();
+        let hash_hex = hex::encode(hash);
+
+        let expected_fingerprint =
+            "5c2142e8f07eaac1eec202b44b0a37c7c2e4b47c0664078384fdd4418956adf7";
+
+        assert_eq!(
+            hash_hex, expected_fingerprint,
+            "CRITICAL SECURITY ALERT: The testnet ROOT_PUBLIC_KEY_HEX does not match the expected SHA-256 fingerprint!"
         );
     }
 }

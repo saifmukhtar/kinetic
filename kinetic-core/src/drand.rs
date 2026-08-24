@@ -172,7 +172,8 @@ impl DrandClient {
     /// - Returns [`DrandError::InvalidSignature`](crate::error::DrandError::InvalidSignature) if an endpoint returns a bad BLS signature.
     /// - Returns [`DrandError::StaleKyn`](crate::error::DrandError::StaleKyn) if a kyn is older than 200 kyns (10 minutes).
     /// - Returns [`DrandError::HttpError`](crate::error::DrandError::HttpError) on non-200 HTTP responses.
-    /// - Returns [`DrandError::Network`](crate::error::DrandError::Network) on connection timeouts or body size limit violations (> 64 KB).
+    /// - Returns [`DrandError::StreamReadFailed`](crate::error::DrandError::StreamReadFailed) on connection timeouts or stream errors.
+    /// - Returns [`DrandError::ResponseTooLarge`](crate::error::DrandError::ResponseTooLarge) on body size limit violations (> 64 KB).
     /// - Returns [`DrandError::NoCachedKyn`](crate::error::DrandError::NoCachedKyn) if all endpoints fail and no cache exists.
     /// - Returns [`DrandError::AllEndpointsFailed`](crate::error::DrandError::AllEndpointsFailed) if network and fallback attempts fail.
     pub async fn fetch_latest(&self) -> Result<RawKyn, DrandError> {
@@ -269,7 +270,8 @@ impl DrandClient {
     /// # Errors
     ///
     /// - Returns [`DrandError::HttpError`] (`KIN-DRA-003`) if the final attempt returns a non-2xx HTTP status.
-    /// - Returns [`DrandError::Network`] (`KIN-DRA-002`) on connection failure or response body exceeds 64 KB.
+    /// - Returns [`DrandError::StreamReadFailed`] (`KIN-DRA-010`) on connection/stream failure.
+    /// - Returns [`DrandError::ResponseTooLarge`] (`KIN-DRA-011`) if response body exceeds 64 KB.
     /// - Returns [`DrandError::Serde`] (`KIN-DRA-005`) if the response body fails JSON deserialization.
     /// - Returns [`DrandError::AllEndpointsFailed`] (`KIN-DRA-001`) if all 3 attempts are exhausted without success.
     async fn fetch_with_backoff(&self, url: &str) -> Result<RawKyn, DrandError> {
@@ -287,14 +289,9 @@ impl DrandClient {
                 Ok(mut resp) if resp.status().is_success() => {
                     #[cfg(target_arch = "wasm32")]
                     {
-                        let bytes = resp
-                            .bytes()
-                            .await
-                            .map_err(DrandError::Reqwest)?;
+                        let bytes = resp.bytes().await.map_err(DrandError::Reqwest)?;
                         if bytes.len() > crate::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
-                            return Err(DrandError::Network(
-                                "Drand response exceeded 64 KB limit".to_string(),
-                            ));
+                            return Err(DrandError::ResponseTooLarge(bytes.len()));
                         }
                         return Ok(serde_json::from_slice::<RawKyn>(&bytes)?);
                     }
@@ -304,13 +301,11 @@ impl DrandClient {
                         while let Some(chunk) = resp
                             .chunk()
                             .await
-                            .map_err(|e| DrandError::Network(e.to_string()))?
+                            .map_err(|e| DrandError::StreamReadFailed(e.to_string()))?
                         {
                             body.extend_from_slice(&chunk);
                             if body.len() > crate::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
-                                return Err(DrandError::Network(
-                                    "Drand response exceeded 64 KB limit".to_string(),
-                                ));
+                                return Err(DrandError::ResponseTooLarge(body.len()));
                             }
                         }
                         return Ok(serde_json::from_slice::<RawKyn>(&body)?);
@@ -462,13 +457,13 @@ mod tests {
 
         // A cached kyn checks staleness against the provided current_live_kyn
         kyn.is_from_cache = true;
-        
+
         // Exact same kyn (0 staleness)
         assert!(kyn.is_usable_for_heartbeat(1000));
-        
+
         // Max allowed staleness (200 rounds)
         assert!(kyn.is_usable_for_heartbeat(1200));
-        
+
         // Exceeds max staleness (201 rounds)
         assert!(!kyn.is_usable_for_heartbeat(1201));
 

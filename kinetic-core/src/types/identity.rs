@@ -36,14 +36,9 @@ pub use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 /// - Returns [`crate::error::IdentityError::Io`] (`KIN-IDN-001`) if a filesystem read error occurs.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_keypair(
-    filename: &str,
+    key_path: &std::path::Path,
 ) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
     use std::fs;
-    use std::path::PathBuf;
-
-    let key_path = std::env::var(crate::constants::ENV_KEY_PATH)
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| crate::config::get_base_dir().join(filename));
 
     if key_path.exists() {
         let bytes = fs::read(&key_path)?;
@@ -148,7 +143,7 @@ pub fn load_encrypted_keypair(
 /// - Returns [`crate::error::IdentityError::Io`] (`KIN-IDN-001`) if directory creation or atomic file write fails.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_keypair_from_mnemonic(
-    filename: &str,
+    key_path: &std::path::Path,
     phrase: &str,
     network_salt: &[u8; 32],
 ) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
@@ -184,10 +179,6 @@ pub fn save_keypair_from_mnemonic(
     // Securely wipe intermediate seed and derived buffers
     seed.zeroize();
     derived.zeroize();
-
-    let key_path = std::env::var(crate::constants::ENV_KEY_PATH)
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| crate::config::get_base_dir().join(filename));
 
     if let Some(parent) = key_path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -267,18 +258,11 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn test_identity_key_lifecycle() {
-        // Run all key lifecycle tests synchronously in one function
-        // to avoid race conditions with KINETIC_KEY_PATH env var
         let dir = tempdir().unwrap();
 
         // 1. Not Found
-        unsafe {
-            std::env::set_var(
-                crate::constants::ENV_KEY_PATH,
-                dir.path().join("missing.bin"),
-            );
-        }
-        let result = load_keypair("test.bin");
+        let missing_path = dir.path().join("missing.bin");
+        let result = load_keypair(&missing_path);
         assert!(matches!(
             result,
             Err(crate::error::IdentityError::IdentityNotFound(_))
@@ -287,18 +271,16 @@ mod tests {
         // 2. Corrupted File
         let corrupt_path = dir.path().join("corrupted.bin");
         fs::write(&corrupt_path, b"too_short").unwrap();
-        unsafe {
-            std::env::set_var(crate::constants::ENV_KEY_PATH, &corrupt_path);
-        }
-        let result = load_keypair("test.bin");
+        let result = load_keypair(&corrupt_path);
         assert!(matches!(
             result,
             Err(crate::error::IdentityError::CorruptedIdentityFile(_))
         ));
 
         // 3. Invalid Seed Phrase
+        let invalid_path = dir.path().join("invalid.bin");
         let result = save_keypair_from_mnemonic(
-            "test.bin",
+            &invalid_path,
             "not a valid seed phrase",
             crate::constants::NETWORK_SALT,
         );
@@ -309,13 +291,11 @@ mod tests {
 
         // 4. Successful Save and Load
         let valid_path = dir.path().join("valid_key.bin");
-        unsafe {
-            std::env::set_var(crate::constants::ENV_KEY_PATH, &valid_path);
-        }
         let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
         let saved_key =
-            save_keypair_from_mnemonic("test.bin", phrase, crate::constants::NETWORK_SALT).unwrap();
-        let loaded_key = load_keypair("test.bin").unwrap();
+            save_keypair_from_mnemonic(&valid_path, phrase, crate::constants::NETWORK_SALT)
+                .unwrap();
+        let loaded_key = load_keypair(&valid_path).unwrap();
         use ml_dsa::KeyExport;
         assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());
 
@@ -360,10 +340,5 @@ mod tests {
             bad_pass,
             Err(crate::error::IdentityError::DecryptionFailed(_))
         ));
-
-        // Clean up env var
-        unsafe {
-            std::env::remove_var(crate::constants::ENV_KEY_PATH);
-        }
     }
 }

@@ -39,14 +39,14 @@ pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
 /// Side effects produced when a governance action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GovernanceEffect {
-    /// Inform node subsystems of a premium name grant.
+    /// Inform node subsystems of a prime name mapping.
     PrimeMapped {
         /// Granted 1-character name.
         name: String,
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
-    /// Inform node subsystems of a premium name revocation.
+    /// Inform node subsystems of a prime name unmapping.
     PrimeUnmapped {
         /// Revoked 1-character name.
         name: String,
@@ -96,7 +96,7 @@ pub struct GovernanceState {
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, u64>,
-    /// Active 1-character premium names and their associated ML-DSA-65 public keys.
+    /// Active 1-character prime names and their associated ML-DSA-65 public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
     /// Active infrastructure names and their associated ML-DSA-65 public keys.
@@ -145,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pause_history_double_granting_flaw() {
+    fn test_pause_history_double_mapping_flaw() {
         let mut state = mock_state();
         // Pause happens between kyns 1000 and 1100 (100 kyns)
         state.pause_history.push((1000, 1100));
@@ -153,7 +153,7 @@ mod tests {
         // Name is registered AFTER the pause, at kyn 2000
         let target_kyn = 2000;
 
-        // It should get 0 paused kyns back (fixing the double-granting flaw)
+        // It should get 0 paused kyns back (fixing the double-mapping flaw)
         assert_eq!(state.paused_kyns_since(target_kyn), 0);
     }
 

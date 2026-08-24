@@ -622,44 +622,6 @@ Errors from the council governance engine. These are returned when a `SignedGove
 
 ---
 
-### KIN-GOV-005 — TimelockNotExpired
-
-| Field | Value |
-|---|---|
-| **Variant** | `GovernanceError::TimelockNotExpired` |
-| **Severity** | Info |
-| **HTTP Status** | `409 Conflict` |
-| **Retryable** | Yes |
-
-**What it is:** A governance action has been approved but its mandatory waiting period has not yet elapsed.
-
-**Why it occurs:** The council governance model enforces a timelock delay between proposal approval and execution to allow the Guard key to veto dangerous actions.
-
-**What it means:** The action is queued and valid — it just cannot be executed yet.
-
-**Solution:** Wait for the timelock duration to expire, then resubmit the execute request.
-
----
-
-### KIN-GOV-007 — NotPendingOrVetoed
-
-| Field | Value |
-|---|---|
-| **Variant** | `GovernanceError::NotPendingOrVetoed` |
-| **Severity** | Info |
-| **HTTP Status** | `409 Conflict` |
-| **Retryable** | No |
-
-**What it is:** The action hash targeted for execution or cancellation is not in a modifiable pending state.
-
-**Why it occurs:** The action was already executed, was never submitted, or was already vetoed and removed from the queue.
-
-**What it means:** There is nothing to act on for this hash.
-
-**Solution:** Check the governance state via the daemon API to confirm the action hash and its current status before submitting.
-
----
-
 ### KIN-GOV-016 — InsufficientSignatures
 
 | Field | Value |

@@ -20,8 +20,8 @@ version = "1.3.3"
 version = "1.0"
 
 [[bin]]
-name = "fuzz_json_deserialize"
-path = "fuzz_targets/fuzz_json_deserialize.rs"
+name = "json_deserialize"
+path = "fuzz_targets/json_deserialize.rs"
 test = false
 doc = false
 bench = false
@@ -30,8 +30,8 @@ bench = false
 members = ["."]
 
 [[bin]]
-name = "fuzz_core_bincode"
-path = "fuzz_targets/fuzz_core_bincode.rs"
+name = "core_bincode"
+path = "fuzz_targets/core_bincode.rs"
 test = false
 doc = false
 bench = false

@@ -72,7 +72,7 @@ impl ConsensusParams {
         let tm = crate::constants::TARGET_MINUTES as u64;
 
         // The configured NDC constants are absolute target times in minutes.
-        // This closure scales the `base` iterations (which takes `tm` minutes) 
+        // This closure scales the `base` iterations (which takes `tm` minutes)
         // to equal exactly `target_minutes` of sequential CPU work.
         let calc = |target_minutes: u64| -> u64 {
             ((base as u128 * target_minutes as u128) / tm as u128) as u64

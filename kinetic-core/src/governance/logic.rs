@@ -1,4 +1,4 @@
-//! Core governance state transitions, message signature aggregation, and timelock management.
+//! Core governance state transitions and message signature aggregation.
 //!
 //! Implements the `GovernanceState` mutating operations that are called by the
 //! active [`GovernanceEngine`](crate::traits::GovernanceEngine) after signature verification:
@@ -43,7 +43,7 @@ impl GovernanceState {
     /// Initializes a new [`GovernanceState`] at network genesis.
     ///
     /// The state starts in `GovernanceMode::Founder` with an empty council,
-    /// no pending updates, and no premium grants.
+    /// no pending updates, and no prime mappings.
     ///
     /// # Returns
     ///
@@ -101,7 +101,7 @@ impl GovernanceState {
         }
 
         let bytes =
-            hex::decode(ROOT_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MissingRootKey)?;
+            hex::decode(ROOT_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MalformedRootKey)?;
         if bytes.len() != 1952 {
             return Err(GovernanceError::KeyLengthMismatch);
         }
@@ -116,18 +116,18 @@ impl GovernanceState {
     pub fn verify_action(
         &mut self,
         msg: &SignedGovernanceMessage,
-        current_time_sec: u64,
+        current_kyn: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        crate::governance::engine::get_active_engine().verify_action(self, msg, current_time_sec)
+        crate::governance::engine::get_active_engine().verify_action(self, msg, current_kyn)
     }
 
     /// Executes a verified governance action, applying its state changes and returning any resulting effects.
     pub fn execute_action(
         &mut self,
         msg: &SignedGovernanceMessage,
-        current_time_sec: u64,
+        current_kyn: u64,
     ) -> Option<GovernanceEffect> {
-        crate::governance::engine::get_active_engine().execute_action(self, msg, current_time_sec)
+        crate::governance::engine::get_active_engine().execute_action(self, msg, current_kyn)
     }
 }
 
@@ -141,18 +141,15 @@ pub fn process_governance_message(
     msg: &SignedGovernanceMessage,
     current_kyn: u64,
 ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+    let effect = state.verify_action(msg, current_kyn)?;
+
     state.prune_executed_hashes(current_kyn);
 
     let action_hash = GovernanceState::hash_action(msg);
     if state.executed_hashes.contains_key(&action_hash) {
-        return Err(GovernanceError::StaleProposal);
+        return Err(GovernanceError::AlreadyExecuted);
     }
 
-    let effect = crate::governance::engine::sovereign::SovereignEngine.verify_action(
-        state,
-        msg,
-        current_kyn,
-    )?;
-    crate::governance::engine::sovereign::SovereignEngine.execute_action(state, msg, current_kyn);
+    state.execute_action(msg, current_kyn);
     Ok(effect)
 }

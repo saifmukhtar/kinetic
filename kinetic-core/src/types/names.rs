@@ -86,7 +86,7 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
             return Err(crate::error::NamesError::LabelTooLong);
         }
 
-        // DNS LDH Rule: Only lowercase letters, digits, and hyphens allowed.
+        // NRS LDH Rule: Only lowercase letters, digits, and hyphens allowed.
         for c in part.chars() {
             if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-' {
                 return Err(crate::error::NamesError::InvalidCharacter);

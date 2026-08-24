@@ -5,7 +5,7 @@ use kinetic_core::types::{Reveal, VdfProof};
 fn test_protocol_downgrade_prevention() {
     let reveal_v1 = Reveal {
         protocol_version: 1,
-        name: format!("{}{}", "satoshi", kinetic_core::constants::NSP_SUFFIX),
+        name: format!("{}{}", "saifmukhtar", kinetic_core::constants::NSP_SUFFIX),
         payload: vec![1, 2, 3],
         salt: [0u8; 32],
         drand_kyn: 100,

@@ -20,7 +20,7 @@ impl GovernanceEngine for SovereignEngine {
     /// # Errors
     ///
     /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds [`crate::constants::MAX_AGE_KYNS`].
-    /// - Returns [`GovernanceError::InvalidPremiumNameLength`] if a premium name is not 1 character.
+    /// - Returns [`GovernanceError::InvalidPrimeLength`] if a prime name is not 1 character.
     /// - Returns [`GovernanceError::InsufficientSignatures`] if the Root key signature is missing or invalid.
     fn verify_action(
         &self,
@@ -28,8 +28,7 @@ impl GovernanceEngine for SovereignEngine {
         msg: &SignedGovernanceMessage,
         current_kyn: u64,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        let max_age_kyns = crate::constants::MAX_AGE_KYNS;
-        if current_kyn.abs_diff(msg.timestamp_kyn) > max_age_kyns {
+        if current_kyn.abs_diff(msg.timestamp_kyn) > crate::constants::MAX_AGE_KYNS {
             return Err(GovernanceError::StaleProposal);
         }
 
@@ -42,37 +41,62 @@ impl GovernanceEngine for SovereignEngine {
             .any(|sig| verify_signature(&root_key, &action_bytes, sig));
 
         if root_signed {
-            match &msg.action {
-                GovernanceAction::MapPrime { name, .. } => {
-                    if name.len() != 1
-                        || !name
-                            .chars()
-                            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+            let effect = match &msg.action {
+                GovernanceAction::MapPrime {
+                    name,
+                    target_pubkey,
+                } => {
+                    if name.len() != 1 {
+                        return Err(GovernanceError::InvalidPrimeLength);
+                    }
+                    if !name
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
                     {
                         return Err(GovernanceError::UnnormalizedName);
+                    }
+                    if target_pubkey.len() != 1952 {
+                        return Err(GovernanceError::KeyLengthMismatch);
                     }
                     if state.mapped_prime_names.contains_key(name) {
                         return Err(GovernanceError::AlreadyMapped);
                     }
+                    GovernanceEffect::PrimeMapped {
+                        name: name.clone(),
+                        target_pubkey: target_pubkey.clone(),
+                    }
                 }
                 GovernanceAction::UnmapPrime { name } => {
-                    if name.len() != 1
-                        || !name
-                            .chars()
-                            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+                    if name.len() != 1 {
+                        return Err(GovernanceError::InvalidPrimeLength);
+                    }
+                    if !name
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
                     {
                         return Err(GovernanceError::UnnormalizedName);
                     }
                     if !state.mapped_prime_names.contains_key(name) {
                         return Err(GovernanceError::NotMapped);
                     }
+                    GovernanceEffect::PrimeUnmapped { name: name.clone() }
                 }
-                GovernanceAction::MapInfra { name, .. } => {
+                GovernanceAction::MapInfra {
+                    name,
+                    target_pubkey,
+                } => {
                     if !crate::types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
                         return Err(GovernanceError::InvalidProtocolName);
                     }
+                    if target_pubkey.len() != 1952 {
+                        return Err(GovernanceError::KeyLengthMismatch);
+                    }
                     if state.mapped_infra_names.contains_key(name) {
                         return Err(GovernanceError::AlreadyMapped);
+                    }
+                    GovernanceEffect::InfraMapped {
+                        name: name.clone(),
+                        target_pubkey: target_pubkey.clone(),
                     }
                 }
                 GovernanceAction::UnmapInfra { name } => {
@@ -82,20 +106,21 @@ impl GovernanceEngine for SovereignEngine {
                     if !state.mapped_infra_names.contains_key(name) {
                         return Err(GovernanceError::NotMapped);
                     }
+                    GovernanceEffect::InfraUnmapped { name: name.clone() }
                 }
                 GovernanceAction::RotateRootKey { new_key } => {
                     if new_key.len() != 1952 {
                         return Err(GovernanceError::KeyLengthMismatch);
                     }
+                    GovernanceEffect::RootKeyRotated {
+                        new_key: new_key.clone(),
+                    }
                 }
-                GovernanceAction::EmergencyHalt | GovernanceAction::EmergencyResume => {
-                    // No additional verification needed for halt/resume,
-                    // root key signature is sufficient authorization.
-                }
-            }
+                GovernanceAction::EmergencyHalt => GovernanceEffect::NetworkHalted,
+                GovernanceAction::EmergencyResume => GovernanceEffect::NetworkResumed,
+            };
 
-            let effect = self.execute_action(state, msg, current_kyn);
-            return Ok(effect);
+            return Ok(Some(effect));
         }
 
         Err(GovernanceError::InsufficientSignatures)

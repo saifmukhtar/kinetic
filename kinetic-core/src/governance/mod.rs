@@ -1,7 +1,6 @@
-//! Network governance state transitions, threshold voting logic, and engine drivers.
+//! Network governance state transitions and engine drivers.
 //!
-//! Controls Founder-phase bootstrap rules, Council multi-signature voting,
-//! emergency vetos via the Guard key, and Over-The-Air (OTA) software update timelocks.
+//! Controls Sovereign-phase rules, name mappings, and emergency halts.
 //!
 //! ## Engine Variants
 //!
@@ -10,19 +9,18 @@
 //! | Engine | Signing Rule |
 //! |---|---|
 //! | `sovereign` | Root key signs alone |
-//! | `council` | ≥50% of council |
-//! | `permissionless` | No signing required (development only) |
+//! | `permissionless` | Network operates in read-only mode (all governance rejected) |
 //!
 //! See `kinetic-core/src/governance/engine/` for concrete implementations.
 
 pub mod engine;
 pub mod logic;
-pub mod state_io;
+pub mod persistence;
 pub mod types;
 
 #[cfg(test)]
 mod tests;
 
 pub use logic::*;
-pub use state_io::*;
+pub use persistence::*;
 pub use types::*;

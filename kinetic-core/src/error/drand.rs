@@ -21,9 +21,6 @@ pub enum DrandError {
     /// All configured endpoints returned errors or timed out.
     #[error("All Drand endpoints failed")]
     AllEndpointsFailed,
-    /// A network-level error (e.g. DNS failure, connection refused).
-    #[error("Network error: {0}")]
-    Network(String),
     /// An endpoint returned a non-2xx HTTP status.
     #[error("HTTP status error: {0}")]
     HttpError(u16),
@@ -50,19 +47,26 @@ pub enum DrandError {
         /// The actual kyn returned by the endpoint.
         got: u64,
     },
+    /// A network stream reading error occurred.
+    #[error("Stream read failed: {0}")]
+    StreamReadFailed(String),
+    /// The endpoint returned a response body exceeding the maximum allowed size.
+    #[error("Response too large: {0} bytes")]
+    ResponseTooLarge(usize),
 }
 
 impl PartialEq for DrandError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::AllEndpointsFailed, Self::AllEndpointsFailed) => true,
-            (Self::Network(a), Self::Network(b)) => a == b,
             (Self::HttpError(a), Self::HttpError(b)) => a == b,
             (Self::NoCachedKyn, Self::NoCachedKyn) => true,
             (Self::Serde(a), Self::Serde(b)) => a.to_string() == b.to_string(),
             (Self::Storage(a), Self::Storage(b)) => a == b,
             (Self::Reqwest(a), Self::Reqwest(b)) => a.to_string() == b.to_string(),
             (Self::InvalidSignature, Self::InvalidSignature) => true,
+            (Self::StreamReadFailed(a), Self::StreamReadFailed(b)) => a == b,
+            (Self::ResponseTooLarge(a), Self::ResponseTooLarge(b)) => a == b,
             (
                 Self::StaleKyn {
                     expected: e1,
@@ -84,7 +88,6 @@ impl DrandError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::AllEndpointsFailed => "KIN-DRA-001",
-            Self::Network(_) => "KIN-DRA-002",
             Self::HttpError(_) => "KIN-DRA-003",
             Self::NoCachedKyn => "KIN-DRA-004",
             Self::Serde(_) => "KIN-DRA-005",
@@ -92,6 +95,8 @@ impl DrandError {
             Self::Reqwest(_) => "KIN-DRA-007",
             Self::InvalidSignature => "KIN-DRA-008",
             Self::StaleKyn { .. } => "KIN-DRA-009",
+            Self::StreamReadFailed(_) => "KIN-DRA-010",
+            Self::ResponseTooLarge(_) => "KIN-DRA-011",
         }
     }
 
@@ -104,12 +109,15 @@ impl DrandError {
     pub fn severity(&self) -> Severity {
         match self {
             Self::AllEndpointsFailed
-            | Self::Network(_)
             | Self::HttpError(_)
             | Self::NoCachedKyn
             | Self::Reqwest(_)
+            | Self::StreamReadFailed(_)
             | Self::StaleKyn { .. } => Severity::Warning,
-            Self::Serde(_) | Self::Storage(_) | Self::InvalidSignature => Severity::Error,
+            Self::Serde(_)
+            | Self::Storage(_)
+            | Self::InvalidSignature
+            | Self::ResponseTooLarge(_) => Severity::Error,
         }
     }
 
@@ -118,9 +126,9 @@ impl DrandError {
         matches!(
             self,
             Self::AllEndpointsFailed
-                | Self::Network(_)
                 | Self::HttpError(_)
                 | Self::Reqwest(_)
+                | Self::StreamReadFailed(_)
                 | Self::StaleKyn { .. }
         )
     }
@@ -129,8 +137,11 @@ impl DrandError {
     pub fn user_message(&self) -> String {
         match self {
             Self::AllEndpointsFailed => "All network endpoints failed.".to_string(),
-            Self::Network(_) | Self::HttpError(_) | Self::Reqwest(_) => {
+            Self::HttpError(_) | Self::Reqwest(_) | Self::StreamReadFailed(_) => {
                 "A network error occurred while fetching the network kyn.".to_string()
+            }
+            Self::ResponseTooLarge(_) => {
+                "The network returned a maliciously oversized response.".to_string()
             }
             Self::NoCachedKyn => "No cached network kyn found.".to_string(),
             Self::Serde(_) => "Failed to parse the network kyn.".to_string(),

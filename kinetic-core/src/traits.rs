@@ -67,7 +67,7 @@ pub trait StorageEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`StorageError::OperationFailed`] (`KIN-STO-003`) if the write fails.
+    /// - Returns [`StorageError::WriteFailed`] (`KIN-STO-004`) if the write fails.
     fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError>;
 
     /// Retrieves the stored value for a given key.
@@ -79,7 +79,7 @@ pub trait StorageEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`StorageError::OperationFailed`] (`KIN-STO-003`) if the read fails.
+    /// - Returns [`StorageError::ReadFailed`] (`KIN-STO-003`) if the read fails.
     fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError>;
 
     /// Removes an entry by key.
@@ -89,7 +89,7 @@ pub trait StorageEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`StorageError::OperationFailed`] (`KIN-STO-003`) if the deletion fails.
+    /// - Returns [`StorageError::DeleteFailed`] (`KIN-STO-005`) if the deletion fails.
     fn delete(&self, key: &[u8]) -> Result<(), StorageError>;
 
     /// Iterates over all key-value pairs whose keys begin with `prefix`, up to an optional `limit`.
@@ -101,7 +101,7 @@ pub trait StorageEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`StorageError::OperationFailed`] (`KIN-STO-003`) if prefix iteration fails.
+    /// - Returns [`StorageError::ScanFailed`] (`KIN-STO-006`) if prefix iteration fails.
     #[allow(clippy::type_complexity)]
     fn scan_prefix(
         &self,
@@ -112,8 +112,8 @@ pub trait StorageEngine: Send + Sync {
 
 /// Abstract interface for protocol governance state verification and action execution.
 ///
-/// Four concrete engines are available (selected at compile time via `GOVERNANCE_MODEL`):
-/// `sovereign`, `council`, `permissionless`. See `kinetic-core/src/governance/engine/`.
+/// Two concrete engines are available (selected at compile time via `GOVERNANCE_MODEL`):
+/// `sovereign`, `permissionless`. See `kinetic-core/src/governance/engine/`.
 ///
 /// The engine is always called in a two-step sequence:
 /// 1. [`verify_action`](Self::verify_action) — validates signatures, thresholds, and timelocks.
@@ -133,7 +133,6 @@ pub trait GovernanceEngine: Send + Sync {
     ///
     /// - Returns [`GovernanceError::InsufficientSignatures`] (`KIN-GOV-016`) if required signatures or threshold are not met.
     /// - Returns [`GovernanceError::StaleProposal`] (`KIN-GOV-004`) if the proposal timestamp is outside the replay window.
-    /// - Returns [`GovernanceError::TimelockNotExpired`] (`KIN-GOV-005`) if the mandatory delay has not elapsed.
     /// - Returns [`GovernanceError::GovernanceDisabled`] (`KIN-GOV-002`) if governance actions are disabled in this mode.
     /// - Returns [`GovernanceError::KeyLengthMismatch`] (`KIN-GOV-003`) if a key length is invalid.
     /// - Returns [`GovernanceError::MissingRootKey`] (`KIN-GOV-001`) if the root key is unconfigured.

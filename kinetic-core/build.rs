@@ -120,6 +120,18 @@ fn main() {
     let config: NetworkConfig =
         serde_json::from_str(&json_content).expect("Failed to parse network.json");
 
+    // Sanitize network_id to prevent Sled/OS Path Traversal injection
+    let network_id = &config.network.network_id;
+    if !network_id
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    {
+        panic!(
+            "network.json: network_id '{}' contains illegal characters. Only lowercase alphanumeric and underscores are allowed to prevent Sled DB/OS Path injection.",
+            network_id
+        );
+    }
+
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = PathBuf::from(out_dir).join("network_constants.rs");
 
@@ -275,31 +287,40 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Multiplier for NDC length 0 to 1\npub const CONSENSUS_NDC_LEN_0_TO_1: u64 = {};\n", config.consensus.ndc_multipliers.len_0_to_1
+        "/// Multiplier for NDC length 0 to 1\npub const CONSENSUS_NDC_LEN_0_TO_1: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_0_to_1
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 2\npub const CONSENSUS_NDC_LEN_2: u64 = {};\n", config.consensus.ndc_multipliers.len_2
+        "/// Multiplier for NDC length 2\npub const CONSENSUS_NDC_LEN_2: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_2
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 3\npub const CONSENSUS_NDC_LEN_3: u64 = {};\n", config.consensus.ndc_multipliers.len_3
+        "/// Multiplier for NDC length 3\npub const CONSENSUS_NDC_LEN_3: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_3
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 4\npub const CONSENSUS_NDC_LEN_4: u64 = {};\n", config.consensus.ndc_multipliers.len_4
+        "/// Multiplier for NDC length 4\npub const CONSENSUS_NDC_LEN_4: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_4
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 5\npub const CONSENSUS_NDC_LEN_5: u64 = {};\n", config.consensus.ndc_multipliers.len_5
+        "/// Multiplier for NDC length 5\npub const CONSENSUS_NDC_LEN_5: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_5
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 6\npub const CONSENSUS_NDC_LEN_6: u64 = {};\n", config.consensus.ndc_multipliers.len_6
+        "/// Multiplier for NDC length 6\npub const CONSENSUS_NDC_LEN_6: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_6
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 7\npub const CONSENSUS_NDC_LEN_7: u64 = {};\n", config.consensus.ndc_multipliers.len_7
+        "/// Multiplier for NDC length 7\npub const CONSENSUS_NDC_LEN_7: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_7
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 8 to 10\npub const CONSENSUS_NDC_LEN_8_TO_10: u64 = {};\n", config.consensus.ndc_multipliers.len_8_to_10
+        "/// Multiplier for NDC length 8 to 10\npub const CONSENSUS_NDC_LEN_8_TO_10: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_8_to_10
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 11 to 17\npub const CONSENSUS_NDC_LEN_11_TO_17: u64 = {};\n", config.consensus.ndc_multipliers.len_11_to_17
+        "/// Multiplier for NDC length 11 to 17\npub const CONSENSUS_NDC_LEN_11_TO_17: u64 = {};\n",
+        config.consensus.ndc_multipliers.len_11_to_17
     ));
     out.push_str(&format!(
         "/// Multiplier for NDC length 18 to 20\npub const CONSENSUS_NDC_LEN_18_TO_20: u64 = {};\n\n", config.consensus.ndc_multipliers.len_18_to_20

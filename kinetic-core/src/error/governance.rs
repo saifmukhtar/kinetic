@@ -6,14 +6,12 @@
 //!
 //! ## Protocol Context
 //!
-//! Kinetic governance is pluggable: `network.json` selects one of four engines
-//! (`sovereign`, `council`, `permissionless`) at compile time. Each engine
+//! Kinetic governance is pluggable: `network.json` selects one of the engines
+//! (`sovereign` or `permissionless`) at compile time. Each engine
 //! runs `verify_action()` before any state mutation occurs.
 //!
 //! Key roles:
-//! - **Root key**: Ultimate authority; can ratify any action in Founder phase.
-//! - **Guard key**: Emergency veto key for OTA updates and root key rotation.
-//! - **Council members**: Vote on proposals; majority/supermajority required.
+//! - **Root key**: Ultimate authority; can ratify any action in Sovereign phase.
 //!
 //! > Note: `KIN-GOV-010`, `KIN-GOV-011`, and `KIN-GOV-012` are intentionally
 //! > skipped in the stable code registry to allow for future expansion.
@@ -26,6 +24,9 @@ pub enum GovernanceError {
     /// The `ROOT_PUBLIC_KEY_HEX` environment variable is absent; no governance can proceed.
     #[error("ROOT_PUBLIC_KEY_HEX is not configured. This is a fatal error.")]
     MissingRootKey,
+    /// The `ROOT_PUBLIC_KEY_HEX` string is present but is not valid hex.
+    #[error("ROOT_PUBLIC_KEY_HEX is malformed and cannot be decoded as hex.")]
+    MalformedRootKey,
 
     /// A supplied public key byte slice does not match the required length (e.g. 1,952 bytes for ML-DSA-65).
     #[error("Key length mismatch")]
@@ -33,13 +34,9 @@ pub enum GovernanceError {
     /// The governance proposal timestamp is older than the allowed replay window.
     #[error("Governance action too old, replay rejected")]
     StaleProposal,
-    /// The mandatory delay after a council vote has not elapsed yet.
-    #[error("Timelock has not expired yet")]
-    TimelockNotExpired,
-
-    /// The target action hash is not in a pending-or-vetoed state.
-    #[error("Target hash is not a pending timelock or was vetoed")]
-    NotPendingOrVetoed,
+    /// The governance action has already been executed previously (replay attack).
+    #[error("Governance action has already been executed")]
+    AlreadyExecuted,
 
     /// Governance modifications are completely disabled in this network environment.
     #[error("Governance is disabled in permissionless mode")]
@@ -48,19 +45,19 @@ pub enum GovernanceError {
     /// The number of valid signatures does not meet the required threshold.
     #[error("Insufficient valid signatures")]
     InsufficientSignatures,
-    /// A premium name grant/revoke was attempted on a name that is not exactly 1 character long.
-    #[error("Premium name grants must be exactly 1 character long")]
-    InvalidPremiumNameLength,
-    /// A protocol name grant/revoke was attempted on a name not in the Category 2 list.
-    #[error("Protocol name grants must target a valid Category 2 protocol name")]
+    /// A prime name mapping/unmapping was attempted on a name that is not exactly 1 character long.
+    #[error("Prime name mappings must be exactly 1 character long")]
+    InvalidPrimeLength,
+    /// A protocol name mapping/unmapping was attempted on a name not in the Category 2 list.
+    #[error("Protocol name mappings must target a valid Category 2 protocol name")]
     InvalidProtocolName,
-    /// A name grant was attempted on a name that is already mapped.
+    /// A name mapping was attempted on a name that is already mapped.
     #[error("Name is already mapped, explicitly unmap it first")]
     AlreadyMapped,
     /// A name revoke was attempted on a name that is not currently mapped.
     #[error("Name is not currently mapped")]
     NotMapped,
-    /// A name grant/revoke payload was unnormalized (e.g. contains `.kin` suffix, mixed case, or whitespace).
+    /// A name mapping/unmapping payload was unnormalized (e.g. contains `.kin` suffix, mixed case, or whitespace).
     #[error(
         "Name payloads in governance actions must be strictly normalized (no .kin suffix, lowercase, length checks)"
     )]
@@ -72,15 +69,14 @@ impl GovernanceError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::MissingRootKey => "KIN-GOV-001",
+            Self::MalformedRootKey => "KIN-GOV-008", // Next available ID
             Self::GovernanceDisabled => "KIN-GOV-002",
             Self::KeyLengthMismatch => "KIN-GOV-003",
             Self::StaleProposal => "KIN-GOV-004",
-            Self::TimelockNotExpired => "KIN-GOV-005",
-
-            Self::NotPendingOrVetoed => "KIN-GOV-007",
+            Self::AlreadyExecuted => "KIN-GOV-009", // Next available ID
 
             Self::InsufficientSignatures => "KIN-GOV-016",
-            Self::InvalidPremiumNameLength => "KIN-GOV-019",
+            Self::InvalidPrimeLength => "KIN-GOV-019",
             Self::InvalidProtocolName => "KIN-GOV-020",
             Self::AlreadyMapped => "KIN-GOV-013",
             Self::NotMapped => "KIN-GOV-014",
@@ -96,13 +92,12 @@ impl GovernanceError {
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
         match self {
-            Self::MissingRootKey => Severity::Critical,
-            Self::StaleProposal | Self::TimelockNotExpired => Severity::Info,
+            Self::MissingRootKey | Self::MalformedRootKey => Severity::Critical,
+            Self::StaleProposal | Self::AlreadyExecuted => Severity::Info,
             Self::KeyLengthMismatch => Severity::Error,
-            Self::NotPendingOrVetoed
-            | Self::GovernanceDisabled
+            Self::GovernanceDisabled
             | Self::InsufficientSignatures
-            | Self::InvalidPremiumNameLength
+            | Self::InvalidPrimeLength
             | Self::InvalidProtocolName
             | Self::AlreadyMapped
             | Self::NotMapped
@@ -112,31 +107,26 @@ impl GovernanceError {
 
     /// Whether the client should offer a retry action.
     pub fn is_retryable(&self) -> bool {
-        matches!(
-            self,
-            Self::TimelockNotExpired | Self::InsufficientSignatures
-        )
+        matches!(self, Self::InsufficientSignatures)
     }
 
     /// Clean user-facing message with no developer details.
     pub fn user_message(&self) -> String {
         match self {
             Self::MissingRootKey => "The ROOT_PUBLIC_KEY_HEX environment variable is not set. This is a fatal configuration error.".to_string(),
+            Self::MalformedRootKey => "The ROOT_PUBLIC_KEY_HEX environment variable contains invalid characters and cannot be decoded.".to_string(),
 
             Self::KeyLengthMismatch => "The provided cryptographic key length is invalid.".to_string(),
             Self::StaleProposal => "The proposed governance action is too old and has been rejected to prevent replay attacks.".to_string(),
-            Self::TimelockNotExpired => "The governance action is still in its mandatory waiting period and cannot be executed yet.".to_string(),
+            Self::AlreadyExecuted => "The proposed governance action has already been executed on the network and cannot be replayed.".to_string(),
 
-            Self::NotPendingOrVetoed => {
-                "The requested governance hash is not in a modifiable pending state.".to_string()
-            }
             Self::GovernanceDisabled => {
                 "The network is operating in permissionless mode where governance actions are universally rejected.".to_string()
             }
             Self::InsufficientSignatures => {
-                "The message lacks the required cryptographic signatures to meet the council quorum threshold.".to_string()
+                "The message lacks the required cryptographic signatures to meet the required threshold.".to_string()
             }
-            Self::InvalidPremiumNameLength => "Premium names governed by this action must be exactly 1 character long.".to_string(),
+            Self::InvalidPrimeLength => "Prime names governed by this action must be exactly 1 character long.".to_string(),
             Self::InvalidProtocolName => "Protocol names governed by this action must be valid Category 2 names.".to_string(),
             Self::AlreadyMapped => "The requested name is already mapped. It must be explicitly unmapped first.".to_string(),
             Self::NotMapped => "The requested name is not currently mapped.".to_string(),

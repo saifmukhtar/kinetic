@@ -13,7 +13,7 @@
 //! - **[`types`]** — Shared wire-format types ([`DnsZone`](types::DnsZone), [`DnsRecord`](types::DnsRecord), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
 //! - **[`error`]** — Unified error logbook ([`KineticError`](error::KineticError)), domain errors ([`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), [`RegistrationError`](error::RegistrationError)), and stable error codes.
 //! - **[`traits`]** — Core abstraction traits ([`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine)).
-//! - **[`governance`]** — Council state machine and parameter rulebooks governing privileged protocol actions.
+//! - **[`governance`]** — Sovereign state machine and parameter rulebooks governing privileged protocol actions.
 //! - **[`consensus_math`]** — Deterministic math routines for VDF difficulty scaling, name-length pricing, and grace period calculations.
 //! - **[`drand`]** — Client interface for the drand distributed randomness beacon used in time-bound operations.
 //! - **[`net`]** — Network security primitives, IP classification, and SSRF prevention guards.
@@ -37,7 +37,7 @@ pub mod constants;
 pub mod drand;
 /// Unified error taxonomy: [`KineticError`](error::KineticError), [`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), and [`RegistrationError`](error::RegistrationError).
 pub mod error;
-/// Protocol governance: council proposals, voting, and parameter updates.
+/// Protocol governance: sovereign actions, root keys, and parameter updates.
 pub mod governance;
 
 /// Network security utilities for SSRF prevention.

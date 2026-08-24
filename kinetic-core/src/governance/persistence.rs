@@ -24,7 +24,7 @@ lazy_static! {
     /// Thread-safe global governance state instance initialized from genesis.
     pub static ref GLOBAL_GOVERNANCE_STATE: Mutex<GovernanceState> =
         Mutex::new(GovernanceState::new(
-            crate::constants::KINETIC_GENESIS_TIME
+            crate::constants::KINETIC_GENESIS_DRAND_KYN
         ));
 }
 
@@ -87,7 +87,7 @@ impl GovernanceState {
                 }
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                Self::new(crate::constants::KINETIC_GENESIS_TIME)
+                Self::new(crate::constants::KINETIC_GENESIS_DRAND_KYN)
             }
             Err(e) => {
                 tracing::error!("CRITICAL: Failed to read Governance state file: {}.", e);
