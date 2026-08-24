@@ -9,10 +9,12 @@ pub use kinetic_verify::{
     VdfProof,
 };
 
+use crate::error::vdf::RevealValidationError;
+
 /// Extension trait providing network-specific validation logic for Reveal payloads.
 pub trait RevealExt {
     /// Validates the reveal payload structure against protocol rules.
-    fn validate(&self) -> Result<(), crate::error::KineticError>;
+    fn validate(&self) -> Result<(), RevealValidationError>;
 }
 
 impl RevealExt for Reveal {
@@ -20,53 +22,49 @@ impl RevealExt for Reveal {
     ///
     /// # Errors
     ///
-    /// - Returns [`crate::error::KineticError::Internal`] if `protocol_version != 1`.
-    /// - Returns [`crate::error::KineticError::InvalidName`] (wrapping [`crate::error::NamesError`]) if the domain fails apex validation rules.
-    /// - Returns [`crate::error::KineticError::Internal`] if the payload size exceeds `MAX_PAYLOAD_SIZE`.
-    fn validate(&self) -> Result<(), crate::error::KineticError> {
+    /// Returns specific [`RevealValidationError`] variants for any structural violation.
+    fn validate(&self) -> Result<(), RevealValidationError> {
         if self.protocol_version != 1 {
-            return Err(crate::error::KineticError::Internal(format!(
-                "Invalid protocol version {}. Only protocol version 1 is supported.",
-                self.protocol_version
-            )));
+            return Err(RevealValidationError::InvalidProtocolVersion(
+                self.protocol_version,
+            ));
         }
 
         is_valid_apex_name(&self.name)?;
 
         if self.payload.len() > MAX_PAYLOAD_SIZE {
-            return Err(crate::error::KineticError::Internal(format!(
-                "Payload size {} exceeds MAX_PAYLOAD_SIZE {}",
+            return Err(RevealValidationError::PayloadTooLarge(
                 self.payload.len(),
-                MAX_PAYLOAD_SIZE
-            )));
+                MAX_PAYLOAD_SIZE,
+            ));
         }
 
         if self.drand_signature.len() != 192 {
-            return Err(crate::error::KineticError::Internal(format!(
-                "Invalid drand_signature length: expected 192, got {}",
-                self.drand_signature.len()
-            )));
+            return Err(RevealValidationError::InvalidDrandSignatureLength(
+                192,
+                self.drand_signature.len(),
+            ));
         }
 
         if self.pubkey.len() != 1952 {
-            return Err(crate::error::KineticError::Internal(format!(
-                "Invalid pubkey length: expected 1952, got {}",
-                self.pubkey.len()
-            )));
+            return Err(RevealValidationError::InvalidPubkeyLength(
+                1952,
+                self.pubkey.len(),
+            ));
         }
 
         if self.signature.len() != 4627 {
-            return Err(crate::error::KineticError::Internal(format!(
-                "Invalid signature length: expected 4627, got {}",
-                self.signature.len()
-            )));
+            return Err(RevealValidationError::InvalidSignatureLength(
+                4627,
+                self.signature.len(),
+            ));
         }
 
         if self.vdf_proof.proof_bytes.len() > 2048 {
-            return Err(crate::error::KineticError::Internal(format!(
-                "VDF proof size {} exceeds maximum 2048",
-                self.vdf_proof.proof_bytes.len()
-            )));
+            return Err(RevealValidationError::VdfProofTooLarge(
+                self.vdf_proof.proof_bytes.len(),
+                2048,
+            ));
         }
 
         Ok(())
@@ -84,7 +82,9 @@ mod tests {
             signature: vec![0u8; 4627],
             previous_proof: None,
             iterations: 1000,
-            vdf_proof: VdfProof { proof_bytes: vec![0u8; 100] },
+            vdf_proof: VdfProof {
+                proof_bytes: vec![0u8; 100],
+            },
             drand_kyn: 1000,
             drand_signature: "a".repeat(192),
             salt: [0u8; 32],
@@ -104,51 +104,96 @@ mod tests {
     fn test_invalid_protocol_version() {
         let mut reveal = valid_reveal();
         reveal.protocol_version = 2;
-        assert!(reveal.validate().is_err());
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::InvalidProtocolVersion(2)
+        ));
     }
 
     #[test]
     fn test_invalid_name() {
         let mut reveal = valid_reveal();
         reveal.name = "invalid_name!".to_string();
-        assert!(reveal.validate().is_err());
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::InvalidName(_)
+        ));
     }
 
     #[test]
     fn test_payload_too_large() {
         let mut reveal = valid_reveal();
         reveal.payload = vec![0u8; MAX_PAYLOAD_SIZE + 1];
-        assert!(reveal.validate().is_err());
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::PayloadTooLarge(_, _)
+        ));
     }
 
     #[test]
     fn test_invalid_drand_signature_length() {
         let mut reveal = valid_reveal();
+
+        // Too short
         reveal.drand_signature = "a".repeat(191);
-        assert!(reveal.validate().is_err());
-        
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::InvalidDrandSignatureLength(192, 191)
+        ));
+
+        // Too long
         reveal.drand_signature = "a".repeat(193);
-        assert!(reveal.validate().is_err());
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::InvalidDrandSignatureLength(192, 193)
+        ));
     }
 
     #[test]
     fn test_invalid_pubkey_length() {
         let mut reveal = valid_reveal();
+
+        // Too short
         reveal.pubkey = vec![0u8; 1951];
-        assert!(reveal.validate().is_err());
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::InvalidPubkeyLength(1952, 1951)
+        ));
+
+        // Too long
+        reveal.pubkey = vec![0u8; 1953];
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::InvalidPubkeyLength(1952, 1953)
+        ));
     }
 
     #[test]
     fn test_invalid_signature_length() {
         let mut reveal = valid_reveal();
+
+        // Too short
         reveal.signature = vec![0u8; 4626];
-        assert!(reveal.validate().is_err());
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::InvalidSignatureLength(4627, 4626)
+        ));
+
+        // Too long
+        reveal.signature = vec![0u8; 4628];
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::InvalidSignatureLength(4627, 4628)
+        ));
     }
 
     #[test]
     fn test_vdf_proof_too_large() {
         let mut reveal = valid_reveal();
         reveal.vdf_proof.proof_bytes = vec![0u8; 2049];
-        assert!(reveal.validate().is_err());
+        assert!(matches!(
+            reveal.validate().unwrap_err(),
+            RevealValidationError::VdfProofTooLarge(_, _)
+        ));
     }
 }
