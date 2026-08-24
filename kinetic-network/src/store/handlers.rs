@@ -67,8 +67,8 @@ impl KineticRecordStore {
                         kinetic_core::types::NameRecord::Standard(new),
                     ) => (existing, new),
                     _ => {
-                        let err = KineticStoreError::TieBroken; // Prime/Infra domains cannot be stolen or steal
-                        err.log_warning("KIN-STORE-004", record.name(), "Rejecting Steal:");
+                        let err = KineticStoreError::ImmutableName;
+                        err.log_warning("KIN-STORE-041", record.name(), "Rejecting Steal:");
                         return Err(err);
                     }
                 };
@@ -181,7 +181,7 @@ impl KineticRecordStore {
 
                 if new_pulse < existing_pulse {
                     let err = KineticStoreError::StaleReveal;
-                    err.log_warning("KIN-STORE-023", record.name(), "Rejecting Replayed Reveal:");
+                    err.log_warning("KIN-STORE-042", record.name(), "Rejecting Replayed Reveal:");
                     return Err(err);
                 } else if record.payload() == existing_record.payload()
                     && record.signature() == existing_record.signature()
@@ -254,7 +254,7 @@ impl KineticRecordStore {
         }
         if deque.len() >= self.max_reveals_per_hour {
             let err = KineticStoreError::RateLimited;
-            err.log_warning("KIN-STORE-022", name, "Rejecting Reveal:");
+            err.log_warning("KIN-STORE-043", name, "Rejecting Reveal:");
             return Err(err);
         }
         deque.push_back(now);
@@ -345,13 +345,13 @@ impl KineticRecordStore {
                 ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth.owner_signature.as_slice())
                     .map_err(|_| {
                         let err = KineticStoreError::DelegatedAuthorizationInvalid;
-                        err.log_warning("KIN-STORE-023", &heartbeat.name, "Rejecting Heartbeat:");
+                        err.log_warning("KIN-STORE-044", &heartbeat.name, "Rejecting Heartbeat:");
                         err
                     })?;
 
             if primary_pubkey.verify(&auth_signable, &auth_sig).is_err() {
                 let err = KineticStoreError::DelegatedAuthorizationInvalid;
-                err.log_warning("KIN-STORE-023", &heartbeat.name, "Rejecting Heartbeat:");
+                err.log_warning("KIN-STORE-045", &heartbeat.name, "Rejecting Heartbeat:");
                 return Err(err);
             }
 
@@ -367,8 +367,8 @@ impl KineticRecordStore {
             }
 
             let kid_doc = auth.kid_doc.as_ref().ok_or_else(|| {
-                let err = KineticStoreError::DelegatedAuthorizationInvalid;
-                err.log_warning("KIN-STORE-023", &heartbeat.name, "Rejecting Heartbeat:");
+                let err = KineticStoreError::MissingKidDocument;
+                err.log_warning("KIN-STORE-046", &heartbeat.name, "Rejecting Heartbeat:");
                 err
             })?;
 
@@ -420,9 +420,9 @@ impl KineticRecordStore {
         }
 
         if heartbeat.latest_drand_kyn > self.current_drand_kyn + 2 {
-            let err = KineticStoreError::StaleHeartbeat;
+            let err = KineticStoreError::FutureHeartbeat;
             err.log_warning(
-                "KIN-STORE-021",
+                "KIN-STORE-047",
                 &heartbeat.name,
                 "Rejecting Heartbeat: future-dated:",
             );

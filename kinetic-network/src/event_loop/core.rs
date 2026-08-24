@@ -295,7 +295,9 @@ impl NetworkEventLoop {
             } => {
                 match verdict {
                     Err(crate::error::KineticStoreError::MissingCommitment { commit_key }) => {
-                        tracing::debug!("Commitment missing locally. Querying DHT to verify reveal...");
+                        tracing::debug!(
+                            "Commitment missing locally. Querying DHT to verify reveal..."
+                        );
                         let key = libp2p::kad::RecordKey::new(&commit_key);
                         let query_id = self.swarm.behaviour_mut().kademlia.get_record(key);
                         self.pending_reveals.insert(query_id, (source, record));
@@ -303,50 +305,51 @@ impl NetworkEventLoop {
                     }
                     Err(e) => {
                         if e.severity() == kinetic_core::error::Severity::Error {
-                        let now = web_time::Instant::now();
-                        let (count, last_time) = self
-                            .bad_vdf_counts
-                            .get(&source)
-                            .copied()
-                            .unwrap_or((0, now));
-                        let new_val =
-                            if now.duration_since(last_time) > web_time::Duration::from_secs(60) {
+                            let now = web_time::Instant::now();
+                            let (count, last_time) = self
+                                .bad_vdf_counts
+                                .get(&source)
+                                .copied()
+                                .unwrap_or((0, now));
+                            let new_val = if now.duration_since(last_time)
+                                > web_time::Duration::from_secs(60)
+                            {
                                 (1, now)
                             } else {
                                 (count + 1, now)
                             };
-                        self.bad_vdf_counts.put(source, new_val);
+                            self.bad_vdf_counts.put(source, new_val);
 
-                        if new_val.0 >= 3 {
-                            tracing::warn!(
-                                "Peer {} sent 3 invalid records within 60s — disconnecting and banning",
-                                source
-                            );
-                            let _ = self.swarm.disconnect_peer_id(source);
-                            let expire_kyn = self.current_drand_kyn + 28800;
-                            self.banned_peers.put(source, expire_kyn);
+                            if new_val.0 >= 3 {
+                                tracing::warn!(
+                                    "Peer {} sent 3 invalid records within 60s — disconnecting and banning",
+                                    source
+                                );
+                                let _ = self.swarm.disconnect_peer_id(source);
+                                let expire_kyn = self.current_drand_kyn + 28800;
+                                self.banned_peers.put(source, expire_kyn);
+                            }
                         }
                     }
-                    }
                     Ok(()) => {
-                    tracing::debug!(
-                        "Offloaded DHT record verification succeeded for peer {}",
-                        source
-                    );
-                    let _ = self
-                        .swarm
-                        .behaviour_mut()
-                        .kademlia
-                        .store_mut()
-                        .put_verified_record(record.clone());
+                        tracing::debug!(
+                            "Offloaded DHT record verification succeeded for peer {}",
+                            source
+                        );
+                        let _ = self
+                            .swarm
+                            .behaviour_mut()
+                            .kademlia
+                            .store_mut()
+                            .put_verified_record(record.clone());
 
-                    // Advertise that we are caching this record (Edge Caching / Option 3)
-                    let _ = self
-                        .swarm
-                        .behaviour_mut()
-                        .kademlia
-                        .start_providing(record.key.clone());
-                }
+                        // Advertise that we are caching this record (Edge Caching / Option 3)
+                        let _ = self
+                            .swarm
+                            .behaviour_mut()
+                            .kademlia
+                            .start_providing(record.key.clone());
+                    }
                 }
             }
             LoopbackCommand::CommitGossipValidation {
@@ -440,9 +443,22 @@ impl NetworkEventLoop {
                     tracing::info!("Dialing resolved fallback DNS seed node: {}", multiaddr);
                 }
             }
-            LoopbackCommand::CdnResolutionVerified { domain, record_bytes, peer } => {
-                if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes) {
-                    if self.swarm.behaviour_mut().kademlia.store_mut().handle_record(&record, true).is_ok() {
+            LoopbackCommand::CdnResolutionVerified {
+                domain,
+                record_bytes,
+                peer,
+            } => {
+                if let Ok(record) =
+                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes)
+                {
+                    if self
+                        .swarm
+                        .behaviour_mut()
+                        .kademlia
+                        .store_mut()
+                        .handle_record(&record, true)
+                        .is_ok()
+                    {
                         tracing::info!(
                             "CDN Hit! Accelerated resolution of {} via {}",
                             domain,

@@ -35,7 +35,9 @@ impl super::core::NetworkEventLoop {
             lightnode::build_light_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         } else {
             #[cfg(target_arch = "wasm32")]
-            return Err(anyhow::anyhow!("FullNode mode is not supported on WebAssembly"));
+            return Err(anyhow::anyhow!(
+                "FullNode mode is not supported on WebAssembly"
+            ));
 
             #[cfg(not(target_arch = "wasm32"))]
             fullnode::build_full_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?

@@ -71,7 +71,10 @@ pub enum KineticStoreError {
     StaleReveal,
     /// Missing prior commitment in DHT
     #[error("no prior commitment found in DHT")]
-    MissingCommitment,
+    MissingCommitment {
+        /// The derived Kademlia DHT key of the missing commitment.
+        commit_key: Vec<u8>,
+    },
     /// Invalid apex domain name
     #[error("the provided name is not a valid kinetic apex domain")]
     InvalidName,
@@ -81,6 +84,45 @@ pub enum KineticStoreError {
     /// The delegated authorization proof is structurally invalid or fails signature check.
     #[error("delegated authorization proof is invalid")]
     DelegatedAuthorizationInvalid,
+    /// Drand BLS signature failed math verification
+    #[error("drand signature failed BLS verification")]
+    InvalidDrandSignature,
+    /// Domain not found locally
+    #[error("domain not found locally")]
+    DomainNotFound,
+    /// KID document failed internal validation
+    #[error("kid document failed validation")]
+    InvalidKidDocument,
+    /// Initial DID binding failed
+    #[error("genesis binding failed")]
+    GenesisBindingFailed,
+    /// Unauthorized update
+    #[error("update is not authorized by prior key")]
+    UnauthorizedUpdate,
+    /// Manifest version rollback
+    #[error("manifest version rollback detected")]
+    ManifestVersionRollback,
+    /// Manifest local verification failed
+    #[error("manifest local verification failed")]
+    ManifestVerificationFailed,
+    /// Heartbeat timestamp is in the future
+    #[error("heartbeat timestamp is too far in the future")]
+    FutureHeartbeat,
+    /// Domain type is immutable
+    #[error("Prime and Infra names are immutable and cannot be stolen")]
+    ImmutableName,
+    /// KID document missing
+    #[error("KID document is missing from the authorization payload")]
+    MissingKidDocument,
+    /// Raw bytes could not be parsed as JSON
+    #[error("payload contains malformed or invalid JSON")]
+    MalformedJson,
+    /// JSON is valid but does not match the strict Kinetic schema
+    #[error("payload violates the expected record schema")]
+    SchemaValidationError,
+    /// Internal Kademlia store failure
+    #[error("internal Kademlia DHT store failed to save the record")]
+    InternalStoreError,
 }
 
 impl KineticStoreError {
@@ -105,11 +147,24 @@ impl KineticStoreError {
             Self::InvalidHostRouteSignature => "KIN-NET-016",
             Self::RateLimited => "KIN-NET-017",
             Self::StaleReveal => "KIN-NET-018",
-            Self::MissingCommitment => "KIN-NET-019",
+            Self::MissingCommitment { .. } => "KIN-NET-019",
             Self::InvalidName => "KIN-NET-020",
             Self::NetworkHalted => "KIN-NET-021",
             Self::DelegatedCapabilityMissing => "KIN-NET-022",
             Self::DelegatedAuthorizationInvalid => "KIN-NET-023",
+            Self::InvalidDrandSignature => "KIN-NET-024",
+            Self::DomainNotFound => "KIN-NET-025",
+            Self::InvalidKidDocument => "KIN-NET-026",
+            Self::GenesisBindingFailed => "KIN-NET-027",
+            Self::UnauthorizedUpdate => "KIN-NET-028",
+            Self::ManifestVersionRollback => "KIN-NET-029",
+            Self::ManifestVerificationFailed => "KIN-NET-030",
+            Self::FutureHeartbeat => "KIN-NET-031",
+            Self::ImmutableName => "KIN-NET-032",
+            Self::MissingKidDocument => "KIN-NET-033",
+            Self::MalformedJson => "KIN-NET-034",
+            Self::SchemaValidationError => "KIN-NET-035",
+            Self::InternalStoreError => "KIN-NET-036",
         }
     }
 
@@ -148,7 +203,7 @@ impl KineticStoreError {
             }
             Self::RateLimited => "Rate limit exceeded for submission".to_string(),
             Self::StaleReveal => "Reveal commitment is too recent".to_string(),
-            Self::MissingCommitment => {
+            Self::MissingCommitment { .. } => {
                 "No prior commitment found in DHT for this reveal".to_string()
             }
             Self::InvalidName => "Name is not a valid Kinetic apex domain".to_string(),
@@ -161,6 +216,29 @@ impl KineticStoreError {
                 "The delegated authorization proof could not be verified against the master key."
                     .to_string()
             }
+            Self::InvalidDrandSignature => "Drand signature math verification failed".to_string(),
+            Self::DomainNotFound => "Active record missing for this domain".to_string(),
+            Self::InvalidKidDocument => "KID document failed self-verification".to_string(),
+            Self::GenesisBindingFailed => "KID genesis binding failed on first publish".to_string(),
+            Self::UnauthorizedUpdate => {
+                "KID update is not authorized by existing active record".to_string()
+            }
+            Self::ManifestVersionRollback => {
+                "Manifest version must be strictly increasing".to_string()
+            }
+            Self::ManifestVerificationFailed => "Manifest failed local verification".to_string(),
+            Self::FutureHeartbeat => "Heartbeat timestamp is from the future".to_string(),
+            Self::ImmutableName => {
+                "This name type is immortal and cannot be transferred via PoW".to_string()
+            }
+            Self::MissingKidDocument => {
+                "Authorization payload is missing the required KID document".to_string()
+            }
+            Self::MalformedJson => "Failed to parse raw bytes as JSON".to_string(),
+            Self::SchemaValidationError => "Parsed JSON failed strict type validation".to_string(),
+            Self::InternalStoreError => {
+                "Internal DHT memory store rejected the put operation".to_string()
+            }
         }
     }
 
@@ -170,7 +248,8 @@ impl KineticStoreError {
             Self::TieBroken
             | Self::InsufficientIterations
             | Self::VdfExpired { .. }
-            | Self::RevealNotFound => Severity::Info,
+            | Self::RevealNotFound
+            | Self::DomainNotFound => Severity::Info,
             Self::PayloadTooLarge | Self::UnknownRecordType | Self::RateLimited => {
                 Severity::Warning
             }
@@ -185,11 +264,23 @@ impl KineticStoreError {
             | Self::StaleHeartbeat
             | Self::InvalidHostRouteSignature
             | Self::StaleReveal
-            | Self::MissingCommitment
+            | Self::MissingCommitment { .. }
             | Self::InvalidName
             | Self::NetworkHalted
             | Self::DelegatedCapabilityMissing
-            | Self::DelegatedAuthorizationInvalid => Severity::Error,
+            | Self::DelegatedAuthorizationInvalid
+            | Self::InvalidDrandSignature
+            | Self::InvalidKidDocument
+            | Self::GenesisBindingFailed
+            | Self::UnauthorizedUpdate
+            | Self::ManifestVersionRollback
+            | Self::ManifestVerificationFailed
+            | Self::FutureHeartbeat
+            | Self::ImmutableName
+            | Self::MissingKidDocument
+            | Self::MalformedJson
+            | Self::SchemaValidationError
+            | Self::InternalStoreError => Severity::Error,
         }
     }
 

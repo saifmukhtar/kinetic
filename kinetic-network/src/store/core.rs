@@ -42,7 +42,6 @@ pub struct KineticRecordStore {
     /// Configuration for rate limiting reveals
     pub max_reveals_per_hour: usize,
 }
-
 impl KineticRecordStore {
     /// Creates a new `KineticRecordStore` instance and restores existing state from sled storage.
     ///
@@ -168,14 +167,26 @@ impl KineticRecordStore {
                 }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if val_bytes.len() == 8 {
-                    let kyn = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
-                    tracing::info!("[KRS restore] Heartbeat kyn {} for {}", kyn, name);
-                    last_heartbeats_by_name.insert(name, kyn);
+                    // Fix 2: Check for orphaned heartbeats
+                    if reveals_by_name.contains(&name) {
+                        let kyn = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
+                        tracing::info!("[KRS restore] Heartbeat kyn {} for {}", kyn, name);
+                        last_heartbeats_by_name.insert(name, kyn);
+                    } else {
+                        tracing::warn!("[KRS restore] Purging orphaned heartbeat for {}", name);
+                        let _ = storage.delete(&key_bytes);
+                    }
                 }
             }
         }
 
-        let mut inner = kad::store::MemoryStore::new(local_peer_id);
+        let config = kad::store::MemoryStoreConfig {
+            max_records: 100_000,
+            max_value_bytes: 85_000,
+            max_provided_keys: 100_000,
+            max_providers_per_key: 20,
+        };
+        let mut inner = kad::store::MemoryStore::with_config(local_peer_id, config);
 
         for (name, reveal) in reveals_by_name.iter() {
             if let Ok(val) = serde_json::to_vec(reveal) {
@@ -218,13 +229,23 @@ impl KineticRecordStore {
                     let kyn = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
                     if current_kyn.saturating_sub(kyn) >= 100 {
                         keys_to_delete.push(key_bytes.to_vec());
+                        if key_bytes.len() > crate::store::constants::KRS_COMMIT_PREFIX.len() {
+                            let hash =
+                                &key_bytes[crate::store::constants::KRS_COMMIT_PREFIX.len()..];
+                            let k = libp2p::kad::RecordKey::new(&hash);
+                            self.inner.remove(&k);
+                            let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
+                            sled_key.extend_from_slice(b"kad_record:");
+                            sled_key.extend_from_slice(k.as_ref());
+                            keys_to_delete.push(sled_key);
+                        }
                     }
                 }
             }
         }
 
         let max_age_kyns = kinetic_core::types::RESQUARING_EPOCH_KYNS;
-        let idle_timeout = (7 * 24 * 3600) / 3; println!("current_kyn: {}, idle_timeout: {}", current_kyn, idle_timeout); // 7 days of 3-second Drand kyns
+        let idle_timeout = (7 * 24 * 3600) / 3; // 7 days of 3-second Drand kyns
 
         let mut expired_names = Vec::new();
 
@@ -242,7 +263,7 @@ impl KineticRecordStore {
                         .get(name)
                         .copied()
                         .unwrap_or(reveal.drand_kyn);
-                    let hb_age = current_kyn.saturating_sub(last_hb); println!("Name: {}, last_hb: {}, hb_age: {}", name, last_hb, hb_age);
+                    let hb_age = current_kyn.saturating_sub(last_hb);
 
                     if !kinetic_core::types::protocol::requires_heartbeat(name) {
                         continue;
@@ -263,7 +284,7 @@ impl KineticRecordStore {
                         .get(name)
                         .copied()
                         .unwrap_or(grant_kyn);
-                    let hb_age = current_kyn.saturating_sub(last_hb); println!("Name: {}, last_hb: {}, hb_age: {}", name, last_hb, hb_age);
+                    let hb_age = current_kyn.saturating_sub(last_hb);
 
                     if hb_age > idle_timeout {
                         expired_names.push(name.clone());
@@ -294,6 +315,7 @@ impl KineticRecordStore {
                 sled_key.extend_from_slice(b"kad_record:");
                 sled_key.extend_from_slice(k.as_ref());
                 keys_to_delete.push(sled_key);
+                self.inner.remove(&k);
             }
 
             let hb_keys = kinetic_core::types::derive_heartbeat_keys(
@@ -306,6 +328,7 @@ impl KineticRecordStore {
                 sled_key.extend_from_slice(b"kad_record:");
                 sled_key.extend_from_slice(k.as_ref());
                 keys_to_delete.push(sled_key);
+                self.inner.remove(&k);
             }
         }
 
@@ -410,10 +433,11 @@ impl KineticRecordStore {
                         return self
                             .inner
                             .put(r)
-                            .map_err(|_| KineticStoreError::PayloadTooLarge);
+                            .map_err(|_| KineticStoreError::InternalStoreError);
                     }
-                    Err(_) => {
-                        let err = KineticStoreError::UnknownRecordType;
+                    Err(e) => {
+                        let err = KineticStoreError::SchemaValidationError;
+                        tracing::warn!(error_code = "KIN-STORE-051", severity = ?err.severity(), "Failed to parse Commitment schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -426,8 +450,9 @@ impl KineticRecordStore {
                         );
                         self.handle_record(&record, skip_reveal_verify)?;
                     }
-                    Err(_) => {
-                        let err = KineticStoreError::UnknownRecordType;
+                    Err(e) => {
+                        let err = KineticStoreError::SchemaValidationError;
+                        tracing::warn!(error_code = "KIN-STORE-052", severity = ?err.severity(), "Failed to parse NameRecord schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -440,8 +465,9 @@ impl KineticRecordStore {
                         );
                         self.handle_heartbeat(&heartbeat)?;
                     }
-                    Err(_) => {
-                        let err = KineticStoreError::UnknownRecordType;
+                    Err(e) => {
+                        let err = KineticStoreError::SchemaValidationError;
+                        tracing::warn!(error_code = "KIN-STORE-053", severity = ?err.severity(), "Failed to parse Heartbeat schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -456,8 +482,9 @@ impl KineticRecordStore {
                             existing_record.as_ref(),
                         )?;
                     }
-                    Err(_) => {
-                        let err = KineticStoreError::UnknownRecordType;
+                    Err(e) => {
+                        let err = KineticStoreError::SchemaValidationError;
+                        tracing::warn!(error_code = "KIN-STORE-054", severity = ?err.severity(), "Failed to parse AuthorizedKid schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -472,8 +499,9 @@ impl KineticRecordStore {
                             existing_record.as_ref(),
                         )?;
                     }
-                    Err(_) => {
-                        let err = KineticStoreError::UnknownRecordType;
+                    Err(e) => {
+                        let err = KineticStoreError::SchemaValidationError;
+                        tracing::warn!(error_code = "KIN-STORE-055", severity = ?err.severity(), "Failed to parse AuthorizedManifest schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -496,8 +524,9 @@ impl KineticRecordStore {
                             }
                         }
                     }
-                    Err(_) => {
-                        let err = KineticStoreError::UnknownRecordType;
+                    Err(e) => {
+                        let err = KineticStoreError::SchemaValidationError;
+                        tracing::warn!(error_code = "KIN-STORE-056", severity = ?err.severity(), "Failed to parse HostRoutingRecord schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -511,11 +540,11 @@ impl KineticRecordStore {
                 return Err(err);
             }
         } else {
-            let err = KineticStoreError::UnknownRecordType;
+            let err = KineticStoreError::MalformedJson;
             tracing::warn!(
-                error_code = "KIN-STORE-019",
+                error_code = "KIN-STORE-050",
                 severity = ?err.severity(),
-                "Rejecting Kademlia record: {}", err
+                "Rejecting Kademlia record due to malformed JSON: {}", err
             );
             return Err(err);
         }
@@ -526,7 +555,7 @@ impl KineticRecordStore {
         let _ = self.storage.put(&sled_key, &r.value);
         self.inner
             .put(r)
-            .map_err(|_| KineticStoreError::PayloadTooLarge)
+            .map_err(|_| KineticStoreError::InternalStoreError)
     }
 }
 
@@ -571,19 +600,19 @@ impl kad::store::RecordStore for KineticRecordStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_storage::SledStorage;
+    use kinetic_storage::KineticStorage;
     use libp2p::identity::Keypair;
     use tempfile::tempdir;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_store_rejects_garbage() {
         let dir = tempdir().unwrap();
-        let sled_storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+        let sled_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
 
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
             sled_storage,
@@ -604,12 +633,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_thermodynamic_pruning_removes_idle_names() {
         let dir = tempdir().unwrap();
-        let sled_storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+        let sled_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
-            
+            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+
         let mut store = KineticRecordStore::new(
             peer_id,
             sled_storage.clone(),
@@ -628,34 +657,41 @@ mod tests {
             signature: vec![],
             authorization: None,
         };
-        
+
         let record_bytes = serde_json::to_vec(&record).unwrap();
-        let derived_keys = kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_SALT);
+        let derived_keys =
+            kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_SALT);
         let kad_key = kad::RecordKey::new(&derived_keys[0]);
-        
+
         let kad_record = kad::Record::new(kad_key.clone(), record_bytes);
         store.put_record_internal(kad_record, true).unwrap();
-        
+
         assert!(store.get_record_with_fallback(name).is_some());
 
-        store.current_drand_kyn += 300000; store.prune();
-        
+        store.current_drand_kyn += 300000;
+        store.prune();
+
         // Wait for async deletion task to run
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-        
+
         // It should be pruned!
         assert!(store.reveals_by_name.get(name).is_none());
+        use libp2p::kad::store::RecordStore;
+        assert!(
+            store.get(&kad_key).is_none(),
+            "Zombie record RAM leak detected! Record still exists in MemoryStore!"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_thermodynamic_pruning_preserves_exempt_names() {
         let dir = tempdir().unwrap();
-        let sled_storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+        let sled_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
-            
+            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+
         let mut store = KineticRecordStore::new(
             peer_id,
             sled_storage.clone(),
@@ -674,21 +710,136 @@ mod tests {
             signature: vec![],
             authorization: None,
         };
-        
+
         let record_bytes = serde_json::to_vec(&record).unwrap();
-        let derived_keys = kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_SALT);
+        let derived_keys =
+            kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_SALT);
         let kad_key = kad::RecordKey::new(&derived_keys[0]);
-        
+
         let kad_record = kad::Record::new(kad_key.clone(), record_bytes);
         store.put_record_internal(kad_record, true).unwrap();
-        
+
         assert!(store.get_record_with_fallback(name).is_some());
-        
-        store.current_drand_kyn += 300000; store.prune();
-        
+
+        store.current_drand_kyn += 300000;
+        store.prune();
+
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-        
+
         // It should NOT be pruned!
         assert!(store.get_record_with_fallback(name).is_some());
+    }
+
+    #[tokio::test]
+    async fn test_orphaned_heartbeat_cleanup_on_boot() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage: std::sync::Arc<dyn kinetic_core::traits::StorageEngine> =
+            std::sync::Arc::new(KineticStorage::new(dir.path()).unwrap());
+
+        let name = "orphan.kin";
+        let hb_key = [crate::store::constants::KRS_HB_PREFIX, name.as_bytes()].concat();
+        let kyn: u64 = 999;
+        storage.put(&hb_key, &kyn.to_be_bytes()).unwrap();
+
+        assert!(
+            storage.get(&hb_key).unwrap().is_some(),
+            "Heartbeat should exist in Sled"
+        );
+
+        let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
+        let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        let store = KineticRecordStore::new(
+            peer_id,
+            storage.clone(),
+            1000,
+            std::num::NonZeroUsize::new(100).unwrap(),
+            100,
+            vdf_engine,
+        );
+
+        assert!(
+            !store.last_heartbeats_by_name.contains_key(name),
+            "Should not be in RAM"
+        );
+        assert!(
+            storage.get(&hb_key).unwrap().is_none(),
+            "Should be purged from Sled"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_80kb_payload_capacity() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage: std::sync::Arc<dyn kinetic_core::traits::StorageEngine> =
+            std::sync::Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
+        let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+
+        let mut store = KineticRecordStore::new(
+            peer_id,
+            storage,
+            1000,
+            std::num::NonZeroUsize::new(100).unwrap(),
+            100,
+            vdf_engine,
+        );
+
+        let large_payload = vec![0u8; 34000];
+        let record = kinetic_core::types::NameRecord::Prime {
+            name: "large.kin".to_string(),
+            pubkey: vec![],
+            granted_at: 0,
+            payload: large_payload,
+            signature: vec![],
+            authorization: None,
+        };
+
+        let record_bytes = serde_json::to_vec(&record).unwrap();
+        let key = libp2p::kad::RecordKey::new(&"dummy");
+        let kad_record = libp2p::kad::Record::new(key, record_bytes.clone());
+
+        let res = store.put_record_internal(kad_record, true);
+        assert!(res.is_ok(), "Error: {:?}", res.unwrap_err());
+    }
+
+    #[tokio::test]
+    async fn test_schema_and_malformed_json_rejection() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage: std::sync::Arc<dyn kinetic_core::traits::StorageEngine> =
+            std::sync::Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
+        let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
+            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+
+        let mut store = KineticRecordStore::new(
+            peer_id,
+            storage,
+            100,
+            std::num::NonZeroUsize::new(100).unwrap(),
+            100,
+            vdf_engine,
+        );
+
+        let bad_bytes = vec![0, 255, 0, 128];
+        let kad_record_bad =
+            libp2p::kad::Record::new(libp2p::kad::RecordKey::new(&"key1"), bad_bytes);
+        let res1 = store.put_record(kad_record_bad);
+        assert!(matches!(
+            res1.unwrap_err(),
+            crate::error::KineticStoreError::MalformedJson
+        ));
+
+        let schema_error_json = r#"{"hash": "this_is_a_string_not_an_array"}"#;
+        let kad_record_schema = libp2p::kad::Record::new(
+            libp2p::kad::RecordKey::new(&"key2"),
+            schema_error_json.as_bytes().to_vec(),
+        );
+        let res2 = store.put_record(kad_record_schema);
+        assert!(matches!(
+            res2.unwrap_err(),
+            crate::error::KineticStoreError::SchemaValidationError
+        ));
     }
 }

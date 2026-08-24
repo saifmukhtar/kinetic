@@ -56,7 +56,11 @@ where
     }
 }
 
-pub(crate) fn is_routable_multiaddr(addr: &libp2p::Multiaddr, disable_pow: bool) -> bool {
+pub(crate) fn is_routable_multiaddr(
+    addr: &libp2p::Multiaddr,
+    disable_pow: bool,
+    allow_dns: bool,
+) -> bool {
     if kinetic_core::config::is_dev_mode() || disable_pow {
         return true;
     }
@@ -90,6 +94,11 @@ pub(crate) fn is_routable_multiaddr(addr: &libp2p::Multiaddr, disable_pow: bool)
             }
             Protocol::Memory(_) => {
                 return true;
+            }
+            Protocol::Dns(_) | Protocol::Dns4(_) | Protocol::Dns6(_) => {
+                if !allow_dns {
+                    return false;
+                }
             }
             _ => {}
         }
@@ -248,7 +257,7 @@ impl super::core::NetworkEventLoop {
 
                     use drand_verify::Pubkey;
                     use kinetic_core::traits::VdfEngine;
-                    use kinetic_vdf::ChiaVdfEngine;
+                    use kinetic_vdf_rsa::RsaVdfEngine;
                     use sha2::{Digest, Sha256};
 
                     let drand_sig_bytes = match hex::decode(&reveal.drand_signature) {
@@ -314,7 +323,7 @@ impl super::core::NetworkEventLoop {
                         continue;
                     }
 
-                    let engine = ChiaVdfEngine::new();
+                    let engine = RsaVdfEngine::new();
 
                     let required_iterations =
                         match crate::store::verification::compute_required_iterations(
@@ -348,11 +357,6 @@ impl super::core::NetworkEventLoop {
                     }
 
                     let challenge_cmt = kinetic_core::types::Commitment { hash };
-                    #[cfg(not(target_arch = "wasm32"))]
-                    let is_valid = tokio::task::block_in_place(|| {
-                        engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations)
-                    });
-                    #[cfg(target_arch = "wasm32")]
                     let is_valid =
                         engine.verify(&challenge_cmt, &reveal.vdf_proof, reveal.iterations);
 

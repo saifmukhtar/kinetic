@@ -12,13 +12,13 @@ async fn test_016_governance_integration_halt() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
     let storage = std::sync::Arc::new(
-        kinetic_storage::SledStorage::new(storage_path.to_str().unwrap()).unwrap(),
+        kinetic_storage::KineticStorage::new(storage_path.to_str().unwrap()).unwrap(),
     );
 
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
-    let vdf_engine = std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let vdf_engine = std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
 
     let mut store = KineticRecordStore::new(
         local_peer_id,
@@ -73,13 +73,13 @@ async fn test_016_governance_integration_premium() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
     let storage = std::sync::Arc::new(
-        kinetic_storage::SledStorage::new(storage_path.to_str().unwrap()).unwrap(),
+        kinetic_storage::KineticStorage::new(storage_path.to_str().unwrap()).unwrap(),
     );
 
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
-    let vdf_engine = std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let vdf_engine = std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
 
     // Set current drand kyn to 10 years in the future
     let future_round = 10_000_000;

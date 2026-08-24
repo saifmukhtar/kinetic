@@ -1,6 +1,6 @@
 use kinetic_core::types::vdf::{PreviousProof, Reveal, VdfProof};
 use kinetic_network::store::core::KineticRecordStore;
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 use libp2p::{PeerId, kad};
 use proptest::prelude::*;
 use std::num::NonZeroUsize;
@@ -14,13 +14,13 @@ proptest! {
         garbage in any::<Vec<u8>>()
     ) {
         let temp_dir = tempfile::tempdir().unwrap();
-        let sled_storage = Arc::new(SledStorage::new(temp_dir.path()).unwrap());
+        let sled_storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
         let keypair = libp2p::identity::ed25519::Keypair::generate();
         let public = keypair.public();
         let identity = libp2p::identity::PublicKey::from(public);
         let peer_id = PeerId::from(identity);
 
-        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
             sled_storage,
@@ -68,13 +68,13 @@ proptest! {
         };
 
         let temp_dir = tempfile::tempdir().unwrap();
-        let sled_storage = Arc::new(SledStorage::new(temp_dir.path()).unwrap());
+        let sled_storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
         let keypair = libp2p::identity::ed25519::Keypair::generate();
         let public = keypair.public();
         let identity = libp2p::identity::PublicKey::from(public);
         let peer_id = PeerId::from(identity);
 
-        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
             sled_storage,

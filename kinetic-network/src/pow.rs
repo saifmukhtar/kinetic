@@ -114,7 +114,8 @@ pub fn mine_sybil_keypair(current_kyn: u64, difficulty: u32) -> Keypair {
         let peer_bytes = peer_id.to_bytes();
         let current_epoch = get_staggered_epoch(&peer_bytes, current_kyn);
 
-        let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch).expect("Argon2 memory allocation failed during mining");
+        let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch)
+            .expect("Argon2 memory allocation failed during mining");
 
         attempts += 1;
         if leading_zeros(&hash) >= difficulty {

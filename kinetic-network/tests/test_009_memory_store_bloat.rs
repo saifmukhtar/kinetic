@@ -1,6 +1,6 @@
 use kinetic_core::types::Reveal;
 use kinetic_network::store::KineticRecordStore;
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 use libp2p::PeerId;
 use libp2p::identity::Keypair;
 use std::sync::Arc;
@@ -9,11 +9,11 @@ use tempfile::tempdir;
 #[test]
 fn test_009_memory_store_bloat() {
     let dir = tempdir().unwrap();
-    let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+    let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
     let peer_id = PeerId::from(Keypair::generate_ed25519().public());
 
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-        std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
     let mut store = KineticRecordStore::new(
         peer_id,
         storage,

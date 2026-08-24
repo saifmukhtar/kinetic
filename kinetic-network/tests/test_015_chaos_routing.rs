@@ -1,6 +1,6 @@
 use kinetic_network::NetworkEventLoop;
 use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 use libp2p::{Multiaddr, PeerId, identity};
 use std::sync::Arc;
 use std::time::Duration;
@@ -41,10 +41,10 @@ async fn spawn_test_node(
     };
 
     let dir = tempdir().unwrap();
-    let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+    let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
 
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-        std::sync::Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
     let (client, event_loop) = NetworkEventLoop::new(
         config,
         keypair,

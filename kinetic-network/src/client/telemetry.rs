@@ -62,15 +62,16 @@ pub fn start_telemetry_service(
                 .await
                 .unwrap_or_default();
 
-            let reachability = if let Some(status_str) = metrics.get("nat_status").and_then(|v| v.as_str()) {
-                if status_str.contains("Private") {
-                    Reachability::BehindNAT
+            let reachability =
+                if let Some(status_str) = metrics.get("nat_status").and_then(|v| v.as_str()) {
+                    if status_str.contains("Private") {
+                        Reachability::BehindNAT
+                    } else {
+                        Reachability::Public
+                    }
                 } else {
                     Reachability::Public
-                }
-            } else {
-                Reachability::Public
-            };
+                };
 
             let hb = TelemetryHeartbeat {
                 session_id: session_id.clone(),

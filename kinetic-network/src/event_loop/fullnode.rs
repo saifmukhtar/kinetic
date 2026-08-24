@@ -56,6 +56,8 @@ pub(crate) fn build_full_swarm(
     let (control_tx, control_rx) = std::sync::mpsc::channel();
     let initial_drand_kyn = config.initial_drand_kyn;
     let enable_mdns = config.enable_mdns;
+    let enable_upnp = config.enable_upnp;
+    let enable_relay_server = config.enable_relay_server;
     let lru_cache_size = config.lru_cache_size;
     let max_reveals_per_hour = config.max_reveals_per_hour;
     let test_mode = config.test_mode;
@@ -152,10 +154,19 @@ pub(crate) fn build_full_swarm(
             let _ = control_tx.send(stream.new_control());
 
             let mdns = if enable_mdns && !test_mode {
-                libp2p::swarm::behaviour::toggle::Toggle::from(Some(
-                    libp2p::mdns::tokio::Behaviour::new(libp2p::mdns::Config::default(), peer_id)
-                        .expect("Valid mdns config"),
-                ))
+                match libp2p::mdns::tokio::Behaviour::new(libp2p::mdns::Config::default(), peer_id)
+                {
+                    Ok(behaviour) => {
+                        libp2p::swarm::behaviour::toggle::Toggle::from(Some(behaviour))
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to bind mDNS: {}. Local peer discovery disabled.",
+                            e
+                        );
+                        libp2p::swarm::behaviour::toggle::Toggle::from(None)
+                    }
+                }
             } else {
                 libp2p::swarm::behaviour::toggle::Toggle::from(None)
             };
@@ -182,17 +193,15 @@ pub(crate) fn build_full_swarm(
                 )
             };
 
-            let upnp = if test_mode {
-                libp2p::swarm::behaviour::toggle::Toggle::from(None)
-            } else {
+            let upnp = if enable_upnp && !test_mode {
                 libp2p::swarm::behaviour::toggle::Toggle::from(Some(
                     libp2p::upnp::tokio::Behaviour::default(),
                 ))
+            } else {
+                libp2p::swarm::behaviour::toggle::Toggle::from(None)
             };
 
-            let relay_server = if test_mode {
-                libp2p::swarm::behaviour::toggle::Toggle::from(None)
-            } else {
+            let relay_server = if enable_relay_server && !test_mode {
                 libp2p::swarm::behaviour::toggle::Toggle::from(Some(libp2p::relay::Behaviour::new(
                     peer_id,
                     libp2p::relay::Config {
@@ -208,6 +217,8 @@ pub(crate) fn build_full_swarm(
                         reservation_duration: std::time::Duration::from_secs(5 * 60),
                     },
                 )))
+            } else {
+                libp2p::swarm::behaviour::toggle::Toggle::from(None)
             };
 
             KineticBehavior {
@@ -231,24 +242,38 @@ pub(crate) fn build_full_swarm(
         .build();
 
     // Full nodes listen on TCP and QUIC
+    let mut tcp_success = false;
     for addr in &config.listen_addrs {
-        if !addr.is_empty()
-            && let Err(e) = swarm.listen_on(addr.clone())
-        {
-            tracing::warn!("Failed to bind TCP on {}: {}", addr, e);
+        if !addr.is_empty() {
+            match swarm.listen_on(addr.clone()) {
+                Ok(_) => {
+                    tracing::info!("Listening on TCP: {}", addr);
+                    tcp_success = true;
+                }
+                Err(e) => tracing::warn!("Failed to bind TCP on {}: {}", addr, e),
+            }
         }
     }
+    let mut quic_success = false;
     for quic_addr in &config.quic_listen_addrs {
         if !quic_addr.is_empty() {
             match swarm.listen_on(quic_addr.clone()) {
-                Ok(_) => tracing::info!("Listening on QUIC: {}", quic_addr),
-                Err(e) => tracing::warn!(
-                    "Failed to bind QUIC on {}: {}. Falling back to TCP only.",
-                    quic_addr,
-                    e
-                ),
+                Ok(_) => {
+                    tracing::info!("Listening on QUIC: {}", quic_addr);
+                    quic_success = true;
+                }
+                Err(e) => tracing::warn!("Failed to bind QUIC on {}: {}", quic_addr, e),
             }
         }
+    }
+    if !quic_success && !config.quic_listen_addrs.is_empty() {
+        tracing::warn!("Failed to bind any QUIC addresses. Falling back to TCP only.");
+    }
+
+    if !tcp_success && !quic_success {
+        return Err(anyhow::anyhow!(
+            "FATAL: Failed to bind to any TCP or QUIC listening ports. Cannot operate as a Full Node."
+        ));
     }
 
     if let Some(addr) = &config.external_address {

@@ -40,7 +40,7 @@ pub(crate) fn build_light_swarm(
     let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
         .with_tokio()
         .with_tcp(
-            libp2p::tcp::Config::default().port_reuse(true),
+            libp2p::tcp::Config::default().port_reuse(false),
             libp2p::noise::Config::new,
             yamux_config,
         )?
@@ -51,7 +51,7 @@ pub(crate) fn build_light_swarm(
     let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
         .with_tokio()
         .with_tcp(
-            libp2p::tcp::Config::default().port_reuse(true),
+            libp2p::tcp::Config::default().port_reuse(false),
             libp2p::noise::Config::new,
             yamux_config,
         )?
@@ -164,10 +164,19 @@ pub(crate) fn build_light_swarm(
 
             #[cfg(not(target_arch = "wasm32"))]
             let mdns = if config.enable_mdns && !test_mode {
-                libp2p::swarm::behaviour::toggle::Toggle::from(Some(
-                    libp2p::mdns::tokio::Behaviour::new(libp2p::mdns::Config::default(), peer_id)
-                        .expect("Valid mdns config"),
-                ))
+                match libp2p::mdns::tokio::Behaviour::new(libp2p::mdns::Config::default(), peer_id)
+                {
+                    Ok(behaviour) => {
+                        libp2p::swarm::behaviour::toggle::Toggle::from(Some(behaviour))
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to bind mDNS: {}. Local peer discovery disabled.",
+                            e
+                        );
+                        libp2p::swarm::behaviour::toggle::Toggle::from(None)
+                    }
+                }
             } else {
                 libp2p::swarm::behaviour::toggle::Toggle::from(None)
             };

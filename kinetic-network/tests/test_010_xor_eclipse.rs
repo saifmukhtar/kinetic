@@ -2,7 +2,7 @@ use ed25519_dalek::{Signer, SigningKey};
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::{Commitment, Reveal};
 use kinetic_network::event_loop::NetworkEventLoop;
-use kinetic_vdf::ChiaVdfEngine;
+use kinetic_vdf_rsa::RsaVdfEngine;
 
 use sha2::{Digest, Sha256};
 
@@ -32,7 +32,7 @@ fn test_010_xor_eclipse() {
     hash.copy_from_slice(&hasher.finalize());
 
     let challenge = Commitment { hash };
-    let engine = ChiaVdfEngine::new();
+    let engine = RsaVdfEngine::new();
     let real_vdf_proof = engine.evaluate(&challenge, iterations).unwrap();
 
     let mut real_reveal = Reveal {

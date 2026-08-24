@@ -43,13 +43,14 @@ pub(crate) fn verify_host_routing_record(
         );
         return Err(err);
     }
-    if record.drand_kyn > current_drand_kyn {
+    // Allow a 2-kyn (~6 seconds) leeway for network clock drift before rejecting future timestamps.
+    if record.drand_kyn > current_drand_kyn + 2 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-024",
             &record.host_id,
             &format!(
-                "HostRoutingRecord is from the future ({} kyns ahead)",
+                "HostRoutingRecord is too far in the future ({} kyns ahead, max 2 allowed)",
                 record.drand_kyn.saturating_sub(current_drand_kyn)
             ),
         );
@@ -156,9 +157,9 @@ pub(crate) fn compute_required_iterations(
             .verify(reveal.drand_kyn, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
-            let err = KineticStoreError::InvalidDrandHex; // Or introduce InvalidDrandSignature
+            let err = KineticStoreError::InvalidDrandSignature;
             err.log_warning(
-                "KIN-STORE-030",
+                "KIN-STORE-031",
                 &reveal.name,
                 "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
             );
@@ -172,15 +173,16 @@ pub(crate) fn compute_required_iterations(
         let mut prev_hasher = Sha256::new();
         prev_hasher.update(reveal.name.as_bytes());
         prev_hasher.update(prev.salt);
-        let prev_drand_sig_bytes = hex::decode(&prev.drand_signature).map_err(|_| {
-            let err = KineticStoreError::InvalidDrandHex;
-            err.log_warning(
-                "KIN-STORE-028",
-                &reveal.name,
-                "Rejecting Kademlia Reveal: Previous record has invalid Drand signature hex",
-            );
-            err
-        })?;
+        let prev_drand_sig_bytes = match hex::decode(&prev.drand_signature) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                tracing::warn!(
+                    "KIN-STORE-028: Invalid PreviousProof attached for {}: Invalid Drand signature hex. Falling back to full difficulty.",
+                    reveal.name
+                );
+                return Ok(base_required_iterations);
+            }
+        };
 
         if !kinetic_core::config::is_dev_mode() {
             let pubkey_bytes: [u8; 96] = hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY)
@@ -195,13 +197,11 @@ pub(crate) fn compute_required_iterations(
                 .verify(prev.drand_kyn, &[], &prev_drand_sig_bytes)
                 .unwrap_or(false)
             {
-                let err = KineticStoreError::InvalidDrandHex;
-                err.log_warning(
-                    "KIN-STORE-030",
-                    &reveal.name,
-                    "Rejecting Kademlia Reveal: Previous record has invalid Drand BLS signature",
+                tracing::warn!(
+                    "KIN-STORE-030: Invalid PreviousProof attached for {}: Invalid Drand BLS signature. Falling back to full difficulty.",
+                    reveal.name
                 );
-                return Err(err);
+                return Ok(base_required_iterations);
             }
         }
 
@@ -358,9 +358,9 @@ pub(crate) fn verify_reveal(
             .verify(reveal.drand_kyn, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
-            let err = KineticStoreError::InvalidDrandHex;
+            let err = KineticStoreError::InvalidDrandSignature;
             err.log_warning(
-                "KIN-STORE-030",
+                "KIN-STORE-031",
                 &reveal.name,
                 "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
             );
@@ -407,9 +407,9 @@ pub(crate) fn verify_reveal(
             commit_kyn
         );
     } else if !dev_mode {
-        let err = KineticStoreError::MissingCommitment;
+        let err = KineticStoreError::MissingCommitment { commit_key };
         err.log_warning(
-            "KIN-STORE-028",
+            "KIN-STORE-038",
             &reveal.name,
             "Rejecting Reveal: No prior Commitment found in DHT!",
         );
@@ -450,7 +450,7 @@ pub(crate) fn verify_reveal(
         Ok(false) => {
             let err = KineticStoreError::InvalidVdf;
             err.log_warning(
-                "KIN-STORE-031",
+                "KIN-STORE-039",
                 &reveal.name,
                 "Rejecting Kademlia Reveal: Invalid VDF Proof",
             );
@@ -459,7 +459,7 @@ pub(crate) fn verify_reveal(
         Err(e) => {
             let err = KineticStoreError::VdfEngineError(e.to_string());
             err.log_warning(
-                "KIN-STORE-031",
+                "KIN-STORE-040",
                 &reveal.name,
                 "Rejecting Kademlia Reveal: VDF Engine Failure",
             );
@@ -498,7 +498,7 @@ pub(crate) fn verify_authorized_kid(
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {
-        let err = KineticStoreError::InvalidKidSignature;
+        let err = KineticStoreError::DomainNotFound;
         err.log_warning(
             "KIN-STORE-032",
             &auth_kid.name,
@@ -523,7 +523,7 @@ pub(crate) fn verify_authorized_kid(
         .is_err()
         || auth_kid.kid_doc.verify().is_err()
     {
-        let err = KineticStoreError::InvalidKidSignature;
+        let err = KineticStoreError::InvalidKidDocument;
         err.log_warning(
             "KIN-STORE-017",
             &auth_kid.name,
@@ -536,7 +536,7 @@ pub(crate) fn verify_authorized_kid(
         None => {
             // First publication: enforce DID ↔ genesis key binding.
             auth_kid.kid_doc.verify_genesis().map_err(|e| {
-                let err = KineticStoreError::InvalidKidSignature;
+                let err = KineticStoreError::GenesisBindingFailed;
                 err.log_warning(
                     "KIN-STORE-035",
                     &auth_kid.name,
@@ -551,7 +551,7 @@ pub(crate) fn verify_authorized_kid(
                 serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&record.value)
                 && !auth_kid.kid_doc.is_authorized_update(&old_auth_kid.kid_doc)
             {
-                let err = KineticStoreError::InvalidKidSignature;
+                let err = KineticStoreError::UnauthorizedUpdate;
                 err.log_warning(
                         "KIN-STORE-037",
                         &auth_kid.name,
@@ -593,7 +593,7 @@ pub(crate) fn verify_authorized_manifest(
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {
-        let err = KineticStoreError::InvalidManifestSignature;
+        let err = KineticStoreError::DomainNotFound;
         err.log_warning(
             "KIN-STORE-033",
             &auth_manifest.name,
@@ -630,21 +630,21 @@ pub(crate) fn verify_authorized_manifest(
     let kid_doc = auth_manifest
         .kid_doc
         .as_ref()
-        .ok_or(KineticStoreError::InvalidManifestSignature)?;
+        .ok_or(KineticStoreError::InvalidKidDocument)?;
     kid_doc
         .verify()
         .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
     auth_manifest
         .manifest
         .verify_local(kid_doc)
-        .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
+        .map_err(|_| KineticStoreError::ManifestVerificationFailed)?;
 
     if let Some(existing) = existing_record
         && let Ok(old_manifest) =
             serde_json::from_slice::<kinetic_core::types::AuthorizedManifest>(&existing.value)
         && auth_manifest.manifest.version <= old_manifest.manifest.version
     {
-        let err = KineticStoreError::InvalidManifestSignature;
+        let err = KineticStoreError::ManifestVersionRollback;
         err.log_warning(
             "KIN-STORE-034",
             &auth_manifest.name,

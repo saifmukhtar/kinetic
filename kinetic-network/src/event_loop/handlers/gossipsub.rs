@@ -27,7 +27,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                         crate::event_loop::core::LoopbackCommand::CommitGossipValidation {
                             message_id,
                             source: propagation_source,
-                            is_valid: false,
+                            is_valid: None,
                         },
                     );
                 }
@@ -55,6 +55,9 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                         }
                         return false;
                     } else if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                        if kinetic_core::constants::GOVERNANCE_MODEL == "permissionless" {
+                            return false;
+                        }
                         if let Ok(signed_msg) = serde_json::from_slice::<
                             kinetic_core::governance::SignedGovernanceMessage,
                         >(actual_payload)
@@ -76,7 +79,11 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                         }
                         return false;
                     }
+
+                    // Reject any unrecognized opcode on the global protocol topic
+                    return false;
                 }
+                // For non-global topics (app-layer), default to accepting the message
                 true
             })
             .await;
@@ -86,7 +93,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                     crate::event_loop::core::LoopbackCommand::CommitGossipValidation {
                         message_id: message_id.clone(),
                         source: propagation_source,
-                        is_valid,
+                        is_valid: Some(is_valid),
                     },
                 );
             }

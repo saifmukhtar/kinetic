@@ -22,8 +22,11 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         }
                         crate::event_loop::core::QueryType::Put(_) => {}
                     }
-                } else if let Some((source, parked_record)) = event_loop.pending_reveals.remove(&id) {
-                    tracing::debug!("Found missing commitment via DHT. Retrying reveal verification...");
+                } else if let Some((source, parked_record)) = event_loop.pending_reveals.remove(&id)
+                {
+                    tracing::debug!(
+                        "Found missing commitment via DHT. Retrying reveal verification..."
+                    );
                     // 1. Manually insert the fetched commitment into our local store
                     let _ = event_loop
                         .swarm
@@ -31,10 +34,12 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         .kademlia
                         .store_mut()
                         .put_record(peer_record.record);
-                        
+
                     // 2. Re-trigger the async verification for the parked Reveal
-                    if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&parked_record.value)
-                        && let Ok(reveal) = serde_json::from_value::<kinetic_core::types::Reveal>(parsed)
+                    if let Ok(parsed) =
+                        serde_json::from_slice::<serde_json::Value>(&parked_record.value)
+                        && let Ok(reveal) =
+                            serde_json::from_value::<kinetic_core::types::Reveal>(parsed)
                     {
                         let store = event_loop.swarm.behaviour_mut().kademlia.store_mut();
                         let storage = store.storage.clone();
@@ -82,7 +87,10 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         crate::event_loop::core::QueryType::Put(_) => {}
                     }
                 } else if let Some((source, _)) = event_loop.pending_reveals.remove(&id) {
-                    tracing::debug!("Failed to find missing commitment for peer {} via DHT. Dropping reveal.", source);
+                    tracing::debug!(
+                        "Failed to find missing commitment for peer {} via DHT. Dropping reveal.",
+                        source
+                    );
                 }
             }
             kad::QueryResult::PutRecord(res) => {

@@ -19,7 +19,7 @@ tracing.workspace = true
 ed25519-dalek = "2.2.0"
 serde_json = "1.0.150"
 ml-dsa = "0.1.1"
-kinetic-vdf = { version = "0.2.0", path = "../kinetic-vdf" }
+kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 hex = "0.4.3"
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 uuid = { version = "1.2.3", features = ["v4"] }

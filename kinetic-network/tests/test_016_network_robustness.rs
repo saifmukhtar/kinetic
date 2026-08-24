@@ -4,7 +4,7 @@ use kinetic_core::traits::StorageEngine;
 use kinetic_core::traits::VdfEngine;
 use kinetic_network::client::{NetworkConfig, NetworkMode};
 use kinetic_network::event_loop::core::NetworkEventLoop;
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 use libp2p::identity::Keypair;
 use proptest::prelude::*;
 use std::sync::Arc;
@@ -29,10 +29,10 @@ fn create_base_config() -> NetworkConfig {
     }
 }
 
-fn create_engine_and_store() -> (Arc<SledStorage>, Arc<dyn VdfEngine>) {
+fn create_engine_and_store() -> (Arc<KineticStorage>, Arc<dyn VdfEngine>) {
     let dir = tempdir().unwrap();
-    let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
-    let vdf_engine = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+    let vdf_engine = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
     (storage, vdf_engine)
 }
 

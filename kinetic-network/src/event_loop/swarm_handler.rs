@@ -252,7 +252,7 @@ impl super::core::NetworkEventLoop {
 
                 if self.disable_pow || pow_valid || is_bootstrap {
                     for addr in info.listen_addrs {
-                        if !is_routable_multiaddr(&addr, self.disable_pow) {
+                        if !is_routable_multiaddr(&addr, self.disable_pow, is_bootstrap) {
                             tracing::debug!(
                                 "Discarding unroutable address {:?} for peer {}",
                                 addr,
