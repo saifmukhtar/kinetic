@@ -15,7 +15,20 @@ pub fn load_or_generate_key(key_path: &Path) -> Keypair {
     if let Ok(bytes) = std::fs::read(key_path) {
         tracing::info!("Loaded static infrastructure identity from disk");
         Keypair::from_protobuf_encoding(&bytes).unwrap_or_else(|_| {
-            tracing::warn!("Corrupted static identity found, generating new one");
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let file_name = key_path.file_name().unwrap_or_default().to_string_lossy();
+            let corrupt_name = format!("{}.{}.corrupt", file_name, timestamp);
+            let corrupt_path = key_path.with_file_name(corrupt_name);
+            
+            if let Err(e) = std::fs::rename(key_path, &corrupt_path) {
+                tracing::error!("CRITICAL: Node identity was corrupted, but failed to preserve file: {}", e);
+            } else {
+                tracing::error!("CRITICAL: Node identity was corrupted! Preserved forensic evidence at {:?}. Booting with a newly generated PeerId.", corrupt_path);
+            }
+
             let k = Keypair::generate_ed25519();
             if let Ok(encoded) = k.to_protobuf_encoding()
                 && let Err(e) = kinetic_core::secure_fs::write_secret(key_path, &encoded)
