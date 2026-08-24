@@ -50,7 +50,7 @@ pub async fn handle(
     };
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let keypair = load_keypair(&identity_path.to_string_lossy())?;
+    let keypair = load_keypair(&identity_path)?;
     let pubkey = keypair.verifying_key().to_bytes();
 
     if old_reveal.pubkey != pubkey.as_slice() {
@@ -137,7 +137,7 @@ pub async fn handle(
         }
     });
 
-    let vdf_engine = kinetic_vdf::ChiaVdfEngine::new();
+    let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
     let vdf_proof =
         tokio::task::spawn_blocking(move || vdf_engine.evaluate(&challenge, actual_iterations))
             .await??;

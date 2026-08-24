@@ -83,9 +83,24 @@ pub fn handle_kinetic_governance_gossip(
                 let msg = e.user_message();
                 use kinetic_core::error::Severity;
                 match e.severity() {
-                    Severity::Info => tracing::info!(error_code = code, "Governance gossip message rejected: {} ({})", msg, code),
-                    Severity::Warning => tracing::warn!(error_code = code, "Governance gossip message rejected: {} ({})", msg, code),
-                    Severity::Error | Severity::Critical => tracing::error!(error_code = code, "Governance gossip message rejected: {} ({})", msg, code),
+                    Severity::Info => tracing::info!(
+                        error_code = code,
+                        "Governance gossip message rejected: {} ({})",
+                        msg,
+                        code
+                    ),
+                    Severity::Warning => tracing::warn!(
+                        error_code = code,
+                        "Governance gossip message rejected: {} ({})",
+                        msg,
+                        code
+                    ),
+                    Severity::Error | Severity::Critical => tracing::error!(
+                        error_code = code,
+                        "Governance gossip message rejected: {} ({})",
+                        msg,
+                        code
+                    ),
                 }
             }
         }

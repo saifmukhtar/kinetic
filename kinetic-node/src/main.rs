@@ -163,7 +163,7 @@ async fn run_node() -> Result<()> {
 
     let mut config = KineticConfig::load();
     // EXPLICIT ARCHITECTURE ENFORCEMENT:
-    // Infrastructure nodes MUST fetch from HTTP to seed the network. 
+    // Infrastructure nodes MUST fetch from HTTP to seed the network.
     // We forcefully override this to false so a sysadmin cannot accidentally starve the P2P network.
     config.drand.p2p_only = false;
 

@@ -130,7 +130,18 @@ impl PacManager {
     pub fn new(config_dir: &std::path::Path) -> Self {
         Self {
             configurator: detect_configurator(),
-            lock_path: config_dir.join("proxy_active.lock"),
+            lock_path: config_dir.join("kinetic.kin"),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new_for_test(
+        config_dir: &std::path::Path,
+        configurator: Box<dyn ProxyConfigurator>,
+    ) -> Self {
+        Self {
+            configurator,
+            lock_path: config_dir.join("kinetic.kin"),
         }
     }
 
@@ -151,6 +162,33 @@ impl PacManager {
             let _ = serde_json::to_writer(file, &previous);
             let _ = std::fs::rename(&tmp_path, &self.lock_path);
         }
+
+        if let Some(parent) = self.lock_path.parent() {
+            let original_js = parent.join("original_pac.js");
+            let _ = std::fs::remove_file(&original_js);
+
+            if let Some(ref old_url) = previous.previous_pac_url {
+                if old_url.starts_with("http") {
+                    if let Ok(resp) = reqwest::blocking::get(old_url) {
+                        if let Ok(text) = resp.text() {
+                            let _ = std::fs::write(&original_js, text);
+                            tracing::info!(
+                                "Successfully downloaded original PAC script for passthrough merging."
+                            );
+                        }
+                    }
+                } else if old_url.starts_with("file://") {
+                    if let Ok(text) = std::fs::read_to_string(old_url.trim_start_matches("file://"))
+                    {
+                        let _ = std::fs::write(&original_js, text);
+                        tracing::info!(
+                            "Successfully read local original PAC script for passthrough merging."
+                        );
+                    }
+                }
+            }
+        }
+
         self.configurator.install(pac_url)?;
         info!("Successfully installed PAC file OS routing to {}", pac_url);
         Ok(())
@@ -162,15 +200,48 @@ impl PacManager {
     /// Returns a [`PacError`] if the OS commands to uninstall the proxy configuration fail.
     pub fn uninstall(&self) -> Result<(), PacError> {
         if self.lock_path.exists() {
-            if let Ok(Ok(saved)) =
+            let mut os_was_tampered = false;
+
+            // Drift Check: See if the OS proxy is still set to Kinetic.
+            // If the user manually changed it while we were running, we must not overwrite their changes!
+            if let Ok(current_state) = self.configurator.save_previous_state() {
+                if let Some(ref macos_services) = current_state.macos_services {
+                    if macos_services.is_empty() {
+                        os_was_tampered = true;
+                    } else {
+                        for url in macos_services.values() {
+                            if !url.contains("16001") {
+                                os_was_tampered = true;
+                                break;
+                            }
+                        }
+                    }
+                } else if let Some(ref current_pac) = current_state.previous_pac_url {
+                    if !current_pac.contains("16001") {
+                        os_was_tampered = true;
+                    }
+                } else {
+                    os_was_tampered = true;
+                }
+            }
+
+            if os_was_tampered {
+                tracing::info!(
+                    "OS proxy settings were manually changed by the user. Leaving them intact and removing lockfile."
+                );
+            } else if let Ok(Ok(saved)) =
                 File::open(&self.lock_path).map(serde_json::from_reader::<_, SavedState>)
             {
                 let _ = self.configurator.restore_state(&saved);
+                tracing::info!("Successfully restored original OS proxy settings");
             } else {
                 let _ = self.configurator.uninstall();
             }
+
+            if let Some(parent) = self.lock_path.parent() {
+                let _ = std::fs::remove_file(parent.join("original_pac.js"));
+            }
             let _ = std::fs::remove_file(&self.lock_path);
-            info!("Successfully restored original OS proxy settings");
         } else {
             let _ = self.configurator.uninstall();
         }
@@ -179,7 +250,7 @@ impl PacManager {
 }
 
 /// Represents a serialized proxy backend registered by other Kinetic components.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct RegisteredProxy {
     nsp: String,
     proxy_port: u16,
@@ -251,7 +322,8 @@ fn uninstall_service() -> anyhow::Result<()> {
     // Also remove OS settings just in case it's currently installed
     let base_dir = dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("kinetic_global");
+        .join("kinetic")
+        .join("pac_router");
     let pac_manager = PacManager::new(&base_dir);
     let _ = pac_manager.uninstall();
 
@@ -277,13 +349,112 @@ fn stop_background_service() -> anyhow::Result<()> {
     Ok(())
 }
 
+pub fn build_pac_script(proxies_dir: &std::path::Path) -> String {
+    let mut pac_script = String::from("function FindProxyForURL(url, host) {\n");
+
+    let mut proxy_map: std::collections::HashMap<
+        String,
+        (Option<RegisteredProxy>, Option<RegisteredProxy>),
+    > = std::collections::HashMap::new();
+
+    // Scan proxies dir for JSON files
+    if let Ok(entries) = std::fs::read_dir(&proxies_dir) {
+        for entry in entries.flatten() {
+            if let Some(ext) = entry.path().extension()
+                && ext == "json"
+                && let Ok(contents) = std::fs::read_to_string(entry.path())
+                && let Ok(proxy_info) = serde_json::from_str::<RegisteredProxy>(&contents)
+            {
+                if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
+                    tracing::warn!(
+                        "Invalid IP address in proxy config: {}",
+                        proxy_info.proxy_ip
+                    );
+                    continue;
+                }
+
+                let nsp = if proxy_info.nsp.starts_with('.') {
+                    proxy_info.nsp.clone()
+                } else {
+                    format!(".{}", proxy_info.nsp)
+                };
+
+                let is_atlas = entry.file_name().to_string_lossy().starts_with("atlas_");
+                let entry = proxy_map.entry(nsp).or_insert((None, None));
+
+                if is_atlas {
+                    entry.1 = Some(proxy_info);
+                } else {
+                    entry.0 = Some(proxy_info);
+                }
+            }
+        }
+    }
+
+    for (nsp, proxies) in proxy_map {
+        let mut proxy_string = String::new();
+
+        if let Some(native) = proxies.0 {
+            let ipv6 = if native.proxy_ip == "127.0.0.1" {
+                "[::1]"
+            } else {
+                &native.proxy_ip
+            };
+            proxy_string.push_str(&format!(
+                "PROXY {}:{}; PROXY {}:{}; ",
+                native.proxy_ip, native.proxy_port, ipv6, native.proxy_port
+            ));
+        }
+        if let Some(atlas) = proxies.1 {
+            let ipv6 = if atlas.proxy_ip == "127.0.0.1" {
+                "[::1]"
+            } else {
+                &atlas.proxy_ip
+            };
+            proxy_string.push_str(&format!(
+                "PROXY {}:{}; PROXY {}:{}; ",
+                atlas.proxy_ip, atlas.proxy_port, ipv6, atlas.proxy_port
+            ));
+        }
+        proxy_string.push_str("DIRECT");
+
+        pac_script.push_str(&format!(
+            "    if (shExpMatch(host, \"*{}\")) return \"{}\";\n",
+            nsp, proxy_string
+        ));
+        pac_script.push_str(&format!(
+            "    if (shExpMatch(host, \"*{}.\")) return \"{}\";\n",
+            nsp, proxy_string
+        ));
+    }
+
+    let mut passthrough_injected = false;
+    if let Some(parent) = proxies_dir.parent() {
+        let original_js_path = parent.join("original_pac.js");
+        if let Ok(mut original_script) = std::fs::read_to_string(&original_js_path) {
+            original_script = original_script.replace("FindProxyForURL", "OriginalFindProxyForURL");
+            pac_script.push_str("    return OriginalFindProxyForURL(url, host);\n}\n\n");
+            pac_script.push_str("// --- USER'S ORIGINAL PAC SCRIPT BELOW ---\n");
+            pac_script.push_str(&original_script);
+            passthrough_injected = true;
+        }
+    }
+
+    if !passthrough_injected {
+        pac_script.push_str("    return \"DIRECT\";\n}\n");
+    }
+
+    pac_script
+}
+
 /// Runs the PAC HTTP Server and applies OS proxy rules
 async fn run_server() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let base_dir = dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("kinetic_global");
+        .join("kinetic")
+        .join("pac_router");
 
     std::fs::create_dir_all(&base_dir)?;
 
@@ -305,87 +476,7 @@ async fn run_server() -> anyhow::Result<()> {
             let host_only = host.split(':').next().unwrap_or("");
 
             if host_only == "localhost" || host_only == "127.0.0.1" || host_only == "[::1]" {
-                let mut pac_script = String::from("function FindProxyForURL(url, host) {\n");
-
-                let mut proxy_map: std::collections::HashMap<
-                    String,
-                    (Option<RegisteredProxy>, Option<RegisteredProxy>),
-                > = std::collections::HashMap::new();
-
-                // Scan proxies dir for JSON files
-                if let Ok(entries) = std::fs::read_dir(&proxies_dir) {
-                    for entry in entries.flatten() {
-                        if let Some(ext) = entry.path().extension()
-                            && ext == "json"
-                            && let Ok(contents) = std::fs::read_to_string(entry.path())
-                            && let Ok(proxy_info) =
-                                serde_json::from_str::<RegisteredProxy>(&contents)
-                        {
-                            if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
-                                tracing::warn!(
-                                    "Invalid IP address in proxy config: {}",
-                                    proxy_info.proxy_ip
-                                );
-                                continue;
-                            }
-
-                            let nsp = if proxy_info.nsp.starts_with('.') {
-                                proxy_info.nsp.clone()
-                            } else {
-                                format!(".{}", proxy_info.nsp)
-                            };
-
-                            let is_atlas =
-                                entry.file_name().to_string_lossy().starts_with("atlas_");
-                            let entry = proxy_map.entry(nsp).or_insert((None, None));
-
-                            if is_atlas {
-                                entry.1 = Some(proxy_info);
-                            } else {
-                                entry.0 = Some(proxy_info);
-                            }
-                        }
-                    }
-                }
-
-                for (nsp, proxies) in proxy_map {
-                    let mut proxy_string = String::new();
-
-                    if let Some(native) = proxies.0 {
-                        let ipv6 = if native.proxy_ip == "127.0.0.1" {
-                            "[::1]"
-                        } else {
-                            &native.proxy_ip
-                        };
-                        proxy_string.push_str(&format!(
-                            "PROXY {}:{}; PROXY {}:{}; ",
-                            native.proxy_ip, native.proxy_port, ipv6, native.proxy_port
-                        ));
-                    }
-                    if let Some(atlas) = proxies.1 {
-                        let ipv6 = if atlas.proxy_ip == "127.0.0.1" {
-                            "[::1]"
-                        } else {
-                            &atlas.proxy_ip
-                        };
-                        proxy_string.push_str(&format!(
-                            "PROXY {}:{}; PROXY {}:{}; ",
-                            atlas.proxy_ip, atlas.proxy_port, ipv6, atlas.proxy_port
-                        ));
-                    }
-                    proxy_string.push_str("DIRECT");
-
-                    pac_script.push_str(&format!(
-                        "    if (shExpMatch(host, \"*{}\")) return \"{}\";\n",
-                        nsp, proxy_string
-                    ));
-                    pac_script.push_str(&format!(
-                        "    if (shExpMatch(host, \"*{}.\")) return \"{}\";\n",
-                        nsp, proxy_string
-                    ));
-                }
-
-                pac_script.push_str("    return \"DIRECT\";\n}\n");
+                let pac_script = build_pac_script(&proxies_dir);
 
                 axum::response::Response::builder()
                     .header("Content-Type", "application/x-ns-proxy-autoconfig")
@@ -451,4 +542,99 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    struct MockConfigurator;
+    impl ProxyConfigurator for MockConfigurator {
+        fn install(&self, _pac_url: &str) -> Result<(), PacError> {
+            Ok(())
+        }
+        fn uninstall(&self) -> Result<(), PacError> {
+            Ok(())
+        }
+        fn save_previous_state(&self) -> Result<SavedState, PacError> {
+            Ok(SavedState {
+                previous_pac_url: Some("http://old.pac".to_string()),
+                proxy_type: Some("1".to_string()),
+                macos_services: None,
+            })
+        }
+        fn restore_state(&self, _state: &SavedState) -> Result<(), PacError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_pac_lock_file_persistence() {
+        let dir = tempdir().unwrap();
+        let manager = PacManager::new_for_test(dir.path(), Box::new(MockConfigurator));
+
+        assert!(!manager.lock_path.exists());
+        manager.install("http://127.0.0.1:16001/proxy.pac").unwrap();
+        assert!(manager.lock_path.exists());
+
+        let contents = fs::read_to_string(&manager.lock_path).unwrap();
+        let saved: SavedState = serde_json::from_str(&contents).unwrap();
+        assert_eq!(saved.previous_pac_url.unwrap(), "http://old.pac");
+        assert_eq!(saved.proxy_type.unwrap(), "1");
+
+        manager.uninstall().unwrap();
+        assert!(!manager.lock_path.exists());
+    }
+
+    #[test]
+    fn test_pac_script_multi_network() {
+        let dir = tempdir().unwrap();
+
+        let kin_proxy = RegisteredProxy {
+            nsp: ".kin".to_string(),
+            proxy_port: 16001,
+            proxy_ip: "127.0.255.1".to_string(),
+        };
+        let uni_proxy = RegisteredProxy {
+            nsp: ".uni".to_string(),
+            proxy_port: 16002,
+            proxy_ip: "127.0.255.2".to_string(),
+        };
+
+        fs::write(
+            dir.path().join("kin.json"),
+            serde_json::to_string(&kin_proxy).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("uni.json"),
+            serde_json::to_string(&uni_proxy).unwrap(),
+        )
+        .unwrap();
+
+        let script = build_pac_script(dir.path());
+        assert!(script.contains("function FindProxyForURL"));
+        assert!(script.contains("if (shExpMatch(host, \"*.kin\"))"));
+        assert!(script.contains("127.0.255.1:16001"));
+        assert!(script.contains("if (shExpMatch(host, \"*.uni\"))"));
+        assert!(script.contains("127.0.255.2:16002"));
+        assert!(script.ends_with("    return \"DIRECT\";\n}\n"));
+    }
+
+    #[test]
+    fn test_pac_script_passthrough_merge() {
+        let dir = tempdir().unwrap();
+        let original_pac = "function FindProxyForURL(url, host) { return \"PROXY 10.0.0.5:80\"; }";
+        fs::write(dir.path().join("original_pac.js"), original_pac).unwrap();
+
+        let proxies_dir = dir.path().join("proxies");
+        fs::create_dir_all(&proxies_dir).unwrap();
+
+        let script = build_pac_script(&proxies_dir);
+        assert!(script.contains("function OriginalFindProxyForURL(url, host)"));
+        assert!(script.contains("return OriginalFindProxyForURL(url, host);"));
+        assert!(script.contains("return \"PROXY 10.0.0.5:80\";"));
+    }
 }

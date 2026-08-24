@@ -8,7 +8,7 @@ mod tests {
     use http_body_util::BodyExt;
     use kinetic_core::traits::StorageEngine;
     use kinetic_network::client::{Command, NetworkClient};
-    use kinetic_storage::SledStorage;
+    use kinetic_storage::KineticStorage;
     use std::sync::{Arc, Mutex};
     use tempfile::tempdir;
     use tokio::sync::mpsc;
@@ -18,9 +18,9 @@ mod tests {
         "test-token-123".to_string()
     }
 
-    async fn setup_test_app() -> (axum::Router, mpsc::Receiver<Command>, Arc<SledStorage>) {
+    async fn setup_test_app() -> (axum::Router, mpsc::Receiver<Command>, Arc<KineticStorage>) {
         let dir = tempdir().unwrap();
-        let storage = Arc::new(SledStorage::new(dir.path()).unwrap());
+        let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
 
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let network = NetworkClient::new_mock(cmd_tx);

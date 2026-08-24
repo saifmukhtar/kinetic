@@ -4,7 +4,7 @@
 mod tests {
     use kinetic_core::types::Commitment;
     use kinetic_network::{NetworkClient, NetworkConfig, NetworkEventLoop};
-    use kinetic_storage::SledStorage;
+    use kinetic_storage::KineticStorage;
     use libp2p::PeerId;
     use libp2p::identity::Keypair;
     use std::sync::Arc;
@@ -37,10 +37,10 @@ mod tests {
         };
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
-            Arc::new(SledStorage::new(dir.path()).unwrap());
+            Arc::new(KineticStorage::new(dir.path()).unwrap());
         let (_kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-            Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+            Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
 
         let (client, event_loop) =
             NetworkEventLoop::new(config, keypair, storage, kyn_rx, None, None, vdf_engine)
@@ -179,10 +179,10 @@ mod tests {
 
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
-            Arc::new(SledStorage::new(dir.path()).unwrap());
+            Arc::new(KineticStorage::new(dir.path()).unwrap());
         let (_kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-            Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+            Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
 
         let (client, event_loop) =
             NetworkEventLoop::new(config, key_a, storage, kyn_rx, None, None, vdf_engine).unwrap();
@@ -218,10 +218,10 @@ mod tests {
         let key_a = Keypair::generate_ed25519();
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
-            Arc::new(SledStorage::new(dir.path()).unwrap());
+            Arc::new(KineticStorage::new(dir.path()).unwrap());
         let (kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-            Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+            Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
 
         let config = NetworkConfig {
             listen_addrs: vec!["/ip4/127.0.0.1/tcp/10021".parse().unwrap()],

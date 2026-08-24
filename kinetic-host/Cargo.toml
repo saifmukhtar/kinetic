@@ -8,7 +8,7 @@ license.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
-kinetic-vdf = { path = "../kinetic-vdf" }
+kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 kinetic-kid = { path = "../kinetic-kid" }
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
 tokio = { workspace = true, features = ["net"] }

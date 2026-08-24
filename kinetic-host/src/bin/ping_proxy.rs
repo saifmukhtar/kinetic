@@ -3,7 +3,7 @@
 use anyhow::Result;
 use clap::Parser;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode, client::ProxyRequest};
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 use std::sync::Arc;
 use tokio::sync::watch;
 
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         kinetic_core::config::get_base_dir().join(kinetic_core::constants::DB_NAME_PING)
     });
 
-    let storage = Arc::new(SledStorage::new(db_path)?);
+    let storage = Arc::new(KineticStorage::new(db_path)?);
 
     let config = NetworkConfig {
         mode: NetworkMode::LightNode,
@@ -78,6 +78,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
+        enable_relay_server: false,
+        enable_upnp: false,
         test_mode: false,
         disable_storage_sync: true,
     };
@@ -85,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (incoming_tx, _) = tokio::sync::mpsc::channel(32);
     let (_, rx) = watch::channel(0);
 
-    let vdf_engine = Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+    let vdf_engine = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
     let (client, loop_task) = NetworkEventLoop::new(
         config,
         key,

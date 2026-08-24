@@ -198,6 +198,14 @@ pub fn app(state: ApiState) -> Router {
         .route("/owned-names", axum::routing::get(handle_owned_names))
         .route("/zone/{name}", axum::routing::post(handle_post_zone))
         .route(
+            "/zone/local/{name}",
+            axum::routing::post(handle_post_local_zone),
+        )
+        .route(
+            "/zone/local/{name}",
+            axum::routing::delete(handle_delete_local_zone),
+        )
+        .route(
             "/zone/{name}/publish",
             axum::routing::post(handle_publish_zone),
         )
@@ -227,8 +235,16 @@ pub fn app(state: ApiState) -> Router {
         .route("/health", axum::routing::get(handle_health))
         .route("/peer_id", axum::routing::get(handle_peer_id))
         .route("/network-status", axum::routing::get(handle_network_status))
+        .route(
+            "/names/reserved",
+            axum::routing::get(handle_get_reserved_names),
+        )
         .route("/governance", axum::routing::get(handle_get_governance))
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
+        .route(
+            "/zone/local/{name}",
+            axum::routing::get(handle_get_local_zone),
+        )
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
         .route("/kid", axum::routing::get(handle_list_kids))

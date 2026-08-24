@@ -51,7 +51,7 @@ use tracing_subscriber::FmtSubscriber;
 use kinetic_core::config::KineticConfig;
 use kinetic_core::drand::{DrandClient, RawKyn};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
-use kinetic_storage::SledStorage;
+use kinetic_storage::KineticStorage;
 
 #[derive(Parser)]
 #[command(name = "kinetic-host", version, about = "Kinetic Infrastructure Host")]
@@ -131,7 +131,7 @@ async fn run_host() -> Result<()> {
 
     // 2. Initialize embedded storage
     let storage_path = kinetic_core::config::get_base_dir().join("host_db");
-    let storage = Arc::new(SledStorage::new(
+    let storage = Arc::new(KineticStorage::new(
         storage_path
             .to_str()
             .ok_or_else(|| anyhow::anyhow!("Invalid storage path"))?,
@@ -218,6 +218,8 @@ async fn run_host() -> Result<()> {
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
         disable_pow: false,
+        enable_relay_server: false,
+        enable_upnp: false,
         test_mode: false,
         disable_storage_sync: false,
     };
@@ -237,7 +239,7 @@ async fn run_host() -> Result<()> {
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-        Arc::new(kinetic_vdf::ChiaVdfEngine::new());
+        Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
 
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config.clone(),

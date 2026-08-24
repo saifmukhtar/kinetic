@@ -91,11 +91,13 @@ pub async fn handle_generate_kid(
         ),
     };
 
+    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let res = kinetic_core::types::get_or_create_kid_for_name(
         &final_name,
         req.inherit_subname,
         req.force,
         current_kyn,
+        &identity_path,
     )
     .map_err(|e| {
         let api_err = kinetic_core::ApiError::from(e);
@@ -137,7 +139,8 @@ pub async fn handle_rotate_kid(
         ));
     }
 
-    let rotated = kinetic_core::types::rotate_name_kid(&name).map_err(|e| {
+    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let rotated = kinetic_core::types::rotate_name_kid(&name, &identity_path).map_err(|e| {
         let api_err = kinetic_core::ApiError::from(e);
         (
             StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -184,8 +187,9 @@ pub async fn handle_revoke_kid(
         )
     })?;
 
-    let auth_kid =
-        kinetic_core::types::authorize_kid_document(&name, &revoked_doc).map_err(|e| {
+    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let auth_kid = kinetic_core::types::authorize_kid_document(&name, &revoked_doc, &identity_path)
+        .map_err(|e| {
             let api_err = kinetic_core::ApiError::from(e);
             (
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -267,16 +271,20 @@ pub async fn handle_update_kid_manifest(
         ),
     };
 
-    let (manifest, auth_manifest) =
-        kinetic_core::types::save_and_sign_local_manifest(&name, req.services, current_kyn)
-            .map_err(|e| {
-                let api_err = kinetic_core::ApiError::from(e);
-                (
-                    StatusCode::from_u16(api_err.status)
-                        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                    Json(serde_json::to_value(api_err).unwrap_or_default()),
-                )
-            })?;
+    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let (manifest, auth_manifest) = kinetic_core::types::save_and_sign_local_manifest(
+        &name,
+        req.services,
+        current_kyn,
+        &identity_path,
+    )
+    .map_err(|e| {
+        let api_err = kinetic_core::ApiError::from(e);
+        (
+            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(serde_json::to_value(api_err).unwrap_or_default()),
+        )
+    })?;
 
     // Publish to DHT under hex(sha256(did#manifest))
     use sha2::{Digest, Sha256};

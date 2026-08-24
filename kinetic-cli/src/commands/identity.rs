@@ -132,7 +132,7 @@ pub async fn handle_identity_command(
         } => {
             // Load identity keypair to sign the AuthorizedKid
             let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-            let keypair = kinetic_core::types::load_keypair(&identity_path.to_string_lossy())?;
+            let keypair = kinetic_core::types::load_keypair(&identity_path)?;
             use ml_dsa::signature::Signer;
 
             let mut kid_doc_opt = None;
