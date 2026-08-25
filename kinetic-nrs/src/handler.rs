@@ -3,12 +3,12 @@
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 
-use crate::KineticDnsHandler;
+use crate::KineticNrsHandler;
 use crate::kinetic_records::resolve_kinetic;
 use crate::upstream::resolve_upstream;
 
 #[async_trait::async_trait]
-impl RequestHandler for KineticDnsHandler {
+impl RequestHandler for KineticNrsHandler {
     async fn handle_request<R: ResponseHandler>(
         &self,
         request: &Request,
@@ -89,3 +89,4 @@ impl RequestHandler for KineticDnsHandler {
         }
     }
 }
+// test

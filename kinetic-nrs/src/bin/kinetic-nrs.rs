@@ -16,7 +16,7 @@ use tokio::net::UdpSocket;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_nrs::KineticDnsHandler;
+use kinetic_nrs::KineticNrsHandler;
 
 #[derive(Parser)]
 #[command(
@@ -74,13 +74,13 @@ fn teardown_macos_alias(ip: &str) {
 fn configure_os_dns(dns_port: u16) -> Result<()> {
     let os = std::env::consts::OS;
     let nsp = kinetic_core::constants::NSP;
-    let network_id = kinetic_core::constants::NETWORK_ID;
+
     let bind_ip = kinetic_core::constants::LOCAL_BIND_IP;
 
     if os == "linux" {
         let conf_dir = std::path::Path::new("/etc/systemd/resolved.conf.d");
         if conf_dir.exists() {
-            let conf_path = conf_dir.join(format!("{}.conf", network_id));
+            let conf_path = conf_dir.join(format!("{}.conf", nsp));
             let content = format!(
                 "[Resolve]\nDNS={}:{}\nDomains=~{}\n",
                 bind_ip, dns_port, nsp
@@ -119,10 +119,10 @@ fn configure_os_dns(dns_port: u16) -> Result<()> {
 fn remove_os_dns() {
     let os = std::env::consts::OS;
     let nsp = kinetic_core::constants::NSP;
-    let network_id = kinetic_core::constants::NETWORK_ID;
+
 
     if os == "linux" {
-        let conf_path = format!("/etc/systemd/resolved.conf.d/{}.conf", network_id);
+        let conf_path = format!("/etc/systemd/resolved.conf.d/{}.conf", nsp);
         std::fs::remove_file(&conf_path).ok();
         let _ = std::process::Command::new("systemctl")
             .args(["restart", "systemd-resolved"])
@@ -218,7 +218,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
     info!("Starting Kinetic DNS Server");
     info!("Upstream Daemon API URL: {}", api_url);
 
-    let dns_handler = KineticDnsHandler::new(
+    let dns_handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -247,7 +247,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     .group("nogroup")
                     .apply()
                 {
-                    tracing::error!("Failed to drop privileges: {}", e);
+                    tracing::error!(error_code = "KIN-NRS-021", "Failed to drop privileges: {}", e);
                     std::process::exit(1);
                 } else {
                     tracing::info!(
@@ -259,7 +259,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
             tokio::select! {
                 res = server.block_until_done() => {
                     if let Err(e) = res {
-                        tracing::error!("DNS Server error: {:?}", e);
+                        tracing::error!(error_code = "KIN-NRS-022", "DNS Server error: {:?}", e);
                     }
                 }
                 _ = kinetic_core::shutdown::shutdown_signal() => {
@@ -272,6 +272,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
         }
         Err(e) => {
             warn!(
+                error_code = "KIN-NRS-023",
                 "Failed to bind DNS proxy to {}:{}: {}",
                 bind_ip, nrs_port, e
             );
@@ -304,7 +305,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                             .group("nogroup")
                             .apply()
                         {
-                            tracing::error!("Failed to drop privileges: {}", e);
+                            tracing::error!(error_code = "KIN-NRS-024", "Failed to drop privileges: {}", e);
                             std::process::exit(1);
                         } else {
                             tracing::info!(
@@ -316,7 +317,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     tokio::select! {
                         res = server.block_until_done() => {
                             if let Err(e) = res {
-                                tracing::error!("DNS Server fallback error: {:?}", e);
+                                tracing::error!(error_code = "KIN-NRS-025", "DNS Server fallback error: {:?}", e);
                             }
                         }
                         _ = kinetic_core::shutdown::shutdown_signal() => {
@@ -329,6 +330,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                 }
                 Err(e2) => {
                     warn!(
+                        error_code = "KIN-NRS-026",
                         "Failed to bind DNS proxy to fallback port {}: {}",
                         fallback_port, e2
                     );

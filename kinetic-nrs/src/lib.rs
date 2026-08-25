@@ -1,9 +1,9 @@
 #![deny(missing_docs)]
-//! # kinetic-dns
+//! # kinetic-nrs
 //!
 //! DNS resolution layer for the Kinetic `.kin` naming network.
 //!
-//! This crate implements a custom DNS request handler ([`KineticDnsHandler`])
+//! This crate implements a custom DNS request handler ([`KineticNrsHandler`])
 //! using the [hickory-dns](https://crates.io/crates/hickory-server) library.
 //! It intercepts DNS queries for `.kin` domains, resolves them against the
 //! Kinetic daemon's HTTP API (which in turn queries the Kademlia DHT), and
@@ -34,7 +34,7 @@ use tracing::info;
 /// The custom DNS handler that intercepts `.kin` queries and routes them to the DHT.
 /// Standard queries (e.g., .com, .org) are passed through to upstream resolvers.
 #[derive(Clone)]
-pub struct KineticDnsHandler {
+pub struct KineticNrsHandler {
     /// URL of the Kinetic daemon REST API (e.g. `http://127.0.0.1:8080`).
     pub(crate) api_url: String,
     /// Shared HTTP client for querying the daemon REST API.
@@ -49,8 +49,8 @@ pub struct KineticDnsHandler {
     pub(crate) atlas_resolver: Arc<RwLock<TokioAsyncResolver>>,
 }
 
-impl KineticDnsHandler {
-    /// Creates a new `KineticDnsHandler` with the specified API URL.
+impl KineticNrsHandler {
+    /// Creates a new `KineticNrsHandler` with the specified API URL.
     ///
     /// This initializes the upstream DNS resolver, internal caches, and background tasks for config reloading.
     pub fn new(api_url: String, atlas_nsps: Arc<RwLock<HashSet<String>>>, atlas_port: u16) -> Self {
@@ -64,6 +64,7 @@ impl KineticDnsHandler {
             .build()
             .unwrap_or_else(|e| {
                 tracing::warn!(
+                    error_code = "KIN-NRS-020",
                     "Failed to build custom reqwest client ({}). Falling back to default",
                     e
                 );

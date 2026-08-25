@@ -17,6 +17,7 @@ use tracing::{error, warn};
 pub fn create_resolver() -> TokioAsyncResolver {
     let (config, opts) = read_system_conf().unwrap_or_else(|e| {
         tracing::warn!(
+            error_code = "KIN-NRS-017",
             "Failed to read OS DNS config ({}). Falling back to Cloudflare 1.1.1.1",
             e
         );
@@ -61,7 +62,7 @@ pub async fn resolve_upstream<R: ResponseHandler>(
     let name = match Name::from_str(query_name) {
         Ok(n) => n,
         Err(e) => {
-            error!("Failed to parse query name: {}", e);
+            error!(error_code = "KIN-NRS-018", "Failed to parse query name: {}", e);
             let response =
                 builder.error_msg(request.header(), hickory_proto::op::ResponseCode::FormErr);
             let _ = response_handle.send_response(response).await;
@@ -84,7 +85,7 @@ pub async fn resolve_upstream<R: ResponseHandler>(
             header.into()
         }
         Err(e) => {
-            warn!("Upstream resolve error: {}", e);
+            warn!(error_code = "KIN-NRS-019", "Upstream resolve error: {}", e);
             let rcode = match e.kind() {
                 hickory_resolver::error::ResolveErrorKind::NoRecordsFound { .. } => {
                     hickory_proto::op::ResponseCode::NXDomain

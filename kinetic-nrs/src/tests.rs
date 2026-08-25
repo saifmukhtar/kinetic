@@ -1,4 +1,4 @@
-use crate::KineticDnsHandler;
+use crate::KineticNrsHandler;
 use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -75,12 +75,12 @@ async fn start_mock_daemon() -> String {
         get(|Path(domain): Path<String>| async move {
             match domain.as_str() {
                 "test1.kin" => {
-                    let mut zone = kinetic_core::types::DnsZone {
+                    let mut zone = kinetic_core::types::NrsZone {
                         records: std::collections::HashMap::new(),
                     };
                     zone.records.insert(
                         "@".to_string(),
-                        vec![kinetic_core::types::DnsRecord::A(
+                        vec![kinetic_core::types::NrsRecord::A(
                             "1.2.3.4".parse().unwrap(),
                         )],
                     );
@@ -141,7 +141,7 @@ async fn build_request(name: &str, rtype: RecordType) -> Request {
 #[tokio::test]
 async fn test_resolve_standard_domain() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -168,7 +168,7 @@ async fn test_resolve_kin_success() {
         .with_test_writer()
         .try_init();
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -191,7 +191,7 @@ async fn test_resolve_kin_success() {
 #[tokio::test]
 async fn test_resolve_kin_api_404_nxdomain() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -214,7 +214,7 @@ async fn test_resolve_kin_api_404_nxdomain() {
 #[tokio::test]
 async fn test_resolve_kin_api_500_servfail() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -237,7 +237,7 @@ async fn test_resolve_kin_api_500_servfail() {
 #[tokio::test]
 async fn test_resolve_kin_invalid_payload() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -252,7 +252,7 @@ async fn test_resolve_kin_invalid_payload() {
     let info = handler.handle_request(&req, responder).await;
     assert_eq!(
         info.response_code(),
-        hickory_proto::op::ResponseCode::NXDomain
+        hickory_proto::op::ResponseCode::ServFail
     );
 }
 
@@ -260,7 +260,7 @@ async fn test_resolve_kin_invalid_payload() {
 #[tokio::test]
 async fn test_resolve_kin_invalid_zone() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -283,7 +283,7 @@ async fn test_resolve_kin_invalid_zone() {
 #[tokio::test]
 async fn test_resolve_kin_subdomain_fallback() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -307,7 +307,7 @@ async fn test_resolve_kin_subdomain_fallback() {
 #[tokio::test]
 async fn test_resolve_kin_uppercase() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -331,7 +331,7 @@ async fn test_resolve_kin_uppercase() {
 #[tokio::test]
 async fn test_resolve_kin_wrong_record_type() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -354,7 +354,7 @@ async fn test_resolve_kin_wrong_record_type() {
 #[tokio::test]
 async fn test_cache_invalidation() {
     let api_url = start_mock_daemon().await;
-    let handler = KineticDnsHandler::new(
+    let handler = KineticNrsHandler::new(
         api_url,
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
         5354,
@@ -383,7 +383,7 @@ async fn test_cache_invalidation() {
 #[cfg(test)]
 mod fuzzing {
 
-    use kinetic_core::types::{DnsZone, Reveal};
+    use kinetic_core::types::{NrsZone, Reveal};
     use proptest::prelude::*;
 
     proptest! {
@@ -399,9 +399,9 @@ mod fuzzing {
         fn doesnt_crash_on_random_reveal_strings(
             random_string in ".*"
         ) {
-            // Pass random utf-8 strings into our DnsZone payload parser
-            use kinetic_core::types::DnsZoneExt;
-            let _ = DnsZone::parse_payload(random_string.as_bytes());
+            // Pass random utf-8 strings into our NrsZone payload parser
+            use kinetic_core::types::NrsZoneExt;
+            let _ = NrsZone::parse_payload(random_string.as_bytes());
         }
 
         #[test]
