@@ -601,7 +601,7 @@ async fn run_daemon() -> Result<()> {
             "http://{}:{}",
             config.daemon.bind_ip, config.daemon.api_port
         );
-        let dns_handler = kinetic_nrs::KineticDnsHandler::new(
+        let dns_handler = kinetic_nrs::KineticNrsHandler::new(
             api_url,
             atlas_nsps.clone(),
             config.daemon.atlas_port,

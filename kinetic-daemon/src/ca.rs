@@ -42,9 +42,11 @@ pub struct RootCa {
 /// Returns a `CaError` if there are IO issues reading/writing the certificate files, or if there is an error
 /// generating the root CA certificates.
 pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaError> {
-    let network_id = kinetic_core::constants::NETWORK_ID;
-    let cert_path = config_dir.join(format!("{}.cert.pem", network_id));
-    let key_path = config_dir.join(format!("{}.key.pem", network_id));
+    let nsp = kinetic_core::constants::NSP_SUFFIX;
+    let salt_prefix = &kinetic_core::constants::NETWORK_SALT_HEX[0..4];
+    let ca_prefix = format!("{}-{}", nsp, salt_prefix);
+    let cert_path = config_dir.join(format!("{}.cert.pem", ca_prefix));
+    let key_path = config_dir.join(format!("{}.key.pem", ca_prefix));
     let lock_path = config_dir.join(".ca.lock");
 
     let mut retries = 0;
@@ -109,11 +111,11 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         let mut dn = DistinguishedName::new();
         dn.push(
             DnType::CommonName,
-            format!("{} Local Root CA", kinetic_core::constants::NETWORK_ID),
+            format!("{} Local Root CA", ca_prefix),
         );
         dn.push(
             DnType::OrganizationName,
-            format!("{} Protocol", kinetic_core::constants::NETWORK_ID),
+            format!("{} Protocol", ca_prefix),
         );
         params.distinguished_name = dn;
         params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
@@ -275,10 +277,15 @@ fn trust_root_ca(_cert_path: &Path) {}
 pub fn generate_leaf_cert(domain: &str, root_ca: &RootCa) -> Result<ServerConfig, CaError> {
     let mut params = CertificateParams::new(vec![domain.to_string()])?;
     let mut dn = DistinguishedName::new();
+    
+    let nsp = kinetic_core::constants::NSP_SUFFIX;
+    let salt_prefix = &kinetic_core::constants::NETWORK_SALT_HEX[0..4];
+    let ca_prefix = format!("{}-{}", nsp, salt_prefix);
+    
     dn.push(DnType::CommonName, domain);
     dn.push(
         DnType::OrganizationName,
-        format!("{} Protocol Proxy", kinetic_core::constants::NETWORK_ID),
+        format!("{} Protocol Proxy", ca_prefix),
     );
     params.distinguished_name = dn;
     params.not_before = OffsetDateTime::now_utc();
