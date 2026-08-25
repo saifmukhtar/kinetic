@@ -252,8 +252,9 @@ fn trust_root_ca(cert_path: &Path) {
         // This targets Debian/Ubuntu style CA stores. Arch/Fedora use different paths,
         // but this covers the most common desktop setups (e.g. Ubuntu).
         let cmd = format!(
-            "cp {} /usr/local/share/ca-certificates/kinetic.crt && update-ca-certificates",
-            cert_path.display()
+            "cp {} /usr/local/share/ca-certificates/{} && update-ca-certificates",
+            cert_path.display(),
+            cert_path.file_name().unwrap_or_default().to_string_lossy()
         );
         let status = std::process::Command::new("pkexec")
             .args(["sh", "-c", &cmd])

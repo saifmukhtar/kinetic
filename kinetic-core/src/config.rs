@@ -373,6 +373,16 @@ impl Default for KineticConfig {
     }
 }
 
+
+/// Defines the operational context loading the configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigContext {
+    /// Loaded by a user-facing daemon or CLI tool.
+    Daemon,
+    /// Loaded by a cloud infrastructure node.
+    Node,
+}
+
 impl KineticConfig {
     /// Loads runtime configuration from disk (`config.toml`) or environment variables.
     ///
@@ -386,8 +396,15 @@ impl KineticConfig {
     /// If `config.toml` exists but contains invalid TOML syntax or corrupted fields, this method
     /// logs a critical error and aborts execution via `std::process::exit(1)`. This prevents
     /// "fail-open" security vulnerabilities where invalid configs silently degrade to insecure defaults.
+
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load() -> Self {
+        Self::load_with_context(ConfigContext::Daemon)
+    }
+
+    /// Loads the configuration based on the binary context.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn load_with_context(ctx: ConfigContext) -> Self {
         let config_path = std::env::var(crate::constants::ENV_CONFIG_PATH)
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
@@ -404,7 +421,12 @@ impl KineticConfig {
                 }
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                let default_cfg = Self::default();
+                let mut default_cfg = Self::default();
+                if ctx == ConfigContext::Daemon {
+                    default_cfg.drand.p2p_only = true;
+                } else {
+                    default_cfg.drand.p2p_only = false;
+                }
                 if let Some(parent) = config_path.parent() {
                     if let Err(e) = fs::create_dir_all(parent) {
                         tracing::error!(
@@ -466,7 +488,18 @@ impl KineticConfig {
     #[cfg(target_arch = "wasm32")]
     /// Stub implementation for loading configuration in Wasm environments.
     pub fn load() -> Self {
-        Self::default()
+        Self::load_with_context(ConfigContext::Daemon)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn load_with_context(ctx: ConfigContext) -> Self {
+        let mut default_cfg = Self::default();
+        if ctx == ConfigContext::Daemon {
+            default_cfg.drand.p2p_only = true;
+        } else {
+            default_cfg.drand.p2p_only = false;
+        }
+        default_cfg
     }
 
     /// Serializes and writes the current configuration back to `config.toml`.

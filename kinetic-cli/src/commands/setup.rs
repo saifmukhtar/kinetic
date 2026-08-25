@@ -54,8 +54,10 @@ fn setup_firefox() -> anyhow::Result<()> {
     println!("========================================================");
 
     let base_dir = kinetic_core::config::get_base_dir();
-    let network_id = kinetic_core::constants::NETWORK_ID;
-    let cert_path = base_dir.join(format!("{}.cert.pem", network_id));
+    let nsp = kinetic_core::constants::NSP_SUFFIX;
+    let salt_prefix = &kinetic_core::constants::NETWORK_SALT_HEX[0..4];
+    let ca_prefix = format!("{}-{}", nsp, salt_prefix);
+    let cert_path = base_dir.join(format!("{}.cert.pem", ca_prefix));
 
     if !cert_path.exists() {
         println!("❌ Root CA not found at {}", cert_path.display());
@@ -152,7 +154,7 @@ fn setup_firefox() -> anyhow::Result<()> {
                             .args([
                                 "-A",
                                 "-n",
-                                "Kinetic Root CA",
+                                &format!("{} Local Root CA", ca_prefix),
                                 "-t",
                                 "TC,,",
                                 "-i",

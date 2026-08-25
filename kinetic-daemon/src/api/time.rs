@@ -10,8 +10,10 @@ pub async fn handle_get_time(
 ) -> Result<Json<KineticTime>, (StatusCode, String)> {
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
 
-    // Fetch the latest verified Drand kyn
-    match drand_client.fetch_latest().await {
+    // Read the latest verified Drand kyn directly from the local database cache.
+    // We do NOT call `fetch_latest()` here to prevent spamming the external Drand network
+    // on every UI tick. The background gossip/heartbeat services keep this cache fresh.
+    match drand_client.load_cached_kyn() {
         Ok(drand_data) => {
             let time = KineticTime::from_kyn(
                 drand_data.kyn,
@@ -20,13 +22,13 @@ pub async fn handle_get_time(
             Ok(Json(time))
         }
         Err(e) => {
-            tracing::error!("Failed to fetch Drand kyn for /api/time: {}", e);
+            tracing::error!("Failed to read cached Drand kyn for /api/time: {}", e);
             // If offline, we could fallback mathematically here as well,
             // but since it's the daemon, returning an error ensures consumers
             // know the node isn't synced. The CLI implements the offline fallback.
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to fetch synchronized network time".to_string(),
+                "Failed to read synchronized network time from cache".to_string(),
             ))
         }
     }
