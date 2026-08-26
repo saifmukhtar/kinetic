@@ -54,7 +54,7 @@ pub(crate) fn build_full_swarm(
     let builder = builder_tcp.with_quic();
 
     let (control_tx, control_rx) = std::sync::mpsc::channel();
-    let initial_drand_kyn = config.initial_drand_kyn;
+    let initial_kyn = config.initial_kyn;
     let enable_mdns = config.enable_mdns;
     let enable_upnp = config.enable_upnp;
     let enable_relay_server = config.enable_relay_server;
@@ -69,7 +69,7 @@ pub(crate) fn build_full_swarm(
             let store = KineticRecordStore::new(
                 peer_id,
                 storage.clone(),
-                initial_drand_kyn,
+                initial_kyn,
                 lru_cache_size,
                 max_reveals_per_hour,
                 vdf_engine.clone(),
@@ -132,7 +132,8 @@ pub(crate) fn build_full_swarm(
                         .unwrap(),
                         libp2p::request_response::ProtocolSupport::Full,
                     )],
-                    libp2p::request_response::Config::default(),
+                    libp2p::request_response::Config::default()
+                        .with_request_timeout(std::time::Duration::from_secs(60)),
                 );
 
             let cdn = libp2p::request_response::cbor::Behaviour::<

@@ -60,7 +60,7 @@ pub(crate) fn build_light_swarm(
     #[cfg(not(target_arch = "wasm32"))]
     let (control_tx, control_rx) = std::sync::mpsc::channel();
 
-    let initial_drand_kyn = config.initial_drand_kyn;
+    let initial_kyn = config.initial_kyn;
     let lru_cache_size = config.lru_cache_size;
     let max_reveals_per_hour = config.max_reveals_per_hour;
     let test_mode = config.test_mode;
@@ -72,7 +72,7 @@ pub(crate) fn build_light_swarm(
             let store = KineticRecordStore::new(
                 peer_id,
                 storage.clone(),
-                initial_drand_kyn,
+                initial_kyn,
                 lru_cache_size,
                 max_reveals_per_hour,
                 vdf_engine.clone(),
@@ -139,7 +139,8 @@ pub(crate) fn build_light_swarm(
                         .unwrap(),
                         libp2p::request_response::ProtocolSupport::Full,
                     )],
-                    libp2p::request_response::Config::default(),
+                    libp2p::request_response::Config::default()
+                        .with_request_timeout(std::time::Duration::from_secs(60)),
                 );
 
             let cdn = libp2p::request_response::cbor::Behaviour::<
