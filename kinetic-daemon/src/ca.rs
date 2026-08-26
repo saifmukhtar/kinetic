@@ -15,13 +15,13 @@ use time::{Duration, OffsetDateTime};
 #[derive(Debug, thiserror::Error)]
 pub enum CaError {
     /// An IO error occurred reading or writing certificates.
-    #[error("IO Error: {0}")]
+    #[error("Local CA failed to read or write disk configuration: {0}")]
     Io(#[from] std::io::Error),
     /// An error originated from the `rcgen` certificate generator.
-    #[error("RCGen Error: {0}")]
+    #[error("Local CA failed to mathematically generate TLS certificate: {0}")]
     Rcgen(#[from] rcgen::Error),
     /// An error originated from `rustls` configuration.
-    #[error("Rustls Error: {0}")]
+    #[error("Local CA failed to configure strict TLS cryptographic state: {0}")]
     Rustls(#[from] rustls::Error),
 }
 

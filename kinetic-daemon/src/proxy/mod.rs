@@ -24,10 +24,19 @@ pub mod security;
 pub mod tunnel;
 /// Web2 CNAME bridge and SSRF safe resolution
 pub mod web2_bridge;
+/// Router for forwarding proxy requests to standard IP targets.
+pub mod route_ip;
+/// Router for translating IPFS targets into local gateway requests.
+pub mod route_ipfs;
+/// Router for securely forwarding HTTP proxy requests over libp2p.
+pub mod route_p2p;
 
 pub use http::*;
 pub use p2p::*;
-use security::*;
+pub use route_ip::*;
+pub use route_ipfs::*;
+pub use route_p2p::*;
+pub use security::*;
 pub use tunnel::*;
 pub use web2_bridge::*;
 
@@ -41,19 +50,19 @@ pub enum ProxyError {
     #[error("Invalid payload")]
     InvalidPayload,
     /// Hyper HTTP library error.
-    #[error("Hyper error: {0}")]
+    #[error("Proxy failed to negotiate HTTP layer: {0}")]
     Hyper(#[from] hyper::Error),
     /// Reqwest HTTP client error.
-    #[error("Reqwest error: {0}")]
+    #[error("Proxy failed to execute backend request: {0}")]
     Reqwest(#[from] reqwest::Error),
     /// Standard IO error.
-    #[error("IO error: {0}")]
+    #[error("Proxy failed to read system sockets: {0}")]
     Io(#[from] std::io::Error),
     /// Certificate authority error.
-    #[error("CA error: {0}")]
+    #[error("Proxy TLS Certificate failure: {0}")]
     Ca(#[from] CaError),
     /// Generic HTTP error.
-    #[error("HTTP error: {0}")]
+    #[error("Proxy encountered malformed HTTP packet: {0}")]
     Http(#[from] hyper::http::Error),
     /// Peer is offline or network timed out.
     #[error("Peer unreachable or request timed out: {0}")]
@@ -88,7 +97,7 @@ pub async fn start_proxy_server(
             break;
         } else if let Ok(l) = TcpListener::bind(format!("[::1]:{}", port)).await {
             tracing::warn!(
-                "Failed to bind Proxy to {}, successfully bound to IPv6 loopback [::1] (Case 198)",
+                "KIN-PROXY-040: Failed to bind Proxy to {}, successfully bound to IPv6 loopback [::1] (Case 198)",
                 bind_ip
             );
             listener = Some(l);
@@ -97,6 +106,7 @@ pub async fn start_proxy_server(
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
     let listener = listener.ok_or_else(|| {
+        tracing::error!("KIN-PROXY-041: TCP Listener failed to bind proxy to {} or [::1] on port {}", bind_ip, port);
         anyhow::anyhow!(
             "Failed to bind Proxy to {} or [::1] on port {}",
             bind_ip,
@@ -138,7 +148,7 @@ pub async fn start_proxy_server(
                 .with_upgrades()
                 .await
             {
-                warn!("Error serving connection: {:?}", err);
+                warn!("KIN-PROXY-039: Proxy connection dropped unexpectedly: {}", err);
             }
         });
     }
