@@ -287,7 +287,7 @@ async fn run_daemon() -> Result<()> {
             kinetic_core::drand::RawKyn::unavailable()
         }
     };
-    let initial_drand_kyn = initial_kyn.kyn;
+    let initial_kyn = initial_kyn.kyn;
 
     // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately
     // without having to wait for the 30-40 second PoW mining loop to finish.
@@ -296,9 +296,9 @@ async fn run_daemon() -> Result<()> {
         std::process::exit(1);
     }
 
-    let (drand_kyn_tx, drand_kyn_rx) = watch::channel(initial_drand_kyn);
+    let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
     let local_key = kinetic_network::pow::mine_sybil_keypair(
-        initial_drand_kyn,
+        initial_kyn,
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
@@ -345,7 +345,7 @@ async fn run_daemon() -> Result<()> {
         enable_mdns: config.network.enable_mdns,
         enable_upnp: config.network.enable_upnp,
         enable_relay_server: config.network.enable_relay_server,
-        initial_drand_kyn,
+        initial_kyn,
         external_address: config
             .network
             .external_address
@@ -443,7 +443,7 @@ async fn run_daemon() -> Result<()> {
     {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
-            .map_err(|e| anyhow::anyhow!("Poison error: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("KIN-DAEMON-005: Governance state lock poisoned: {}", e))?;
         *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
     }
 
@@ -459,7 +459,7 @@ async fn run_daemon() -> Result<()> {
         network_config.clone(),
         current_local_key.clone(),
         storage.clone(),
-        drand_kyn_rx.clone(),
+        kyn_rx.clone(),
         Some(incoming_tx.clone()),
         Some(gossip_tx.clone()),
         vdf_engine.clone(),
@@ -477,7 +477,7 @@ async fn run_daemon() -> Result<()> {
 
     kinetic_daemon::services::network::start_pow_miner_loop(
         network_client.clone(),
-        drand_kyn_rx.clone(),
+        kyn_rx.clone(),
         network_config.clone(),
         storage.clone(),
         incoming_tx.clone(),
@@ -492,7 +492,7 @@ async fn run_daemon() -> Result<()> {
         gossip_rx,
         gov_state_path.clone(),
         drand_client.clone(),
-        drand_kyn_tx.clone(),
+        kyn_tx.clone(),
         Some(storage.clone()),
     );
 
@@ -509,7 +509,7 @@ async fn run_daemon() -> Result<()> {
     let root_ca = match ca::load_or_create_root_ca(&base_config_dir) {
         Ok((root_ca, _is_new)) => std::sync::Arc::new(root_ca),
         Err(e) => {
-            tracing::error!("Failed to initialize Root CA: {}", e);
+            tracing::error!("KIN-DAEMON-001: Failed to initialize Root CA: {}", e);
             return Err(anyhow::anyhow!("CA Init Failed: {}", e));
         }
     };
@@ -531,7 +531,7 @@ async fn run_daemon() -> Result<()> {
         )
         .await
         {
-            tracing::error!("Proxy server crashed: {}", e);
+            tracing::error!("KIN-DAEMON-002: Proxy server crashed: {}", e);
         }
     });
 
@@ -567,9 +567,9 @@ async fn run_daemon() -> Result<()> {
         network_client.clone(),
         drand_client.clone(),
         config.drand.p2p_only,
-        initial_drand_kyn,
+        initial_kyn,
         daemon_keypair.clone(),
-        drand_kyn_tx.clone(),
+        kyn_tx.clone(),
     );
 
     // Register with kinetic-pac by dropping our proxy config into the global proxies directory
@@ -608,40 +608,51 @@ async fn run_daemon() -> Result<()> {
         );
         let mut server = hickory_server::ServerFuture::new(dns_handler);
 
-        let udp_socket = tokio::net::UdpSocket::bind(format!(
+        let udp_bind = tokio::net::UdpSocket::bind(format!(
             "{}:{}",
             config.daemon.bind_ip, config.daemon.nrs_port
         ))
-        .await?;
-        server.register_socket(udp_socket);
-
-        let tcp_listener = tokio::net::TcpListener::bind(format!(
+        .await;
+        
+        let tcp_bind = tokio::net::TcpListener::bind(format!(
             "{}:{}",
             config.daemon.bind_ip, config.daemon.nrs_port
         ))
-        .await?;
-        server.register_listener(tcp_listener, std::time::Duration::from_secs(5));
+        .await;
 
-        tokio::spawn(async move {
-            info!(
-                "Built-in DNS Server starting on port {}",
-                config.daemon.nrs_port
-            );
-            if let Err(e) = server.block_until_done().await {
-                tracing::error!("DNS Server error: {}", e);
+        match (udp_bind, tcp_bind) {
+            (Ok(udp_socket), Ok(tcp_listener)) => {
+                server.register_socket(udp_socket);
+                server.register_listener(tcp_listener, std::time::Duration::from_secs(5));
+
+                tokio::spawn(async move {
+                    info!(
+                        "Built-in DNS Server starting on port {}",
+                        config.daemon.nrs_port
+                    );
+                    if let Err(e) = server.block_until_done().await {
+                        tracing::error!("KIN-DAEMON-003: DNS Server error: {}", e);
+                    }
+                });
             }
-        });
+            (Err(e), _) | (_, Err(e)) => {
+                tracing::error!("KIN-DAEMON-006: Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}", config.daemon.nrs_port, e);
+            }
+        }
     }
 
     tokio::select! {
         res = api_future => {
-            tracing::error!("API Server exited unexpectedly: {:?}", res);
+            tracing::error!("KIN-DAEMON-004: API Server exited unexpectedly: {:?}", res);
         },
         _ = kinetic_core::shutdown::shutdown_signal() => {
             info!("Shutdown signal received. Commencing graceful shutdown...");
-            let _ = std::fs::remove_file(&proxy_json_path);
         }
     }
+
+    // Guaranteed OS PAC Proxy cleanup on exit (Fixes Orphaned Proxy Blackhole)
+    let _ = std::fs::remove_file(&proxy_json_path);
+    info!("Safely removed PAC proxy registration from OS.");
 
     Ok(())
 }
