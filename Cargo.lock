@@ -3013,10 +3013,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kinetic-tlock"
-version = "0.2.0"
-
-[[package]]
 name = "kinetic-types"
 version = "0.2.0"
 dependencies = [
