@@ -26,10 +26,14 @@ pub async fn start_health_api(
         "Host Health-check API listening on http://{}:{}",
         bind_ip, api_port
     );
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .map_err(|e| anyhow::anyhow!("KIN-HOST-013: Failed to bind health API to port {}: {}", api_port, e))?;
+    
     axum::serve(listener, app)
         .with_graceful_shutdown(kinetic_core::shutdown::shutdown_signal())
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!("KIN-HOST-014: Health API server crashed: {}", e))?;
 
     Ok(())
 }
