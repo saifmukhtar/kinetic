@@ -33,6 +33,17 @@ pub async fn forward_request(
             let mut status = res.status().as_u16();
             let mut res_headers = Vec::new();
             for (k, v) in res.headers() {
+                let header_name = k.as_str().to_lowercase();
+                if header_name == "content-encoding"
+                    || header_name == "transfer-encoding"
+                    || header_name == "content-length"
+                    || header_name == "connection"
+                    || header_name == "keep-alive"
+                    || header_name == "upgrade"
+                {
+                    continue;
+                }
+                
                 if let Ok(v_str) = v.to_str() {
                     res_headers.push((k.as_str().into(), v_str.into()));
                 }
@@ -94,6 +105,8 @@ pub async fn handle_incoming_proxy_requests(
         .unwrap_or_default();
     info!("Listening for incoming P2P Proxy requests, forwarding based on dynamic config");
 
+    let concurrency_limit = std::sync::Arc::new(tokio::sync::Semaphore::new(100));
+
     while let Some((req, channel)) = rx.recv().await {
         let reqwest_client = reqwest_client.clone();
         let client_clone = client.clone();
@@ -103,7 +116,10 @@ pub async fn handle_incoming_proxy_requests(
         let backend_host_clone = host_config.backend_host;
         let local_port = host_config.backend_port;
 
+        let permit = concurrency_limit.clone().acquire_owned().await.unwrap();
+
         tokio::spawn(async move {
+            let _permit = permit;
             let decoded_path = percent_encoding::percent_decode_str(&req.path)
                 .decode_utf8()
                 .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
