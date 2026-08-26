@@ -19,15 +19,17 @@ pub fn install_service() -> Result<()> {
     println!("Installing Kinetic Host service...");
     let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
-    let current_exe = env::current_exe()?;
+        .map_err(|_| anyhow::anyhow!("KIN-HOST-018: Failed to detect native OS service manager"))?;
+    let current_exe = env::current_exe()
+        .map_err(|e| anyhow::anyhow!("KIN-HOST-019: Failed to resolve current executable path: {}", e))?;
+        
     manager.install(ServiceInstallCtx {
         label: label.clone(),
         program: current_exe.clone(),
         args: vec![
             "run"
                 .parse()
-                .map_err(|_| anyhow::anyhow!("Failed to parse run"))?,
+                .map_err(|_| anyhow::anyhow!("KIN-HOST-024: Failed to parse arguments"))?,
         ],
         contents: None,
         username: std::env::var("SUDO_USER")
@@ -37,7 +39,7 @@ pub fn install_service() -> Result<()> {
         environment: None,
         autostart: true,
         restart_policy: service_manager::RestartPolicy::default(),
-    })?;
+    }).map_err(|e| anyhow::anyhow!("KIN-HOST-020: Failed to install background service: {}", e))?;
 
     println!("Service installed successfully. Run 'kinetic-host start' to begin.");
     Ok(())
@@ -53,8 +55,9 @@ pub fn install_service() -> Result<()> {
 pub fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
-    manager.uninstall(ServiceUninstallCtx { label })?;
+        .map_err(|_| anyhow::anyhow!("KIN-HOST-018: Failed to detect native OS service manager"))?;
+    manager.uninstall(ServiceUninstallCtx { label })
+        .map_err(|e| anyhow::anyhow!("KIN-HOST-021: Failed to uninstall background service: {}", e))?;
     println!("Service uninstalled.");
     Ok(())
 }
@@ -69,8 +72,9 @@ pub fn uninstall_service() -> Result<()> {
 pub fn start_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
-    manager.start(ServiceStartCtx { label })?;
+        .map_err(|_| anyhow::anyhow!("KIN-HOST-018: Failed to detect native OS service manager"))?;
+    manager.start(ServiceStartCtx { label })
+        .map_err(|e| anyhow::anyhow!("KIN-HOST-022: Failed to start background service: {}", e))?;
     println!("Service started.");
     Ok(())
 }
@@ -85,8 +89,9 @@ pub fn start_background_service() -> Result<()> {
 pub fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
-    manager.stop(ServiceStopCtx { label })?;
+        .map_err(|_| anyhow::anyhow!("KIN-HOST-018: Failed to detect native OS service manager"))?;
+    manager.stop(ServiceStopCtx { label })
+        .map_err(|e| anyhow::anyhow!("KIN-HOST-023: Failed to stop background service: {}", e))?;
     println!("Service stopped.");
     Ok(())
 }
