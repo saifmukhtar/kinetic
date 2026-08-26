@@ -1,13 +1,12 @@
 [workspace]
 members = [
     "kinetic-core",
-    "kinetic-vdf",
     "kinetic-network",
     "kinetic-storage",
     "kinetic-nrs",
     "kinetic-daemon", "kinetic-cli", "kinetic-test", "kinetic-kid", "kinetic-node",
     "kinetic-host", "kinetic-wasm", "kinetic-forge", "kinetic-pac"
-, "kinetic-verify", "kinetic-types", "scratch/gossip_test", "kinetic-vdfrs"]
+, "kinetic-verify", "kinetic-types", "scratch/gossip_test"]
 exclude = [
     "kinetic-core/fuzz",
     "kinetic-daemon/fuzz",
