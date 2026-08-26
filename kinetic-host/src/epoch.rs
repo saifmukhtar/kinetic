@@ -139,23 +139,45 @@ pub async fn start_drand_heartbeat(
                     let mut handle = loop_handle_ref.lock().await;
                     handle.abort();
 
-                    if let Ok((new_client, new_loop)) = NetworkEventLoop::new(
-                        hc_config.clone(),
-                        current_local_key.clone(),
-                        hc_storage.clone(),
-                        hc_drand_rx.clone(),
-                        Some(hc_inc_tx.clone()),
-                        Some(hc_gossip_tx.clone()),
-                        hc_vdf_engine.clone(),
-                    ) {
-                        hc_client
-                            .update_backend(new_client.get_sender(), new_client.stream_control());
-                        *handle = tokio::spawn(async move {
-                            new_loop.run().await;
-                        });
-                        tracing::info!(
-                            "Successfully hot-swapped P2P backend with new PoW identity in Host mode."
-                        );
+                    let mut retries = 0;
+                    let mut new_network = None;
+
+                    while retries < 5 {
+                        match NetworkEventLoop::new(
+                            hc_config.clone(),
+                            current_local_key.clone(),
+                            hc_storage.clone(),
+                            hc_drand_rx.clone(),
+                            Some(hc_inc_tx.clone()),
+                            Some(hc_gossip_tx.clone()),
+                            hc_vdf_engine.clone(),
+                        ) {
+                            Ok(nw) => {
+                                new_network = Some(nw);
+                                break;
+                            }
+                            Err(e) => {
+                                tracing::warn!("KIN-HOST-005: Hot-swap bind failed, OS sockets likely in TIME_WAIT. Retrying in 2 seconds... (Error: {})", e);
+                                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                                retries += 1;
+                            }
+                        }
+                    }
+
+                    match new_network {
+                        Some((new_client, new_loop)) => {
+                            hc_client.update_backend(new_client.get_sender(), new_client.stream_control());
+                            *handle = tokio::spawn(async move {
+                                new_loop.run().await;
+                            });
+                            tracing::info!(
+                                "Successfully hot-swapped P2P backend with new PoW identity in Host mode."
+                            );
+                        }
+                        None => {
+                            tracing::error!("KIN-HOST-006: CRITICAL: Failed to hot-swap P2P network after 5 retries. Forcing daemon crash for systemd recovery.");
+                            panic!("Network hot-swap failed permanently due to bound ports.");
+                        }
                     }
                 } else {
                     last_verified_epoch = Some(current_epoch);
