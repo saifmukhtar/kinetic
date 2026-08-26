@@ -1,7 +1,4 @@
 <div align="center">
-  <picture>
-    <img alt="Kinetic: Decentralized, Zero-Cost, VDF-Secured Namespace Engine" src="./assets/readme/hero.svg" width="100%">
-  </picture>
   <p>
     <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0"/></a>
     <a href="https://creativecommons.org/licenses/by/4.0/"><img src="https://img.shields.io/badge/Docs%20License-CC%20BY%204.0-lightgrey.svg" alt="License: CC BY 4.0"/></a>
@@ -42,11 +39,7 @@ Instead of paying money to registrars, you pay with **sequential computational t
 
 Kinetic acts as a local, transparent **Split-DNS gateway** running on port 53:
 
-<div align="center">
-  <picture>
-    <img alt="Kinetic Transparent Split-DNS Architecture" src="./assets/readme/architecture.svg" width="100%">
-  </picture>
-</div>
+
 
 1. **Query Interception:** When you type `alice.kin` into Firefox, Chrome, or `curl`, the OS resolver sends the request to the Kinetic Daemon listening on `127.0.0.2:53`.
 2. **DHT Lookup:** The daemon checks its local Kademlia DHT routing table (`libp2p`) to resolve the zone payload signed by Alice's post-quantum key.
