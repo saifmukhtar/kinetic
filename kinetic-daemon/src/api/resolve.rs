@@ -63,7 +63,7 @@ pub async fn handle_resolve_name(
                     && let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT)
                 {
                     tracing::warn!(
-                        "Rejecting spoofed NameRecord from network (CDN cache poisoning): {:?}",
+                        "KIN-DAEMON-009: Rejecting spoofed NameRecord from network (CDN cache poisoning): {:?}",
                         e
                     );
                     return Err((

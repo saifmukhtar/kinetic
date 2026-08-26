@@ -55,7 +55,7 @@ pub async fn handle_atlas_sync(
                 .unwrap()
         }
         Err(_) => {
-            tracing::error!("Failed to acquire write lock on atlas_nsps");
+            tracing::error!("KIN-DAEMON-006: Failed to acquire write lock on atlas_nsps");
             axum::response::Response::builder()
                 .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
                 .body(axum::body::Body::from("Internal Server Error"))

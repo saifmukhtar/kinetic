@@ -185,12 +185,11 @@ pub async fn handle_publish(
                     }
                     Ok(quorum) => {
                         tracing::warn!(
-                            "Quorum failed for {}: only {}/5 nodes confirmed storage.",
-                            fqdn_clone,
-                            quorum
+                            "KIN-DAEMON-014: Quorum failed for {}: only {}/5 nodes confirmed storage.",
+                            fqdn_clone, quorum
                         );
                     }
-                    Err(e) => tracing::warn!("Quorum check failed for {}: {}", fqdn_clone, e),
+                    Err(e) => tracing::warn!("KIN-DAEMON-015: Quorum check failed for {}: {}", fqdn_clone, e),
                 }
             });
 
@@ -200,7 +199,7 @@ pub async fn handle_publish(
             }))
         }
         Err(e) => {
-            tracing::error!("Failed to publish to DHT: {}", e);
+            tracing::error!("KIN-DAEMON-016: Failed to publish to DHT: {}", e);
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -290,12 +289,12 @@ pub async fn handle_commit(
                         quorum
                     ),
                     Ok(quorum) => tracing::warn!(
-                        "Quorum failed for commitment of {}: only {}/5 nodes confirmed storage.",
+                        "KIN-DAEMON-017: Quorum failed for commitment of {}: only {}/5 nodes confirmed storage.",
                         fqdn_clone,
                         quorum
                     ),
                     Err(e) => tracing::warn!(
-                        "Quorum check failed for commitment of {}: {}",
+                        "KIN-DAEMON-018: Quorum check failed for commitment of {}: {}",
                         fqdn_clone,
                         e
                     ),
@@ -308,7 +307,7 @@ pub async fn handle_commit(
             }))
         }
         Err(e) => {
-            tracing::error!("Failed to publish Commitment to DHT: {}", e);
+            tracing::error!("KIN-DAEMON-019: Failed to publish Commitment to DHT: {}", e);
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -383,7 +382,7 @@ pub async fn handle_publish_kid(
         }
         _ => {
             tracing::warn!(
-                "Could not find local reveal for name {} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.",
+                "KIN-DAEMON-020: Could not find local reveal for name {} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.",
                 auth_kid.name
             );
             true // If we don't have it cached, we let the network decide.
@@ -490,7 +489,7 @@ pub async fn handle_publish_manifest(
         }
         _ => {
             tracing::warn!(
-                "Could not find local reveal for name {} to verify AuthorizedManifest. Forwarding to DHT anyway.",
+                "KIN-DAEMON-021: Could not find local reveal for name {} to verify AuthorizedManifest. Forwarding to DHT anyway.",
                 auth_manifest.name
             );
             true
@@ -628,13 +627,13 @@ pub async fn handle_publish_governance(
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");
                 if let Err(e) = gov.save_to_disk(&path) {
-                    tracing::error!("Failed to save modified governance state to disk: {}", e);
+                    tracing::error!("KIN-DAEMON-022: Failed to save modified governance state to disk: {}", e);
                 }
 
                 true
             }
             Err(e) => {
-                tracing::warn!("Rejecting governance message via API: {}", e);
+                tracing::warn!("KIN-DAEMON-023: Rejecting governance message via API: {}", e);
                 return Err((
                     StatusCode::BAD_REQUEST,
                     format!("Invalid governance message: {}", e),
@@ -677,7 +676,7 @@ pub async fn handle_publish_governance(
             }))
         }
         Err(e) => {
-            tracing::error!("Failed to publish Governance Message to P2P network: {}", e);
+            tracing::error!("KIN-DAEMON-024: Failed to publish Governance Message to P2P network: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to broadcast: {}", e),

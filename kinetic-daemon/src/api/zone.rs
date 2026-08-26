@@ -229,9 +229,19 @@ pub async fn handle_publish_zone(
             use ml_dsa::signature::Signer;
             r.signature = keypair.sign(&signable).to_bytes().to_vec();
         }
-        kinetic_core::types::NameRecord::Prime { payload: p, .. }
-        | kinetic_core::types::NameRecord::Infra { payload: p, .. } => {
-            *p = payload;
+        kinetic_core::types::NameRecord::Prime { name, payload: p, signature: s, .. }
+        | kinetic_core::types::NameRecord::Infra { name, payload: p, signature: s, .. } => {
+            *p = payload.clone();
+            let mut signable = Vec::new();
+            signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
+            signable.extend_from_slice(name.as_bytes());
+            signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
+            signable.extend_from_slice(&payload);
+            signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
+            
+            use ml_dsa::SignatureEncoding;
+            use ml_dsa::signature::Signer;
+            *s = keypair.sign(&signable).to_bytes().to_vec();
         }
     }
 

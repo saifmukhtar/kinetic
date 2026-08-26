@@ -260,8 +260,8 @@ mod tests {
             name: "validname.kin".to_string(),
             payload: vec![1, 2, 3],
             salt: [0; 32],
-            drand_kyn: 100,
-            drand_signature: "0".repeat(192),
+            kyn: 100,
+            kyn_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],

@@ -372,7 +372,7 @@ pub async fn start_server(
             break;
         } else if let Ok(l) = tokio::net::TcpListener::bind(format!("[::1]:{}", port)).await {
             tracing::warn!(
-                "Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
+                "KIN-DAEMON-010: Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
                 bind_ip
             );
             listener = Some(l);
@@ -412,13 +412,13 @@ async fn auth_middleware(
     let header = match auth_header {
         Some(h) => h,
         None => {
-            tracing::warn!("Rejecting API request: Missing Authorization header");
+            tracing::warn!("KIN-DAEMON-011: Rejecting API request: Missing Authorization header");
             return Err(StatusCode::UNAUTHORIZED);
         }
     };
 
     if !header.starts_with("Bearer ") {
-        tracing::warn!("Rejecting API request: Authorization header is not a Bearer token");
+        tracing::warn!("KIN-DAEMON-012: Rejecting API request: Authorization header is not a Bearer token");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -453,7 +453,7 @@ async fn auth_middleware(
             Ok(next.run(req).await)
         }
         None => {
-            tracing::warn!("Rejecting API request: Invalid API token");
+            tracing::warn!("KIN-DAEMON-013: Rejecting API request: Invalid API token");
             Err(StatusCode::UNAUTHORIZED)
         }
     }
