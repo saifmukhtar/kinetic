@@ -1,122 +1,110 @@
 //! CLI wizard for bootstrapping and scaffolding isolated private Kinetic networks (`network.json`).
 
 use anyhow::{Context, Result};
-use dialoguer::{Confirm, Input, theme::ColorfulTheme};
-
+use axum::{
+    extract::State,
+    response::Html,
+    routing::{get, post},
+    Json, Router,
+};
+use clap::Parser;
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use tokio::sync::oneshot;
 
-// We use a dynamic `serde_json::Value` so we don't drop fields we don't actively modify.
+#[derive(Parser, Debug)]
+#[command(author, version, about = "Kinetic Forge - White-label Network Generator")]
+struct Args {
+    /// Skip the GUI and use a provided network.json file directly
+    #[arg(short, long)]
+    config: Option<String>,
+}
 
-fn main() -> Result<()> {
-    println!("========================================");
-    println!("      KINETIC NETWORK FORGE 🚀");
-    println!("========================================");
-    println!("Welcome to the Kinetic Forge! Let's scaffold your isolated private network.");
-    println!(
-        "This wizard will configure your custom network parameters and compile custom binaries."
-    );
-    println!();
+#[tokio::main]
+async fn main() -> Result<()> {
+    let args = Args::parse();
 
-    let nsp: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("What is the Namespace (NSP) for this network? (e.g. uni)")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.is_empty() {
-                return Err("NSP cannot be empty.");
-            }
-            if input
-                .chars()
-                .any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit())
-            {
-                return Err(
-                    "NSP must contain only lowercase letters and numbers (no spaces, no dots).",
-                );
-            }
-            Ok(())
-        })
-        .interact_text()?;
-
-    let base_domain: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("What is the base domain for this network? (e.g. uni.edu)")
-        .interact_text()?;
-
-    println!("\nGenerating cryptographic network identity...");
-
-    let network_id_str: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("What is the unique Network ID? (e.g. uni-testnet)")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.is_empty() {
-                return Err("Network ID cannot be empty.");
-            }
-            if input
-                .chars()
-                .any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-')
-            {
-                return Err(
-                    "Network ID must contain only lowercase letters, numbers, and hyphens.",
-                );
-            }
-            Ok(())
-        })
-        .interact_text()?;
-
-    println!("✅ Network ID generated: {}", network_id_str);
-    println!();
-
-    let docs_url: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Documentation & Error URL (e.g. https://docs.my-network.internal)")
-        .default("https://kinetic.saifmukhtar.dev".to_string())
-        .interact_text()?;
-
-    println!();
-
-    let use_public_drand = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Do you want to use the public Quicknet Drand beacon (Recommended)?")
-        .default(true)
-        .interact()?;
-
-    let (drand_pubkey, drand_genesis, drand_period, drand_http) = if !use_public_drand {
-        println!("\n--- Custom Private Drand Configuration ---");
-        let pk: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Drand Public Key (Hex)")
-            .interact_text()?;
-        let genesis: u64 = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Drand Genesis Time (Unix Timestamp)")
-            .interact_text()?;
-        let period: u64 = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Drand Kyn Period (Seconds)")
-            .interact_text()?;
-        let mut endpoint: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Drand HTTPS Endpoint (e.g. https://my-drand.internal)")
-            .interact_text()?;
-
-        while !endpoint.starts_with("https://") {
-            println!(
-                "⚠️ SECURITY: Custom Drand endpoints must use https:// to prevent MITM attacks."
-            );
-            endpoint = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Drand HTTPS Endpoint (e.g. https://my-drand.internal)")
-                .interact_text()?;
-        }
-        (pk, genesis, period, endpoint)
+    let mut config: serde_json::Value = if let Some(config_path) = args.config {
+        println!("Reading config from {}...", config_path);
+        let content = fs::read_to_string(&config_path)?;
+        serde_json::from_str(&content)?
     } else {
-        (
-            "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a".to_string(),
-            1692803367,
-            3,
-            "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest".to_string()
-        )
+        println!("🚀 Starting Kinetic Forge Web GUI...");
+
+        let (tx, rx) = oneshot::channel::<serde_json::Value>();
+        let tx = std::sync::Arc::new(tokio::sync::Mutex::new(Some(tx)));
+
+        let app = Router::new()
+            .route("/", get(serve_gui))
+            .route("/forge", post(handle_forge))
+            .with_state(tx);
+
+        // Bind to PORT 0 to get a random open ephemeral port, preventing collisions!
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await?;
+        let addr = listener.local_addr()?;
+        
+        let url = format!("http://{}", addr);
+        println!("✅ Server bound successfully!");
+        println!("🌐 Opening Web GUI at: {}", url);
+        
+        // Open the user's default browser automatically
+        if let Err(_) = open::that(&url) {
+            println!("⚠️ Could not open browser automatically. Please click the link above.");
+        }
+
+        // Run the server in a spawned task
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        // Block until the web GUI sends us the JSON config
+        let config = rx.await?;
+        
+        // Shutdown the web server
+        server.abort();
+        
+        config
     };
 
-    println!();
+    let network_id = config["network"]["network_id"].as_str().unwrap_or("kinetic").to_string();
 
-    let bootstrap_nodes: Vec<String> = vec![];
+    println!("\n========================================");
+    println!("🔥 FORGE INITIATED FOR: {}", network_id);
+    println!("========================================\n");
 
+    let target_dir = PathBuf::from(format!("./{}-network", network_id));
+    
+    if target_dir.exists() {
+        println!("⚠️ Target directory {:?} already exists! Deleting it for a fresh clone...", target_dir);
+        fs::remove_dir_all(&target_dir)?;
+    }
+
+    println!("📥 Cloning fresh Kinetic repository...");
+    let status = Command::new("git")
+        .arg("clone")
+        .arg("https://github.com/saifmukhtar/kinetic.git")
+        .arg(&target_dir)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()?;
+
+    if !status.success() {
+        anyhow::bail!("Failed to clone repository");
+    }
+
+    // Move into the new clone to patch its files
+    std::env::set_current_dir(&target_dir)?;
+
+    println!("🛠️  Patching network.json...");
+    
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
+
+    let drand_genesis = config["drand"]["drand_genesis_time"].as_u64().unwrap_or(0);
+    let drand_period = config["drand"]["drand_period"].as_u64().unwrap_or(3);
 
     let kinetic_genesis_drand_kyn = if now > drand_genesis {
         (now - drand_genesis) / drand_period
@@ -124,114 +112,56 @@ fn main() -> Result<()> {
         0
     };
 
-    println!();
-    if !Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Ready to update network.json and compile?")
-        .interact()?
-    {
-        println!("Aborting forge process. No changes made.");
-        return Ok(());
-    }
+    // Dynamically inject the calculated genesis block Kyn
+    config["drand"]["kinetic_genesis_drand_kyn"] = serde_json::json!(kinetic_genesis_drand_kyn);
 
-    println!("Updating network.json...");
-    patch_constants(
-        &nsp,
-        &base_domain,
-        &network_id_str,
-        &drand_pubkey,
-        drand_genesis,
-        drand_period,
-        kinetic_genesis_drand_kyn,
-        &drand_http,
-        &docs_url,
-        &bootstrap_nodes,
-    )?;
+    // Save the raw JSON payload straight to network.json!
+    let new_content = serde_json::to_string_pretty(&config)?;
+    fs::write("network.json", new_content)?;
 
-    println!("✅ network.json updated successfully.");
+    println!("🛠️  Patching Cargo.toml binary names...");
+    patch_cargo_bin_names(&network_id)?;
 
-    println!("Patching Cargo.toml files for binaries...");
-    patch_cargo_bin_names(&network_id_str)?;
-
-    println!("Compiling the customized Kinetic network binaries (this may take a few minutes)...");
-
-    let mut child = Command::new("cargo")
+    println!("🏗️  Compiling the customized Kinetic network binaries (this may take a few minutes)...");
+    let build_status = Command::new("cargo")
         .arg("build")
         .arg("--release")
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .spawn()
-        .context("Failed to spawn cargo build")?;
+        .status()?;
 
-    let status = child.wait().context("Failed to wait on cargo build")?;
-
-    if status.success() {
-        println!("========================================");
-        println!("🎉 FORGE COMPLETE 🎉");
-        println!("Your custom network binaries have been compiled to target/release/");
-        println!();
-        println!("⚠️ NEXT STEPS FOR BOOTSTRAPPING:");
-        println!(
-            "1. Run your first `{}-node` (this will act as your seed node).",
-            network_id_str
-        );
-        println!("2. Note its printed P2P Multiaddress (which includes its PeerId).");
-        println!("3. For all subsequent nodes you deploy, you must manually add that first node's");
-        println!(
-            "   multiaddress to their `~/.local/share/{}/config.toml` under `bootstrap_nodes`.",
-            network_id_str
-        );
-        println!("4. (Optional) Add the multiaddress to a DNS TXT record at your seed domain.");
-        println!("========================================");
+    if build_status.success() {
+        println!("\n🎉 FORGE COMPLETE 🎉");
+        println!("Your custom network binaries have been compiled to: {:?}/target/release/", target_dir);
     } else {
-        println!("❌ Build failed. Please check the compiler errors above.");
+        println!("❌ Build failed.");
     }
 
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-fn patch_constants(
-    nsp: &str,
-    base_domain: &str,
-    network_id: &str,
-    drand_pubkey: &str,
-    drand_genesis: u64,
-    drand_period: u64,
-    kinetic_genesis_drand_kyn: u64,
-    drand_http: &str,
-    docs_url: &str,
-    bootstrap_nodes: &[String],
-) -> Result<()> {
-    let path = PathBuf::from("network.json");
+// ==========================================
+// AXUM WEB HANDLERS
+// ==========================================
 
-    let mut config: serde_json::Value = if path.exists() {
-        let content = fs::read_to_string(&path).context(
-            "Failed to read network.json. Are you running this from the workspace root?",
-        )?;
-        serde_json::from_str(&content).context("Failed to parse existing network.json")?
-    } else {
-        anyhow::bail!(
-            "network.json not found in the current directory! You must run kinetic-forge from the repository root."
-        );
-    };
-
-    config["network"]["nsp"] = serde_json::json!(nsp);
-    config["network"]["base_domain"] = serde_json::json!(base_domain);
-    config["network"]["network_id"] = serde_json::json!(network_id);
-    config["drand"]["drand_genesis_time"] = serde_json::json!(drand_genesis);
-    config["drand"]["drand_period"] = serde_json::json!(drand_period);
-    config["drand"]["kinetic_genesis_drand_kyn"] = serde_json::json!(kinetic_genesis_drand_kyn);
-    config["drand"]["drand_public_key"] = serde_json::json!(drand_pubkey);
-    config["drand"]["drand_http_endpoints"] = serde_json::json!(vec![drand_http.to_string()]);
-    config["network"]["docs_url"] = serde_json::json!(docs_url);
-    config["network"]["bootstrap_nodes"] = serde_json::json!(bootstrap_nodes);
-
-    let new_content =
-        serde_json::to_string_pretty(&config).context("Failed to serialize network config")?;
-    fs::write(&path, new_content).context("Failed to write updated network.json")?;
-
-    Ok(())
+async fn serve_gui() -> Html<&'static str> {
+    Html(include_str!("index.html"))
 }
+
+async fn handle_forge(
+    State(tx): State<std::sync::Arc<tokio::sync::Mutex<Option<oneshot::Sender<serde_json::Value>>>>>,
+    Json(payload): Json<serde_json::Value>,
+) -> &'static str {
+    // Take the sender out of the mutex and send the payload back to the main thread
+    if let Some(sender) = tx.lock().await.take() {
+        let _ = sender.send(payload);
+    }
+    "Success"
+}
+
+// ==========================================
+// PATCHING LOGIC
+// ==========================================
 
 fn patch_cargo_bin_names(network_id: &str) -> Result<()> {
     let crates = vec![
@@ -249,9 +179,7 @@ fn patch_cargo_bin_names(network_id: &str) -> Result<()> {
         let path = PathBuf::from(crate_dir).join("Cargo.toml");
         if path.exists() {
             let content = fs::read_to_string(&path)?;
-            let mut doc = content
-                .parse::<toml_edit::DocumentMut>()
-                .context("Failed to parse Cargo.toml")?;
+            let mut doc = content.parse::<toml_edit::DocumentMut>()?;
 
             if let Some(bin) = doc
                 .get_mut("bin")

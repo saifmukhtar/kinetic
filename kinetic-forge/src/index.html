@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinetic Forge</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 700px;
+        }
+        h1 { margin-top: 0; color: #1a1a1a; border-bottom: 2px solid #e1e4e8; padding-bottom: 15px; }
+        details {
+            background: #f8f9fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        summary {
+            padding: 15px;
+            font-weight: 600;
+            font-size: 1.1em;
+            cursor: pointer;
+            user-select: none;
+            background: #fff;
+            color: #24292e;
+        }
+        summary:hover { background: #f1f3f5; }
+        .details-content { padding: 15px; border-top: 1px solid #e1e4e8; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.9em; color: #444; }
+        input[type="text"], input[type="url"], input[type="number"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5da;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        textarea { resize: vertical; height: 80px; }
+        .help-text { font-size: 0.8em; color: #6a737d; margin-top: 4px; }
+        
+        button {
+            background-color: #2ea44f;
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #2c974b; }
+        button:disabled { background-color: #94d3a2; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Kinetic Forge 🛠️</h1>
+    <p style="color: #586069; margin-bottom: 25px;">Configure your custom network architecture.</p>
+
+    <form id="forge-form">
+        
+        <details open>
+            <summary>🌐 Network Identity</summary>
+            <div class="details-content">
+                <div class="form-group">
+                    <label>Network ID</label>
+                    <input type="text" id="network_id" value="kinetic" required>
+                </div>
+                <div class="form-group">
+                    <label>Namespace Prefix (NSP)</label>
+                    <input type="text" id="nsp" value="kin" required>
+                </div>
+                <div class="form-group">
+                    <label>Base Domain</label>
+                    <input type="text" id="base_domain" value="saifmukhtar.dev" required>
+                </div>
+                <div class="form-group">
+                    <label>Bootstrap Nodes (Comma Separated)</label>
+                    <textarea id="bootstrap_nodes" placeholder="/ip4/192.168.1.5/tcp/16000/p2p/12D3..."></textarea>
+                    <div class="help-text">Leave empty if you are generating the first genesis node.</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>🎲 Drand Cryptography</summary>
+            <div class="details-content">
+                <div class="form-group">
+                    <label>Drand Genesis Time (Unix)</label>
+                    <input type="number" id="drand_genesis" value="1692803367" required>
+                </div>
+                <div class="form-group">
+                    <label>Drand Period (Seconds)</label>
+                    <input type="number" id="drand_period" value="3" required>
+                </div>
+                <div class="form-group">
+                    <label>Drand Public Key</label>
+                    <input type="text" id="drand_pubkey" value="83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a" required>
+                </div>
+                <div class="form-group">
+                    <label>Drand HTTP Endpoints (Comma Separated)</label>
+                    <textarea id="drand_http">https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest</textarea>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>⚖️ Consensus & Governance</summary>
+            <div class="details-content">
+                <div class="form-group">
+                    <label>Governance Model</label>
+                    <select id="gov_model">
+                        <option value="sovereign">Sovereign</option>
+                        <option value="decentralized">Decentralized</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Minimum Commit Age (Kyns)</label>
+                    <input type="number" id="min_commit_age" value="10" required>
+                </div>
+                <div class="form-group">
+                    <label>VDF Max Iterations</label>
+                    <input type="number" id="vdf_max_iters" value="400000000000" required>
+                </div>
+            </div>
+        </details>
+
+        <button type="submit">Forge Network 🚀</button>
+    </form>
+</div>
+
+<script>
+    document.getElementById('forge-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Parse comma separated lists safely
+        const splitList = (val) => val.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+        const payload = {
+            network: {
+                network_id: document.getElementById('network_id').value,
+                nsp: document.getElementById('nsp').value,
+                base_domain: document.getElementById('base_domain').value,
+                docs_url: "https://kinetic.saifmukhtar.dev",
+                ipfs_gateway: "https://ipfs.io/ipfs/",
+                local_bind_ip: "127.0.0.2",
+                bootstrap_nodes: splitList(document.getElementById('bootstrap_nodes').value)
+            },
+            drand: {
+                drand_genesis_time: parseInt(document.getElementById('drand_genesis').value),
+                drand_period: parseInt(document.getElementById('drand_period').value),
+                kinetic_genesis_drand_kyn: 0, // Calculated by backend
+                drand_public_key: document.getElementById('drand_pubkey').value,
+                drand_http_endpoints: splitList(document.getElementById('drand_http').value)
+            },
+            governance: {
+                governance_model: document.getElementById('gov_model').value,
+                max_age_kyns: 201600
+            },
+            consensus: {
+                ndc_multipliers: {
+                    len_0_to_1: 52596000, len_2: 43200, len_3: 34560, len_4: 21600,
+                    len_5: 1440, len_6: 720, len_7: 150, len_8_to_10: 120,
+                    len_11_to_17: 90, len_18_to_20: 60
+                },
+                vdf_discount_min_iterations: 1000,
+                vdf_discount_percentage: 15,
+                vdf_max_iterations: parseInt(document.getElementById('vdf_max_iters').value),
+                vdf_max_proof_bytes: 1024,
+                minimum_commit_age_kyns: parseInt(document.getElementById('min_commit_age').value)
+            },
+            advanced: {
+                benchmark_base_iterations: 238819830,
+                benchmark_target_minutes: 30.0,
+                steal_target_kyns: 7884000,
+                m_redundancy: 32,
+                dev_mode_iterations: 1000,
+                limits: {
+                    p2p_max_packet_size: 102400, p2p_max_circuit_bytes: 4194304,
+                    proxy_max_body_bytes: 5242880, storage_max_value_bytes: 81920,
+                    kid_max_public_key_bytes: 8192, kid_max_location_bytes: 2048,
+                    kid_max_endpoint_bytes: 256, drand_max_response_bytes: 65536,
+                    lru_cache_size: 100000
+                },
+                timeouts: {
+                    idle_timeout_seconds: 201600, heartbeat_age_warning_seconds: 43200,
+                    heartbeat_age_critical_seconds: 86400, dns_cache_ttl_seconds: 300,
+                    network_prune_interval_seconds: 3600, host_route_max_age_seconds: 600
+                }
+            }
+        };
+
+        const btn = document.querySelector('button');
+        btn.innerText = "Forging... Check Desktop Terminal";
+        btn.disabled = true;
+
+        try {
+            await fetch('/forge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            document.body.innerHTML = "<div class='container'><h1 style='color: #2ea44f;'>✅ Clone & Compile Initiated!</h1><p>You can close this window on your phone. Watch your computer terminal for compilation progress.</p></div>";
+        } catch (err) {
+            alert("Error communicating with forge backend.");
+            btn.innerText = "Forge Network 🚀";
+            btn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
