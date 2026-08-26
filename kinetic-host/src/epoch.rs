@@ -12,23 +12,23 @@ pub async fn start_dynamic_routing_publisher(
     local_peer_id_str: Arc<RwLock<String>>,
     host_peer_id_str: String,
     publisher_client: NetworkClient,
-    drand_kyn_rx: watch::Receiver<u64>,
+    kyn_rx: watch::Receiver<u64>,
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     let Ok(ed_key) = publisher_host_key.try_into_ed25519() else {
-        tracing::error!("Host key is not ed25519");
+        tracing::error!("KIN-HOST-001: Static host key configuration is invalid (must be ed25519)");
         return;
     };
     let ed_bytes = ed_key.to_bytes();
     let Ok(dalek_kp) = ed25519_dalek::SigningKey::try_from(&ed_bytes[0..32]) else {
-        tracing::error!("Failed to create dalek key");
+        tracing::error!("KIN-HOST-002: Cryptographic conversion failed for static host key");
         return;
     };
 
     loop {
         interval.tick().await;
 
-        let drand_kyn = *drand_kyn_rx.borrow();
+        let kyn = *kyn_rx.borrow();
 
         let mut record = kinetic_core::types::HostRoutingRecord {
             host_id: host_peer_id_str.clone(),
@@ -36,7 +36,7 @@ pub async fn start_dynamic_routing_publisher(
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            drand_kyn,
+            kyn,
             signature: vec![],
         };
 
@@ -46,7 +46,7 @@ pub async fn start_dynamic_routing_publisher(
         record.signature = signature.to_bytes().to_vec();
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {
-            tracing::warn!("Failed to publish HostRoutingRecord: {}", e);
+            tracing::warn!("KIN-HOST-003: Failed to broadcast dynamic HostRoutingRecord to DHT: {}", e);
         } else {
             tracing::info!("Published dynamic HostRoutingRecord to DHT");
         }
@@ -61,7 +61,7 @@ pub async fn start_dynamic_routing_publisher(
 #[allow(clippy::too_many_arguments)]
 pub async fn start_drand_heartbeat(
     hb_drand: Arc<DrandClient>,
-    drand_kyn_tx: watch::Sender<u64>,
+    kyn_tx: watch::Sender<u64>,
     mut hb_local_peer_id: libp2p::PeerId,
     shared_peer_id: Arc<RwLock<String>>,
     loop_handle_ref: Arc<tokio::sync::Mutex<tokio::task::JoinHandle<()>>>,
@@ -89,7 +89,7 @@ pub async fn start_drand_heartbeat(
             && !kyn.is_unavailable
             && !kyn.is_from_cache
         {
-            let _ = drand_kyn_tx.send(kyn.kyn);
+            let _ = kyn_tx.send(kyn.kyn);
 
             let current_epoch =
                 kinetic_network::pow::get_staggered_epoch(&hb_local_peer_id.to_bytes(), kyn.kyn);
@@ -125,7 +125,7 @@ pub async fn start_drand_heartbeat(
                     .await
                     .unwrap_or_else(|_| {
                         tracing::error!(
-                            "PoW mining task panicked, falling back to random identity"
+                            "KIN-HOST-004: Background PoW mining task panicked, falling back to an unverified identity"
                         );
                         libp2p::identity::Keypair::generate_ed25519()
                     });
