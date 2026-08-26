@@ -54,7 +54,7 @@ pub async fn handle_publish(
             ));
         }
         is_standard = true;
-        drand_kyn = reveal.drand_kyn;
+        drand_kyn = reveal.kyn;
     }
 
     // Finding 4 (High): Enforce drand staleness — reject Reveals whose VDF kyn is older
@@ -136,7 +136,7 @@ pub async fn handle_publish(
             let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
             let fqdn_clone = fqdn.clone();
 
-            let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap();
+            let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let mut owned = Vec::new();
             if let Ok(Some(bytes)) = state.storage.get(owned_key)
                 && let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes)
@@ -618,7 +618,7 @@ pub async fn handle_publish_governance(
     let is_valid = {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
-            .unwrap();
+            .unwrap_or_else(|e| e.into_inner());
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()

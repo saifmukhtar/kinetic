@@ -158,7 +158,18 @@ pub async fn handle_vdf_register(
             return;
         }
         let mut drand_hasher = sha2::Sha256::new();
-        drand_hasher.update(hex::decode(&drand_data.signature).unwrap());
+        let sig_bytes = match hex::decode(&drand_data.signature) {
+            Ok(b) => b,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Failed to decode Drand signature: {}", e),
+                );
+                return;
+            }
+        };
+        drand_hasher.update(sig_bytes);
         let mut drand_rand = [0u8; 32];
         drand_rand.copy_from_slice(&drand_hasher.finalize());
 
@@ -282,8 +293,8 @@ pub async fn handle_vdf_register(
             name: fqdn.clone(),
             payload,
             salt,
-            drand_kyn: drand_data.kyn,
-            drand_signature: drand_data.signature.clone(),
+            kyn: drand_data.kyn,
+            kyn_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
@@ -331,7 +342,7 @@ pub async fn handle_vdf_register(
 
         // Save to internal storage so Dashboard can see it
         let fqdn_clone = fqdn.clone();
-        let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap();
+        let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let mut owned = Vec::new();
         if let Ok(Some(bytes)) = storage_clone.get(kinetic_core::constants::DB_PREFIX_OWNED_NAMES)
             && let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes)
@@ -405,7 +416,7 @@ pub async fn handle_vdf_renew(
             Json(serde_json::json!({"error": "Iteration count exceeds maximum"})),
         ));
     }
-    let mut tasks = state.vdf_tasks.lock().unwrap();
+    let mut tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
 
     tasks.retain(|_, t| t.progress < 100 && t.error.is_none());
     if tasks.len() >= 50 {
@@ -510,7 +521,18 @@ pub async fn handle_vdf_renew(
             return;
         }
         let mut drand_hasher = sha2::Sha256::new();
-        drand_hasher.update(hex::decode(&drand_data.signature).unwrap());
+        let sig_bytes = match hex::decode(&drand_data.signature) {
+            Ok(b) => b,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Failed to decode Drand signature: {}", e),
+                );
+                return;
+            }
+        };
+        drand_hasher.update(sig_bytes);
         let mut drand_rand = [0u8; 32];
         drand_rand.copy_from_slice(&drand_hasher.finalize());
 
@@ -612,8 +634,8 @@ pub async fn handle_vdf_renew(
 
         let previous_proof = kinetic_core::types::PreviousProof {
             salt: old_reveal.salt,
-            drand_kyn: old_reveal.drand_kyn,
-            drand_signature: old_reveal.drand_signature.clone(),
+            kyn: old_reveal.kyn,
+            kyn_signature: old_reveal.kyn_signature.clone(),
             iterations: old_reveal.iterations,
             vdf_proof: old_reveal.vdf_proof.clone(),
             signature: old_reveal.signature.clone(),
@@ -624,8 +646,8 @@ pub async fn handle_vdf_renew(
             name: fqdn.clone(),
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
-            drand_kyn: drand_data.kyn,
-            drand_signature: drand_data.signature.clone(),
+            kyn: drand_data.kyn,
+            kyn_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
