@@ -10,12 +10,11 @@
 //! to reconstruct the full keypair deterministically. This means the identity file is
 //! fully reproducible from a BIP-39 mnemonic via `save_keypair_from_mnemonic`.
 //!
-//! ## Signable Byte Format
-//!
 //! All `signable_bytes()` methods produce a network-scoped byte string:
-//! `[network_id_prefix][u32_be(name.len())][name_bytes][u32_be(payload.len())][payload_bytes]`
+//! `[network_salt][u32_be(name.len())][name_bytes][u32_be(payload.len())][payload_bytes]`
 //!
-//! The `KINETIC_NETWORK_ID` prefix prevents cross-network replay attacks.
+//! The 32-byte `NETWORK_SALT` prefix prevents cross-network replay attacks, as it 
+//! cryptographically binds the signatures to the specific NETWORK_ID and Governance Root Key.
 
 pub use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 
