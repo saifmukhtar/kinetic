@@ -12,10 +12,10 @@ impl super::core::NetworkEventLoop {
         if self.disable_pow {
             return true;
         }
-        self.current_drand_kyn > 0
+        self.current_kyn > 0
             && crate::pow::is_valid_sybil_pow(
                 peer_id,
-                self.current_drand_kyn,
+                self.current_kyn,
                 kinetic_core::constants::POW_DIFFICULTY_BITS,
             )
     }
@@ -56,12 +56,12 @@ impl super::core::NetworkEventLoop {
                     }
                 }
 
-                let current_drand_kyn = self.current_drand_kyn;
+                let current_kyn = self.current_kyn;
 
                 // Spawn a blocking task to do heavy VDF processing
                 crate::event_loop::utils::spawn(async move {
                     let tie_breaker_result = crate::event_loop::utils::spawn_blocking(move || {
-                        Self::xor_tie_breaker(&name, p.received_payloads, current_drand_kyn)
+                        Self::xor_tie_breaker(&name, p.received_payloads, current_kyn)
                     })
                     .await;
 
@@ -137,7 +137,7 @@ impl super::core::NetworkEventLoop {
                         .insert(peer_id, web_time::Instant::now());
                 }
 
-                if self.current_drand_kyn == 0 && !is_bootstrap && !self.disable_pow {
+                if self.current_kyn == 0 && !is_bootstrap && !self.disable_pow {
                     tracing::debug!(
                         "Peer {} connected during uninitialized drand kyn, disconnecting",
                         peer_id
@@ -152,7 +152,7 @@ impl super::core::NetworkEventLoop {
 
                 if let Some(loopback) = &self.loopback_tx {
                     let loopback_clone = loopback.clone();
-                    let current_kyn = self.current_drand_kyn;
+                    let current_kyn = self.current_kyn;
                     let peer_id_clone = peer_id;
                     let pow_semaphore = self.pow_semaphore.clone();
                     let remote_addr = endpoint.get_remote_address().clone();

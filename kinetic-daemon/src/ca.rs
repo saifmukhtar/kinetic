@@ -95,15 +95,26 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
 
             let key_pair = KeyPair::from_pem(&key_pem)?;
             let params = CertificateParams::from_ca_cert_pem(&cert_pem)?;
-            let cert = params.self_signed(&key_pair)?;
-            return Ok((
-                RootCa {
-                    cert_pem,
-                    key_pair,
-                    cert,
-                },
-                false,
-            ));
+            
+            let thirty_days_from_now = OffsetDateTime::now_utc() + Duration::days(30);
+            
+            if thirty_days_from_now > params.not_after {
+                tracing::warn!(
+                    "Local Root CA expires within 30 days (on {}). Auto-rotating...",
+                    params.not_after
+                );
+                // Fall through to the new CA generation logic below
+            } else {
+                let cert = params.self_signed(&key_pair)?;
+                return Ok((
+                    RootCa {
+                        cert_pem,
+                        key_pair,
+                        cert,
+                    },
+                    false,
+                ));
+            }
         }
 
         // Generate new CA

@@ -2,7 +2,7 @@
 
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Heartbeat;
-use ml_dsa::signature::Signer;
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -13,11 +13,11 @@ pub fn start_heartbeat_loop(
     hb_network: kinetic_network::NetworkClient,
     hb_drand: Arc<kinetic_core::drand::DrandClient>,
     p2p_only: bool,
-    initial_drand_kyn: u64,
-    daemon_keypair_hb: ml_dsa::SigningKey<ml_dsa::MlDsa65>,
-    drand_kyn_tx_hb: tokio::sync::watch::Sender<u64>,
+    initial_kyn: u64,
+    daemon_keypair_hb: kinetic_primitives::keys::KineticKeypair,
+    kyn_tx_hb: tokio::sync::watch::Sender<u64>,
 ) -> tokio::task::JoinHandle<()> {
-    let last_known_live_kyn = Arc::new(AtomicU64::new(initial_drand_kyn));
+    let last_known_live_kyn = Arc::new(AtomicU64::new(initial_kyn));
     let lklr = last_known_live_kyn.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(3));
@@ -52,7 +52,7 @@ pub fn start_heartbeat_loop(
                 match hb_drand.fetch_latest().await {
                     Ok(p) => {
                         if !p.is_unavailable && !p.is_from_cache {
-                            let _ = drand_kyn_tx_hb.send(p.kyn);
+                            let _ = kyn_tx_hb.send(p.kyn);
                             if !p2p_only && let Ok(payload) = serde_json::to_vec(&p) {
                                 let mut envelope =
                                     vec![kinetic_types::network::NetworkOpcode::Drand as u8];
@@ -102,20 +102,19 @@ pub fn start_heartbeat_loop(
                 for name in names {
                     let mut heartbeat = Heartbeat {
                         name: name.clone(),
-                        latest_drand_kyn: kyn.kyn,
+                        latest_kyn: kyn.kyn,
                         signature: vec![],
                         authorization: None,
                     };
 
-                    use ml_dsa::SignatureEncoding;
                     let signable_bytes =
                         heartbeat.signable_bytes(kinetic_core::constants::NETWORK_SALT);
                     let keypair = daemon_keypair_hb.clone();
-                    let sig = tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
+                    let sig_bytes = tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
                         .await
                         .unwrap();
 
-                    heartbeat.signature = sig.to_bytes().to_vec();
+                    heartbeat.signature = sig_bytes;
 
                     let name_clone = name.clone();
                     let hb_network_clone = hb_network.clone();

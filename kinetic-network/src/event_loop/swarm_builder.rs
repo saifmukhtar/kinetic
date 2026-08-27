@@ -12,7 +12,7 @@ impl super::core::NetworkEventLoop {
         config: NetworkConfig,
         local_key: libp2p::identity::Keypair,
         storage: Arc<dyn kinetic_core::traits::StorageEngine>,
-        drand_kyn_rx: watch::Receiver<u64>,
+        kyn_rx: watch::Receiver<u64>,
         incoming_proxy_tx: Option<
             mpsc::Sender<(
                 ProxyRequest,
@@ -75,8 +75,8 @@ impl super::core::NetworkEventLoop {
             incoming_proxy_tx,
             gossip_tx,
             bad_vdf_counts: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
-            current_drand_kyn: config.initial_drand_kyn,
-            drand_kyn_rx,
+            current_kyn: config.initial_kyn,
+            kyn_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers,
             startup_time: web_time::Instant::now(),
@@ -96,7 +96,7 @@ impl super::core::NetworkEventLoop {
                         {
                             let expire =
                                 u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
-                            let now = config.initial_drand_kyn;
+                            let now = config.initial_kyn;
                             if expire > now {
                                 peers.put(peer_id, expire);
                             } else {

@@ -1,21 +1,16 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 use kinetic_kid::{CapabilityManifest, ControllerKey, KidDocument, KidError, KineticDid};
-use ml_dsa::MlDsa65;
-use ml_dsa::{Generate, Keypair, SigningKey};
-use sha2::Digest;
+use kinetic_primitives::keys::KineticKeypair;
 
-fn generate_keypair() -> SigningKey<MlDsa65> {
-    SigningKey::<MlDsa65>::generate()
+fn generate_keypair() -> KineticKeypair {
+    KineticKeypair::generate()
 }
 
-fn create_valid_doc_and_key() -> (KidDocument, SigningKey<MlDsa65>) {
+fn create_valid_doc_and_key() -> (KidDocument, KineticKeypair) {
     let keypair = generate_keypair();
-    use ml_dsa::KeyExport;
-    let pub_key_b64 = b64_url.encode(keypair.verifying_key().to_bytes());
+    let pub_key_b64 = b64_url.encode(&keypair.public_key_bytes());
 
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(keypair.verifying_key().to_bytes());
-    let hash = hasher.finalize();
+    let hash = kinetic_primitives::sha256_hash(&keypair.public_key_bytes());
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;

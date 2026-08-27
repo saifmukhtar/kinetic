@@ -100,7 +100,7 @@ components:
           type: array
           items:
             type: integer
-        drand_kyn:
+        kyn:
           type: integer
         drand_signature:
           type: string
@@ -114,7 +114,7 @@ components:
             type: integer
       required:
         - salt
-        - drand_kyn
+        - kyn
         - drand_signature
         - iterations
         - vdf_proof
@@ -135,7 +135,7 @@ components:
           type: array
           items:
             type: integer
-        drand_kyn:
+        kyn:
           type: integer
         drand_signature:
           type: string
@@ -164,7 +164,7 @@ components:
         - name
         - payload
         - salt
-        - drand_kyn
+        - kyn
         - drand_signature
         - iterations
         - vdf_proof

@@ -36,15 +36,15 @@ pub fn unix_secs_to_network_kyn(unix_secs: u64) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::KINETIC_GENESIS_DRAND_KYN;
+    use crate::constants::KINETIC_GENESIS_KYN;
 
-    // Note: KINETIC_GENESIS_DRAND_KYN is defined in network.json / build.rs.
+    // Note: KINETIC_GENESIS_KYN is defined in network.json / build.rs.
     // For these tests, we assume it acts correctly regardless of its exact value,
     // by manually shifting our input by the genesis kyn.
 
     #[test]
     fn test_kinetic_time_zero() {
-        let genesis = KINETIC_GENESIS_DRAND_KYN;
+        let genesis = KINETIC_GENESIS_KYN;
         let time = KineticTime::from_kyn(genesis, genesis);
         assert_eq!(time.prism, 0);
         assert_eq!(time.facet, 0);
@@ -55,16 +55,16 @@ mod tests {
     #[test]
     #[allow(clippy::absurd_extreme_comparisons)]
     fn test_kinetic_time_pre_genesis() {
-        if KINETIC_GENESIS_DRAND_KYN > 0 {
+        if KINETIC_GENESIS_KYN > 0 {
             let time =
-                KineticTime::from_kyn(KINETIC_GENESIS_DRAND_KYN - 1, KINETIC_GENESIS_DRAND_KYN);
+                KineticTime::from_kyn(KINETIC_GENESIS_KYN - 1, KINETIC_GENESIS_KYN);
             assert_eq!(time.total_kyns, 0);
         }
     }
 
     #[test]
     fn test_kinetic_time_complex() {
-        let genesis = KINETIC_GENESIS_DRAND_KYN;
+        let genesis = KINETIC_GENESIS_KYN;
 
         // 1 day (28,800) + 2 hours (2,400) + 45 kyns = 31,245 total kyns
         let target_kyn = genesis + 31_245;

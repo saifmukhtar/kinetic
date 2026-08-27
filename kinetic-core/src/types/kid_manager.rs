@@ -6,18 +6,18 @@
 //!
 //! ## Core Invariants & The 4 Identity Cases
 //!
-//! 1. **Case 1 (New Apex Domain)**: Generates a new dedicated ML-DSA-65 keypair (`kids/{name}.key`)
+//! 1. **Case 1 (New Apex Name)**: Generates a new dedicated ML-DSA-65 keypair (`kids/{name}.key`)
 //!    and a unique `KidDocument` (`did:kin:<SHA256(PublicKey)>`). Overwrites are rejected unless `force = true`.
-//! 2. **Case 2 (Subname Inheritance - Default)**: Subdomains (e.g. `blog.saif.kin`) inherit their parent's
+//! 2. **Case 2 (Subname Inheritance - Default)**: Subnames (e.g. `blog.saif.kin`) inherit their parent's
 //!    apex KID (`did:kin:...`) from `kids/{apex}.json`, avoiding key sprawl.
-//! 3. **Case 3 (Subname Isolation - Opt-In)**: Subdomains generate an isolated, independent KID and keypair
+//! 3. **Case 3 (Subname Isolation - Opt-In)**: Subnames generate an isolated, independent KID and keypair
 //!    for delegated or untrusted sub-services (`inherit_subname = false`).
 //! 4. **Case 4 (Cryptographic Key Rotation)**: Rotates the ML-DSA-65 controller key of a name while keeping
 //!    the DID string constant. The update is cryptographically signed by the *previous* key to satisfy
 //!    DHT verification rules (`is_authorized_update`).
 //!
 //! All KID operations wrap the resulting document in an [`AuthorizedKid`] container signed by the node's
-//! master `identity.key` (the domain owner).
+//! master `identity.key` (the name owner).
 
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -26,10 +26,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-use ml_dsa::signature::Signer;
-use ml_dsa::{Generate, KeyExport, KeyInit, Keypair, MlDsa65, SigningKey};
+
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+
 
 use crate::constants::DID_PREFIX;
 use crate::error::IdentityError;
@@ -43,7 +42,7 @@ use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 /// Metadata and payloads resulting from a generated or inherited KID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratedKid {
-    /// Fully qualified domain name this KID is bound to (e.g. "saif.kin" or "blog.saif.kin").
+    /// Fully qualified name this KID is bound to (e.g. "saif.kin" or "blog.saif.kin").
     pub name: String,
     /// The W3C DID string (e.g. "did:kin:<hash>").
     pub did: String,
@@ -55,14 +54,14 @@ pub struct GeneratedKid {
     pub doc_path: PathBuf,
     /// Path to the private key file on disk (`None` if inherited from apex).
     pub key_path: Option<PathBuf>,
-    /// Whether this KID was inherited from an apex domain.
+    /// Whether this KID was inherited from an apex name.
     pub is_inherited: bool,
 }
 
 /// Metadata and payloads resulting from a cryptographically rotated KID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RotatedKid {
-    /// Fully qualified domain name whose KID was rotated.
+    /// Fully qualified name whose KID was rotated.
     pub name: String,
     /// The unchanged DID string.
     pub did: String,
@@ -111,7 +110,7 @@ pub fn current_network_unix_timestamp() -> u64 {
     crate::types::clock::network_kyn_to_unix_secs(estimated_kyn)
 }
 
-/// Resolves the filesystem paths for a domain's KID document and private key.
+/// Resolves the filesystem paths for a name's KID document and private key.
 pub fn get_kid_paths(name: &str) -> (PathBuf, PathBuf) {
     let fqdn = normalize_name(name);
     let dir = get_kids_dir();
@@ -168,14 +167,14 @@ fn write_json_document(path: &Path, json_str: &str) -> Result<(), IdentityError>
 }
 
 /// Loads a raw ML-DSA-65 signing key from disk.
-fn load_raw_signing_key(path: &Path) -> Result<SigningKey<MlDsa65>, IdentityError> {
+fn load_raw_signing_key(path: &Path) -> Result<kinetic_primitives::keys::KineticKeypair, IdentityError> {
     if !path.exists() {
         return Err(IdentityError::KidPrivateKeyNotFound(
             path.to_string_lossy().to_string(),
         ));
     }
     let bytes = fs::read(path)?;
-    SigningKey::<MlDsa65>::new_from_slice(&bytes).map_err(|_| {
+    kinetic_primitives::keys::KineticKeypair::from_slice(&bytes).map_err(|_| {
         IdentityError::CorruptedIdentityFile(format!("Invalid key bytes in {:?}", path))
     })
 }
@@ -196,18 +195,17 @@ pub fn authorize_kid_document(
     };
 
     let signable = auth_kid.signable_bytes(crate::constants::NETWORK_SALT);
-    use ml_dsa::SignatureEncoding;
-    auth_kid.owner_signature = identity_keypair.sign(&signable).to_bytes().to_vec();
+    auth_kid.owner_signature = identity_keypair.sign(&signable);
 
     Ok(auth_kid)
 }
 
-/// Creates or inherits a Kinetic Identity Document (KID) for a given domain name.
+/// Creates or inherits a Kinetic Identity Document (KID) for a given name.
 ///
 /// Implements:
-/// - **Case 1 (Apex Domain)**: Generates a new ML-DSA-65 keypair and `KidDocument`.
-/// - **Case 2 (Subname Inheritance - Default)**: Subdomain inherits parent apex KID from `kids/{apex}.json`.
-/// - **Case 3 (Subname Isolation - Opt-In)**: Subdomain generates an isolated keypair when `inherit_subname = false`.
+/// - **Case 1 (Apex Name)**: Generates a new ML-DSA-65 keypair and `KidDocument`.
+/// - **Case 2 (Subname Inheritance - Default)**: Subname inherits parent apex KID from `kids/{apex}.json`.
+/// - **Case 3 (Subname Isolation - Opt-In)**: Subname generates an isolated keypair when `inherit_subname = false`.
 ///
 /// # Errors
 ///
@@ -255,14 +253,13 @@ pub fn get_or_create_kid_for_name(
     }
 
     // 1. Generate new ML-DSA-65 keypair
-    let keypair = SigningKey::<MlDsa65>::generate();
-    let pub_key_bytes = keypair.verifying_key().to_bytes();
-    let pub_key_b64 = b64_url.encode(pub_key_bytes);
+    let keypair = kinetic_primitives::keys::KineticKeypair::generate();
+    let pub_key_bytes = keypair.public_key_bytes();
+    let pub_key_b64 = b64_url.encode(&pub_key_bytes);
 
     // 2. Derive deterministic DID string: did:kin:<SHA256(PublicKey)>
-    let mut hasher = Sha256::new();
-    hasher.update(pub_key_bytes);
-    let did_str = format!("{}{}", DID_PREFIX, hex::encode(hasher.finalize()));
+    let hash = kinetic_primitives::sha256_hash(&pub_key_bytes);
+    let did_str = format!("{}{}", DID_PREFIX, hex::encode(hash));
 
     let kid_did = KineticDid::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
@@ -346,9 +343,9 @@ pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid,
     let old_key = load_raw_signing_key(&key_path)?;
 
     // 2. Generate new keypair
-    let new_keypair = SigningKey::<MlDsa65>::generate();
-    let new_pub_bytes = new_keypair.verifying_key().to_bytes();
-    let new_pub_b64 = b64_url.encode(new_pub_bytes);
+    let new_keypair = kinetic_primitives::keys::KineticKeypair::generate();
+    let new_pub_bytes = new_keypair.public_key_bytes();
+    let new_pub_b64 = b64_url.encode(&new_pub_bytes);
 
     let primary_id = format!("{}#primary", doc.kid);
     doc.controller_keys = vec![ControllerKey {
@@ -395,7 +392,7 @@ pub fn load_local_kid(name: &str) -> Result<(KidDocument, PathBuf), IdentityErro
         return Ok((doc, doc_path));
     }
 
-    // Check parent apex domain for subnames
+    // Check parent apex name for subnames
     let apex = extract_apex_name(&fqdn);
     if fqdn != apex {
         let (apex_doc_path, _) = get_kid_paths(&apex);
@@ -410,7 +407,7 @@ pub fn load_local_kid(name: &str) -> Result<(KidDocument, PathBuf), IdentityErro
     Err(IdentityError::KidNotFound(fqdn))
 }
 
-/// Lists all locally managed domain KIDs from `{base_dir}/kids/`.
+/// Lists all locally managed name KIDs from `{base_dir}/kids/`.
 pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
     let dir = get_kids_dir();
     if !dir.exists() {
@@ -511,7 +508,7 @@ pub fn load_local_manifest(name: &str) -> Result<Option<CapabilityManifest>, Ide
 }
 
 /// Creates, signs with the local KID key, wraps in `AuthorizedManifest`, and persists
-/// a `CapabilityManifest` for the given domain name.
+/// a `CapabilityManifest` for the given name.
 pub fn save_and_sign_local_manifest(
     name: &str,
     services: Vec<ServiceEntry>,
@@ -582,8 +579,7 @@ pub fn save_and_sign_local_manifest(
 
     let signable = auth_manifest.signable_bytes(crate::constants::NETWORK_SALT);
     let owner_key = load_keypair(master_key_path)?;
-    use ml_dsa::SignatureEncoding;
-    auth_manifest.owner_signature = owner_key.sign(&signable).to_bytes().to_vec();
+    auth_manifest.owner_signature = owner_key.sign(&signable);
 
     Ok((signed_manifest, auth_manifest))
 }
@@ -638,7 +634,7 @@ mod tests {
     fn test_kid_generation_and_overwrite_guards() {
         let env = TestEnv::new([42u8; 32]);
 
-        // 1. Apex Domain KID generation
+        // 1. Apex Name KID generation
         let apex =
             get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
         assert_eq!(apex.name, "saif.kin");
@@ -661,7 +657,7 @@ mod tests {
     }
 
     #[test]
-    fn test_kid_subdomain_inheritance() {
+    fn test_kid_subname_inheritance() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
             get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
@@ -677,7 +673,7 @@ mod tests {
     }
 
     #[test]
-    fn test_kid_subdomain_isolation() {
+    fn test_kid_subname_isolation() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
             get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
@@ -746,7 +742,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rotate_inherited_subdomain_fails() {
+    fn test_rotate_inherited_subname_fails() {
         let env = TestEnv::new([42u8; 32]);
         let _ =
             get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();

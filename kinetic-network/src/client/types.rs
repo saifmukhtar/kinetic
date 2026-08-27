@@ -56,7 +56,7 @@ pub struct NetworkConfig {
     /// Whether to act as a public Relay Server.
     pub enable_relay_server: bool,
     /// The initial drand kyn to use for VDF verification.
-    pub initial_drand_kyn: u64,
+    pub initial_kyn: u64,
     /// An optional externally reachable IP or domain to announce.
     pub external_address: Option<libp2p::Multiaddr>,
     /// Bypass PoW verification for tests.

@@ -146,8 +146,7 @@ pub async fn handle_vdf_register(
                 return;
             }
         };
-        use ml_dsa::{KeyExport, Keypair};
-        let pubkey = keypair.verifying_key().to_bytes();
+        let pubkey = keypair.public_key_bytes();
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -157,7 +156,6 @@ pub async fn handle_vdf_register(
             );
             return;
         }
-        let mut drand_hasher = sha2::Sha256::new();
         let sig_bytes = match hex::decode(&drand_data.signature) {
             Ok(b) => b,
             Err(e) => {
@@ -169,19 +167,14 @@ pub async fn handle_vdf_register(
                 return;
             }
         };
-        drand_hasher.update(sig_bytes);
-        let mut drand_rand = [0u8; 32];
-        drand_rand.copy_from_slice(&drand_hasher.finalize());
 
-        use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(fqdn.as_bytes());
-        hasher.update(salt);
-        hasher.update(drand_rand);
-        hasher.update(pubkey);
-        let mut hash = [0u8; 32];
-        hash.copy_from_slice(&hasher.finalize());
-        let challenge = kinetic_core::types::Commitment { hash };
+        let challenge = kinetic_core::types::Commitment::derive(
+            kinetic_core::constants::NETWORK_SALT,
+            &fqdn,
+            &salt,
+            &sig_bytes,
+            &pubkey,
+        );
 
         // Step 3: VDF Evaluation (Blocking)
         update_task_status(
@@ -294,7 +287,7 @@ pub async fn handle_vdf_register(
             payload,
             salt,
             kyn: drand_data.kyn,
-            kyn_signature: drand_data.signature.clone(),
+            drand_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
@@ -306,10 +299,8 @@ pub async fn handle_vdf_register(
             miner_pubkey: None,
         };
 
-        use ml_dsa::SignatureEncoding;
-        use ml_dsa::signature::Signer;
         let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-        reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
+        reveal.signature = keypair.sign(&signable);
 
         // Publish to Network
         let reveal_bytes = match serde_json::to_vec(&reveal) {
@@ -509,8 +500,7 @@ pub async fn handle_vdf_renew(
                 return;
             }
         };
-        use ml_dsa::{KeyExport, Keypair};
-        let pubkey_bytes = keypair.verifying_key().to_bytes();
+        let pubkey_bytes = keypair.public_key_bytes();
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -520,7 +510,6 @@ pub async fn handle_vdf_renew(
             );
             return;
         }
-        let mut drand_hasher = sha2::Sha256::new();
         let sig_bytes = match hex::decode(&drand_data.signature) {
             Ok(b) => b,
             Err(e) => {
@@ -532,19 +521,14 @@ pub async fn handle_vdf_renew(
                 return;
             }
         };
-        drand_hasher.update(sig_bytes);
-        let mut drand_rand = [0u8; 32];
-        drand_rand.copy_from_slice(&drand_hasher.finalize());
 
-        use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(fqdn.as_bytes());
-        hasher.update(salt);
-        hasher.update(drand_rand);
-        hasher.update(pubkey_bytes);
-        let mut hash = [0u8; 32];
-        hash.copy_from_slice(&hasher.finalize());
-        let challenge = kinetic_core::types::Commitment { hash };
+        let challenge = kinetic_core::types::Commitment::derive(
+            kinetic_core::constants::NETWORK_SALT,
+            &fqdn,
+            &salt,
+            &sig_bytes,
+            &pubkey_bytes,
+        );
 
         // Step 4: VDF Evaluation (Blocking)
         update_task_status(
@@ -635,7 +619,7 @@ pub async fn handle_vdf_renew(
         let previous_proof = kinetic_core::types::PreviousProof {
             salt: old_reveal.salt,
             kyn: old_reveal.kyn,
-            kyn_signature: old_reveal.kyn_signature.clone(),
+            drand_signature: old_reveal.drand_signature.clone(),
             iterations: old_reveal.iterations,
             vdf_proof: old_reveal.vdf_proof.clone(),
             signature: old_reveal.signature.clone(),
@@ -647,7 +631,7 @@ pub async fn handle_vdf_renew(
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
             kyn: drand_data.kyn,
-            kyn_signature: drand_data.signature.clone(),
+            drand_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
@@ -659,10 +643,8 @@ pub async fn handle_vdf_renew(
             miner_pubkey: None,
         };
 
-        use ml_dsa::SignatureEncoding;
-        use ml_dsa::signature::Signer;
         let signable = new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-        new_reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
+        new_reveal.signature = keypair.sign(&signable);
 
         let reveal_bytes = match serde_json::to_vec(&new_reveal) {
             Ok(b) => b,

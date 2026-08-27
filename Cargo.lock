@@ -1745,10 +1745,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gossip_test"
-version = "0.2.0"
-
-[[package]]
 name = "group"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2582,9 +2578,9 @@ dependencies = [
  "hex",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-primitives",
  "kinetic-vdf-rsa",
  "libp2p",
- "ml-dsa",
  "mockito",
  "rand 0.10.2",
  "rand_chacha 0.10.0",
@@ -2621,11 +2617,11 @@ dependencies = [
  "hex",
  "hickory-resolver",
  "kinetic-kid",
+ "kinetic-primitives",
  "kinetic-types",
  "kinetic-verify",
  "lazy_static",
  "libp2p-identity",
- "ml-dsa",
  "mockito",
  "pbkdf2",
  "proptest",
@@ -2673,6 +2669,7 @@ dependencies = [
  "kinetic-kid",
  "kinetic-network",
  "kinetic-nrs",
+ "kinetic-primitives",
  "kinetic-storage",
  "kinetic-types",
  "kinetic-vdf-rsa",
@@ -2680,7 +2677,6 @@ dependencies = [
  "libp2p",
  "libp2p-stream 0.4.0-alpha",
  "mime_guess",
- "ml-dsa",
  "percent-encoding",
  "proptest",
  "rand 0.10.2",
@@ -2762,7 +2758,7 @@ name = "kinetic-kid"
 version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
- "ml-dsa",
+ "kinetic-primitives",
  "proptest",
  "rand_chacha 0.10.0",
  "rand_core 0.6.4",
@@ -2793,6 +2789,7 @@ dependencies = [
  "hickory-resolver",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-primitives",
  "kinetic-storage",
  "kinetic-types",
  "kinetic-vdf-rsa",
@@ -2800,7 +2797,6 @@ dependencies = [
  "libp2p",
  "libp2p-stream 0.1.0-alpha.1",
  "lru 0.12.5",
- "ml-dsa",
  "proptest",
  "rand_core 0.6.4",
  "rustc-hash",
@@ -2861,8 +2857,8 @@ dependencies = [
  "hickory-server",
  "kinetic-core",
  "kinetic-network",
+ "kinetic-primitives",
  "kinetic-verify",
- "ml-dsa",
  "moka",
  "privdrop",
  "proptest",
@@ -2897,6 +2893,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kinetic-primitives"
+version = "0.2.0"
+dependencies = [
+ "ml-dsa",
+ "sha2 0.11.0",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "kinetic-storage"
 version = "0.2.0"
 dependencies = [
@@ -2924,10 +2929,10 @@ dependencies = [
  "kinetic-core",
  "kinetic-network",
  "kinetic-nrs",
+ "kinetic-primitives",
  "kinetic-storage",
  "kinetic-vdf-rsa",
  "libp2p",
- "ml-dsa",
  "rand_core 0.6.4",
  "reqwest 0.13.4",
  "serde_json",
@@ -2957,11 +2962,11 @@ name = "kinetic-vdf-rsa"
 version = "0.2.0"
 dependencies = [
  "kinetic-core",
+ "kinetic-primitives",
  "kinetic-types",
  "num-bigint",
  "num-prime",
  "num-traits",
- "sha2 0.11.0",
 ]
 
 [[package]]
@@ -2970,8 +2975,8 @@ version = "0.2.0"
 dependencies = [
  "base64 0.23.1",
  "kinetic-kid",
+ "kinetic-primitives",
  "kinetic-types",
- "ml-dsa",
  "proptest",
  "rand 0.8.7",
  "serde",

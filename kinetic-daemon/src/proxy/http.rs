@@ -24,9 +24,9 @@ pub async fn handle_proxy_request(
 
     if req.method() == Method::CONNECT {
         let raw_host = req.uri().host().unwrap_or("").to_string();
-        let domain_name = kinetic_core::types::normalize_name(&raw_host);
+        let full_name = kinetic_core::types::normalize_name(&raw_host);
 
-        if !domain_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
+        if !full_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
             // Reject non-.kin CONNECT — we are not a general proxy
             return Ok(Response::builder()
                 .status(StatusCode::FORBIDDEN)
@@ -45,7 +45,7 @@ pub async fn handle_proxy_request(
                 Ok(upgraded) => {
                     if let Err(e) = handle_connect(
                         raw_host,
-                        domain_name,
+                        full_name,
                         upgraded,
                         root_ca,
                         leaf_cache,
@@ -85,7 +85,7 @@ pub async fn handle_proxy_request(
 
     let host_name = kinetic_core::types::normalize_name(&host);
     if !host_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
-        tracing::warn!("KIN-PROXY-037: Rejected proxy request for non-.kin domain: {}", host_name);
+        tracing::warn!("KIN-PROXY-037: Rejected proxy request for non-.kin name: {}", host_name);
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
             .body(axum::body::Body::from(
@@ -120,18 +120,18 @@ pub async fn handle_proxy_request(
 /// Forwards an HTTP request directly to a backend service by resolving the `.kin` name to an IP or PeerId.
 pub async fn forward_to_backend_direct(
     req: Request<Incoming>,
-    domain: &str,
+    name: &str,
     network_client: &NetworkClient,
     config: Arc<kinetic_core::config::KineticConfig>,
     node_peer_id: &str,
 ) -> Result<Response<axum::body::Body>, ProxyError> {
-    let mut current_domain = domain.to_string();
+    let mut current_name = name.to_string();
     let mut target_str = String::new();
     let mut recursion_count = 0;
 
     while recursion_count < 10 {
         recursion_count += 1;
-        let apex_name = kinetic_core::types::extract_apex_name(&current_domain);
+        let apex_name = kinetic_core::types::extract_apex_name(&current_name);
 
         // Resolve via DHT directly — NOT via system DNS
         let payload = network_client
@@ -166,27 +166,27 @@ pub async fn forward_to_backend_direct(
             }
         };
 
-        let mut subdomain = if current_domain == apex_name {
+        let mut subname = if current_name == apex_name {
             "@".to_string()
         } else {
-            let trimmed = current_domain.trim_end_matches(&format!(".{}", apex_name));
+            let trimmed = current_name.trim_end_matches(&format!(".{}", apex_name));
             trimmed.trim_end_matches('.').to_string()
         };
-        if subdomain.is_empty() {
-            subdomain = "@".to_string();
+        if subname.is_empty() {
+            subname = "@".to_string();
         }
 
         tracing::info!(
-            "Resolved Zone for {}. Looking for subdomain '{}'",
+            "Resolved Zone for {}. Looking for subname '{}'",
             apex_name,
-            subdomain
+            subname
         );
 
-        let records = match zone.records.get(&subdomain) {
+        let records = match zone.records.get(&subname) {
             Some(r) => r,
             None => {
-                tracing::warn!("KIN-PROXY-026: Proxy Error: Subdomain '{}' not found in zone", subdomain);
-                return Err(ProxyError::NameNotFound(current_domain.clone()));
+                tracing::warn!("KIN-PROXY-026: Proxy Error: Subname '{}' not found in zone", subname);
+                return Err(ProxyError::NameNotFound(current_name.clone()));
             }
         };
 
@@ -227,8 +227,8 @@ pub async fn forward_to_backend_direct(
 
         if let Some(target) = cname_target {
             if target.ends_with(kinetic_core::constants::NSP_SUFFIX) {
-                tracing::info!("CNAME recursion from {} to {}", current_domain, target);
-                current_domain = target;
+                tracing::info!("CNAME recursion from {} to {}", current_name, target);
+                current_name = target;
                 continue;
             } else {
                 tracing::info!(
@@ -243,8 +243,8 @@ pub async fn forward_to_backend_direct(
     }
 
     if target_str.is_empty() {
-        tracing::warn!("KIN-PROXY-035: No routable targets found in NrsZone for domain '{}'", domain);
-        return Err(ProxyError::NameNotFound(domain.to_string()));
+        tracing::warn!("KIN-PROXY-035: No routable targets found in NrsZone for name '{}'", name);
+        return Err(ProxyError::NameNotFound(name.to_string()));
     }
 
     let ip_str = target_str;
@@ -259,13 +259,13 @@ pub async fn forward_to_backend_direct(
         || ip_str.parse::<std::net::SocketAddr>().is_ok();
 
     if is_ip_or_socket {
-        return crate::proxy::route_ip::forward_to_ip(req, domain, &ip_str, node_peer_id, Arc::clone(&config)).await;
+        return crate::proxy::route_ip::forward_to_ip(req, name, &ip_str, node_peer_id, Arc::clone(&config)).await;
     } else if let Ok(peer_id) = ip_str.parse::<libp2p::PeerId>() {
-        return crate::proxy::route_p2p::forward_to_p2p(req, domain, peer_id, network_client).await;
+        return crate::proxy::route_p2p::forward_to_p2p(req, name, peer_id, network_client).await;
     } else {
         tracing::warn!(
             "KIN-PROXY-036: Unrecognized target format in DHT payload for '{}': {:?}",
-            domain, ip_str
+            name, ip_str
         );
         Err(ProxyError::InvalidPayload)
     }

@@ -14,7 +14,7 @@ use hyper::{Request, Response, body::Incoming};
 /// or bulk data transfers, developers must use IPFS (`route_ipfs.rs`) instead of P2P routing.
 pub async fn forward_to_p2p(
     req: Request<Incoming>,
-    domain: &str,
+    name: &str,
     mut peer_id: libp2p::PeerId,
     network_client: &NetworkClient,
 ) -> Result<Response<axum::body::Body>, ProxyError> {
@@ -62,7 +62,7 @@ pub async fn forward_to_p2p(
             }
         }
     }
-    headers.push(("host".into(), domain.into()));
+    headers.push(("host".into(), name.into()));
 
     let method = req.method().as_str().to_string();
     let path = req

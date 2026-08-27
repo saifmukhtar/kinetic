@@ -103,7 +103,7 @@ pub const DB_PREFIX_BANNED_PEER: &str =
 
 /// Storage key for persisting the latest processed Drand kyn number.
 pub const DB_PREFIX_LAST_DRAND: &[u8] =
-    concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_last_drand_kyn").as_bytes();
+    concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_last_kyn").as_bytes();
 
 /// Database namespace for the P2P ping proxy subsystem.
 pub const DB_NAME_PING: &str =

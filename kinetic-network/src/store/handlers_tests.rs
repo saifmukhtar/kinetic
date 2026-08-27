@@ -8,13 +8,13 @@ mod tests {
     use std::sync::Arc;
     use tempfile::tempdir;
 
-    fn dummy_reveal(name: &str, drand_kyn: u64) -> Reveal {
+    fn dummy_reveal(name: &str, kyn: u64) -> Reveal {
         Reveal {
             protocol_version: 1,
             name: name.to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            drand_kyn,
+            kyn,
             drand_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
@@ -117,12 +117,8 @@ mod tests {
         let name = "test.kinetic".to_string();
 
         let mut reveal = dummy_reveal(&name, 100);
-        use ml_dsa::Generate;
-        use ml_dsa::KeyExport;
-        use ml_dsa::Keypair;
-        use ml_dsa::SignatureEncoding;
-        let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
-        reveal.pubkey = ml_kp.verifying_key().to_bytes().to_vec();
+        let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
+        reveal.pubkey = ml_kp.public_key_bytes();
 
         store.reveals_by_name.put(
             name.clone(),
@@ -134,16 +130,14 @@ mod tests {
 
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
-            latest_drand_kyn: 49,
+            latest_kyn: 49,
             signature: vec![],
             authorization: None,
         };
 
         // Sign the stale heartbeat
-        use ml_dsa::signature::Signer;
         hb.signature = ml_kp
-            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT))
-            .to_vec();
+            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
         let result = store.handle_heartbeat(&hb);
         assert!(matches!(
@@ -183,9 +177,8 @@ mod tests {
         let name = "test.kin".to_string();
 
         let mut reveal = dummy_reveal(&name, 100);
-        use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
-        let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
-        reveal.pubkey = ml_kp.verifying_key().to_bytes().to_vec();
+        let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
+        reveal.pubkey = ml_kp.public_key_bytes();
 
         store.reveals_by_name.put(
             name.clone(),
@@ -195,15 +188,13 @@ mod tests {
 
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
-            latest_drand_kyn: 105,
+            latest_kyn: 105,
             signature: vec![],
             authorization: None,
         };
 
-        use ml_dsa::signature::Signer;
         hb.signature = ml_kp
-            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT))
-            .to_vec();
+            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
         let result = store.handle_heartbeat(&hb);
         assert!(matches!(

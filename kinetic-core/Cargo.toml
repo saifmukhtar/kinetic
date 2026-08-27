@@ -36,11 +36,12 @@ bip39 = "2.2.2"
 pbkdf2 = "0.13.0"
 drand-verify = "0.6.2"
 kinetic-kid = { version = "0.2.0", path = "../kinetic-kid" }
+kinetic-primitives = { version = "0.2.0", path = "../kinetic-primitives" }
 bytes = "1.6.0"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 rand_chacha = "0.10.0"
 rand_core = "0.10.1"
-ml-dsa = "0.1.1"
+
 aes-gcm = "0.10.3"
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
 

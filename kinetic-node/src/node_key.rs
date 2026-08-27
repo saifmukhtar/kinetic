@@ -33,7 +33,7 @@ pub fn load_or_generate_key(key_path: &Path) -> Keypair {
             if let Ok(encoded) = k.to_protobuf_encoding()
                 && let Err(e) = kinetic_core::secure_fs::write_secret(key_path, &encoded)
             {
-                tracing::warn!("Failed to save generated infrastructure identity: {}", e);
+                panic!("CRITICAL FATAL ERROR: Cannot save node identity to disk! Check folder permissions. Error: {}", e);
             }
             k
         })

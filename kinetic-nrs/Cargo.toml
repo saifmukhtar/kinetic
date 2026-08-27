@@ -36,4 +36,4 @@ axum = "0.7"
 proptest = "1.4"
 ed25519-dalek = { version = "2.0", features = ["rand_core"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
-ml-dsa = "0.1.1"
+kinetic-primitives = { path = "../kinetic-primitives" }

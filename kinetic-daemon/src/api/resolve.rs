@@ -169,10 +169,7 @@ pub async fn handle_resolve_kid(
         };
 
     // Try to resolve Manifest
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(format!("{}#manifest", did).as_bytes());
-    let manifest_key = hex::encode(hasher.finalize());
+    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(format!("{}#manifest", did).as_bytes()));
 
     let mut response = serde_json::json!({
         "kid_document": kid_doc,

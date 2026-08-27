@@ -36,7 +36,7 @@ pub async fn start_dynamic_routing_publisher(
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            kyn,
+            kyn: kyn,
             signature: vec![],
         };
 

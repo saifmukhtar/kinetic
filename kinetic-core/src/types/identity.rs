@@ -36,7 +36,7 @@ pub use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_keypair(
     key_path: &std::path::Path,
-) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
+) -> Result<kinetic_primitives::keys::KineticKeypair, crate::error::IdentityError> {
     use std::fs;
 
     if key_path.exists() {
@@ -44,8 +44,8 @@ pub fn load_keypair(
         if bytes.len() == 32 {
             let mut array = [0u8; 32];
             array.copy_from_slice(&bytes);
-            return Ok(ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed(
-                (&array).into(),
+            return Ok(kinetic_primitives::keys::KineticKeypair::from_seed(
+                &array,
             ));
         } else {
             return Err(crate::error::IdentityError::CorruptedIdentityFile(format!(
@@ -63,7 +63,7 @@ pub fn load_keypair(
 pub fn load_encrypted_keypair(
     path: &std::path::Path,
     password: &str,
-) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
+) -> Result<kinetic_primitives::keys::KineticKeypair, crate::error::IdentityError> {
     use aes_gcm::{
         Aes256Gcm, Nonce,
         aead::{Aead, KeyInit},
@@ -105,8 +105,8 @@ pub fn load_encrypted_keypair(
         if decrypted.len() == 32 {
             let mut array = [0u8; 32];
             array.copy_from_slice(&decrypted);
-            return Ok(ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed(
-                (&array).into(),
+            return Ok(kinetic_primitives::keys::KineticKeypair::from_seed(
+                &array,
             ));
         } else {
             return Err(crate::error::IdentityError::CorruptedIdentityFile(format!(
@@ -145,13 +145,12 @@ pub fn save_keypair_from_mnemonic(
     key_path: &std::path::Path,
     phrase: &str,
     network_salt: &[u8; 32],
-) -> Result<ml_dsa::SigningKey<ml_dsa::MlDsa65>, crate::error::IdentityError> {
+) -> Result<kinetic_primitives::keys::KineticKeypair, crate::error::IdentityError> {
     use bip39::{Language, Mnemonic};
-    use ml_dsa::KeyExport;
+
     use pbkdf2::pbkdf2_hmac;
     use sha2::Sha512;
     use std::fs;
-    use std::path::PathBuf;
     use zeroize::Zeroize;
 
     let mnemonic = Mnemonic::parse_in(Language::English, phrase)
@@ -173,7 +172,7 @@ pub fn save_keypair_from_mnemonic(
 
     pbkdf2_hmac::<Sha512>(&seed, &salt, iterations, &mut derived);
 
-    let signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&derived).into());
+    let signing_key = kinetic_primitives::keys::KineticKeypair::from_seed(&derived);
 
     // Securely wipe intermediate seed and derived buffers
     seed.zeroize();
@@ -295,7 +294,7 @@ mod tests {
             save_keypair_from_mnemonic(&valid_path, phrase, crate::constants::NETWORK_SALT)
                 .unwrap();
         let loaded_key = load_keypair(&valid_path).unwrap();
-        use ml_dsa::KeyExport;
+
         assert_eq!(saved_key.to_bytes(), loaded_key.to_bytes());
 
         // 5. Encrypted Keypair logic (manual encryption simulation)
@@ -331,7 +330,7 @@ mod tests {
         let loaded_encrypted = load_encrypted_keypair(&encrypted_path, "strong_password").unwrap();
         assert_eq!(
             loaded_encrypted.to_bytes(),
-            ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&raw_seed).into()).to_bytes()
+            kinetic_primitives::keys::KineticKeypair::from_seed(&raw_seed).to_bytes()
         );
 
         let bad_pass = load_encrypted_keypair(&encrypted_path, "wrong_password");

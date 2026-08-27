@@ -20,14 +20,14 @@ impl KineticRecordStore {
         if let Some(reveal) = reveal_ref {
             let paused_kyns =
                 if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                    state.paused_kyns_since(reveal.drand_kyn)
+                    state.paused_kyns_since(reveal.kyn)
                 } else {
                     0
                 };
 
             let effective_age = self
-                .current_drand_kyn
-                .saturating_sub(reveal.drand_kyn)
+                .current_kyn
+                .saturating_sub(reveal.kyn)
                 .saturating_sub(paused_kyns);
 
             if effective_age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
@@ -42,7 +42,7 @@ impl KineticRecordStore {
             && let Err(e) = super::verification::verify_reveal(
                 reveal,
                 &self.storage,
-                self.current_drand_kyn,
+                self.current_kyn,
                 &self.vdf_engine,
             )
         {
@@ -57,9 +57,9 @@ impl KineticRecordStore {
                     .last_heartbeats_by_name
                     .get(record.name())
                     .copied()
-                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.drand_kyn));
+                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.kyn));
 
-                let hb_age = self.current_drand_kyn.saturating_sub(last_hb_kyn);
+                let hb_age = self.current_kyn.saturating_sub(last_hb_kyn);
 
                 let (existing_reveal, new_reveal) = match (existing_record, record) {
                     (
@@ -157,7 +157,7 @@ impl KineticRecordStore {
                 }
             } else {
                 let existing_pulse = match &existing_record {
-                    kinetic_core::types::NameRecord::Standard(r) => r.drand_kyn,
+                    kinetic_core::types::NameRecord::Standard(r) => r.kyn,
                     kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
                         kinetic_core::types::clock::unix_secs_to_kyn(
                             *granted_at,
@@ -168,7 +168,7 @@ impl KineticRecordStore {
                     kinetic_core::types::NameRecord::Infra { .. } => 0,
                 };
                 let new_pulse = match &record {
-                    kinetic_core::types::NameRecord::Standard(r) => r.drand_kyn,
+                    kinetic_core::types::NameRecord::Standard(r) => r.kyn,
                     kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
                         kinetic_core::types::clock::unix_secs_to_kyn(
                             *granted_at,
@@ -273,8 +273,8 @@ impl KineticRecordStore {
         }
 
         let current_kyn = std::cmp::max(
-            self.current_drand_kyn,
-            reveal_ref.map_or(0, |r| r.drand_kyn),
+            self.current_kyn,
+            reveal_ref.map_or(0, |r| r.kyn),
         );
         self.last_heartbeats_by_name
             .insert(name.to_string(), current_kyn);
@@ -307,12 +307,12 @@ impl KineticRecordStore {
             .copied()
             .unwrap_or(0);
 
-        if heartbeat.latest_drand_kyn == existing_pulse {
+        if heartbeat.latest_kyn == existing_pulse {
             // Normal duplicate via DHT gossip, ignore it silently to prevent log spam and CPU waste
             return Ok(());
         }
 
-        if heartbeat.latest_drand_kyn < existing_pulse {
+        if heartbeat.latest_kyn < existing_pulse {
             let err = KineticStoreError::StaleHeartbeat;
             err.log_warning("KIN-STORE-020", &heartbeat.name, "Rejecting Heartbeat:");
             return Err(err);
@@ -328,28 +328,12 @@ impl KineticRecordStore {
         };
 
         let signable = heartbeat.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-        use ml_dsa::KeyInit;
-        use ml_dsa::signature::Verifier;
-
         let is_valid_signature = if let Some(auth) = &heartbeat.authorization {
-            let primary_pubkey =
-                ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_record.pubkey())
-                    .map_err(|_| {
-                    let err = KineticStoreError::InvalidPublicKey;
-                    err.log_warning("KIN-STORE-013", &heartbeat.name, "Rejecting Heartbeat:");
-                    err
-                })?;
-
-            let auth_signable = auth.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            let auth_sig =
-                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth.owner_signature.as_slice())
-                    .map_err(|_| {
-                        let err = KineticStoreError::DelegatedAuthorizationInvalid;
-                        err.log_warning("KIN-STORE-044", &heartbeat.name, "Rejecting Heartbeat:");
-                        err
-                    })?;
-
-            if primary_pubkey.verify(&auth_signable, &auth_sig).is_err() {
+            if kinetic_primitives::verify_mldsa(
+                existing_record.pubkey(),
+                &auth.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+                &auth.owner_signature,
+            ).is_err() {
                 let err = KineticStoreError::DelegatedAuthorizationInvalid;
                 err.log_warning("KIN-STORE-045", &heartbeat.name, "Rejecting Heartbeat:");
                 return Err(err);
@@ -372,22 +356,12 @@ impl KineticRecordStore {
                 err
             })?;
 
-            let sig =
-                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(heartbeat.signature.as_slice())
-                    .map_err(|_| {
-                        let err = KineticStoreError::MalformedSignature;
-                        err.log_warning("KIN-STORE-014", &heartbeat.name, "Rejecting Heartbeat:");
-                        err
-                    })?;
-
             let mut verified = false;
             for ck in &kid_doc.controller_keys {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                 if ck.key_type == "ML-DSA-65"
                     && let Ok(pk_bytes) = b64_url.decode(&ck.public_key)
-                    && let Ok(vk) =
-                        ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
-                    && vk.verify(&signable, &sig).is_ok()
+                    && kinetic_primitives::verify_mldsa(&pk_bytes, &signable, &heartbeat.signature).is_ok()
                 {
                     verified = true;
                     break;
@@ -395,22 +369,11 @@ impl KineticRecordStore {
             }
             verified
         } else {
-            let pubkey =
-                ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(existing_record.pubkey())
-                    .map_err(|_| {
-                    let err = KineticStoreError::InvalidPublicKey;
-                    err.log_warning("KIN-STORE-013", &heartbeat.name, "Rejecting Heartbeat:");
-                    err
-                })?;
-            let sig =
-                ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(heartbeat.signature.as_slice())
-                    .map_err(|_| {
-                        let err = KineticStoreError::MalformedSignature;
-                        err.log_warning("KIN-STORE-014", &heartbeat.name, "Rejecting Heartbeat:");
-                        err
-                    })?;
-
-            pubkey.verify(&signable, &sig).is_ok()
+            kinetic_primitives::verify_mldsa(
+                existing_record.pubkey(),
+                &signable,
+                &heartbeat.signature,
+            ).is_ok()
         };
 
         if !is_valid_signature {
@@ -419,7 +382,7 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        if heartbeat.latest_drand_kyn > self.current_drand_kyn + 2 {
+        if heartbeat.latest_kyn > self.current_kyn + 2 {
             let err = KineticStoreError::FutureHeartbeat;
             err.log_warning(
                 "KIN-STORE-047",
@@ -432,9 +395,9 @@ impl KineticRecordStore {
         // Monotonicity check already performed at the top of the function.
 
         self.last_heartbeats_by_name
-            .insert(heartbeat.name.clone(), heartbeat.latest_drand_kyn);
+            .insert(heartbeat.name.clone(), heartbeat.latest_kyn);
         let hb_key = [KRS_HB_PREFIX, heartbeat.name.as_bytes()].concat();
-        let hb_val = heartbeat.latest_drand_kyn.to_be_bytes().to_vec();
+        let hb_val = heartbeat.latest_kyn.to_be_bytes().to_vec();
 
         let storage = self.storage.clone();
         crate::event_loop::utils::spawn(async move {

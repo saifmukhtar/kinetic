@@ -1,4 +1,4 @@
-//! Resolution pipeline for .kin domains, including reserved name interception, reveal verification, KID authentication, and SSRF filtering.
+//! Resolution pipeline for .kin names, including reserved name interception, reveal verification, KID authentication, and SSRF filtering.
 
 use hickory_proto::rr::{Name, RData, Record};
 use hickory_server::authority::MessageResponseBuilder;
@@ -10,7 +10,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
-/// Resolves a `.kin` domain by querying the daemon API and checking the local cache.
+/// Resolves a `.kin` name by querying the daemon API and checking the local cache.
 /// Returns standard DNS records (A, AAAA, CNAME, TXT) converted from the Kinetic DHT `NrsZone`.
 #[allow(clippy::too_many_arguments)]
 pub async fn resolve_kinetic<R: ResponseHandler>(
@@ -19,8 +19,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
     query_name: &str,
     mut header: hickory_proto::op::Header,
     builder: MessageResponseBuilder<'_>,
-    domain_name: &str,
-    apex_domain: &str,
+    full_name: &str,
+    apex_name: &str,
     cache: &Cache<String, Option<Vec<u8>>>,
     api_url: &str,
     http_client: &reqwest::Client,
@@ -28,7 +28,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
     let query = request.query();
 
     // Intercept Category 1 RESERVED_NAMES (but only resolve localhost directly)
-    let parts: Vec<&str> = apex_domain.split('.').collect();
+    let parts: Vec<&str> = apex_name.split('.').collect();
     let is_reserved = !parts.is_empty() && kinetic_core::types::RESERVED_NAMES.contains(&parts[0]);
 
     if is_reserved {
@@ -79,17 +79,17 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
     let api_url_clone = api_url.to_string();
     let http_client_clone = http_client.clone();
-    let apex_domain_clone = apex_domain.to_string();
+    let apex_name_clone = apex_name.to_string();
     let is_reserved_clone = is_reserved;
 
     let cache_result = cache
-        .try_get_with(apex_domain.to_string(), async move {
+        .try_get_with(apex_name.to_string(), async move {
             info!(
                 "Cache miss for apex: {}. Hitting daemon API...",
-                apex_domain_clone
+                apex_name_clone
             );
 
-            let url = format!("{}/api/resolve/{}", api_url_clone, apex_domain_clone);
+            let url = format!("{}/api/resolve/{}", api_url_clone, apex_name_clone);
             match http_client_clone.get(&url).send().await {
                 Ok(mut resp) => {
                     if resp.status().is_success() {
@@ -103,19 +103,19 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                             payload.extend_from_slice(&chunk);
                         }
                         if limit_exceeded {
-                            warn!(error_code = "KIN-NRS-001", "API response exceeded 100KB limit for {}", apex_domain_clone);
+                            warn!(error_code = "KIN-NRS-001", "API response exceeded 100KB limit for {}", apex_name_clone);
                             Ok::<_, Arc<anyhow::Error>>(None)
                         } else {
                             if !is_reserved_clone {
                                 match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
-                                    Ok(domain_record) => {
-                                        if domain_record.verify_signature(kinetic_core::constants::NETWORK_SALT).is_err() {
-                                            warn!(error_code = "KIN-NRS-002", "Rejecting .kin resolution: record signature invalid for {}", apex_domain_clone);
+                                    Ok(name_record) => {
+                                        if name_record.verify_signature(kinetic_core::constants::NETWORK_SALT).is_err() {
+                                            warn!(error_code = "KIN-NRS-002", "Rejecting .kin resolution: record signature invalid for {}", apex_name_clone);
                                             return Err(Arc::new(anyhow::anyhow!("Invalid signature")));
                                         }
                                     }
                                     Err(e) => {
-                                        warn!(error_code = "KIN-NRS-003", "Invalid NameRecord format for {}: {}", apex_domain_clone, e);
+                                        warn!(error_code = "KIN-NRS-003", "Invalid NameRecord format for {}: {}", apex_name_clone, e);
                                         return Err(Arc::new(anyhow::anyhow!("Invalid format")));
                                     }
                                 }
@@ -142,14 +142,14 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
             info!("Successfully resolved .kin from Cache/DHT");
 
             match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload_bytes) {
-                Ok(domain_record) => {
-                    match kinetic_core::types::NrsZone::parse_payload(domain_record.payload()) {
+                Ok(name_record) => {
+                    match kinetic_core::types::NrsZone::parse_payload(name_record.payload()) {
                         Ok(zone) => {
                             if let Some(records) = zone.records.get("@") {
                                 for record in records {
                                     if let kinetic_core::types::NrsRecord::KID(did) = record {
                                         info!(
-                                            "E2E Auth: Domain specifies KID: {}. Fetching from daemon...",
+                                            "E2E Auth: Name specifies KID: {}. Fetching from daemon...",
                                             did
                                         );
                                         let kid_url =
@@ -161,7 +161,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 {
                                                     let mut matched = false;
                                                     use base64::Engine;
-                                                    let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(domain_record.pubkey());
+                                                    let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(name_record.pubkey());
 
                                                     if let Some(keys) =
                                                         kid_json["kid_document"]["controller_keys"]
@@ -233,12 +233,12 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 }
                             }
 
-                            let subdomain = if domain_name == apex_domain {
+                            let subname = if full_name == apex_name {
                                 "@".to_string()
                             } else {
-                                let mut sub = domain_name
-                                    .strip_suffix(&format!(".{}", apex_domain))
-                                    .unwrap_or(domain_name)
+                                let mut sub = full_name
+                                    .strip_suffix(&format!(".{}", apex_name))
+                                    .unwrap_or(full_name)
                                     .to_string();
                                 if sub.ends_with('.') {
                                     sub.pop();
@@ -248,7 +248,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
                             if let Some(records) = zone
                                 .records
-                                .get(&subdomain)
+                                .get(&subname)
                                 .or_else(|| zone.records.get("*"))
                             {
                                 let name = match Name::from_str(query_name) {
@@ -350,7 +350,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             if is_blocked_cname {
                                                 warn!(
                                                     error_code = "KIN-NRS-008",
-                                                    "Blocked SSRF attempt: CNAME record points to forbidden local/internal domain {}",
+                                                    "Blocked SSRF attempt: CNAME record points to forbidden local/internal name {}",
                                                     target
                                                 );
                                                 continue;
@@ -448,7 +448,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                             } else {
                                 warn!(
                                     error_code = "KIN-NRS-011",
-                                    "No records found for subdomain: {}", subdomain
+                                    "No records found for subname: {}", subname
                                 );
                             }
                         }

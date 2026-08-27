@@ -1,5 +1,5 @@
 use super::*;
-use hyper::{Request, Response, body::Incoming};
+use hyper::{Request, Response};
 
 /// Rewrites and forwards the proxy request to a local IPFS gateway.
 pub async fn forward_to_ipfs<B>(

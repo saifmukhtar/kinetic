@@ -3,12 +3,11 @@
 use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::{KineticConfig, get_zones_dir};
 use kinetic_core::traits::VdfEngine;
-use kinetic_core::types::{Commitment, Reveal, load_keypair};
-use ml_dsa::signature::Signer;
-use ml_dsa::{KeyExport, Keypair, SignatureEncoding};
+use kinetic_core::types::{Reveal, load_keypair};
+
 use reqwest::Client;
 use serde_json::json;
-use sha2::Digest;
+
 use std::time::Duration;
 use tracing::{info, warn};
 
@@ -55,22 +54,17 @@ pub async fn handle(
     // Construct commitment: H(name || salt || drand_signature || pubkey)
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
-    let pubkey = keypair.verifying_key().to_bytes();
+    let pubkey = keypair.public_key_bytes();
 
-    let mut drand_hasher = sha2::Sha256::new();
-    drand_hasher.update(hex::decode(&drand_data.signature).unwrap());
-    let mut drand_rand = [0u8; 32];
-    drand_rand.copy_from_slice(&drand_hasher.finalize());
-
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(fqdn.as_bytes());
-    hasher.update(salt);
-    hasher.update(drand_rand);
-    hasher.update(pubkey);
-    let mut hash = [0u8; 32];
-    hash.copy_from_slice(&hasher.finalize());
-
-    let challenge = Commitment { hash };
+    let drand_sig_bytes = hex::decode(&drand_data.signature)
+        .map_err(|_| anyhow::anyhow!("Received corrupted Drand signature from the beacon"))?;
+    let challenge = kinetic_core::types::Commitment::derive(
+        kinetic_core::constants::NETWORK_SALT,
+        &fqdn,
+        &salt,
+        &drand_sig_bytes,
+        &pubkey,
+    );
 
     // Phase 4.1: POST the commitment *before* generating the VDF proof
     info!("Broadcasting Commitment to DHT (Phase 1 of 2)...");
@@ -220,7 +214,7 @@ pub async fn handle(
         name: fqdn.clone(),
         payload,
         salt,
-        drand_kyn: drand_data.kyn,
+        kyn: drand_data.kyn,
         drand_signature: drand_data.signature.clone(),
         iterations: actual_iterations,
         vdf_proof: kinetic_core::types::VdfProof {
@@ -234,7 +228,7 @@ pub async fn handle(
     };
 
     let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-    reveal.signature = keypair.sign(&signable).to_bytes().to_vec();
+    reveal.signature = keypair.sign(&signable);
 
     // 4. Submit to local Daemon via REST API
     info!("Submitting fully signed Reveal tuple to local Kinetic Daemon...");

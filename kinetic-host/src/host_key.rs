@@ -16,7 +16,7 @@ pub fn load_or_generate_host_key(key_path: &PathBuf) -> Keypair {
             if let Ok(encoded) = k.to_protobuf_encoding()
                 && let Err(e) = kinetic_core::secure_fs::write_secret(key_path, &encoded)
             {
-                tracing::warn!("KIN-HOST-012: Failed to persist new static infrastructure identity to disk: {}", e);
+                panic!("CRITICAL FATAL ERROR: Cannot save host.key to disk! Check folder permissions. Error: {}", e);
             }
             k
         })

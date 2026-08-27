@@ -6,7 +6,6 @@ use axum::{
     extract::{Extension, Path, State},
     http::StatusCode,
 };
-use tracing::info;
 
 /// Represents the status of a reserved name in the local network configuration.
 #[derive(serde::Serialize)]
@@ -200,9 +199,7 @@ pub async fn handle_publish_zone(
         }
     };
 
-    use ml_dsa::KeyExport;
-    use ml_dsa::Keypair;
-    let pubkey_bytes = keypair.verifying_key().to_bytes().to_vec();
+    let pubkey_bytes = keypair.public_key_bytes();
     if record.pubkey() != pubkey_bytes.as_slice() {
         return Err((
             StatusCode::CONFLICT,
@@ -225,9 +222,7 @@ pub async fn handle_publish_zone(
         kinetic_core::types::NameRecord::Standard(r) => {
             r.payload = payload;
             let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            use ml_dsa::SignatureEncoding;
-            use ml_dsa::signature::Signer;
-            r.signature = keypair.sign(&signable).to_bytes().to_vec();
+            r.signature = keypair.sign(&signable);
         }
         kinetic_core::types::NameRecord::Prime { name, payload: p, signature: s, .. }
         | kinetic_core::types::NameRecord::Infra { name, payload: p, signature: s, .. } => {
@@ -239,9 +234,7 @@ pub async fn handle_publish_zone(
             signable.extend_from_slice(&payload);
             signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
             
-            use ml_dsa::SignatureEncoding;
-            use ml_dsa::signature::Signer;
-            *s = keypair.sign(&signable).to_bytes().to_vec();
+            *s = keypair.sign(&signable);
         }
     }
 

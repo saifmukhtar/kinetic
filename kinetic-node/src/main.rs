@@ -197,8 +197,8 @@ async fn run_node() -> Result<()> {
         }
     };
 
-    let initial_drand_kyn = initial_kyn.kyn;
-    let (drand_kyn_tx, drand_kyn_rx) = watch::channel(initial_drand_kyn);
+    let initial_kyn = initial_kyn.kyn;
+    let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity
     let key_path = kinetic_core::config::get_base_dir().join("node.key");
@@ -245,7 +245,7 @@ async fn run_node() -> Result<()> {
         enable_mdns: config.network.enable_mdns,
         enable_upnp: config.network.enable_upnp,
         enable_relay_server: config.network.enable_relay_server,
-        initial_drand_kyn,
+        initial_kyn,
         external_address: config
             .network
             .external_address
@@ -280,7 +280,7 @@ async fn run_node() -> Result<()> {
         network_config,
         local_key,
         storage.clone(),
-        drand_kyn_rx,
+        kyn_rx,
         None,
         Some(gossip_tx),
         vdf_engine.clone(),
@@ -299,7 +299,7 @@ async fn run_node() -> Result<()> {
 
     let gossip_gov_path = gov_state_path.clone();
     let drand_client_gossip = drand_client.clone();
-    let drand_kyn_tx_gossip = drand_kyn_tx.clone();
+    let kyn_tx_gossip = kyn_tx.clone();
     let gossip_storage = storage.clone();
 
     kinetic_network::client::telemetry::start_telemetry_service(
@@ -346,7 +346,7 @@ async fn run_node() -> Result<()> {
                     && (kyn.kyn > latest.kyn || latest.is_unavailable)
                     && drand_client_gossip.cache_kyn(&kyn).is_ok()
                 {
-                    let _ = drand_kyn_tx_gossip.send(kyn.kyn);
+                    let _ = kyn_tx_gossip.send(kyn.kyn);
                 }
             }
         }
@@ -391,7 +391,7 @@ async fn run_node() -> Result<()> {
                 && !kyn.is_unavailable
                 && !kyn.is_from_cache
             {
-                let _ = drand_kyn_tx.send(kyn.kyn);
+                let _ = kyn_tx.send(kyn.kyn);
                 // Broadcast to P2P network if we are fetching HTTP
                 if !p2p_only && let Ok(payload) = serde_json::to_vec(&kyn) {
                     let mut envelope = vec![kinetic_types::network::NetworkOpcode::Drand as u8];

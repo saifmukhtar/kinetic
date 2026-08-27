@@ -118,8 +118,7 @@ impl RawKyn {
         }
 
         // 2. Bind the randomness to the signature: randomness MUST equal SHA-256(signature).
-        use sha2::{Digest, Sha256};
-        let expected = Sha256::digest(&sig_bytes);
+        let expected = kinetic_primitives::sha256_hash(&sig_bytes);
         match hex::decode(&self.randomness) {
             Ok(r) => r.as_slice() == expected.as_slice(),
             Err(_) => false,

@@ -144,16 +144,14 @@ pub fn start_republisher(
                             tokio::time::sleep(std::time::Duration::from_millis(i as u64 * 100))
                                 .await;
 
-                            use sha2::Digest;
-                            let mut hasher = sha2::Sha256::new();
-                            hasher.update(reveal.name.as_bytes());
-                            hasher.update(reveal.salt);
-                            if let Ok(drand_rand) = hex::decode(&reveal.drand_signature) {
-                                hasher.update(&drand_rand);
-                                hasher.update(&reveal.pubkey);
-                                let mut hash = [0u8; 32];
-                                hash.copy_from_slice(&hasher.finalize());
-                                let commitment = kinetic_core::types::Commitment { hash };
+                            if let Ok(drand_sig_bytes) = hex::decode(&reveal.drand_signature) {
+                                let commitment = kinetic_core::types::Commitment::derive(
+                                    kinetic_core::constants::NETWORK_SALT,
+                                    &reveal.name,
+                                    &reveal.salt,
+                                    &drand_sig_bytes,
+                                    &reveal.pubkey,
+                                );
 
                                 if let Ok(commit_bytes) = serde_json::to_vec(&commitment) {
                                     tracing::info!(

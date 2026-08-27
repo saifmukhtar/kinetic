@@ -36,7 +36,7 @@ pub enum KineticStoreError {
     /// Lost the PoW XOR tie-break against an existing record.
     #[error("lost the XOR tie-break against an existing record")]
     TieBroken,
-    /// Insufficient iterations to steal this domain name.
+    /// Insufficient iterations to steal this name.
     #[error("insufficient VDF iterations to steal this name")]
     InsufficientIterations,
     /// No existing reveal was found for the requested name.
@@ -75,8 +75,8 @@ pub enum KineticStoreError {
         /// The derived Kademlia DHT key of the missing commitment.
         commit_key: Vec<u8>,
     },
-    /// Invalid apex domain name
-    #[error("the provided name is not a valid kinetic apex domain")]
+    /// Invalid apex name
+    #[error("the provided name is not a valid kinetic apex name")]
     InvalidName,
     /// The delegated manifest does not grant the required capability.
     #[error("delegated capability missing from authorized manifest")]
@@ -87,9 +87,9 @@ pub enum KineticStoreError {
     /// Drand BLS signature failed math verification
     #[error("drand signature failed BLS verification")]
     InvalidDrandSignature,
-    /// Domain not found locally
-    #[error("domain not found locally")]
-    DomainNotFound,
+    /// Name not found locally
+    #[error("name not found locally")]
+    NameNotFound,
     /// KID document failed internal validation
     #[error("kid document failed validation")]
     InvalidKidDocument,
@@ -108,7 +108,7 @@ pub enum KineticStoreError {
     /// Heartbeat timestamp is in the future
     #[error("heartbeat timestamp is too far in the future")]
     FutureHeartbeat,
-    /// Domain type is immutable
+    /// Name type is immutable
     #[error("Prime and Infra names are immutable and cannot be stolen")]
     ImmutableName,
     /// KID document missing
@@ -153,7 +153,7 @@ impl KineticStoreError {
             Self::DelegatedCapabilityMissing => "KIN-NET-022",
             Self::DelegatedAuthorizationInvalid => "KIN-NET-023",
             Self::InvalidDrandSignature => "KIN-NET-024",
-            Self::DomainNotFound => "KIN-NET-025",
+            Self::NameNotFound => "KIN-NET-025",
             Self::InvalidKidDocument => "KIN-NET-026",
             Self::GenesisBindingFailed => "KIN-NET-027",
             Self::UnauthorizedUpdate => "KIN-NET-028",
@@ -192,7 +192,7 @@ impl KineticStoreError {
             Self::InsufficientIterations => {
                 "Insufficient VDF iterations to override existing record".to_string()
             }
-            Self::RevealNotFound => "No reveal record found for domain".to_string(),
+            Self::RevealNotFound => "No reveal record found for name".to_string(),
             Self::InvalidKidSignature => "KID document signature verification failed".to_string(),
             Self::InvalidManifestSignature => "Manifest signature verification failed".to_string(),
             Self::UnknownRecordType => "Record payload prefix is unrecognized".to_string(),
@@ -206,7 +206,7 @@ impl KineticStoreError {
             Self::MissingCommitment { .. } => {
                 "No prior commitment found in DHT for this reveal".to_string()
             }
-            Self::InvalidName => "Name is not a valid Kinetic apex domain".to_string(),
+            Self::InvalidName => "Name is not a valid Kinetic apex name".to_string(),
             Self::NetworkHalted => "Network Registration Halted".to_string(),
             Self::DelegatedCapabilityMissing => {
                 "The delegated manifest does not grant the required capability for this action."
@@ -217,7 +217,7 @@ impl KineticStoreError {
                     .to_string()
             }
             Self::InvalidDrandSignature => "Drand signature math verification failed".to_string(),
-            Self::DomainNotFound => "Active record missing for this domain".to_string(),
+            Self::NameNotFound => "Active record missing for this name".to_string(),
             Self::InvalidKidDocument => "KID document failed self-verification".to_string(),
             Self::GenesisBindingFailed => "KID genesis binding failed on first publish".to_string(),
             Self::UnauthorizedUpdate => {
@@ -249,7 +249,7 @@ impl KineticStoreError {
             | Self::InsufficientIterations
             | Self::VdfExpired { .. }
             | Self::RevealNotFound
-            | Self::DomainNotFound => Severity::Info,
+            | Self::NameNotFound => Severity::Info,
             Self::PayloadTooLarge | Self::UnknownRecordType | Self::RateLimited => {
                 Severity::Warning
             }

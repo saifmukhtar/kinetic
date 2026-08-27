@@ -5,9 +5,8 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use crate::error::{
-    ConfigError, DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError,
-    NrsError, PublishError, RecordRejectReason, RegistrationError, ResolutionError, StorageError,
-    VdfError,
+    DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError,
+    NrsError, PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
 };
 use serde::{Deserialize, Serialize};
 

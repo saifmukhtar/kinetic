@@ -1,10 +1,9 @@
 use ed25519_dalek::{Signer, SigningKey};
 use kinetic_core::traits::VdfEngine;
-use kinetic_core::types::{Commitment, Reveal};
+use kinetic_core::types::Reveal;
 use kinetic_network::event_loop::NetworkEventLoop;
 use kinetic_vdf_rsa::RsaVdfEngine;
 
-use sha2::{Digest, Sha256};
 
 #[test]
 #[ignore = "Slow cryptographic test: takes >60s to compute VDF proof"]
@@ -12,9 +11,9 @@ fn test_010_xor_eclipse() {
     let keypair = SigningKey::from_bytes(&[1u8; 32]);
     let pubkey = keypair.verifying_key();
 
-    let drand_kyn = 50u64;
+    let kyn = 50u64;
     let mut kyn_bytes = [0u8; 32];
-    kyn_bytes[..8].copy_from_slice(&drand_kyn.to_be_bytes());
+    kyn_bytes[..8].copy_from_slice(&kyn.to_be_bytes());
 
     let drand_signature = hex::encode(kyn_bytes);
 
@@ -23,15 +22,13 @@ fn test_010_xor_eclipse() {
     let iterations = consensus_math.required_iterations(name);
 
     // Generate REAL VDF Proof
-    let mut hasher = Sha256::new();
-    hasher.update(name.as_bytes());
-    hasher.update([0u8; 32]);
-    hasher.update(kyn_bytes);
-    hasher.update(pubkey.as_bytes());
-    let mut hash = [0u8; 32];
-    hash.copy_from_slice(&hasher.finalize());
-
-    let challenge = Commitment { hash };
+    let challenge = kinetic_core::types::Commitment::derive(
+        kinetic_core::constants::NETWORK_SALT,
+        &name,
+        &[0u8; 32],
+        &kyn_bytes,
+        pubkey.as_bytes(),
+    );
     let engine = RsaVdfEngine::new();
     let real_vdf_proof = engine.evaluate(&challenge, iterations).unwrap();
 
@@ -39,7 +36,7 @@ fn test_010_xor_eclipse() {
         name: name.to_string(),
         salt: [0u8; 32],
         drand_signature: drand_signature.clone(),
-        drand_kyn,
+        kyn,
         iterations,
         vdf_proof: real_vdf_proof,
         pubkey: pubkey.to_bytes().to_vec(),
@@ -71,7 +68,7 @@ fn test_010_xor_eclipse() {
     let winner = NetworkEventLoop::xor_tie_breaker(
         name,
         vec![real_bytes.clone(), fake_bytes.clone()],
-        drand_kyn,
+        kyn,
     );
 
     // The tie breaker should pick the REAL bytes, because the fake bytes fail VDF verification.

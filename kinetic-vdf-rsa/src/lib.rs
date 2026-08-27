@@ -198,17 +198,13 @@ impl VdfEngine for RsaVdfEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sha2::{Digest, Sha256};
     use std::time::Instant;
 
     #[test]
     fn test_blockwise_prover_and_verifier() {
         let engine = RsaVdfEngine::new();
 
-        let mut hasher = Sha256::new();
-        hasher.update(b"kinetic-blockwise-test");
-        let mut hash = [0u8; 32];
-        hash.copy_from_slice(&hasher.finalize());
+        let hash = kinetic_primitives::sha256_hash(b"kinetic-blockwise-test");
         let challenge = Commitment { hash };
 
         let iterations = 10_000;

@@ -152,8 +152,8 @@ async fn run_host() -> Result<()> {
         }
     };
 
-    let initial_drand_kyn = initial_kyn.kyn;
-    let (drand_kyn_tx, drand_kyn_rx) = watch::channel(initial_drand_kyn);
+    let initial_kyn = initial_kyn.kyn;
+    let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity (The Permanent Host Key)
     let key_path = kinetic_core::config::get_base_dir().join("host.key");
@@ -165,7 +165,7 @@ async fn run_host() -> Result<()> {
     info!("Mining PoW S/Kademlia identity for current epoch...");
     let local_key = tokio::task::spawn_blocking(move || {
         kinetic_network::pow::mine_sybil_keypair(
-            initial_drand_kyn,
+            initial_kyn,
             kinetic_core::constants::POW_DIFFICULTY_BITS,
         )
     })
@@ -208,7 +208,7 @@ async fn run_host() -> Result<()> {
             .map(Into::into)
             .collect(),
         enable_mdns: config.network.enable_mdns,
-        initial_drand_kyn,
+        initial_kyn,
         external_address: config
             .network
             .external_address
@@ -245,7 +245,7 @@ async fn run_host() -> Result<()> {
         network_config.clone(),
         local_key.clone(),
         storage.clone(),
-        drand_kyn_rx.clone(),
+        kyn_rx.clone(),
         Some(incoming_tx.clone()),
         Some(gossip_tx.clone()),
         vdf_engine.clone(),
@@ -289,17 +289,17 @@ async fn run_host() -> Result<()> {
         local_peer_id_str.clone(),
         host_peer_id.to_string(),
         network_client.clone(),
-        drand_kyn_rx.clone(),
+        kyn_rx.clone(),
     ));
 
     tokio::spawn(epoch::start_drand_heartbeat(
         drand_client.clone(),
-        drand_kyn_tx,
+        kyn_tx,
         local_peer_id,
         local_peer_id_str.clone(),
         network_loop_handle.clone(),
         network_client.clone(),
-        drand_kyn_rx.clone(),
+        kyn_rx.clone(),
         network_config.clone(),
         storage.clone(),
         incoming_tx.clone(),

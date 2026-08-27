@@ -39,13 +39,13 @@ pub async fn handle_publish(
         ));
     }
 
-    let mut domain_record = req.record;
+    let mut name_record = req.record;
 
     // For Standard names, we need to validate and enforce Drand staleness.
     // Premium names bypass VDF staleness checks.
     let mut is_standard = false;
-    let mut drand_kyn = 0;
-    if let kinetic_core::types::NameRecord::Standard(ref mut reveal) = domain_record {
+    let mut kyn = 0;
+    if let kinetic_core::types::NameRecord::Standard(ref mut reveal) = name_record {
         reveal.name = fqdn.clone();
         if let Err(e) = reveal.validate() {
             return Err((
@@ -54,7 +54,7 @@ pub async fn handle_publish(
             ));
         }
         is_standard = true;
-        drand_kyn = reveal.kyn;
+        kyn = reveal.kyn;
     }
 
     // Finding 4 (High): Enforce drand staleness — reject Reveals whose VDF kyn is older
@@ -82,19 +82,19 @@ pub async fn handle_publish(
     };
 
     if is_standard && current_kyn > 0 {
-        if drand_kyn > current_kyn {
+        if kyn > current_kyn {
             return Err((
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({
                     "error": format!(
                         "Reveal rejected: VDF kyn {} is in the future (current kyn: {}).",
-                        drand_kyn,
+                        kyn,
                         current_kyn
                     )
                 })),
             ));
         }
-        let age = current_kyn - drand_kyn;
+        let age = current_kyn - kyn;
         if age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -102,7 +102,7 @@ pub async fn handle_publish(
                     "error": format!(
                         "Reveal rejected: VDF kyn {} is {} kyns old (max allowed: {}). \
                          Please re-compute a fresh VDF proof.",
-                        drand_kyn,
+                        kyn,
                         age,
                         kinetic_core::types::RESQUARING_EPOCH_KYNS
                     )
@@ -111,7 +111,7 @@ pub async fn handle_publish(
         }
     }
 
-    let payload_bytes = match serde_json::to_vec(&domain_record) {
+    let payload_bytes = match serde_json::to_vec(&name_record) {
         Ok(b) => b,
         Err(e) => {
             return Err((
@@ -161,7 +161,7 @@ pub async fn handle_publish(
 
             // Persist the full Reveal so zone updates can re-sign without the original VDF params.
             let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
-            if let Ok(reveal_bytes) = serde_json::to_vec(&domain_record) {
+            if let Ok(reveal_bytes) = serde_json::to_vec(&name_record) {
                 let _ = state.storage.put(reveal_key.as_bytes(), &reveal_bytes);
                 info!(
                     "Persisted Reveal for {} to daemon storage for future zone updates",
@@ -356,26 +356,12 @@ pub async fn handle_publish_kid(
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                use ml_dsa::KeyInit;
-                if let Ok(pubkey) =
-                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
-                {
-                    use ml_dsa::signature::Verifier;
-                    if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
-                        auth_kid.owner_signature.as_slice(),
-                    ) {
-                        pubkey
-                            .verify(
-                                &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-                                &sig,
-                            )
-                            .is_ok()
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
+                kinetic_primitives::verify_mldsa(
+                    record.pubkey(),
+                    &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+                    &auth_kid.owner_signature,
+                )
+                .is_ok()
             } else {
                 false
             }
@@ -462,27 +448,12 @@ pub async fn handle_publish_manifest(
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                use ml_dsa::KeyInit;
-                if let Ok(pubkey) =
-                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
-                {
-                    use ml_dsa::signature::Verifier;
-                    if let Ok(sig) = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(
-                        auth_manifest.owner_signature.as_slice(),
-                    ) {
-                        pubkey
-                            .verify(
-                                &auth_manifest
-                                    .signable_bytes(kinetic_core::constants::NETWORK_SALT),
-                                &sig,
-                            )
-                            .is_ok()
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
+                kinetic_primitives::verify_mldsa(
+                    record.pubkey(),
+                    &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+                    &auth_manifest.owner_signature,
+                )
+                .is_ok()
             } else {
                 false
             }
@@ -557,10 +528,7 @@ pub async fn handle_publish_manifest(
     }
 
     // 3. Serialize and Publish to DHT under the derived manifest key
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(format!("{}#manifest", did_str).as_bytes());
-    let manifest_key = hex::encode(hasher.finalize());
+    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(format!("{}#manifest", did_str).as_bytes()));
 
     let payload_bytes = match serde_json::to_vec(&auth_manifest) {
         Ok(b) => b,

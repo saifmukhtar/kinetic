@@ -36,7 +36,8 @@ pub use p2p::*;
 pub use route_ip::*;
 pub use route_ipfs::*;
 pub use route_p2p::*;
-pub use security::*;
+#[cfg(test)]
+pub(crate) use security::*;
 pub use tunnel::*;
 pub use web2_bridge::*;
 

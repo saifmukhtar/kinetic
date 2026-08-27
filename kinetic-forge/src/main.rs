@@ -118,7 +118,7 @@ fn main() -> Result<()> {
         .unwrap_or_default()
         .as_secs();
 
-    let kinetic_genesis_drand_kyn = if now > drand_genesis {
+    let kinetic_genesis_kyn = if now > drand_genesis {
         (now - drand_genesis) / drand_period
     } else {
         0
@@ -141,7 +141,7 @@ fn main() -> Result<()> {
         &drand_pubkey,
         drand_genesis,
         drand_period,
-        kinetic_genesis_drand_kyn,
+        kinetic_genesis_kyn,
         &drand_http,
         &docs_url,
         &bootstrap_nodes,
@@ -197,7 +197,7 @@ fn patch_constants(
     drand_pubkey: &str,
     drand_genesis: u64,
     drand_period: u64,
-    kinetic_genesis_drand_kyn: u64,
+    kinetic_genesis_kyn: u64,
     drand_http: &str,
     docs_url: &str,
     bootstrap_nodes: &[String],
@@ -220,7 +220,7 @@ fn patch_constants(
     config["network"]["network_id"] = serde_json::json!(network_id);
     config["drand"]["drand_genesis_time"] = serde_json::json!(drand_genesis);
     config["drand"]["drand_period"] = serde_json::json!(drand_period);
-    config["drand"]["kinetic_genesis_drand_kyn"] = serde_json::json!(kinetic_genesis_drand_kyn);
+    config["drand"]["kinetic_genesis_kyn"] = serde_json::json!(kinetic_genesis_kyn);
     config["drand"]["drand_public_key"] = serde_json::json!(drand_pubkey);
     config["drand"]["drand_http_endpoints"] = serde_json::json!(vec![drand_http.to_string()]);
     config["network"]["docs_url"] = serde_json::json!(docs_url);

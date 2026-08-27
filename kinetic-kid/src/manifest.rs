@@ -160,9 +160,6 @@ impl CapabilityManifest {
         let sig_b64 = self.signature.as_ref().ok_or(KidError::MissingSignature)?;
         let sig_bytes = b64_url.decode(sig_b64)?;
 
-        let signature = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(sig_bytes.as_slice())
-            .map_err(|_| KidError::InvalidSignature)?;
-
         let msg_str = self.canonicalize()?;
         let mut msg_bytes = b"kinetic-manifest-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
@@ -172,14 +169,8 @@ impl CapabilityManifest {
                 || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
                 && let Ok(pk_bytes) = b64_url.decode(&key.public_key)
             {
-                use ml_dsa::KeyInit;
-                if let Ok(public_key) =
-                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(&pk_bytes)
-                {
-                    use ml_dsa::signature::Verifier;
-                    if public_key.verify(&msg_bytes, &signature).is_ok() {
-                        return Ok(());
-                    }
+                if kinetic_primitives::verify_mldsa(&pk_bytes, &msg_bytes, &sig_bytes).is_ok() {
+                    return Ok(());
                 }
             }
         }
@@ -192,14 +183,12 @@ impl CapabilityManifest {
     /// # Errors
     ///
     /// - Returns [`KidError::CanonicalizationError`] if JCS canonicalization fails.
-    pub fn sign(mut self, keypair: &ml_dsa::SigningKey<ml_dsa::MlDsa65>) -> Result<Self, KidError> {
-        use ml_dsa::SignatureEncoding;
-        use ml_dsa::signature::Signer;
+    pub fn sign(mut self, keypair: &kinetic_primitives::keys::KineticKeypair) -> Result<Self, KidError> {
         let msg_str = self.canonicalize()?;
         let mut msg_bytes = b"kinetic-manifest-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
-        let signature = keypair.sign(&msg_bytes);
-        self.signature = Some(b64_url.encode(signature.to_bytes()));
+        let signature_bytes = keypair.sign(&msg_bytes);
+        self.signature = Some(b64_url.encode(signature_bytes));
         Ok(self)
     }
 }

@@ -46,7 +46,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         name: name.to_string(),
         payload,
         salt: [0u8; 32],
-        drand_kyn: 0,
+        kyn: 0,
         drand_signature: "".to_string(),
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: vec![],
@@ -58,22 +58,18 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         previous_proof: None,
         authorization: None,
     };
-    use ml_dsa::signature::Signer;
-    use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
-    let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
-    reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
+    let keypair = kinetic_primitives::keys::KineticKeypair::generate();
+    reveal.pubkey = keypair.public_key_bytes();
     reveal.signature = keypair
-        .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
-        .to_bytes()
-        .to_vec();
+        .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
     reveal
 }
 
 async fn start_mock_daemon() -> String {
     let app = Router::new().route(
-        "/api/resolve/:domain",
-        get(|Path(domain): Path<String>| async move {
-            match domain.as_str() {
+        "/api/resolve/:name",
+        get(|Path(name): Path<String>| async move {
+            match name.as_str() {
                 "test1.kin" => {
                     let mut zone = kinetic_core::types::NrsZone {
                         records: std::collections::HashMap::new(),
@@ -160,7 +156,7 @@ async fn test_resolve_standard_domain() {
     );
 }
 
-// 2. Test successful resolve of .kin domain
+// 2. Test successful resolve of .kin name
 #[tokio::test]
 async fn test_resolve_kin_success() {
     let _ = tracing_subscriber::fmt()
@@ -279,9 +275,9 @@ async fn test_resolve_kin_invalid_zone() {
     );
 }
 
-// 7. Test subdomain fallback to @ if empty
+// 7. Test subname fallback to @ if empty
 #[tokio::test]
-async fn test_resolve_kin_subdomain_fallback() {
+async fn test_resolve_kin_subname_fallback() {
     let api_url = start_mock_daemon().await;
     let handler = KineticNrsHandler::new(
         api_url,
@@ -303,7 +299,7 @@ async fn test_resolve_kin_subdomain_fallback() {
     );
 }
 
-// 8. Test uppercase domain normalization
+// 8. Test uppercase name normalization
 #[tokio::test]
 async fn test_resolve_kin_uppercase() {
     let api_url = start_mock_daemon().await;
@@ -405,10 +401,10 @@ mod fuzzing {
         }
 
         #[test]
-        fn doesnt_crash_on_random_domain_normalization(
-            domain in ".*"
+        fn doesnt_crash_on_random_name_normalization(
+            name in ".*"
         ) {
-            let normalized = kinetic_core::types::normalize_name(&domain);
+            let normalized = kinetic_core::types::normalize_name(&name);
             let _apex = kinetic_core::types::extract_apex_name(&normalized);
         }
     }

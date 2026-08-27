@@ -95,8 +95,8 @@ impl super::core::NetworkEventLoop {
 
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
-            Command::GetCurrentDrandKyn { responder } => {
-                let _ = responder.send(self.current_drand_kyn);
+            Command::GetCurrentKyn { responder } => {
+                let _ = responder.send(self.current_kyn);
             }
             Command::PublishRedundant {
                 name,

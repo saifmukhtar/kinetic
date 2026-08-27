@@ -40,7 +40,7 @@ proptest! {
     #[test]
     fn test_required_iterations_math_no_panic(
         name in "[a-z0-9-]{1,63}\\.kin",
-        drand_kyn in any::<u64>(),
+        kyn in any::<u64>(),
         prev_pulse in any::<u64>(),
         prev_iterations in any::<u64>()
     ) {
@@ -49,7 +49,7 @@ proptest! {
             name: name.clone(),
             payload: vec![],
             salt: [0u8; 32],
-            drand_kyn,
+            kyn,
             drand_signature: "abcd".to_string(),
             iterations: 1000,
             vdf_proof: VdfProof { proof_bytes: vec![] },
@@ -57,7 +57,7 @@ proptest! {
             signature: vec![0u8; 64],
             previous_proof: Some(PreviousProof {
                 salt: [0u8; 32],
-                drand_kyn: prev_pulse,
+                kyn: prev_pulse,
                 drand_signature: "abcd".to_string(),
                 iterations: prev_iterations,
                 vdf_proof: VdfProof { proof_bytes: vec![] },
@@ -83,7 +83,7 @@ proptest! {
             100,
             vdf_engine,
         );
-        store.current_drand_kyn = drand_kyn.saturating_add(100);
+        store.current_kyn = kyn.saturating_add(100);
 
         let payload = serde_json::to_vec(&reveal).unwrap();
         let key = kad::RecordKey::new(&[0u8; 32]);

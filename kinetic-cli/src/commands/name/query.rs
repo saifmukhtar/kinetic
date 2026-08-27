@@ -89,7 +89,7 @@ pub async fn handle_info(
             match record {
                 kinetic_core::types::NameRecord::Standard(r) => {
                     info!("  Type: Standard");
-                    info!("  Created at Drand kyn: {}", r.drand_kyn);
+                    info!("  Created at Drand kyn: {}", r.kyn);
                     info!("  VDF Iterations: {}", r.iterations);
                 }
                 kinetic_core::types::NameRecord::Prime { granted_at, .. } => {

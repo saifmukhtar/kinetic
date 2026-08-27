@@ -12,9 +12,6 @@
 //!
 //! In **Sovereign mode**, the Root key acts as a single-signer authority.
 
-use ml_dsa::KeyInit;
-use ml_dsa::MlDsa65;
-use ml_dsa::signature::Verifier;
 use std::collections::HashMap;
 
 pub use kinetic_types::governance::{
@@ -28,12 +25,7 @@ pub use kinetic_types::governance::{
 /// Returns `true` if the signature is cryptographically valid for `pubkey`; `false` if key decoding,
 /// signature parsing, or verification fails.
 pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
-    if let Ok(pk) = ml_dsa::VerifyingKey::<MlDsa65>::new_from_slice(pubkey)
-        && let Ok(signature) = ml_dsa::Signature::<MlDsa65>::try_from(sig)
-    {
-        return pk.verify(msg, &signature).is_ok();
-    }
-    false
+    kinetic_primitives::verify_mldsa(pubkey, msg, sig).is_ok()
 }
 
 /// Side effects produced when a governance action is executed.

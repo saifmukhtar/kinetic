@@ -11,7 +11,7 @@ pub fn start_gossip_processor(
     )>,
     gossip_gov_path: std::sync::Arc<std::path::PathBuf>,
     drand_client_gossip: std::sync::Arc<kinetic_core::drand::DrandClient>,
-    drand_kyn_tx_gossip: tokio::sync::watch::Sender<u64>,
+    kyn_tx_gossip: tokio::sync::watch::Sender<u64>,
     storage: Option<std::sync::Arc<dyn kinetic_core::traits::StorageEngine>>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
@@ -153,7 +153,7 @@ pub fn start_gossip_processor(
                             && (kyn.kyn > latest.kyn || latest.is_unavailable)
                             && drand_client_gossip.cache_kyn(&kyn).is_ok()
                         {
-                            let _ = drand_kyn_tx_gossip.send(kyn.kyn);
+                            let _ = kyn_tx_gossip.send(kyn.kyn);
                         }
                     }
                     network_client.report_gossip_validation(

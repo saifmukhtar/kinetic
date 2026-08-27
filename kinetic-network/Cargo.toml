@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 kinetic-core = { path = "../kinetic-core" }
+kinetic-primitives = { path = "../kinetic-primitives" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-kid = { path = "../kinetic-kid" }
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
@@ -18,7 +19,7 @@ anyhow.workspace = true
 tracing.workspace = true
 ed25519-dalek = "2.2.0"
 serde_json = "1.0.150"
-ml-dsa = "0.1.1"
+
 kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 hex = "0.4.3"
 serde = { version = "1.0.228", features = ["derive", "rc"] }
@@ -53,7 +54,7 @@ tempfile = "3.27.0"
 rand_core = { version = "0.6.4", features = ["std"] }
 proptest = "1.4.0"
 tracing-subscriber = "0.3.18"
-ml-dsa = "0.1.1"
+
 kinetic-core = { path = "../kinetic-core", features = ["simulation"] }
 base64 = "0.22"
 

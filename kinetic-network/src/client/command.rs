@@ -9,7 +9,7 @@ use tokio::sync::oneshot;
 #[derive(Debug)]
 pub enum Command {
     /// Get the current drand kyn kyn from the event loop state.
-    GetCurrentDrandKyn {
+    GetCurrentKyn {
         /// Channel to return the kyn.
         responder: oneshot::Sender<u64>,
     },

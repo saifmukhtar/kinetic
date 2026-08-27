@@ -6,27 +6,24 @@ mod tests {
         GovernanceAction, GovernanceEffect, GovernanceState, PublicKeyBytes,
         SignedGovernanceMessage,
     };
-    use ml_dsa::signature::SignatureEncoding as MlDsaSignatureEncoding;
-    use ml_dsa::signature::{Keypair, Signer};
-    use ml_dsa::{KeyExport, MlDsa65};
+    use kinetic_primitives::keys::KineticKeypair;
 
-    fn get_root_sk() -> ml_dsa::SigningKey<MlDsa65> {
+    fn get_root_sk() -> KineticKeypair {
         let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
             .unwrap();
-        ml_dsa::SigningKey::<MlDsa65>::from_seed(bytes.as_slice().try_into().unwrap())
+        KineticKeypair::from_seed(bytes.as_slice().try_into().unwrap())
     }
 
-    fn generate_key(seed: u8) -> (ml_dsa::SigningKey<MlDsa65>, PublicKeyBytes) {
+    fn generate_key(seed: u8) -> (KineticKeypair, PublicKeyBytes) {
         let bytes = [seed; 32];
-        let signing_key = ml_dsa::SigningKey::<MlDsa65>::from_seed((&bytes).into());
-        let verifying_key = signing_key.verifying_key().to_bytes().to_vec();
+        let signing_key = KineticKeypair::from_seed(&bytes);
+        let verifying_key = signing_key.public_key_bytes();
         (signing_key, verifying_key)
     }
 
-    fn sign_action(msg: &SignedGovernanceMessage, signer: &ml_dsa::SigningKey<MlDsa65>) -> Vec<u8> {
+    fn sign_action(msg: &SignedGovernanceMessage, signer: &KineticKeypair) -> Vec<u8> {
         let serialized = msg.to_canonical_bytes();
-        let sig: ml_dsa::Signature<MlDsa65> = signer.sign(&serialized);
-        MlDsaSignatureEncoding::to_bytes(&sig).into()
+        signer.sign(&serialized)
     }
 
     #[test]

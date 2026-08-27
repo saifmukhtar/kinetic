@@ -1,6 +1,5 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-use ml_dsa::KeyInit;
-use ml_dsa::signature::{Signer, Verifier};
+
 use serde::{Deserialize, Serialize};
 
 use crate::did::KineticDid;
@@ -144,9 +143,6 @@ impl KidDocument {
         let sig_b64 = self.signature.as_ref().ok_or(KidError::MissingSignature)?;
         let sig_bytes = b64_url.decode(sig_b64)?;
 
-        let signature = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(sig_bytes.as_slice())
-            .map_err(|_| KidError::InvalidSignature)?;
-
         let msg_str = self.canonicalize()?;
         let mut msg_bytes = b"kinetic-kid-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
@@ -165,9 +161,7 @@ impl KidDocument {
             // Document is deactivated (revoked), the signature MUST be from a revocation key
             for rk_b64 in &self.revocation_keys {
                 if let Ok(pk_bytes) = b64_url.decode(rk_b64)
-                    && let Ok(public_key) =
-                        ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
-                    && public_key.verify(&msg_bytes, &signature).is_ok()
+                    && kinetic_primitives::verify_mldsa(&pk_bytes, &msg_bytes, &sig_bytes).is_ok()
                 {
                     return Ok(());
                 }
@@ -178,9 +172,7 @@ impl KidDocument {
                 if (key.key_type.eq_ignore_ascii_case("MlDsa65")
                     || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
                     && let Ok(pk_bytes) = b64_url.decode(&key.public_key)
-                    && let Ok(public_key) =
-                        ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
-                    && public_key.verify(&msg_bytes, &signature).is_ok()
+                    && kinetic_primitives::verify_mldsa(&pk_bytes, &msg_bytes, &sig_bytes).is_ok()
                 {
                     return Ok(());
                 }
@@ -207,7 +199,7 @@ impl KidDocument {
     /// - Returns [`KidError::DidKeyMismatch`] if the DID hex suffix does not match
     ///   `hex(SHA-256(primary_controller_key_bytes))`.
     pub fn verify_genesis(&self) -> Result<(), KidError> {
-        use sha2::{Digest, Sha256};
+
         use std::fmt::Write as FmtWrite;
 
         let primary_key = self
@@ -216,7 +208,7 @@ impl KidDocument {
             .ok_or(KidError::InvalidSignature)?;
 
         let pk_bytes = b64_url.decode(&primary_key.public_key)?;
-        let hash = Sha256::digest(&pk_bytes);
+        let hash = kinetic_primitives::sha256_hash(&pk_bytes);
 
         let mut expected_hex = String::with_capacity(64);
         for byte in hash {
@@ -241,8 +233,6 @@ impl KidDocument {
     ///
     /// `true` if the update is authorised by a prior controller key, `false` otherwise.
     pub fn is_authorized_update(&self, previous_doc: &KidDocument) -> bool {
-        use ml_dsa::KeyInit;
-
         let sig_b64 = match self.signature.as_ref() {
             Some(s) => s,
             None => return false,
@@ -250,11 +240,6 @@ impl KidDocument {
 
         let sig_bytes = match b64_url.decode(sig_b64) {
             Ok(b) => b,
-            Err(_) => return false,
-        };
-
-        let ml_sig = match ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(sig_bytes.as_slice()) {
-            Ok(s) => s,
             Err(_) => return false,
         };
 
@@ -271,12 +256,8 @@ impl KidDocument {
             {
                 return false;
             }
-            if let Ok(pk_bytes) = b64_url.decode(&ck.public_key)
-                && let Ok(vk) =
-                    ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(pk_bytes.as_slice())
-            {
-                use ml_dsa::signature::Verifier;
-                return vk.verify(&msg_bytes, &ml_sig).is_ok();
+            if let Ok(pk_bytes) = b64_url.decode(&ck.public_key) {
+                return kinetic_primitives::verify_mldsa(&pk_bytes, &msg_bytes, &sig_bytes).is_ok();
             }
             false
         })
@@ -287,13 +268,12 @@ impl KidDocument {
     /// # Errors
     ///
     /// - Returns [`KidError::CanonicalizationError`] if JCS canonicalization fails.
-    pub fn sign(mut self, keypair: &ml_dsa::SigningKey<ml_dsa::MlDsa65>) -> Result<Self, KidError> {
-        use ml_dsa::SignatureEncoding;
+    pub fn sign(mut self, keypair: &kinetic_primitives::keys::KineticKeypair) -> Result<Self, KidError> {
         let msg_str = self.canonicalize()?;
         let mut msg_bytes = b"kinetic-kid-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
-        let signature = keypair.sign(&msg_bytes);
-        self.signature = Some(b64_url.encode(signature.to_bytes()));
+        let signature_bytes = keypair.sign(&msg_bytes);
+        self.signature = Some(b64_url.encode(signature_bytes));
         Ok(self)
     }
 }

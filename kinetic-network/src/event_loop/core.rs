@@ -86,8 +86,8 @@ pub struct NetworkEventLoop {
         )>,
     >,
     pub(crate) bad_vdf_counts: lru::LruCache<PeerId, (u32, web_time::Instant)>,
-    pub(crate) current_drand_kyn: u64,
-    pub(crate) drand_kyn_rx: watch::Receiver<u64>,
+    pub(crate) current_kyn: u64,
+    pub(crate) kyn_rx: watch::Receiver<u64>,
     pub(crate) bootstrap_nodes: Vec<libp2p::Multiaddr>,
     pub(crate) seed_domain: Vec<std::sync::Arc<str>>,
     pub(crate) bootstrap_peers: FxHashSet<libp2p::PeerId>,
@@ -141,7 +141,7 @@ impl NetworkEventLoop {
                 "Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning",
                 source
             );
-            let expire_kyn = self.current_drand_kyn + 28800;
+            let expire_kyn = self.current_kyn + 28800;
             self.banned_peers.put(source, expire_kyn);
         }
     }
@@ -199,7 +199,7 @@ impl NetworkEventLoop {
                     tracing::info!("Running periodic Sled pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                     let storage = self.swarm.behaviour_mut().kademlia.store_mut().storage.clone();
-                    let current_kyn = self.current_drand_kyn;
+                    let current_kyn = self.current_kyn;
                     crate::event_loop::utils::spawn(async move {
                         let _ = crate::event_loop::utils::spawn_blocking(move || {
                             if let Ok(iter) = storage.scan_prefix(kinetic_core::constants::DB_PREFIX_BANNED_PEER.as_bytes(), None) {
@@ -263,12 +263,12 @@ impl NetworkEventLoop {
                         }
                     }
                 }
-                Ok(()) = self.drand_kyn_rx.changed() => {
-                    let new_kyn = *self.drand_kyn_rx.borrow();
-                    if new_kyn > self.current_drand_kyn {
-                        tracing::debug!("NetworkEventLoop: drand kyn updated {} -> {}", self.current_drand_kyn, new_kyn);
-                        self.current_drand_kyn = new_kyn;
-                        self.swarm.behaviour_mut().kademlia.store_mut().current_drand_kyn = new_kyn;
+                Ok(()) = self.kyn_rx.changed() => {
+                    let new_kyn = *self.kyn_rx.borrow();
+                    if new_kyn > self.current_kyn {
+                        tracing::debug!("NetworkEventLoop: drand kyn updated {} -> {}", self.current_kyn, new_kyn);
+                        self.current_kyn = new_kyn;
+                        self.swarm.behaviour_mut().kademlia.store_mut().current_kyn = new_kyn;
                     }
                 }
                 event = libp2p::futures::StreamExt::select_next_some(&mut self.swarm) => self.handle_swarm_event(event).await,
@@ -326,7 +326,7 @@ impl NetworkEventLoop {
                                     source
                                 );
                                 let _ = self.swarm.disconnect_peer_id(source);
-                                let expire_kyn = self.current_drand_kyn + 28800;
+                                let expire_kyn = self.current_kyn + 28800;
                                 self.banned_peers.put(source, expire_kyn);
                             }
                         }

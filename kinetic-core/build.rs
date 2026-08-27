@@ -66,7 +66,7 @@ struct NetworkSection {
 struct DrandSection {
     drand_genesis_time: u64,
     drand_period: u64,
-    kinetic_genesis_drand_kyn: u64,
+    kinetic_genesis_kyn: u64,
     drand_public_key: String,
     drand_http_endpoints: Vec<String>,
 }
@@ -235,13 +235,13 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The absolute Drand kyn at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Epoch/Cycle/Kyn).\npub const KINETIC_GENESIS_DRAND_KYN: u64 = {};\n\n",
-        config.drand.kinetic_genesis_drand_kyn
+        "/// The absolute Drand kyn at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Epoch/Cycle/Kyn).\npub const KINETIC_GENESIS_KYN: u64 = {};\n\n",
+        config.drand.kinetic_genesis_kyn
     ));
 
     out.push_str(&format!(
         "/// The absolute Unix timestamp (in seconds) of the Kinetic network genesis.\npub const KINETIC_GENESIS_TIME: u64 = {};\n\n",
-        config.drand.drand_genesis_time + (config.drand.kinetic_genesis_drand_kyn * config.drand.drand_period)
+        config.drand.drand_genesis_time + (config.drand.kinetic_genesis_kyn * config.drand.drand_period)
     ));
 
     // Expose NETWORK_ID as a compile-time env var so constants.rs can use env!() for

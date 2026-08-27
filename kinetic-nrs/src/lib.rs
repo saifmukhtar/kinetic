@@ -5,7 +5,7 @@
 //!
 //! This crate implements a custom DNS request handler ([`KineticNrsHandler`])
 //! using the [hickory-dns](https://crates.io/crates/hickory-server) library.
-//! It intercepts DNS queries for `.kin` domains, resolves them against the
+//! It intercepts DNS queries for `.kin` names, resolves them against the
 //! Kinetic daemon's HTTP API (which in turn queries the Kademlia DHT), and
 //! proxies all other queries to the host OS's native DNS configuration (with
 //! a fallback to Cloudflare 1.1.1.1).
@@ -15,7 +15,7 @@
 //! Resolved records are cached in-process using
 //! [moka](https://crates.io/crates/moka) with asymmetric TTLs:
 //!
-//! - **Positive hits** (domain found): cached for 5 minutes.
+//! - **Positive hits** (name found): cached for 5 minutes.
 //! - **Negative hits** (NXDOMAIN): cached for 30 seconds.
 //!
 //! Cache stampede protection is provided natively by moka's `try_get_with`.
@@ -95,14 +95,14 @@ impl KineticNrsHandler {
         }
     }
 
-    /// Explicitly invalidate the DNS cache for a given apex domain.
+    /// Explicitly invalidate the DNS cache for a given apex name.
     /// This is called by the daemon after a successful local update to prevent serving stale data.
-    pub async fn invalidate_cache(&self, apex_domain: &str) {
-        let domain_normalized = kinetic_core::types::extract_apex_name(apex_domain);
-        self.cache.invalidate(&domain_normalized).await;
+    pub async fn invalidate_cache(&self, apex_name: &str) {
+        let name_normalized = kinetic_core::types::extract_apex_name(apex_name);
+        self.cache.invalidate(&name_normalized).await;
         tracing::info!(
-            "Invalidated DNS cache for apex domain: {}",
-            domain_normalized
+            "Invalidated DNS cache for apex name: {}",
+            name_normalized
         );
     }
 }

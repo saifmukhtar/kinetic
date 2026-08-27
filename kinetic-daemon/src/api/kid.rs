@@ -287,10 +287,7 @@ pub async fn handle_update_kid_manifest(
     })?;
 
     // Publish to DHT under hex(sha256(did#manifest))
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(format!("{}#manifest", manifest.kid).as_bytes());
-    let manifest_key = hex::encode(hasher.finalize());
+    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(format!("{}#manifest", manifest.kid).as_bytes()));
 
     if let Ok(payload_bytes) = serde_json::to_vec(&auth_manifest) {
         let _ = state

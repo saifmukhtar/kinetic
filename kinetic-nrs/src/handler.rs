@@ -26,8 +26,8 @@ impl RequestHandler for KineticNrsHandler {
         }
 
         if clean_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
-            let domain_name = kinetic_core::types::normalize_name(&clean_name);
-            let apex_domain = kinetic_core::types::extract_apex_name(&domain_name);
+            let full_name = kinetic_core::types::normalize_name(&clean_name);
+            let apex_name = kinetic_core::types::extract_apex_name(&full_name);
 
             resolve_kinetic(
                 request,
@@ -35,8 +35,8 @@ impl RequestHandler for KineticNrsHandler {
                 &query_name,
                 header,
                 builder,
-                &domain_name,
-                &apex_domain,
+                &full_name,
+                &apex_name,
                 &self.cache,
                 &self.api_url,
                 &self.http_client,

@@ -203,7 +203,7 @@ impl super::core::NetworkEventLoop {
                         {
                             return None;
                         }
-                        Some((p, u64::MAX - record.drand_kyn)) // Sort by newest drand_kyn
+                        Some((p, u64::MAX - record.kyn)) // Sort by newest kyn
                     } else {
                         None
                     }
@@ -258,7 +258,7 @@ impl super::core::NetworkEventLoop {
                     use drand_verify::Pubkey;
                     use kinetic_core::traits::VdfEngine;
                     use kinetic_vdf_rsa::RsaVdfEngine;
-                    use sha2::{Digest, Sha256};
+
 
                     let drand_sig_bytes = match hex::decode(&reveal.drand_signature) {
                         Ok(b) => b,
@@ -288,7 +288,7 @@ impl super::core::NetworkEventLoop {
                         };
 
                         if !pk
-                            .verify(reveal.drand_kyn, &[], &drand_sig_bytes)
+                            .verify(reveal.kyn, &[], &drand_sig_bytes)
                             .unwrap_or(false)
                         {
                             tracing::warn!(
@@ -299,20 +299,16 @@ impl super::core::NetworkEventLoop {
                         }
                     }
 
-                    let mut drand_hasher = Sha256::new();
-                    drand_hasher.update(&drand_sig_bytes);
-                    let mut drand_bytes = [0u8; 32];
-                    drand_bytes.copy_from_slice(&drand_hasher.finalize());
+                    let drand_bytes = kinetic_primitives::sha256_hash(&drand_sig_bytes);
 
-                    let mut hasher = Sha256::new();
-                    hasher.update(reveal.name.as_bytes());
-                    hasher.update(reveal.salt);
-                    hasher.update(drand_bytes);
-                    hasher.update(&reveal.pubkey);
-                    let mut hash = [0u8; 32];
-                    hash.copy_from_slice(&hasher.finalize());
+                    let hash = kinetic_primitives::sha256_hash_concat(&[
+                        reveal.name.as_bytes(),
+                        &reveal.salt,
+                        &drand_bytes,
+                        &reveal.pubkey,
+                    ]);
 
-                    if current_kyn.saturating_sub(reveal.drand_kyn)
+                    if current_kyn.saturating_sub(reveal.kyn)
                         > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
@@ -422,7 +418,7 @@ mod tests {
             name: "dummy.kin".to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            drand_kyn: 0,
+            kyn: 0,
             drand_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,

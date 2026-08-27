@@ -47,11 +47,10 @@ pub use manifest::{CapabilityManifest, ServiceEntry};
 mod tests {
     use super::*;
     use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-    use ml_dsa::SigningKey;
-    use ml_dsa::{Generate, KeyExport, Keypair};
+    use kinetic_primitives::keys::KineticKeypair;
 
-    fn generate_keypair() -> SigningKey<ml_dsa::MlDsa65> {
-        SigningKey::<ml_dsa::MlDsa65>::generate()
+    fn generate_keypair() -> KineticKeypair {
+        KineticKeypair::generate()
     }
 
     #[test]
@@ -92,12 +91,9 @@ mod tests {
     #[test]
     fn test_document_signing_and_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.verifying_key().to_bytes());
+        let pub_key_b64 = b64_url.encode(keypair.public_key_bytes());
 
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(keypair.verifying_key().to_bytes());
-        let hash = hasher.finalize();
+        let hash = kinetic_primitives::sha256_hash(&keypair.public_key_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -134,12 +130,9 @@ mod tests {
     #[test]
     fn test_manifest_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.verifying_key().to_bytes());
+        let pub_key_b64 = b64_url.encode(keypair.public_key_bytes());
 
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(keypair.verifying_key().to_bytes());
-        let hash = hasher.finalize();
+        let hash = kinetic_primitives::sha256_hash(&keypair.public_key_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -191,7 +184,7 @@ mod tests {
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#bad", "b".repeat(64)),
                 key_type: "MlDsa65".to_string(),
-                public_key: b64_url.encode(bad_keypair.verifying_key().to_bytes()),
+                public_key: b64_url.encode(&bad_keypair.public_key_bytes()),
             }],
             manifest: None,
             revocation_keys: vec![],

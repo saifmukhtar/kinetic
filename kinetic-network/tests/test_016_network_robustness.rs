@@ -18,8 +18,10 @@ fn create_base_config() -> NetworkConfig {
         quic_listen_addrs: vec![],
         bootstrap_nodes: vec![],
         external_address: None,
-        initial_drand_kyn: 0,
+        initial_kyn: 0,
         enable_mdns: false,
+        enable_relay_server: false,
+        enable_upnp: false,
         lru_cache_size: std::num::NonZeroUsize::new(100).unwrap(),
         max_reveals_per_hour: 100,
         seed_domain: vec![],
@@ -150,7 +152,7 @@ async fn test_06_banned_peers_loaded_properly() {
         .to_vec();
     key.extend_from_slice(peer_id.to_string().as_bytes());
 
-    // current_drand_kyn defaults to 0 on startup, so any kyn > 0 is "in the future"
+    // current_kyn defaults to 0 on startup, so any kyn > 0 is "in the future"
     let future_kyn = 1000u64;
     storage.put(&key, &future_kyn.to_be_bytes()).unwrap();
 

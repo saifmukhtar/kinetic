@@ -85,7 +85,7 @@ mod tests {
             vdf_proof: VdfProof {
                 proof_bytes: vec![0u8; 100],
             },
-            drand_kyn: 1000,
+            kyn: 1000,
             drand_signature: "a".repeat(192),
             salt: [0u8; 32],
             protocol_version: 1,

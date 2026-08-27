@@ -3,8 +3,7 @@
 use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::{KineticConfig, get_zones_dir};
 use kinetic_core::types::load_keypair;
-use ml_dsa::SignatureEncoding;
-use ml_dsa::signature::Signer;
+
 use reqwest::Client;
 use serde_json::json;
 use tracing::{info, warn};
@@ -61,7 +60,7 @@ pub async fn update_zone_logic(
         kinetic_core::types::NameRecord::Standard(r) => {
             r.payload = new_payload;
             let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            r.signature = keypair.sign(&signable).to_bytes().to_vec();
+            r.signature = keypair.sign(&signable);
         }
         kinetic_core::types::NameRecord::Prime {
             name,
@@ -81,7 +80,7 @@ pub async fn update_zone_logic(
             signable.extend_from_slice(name.as_bytes());
             signable.extend_from_slice(payload);
             signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
-            *signature = keypair.sign(&signable).to_bytes().to_vec();
+            *signature = keypair.sign(&signable);
         }
     }
 

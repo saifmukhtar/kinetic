@@ -41,7 +41,7 @@ async fn test_016_governance_integration_halt() {
         pubkey: vec![1; 32],
         salt: [0; 32],
         drand_signature: "0000".to_string(), // invalid but will be rejected by halt first
-        drand_kyn: 1000,
+        kyn: 1000,
         iterations: 1000,
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: vec![],

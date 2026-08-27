@@ -200,7 +200,7 @@ impl UniversalKineticNode {
             listen_addrs: vec![],
             quic_listen_addrs: vec![],
             bootstrap_nodes,
-            initial_drand_kyn: 0,
+            initial_kyn: 0,
             seed_domain: vec![],
             external_address: None,
             max_reveals_per_hour: 100,

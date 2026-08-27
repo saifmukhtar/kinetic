@@ -126,7 +126,7 @@ mod tests {
                 "name": "sub.example.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
-                "drand_kyn": 100,
+                "kyn": 100,
                 "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
@@ -164,7 +164,7 @@ mod tests {
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
-                "drand_kyn": 100,
+                "kyn": 100,
                 "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
@@ -219,7 +219,7 @@ mod tests {
                 "name": "validname.kin",
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
-                "drand_kyn": 100, // Very old
+                "kyn": 100, // Very old
                 "drand_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
@@ -261,7 +261,7 @@ mod tests {
             payload: vec![1, 2, 3],
             salt: [0; 32],
             kyn: 100,
-            kyn_signature: "0".repeat(192),
+            drand_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],

@@ -44,7 +44,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         let store = event_loop.swarm.behaviour_mut().kademlia.store_mut();
                         let storage = store.storage.clone();
                         let engine = store.vdf_engine.clone();
-                        let current_drand_kyn = store.current_drand_kyn;
+                        let current_kyn = store.current_kyn;
 
                         if let Some(loopback) = &event_loop.loopback_tx {
                             let loopback_clone = loopback.clone();
@@ -53,7 +53,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                                     crate::store::verification::verify_reveal(
                                         &reveal,
                                         &storage,
-                                        current_drand_kyn,
+                                        current_kyn,
                                         &engine,
                                     )
                                 })
@@ -152,7 +152,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 let store = event_loop.swarm.behaviour_mut().kademlia.store_mut();
                 let storage = store.storage.clone();
                 let engine = store.vdf_engine.clone();
-                let current_drand_kyn = store.current_drand_kyn;
+                let current_kyn = store.current_kyn;
 
                 if let Some(loopback) = &event_loop.loopback_tx {
                     let loopback_clone = loopback.clone();
@@ -162,7 +162,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                             crate::store::verification::verify_reveal(
                                 &reveal,
                                 &storage,
-                                current_drand_kyn,
+                                current_kyn,
                                 &engine,
                             )
                         })

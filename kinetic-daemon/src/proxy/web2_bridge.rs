@@ -105,12 +105,12 @@ pub async fn forward_to_web2_backend(
     for (name, value) in backend_resp.headers() {
         let header_name = name.as_str().to_lowercase();
         
-        // Strip HSTS to prevent the browser from caching TLS directives for the .kin domain
+        // Strip HSTS to prevent the browser from caching TLS directives for the .kin name
         if header_name == "strict-transport-security" {
             continue;
         }
 
-        // Prevent the UX Redirect Leak: Rewrite Location headers back to the .kin domain
+        // Prevent the UX Redirect Leak: Rewrite Location headers back to the .kin name
         if header_name == "location" {
             if let Ok(loc_str) = value.to_str() {
                 if let Some(new_loc) = rewrite_location_header(loc_str, target_domain_clean, &original_host) {
@@ -138,7 +138,7 @@ pub(crate) fn clean_target_domain(target: &str) -> &str {
     target.split(':').next().unwrap_or(target)
 }
 
-/// Rewrites a Web2 Location redirect header back to the Web3 .kin domain.
+/// Rewrites a Web2 Location redirect header back to the Web3 .kin name.
 pub(crate) fn rewrite_location_header(
     loc_str: &str,
     target_domain_clean: &str,

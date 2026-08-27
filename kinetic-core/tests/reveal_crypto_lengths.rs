@@ -3,12 +3,12 @@ use kinetic_core::types::{Reveal, VdfProof};
 
 #[test]
 fn test_reveal_crypto_lengths() {
-    let mut base_reveal = Reveal {
+    let base_reveal = Reveal {
         protocol_version: 1,
         name: format!("{}{}", "valid", kinetic_core::constants::NSP_SUFFIX),
         payload: vec![],
         salt: [0; 32],
-        drand_kyn: 1000,
+        kyn: 1000,
         drand_signature: "0".repeat(192), // 192 hex chars for BLS
         iterations: 1000,
         vdf_proof: VdfProof {

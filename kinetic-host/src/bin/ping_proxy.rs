@@ -23,7 +23,7 @@ struct Args {
     db_path: Option<std::path::PathBuf>,
 }
 
-async fn fetch_drand_kyn() -> u64 {
+async fn fetch_kyn() -> u64 {
     let client = reqwest::Client::new();
     let ping_endpoint = kinetic_core::constants::DRAND_HTTP_ENDPOINTS
         .first()
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Args::parse();
 
-    let current_kyn = fetch_drand_kyn().await;
+    let current_kyn = fetch_kyn().await;
     println!("Fetched current Drand kyn: {}", current_kyn);
 
     println!("Mining PoW to satisfy kinetic-host anti-spam...");
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect(),
         seed_domain: vec![],
         enable_mdns: false,
-        initial_drand_kyn: 0,
+        initial_kyn: 0,
         external_address: None,
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)

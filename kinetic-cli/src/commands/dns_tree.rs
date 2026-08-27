@@ -2,7 +2,7 @@
 
 use clap::Subcommand;
 use data_encoding::BASE32_NOPAD;
-use sha2::{Digest, Sha256};
+
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 
@@ -94,9 +94,7 @@ pub async fn handle_dns_tree_command(cmd: DnsTreeCommands) -> anyhow::Result<()>
 }
 
 fn hash_content(data: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(data.as_bytes());
-    let result = hasher.finalize();
+    let result = kinetic_primitives::sha256_hash(data.as_bytes());
     // Use the first 32 characters (160 bits) of the base32 string to keep DNS labels short
     BASE32_NOPAD.encode(&result).to_lowercase()[..32].to_string()
 }

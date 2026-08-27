@@ -4,8 +4,8 @@ mod tests {
     use hickory_client::client::{AsyncClient, ClientHandle};
     use hickory_client::udp::UdpClientStream;
     use hickory_server::ServerFuture;
-    use kinetic_core::types::{DnsRecord, DnsZone, Reveal, VdfProof};
-    use kinetic_dns::KineticDnsHandler;
+    use kinetic_core::types::{NrsRecord, NrsZone, Reveal, VdfProof};
+    use kinetic_nrs::KineticNrsHandler;
     use std::collections::HashMap;
     use std::net::SocketAddr;
     use std::str::FromStr;
@@ -20,14 +20,14 @@ mod tests {
             let mut records = HashMap::new();
             records.insert(
                 "@".to_string(),
-                vec![DnsRecord::A("93.184.216.34".parse().unwrap())],
+                vec![NrsRecord::A("93.184.216.34".parse().unwrap())],
             );
             records.insert(
                 "www".to_string(),
-                vec![DnsRecord::A("93.184.216.35".parse().unwrap())],
+                vec![NrsRecord::A("93.184.216.35".parse().unwrap())],
             );
 
-            let zone = DnsZone { records };
+            let zone = NrsZone { records };
             let payload = serde_json::to_vec(&zone).unwrap();
 
             let mut reveal = Reveal {
@@ -35,7 +35,7 @@ mod tests {
                 name: "testdns.kin".to_string(),
                 payload,
                 salt: [0u8; 32],
-                drand_kyn: 1000,
+                kyn: 1000,
                 drand_signature: "".to_string(),
                 iterations: 100000,
                 vdf_proof: VdfProof {
@@ -47,13 +47,10 @@ mod tests {
                 miner_pubkey: None,
                 authorization: None,
             };
-            use ml_dsa::signature::Signer;
-            use ml_dsa::{Generate, KeyExport, Keypair, SignatureEncoding};
-            let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
-            reveal.pubkey = keypair.verifying_key().to_bytes().to_vec();
+            let keypair = kinetic_primitives::keys::KineticKeypair::generate();
+            reveal.pubkey = keypair.public_key_bytes();
             reveal.signature = keypair
-                .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
-                .to_vec();
+                .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
             Ok(Json(kinetic_core::types::NameRecord::Standard(Box::new(
                 reveal,
             ))))
@@ -75,7 +72,7 @@ mod tests {
         });
 
         // Start the DNS proxy server
-        let handler = KineticDnsHandler::new(
+        let handler = KineticNrsHandler::new(
             api_url,
             std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
             5354,
@@ -195,7 +192,7 @@ mod tests {
         });
 
         // Start the DNS proxy server
-        let handler = KineticDnsHandler::new(
+        let handler = KineticNrsHandler::new(
             api_url,
             std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashSet::new())),
             5354,

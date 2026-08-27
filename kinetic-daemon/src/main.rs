@@ -269,10 +269,9 @@ async fn run_daemon() -> Result<()> {
     info!("VDF Engine initialized");
 
     let daemon_keypair = load_keypair(std::path::Path::new("identity.key"))?;
-    use ml_dsa::{KeyExport, Keypair};
     info!(
         "Daemon identity loaded: {:?}",
-        hex::encode(daemon_keypair.verifying_key().to_bytes())
+        hex::encode(daemon_keypair.public_key_bytes())
     );
 
     let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(Some(storage.clone())));
@@ -345,7 +344,7 @@ async fn run_daemon() -> Result<()> {
         enable_mdns: config.network.enable_mdns,
         enable_upnp: config.network.enable_upnp,
         enable_relay_server: config.network.enable_relay_server,
-        initial_kyn,
+        initial_kyn: initial_kyn,
         external_address: config
             .network
             .external_address
@@ -409,7 +408,7 @@ async fn run_daemon() -> Result<()> {
                 {
                     // Enforce strict content validation to prevent MITM attacks over HTTP
                     if downloaded_state.genesis_kyn
-                        != kinetic_core::constants::KINETIC_GENESIS_DRAND_KYN
+                        != kinetic_core::constants::KINETIC_GENESIS_KYN
                     {
                         tracing::warn!(
                             "Seed node provided governance state for wrong network genesis."

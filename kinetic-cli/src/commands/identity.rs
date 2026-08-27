@@ -61,19 +61,17 @@ pub async fn handle_identity_command(
     match cmd {
         IdentityCommands::Create { output } => {
             info!("Generating new ML-DSA-65 keypair for Kinetic Identity...");
-            use ml_dsa::{Generate, KeyExport, Keypair};
-            let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
+            let keypair = kinetic_primitives::keys::KineticKeypair::generate();
 
             use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-            let pub_key_b64 = b64_url.encode(keypair.verifying_key().to_bytes());
+            let pub_key_bytes = keypair.public_key_bytes();
+            let pub_key_b64 = b64_url.encode(&pub_key_bytes);
 
-            let mut hasher = sha2::Sha256::new();
-            use sha2::Digest;
-            hasher.update(keypair.verifying_key().to_bytes());
+            let hash = kinetic_primitives::sha256_hash(&pub_key_bytes);
             let did_str = format!(
                 "{}{}",
                 kinetic_core::constants::DID_PREFIX,
-                hex::encode(hasher.finalize())
+                hex::encode(hash)
             );
 
             let kid_did = kinetic_kid::did::KineticDid::new(&did_str)
@@ -133,7 +131,6 @@ pub async fn handle_identity_command(
             // Load identity keypair to sign the AuthorizedKid
             let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
             let keypair = kinetic_core::types::load_keypair(&identity_path)?;
-            use ml_dsa::signature::Signer;
 
             let mut kid_doc_opt = None;
 
@@ -148,8 +145,7 @@ pub async fn handle_identity_command(
                     owner_signature: vec![],
                 };
                 let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-                use ml_dsa::SignatureEncoding;
-                auth_kid.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
+                auth_kid.owner_signature = keypair.sign(&signable);
 
                 let daemon_url = format!(
                     "http://{}:{}/publish-kid",
@@ -182,8 +178,7 @@ pub async fn handle_identity_command(
                     owner_signature: vec![],
                 };
                 let signable = auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-                use ml_dsa::SignatureEncoding;
-                auth_manifest.owner_signature = keypair.sign(&signable).to_bytes().to_vec();
+                auth_manifest.owner_signature = keypair.sign(&signable);
 
                 let daemon_url = format!(
                     "http://{}:{}/publish-manifest",
@@ -236,7 +231,7 @@ pub async fn handle_identity_command(
             }
             let mut seed = [0u8; 32];
             seed.copy_from_slice(&key_data);
-            let signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&seed).into());
+            let signing_key = kinetic_primitives::keys::KineticKeypair::from_seed(&seed);
 
             // Deactivate and sign
             doc.deactivated = true;
@@ -261,10 +256,9 @@ pub async fn handle_identity_command(
 
             // Generate new controller key
             info!("Generating new ML-DSA-65 keypair for rotated identity...");
-            use ml_dsa::{Generate, KeyExport, Keypair};
-            let new_keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
+            let new_keypair = kinetic_primitives::keys::KineticKeypair::generate();
             use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-            let new_pub_b64 = b64_url.encode(new_keypair.verifying_key().to_bytes());
+            let new_pub_b64 = b64_url.encode(&new_keypair.public_key_bytes());
 
             // Replace primary controller key
             let primary_id = format!("{}#primary", doc.kid);
@@ -282,7 +276,7 @@ pub async fn handle_identity_command(
             }
             let mut seed = [0u8; 32];
             seed.copy_from_slice(&old_key_data);
-            let old_signing_key = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::from_seed((&seed).into());
+            let old_signing_key = kinetic_primitives::keys::KineticKeypair::from_seed(&seed);
 
             // Sign the updated document with the OLD key to prove authorization to rotate
             let signed_doc = doc
@@ -374,9 +368,7 @@ mod tests {
         ));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
-        use ml_dsa::Generate;
-        let keypair = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
-        use ml_dsa::KeyExport;
+        let keypair = kinetic_primitives::keys::KineticKeypair::generate();
         std::fs::write(temp_dir.join("identity.key"), keypair.to_bytes()).unwrap();
         unsafe {
             env::set_var(

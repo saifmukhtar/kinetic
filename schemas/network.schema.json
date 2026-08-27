@@ -48,7 +48,7 @@
     },
     "drand": {
       "type": "object",
-      "required": ["drand_genesis_time", "drand_period", "kinetic_genesis_drand_kyn", "drand_public_key", "drand_http_endpoints"],
+      "required": ["drand_genesis_time", "drand_period", "kinetic_genesis_kyn", "drand_public_key", "drand_http_endpoints"],
       "properties": {
         "drand_genesis_time": {
           "type": "integer"
@@ -57,7 +57,7 @@
           "type": "integer",
           "description": "Beacon period in seconds (e.g. 3 for Quicknet)."
         },
-        "kinetic_genesis_drand_kyn": {
+        "kinetic_genesis_kyn": {
           "type": "integer"
         },
         "drand_public_key": {

@@ -1,6 +1,5 @@
 use num_bigint::BigUint;
 use num_prime::nt_funcs::is_prime;
-use sha2::{Digest, Sha256};
 
 /// Generates a deterministic prime `l` (used as the quotient divisor in Wesolowski proofs)
 /// by hashing the VDF challenge (`x`) and the VDF output (`y`) using the Fiat-Shamir heuristic.
@@ -13,12 +12,11 @@ pub fn generate_prime_l(x: &BigUint, y: &BigUint) -> BigUint {
     let mut counter = 0u64;
 
     loop {
-        let mut hasher = Sha256::new();
-        hasher.update(&x_bytes);
-        hasher.update(&y_bytes);
-        hasher.update(&counter.to_be_bytes());
-
-        let hash_result = hasher.finalize();
+        let hash_result = kinetic_primitives::sha256_hash_concat(&[
+            &x_bytes,
+            &y_bytes,
+            &counter.to_be_bytes(),
+        ]);
         let mut candidate_bytes = hash_result.to_vec();
 
         // Force the lowest bit to 1 (must be odd to be prime)

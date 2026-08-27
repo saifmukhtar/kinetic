@@ -16,7 +16,7 @@ use kinetic_verify::signatures::VerifySignature;
 /// # Arguments
 ///
 /// * `record` - The host routing record to be verified.
-/// * `current_drand_kyn` - The current global drand kyn kyn.
+/// * `current_kyn` - The current global drand kyn kyn.
 ///
 /// # Errors
 ///
@@ -25,33 +25,33 @@ use kinetic_verify::signatures::VerifySignature;
 /// * Returns `KineticStoreError::MalformedSignature` if the signature bytes are structurally invalid.
 pub(crate) fn verify_host_routing_record(
     record: &kinetic_core::types::HostRoutingRecord,
-    current_drand_kyn: u64,
+    current_kyn: u64,
 ) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
     // Enforce Drand kyn freshness — reject records older than 100 kyns (~5 minutes),
     // and reject records from the future to prevent pinning via u64::MAX timestamps.
-    if current_drand_kyn.saturating_sub(record.drand_kyn) > 100 {
+    if current_kyn.saturating_sub(record.kyn) > 100 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-023",
             &record.host_id,
             &format!(
                 "HostRoutingRecord is stale ({} kyns old)",
-                current_drand_kyn.saturating_sub(record.drand_kyn)
+                current_kyn.saturating_sub(record.kyn)
             ),
         );
         return Err(err);
     }
     // Allow a 2-kyn (~6 seconds) leeway for network clock drift before rejecting future timestamps.
-    if record.drand_kyn > current_drand_kyn + 2 {
+    if record.kyn > current_kyn + 2 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             "KIN-STORE-024",
             &record.host_id,
             &format!(
                 "HostRoutingRecord is too far in the future ({} kyns ahead, max 2 allowed)",
-                record.drand_kyn.saturating_sub(current_drand_kyn)
+                record.kyn.saturating_sub(current_kyn)
             ),
         );
         return Err(err);
@@ -106,7 +106,7 @@ fn get_u64_from_sled(
 /// # Arguments
 ///
 /// * `reveal` - The proposed reveal to compute iterations for.
-/// * `current_drand_kyn` - The current global drand kyn kyn.
+/// * `current_kyn` - The current global drand kyn kyn.
 /// * `engine` - The VDF engine reference used to verify any `previous_proof` attached for a discount.
 ///
 /// # Errors
@@ -115,7 +115,7 @@ fn get_u64_from_sled(
 /// * Returns `KineticStoreError::InvalidDrandHex` if the Drand randomness is not valid hex.
 pub(crate) fn compute_required_iterations(
     reveal: &kinetic_core::types::Reveal,
-    current_drand_kyn: u64,
+    current_kyn: u64,
     engine: &dyn kinetic_core::traits::VdfEngine,
 ) -> Result<u64, KineticStoreError> {
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&reveal.name) {
@@ -129,8 +129,6 @@ pub(crate) fn compute_required_iterations(
     }
 
     use drand_verify::Pubkey;
-    use kinetic_core::types::Commitment;
-    use sha2::{Digest, Sha256};
 
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
 
@@ -154,7 +152,7 @@ pub(crate) fn compute_required_iterations(
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
         if !pk
-            .verify(reveal.drand_kyn, &[], &drand_sig_bytes)
+            .verify(reveal.kyn, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
             let err = KineticStoreError::InvalidDrandSignature;
@@ -170,9 +168,7 @@ pub(crate) fn compute_required_iterations(
     let base_required_iterations = consensus_math.required_iterations(&reveal.name);
     let required_iterations = if let Some(prev) = &reveal.previous_proof {
         // Verify previous proof
-        let mut prev_hasher = Sha256::new();
-        prev_hasher.update(reveal.name.as_bytes());
-        prev_hasher.update(prev.salt);
+        // Verify previous proof
         let prev_drand_sig_bytes = match hex::decode(&prev.drand_signature) {
             Ok(bytes) => bytes,
             Err(_) => {
@@ -194,7 +190,7 @@ pub(crate) fn compute_required_iterations(
                 .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
             if !pk
-                .verify(prev.drand_kyn, &[], &prev_drand_sig_bytes)
+                .verify(prev.kyn, &[], &prev_drand_sig_bytes)
                 .unwrap_or(false)
             {
                 tracing::warn!(
@@ -205,16 +201,13 @@ pub(crate) fn compute_required_iterations(
             }
         }
 
-        let mut drand_hasher = Sha256::new();
-        drand_hasher.update(&prev_drand_sig_bytes);
-        let mut prev_drand_rand = [0u8; 32];
-        prev_drand_rand.copy_from_slice(&drand_hasher.finalize());
-
-        prev_hasher.update(prev_drand_rand);
-        prev_hasher.update(&reveal.pubkey);
-        let mut prev_hash = [0u8; 32];
-        prev_hash.copy_from_slice(&prev_hasher.finalize());
-        let prev_challenge = Commitment { hash: prev_hash };
+        let prev_challenge = kinetic_core::types::Commitment::derive(
+            kinetic_core::constants::NETWORK_SALT,
+            &reveal.name,
+            &prev.salt,
+            &prev_drand_sig_bytes,
+            &reveal.pubkey,
+        );
 
         let prev_valid = matches!(
             engine.verify(&prev_challenge, &prev.vdf_proof, prev.iterations),
@@ -225,13 +218,13 @@ pub(crate) fn compute_required_iterations(
 
         let paused_kyns =
             if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                state.paused_kyns_since(prev.drand_kyn)
+                state.paused_kyns_since(prev.kyn)
             } else {
                 0
             };
 
-        let effective_age = current_drand_kyn
-            .saturating_sub(prev.drand_kyn)
+        let effective_age = current_kyn
+            .saturating_sub(prev.kyn)
             .saturating_sub(paused_kyns);
         let is_not_too_old = effective_age <= kinetic_core::types::RESQUARING_EPOCH_KYNS * 2;
 
@@ -283,7 +276,7 @@ pub(crate) fn compute_required_iterations(
 ///
 /// * `reveal` - The Reveal payload.
 /// * `storage` - The local sled storage engine (to look up the commitment).
-/// * `current_drand_kyn` - The current drand kyn kyn.
+/// * `current_kyn` - The current drand kyn kyn.
 /// * `engine` - The VDF engine used to verify the proof.
 ///
 /// # Errors
@@ -297,7 +290,7 @@ pub(crate) fn compute_required_iterations(
 pub(crate) fn verify_reveal(
     reveal: &kinetic_core::types::Reveal,
     storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
-    current_drand_kyn: u64,
+    current_kyn: u64,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> Result<(), KineticStoreError> {
     if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
@@ -316,8 +309,6 @@ pub(crate) fn verify_reveal(
     }
 
     use drand_verify::Pubkey;
-    use kinetic_core::types::Commitment;
-    use sha2::{Digest, Sha256};
 
     let dev_mode = kinetic_core::config::is_dev_mode();
 
@@ -355,7 +346,7 @@ pub(crate) fn verify_reveal(
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
         if !pk
-            .verify(reveal.drand_kyn, &[], &drand_sig_bytes)
+            .verify(reveal.kyn, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
             let err = KineticStoreError::InvalidDrandSignature;
@@ -368,19 +359,14 @@ pub(crate) fn verify_reveal(
         }
     }
 
-    let mut drand_hasher = Sha256::new();
-    drand_hasher.update(&drand_sig_bytes);
-    let mut drand_rand = [0u8; 32];
-    drand_rand.copy_from_slice(&drand_hasher.finalize());
-
-    let mut hasher = Sha256::new();
-    hasher.update(reveal.name.as_bytes());
-    hasher.update(reveal.salt);
-    hasher.update(drand_rand);
-    hasher.update(&reveal.pubkey);
-    let mut hash = [0u8; 32];
-    hash.copy_from_slice(&hasher.finalize());
-    let challenge = Commitment { hash };
+    let challenge = kinetic_core::types::Commitment::derive(
+        kinetic_core::constants::NETWORK_SALT,
+        &reveal.name,
+        &reveal.salt,
+        &drand_sig_bytes,
+        &reveal.pubkey,
+    );
+    let hash = challenge.hash;
 
     let mut commit_key = Vec::with_capacity(crate::store::constants::KRS_COMMIT_PREFIX.len() + 32);
     commit_key.extend_from_slice(crate::store::constants::KRS_COMMIT_PREFIX);
@@ -390,7 +376,7 @@ pub(crate) fn verify_reveal(
 
     if let Some(commit_kyn) = commit_kyn {
         if !dev_mode
-            && current_drand_kyn.saturating_sub(commit_kyn)
+            && current_kyn.saturating_sub(commit_kyn)
                 < kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
         {
             let err = KineticStoreError::StaleReveal;
@@ -422,7 +408,7 @@ pub(crate) fn verify_reveal(
     }
 
     let required_iterations =
-        compute_required_iterations(reveal, current_drand_kyn, engine.as_ref())?;
+        compute_required_iterations(reveal, current_kyn, engine.as_ref())?;
 
     if dev_mode {
         tracing::info!(
@@ -498,7 +484,7 @@ pub(crate) fn verify_authorized_kid(
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {
-        let err = KineticStoreError::DomainNotFound;
+        let err = KineticStoreError::NameNotFound;
         err.log_warning(
             "KIN-STORE-032",
             &auth_kid.name,
@@ -507,20 +493,11 @@ pub(crate) fn verify_authorized_kid(
         err
     })?;
 
-    use ml_dsa::KeyInit;
-    let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
-        .map_err(|_| KineticStoreError::InvalidKidSignature)?;
-
-    use ml_dsa::signature::Verifier;
-    let sig = ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth_kid.owner_signature.as_slice())
-        .map_err(|_| KineticStoreError::InvalidKidSignature)?;
-
-    if pubkey
-        .verify(
-            &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-            &sig,
-        )
-        .is_err()
+    if kinetic_primitives::verify_mldsa(
+        record.pubkey(),
+        &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+        auth_kid.owner_signature.as_slice(),
+    ).is_err()
         || auth_kid.kid_doc.verify().is_err()
     {
         let err = KineticStoreError::InvalidKidDocument;
@@ -593,7 +570,7 @@ pub(crate) fn verify_authorized_manifest(
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {
-        let err = KineticStoreError::DomainNotFound;
+        let err = KineticStoreError::NameNotFound;
         err.log_warning(
             "KIN-STORE-033",
             &auth_manifest.name,
@@ -602,21 +579,11 @@ pub(crate) fn verify_authorized_manifest(
         err
     })?;
 
-    use ml_dsa::KeyInit;
-    let pubkey = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::new_from_slice(record.pubkey())
-        .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
-
-    use ml_dsa::signature::Verifier;
-    let sig =
-        ml_dsa::Signature::<ml_dsa::MlDsa65>::try_from(auth_manifest.owner_signature.as_slice())
-            .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
-
-    if pubkey
-        .verify(
-            &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-            &sig,
-        )
-        .is_err()
+    if kinetic_primitives::verify_mldsa(
+        record.pubkey(),
+        &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+        auth_manifest.owner_signature.as_slice(),
+    ).is_err()
     {
         let err = KineticStoreError::InvalidManifestSignature;
         err.log_warning(

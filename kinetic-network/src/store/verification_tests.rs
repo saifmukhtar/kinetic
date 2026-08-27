@@ -15,7 +15,7 @@ mod tests {
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            drand_kyn: stale_pulse,
+            kyn: stale_pulse,
             signature: vec![],
         };
 
@@ -40,7 +40,7 @@ mod tests {
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            drand_kyn: recent_pulse,
+            kyn: recent_pulse,
             signature: vec![],
         };
 
@@ -58,27 +58,21 @@ mod tests {
         use crate::store::verification::verify_authorized_kid;
         use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
         use kinetic_kid::document::KidDocument;
-        use ml_dsa::Generate;
-        use ml_dsa::KeyExport;
-        use ml_dsa::Keypair;
-        use ml_dsa::SignatureEncoding;
-        use ml_dsa::signature::Signer;
-
-        let ml_kp = ml_dsa::SigningKey::<ml_dsa::MlDsa65>::generate();
-        let ml_pub = ml_kp.verifying_key();
+        let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
+        let ml_pub_bytes = ml_kp.public_key_bytes();
 
         let reveal = Reveal {
             protocol_version: 1,
             name: "test.kinetic".to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            drand_kyn: 100,
+            kyn: 100,
             drand_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: ml_pub.to_bytes().to_vec(),
+            pubkey: ml_pub_bytes.clone(),
             signature: vec![],
             previous_proof: None,
             miner_pubkey: None,
@@ -86,12 +80,9 @@ mod tests {
         };
 
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-        let pub_key_b64 = b64_url.encode(ml_pub.to_bytes());
+        let pub_key_b64 = b64_url.encode(&ml_pub_bytes);
 
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(ml_pub.to_bytes());
-        let hash = hasher.finalize();
+        let hash = kinetic_primitives::sha256_hash(&ml_pub_bytes);
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -132,7 +123,7 @@ mod tests {
 
         // Sign the kid_doc with our ML-DSA key
         let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-        auth_kid.owner_signature = ml_kp.sign(&signable).to_vec();
+        auth_kid.owner_signature = ml_kp.sign(&signable);
 
         // Pass it through validation! (We mock existing_record as Some to bypass genesis bindings in this simple test)
         let dummy_key = libp2p::kad::RecordKey::new(&[0u8; 32]);

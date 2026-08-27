@@ -29,9 +29,11 @@ mod tests {
                 .into_iter()
                 .map(|s| s.parse().unwrap())
                 .collect(),
-            initial_drand_kyn: 1000,
+            initial_kyn: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
+            enable_relay_server: false,
+            enable_upnp: false,
             seed_domain: vec![],
             disable_storage_sync: false,
         };
@@ -170,9 +172,11 @@ mod tests {
             disable_pow: false,
             test_mode: false,
             bootstrap_nodes: vec![],
-            initial_drand_kyn: 1000,
+            initial_kyn: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
+            enable_relay_server: false,
+            enable_upnp: false,
             seed_domain: vec![],
             disable_storage_sync: false,
         };
@@ -214,7 +218,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_drand_kyn_sync() {
+    async fn test_kyn_sync() {
         let key_a = Keypair::generate_ed25519();
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
@@ -232,9 +236,11 @@ mod tests {
             disable_pow: false,
             test_mode: false,
             bootstrap_nodes: vec![],
-            initial_drand_kyn: 1000,
+            initial_kyn: 1000,
             mode: kinetic_network::NetworkMode::FullNode,
             enable_mdns: false,
+            enable_relay_server: false,
+            enable_upnp: false,
             seed_domain: vec![],
             disable_storage_sync: false,
         };

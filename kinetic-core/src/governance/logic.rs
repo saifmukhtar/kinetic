@@ -9,7 +9,7 @@
 //! - [`GovernanceState::verify_action`] — engine action verification
 //! - [`GovernanceState::execute_action`] — engine action execution
 
-use sha2::{Digest, Sha256};
+
 use std::collections::HashMap;
 
 use crate::constants::ROOT_PUBLIC_KEY_HEX;
@@ -17,7 +17,6 @@ use crate::error::GovernanceError;
 use crate::governance::types::{
     GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes, SignedGovernanceMessage,
 };
-use crate::traits::GovernanceEngine;
 
 /// Validates that the static cryptographic keys required for governance have been correctly initialized.
 ///
@@ -71,12 +70,7 @@ impl GovernanceState {
     ///
     /// A deterministic 32-byte `[u8; 32]` SHA-256 hash of the canonical message bytes.
     pub fn hash_action(msg: &SignedGovernanceMessage) -> Hash256 {
-        let mut hasher = Sha256::new();
-        hasher.update(msg.to_canonical_bytes());
-        let result = hasher.finalize();
-        let mut array = [0u8; 32];
-        array.copy_from_slice(&result);
-        array
+        kinetic_primitives::sha256_hash(&msg.to_canonical_bytes())
     }
 
     /// Garbage collects the `executed_hashes` set.

@@ -13,7 +13,7 @@ use kinetic_storage::KineticStorage;
 use std::sync::Arc;
 use tokio::sync::watch;
 
-async fn fetch_drand_kyn() -> u64 {
+async fn fetch_kyn() -> u64 {
     let client = reqwest::Client::new();
     let ping_endpoint = kinetic_core::constants::DRAND_HTTP_ENDPOINTS
         .first()
@@ -98,7 +98,7 @@ async fn handle_request(
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    let current_pulse = fetch_drand_kyn().await;
+    let current_pulse = fetch_kyn().await;
     println!("Mining PoW to satisfy kinetic-host anti-spam...");
     let key = kinetic_network::pow::mine_sybil_keypair(
         current_pulse,
@@ -119,7 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect(),
         seed_domain: vec![],
         enable_mdns: false,
-        initial_drand_kyn: 0,
+        initial_kyn: 0,
         external_address: None,
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)

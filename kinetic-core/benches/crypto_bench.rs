@@ -1,8 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use ed25519_dalek::{Signer as EdSigner, SigningKey as EdSigningKey, Verifier as EdVerifier};
 use getrandom::getrandom;
-use ml_dsa::signature::{Signer as MlSigner, Verifier as MlVerifier};
-use ml_dsa::{Generate, Keypair, MlDsa65, SigningKey as MlSigningKey};
 use std::hint::black_box;
 
 fn bench_ed25519(c: &mut Criterion) {
@@ -26,8 +24,8 @@ fn bench_ed25519(c: &mut Criterion) {
 }
 
 fn bench_mldsa65(c: &mut Criterion) {
-    let signing_key = MlSigningKey::<MlDsa65>::generate();
-    let verifying_key = signing_key.verifying_key();
+    let signing_key = kinetic_primitives::keys::KineticKeypair::generate();
+    let verifying_key_bytes = signing_key.public_key_bytes();
     let message: &[u8] =
         b"This is a dummy heartbeat payload for benchmarking post-quantum ML-DSA-65";
 
@@ -38,7 +36,7 @@ fn bench_mldsa65(c: &mut Criterion) {
     let signature = signing_key.sign(message);
 
     group.bench_function("verify", |b| {
-        b.iter(|| verifying_key.verify(black_box(message), black_box(&signature)))
+        b.iter(|| kinetic_primitives::verify_mldsa(black_box(&verifying_key_bytes), black_box(message), black_box(&signature)))
     });
 
     group.finish();

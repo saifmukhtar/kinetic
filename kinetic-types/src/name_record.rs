@@ -20,7 +20,7 @@ pub struct Heartbeat {
     /// Name associated with this heartbeat.
     pub name: String,
     /// Latest drand kyn number proving heartbeat recency.
-    pub latest_drand_kyn: u64,
+    pub latest_kyn: u64,
     /// Owner's ML-DSA-65 post-quantum signature over [`signable_bytes`](Heartbeat::signable_bytes).
     pub signature: Vec<u8>,
     /// Optional delegated authorization proof (Fat Heartbeat).
@@ -43,7 +43,7 @@ impl Heartbeat {
         bytes.extend_from_slice(name_separator);
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
-        bytes.extend_from_slice(&self.latest_drand_kyn.to_be_bytes());
+        bytes.extend_from_slice(&self.latest_kyn.to_be_bytes());
         if let Some(auth) = &self.authorization {
             bytes.push(1);
             bytes.extend_from_slice(&(auth.owner_signature.len() as u32).to_be_bytes());

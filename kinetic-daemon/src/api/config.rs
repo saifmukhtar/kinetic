@@ -18,7 +18,7 @@ pub async fn handle_config(
     let config = kinetic_core::config::KineticConfig::load();
     Ok(Json(serde_json::json!({
         "status": "ok",
-        "mode": config.daemon.network_mode
+        "config": config
     })))
 }
 
@@ -66,7 +66,7 @@ pub async fn handle_get_governance() -> impl axum::response::IntoResponse {
     (axum::http::StatusCode::OK, data)
 }
 
-/// Handles requests to update the daemon configuration, such as changing the network mode.
+/// Handles requests to update the daemon configuration.
 pub async fn handle_set_config(
     Extension(role): Extension<Role>,
     State(_state): State<ApiState>,
@@ -75,14 +75,30 @@ pub async fn handle_set_config(
     if !role.is_admin() {
         return Err(StatusCode::FORBIDDEN);
     }
-    let mut config = kinetic_core::config::KineticConfig::load();
-    if let Some(mode) = payload.get("mode").and_then(|m| m.as_str()) {
-        config.daemon.network_mode = mode.to_string();
+    
+    if let Some(config_payload) = payload.get("config") {
+        match serde_json::from_value::<kinetic_core::config::KineticConfig>(config_payload.clone()) {
+            Ok(new_config) => {
+                new_config.validate(); // Ensure no port collisions before saving
+                let _ = new_config.save();
+                Ok(Json(serde_json::json!({
+                    "status": "ok", 
+                    "message": "Configuration saved. Restart daemon to apply."
+                })))
+            }
+            Err(e) => {
+                Ok(Json(serde_json::json!({
+                    "status": "error",
+                    "message": format!("Invalid config payload format: {}", e)
+                })))
+            }
+        }
+    } else {
+        Ok(Json(serde_json::json!({
+            "status": "error",
+            "message": "Missing 'config' object in payload."
+        })))
     }
-    let _ = config.save();
-    Ok(Json(
-        serde_json::json!({"status": "ok", "message": "Configuration saved. Restart daemon to apply."}),
-    ))
 }
 
 /// Handles requests to check the daemon health.

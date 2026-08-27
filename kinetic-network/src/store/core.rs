@@ -38,7 +38,7 @@ pub struct KineticRecordStore {
     pub accepted_reveals_timestamps:
         LruCache<String, std::collections::VecDeque<web_time::Instant>>,
     /// The current observed Drand kyn kyn.
-    pub current_drand_kyn: u64,
+    pub current_kyn: u64,
     /// Configuration for rate limiting reveals
     pub max_reveals_per_hour: usize,
 }
@@ -53,7 +53,7 @@ impl KineticRecordStore {
     ///
     /// * `local_peer_id` - The libp2p [`PeerId`] of the local node.
     /// * `storage` - A thread-safe reference to the underlying sled database wrapper.
-    /// * `initial_drand_kyn` - The starting drand kyn kyn to initialize the store.
+    /// * `initial_kyn` - The starting drand kyn kyn to initialize the store.
     /// * `lru_cache_size` - The maximum number of reveals to cache in memory.
     /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per domain name.
     /// * `vdf_engine` - The backend engine used to verify VDF proofs.
@@ -65,7 +65,7 @@ impl KineticRecordStore {
     pub fn new(
         local_peer_id: PeerId,
         storage: Arc<dyn StorageEngine>,
-        initial_drand_kyn: u64,
+        initial_kyn: u64,
         lru_cache_size: NonZeroUsize,
         max_reveals_per_hour: usize,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
@@ -90,7 +90,7 @@ impl KineticRecordStore {
                         kinetic_core::types::NameRecord::Standard(reveal) => {
                             if let Ok(req) = super::verification::compute_required_iterations(
                                 reveal,
-                                initial_drand_kyn,
+                                initial_kyn,
                                 vdf_engine.as_ref(),
                             ) && reveal.iterations >= req
                             {
@@ -100,23 +100,15 @@ impl KineticRecordStore {
                                         .verify_signature(kinetic_core::constants::NETWORK_SALT)
                                         .is_ok()
                                 {
-                                    use kinetic_core::types::Commitment;
-                                    use sha2::{Digest, Sha256};
                                     let drand_sig_bytes = hex::decode(&reveal.drand_signature)
                                         .unwrap_or_else(|_| vec![0u8; 32]);
-                                    let mut drand_hasher = Sha256::new();
-                                    drand_hasher.update(&drand_sig_bytes);
-                                    let mut drand_rand = [0u8; 32];
-                                    drand_rand.copy_from_slice(&drand_hasher.finalize());
-
-                                    let mut hasher = Sha256::new();
-                                    hasher.update(reveal.name.as_bytes());
-                                    hasher.update(reveal.salt);
-                                    hasher.update(drand_rand);
-                                    hasher.update(&reveal.pubkey);
-                                    let mut hash = [0u8; 32];
-                                    hash.copy_from_slice(&hasher.finalize());
-                                    let challenge = Commitment { hash };
+                                    let challenge = kinetic_core::types::Commitment::derive(
+                                        kinetic_core::constants::NETWORK_SALT,
+                                        &reveal.name,
+                                        &reveal.salt,
+                                        &drand_sig_bytes,
+                                        &reveal.pubkey,
+                                    );
 
                                     #[cfg(not(target_arch = "wasm32"))]
                                     let is_valid_vdf = tokio::task::block_in_place(|| {
@@ -209,7 +201,7 @@ impl KineticRecordStore {
             reveals_by_name,
             last_heartbeats_by_name,
             accepted_reveals_timestamps: LruCache::new(lru_cache_size),
-            current_drand_kyn: initial_drand_kyn,
+            current_kyn: initial_kyn,
             max_reveals_per_hour,
         }
     }
@@ -219,7 +211,7 @@ impl KineticRecordStore {
     /// `Reveal` records older than the resquaring epoch, and idle heartbeats
     /// older than 7 days (where applicable for infrastructure).
     pub fn prune(&mut self) {
-        let current_kyn = self.current_drand_kyn;
+        let current_kyn = self.current_kyn;
         let mut keys_to_delete = Vec::new();
 
         // 1. Scan and Prune Commitments from Sled
@@ -252,7 +244,7 @@ impl KineticRecordStore {
         for (name, record) in &self.reveals_by_name {
             match record {
                 kinetic_core::types::NameRecord::Standard(reveal) => {
-                    let age = current_kyn.saturating_sub(reveal.drand_kyn);
+                    let age = current_kyn.saturating_sub(reveal.kyn);
                     if age > max_age_kyns {
                         expired_names.push(name.clone());
                         continue;
@@ -262,7 +254,7 @@ impl KineticRecordStore {
                         .last_heartbeats_by_name
                         .get(name)
                         .copied()
-                        .unwrap_or(reveal.drand_kyn);
+                        .unwrap_or(reveal.kyn);
                     let hb_age = current_kyn.saturating_sub(last_hb);
 
                     if !kinetic_core::types::protocol::requires_heartbeat(name) {
@@ -429,7 +421,7 @@ impl KineticRecordStore {
                         key.extend_from_slice(&commitment.hash);
                         let _ = self
                             .storage
-                            .put(&key, &self.current_drand_kyn.to_be_bytes());
+                            .put(&key, &self.current_kyn.to_be_bytes());
                         return self
                             .inner
                             .put(r)
@@ -456,7 +448,7 @@ impl KineticRecordStore {
                         return Err(err);
                     }
                 }
-            } else if parsed.get("latest_drand_kyn").is_some() {
+            } else if parsed.get("latest_kyn").is_some() {
                 match serde_json::from_value::<kinetic_core::types::Heartbeat>(parsed) {
                     Ok(heartbeat) => {
                         tracing::trace!(
@@ -510,7 +502,7 @@ impl KineticRecordStore {
                     Ok(host_route) => {
                         match crate::store::verification::verify_host_routing_record(
                             &host_route,
-                            self.current_drand_kyn,
+                            self.current_kyn,
                         ) {
                             Ok(()) => {
                                 tracing::info!(
@@ -668,7 +660,7 @@ mod tests {
 
         assert!(store.get_record_with_fallback(name).is_some());
 
-        store.current_drand_kyn += 300000;
+        store.current_kyn += 300000;
         store.prune();
 
         // Wait for async deletion task to run
@@ -721,7 +713,7 @@ mod tests {
 
         assert!(store.get_record_with_fallback(name).is_some());
 
-        store.current_drand_kyn += 300000;
+        store.current_kyn += 300000;
         store.prune();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;

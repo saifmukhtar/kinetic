@@ -15,7 +15,7 @@ use hyper::{Request, Response, body::Incoming};
 /// Libp2p streams, or WebRTC.
 pub async fn forward_to_ip(
     req: Request<Incoming>,
-    domain: &str,
+    name: &str,
     ip_str: &str,
     node_peer_id: &str,
     config: Arc<kinetic_core::config::KineticConfig>,
@@ -25,8 +25,8 @@ pub async fn forward_to_ip(
     } else if let Ok(sa) = ip_str.parse::<std::net::SocketAddr>() {
         sa.ip()
     } else {
-        tracing::warn!("KIN-PROXY-028: Invalid IP format for domain '{}': {}", domain, ip_str);
-        return Err(ProxyError::NameNotFound(domain.to_string()));
+        tracing::warn!("KIN-PROXY-028: Invalid IP format for name '{}': {}", name, ip_str);
+        return Err(ProxyError::NameNotFound(name.to_string()));
     };
 
     let original_port = req
@@ -129,7 +129,7 @@ pub async fn forward_to_ip(
             backend_req = backend_req.header(name, value);
         }
     }
-    backend_req = backend_req.header("Host", domain);
+    backend_req = backend_req.header("Host", name);
     backend_req = backend_req.header("X-Kinetic-Loop-Protect", node_peer_id);
 
     use http_body_util::BodyExt;

@@ -8,7 +8,7 @@ fn test_protocol_downgrade_prevention() {
         name: format!("{}{}", "saifmukhtar", kinetic_core::constants::NSP_SUFFIX),
         payload: vec![1, 2, 3],
         salt: [0u8; 32],
-        drand_kyn: 100,
+        kyn: 100,
         drand_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {

@@ -32,7 +32,7 @@ fn test_009_memory_store_bloat() {
                 name,
                 salt: [0; 32],
                 drand_signature: String::new(),
-                drand_kyn: 100,
+                kyn: 100,
                 iterations: 100,
                 vdf_proof: kinetic_core::types::VdfProof {
                     proof_bytes: vec![],

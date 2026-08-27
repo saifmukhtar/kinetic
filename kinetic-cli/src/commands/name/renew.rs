@@ -3,10 +3,10 @@
 use crate::utils::parse_and_format_api_error;
 use kinetic_core::config::{KineticConfig, get_zones_dir};
 use kinetic_core::traits::VdfEngine;
-use kinetic_core::types::{Commitment, load_keypair};
-use ml_dsa::{KeyExport, Keypair, SignatureEncoding};
+use kinetic_core::types::load_keypair;
+
 use reqwest::Client;
-use sha2::Digest;
+
 use std::time::Duration;
 use tracing::info;
 
@@ -51,7 +51,7 @@ pub async fn handle(
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
-    let pubkey = keypair.verifying_key().to_bytes();
+    let pubkey = keypair.public_key_bytes();
 
     if old_reveal.pubkey != pubkey.as_slice() {
         return Err(anyhow::anyhow!(
@@ -67,19 +67,15 @@ pub async fn handle(
     let mut salt = [0u8; 32];
     getrandom::fill(&mut salt).expect("Failed to generate random salt");
 
-    let mut drand_hasher = sha2::Sha256::new();
-    drand_hasher.update(hex::decode(&drand_data.signature).unwrap());
-    let mut drand_rand = [0u8; 32];
-    drand_rand.copy_from_slice(&drand_hasher.finalize());
-
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(fqdn.as_bytes());
-    hasher.update(salt);
-    hasher.update(drand_rand);
-    hasher.update(pubkey);
-    let mut hash = [0u8; 32];
-    hash.copy_from_slice(&hasher.finalize());
-    let challenge = Commitment { hash };
+    let drand_sig_bytes = hex::decode(&drand_data.signature)
+        .map_err(|_| anyhow::anyhow!("Received corrupted Drand signature from the beacon"))?;
+    let challenge = kinetic_core::types::Commitment::derive(
+        kinetic_core::constants::NETWORK_SALT,
+        &fqdn,
+        &salt,
+        &drand_sig_bytes,
+        &pubkey,
+    );
 
     info!("Broadcasting Commitment to DHT...");
     let commit_req = kinetic_core::types::CommitRequest {
@@ -146,23 +142,22 @@ pub async fn handle(
 
     let mut previous_proof = kinetic_core::types::PreviousProof {
         salt: old_reveal.salt,
-        drand_kyn: old_reveal.drand_kyn,
+        kyn: old_reveal.kyn,
         drand_signature: old_reveal.drand_signature.clone(),
         iterations: old_reveal.iterations,
         vdf_proof: old_reveal.vdf_proof.clone(),
         signature: vec![],
     };
 
-    use ml_dsa::signature::Signer;
     let prev_signable = previous_proof.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-    previous_proof.signature = keypair.sign(&prev_signable).to_bytes().to_vec();
+    previous_proof.signature = keypair.sign(&prev_signable);
 
     let mut new_reveal = kinetic_core::types::Reveal {
         protocol_version: 1,
         name: fqdn.clone(),
         payload: old_reveal.payload.clone(),
         salt,
-        drand_kyn: drand_data.kyn,
+        kyn: drand_data.kyn,
         drand_signature: drand_data.signature.clone(),
         iterations: actual_iterations,
         vdf_proof,
@@ -174,9 +169,7 @@ pub async fn handle(
     };
 
     new_reveal.signature = keypair
-        .sign(&new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
-        .to_bytes()
-        .to_vec();
+        .sign(&new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
     let req_body = serde_json::json!({
         "reveal": new_reveal,
