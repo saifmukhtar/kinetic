@@ -57,7 +57,7 @@ impl HostRoutingRecord {
     ///
     /// # Returns
     ///
-    /// Concatenated byte vector prefixed with the network routing header string (`{network_id}-routing-v1`).
+    /// Concatenated byte vector prefixed with the cryptographic network salt and routing header (`NETWORK_SALT || \"-nrs-routing-v1\"`).
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
         let name_separator = b"-nrs-routing-v1";
         let mut bytes = Vec::with_capacity(

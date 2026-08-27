@@ -11,7 +11,7 @@
 //!
 //! Kinetic uses a Wesolowski RSA VDF (pure Rust, no C++ dependencies) where
 //! the challenge is derived from Drand randomness at commitment time:
-//! `challenge = SHA-256(network_id || name || salt || drand_signature_hex)`.
+//! `challenge = SHA-256(NETWORK_SALT || name || salt || drand_signature_hex)`.
 //!
 //! The Prover uses Boneh-Bünz-Fisch Blockwise Checkpointing to bound memory
 //! usage to ~100MB regardless of iteration count.

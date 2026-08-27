@@ -76,7 +76,7 @@ pub async fn update_zone_logic(
             ..
         } => {
             *payload = new_payload;
-            // The signature for NameRecord uses the NameRecord method verify_signature which signs (name || payload || network_id)
+            // The signature for NameRecord uses the NameRecord method verify_signature which signs (name || payload || network_salt)
             let mut signable = Vec::new();
             signable.extend_from_slice(name.as_bytes());
             signable.extend_from_slice(payload);
