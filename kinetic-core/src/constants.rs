@@ -88,22 +88,26 @@ pub const KINETIC_GOVERNANCE_KEY_PURPOSE: &str =
     concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_GOVERNANCE_KEY_v1_PQC");
 
 /// Prefix for storing registered `.kin` names in local Sled/DB storage.
-/// Dynamically namespaced with `NETWORK_ID` to prevent cross-network key collisions.
+/// Namespaced as `<nsp>-<salt_prefix>` (e.g. `kin-83cf`) to prevent cross-fork
+/// data collisions while staying consistent with the data directory naming convention.
 pub const DB_PREFIX_OWNED_NAMES: &[u8] =
-    concat!("n:", env!("KINETIC_NETWORK_ID"), "_owned_names").as_bytes();
+    concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_owned_names").as_bytes();
 
 /// Key prefix for storing VDF reveal proof payloads in local Sled/DB storage.
-pub const DB_PREFIX_REVEAL: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_reveal:");
+pub const DB_PREFIX_REVEAL: &str =
+    concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_reveal:");
 
 /// Key prefix for storing banned peer multiaddrs in local Sled/DB storage.
-pub const DB_PREFIX_BANNED_PEER: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_banned_peer:");
+pub const DB_PREFIX_BANNED_PEER: &str =
+    concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_banned_peer:");
 
 /// Storage key for persisting the latest processed Drand kyn number.
 pub const DB_PREFIX_LAST_DRAND: &[u8] =
-    concat!("n:", env!("KINETIC_NETWORK_ID"), "_last_drand_kyn").as_bytes();
+    concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_last_drand_kyn").as_bytes();
 
 /// Database namespace for the P2P ping proxy subsystem.
-pub const DB_NAME_PING: &str = concat!("n:", env!("KINETIC_NETWORK_ID"), "_ping_db");
+pub const DB_NAME_PING: &str =
+    concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_ping_db");
 
 /// The primary global Gossipsub topic for network events (Governance, Drand, Ping, etc.).
 pub const GOSSIP_TOPIC_GLOBAL: &str = NETWORK_SALT_HEX;

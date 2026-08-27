@@ -254,6 +254,10 @@ fn main() {
         "cargo:rustc-env=KINETIC_NETWORK_ID_UPPER={}",
         config.network.network_id.to_uppercase()
     );
+    println!(
+        "cargo:rustc-env=KINETIC_NSP={}",
+        config.network.nsp
+    );
 
     out.push_str(&format!(
         "/// The League of Entropy public key for the Quicknet chain (or custom beacon).\npub const DRAND_PUBLIC_KEY: &str = \"{}\";\n\n",
@@ -410,6 +414,14 @@ fn main() {
          pub const NETWORK_SALT_HEX_PROD: &str = \"{}\";\n\n",
         hex::encode(prod_salt)
     ));
+
+    // Export the first 4 hex chars of the prod salt as a compile-time env var.
+    // Used in constants.rs to namespace DB keys as "<nsp>-<salt_prefix>:..." 
+    // (e.g. "kin-83cf:...") — consistent with the data directory naming.
+    println!(
+        "cargo:rustc-env=KINETIC_SALT_PREFIX={}",
+        &hex::encode(prod_salt)[..4]
+    );
 
     out.push_str(&format!(
         "/// The mathematical network salt for testing, derived from NETWORK_ID + ROOT_PUBLIC_KEY.\n\
