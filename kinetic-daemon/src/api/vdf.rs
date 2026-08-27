@@ -146,7 +146,7 @@ pub async fn handle_vdf_register(
                 return;
             }
         };
-        let pubkey = keypair.public_key_bytes();
+        let pubkey = keypair.pubkey_bytes();
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -184,7 +184,7 @@ pub async fn handle_vdf_register(
             30,
         );
         let required_iters =
-            kinetic_core::consensus_math::ConsensusParams::default().required_iterations(&fqdn);
+            kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
         let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
@@ -500,7 +500,7 @@ pub async fn handle_vdf_renew(
                 return;
             }
         };
-        let pubkey_bytes = keypair.public_key_bytes();
+        let pubkey_bytes = keypair.pubkey_bytes();
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -539,7 +539,7 @@ pub async fn handle_vdf_renew(
         );
 
         let required_iters =
-            kinetic_core::consensus_math::ConsensusParams::default().required_iterations(&fqdn);
+            kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
         // Renewals get an 80% discount
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);

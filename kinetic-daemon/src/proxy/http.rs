@@ -43,7 +43,7 @@ pub async fn handle_proxy_request(
         tokio::spawn(async move {
             match hyper::upgrade::on(req).await {
                 Ok(upgraded) => {
-                    if let Err(e) = handle_connect(
+                    if let Err(e) = handle_connect_req(
                         raw_host,
                         full_name,
                         upgraded,

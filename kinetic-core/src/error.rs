@@ -124,7 +124,7 @@ pub enum KineticError {
     /// Raised when the kyn kyn number is wrong, the hex encoding is malformed,
     /// or the BLS signature does not verify against the Quicknet chain public key.
     #[error("Invalid Drand kyn: {0}")]
-    InvalidDrandPulse(String),
+    InvalidDrandRound(String),
 
     /// A storage operation in Sled failed.
     ///

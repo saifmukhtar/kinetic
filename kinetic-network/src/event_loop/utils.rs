@@ -127,7 +127,7 @@ impl super::core::NetworkEventLoop {
 
         // Single-pass parsing
         enum ParsedPayload {
-            Kid(kinetic_kid::KidDocument),
+            Kid(kinetic_kid::Document),
             Reveal(kinetic_core::types::Reveal),
             HostRouting(kinetic_core::types::HostRoutingRecord),
         }
@@ -139,7 +139,7 @@ impl super::core::NetworkEventLoop {
         #[allow(unused_variables)]
         let unique_payloads_first = unique_payloads.first().cloned();
         for p in unique_payloads {
-            if let Ok(doc) = serde_json::from_slice::<kinetic_kid::KidDocument>(&p) {
+            if let Ok(doc) = serde_json::from_slice::<kinetic_kid::Document>(&p) {
                 if doc.kid.to_string() == query_name {
                     is_kid = true;
                     parsed.push((p, ParsedPayload::Kid(doc)));
@@ -177,7 +177,7 @@ impl super::core::NetworkEventLoop {
                         // Reject future-dated documents (allowing 300s clock drift)
                         if doc.created_at > current_time + 300 {
                             tracing::warn!(
-                                "Rejecting KidDocument: created_at ({}) is in the future",
+                                "Rejecting Document: created_at ({}) is in the future",
                                 doc.created_at
                             );
                             return None;
@@ -282,12 +282,12 @@ impl super::core::NetworkEventLoop {
                                 Err(_) => continue,
                             };
 
-                        let pk = match drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes) {
+                        let pubkey = match drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes) {
                             Ok(p) => p,
                             Err(_) => continue,
                         };
 
-                        if !pk
+                        if !pubkey
                             .verify(reveal.kyn, &[], &drand_sig_bytes)
                             .unwrap_or(false)
                         {

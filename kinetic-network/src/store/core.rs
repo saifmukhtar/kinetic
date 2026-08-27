@@ -266,7 +266,7 @@ impl KineticRecordStore {
                     }
                 }
                 kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                    let grant_kyn = kinetic_core::types::clock::unix_secs_to_kyn(
+                    let grant_kyn = kinetic_core::types::clock::unix_time_to_kyn(
                         *granted_at,
                         kinetic_core::constants::DRAND_GENESIS_TIME,
                         kinetic_core::constants::DRAND_PERIOD,
@@ -337,7 +337,7 @@ impl KineticRecordStore {
         }
     }
 
-    pub(crate) fn get_record_with_fallback(
+    pub(crate) fn get_fallback(
         &mut self,
         name: &str,
     ) -> Option<kinetic_core::types::NameRecord> {
@@ -369,7 +369,7 @@ impl KineticRecordStore {
     ///
     /// Returns a [`KineticStoreError`] if the record payload is malformed, cryptographic proofs fail,
     /// the heartbeat is stale, or the payload size exceeds the 80 KB limit (`KIN-NET-001`).
-    pub fn put_record(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
+    pub fn put(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         self.put_record_internal(r, false)
     }
 
@@ -385,7 +385,7 @@ impl KineticRecordStore {
     /// # Errors
     ///
     /// Returns a [`KineticStoreError`] if the payload size exceeds the maximum 80 KB limit (`KIN-NET-001`).
-    pub fn put_verified_record(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
+    pub fn put_verified(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         self.put_record_internal(r, true)
     }
 
@@ -440,7 +440,7 @@ impl KineticRecordStore {
                             "KineticRecordStore::put parsed NameRecord for {}",
                             record.name()
                         );
-                        self.handle_record(&record, skip_reveal_verify)?;
+                        self.handle_put_record(&record, skip_reveal_verify)?;
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
@@ -455,7 +455,7 @@ impl KineticRecordStore {
                             "KineticRecordStore::put parsed Heartbeat for {}",
                             heartbeat.name
                         );
-                        self.handle_heartbeat(&heartbeat)?;
+                        self.handle_process_heartbeat(&heartbeat)?;
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
@@ -466,7 +466,7 @@ impl KineticRecordStore {
             } else if parsed.get("delegation_signature").is_some() {
                 match serde_json::from_value::<kinetic_core::types::AuthorizedKid>(parsed) {
                     Ok(auth_kid) => {
-                        let active_record = self.get_record_with_fallback(&auth_kid.name);
+                        let active_record = self.get_fallback(&auth_kid.name);
                         let existing_record = self.inner.get(&r.key);
                         super::verification::verify_authorized_kid(
                             &auth_kid,
@@ -483,7 +483,7 @@ impl KineticRecordStore {
             } else if parsed.get("manifest").is_some() {
                 match serde_json::from_value::<kinetic_core::types::AuthorizedManifest>(parsed) {
                     Ok(auth_manifest) => {
-                        let active_record = self.get_record_with_fallback(&auth_manifest.name);
+                        let active_record = self.get_fallback(&auth_manifest.name);
                         let existing_record = self.inner.get(&r.key);
                         super::verification::verify_authorized_manifest(
                             &auth_manifest,
@@ -560,7 +560,7 @@ impl kad::store::RecordStore for KineticRecordStore {
     }
 
     fn put(&mut self, r: kad::Record) -> kad::store::Result<()> {
-        self.put_record(r).map_err(|e| e.into())
+        self.put(r).map_err(|e| e.into())
     }
 
     fn remove(&mut self, k: &kad::RecordKey) {
@@ -623,7 +623,7 @@ mod tests {
         assert!(res.is_err()); // Should reject
     }
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_thermodynamic_pruning_removes_idle_names() {
+    async fn test_pruning_idle_names() {
         let dir = tempdir().unwrap();
         let sled_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
@@ -658,7 +658,7 @@ mod tests {
         let kad_record = kad::Record::new(kad_key.clone(), record_bytes);
         store.put_record_internal(kad_record, true).unwrap();
 
-        assert!(store.get_record_with_fallback(name).is_some());
+        assert!(store.get_fallback(name).is_some());
 
         store.current_kyn += 300000;
         store.prune();
@@ -676,7 +676,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_thermodynamic_pruning_preserves_exempt_names() {
+    async fn test_pruning_exempt_names() {
         let dir = tempdir().unwrap();
         let sled_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
@@ -711,7 +711,7 @@ mod tests {
         let kad_record = kad::Record::new(kad_key.clone(), record_bytes);
         store.put_record_internal(kad_record, true).unwrap();
 
-        assert!(store.get_record_with_fallback(name).is_some());
+        assert!(store.get_fallback(name).is_some());
 
         store.current_kyn += 300000;
         store.prune();
@@ -719,7 +719,7 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
         // It should NOT be pruned!
-        assert!(store.get_record_with_fallback(name).is_some());
+        assert!(store.get_fallback(name).is_some());
     }
 
     #[tokio::test]
@@ -817,7 +817,7 @@ mod tests {
         let bad_bytes = vec![0, 255, 0, 128];
         let kad_record_bad =
             libp2p::kad::Record::new(libp2p::kad::RecordKey::new(&"key1"), bad_bytes);
-        let res1 = store.put_record(kad_record_bad);
+        let res1 = store.put(kad_record_bad);
         assert!(matches!(
             res1.unwrap_err(),
             crate::error::KineticStoreError::MalformedJson
@@ -828,7 +828,7 @@ mod tests {
             libp2p::kad::RecordKey::new(&"key2"),
             schema_error_json.as_bytes().to_vec(),
         );
-        let res2 = store.put_record(kad_record_schema);
+        let res2 = store.put(kad_record_schema);
         assert!(matches!(
             res2.unwrap_err(),
             crate::error::KineticStoreError::SchemaValidationError

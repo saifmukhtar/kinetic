@@ -97,7 +97,7 @@ impl KineticNrsHandler {
 
     /// Explicitly invalidate the DNS cache for a given apex name.
     /// This is called by the daemon after a successful local update to prevent serving stale data.
-    pub async fn invalidate_cache(&self, apex_name: &str) {
+    pub async fn invalidate(&self, apex_name: &str) {
         let name_normalized = kinetic_core::types::extract_apex_name(apex_name);
         self.cache.invalidate(&name_normalized).await;
         tracing::info!(

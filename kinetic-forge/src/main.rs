@@ -78,7 +78,7 @@ fn main() -> Result<()> {
 
     let (drand_pubkey, drand_genesis, drand_period, drand_http) = if !use_public_drand {
         println!("\n--- Custom Private Drand Configuration ---");
-        let pk: String = Input::with_theme(&ColorfulTheme::default())
+        let pubkey: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Drand Public Key (Hex)")
             .interact_text()?;
         let genesis: u64 = Input::with_theme(&ColorfulTheme::default())
@@ -99,7 +99,7 @@ fn main() -> Result<()> {
                 .with_prompt("Drand HTTPS Endpoint (e.g. https://my-drand.internal)")
                 .interact_text()?;
         }
-        (pk, genesis, period, endpoint)
+        (pubkey, genesis, period, endpoint)
     } else {
         (
             "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a".to_string(),

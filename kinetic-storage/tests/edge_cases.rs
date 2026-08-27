@@ -112,7 +112,7 @@ fn test_scan_order() {
 }
 
 #[test]
-fn test_deleted_key_not_in_scan() {
+fn test_scan_deleted_key_exclusion() {
     let dir = tempdir().unwrap();
     let storage = KineticStorage::new(dir.path()).unwrap();
     storage.put(b"p:1", b"1").unwrap();

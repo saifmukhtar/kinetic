@@ -6,7 +6,7 @@ This crate is explicitly designed as a lightweight, zero-dependency `no_std`-com
 
 ## Features
 - **Post-Quantum Cryptography:** Fully integrated with `ml-dsa` (Dilithium3).
-- **Canonical Serialization:** Provides `to_canonical_bytes()` for perfectly deterministic byte arrays used in signature verification.
+- **Canonical Serialization:** Provides `to_bytes()` for perfectly deterministic byte arrays used in signature verification.
 - **Strict Parsing:** Includes robust validation and custom error types (`GovernanceTypeError`) for safe deserialization from raw byte slices.
 
 ## Usage
@@ -18,5 +18,5 @@ use kinetic_types::governance::GovernanceAction;
 let action = GovernanceAction::EmergencyHalt;
 
 // Get the exact bytes required for an ML-DSA-65 signature
-let payload = action.to_canonical_bytes();
+let payload = action.to_bytes();
 ```

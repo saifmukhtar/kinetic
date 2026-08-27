@@ -41,7 +41,7 @@ impl ProxyConfigurator for WindowsConfigurator {
         Ok(())
     }
 
-    fn save_previous_state(&self) -> Result<SavedState, PacError> {
+    fn save_state(&self) -> Result<SavedState, PacError> {
         let output = Command::new("powershell")
             .args([
                 "-Command",

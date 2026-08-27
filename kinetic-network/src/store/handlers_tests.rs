@@ -118,7 +118,7 @@ mod tests {
 
         let mut reveal = dummy_reveal(&name, 100);
         let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
-        reveal.pubkey = ml_kp.public_key_bytes();
+        reveal.pubkey = ml_kp.pubkey_bytes();
 
         store.reveals_by_name.put(
             name.clone(),
@@ -139,7 +139,7 @@ mod tests {
         hb.signature = ml_kp
             .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
-        let result = store.handle_heartbeat(&hb);
+        let result = store.handle_process_heartbeat(&hb);
         assert!(matches!(
             result.unwrap_err(),
             crate::error::KineticStoreError::StaleHeartbeat
@@ -163,7 +163,7 @@ mod tests {
 
         let new_reveal =
             kinetic_core::types::NameRecord::Standard(Box::new(dummy_reveal(&name, 100)));
-        let result = store.handle_record(&new_reveal, true);
+        let result = store.handle_put_record(&new_reveal, true);
 
         assert!(matches!(
             result.unwrap_err(),
@@ -178,7 +178,7 @@ mod tests {
 
         let mut reveal = dummy_reveal(&name, 100);
         let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
-        reveal.pubkey = ml_kp.public_key_bytes();
+        reveal.pubkey = ml_kp.pubkey_bytes();
 
         store.reveals_by_name.put(
             name.clone(),
@@ -196,7 +196,7 @@ mod tests {
         hb.signature = ml_kp
             .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
-        let result = store.handle_heartbeat(&hb);
+        let result = store.handle_process_heartbeat(&hb);
         assert!(matches!(
             result.unwrap_err(),
             crate::error::KineticStoreError::FutureHeartbeat
@@ -224,7 +224,7 @@ mod tests {
         attacker_lose.vdf_proof.proof_bytes = vec![0x02];
         attacker_lose.iterations = 1000;
 
-        let result_lose = store.handle_record(
+        let result_lose = store.handle_put_record(
             &kinetic_core::types::NameRecord::Standard(Box::new(attacker_lose)),
             true,
         );
@@ -239,7 +239,7 @@ mod tests {
         attacker_win.vdf_proof.proof_bytes = vec![0x00];
         attacker_win.iterations = 1000;
 
-        let result_win = store.handle_record(
+        let result_win = store.handle_put_record(
             &kinetic_core::types::NameRecord::Standard(Box::new(attacker_win)),
             true,
         );

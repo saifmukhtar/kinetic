@@ -55,7 +55,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_generate_new_key_if_missing() {
+    fn test_key_generation_missing() {
         let dir = tempdir().unwrap();
         let key_path = dir.path().join("test_key.bin");
 
@@ -195,7 +195,7 @@ mod fuzzing {
 
     proptest! {
         #[test]
-        fn doesnt_crash_on_corrupted_identity_files(
+        fn test_key_corrupt_files(
             file_content in any::<Vec<u8>>()
         ) {
             let dir = tempdir().unwrap();

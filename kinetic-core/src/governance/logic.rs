@@ -63,21 +63,21 @@ impl GovernanceState {
 
     /// Computes the SHA-256 action hash for a signed governance message.
     ///
-    /// The hash is derived from `SHA-256(msg.to_canonical_bytes())` and is used as the
+    /// The hash is derived from `SHA-256(msg.to_bytes())` and is used as the
     /// stable key for all subsequent state operations (timelock map, partial proposal map).
     ///
     /// # Returns
     ///
     /// A deterministic 32-byte `[u8; 32]` SHA-256 hash of the canonical message bytes.
     pub fn hash_action(msg: &SignedGovernanceMessage) -> Hash256 {
-        kinetic_primitives::sha256_hash(&msg.to_canonical_bytes())
+        kinetic_primitives::sha256_hash(&msg.to_bytes())
     }
 
     /// Garbage collects the `executed_hashes` set.
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.
-    pub fn prune_executed_hashes(&mut self, current_kyn: u64) {
+    pub fn prune(&mut self, current_kyn: u64) {
         // Remove executed hashes older than the max age
         let max_age_kyns = crate::constants::MAX_AGE_KYNS;
         self.executed_hashes
@@ -137,7 +137,7 @@ pub fn process_governance_message(
 ) -> Result<Option<GovernanceEffect>, GovernanceError> {
     let effect = state.verify_action(msg, current_kyn)?;
 
-    state.prune_executed_hashes(current_kyn);
+    state.prune(current_kyn);
 
     let action_hash = GovernanceState::hash_action(msg);
     if state.executed_hashes.contains_key(&action_hash) {

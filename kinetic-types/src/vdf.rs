@@ -93,7 +93,7 @@ pub struct PreviousProof {
 
 impl PreviousProof {
     /// Serializes the previous proof container into length-prefixed bytes for payload chaining.
-    pub fn proof_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
+    pub fn bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
         let prefix = b"vdf-prev-proof-v1";
         let capacity = network_salt.len()
             + prefix.len()
@@ -193,7 +193,7 @@ impl Reveal {
         let prev_proof_bytes = self
             .previous_proof
             .as_ref()
-            .map(|p| p.proof_bytes(network_salt))
+            .map(|p| p.bytes(network_salt))
             .unwrap_or_default();
 
         let mut capacity = network_salt.len()
@@ -280,7 +280,7 @@ mod tests {
             signature: vec![5, 6, 7],
         };
         let network_salt = &[9u8; 32];
-        let bytes = prev.proof_bytes(network_salt);
+        let bytes = prev.bytes(network_salt);
 
         // Assert domain separation prefix is included
         let prefix = b"vdf-prev-proof-v1";

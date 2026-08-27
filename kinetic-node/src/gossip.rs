@@ -10,7 +10,7 @@ use std::sync::Arc;
 ///
 /// Parses the signed governance message and applies it to the global governance state if valid.
 /// Any resulting updates to the governance state are then persisted to disk.
-pub fn handle_kinetic_governance_gossip(
+pub fn handle_governance_gossip(
     payload: &[u8],
     gossip_gov_path: Arc<PathBuf>,
     storage: Option<Arc<dyn kinetic_core::traits::StorageEngine>>,
@@ -123,7 +123,7 @@ mod tests {
         let invalid_payload = b"not valid json";
 
         // This should not panic
-        handle_kinetic_governance_gossip(invalid_payload, path, None, 100);
+        handle_governance_gossip(invalid_payload, path, None, 100);
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
 
         // This should parse JSON successfully, but the process_governance_message should fail
         // or reject it. It should not panic.
-        handle_kinetic_governance_gossip(&payload, path, None, 100);
+        handle_governance_gossip(&payload, path, None, 100);
     }
 
     #[test]
@@ -154,7 +154,7 @@ mod tests {
         let wrong_schema = b"{\"hello\": \"world\"}";
 
         // This should fail JSON parsing and exit gracefully
-        handle_kinetic_governance_gossip(wrong_schema, path, None, 100);
+        handle_governance_gossip(wrong_schema, path, None, 100);
     }
 
     #[test]
@@ -167,7 +167,7 @@ mod tests {
         huge_payload.extend(vec![b']'; 500_000]);
 
         // Should reject immediately gracefully during parsing
-        handle_kinetic_governance_gossip(&huge_payload, path, None, 100);
+        handle_governance_gossip(&huge_payload, path, None, 100);
     }
 
     #[test]
@@ -178,7 +178,7 @@ mod tests {
         let extra_fields = b"{\"action\": {\"MapPrime\": {\"name\": \"x\", \"target_pubkey\": []}}, \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
         // Should parse and handle or ignore the extra field without panicking
-        handle_kinetic_governance_gossip(extra_fields, path, None, 100);
+        handle_governance_gossip(extra_fields, path, None, 100);
     }
 
     #[test]
@@ -199,7 +199,7 @@ mod tests {
         let payload = serde_json::to_vec(&msg).unwrap();
 
         // Should not panic when `state.save_to_disk` returns an Err
-        handle_kinetic_governance_gossip(&payload, path, None, 100);
+        handle_governance_gossip(&payload, path, None, 100);
     }
 }
 
@@ -212,12 +212,12 @@ mod fuzzing {
 
     proptest! {
         #[test]
-        fn doesnt_crash_on_random_gossip_bytes(
+        fn test_gossip_random_bytes(
             raw_payload in any::<Vec<u8>>()
         ) {
             let dir = tempdir().unwrap();
             let path = Arc::new(dir.path().join("gov.bin"));
-            handle_kinetic_governance_gossip(&raw_payload, path, None, 100);
+            handle_governance_gossip(&raw_payload, path, None, 100);
         }
     }
 }

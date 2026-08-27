@@ -200,8 +200,8 @@ mod tests {
             "{}0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             crate::constants::DID_PREFIX
         );
-        let kid = kinetic_kid::did::KineticDid::new(&valid_did).unwrap();
-        let doc = kinetic_kid::document::KidDocument {
+        let kid = kinetic_kid::did::Did::new(&valid_did).unwrap();
+        let doc = kinetic_kid::document::Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,
             created_at: 0,
@@ -228,8 +228,8 @@ mod tests {
     #[test]
     fn test_signable_bytes_manifest() {
         let valid_did = "did:kin:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        let kid = kinetic_kid::did::KineticDid::new(valid_did).unwrap();
-        let manifest = kinetic_kid::manifest::CapabilityManifest {
+        let kid = kinetic_kid::did::Did::new(valid_did).unwrap();
+        let manifest = kinetic_kid::manifest::Manifest {
             doc_type: "kinetic.manifest.v1".to_string(),
             kid,
             version: 1,

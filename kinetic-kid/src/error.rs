@@ -2,7 +2,7 @@ use thiserror::Error;
 
 /// Error type returned by all operations in the `kinetic-kid` crate.
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum KidError {
+pub enum Error {
     /// The DID string does not start with the expected prefix.
     #[error("Invalid DID prefix, expected did:<method>:")]
     InvalidDidPrefix,
@@ -68,15 +68,15 @@ pub enum KidError {
     UnauthorizedKidUpdate,
 }
 
-impl From<serde_json::Error> for KidError {
+impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        KidError::JsonParseError(err.to_string())
+        Error::JsonParseError(err.to_string())
     }
 }
 
-impl From<base64::DecodeError> for KidError {
+impl From<base64::DecodeError> for Error {
     fn from(err: base64::DecodeError) -> Self {
-        KidError::Base64Error(err.to_string())
+        Error::Base64Error(err.to_string())
     }
 }
 
@@ -89,7 +89,7 @@ pub enum Severity {
     Error,
 }
 
-impl KidError {
+impl Error {
     /// Stable protocol error code.
     pub fn code(&self) -> &'static str {
         match self {
@@ -116,7 +116,7 @@ impl KidError {
     }
 
     /// RFC 7807 type URI for this error.
-    pub fn error_type_uri(&self) -> String {
+    pub fn type_uri(&self) -> String {
         format!("https://kinetic.network/errors/{}", self.code())
     }
 

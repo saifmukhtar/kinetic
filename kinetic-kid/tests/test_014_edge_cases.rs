@@ -8,9 +8,9 @@ fn generate_keypair() -> KineticKeypair {
 
 fn create_valid_doc_and_key() -> (KidDocument, KineticKeypair) {
     let keypair = generate_keypair();
-    let pub_key_b64 = b64_url.encode(&keypair.public_key_bytes());
+    let pub_key_b64 = b64_url.encode(&keypair.pubkey_bytes());
 
-    let hash = kinetic_primitives::sha256_hash(&keypair.public_key_bytes());
+    let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;

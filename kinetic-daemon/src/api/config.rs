@@ -8,7 +8,7 @@ use axum::{
 };
 
 /// Handles requests to retrieve the current daemon configuration.
-pub async fn handle_config(
+pub async fn handle_get_config(
     Extension(role): Extension<Role>,
     State(_state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
@@ -102,7 +102,7 @@ pub async fn handle_set_config(
 }
 
 /// Handles requests to check the daemon health.
-pub async fn handle_health(State(state): State<ApiState>) -> Json<serde_json::Value> {
+pub async fn handle_get_health(State(state): State<ApiState>) -> Json<serde_json::Value> {
     // Check if network channel is responsive
     let network_ok = state.network.get_network_status().await.is_ok();
     // Check if storage is accessible by reading a known key
@@ -127,7 +127,7 @@ pub async fn handle_health(State(state): State<ApiState>) -> Json<serde_json::Va
 }
 
 /// Handles requests to retrieve the local peer ID.
-pub async fn handle_peer_id(State(state): State<ApiState>) -> impl axum::response::IntoResponse {
+pub async fn handle_get_peer_id(State(state): State<ApiState>) -> impl axum::response::IntoResponse {
     match state.network.get_network_status().await {
         Ok(status) => {
             if let Some(peer_id) = status.get("peer_id").and_then(|p| p.as_str()) {

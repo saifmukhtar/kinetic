@@ -59,7 +59,7 @@ pub trait ProxyConfigurator: Send + Sync {
     ///
     /// # Errors
     /// Returns a [`PacError`] if it fails to read the current proxy state.
-    fn save_previous_state(&self) -> Result<SavedState, PacError>;
+    fn save_state(&self) -> Result<SavedState, PacError>;
 
     /// Restores the OS proxy configuration from a previously saved snapshot.
     ///
@@ -86,7 +86,7 @@ impl ProxyConfigurator for FallbackConfigurator {
     fn uninstall(&self) -> Result<(), PacError> {
         Ok(())
     }
-    fn save_previous_state(&self) -> Result<SavedState, PacError> {
+    fn save_state(&self) -> Result<SavedState, PacError> {
         Ok(SavedState {
             previous_pac_url: None,
             proxy_type: None,
@@ -156,7 +156,7 @@ impl PacManager {
         {
             let _ = self.configurator.restore_state(&saved);
         }
-        let previous = self.configurator.save_previous_state()?;
+        let previous = self.configurator.save_state()?;
         let tmp_path = self.lock_path.with_extension("tmp");
         if let Ok(file) = File::create(&tmp_path) {
             let _ = serde_json::to_writer(file, &previous);
@@ -204,7 +204,7 @@ impl PacManager {
 
             // Drift Check: See if the OS proxy is still set to Kinetic.
             // If the user manually changed it while we were running, we must not overwrite their changes!
-            if let Ok(current_state) = self.configurator.save_previous_state() {
+            if let Ok(current_state) = self.configurator.save_state() {
                 if let Some(ref macos_services) = current_state.macos_services {
                     if macos_services.is_empty() {
                         os_was_tampered = true;
@@ -558,7 +558,7 @@ mod tests {
         fn uninstall(&self) -> Result<(), PacError> {
             Ok(())
         }
-        fn save_previous_state(&self) -> Result<SavedState, PacError> {
+        fn save_state(&self) -> Result<SavedState, PacError> {
             Ok(SavedState {
                 previous_pac_url: Some("http://old.pac".to_string()),
                 proxy_type: Some("1".to_string()),

@@ -271,7 +271,7 @@ async fn run_daemon() -> Result<()> {
     let daemon_keypair = load_keypair(std::path::Path::new("identity.key"))?;
     info!(
         "Daemon identity loaded: {:?}",
-        hex::encode(daemon_keypair.public_key_bytes())
+        hex::encode(daemon_keypair.pubkey_bytes())
     );
 
     let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(Some(storage.clone())));

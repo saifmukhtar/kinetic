@@ -45,19 +45,19 @@ struct SwarmHandle {
 /// A Universal WebAssembly wrapper for the Kinetic network client.
 /// Dynamically spawns Libp2p swarms for multiple TLDs on-demand.
 #[wasm_bindgen]
-pub struct UniversalKineticNode {
+pub struct WasmNode {
     registry: Rc<RefCell<HashMap<String, AtlasNetworkConfig>>>,
     swarms: Rc<RefCell<HashMap<String, SwarmHandle>>>,
     on_event: Function,
 }
 
 #[wasm_bindgen]
-impl UniversalKineticNode {
-    /// Creates a new uninitialized `UniversalKineticNode` instance.
+impl WasmNode {
+    /// Creates a new uninitialized `WasmNode` instance.
     #[wasm_bindgen(constructor)]
-    pub fn new(on_event: Function) -> Result<UniversalKineticNode, JsValue> {
+    pub fn new(on_event: Function) -> Result<WasmNode, JsValue> {
         console_error_panic_hook::set_once();
-        Ok(UniversalKineticNode {
+        Ok(WasmNode {
             registry: Rc::new(RefCell::new(HashMap::new())),
             swarms: Rc::new(RefCell::new(HashMap::new())),
             on_event,
@@ -150,7 +150,7 @@ impl UniversalKineticNode {
 
     /// Returns the list of currently supported TLDs as a JavaScript Array of strings.
     #[wasm_bindgen]
-    pub fn get_supported_tlds(&self) -> js_sys::Array {
+    pub fn supported_tlds(&self) -> js_sys::Array {
         let registry = self.registry.borrow();
         let arr = js_sys::Array::new_with_length(registry.len() as u32);
         for (i, nsp) in registry.keys().enumerate() {
@@ -159,7 +159,7 @@ impl UniversalKineticNode {
         arr
     }
 
-    async fn get_or_spawn_swarm(&self, nsp: &str) -> Result<NetworkClient, JsValue> {
+    async fn spawn_swarm(&self, nsp: &str) -> Result<NetworkClient, JsValue> {
         {
             let mut lock = self.swarms.borrow_mut();
             if let Some(handle) = lock.get_mut(nsp) {
@@ -239,7 +239,7 @@ impl UniversalKineticNode {
     #[wasm_bindgen]
     pub async fn resolve_domain(&self, full_domain: String) -> Result<JsValue, JsValue> {
         let nsp = full_domain.split('.').next_back().unwrap_or(&full_domain);
-        let client = self.get_or_spawn_swarm(nsp).await?;
+        let client = self.spawn_swarm(nsp).await?;
 
         let bytes = client
             .resolve_redundant_payload(&full_domain)
@@ -278,7 +278,7 @@ impl UniversalKineticNode {
         peer_id_str: String,
         path: String,
     ) -> Result<js_sys::Uint8Array, JsValue> {
-        let client = self.get_or_spawn_swarm(&nsp).await?;
+        let client = self.spawn_swarm(&nsp).await?;
 
         let peer_id: libp2p::PeerId = peer_id_str
             .parse()

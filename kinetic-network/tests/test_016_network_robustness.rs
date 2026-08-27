@@ -39,7 +39,7 @@ fn create_engine_and_store() -> (Arc<KineticStorage>, Arc<dyn VdfEngine>) {
 }
 
 #[tokio::test]
-async fn test_01_fullnode_initialization_success() {
+async fn test_fullnode_initialization() {
     let config = create_base_config();
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();
@@ -56,7 +56,7 @@ async fn test_01_fullnode_initialization_success() {
 }
 
 #[tokio::test]
-async fn test_02_lightnode_initialization_success() {
+async fn test_lightnode_initialization() {
     let mut config = create_base_config();
     config.mode = NetworkMode::LightNode;
     let keypair = Keypair::generate_ed25519();
@@ -74,7 +74,7 @@ async fn test_02_lightnode_initialization_success() {
 }
 
 #[tokio::test]
-async fn test_03_test_mode_flag_applied() {
+async fn test_mode_flag_applied() {
     let mut config = create_base_config();
     config.test_mode = true;
     let keypair = Keypair::generate_ed25519();
@@ -89,11 +89,11 @@ async fn test_03_test_mode_flag_applied() {
         vdf_engine,
     )
     .unwrap();
-    assert!(!event_loop.has_bootstrapped());
+    assert!(!event_loop.bootstrapped());
 }
 
 #[tokio::test]
-async fn test_04_bad_bootstrap_peer_ignored() {
+async fn test_bad_bootstrap_peer_ignored() {
     let mut config = create_base_config();
     config.bootstrap_nodes.push(
         "/ip4/192.0.2.1/tcp/9999/p2p/12D3KooW9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q"
@@ -118,7 +118,7 @@ async fn test_04_bad_bootstrap_peer_ignored() {
 }
 
 #[tokio::test]
-async fn test_05_kademlia_bootstrap_deferred_until_connected() {
+async fn test_kademlia_bootstrap_deferred() {
     let mut config = create_base_config();
     config.bootstrap_nodes.push(
         "/ip4/127.0.0.1/tcp/9999/p2p/12D3KooW9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q9q9Q"
@@ -137,11 +137,11 @@ async fn test_05_kademlia_bootstrap_deferred_until_connected() {
         vdf_engine,
     )
     .unwrap();
-    assert!(!event_loop.has_bootstrapped());
+    assert!(!event_loop.bootstrapped());
 }
 
 #[tokio::test]
-async fn test_06_banned_peers_loaded_properly() {
+async fn test_banned_peers_loaded() {
     let config = create_base_config();
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();
@@ -173,7 +173,7 @@ async fn test_06_banned_peers_loaded_properly() {
 }
 
 #[tokio::test]
-async fn test_07_expired_bans_cleared() {
+async fn test_expired_bans_cleared() {
     let config = create_base_config();
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();
@@ -205,7 +205,7 @@ async fn test_07_expired_bans_cleared() {
 }
 
 #[tokio::test]
-async fn test_08_multiple_full_nodes_spawn() {
+async fn test_multiple_full_nodes_spawn() {
     let config1 = create_base_config();
     let config2 = create_base_config();
 
@@ -236,7 +236,7 @@ async fn test_08_multiple_full_nodes_spawn() {
 }
 
 #[tokio::test]
-async fn test_09_quic_fallback() {
+async fn test_quic_fallback() {
     let mut config = create_base_config();
     config.quic_listen_addrs = vec!["/ip4/255.255.255.255/udp/9999/quic-v1".parse().unwrap()];
     let keypair = Keypair::generate_ed25519();
@@ -257,7 +257,7 @@ async fn test_09_quic_fallback() {
 }
 
 #[tokio::test]
-async fn test_10_invalid_test_keys() {
+async fn test_invalid_test_keys() {
     let keypair = libp2p::identity::Keypair::generate_ed25519();
     let peer_id = keypair.public().to_peer_id();
     assert_ne!(peer_id.to_string(), "");
@@ -266,7 +266,7 @@ async fn test_10_invalid_test_keys() {
 /// Verify that a peer accumulating 3 invalid gossip messages within 60 seconds is banned.
 /// This exercises the ban-counting path without needing a live gossipsub mesh.
 #[tokio::test]
-async fn test_11_gossip_ban_after_three_invalid_messages() {
+async fn test_gossip_ban_invalid_messages() {
     let config = create_base_config();
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();
@@ -283,19 +283,19 @@ async fn test_11_gossip_ban_after_three_invalid_messages() {
 
     let attacker = Keypair::generate_ed25519().public().to_peer_id();
 
-    event_loop.record_invalid_gossip(attacker);
+    event_loop.ban_gossip(attacker);
     assert!(
         !event_loop.is_banned(&attacker),
         "1 strike should not trigger a ban"
     );
 
-    event_loop.record_invalid_gossip(attacker);
+    event_loop.ban_gossip(attacker);
     assert!(
         !event_loop.is_banned(&attacker),
         "2 strikes should not trigger a ban"
     );
 
-    event_loop.record_invalid_gossip(attacker);
+    event_loop.ban_gossip(attacker);
     assert!(
         event_loop.is_banned(&attacker),
         "3 strikes within 60s must trigger a ban"
@@ -305,7 +305,7 @@ async fn test_11_gossip_ban_after_three_invalid_messages() {
 /// Verify that two distinct peers each accumulate strikes independently.
 /// A ban on one peer must not affect the other.
 #[tokio::test]
-async fn test_12_gossip_ban_is_per_peer() {
+async fn test_gossip_ban_per_peer() {
     let config = create_base_config();
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();
@@ -325,10 +325,10 @@ async fn test_12_gossip_ban_is_per_peer() {
 
     // Give peer_a 3 strikes, peer_b only 2
     for _ in 0..3 {
-        event_loop.record_invalid_gossip(peer_a);
+        event_loop.ban_gossip(peer_a);
     }
     for _ in 0..2 {
-        event_loop.record_invalid_gossip(peer_b);
+        event_loop.ban_gossip(peer_b);
     }
 
     assert!(event_loop.is_banned(&peer_a), "peer_a should be banned");
@@ -341,7 +341,7 @@ async fn test_12_gossip_ban_is_per_peer() {
 /// Verify the semaphore is configured to allow at least 1 permit — i.e. the bound is > 0
 /// and we can acquire a permit immediately on a fresh event loop.
 #[tokio::test]
-async fn test_13_gossip_semaphore_not_zero_bound() {
+async fn test_gossip_semaphore_zero_bound() {
     let config = create_base_config();
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();

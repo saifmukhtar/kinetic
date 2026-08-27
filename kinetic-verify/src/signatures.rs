@@ -45,8 +45,8 @@ impl VerifySignature for Reveal {
             for ck in &kid_doc.controller_keys {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                 if ck.key_type == "ML-DSA-65"
-                    && let Ok(pk_bytes) = b64_url.decode(&ck.public_key)
-                    && kinetic_primitives::verify_mldsa(&pk_bytes, &signable, &self.signature)
+                    && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
+                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, &self.signature)
                         .is_ok()
                 {
                     verified = true;
@@ -119,8 +119,8 @@ impl VerifySignature for NameRecord {
                     for ck in &kid_doc.controller_keys {
                         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                         if ck.key_type == "ML-DSA-65"
-                            && let Ok(pk_bytes) = b64_url.decode(&ck.public_key)
-                            && kinetic_primitives::verify_mldsa(&pk_bytes, &signable, signature).is_ok()
+                            && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
+                            && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, signature).is_ok()
                         {
                             verified = true;
                             break;
@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn test_prime_signature_valid() {
         let sk = generate_keypair();
-        let vk_bytes = sk.public_key_bytes();
+        let vk_bytes = sk.pubkey_bytes();
         let network_salt = &[1u8; 32];
         let name = "kin";
         let payload = b"dns-payload-data";
@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn test_prime_signature_invalid() {
         let sk = generate_keypair();
-        let vk_bytes = sk.public_key_bytes();
+        let vk_bytes = sk.pubkey_bytes();
         let network_salt = &[1u8; 32];
         let name = "kin";
         let payload = b"dns-payload-data";
@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn test_network_salt_isolation() {
         let sk = generate_keypair();
-        let vk_bytes = sk.public_key_bytes();
+        let vk_bytes = sk.pubkey_bytes();
         let mainnet_salt = &[1u8; 32];
         let testnet_salt = &[2u8; 32];
 
@@ -280,7 +280,7 @@ mod tests {
                 version: 1,
                 valid_from: 0,
                 expires_at: None,
-                services: vec![kinetic_kid::manifest::ServiceEntry {
+                services: vec![kinetic_kid::manifest::Service {
                     id: "updater".to_string(),
                     service_type: capability.to_string(),
                     protocol: "https".to_string(),
@@ -313,9 +313,9 @@ mod tests {
     #[test]
     fn test_delegated_signature_valid() {
         let owner_sk = generate_keypair();
-        let owner_vk_bytes = owner_sk.public_key_bytes();
+        let owner_vk_bytes = owner_sk.pubkey_bytes();
         let bot_sk = generate_keypair();
-        let bot_vk_bytes = bot_sk.public_key_bytes();
+        let bot_vk_bytes = bot_sk.pubkey_bytes();
         let network_salt = &[1u8; 32];
 
         let auth = generate_auth(
@@ -347,9 +347,9 @@ mod tests {
     #[test]
     fn test_fat_signature_missing_capability() {
         let owner_sk = generate_keypair();
-        let owner_vk_bytes = owner_sk.public_key_bytes();
+        let owner_vk_bytes = owner_sk.pubkey_bytes();
         let bot_sk = generate_keypair();
-        let bot_vk_bytes = bot_sk.public_key_bytes();
+        let bot_vk_bytes = bot_sk.pubkey_bytes();
         let network_salt = &[1u8; 32];
 
         // WRONG CAPABILITY!
@@ -379,9 +379,9 @@ mod tests {
     #[test]
     fn test_fat_signature_invalid_owner_grant() {
         let owner_sk = generate_keypair();
-        let owner_vk_bytes = owner_sk.public_key_bytes();
+        let owner_vk_bytes = owner_sk.pubkey_bytes();
         let bot_sk = generate_keypair();
-        let bot_vk_bytes = bot_sk.public_key_bytes();
+        let bot_vk_bytes = bot_sk.pubkey_bytes();
         let network_salt = &[1u8; 32];
 
         let mut auth = generate_auth(
@@ -417,9 +417,9 @@ mod tests {
     #[test]
     fn test_fat_signature_cross_name_escalation() {
         let owner_sk = generate_keypair();
-        let owner_vk_bytes = owner_sk.public_key_bytes();
+        let owner_vk_bytes = owner_sk.pubkey_bytes();
         let bot_sk = generate_keypair();
-        let bot_vk_bytes = bot_sk.public_key_bytes();
+        let bot_vk_bytes = bot_sk.pubkey_bytes();
         let network_salt = &[1u8; 32];
 
         // Owner authorizes the bot for "test-domain" ONLY
@@ -463,12 +463,12 @@ mod tests {
             name in ".*",
             payload in any::<Vec<u8>>(),
             sig in any::<Vec<u8>>(),
-            pk in any::<Vec<u8>>(),
+            pubkey in any::<Vec<u8>>(),
         ) {
             let network_salt = &[0u8; 32];
             let record = NameRecord::Prime {
                 name,
-                pubkey: pk,
+                pubkey: pubkey,
                 granted_at: 1234,
                 payload,
                 signature: sig,
@@ -483,7 +483,7 @@ mod tests {
     #[test]
     fn test_reveal_serialization_and_verification() {
         let sk = generate_keypair();
-        let vk_bytes = sk.public_key_bytes();
+        let vk_bytes = sk.pubkey_bytes();
         let network_salt = &[7u8; 32];
 
         let mut reveal = Reveal {

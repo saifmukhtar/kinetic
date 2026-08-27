@@ -335,12 +335,12 @@ impl KineticConfig {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load() -> Self {
-        Self::load_with_context(ConfigContext::Daemon)
+        Self::load_ctx(ConfigContext::Daemon)
     }
 
     /// Loads the configuration based on the binary context.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn load_with_context(ctx: ConfigContext) -> Self {
+    pub fn load_ctx(ctx: ConfigContext) -> Self {
         let config_path = std::env::var(crate::constants::ENV_CONFIG_PATH)
             .map(PathBuf::from)
             .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
@@ -424,11 +424,11 @@ impl KineticConfig {
     #[cfg(target_arch = "wasm32")]
     /// Stub implementation for loading configuration in Wasm environments.
     pub fn load() -> Self {
-        Self::load_with_context(ConfigContext::Daemon)
+        Self::load_ctx(ConfigContext::Daemon)
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn load_with_context(ctx: ConfigContext) -> Self {
+    pub fn load_ctx(ctx: ConfigContext) -> Self {
         let mut default_cfg = Self::default();
         if ctx == ConfigContext::Daemon {
             default_cfg.drand.p2p_only = true;

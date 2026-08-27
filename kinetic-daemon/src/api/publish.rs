@@ -12,7 +12,7 @@ use tracing::{error, info};
 ///
 /// Returns a tuple containing a `StatusCode` and an error JSON payload if the name is invalid,
 /// the `Reveal` validation fails, or if publishing to the DHT fails.
-pub async fn handle_publish(
+pub async fn handle_publish_record(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<PublishRequest>,
@@ -70,7 +70,7 @@ pub async fn handle_publish(
                 // the DHT store layer will still enforce its own staleness check.
                 tracing::warn!(
                     error_code = "KIN-API-001",
-                    "handle_publish: Could not fetch live drand kyn, \
+                    "handle_publish_record: Could not fetch live drand kyn, \
                      falling back to cached value for staleness check"
                 );
                 match drand_client.load_cached_kyn() {
@@ -215,7 +215,7 @@ pub async fn handle_publish(
 ///
 /// Returns an error if the name is invalid, the commitment hash is all-zeros,
 /// serialization fails, or DHT publishing fails.
-pub async fn handle_commit(
+pub async fn handle_publish_commit(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<kinetic_core::types::CommitRequest>,
@@ -488,12 +488,12 @@ pub async fn handle_publish_manifest(
         }
     };
 
-    let kid_doc: kinetic_kid::KidDocument =
+    let kid_doc: kinetic_kid::Document =
         match serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&kid_payload) {
             Ok(auth_kid) => auth_kid.kid_doc,
             Err(_) => {
-                // Fallback for older raw KidDocuments if any exist
-                match serde_json::from_slice::<kinetic_kid::KidDocument>(&kid_payload) {
+                // Fallback for older raw Documents if any exist
+                match serde_json::from_slice::<kinetic_kid::Document>(&kid_payload) {
                     Ok(doc) => doc,
                     Err(_) => {
                         return Err((
@@ -511,7 +511,7 @@ pub async fn handle_publish_manifest(
     ))
     .load_cached_kyn()
     {
-        Ok(raw_kyn) => kinetic_core::types::clock::network_kyn_to_unix_secs(raw_kyn.kyn),
+        Ok(raw_kyn) => kinetic_core::types::clock::network_kyn_to_unix_time(raw_kyn.kyn),
         Err(_) => std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -590,7 +590,7 @@ pub async fn handle_publish_governance(
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        let current_kyn = kinetic_core::types::clock::unix_secs_to_network_kyn(current_time);
+        let current_kyn = kinetic_core::types::clock::unix_time_to_network_kyn(current_time);
         match kinetic_core::governance::process_governance_message(&mut gov, &msg, current_kyn) {
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");

@@ -33,7 +33,7 @@ impl GovernanceEngine for SovereignEngine {
         }
 
         let root_key = state.get_root_key()?;
-        let action_bytes = msg.to_canonical_bytes();
+        let action_bytes = msg.to_bytes();
 
         let root_signed = msg
             .signatures

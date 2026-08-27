@@ -34,7 +34,7 @@ impl super::core::NetworkEventLoop {
                 .behaviour_mut()
                 .kademlia
                 .store_mut()
-                .put_record(record.clone())
+                .put(record.clone())
             {
                 tracing::debug!("Local store put_record failed: {:?}", e);
                 let _ = responder.send(Err(PublishError::Rejected(e.to_string())));
@@ -238,23 +238,23 @@ impl super::core::NetworkEventLoop {
             }
             Command::SendProxyRequest {
                 peer,
-                request,
+                req,
                 responder,
             } => {
                 let req_id = self
                     .swarm
                     .behaviour_mut()
                     .proxy
-                    .send_request(&peer, *request);
+                    .send_request(&peer, *req);
                 self.pending_proxy_requests.insert(req_id, responder);
             }
-            Command::SendProxyResponse { channel, response } => {
-                let response = *response;
+            Command::SendProxyResponse { channel, res } => {
+                let res = *res;
                 let _ = self
                     .swarm
                     .behaviour_mut()
                     .proxy
-                    .send_response(channel, response);
+                    .send_response(channel, res);
             }
             Command::GetNetworkStatus { responder } => {
                 let info = self.swarm.network_info();

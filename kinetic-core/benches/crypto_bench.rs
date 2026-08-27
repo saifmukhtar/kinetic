@@ -25,7 +25,7 @@ fn bench_ed25519(c: &mut Criterion) {
 
 fn bench_mldsa65(c: &mut Criterion) {
     let signing_key = kinetic_primitives::keys::KineticKeypair::generate();
-    let verifying_key_bytes = signing_key.public_key_bytes();
+    let verifying_key_bytes = signing_key.pubkey_bytes();
     let message: &[u8] =
         b"This is a dummy heartbeat payload for benchmarking post-quantum ML-DSA-65";
 

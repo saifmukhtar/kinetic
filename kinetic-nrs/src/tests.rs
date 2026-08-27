@@ -59,7 +59,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         authorization: None,
     };
     let keypair = kinetic_primitives::keys::KineticKeypair::generate();
-    reveal.pubkey = keypair.public_key_bytes();
+    reveal.pubkey = keypair.pubkey_bytes();
     reveal.signature = keypair
         .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
     reveal
@@ -357,7 +357,7 @@ async fn test_cache_invalidation() {
     );
 
     // First it's empty
-    handler.invalidate_cache("test1.kin").await;
+    handler.invalidate("test1.kin").await;
 
     // Cache miss hits the API
     let req = build_request("test1.kin.", RecordType::A).await;
@@ -373,7 +373,7 @@ async fn test_cache_invalidation() {
     );
 
     // Invalidate again
-    handler.invalidate_cache("test1.kin").await;
+    handler.invalidate("test1.kin").await;
 }
 
 #[cfg(test)]
@@ -384,7 +384,7 @@ mod fuzzing {
 
     proptest! {
         #[test]
-        fn doesnt_crash_on_random_payload_parsing(
+        fn test_fuzz_payload_parsing(
             raw_payload in any::<Vec<u8>>()
         ) {
             // Fuzz the JSON parser with pure random bytes
@@ -392,7 +392,7 @@ mod fuzzing {
         }
 
         #[test]
-        fn doesnt_crash_on_random_reveal_strings(
+        fn test_fuzz_reveal_strings(
             random_string in ".*"
         ) {
             // Pass random utf-8 strings into our NrsZone payload parser
@@ -401,7 +401,7 @@ mod fuzzing {
         }
 
         #[test]
-        fn doesnt_crash_on_random_name_normalization(
+        fn test_fuzz_name_normalization(
             name in ".*"
         ) {
             let normalized = kinetic_core::types::normalize_name(&name);

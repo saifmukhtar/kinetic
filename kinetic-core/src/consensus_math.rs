@@ -33,7 +33,7 @@ impl Default for ConsensusParams {
 
 impl ConsensusParams {
     /// Returns the baseline hardware anchor iteration benchmark defined for the network.
-    pub fn calculate_hardware_anchor(&self) -> u64 {
+    pub fn anchor(&self) -> u64 {
         crate::constants::BASE_ITERATIONS
     }
 
@@ -47,28 +47,28 @@ impl ConsensusParams {
     /// use kinetic_core::consensus_math::ConsensusParams;
     ///
     /// let params = ConsensusParams::default();
-    /// let iterations = params.required_iterations("example.kin");
+    /// let iterations = params.iterations("example.kin");
     /// assert!(iterations > 0);
     /// ```
-    pub fn required_iterations(&self, name: &str) -> u64 {
+    pub fn iterations(&self, name: &str) -> u64 {
         let normalized_name = crate::types::names::normalize_name(name);
         let apex = crate::types::names::extract_apex_name(&normalized_name);
         let label = apex
             .strip_suffix(crate::constants::NSP_SUFFIX)
             .unwrap_or(&apex);
-        self.required_iterations_by_label(label)
+        self.label_iters(label)
     }
 
     /// Calculates required VDF iterations for a raw name label based on the Name Difficulty Curve (NDC).
     ///
     /// In dev mode (`is_dev_mode()`), returns a fixed low iteration count ([`DEV_MODE_ITERATIONS`](crate::constants::DEV_MODE_ITERATIONS)).
-    pub fn required_iterations_by_label(&self, label: &str) -> u64 {
+    pub fn label_iters(&self, label: &str) -> u64 {
         if crate::config::is_dev_mode() {
             return crate::constants::DEV_MODE_ITERATIONS;
         }
 
         let len = label.len();
-        let base = self.calculate_hardware_anchor();
+        let base = self.anchor();
         let tm = crate::constants::TARGET_MINUTES as u64;
 
         // The configured NDC constants are absolute target times in minutes.
@@ -109,10 +109,11 @@ impl ConsensusParams {
     /// let params = ConsensusParams::default();
     /// let base = 100;
     /// // Early takeover attempt requires high multiplier
-    /// let diff_early = params.steal_difficulty(base, 100);
+    /// let diff_early = params.steal_diff(base, 100);
     /// assert!(diff_early >= base);
     /// ```
-    pub fn steal_difficulty(&self, base_iterations: u64, kyns_idle: u64) -> u64 {
+    #[allow(clippy::comparison_chain)]
+    pub fn steal_diff(&self, base_iterations: u64, kyns_idle: u64) -> u64 {
         let idle_plus = kyns_idle.saturating_add(1) as u128;
         let target_kyns = self.steal_target_kyns as u128;
 
@@ -143,9 +144,9 @@ mod tests {
     fn test_decay_length() {
         let params = ConsensusParams::default();
         let _pk = [0u8; 32];
-        let a = params.required_iterations("a");
-        let ab = params.required_iterations("ab");
-        let abc = params.required_iterations("abc");
+        let a = params.iterations("a");
+        let ab = params.iterations("ab");
+        let abc = params.iterations("abc");
 
         if crate::config::is_dev_mode() {
             assert_eq!(a, crate::constants::DEV_MODE_ITERATIONS);
@@ -164,10 +165,10 @@ mod tests {
         let params = ConsensusParams::default();
         let target = params.steal_target_kyns;
 
-        let diff_early = params.steal_difficulty(100, target / 2);
+        let diff_early = params.steal_diff(100, target / 2);
         assert!(diff_early > 100); // 4x multiplier
 
-        let diff_late = params.steal_difficulty(100, target * 2);
+        let diff_late = params.steal_diff(100, target * 2);
         assert_eq!(diff_late, 100); // 1x multiplier (min)
     }
 }

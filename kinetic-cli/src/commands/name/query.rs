@@ -12,7 +12,7 @@ use tracing::{info, warn};
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if network or file system operations fail unexpectedly.
-pub async fn handle_list(config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
+pub async fn handle_name_list(config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
     let daemon_url = format!(
         "http://{}:{}/owned-names",
         config.daemon.bind_ip, config.daemon.api_port
@@ -54,7 +54,7 @@ pub async fn handle_list(config: &KineticConfig, client: &Client) -> anyhow::Res
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if local data parsing fails or network requests error out.
-pub async fn handle_info(
+pub async fn handle_name_info(
     name: String,
     config: &KineticConfig,
     client: &Client,
@@ -114,7 +114,7 @@ pub async fn handle_info(
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if the daemon is unreachable or the resolution fails.
-pub async fn handle_resolve(
+pub async fn handle_name_resolve(
     name: String,
     config: &KineticConfig,
     client: &Client,

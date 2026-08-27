@@ -1,4 +1,4 @@
-use crate::error::KidError;
+use crate::error::Error;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -10,37 +10,37 @@ use std::fmt;
 /// This cryptographically binds the DID string to its genesis controller key,
 /// establishing a verifiable root of trust without requiring a central registry.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct KineticDid {
+pub struct Did {
     id: String,
 }
 
-impl KineticDid {
-    /// Creates a new `KineticDid`, validating the scheme prefix and hex-encoded SHA-256 method-specific ID.
+impl Did {
+    /// Creates a new `Did`, validating the scheme prefix and hex-encoded SHA-256 method-specific ID.
     ///
     /// # Errors
     ///
-    /// - Returns [`KidError::InvalidDidPrefix`] if the string does not start with `did:kin:`.
-    /// - Returns [`KidError::InvalidDidHexLength`] if the method-specific ID is not exactly 64 characters long.
-    /// - Returns [`KidError::InvalidDidHexCharacters`] if the method-specific ID contains uppercase hex or non-hex characters.
-    pub fn new(id_str: &str) -> Result<Self, KidError> {
+    /// - Returns [`Error::InvalidDidPrefix`] if the string does not start with `did:kin:`.
+    /// - Returns [`Error::InvalidDidHexLength`] if the method-specific ID is not exactly 64 characters long.
+    /// - Returns [`Error::InvalidDidHexCharacters`] if the method-specific ID contains uppercase hex or non-hex characters.
+    pub fn new(id_str: &str) -> Result<Self, Error> {
         let expected_prefix = env!("KINETIC_DID_PREFIX");
         if !id_str.starts_with(expected_prefix) {
-            return Err(KidError::InvalidDidPrefix);
+            return Err(Error::InvalidDidPrefix);
         }
 
         let method_specific_id = &id_str[expected_prefix.len()..];
         if method_specific_id.len() != 64 {
-            return Err(KidError::InvalidDidHexLength);
+            return Err(Error::InvalidDidHexLength);
         }
 
         if !method_specific_id
             .chars()
             .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
         {
-            return Err(KidError::InvalidDidHexCharacters);
+            return Err(Error::InvalidDidHexCharacters);
         }
 
-        Ok(KineticDid {
+        Ok(Did {
             id: id_str.to_string(),
         })
     }
@@ -51,14 +51,14 @@ impl KineticDid {
     }
 }
 
-impl fmt::Display for KineticDid {
+impl fmt::Display for Did {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.id)
     }
 }
 
 // Custom Serialize to output as string
-impl Serialize for KineticDid {
+impl Serialize for Did {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -68,13 +68,13 @@ impl Serialize for KineticDid {
 }
 
 // Custom Deserialize to parse from string and strictly validate
-impl<'de> Deserialize<'de> for KineticDid {
+impl<'de> Deserialize<'de> for Did {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        KineticDid::new(&s).map_err(serde::de::Error::custom)
+        Did::new(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -85,8 +85,8 @@ mod proptests {
 
     proptest! {
         #[test]
-        fn doesnt_crash_did_parsing(s in "\\PC*") {
-            let _ = KineticDid::new(&s);
+        fn test_did_parsing_no_crash(s in "\\PC*") {
+            let _ = Did::new(&s);
         }
     }
 }

@@ -22,7 +22,7 @@ pub struct AuthorizedKid {
     /// Name associated with this KID.
     pub name: String,
     /// Embedded KID document containing public keys and controller data.
-    pub kid_doc: kinetic_kid::document::KidDocument,
+    pub kid_doc: kinetic_kid::document::Document,
     /// Name owner's signature verifying the KID attachment.
     pub owner_signature: Vec<u8>,
 }
@@ -62,9 +62,9 @@ pub struct AuthorizedManifest {
     /// Name associated with this capability manifest.
     pub name: String,
     /// Embedded capability manifest structure.
-    pub manifest: kinetic_kid::manifest::CapabilityManifest,
+    pub manifest: kinetic_kid::manifest::Manifest,
     /// Optional associated KID document.
-    pub kid_doc: Option<kinetic_kid::document::KidDocument>,
+    pub kid_doc: Option<kinetic_kid::document::Document>,
     /// Name owner's signature verifying the manifest attachment.
     pub owner_signature: Vec<u8>,
 }

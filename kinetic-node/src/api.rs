@@ -115,7 +115,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_unknown_route_returns_404() {
+    async fn test_api_unknown_route_404() {
         let key = Keypair::generate_ed25519();
         let app = build_router(key.public().to_peer_id());
 
@@ -133,7 +133,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_health_endpoint_ignores_query_params() {
+    async fn test_api_health_ignore_query() {
         let key = Keypair::generate_ed25519();
         let app = build_router(key.public().to_peer_id());
 

@@ -116,7 +116,7 @@ pub async fn update_zone_logic(
 /// # Errors
 /// Returns an `anyhow::Error` if the zone file does not exist, cannot be read
 /// or parsed, or if the update process fails.
-pub async fn handle(name: String, config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
+pub async fn handle_name_publish(name: String, config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
     let mut zone_file = get_zones_dir();
     zone_file.push(format!("{}.json", fqdn));

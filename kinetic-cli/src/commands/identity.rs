@@ -64,7 +64,7 @@ pub async fn handle_identity_command(
             let keypair = kinetic_primitives::keys::KineticKeypair::generate();
 
             use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-            let pub_key_bytes = keypair.public_key_bytes();
+            let pub_key_bytes = keypair.pubkey_bytes();
             let pub_key_b64 = b64_url.encode(&pub_key_bytes);
 
             let hash = kinetic_primitives::sha256_hash(&pub_key_bytes);
@@ -74,12 +74,12 @@ pub async fn handle_identity_command(
                 hex::encode(hash)
             );
 
-            let kid_did = kinetic_kid::did::KineticDid::new(&did_str)
+            let kid_did = kinetic_kid::did::Did::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
             let drand_client = kinetic_core::drand::DrandClient::new(None);
             let current_kyn = match drand_client.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,
-                Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+                Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
                     std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
@@ -87,10 +87,10 @@ pub async fn handle_identity_command(
                 ),
             };
 
-            let doc = kinetic_kid::document::KidDocument {
+            let doc = kinetic_kid::document::Document {
                 doc_type: "kinetic.kid.v1".to_string(),
                 kid: kid_did,
-                created_at: kinetic_core::types::clock::network_kyn_to_unix_secs(current_kyn),
+                created_at: kinetic_core::types::clock::network_kyn_to_unix_time(current_kyn),
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: format!("{}#primary", did_str),
                     key_type: "MlDsa65".to_string(),
@@ -136,7 +136,7 @@ pub async fn handle_identity_command(
 
             if std::path::Path::new(&kid).exists() {
                 let data = std::fs::read_to_string(&kid)?;
-                let doc: kinetic_kid::document::KidDocument = serde_json::from_str(&data)?;
+                let doc: kinetic_kid::document::Document = serde_json::from_str(&data)?;
                 kid_doc_opt = Some(doc.clone());
 
                 let mut auth_kid = kinetic_core::types::AuthorizedKid {
@@ -169,7 +169,7 @@ pub async fn handle_identity_command(
 
             if std::path::Path::new(&manifest).exists() {
                 let data = std::fs::read_to_string(&manifest)?;
-                let doc: kinetic_kid::manifest::CapabilityManifest = serde_json::from_str(&data)?;
+                let doc: kinetic_kid::manifest::Manifest = serde_json::from_str(&data)?;
 
                 let mut auth_manifest = kinetic_core::types::AuthorizedManifest {
                     name: name.clone(),
@@ -220,7 +220,7 @@ pub async fn handle_identity_command(
             info!("Revoking Kinetic Identity Document (KID) {}...", kid);
             let kid_data = std::fs::read_to_string(&kid)
                 .map_err(|e| anyhow::anyhow!("Failed to read KID file: {}", e))?;
-            let mut doc: kinetic_kid::document::KidDocument = serde_json::from_str(&kid_data)
+            let mut doc: kinetic_kid::document::Document = serde_json::from_str(&kid_data)
                 .map_err(|e| anyhow::anyhow!("Failed to parse KID: {}", e))?;
 
             // Load the revocation key
@@ -251,14 +251,14 @@ pub async fn handle_identity_command(
             info!("Rotating controller key for KID {}...", kid);
             let kid_data = std::fs::read_to_string(&kid)
                 .map_err(|e| anyhow::anyhow!("Failed to read KID file: {}", e))?;
-            let mut doc: kinetic_kid::document::KidDocument = serde_json::from_str(&kid_data)
+            let mut doc: kinetic_kid::document::Document = serde_json::from_str(&kid_data)
                 .map_err(|e| anyhow::anyhow!("Failed to parse KID: {}", e))?;
 
             // Generate new controller key
             info!("Generating new ML-DSA-65 keypair for rotated identity...");
             let new_keypair = kinetic_primitives::keys::KineticKeypair::generate();
             use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-            let new_pub_b64 = b64_url.encode(&new_keypair.public_key_bytes());
+            let new_pub_b64 = b64_url.encode(&new_keypair.pubkey_bytes());
 
             // Replace primary controller key
             let primary_id = format!("{}#primary", doc.kid);
@@ -336,7 +336,7 @@ mod tests {
 
         assert!(output.exists());
         let data = std::fs::read_to_string(&output).unwrap();
-        let doc: kinetic_kid::document::KidDocument = serde_json::from_str(&data).unwrap();
+        let doc: kinetic_kid::document::Document = serde_json::from_str(&data).unwrap();
 
         assert_eq!(doc.doc_type, "kinetic.kid.v1");
         assert!(

@@ -161,7 +161,7 @@ async fn run_node() -> Result<()> {
         std::process::exit(1);
     }
 
-    let config = KineticConfig::load_with_context(kinetic_core::config::ConfigContext::Node);
+    let config = KineticConfig::load_ctx(kinetic_core::config::ConfigContext::Node);
 
     // 1. Initialize structured tracing
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
@@ -326,14 +326,14 @@ async fn run_node() -> Result<()> {
                 if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
                     let current_kyn = match drand_client_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+                        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
                             std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .unwrap_or_default()
                                 .as_secs(),
                         ),
                     };
-                    gossip::handle_kinetic_governance_gossip(
+                    gossip::handle_governance_gossip(
                         actual_payload,
                         gossip_gov_path.clone(),
                         Some(gossip_storage.clone()),

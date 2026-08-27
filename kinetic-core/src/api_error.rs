@@ -310,8 +310,8 @@ impl From<IdentityError> for ApiError {
             IdentityError::SerializationFailed(_) | IdentityError::ManifestSigningFailed(_) => {
                 (500, "Internal Server Error")
             }
-            IdentityError::MalformedKidDocument(_)
-            | IdentityError::MalformedApexKidDocument(_)
+            IdentityError::MalformedDocument(_)
+            | IdentityError::MalformedApexDocument(_)
             | IdentityError::MalformedManifest(_) => (422, "Unprocessable Entity"),
             IdentityError::KidPrivateKeyNotFound(_) => (404, "Not Found"),
         };

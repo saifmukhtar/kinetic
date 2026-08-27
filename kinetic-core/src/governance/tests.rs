@@ -17,12 +17,12 @@ mod tests {
     fn generate_key(seed: u8) -> (KineticKeypair, PublicKeyBytes) {
         let bytes = [seed; 32];
         let signing_key = KineticKeypair::from_seed(&bytes);
-        let verifying_key = signing_key.public_key_bytes();
+        let verifying_key = signing_key.pubkey_bytes();
         (signing_key, verifying_key)
     }
 
     fn sign_action(msg: &SignedGovernanceMessage, signer: &KineticKeypair) -> Vec<u8> {
-        let serialized = msg.to_canonical_bytes();
+        let serialized = msg.to_bytes();
         signer.sign(&serialized)
     }
 
@@ -150,7 +150,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_fuzz_to_canonical_bytes(
+        fn test_fuzz_to_bytes(
             name in string_regex("[a-z0-9_-]{1,63}").unwrap(),
             timestamp in any::<u64>(),
         ) {
@@ -167,12 +167,12 @@ mod tests {
             };
 
             // Ensure we don't panic on serialization of randomized but valid structure
-            let bytes = msg.to_canonical_bytes();
+            let bytes = msg.to_bytes();
             prop_assert!(!bytes.is_empty());
 
             // Ensure identical inputs produce identical bytes
             let msg_clone = msg.clone();
-            prop_assert_eq!(&bytes, &msg_clone.to_canonical_bytes());
+            prop_assert_eq!(&bytes, &msg_clone.to_bytes());
 
             // Ensure hash computation does not panic
             let hash = GovernanceState::hash_action(&msg);

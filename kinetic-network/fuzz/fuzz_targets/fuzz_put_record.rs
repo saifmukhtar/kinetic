@@ -31,5 +31,5 @@ fuzz_target!(|data: &[u8]| {
 
     let key = kad::RecordKey::new(&"fuzz_key");
     let record = kad::Record::new(key, data.to_vec());
-    let _ = store.put_record(record);
+    let _ = store.put(record);
 });

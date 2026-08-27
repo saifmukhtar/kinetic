@@ -57,7 +57,7 @@ pub enum Command {
         /// The remote peer ID.
         peer: libp2p::PeerId,
         /// The proxy request payload.
-        request: Box<ProxyRequest>,
+        req: Box<ProxyRequest>,
         /// Channel to return the proxy response.
         responder: oneshot::Sender<std::result::Result<ProxyResponse, ProxyError>>,
     },
@@ -66,7 +66,7 @@ pub enum Command {
         /// The channel associated with the incoming request.
         channel: libp2p::request_response::ResponseChannel<ProxyResponse>,
         /// The proxy response payload.
-        response: Box<ProxyResponse>,
+        res: Box<ProxyResponse>,
     },
     /// Retrieve diagnostic network status information.
     GetNetworkStatus {

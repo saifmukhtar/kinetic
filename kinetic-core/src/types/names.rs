@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_valid_apex_name() {
+    fn test_valid_apex_name() {
         assert!(
             is_valid_apex_name(&format!(
                 "{}{}",
@@ -316,18 +316,18 @@ mod proptests {
 
     proptest! {
         #[test]
-        fn doesnt_crash_normalize_name(s in any::<String>()) {
+        fn test_normalize_name_fuzz(s in any::<String>()) {
             let normalized = normalize_name(&s);
             assert!(normalized.ends_with(crate::constants::NSP_SUFFIX));
         }
 
         #[test]
-        fn doesnt_crash_extract_apex(s in any::<String>()) {
+        fn test_extract_apex_fuzz(s in any::<String>()) {
             let _ = extract_apex_name(&s);
         }
 
         #[test]
-        fn doesnt_crash_is_valid_apex(s in any::<String>()) {
+        fn test_valid_apex_fuzz(s in any::<String>()) {
             let _ = is_valid_apex_name(&s);
         }
     }

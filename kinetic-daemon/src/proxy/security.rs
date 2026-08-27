@@ -12,7 +12,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_fuzz_is_ssrf_risk_rejects_loopback(
+        fn test_ssrf_risk_loopback(
             a in 127u8..=127,
             b in 0u8..=255,
             c in 0u8..=255,
@@ -23,7 +23,7 @@ mod tests {
         }
 
         #[test]
-        fn test_fuzz_is_ssrf_risk_rejects_internal_10(
+        fn test_ssrf_risk_internal_10(
             a in 10u8..=10,
             b in 0u8..=255,
             c in 0u8..=255,
@@ -34,7 +34,7 @@ mod tests {
         }
 
         #[test]
-        fn test_fuzz_is_ssrf_risk_allows_public(
+        fn test_ssrf_risk_public(
             a in 1u8..=9, // Avoid 0 (unspecified) and 10 (internal)
             b in 0u8..=255,
             c in 0u8..=255,

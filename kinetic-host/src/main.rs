@@ -284,7 +284,7 @@ async fn run_host() -> Result<()> {
 
     let local_peer_id_str = Arc::new(std::sync::RwLock::new(local_peer_id.to_string()));
 
-    tokio::spawn(epoch::start_dynamic_routing_publisher(
+    tokio::spawn(epoch::start_routing_publisher(
         host_key.clone(),
         local_peer_id_str.clone(),
         host_peer_id.to_string(),

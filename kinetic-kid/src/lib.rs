@@ -9,11 +9,11 @@
 //!
 //! ## Core concepts
 //!
-//! - **[`KineticDid`]** — A validated `did:kin:<hex>` string. The hex suffix
+//! - **[`Did`]** — A validated `did:kin:<hex>` string. The hex suffix
 //!   is the SHA-256 hash of the controller's primary public key.
-//! - **[`KidDocument`]** — The identity document that binds a DID to one or
+//! - **[`Document`]** — The identity document that binds a DID to one or
 //!   more [`ControllerKey`]s. It is signed with ML-DSA-65 post-quantum signatures.
-//! - **[`CapabilityManifest`]** — An optional extension signed by the
+//! - **[`Manifest`]** — An optional extension signed by the
 //!   controller that lists services (websites, APIs, etc.) associated with
 //!   the identity.
 //!
@@ -31,17 +31,17 @@ include!(concat!(env!("OUT_DIR"), "/kid_limits.rs"));
 pub mod bounded;
 /// DID parsing and validation for the `did:kin:` scheme.
 pub mod did;
-/// KID document types: [`KidDocument`], [`ControllerKey`], and [`ManifestPointer`].
+/// KID document types: [`Document`], [`ControllerKey`], and [`ManifestPointer`].
 pub mod document;
-/// [`KidError`]: the unified error type for kinetic-kid operations.
+/// [`Error`]: the unified error type for kinetic-kid operations.
 pub mod error;
-/// Capability manifest types: [`CapabilityManifest`] and [`ServiceEntry`].
+/// Capability manifest types: [`Manifest`] and [`Service`].
 pub mod manifest;
 
-pub use did::KineticDid;
-pub use document::{ControllerKey, KidDocument, ManifestPointer};
-pub use error::KidError;
-pub use manifest::{CapabilityManifest, ServiceEntry};
+pub use did::Did;
+pub use document::{ControllerKey, Document, ManifestPointer};
+pub use error::Error;
+pub use manifest::{Manifest, Service};
 
 #[cfg(test)]
 mod tests {
@@ -55,16 +55,16 @@ mod tests {
 
     #[test]
     fn test_did_parsing() {
-        assert!(KineticDid::new(&format!("did:kin:{}", "0".repeat(64))).is_ok());
-        assert!(KineticDid::new(&format!("did:example:{}", "0".repeat(64))).is_err());
-        assert!(KineticDid::new("did:kin:").is_err());
+        assert!(Did::new(&format!("did:kin:{}", "0".repeat(64))).is_ok());
+        assert!(Did::new(&format!("did:example:{}", "0".repeat(64))).is_err());
+        assert!(Did::new("did:kin:").is_err());
     }
 
     #[test]
     fn test_jcs_canonicalization() {
-        let did = KineticDid::new(&format!("did:kin:{}", "a".repeat(64))).unwrap();
+        let did = Did::new(&format!("did:kin:{}", "a".repeat(64))).unwrap();
 
-        let doc = KidDocument {
+        let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
             created_at: 1000,
@@ -91,17 +91,17 @@ mod tests {
     #[test]
     fn test_document_signing_and_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.public_key_bytes());
+        let pub_key_b64 = b64_url.encode(keypair.pubkey_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(&keypair.public_key_bytes());
+        let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
             let _ = write!(&mut hex_hash, "{:02x}", byte);
         }
 
-        let did = KineticDid::new(&format!("did:kin:{}", hex_hash)).unwrap();
-        let doc = KidDocument {
+        let did = Did::new(&format!("did:kin:{}", hex_hash)).unwrap();
+        let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
             created_at: 1234567890,
@@ -130,18 +130,18 @@ mod tests {
     #[test]
     fn test_manifest_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.public_key_bytes());
+        let pub_key_b64 = b64_url.encode(keypair.pubkey_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(&keypair.public_key_bytes());
+        let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
             let _ = write!(&mut hex_hash, "{:02x}", byte);
         }
 
-        let did = KineticDid::new(&format!("did:kin:{}", hex_hash)).unwrap();
+        let did = Did::new(&format!("did:kin:{}", hex_hash)).unwrap();
 
-        let doc = KidDocument {
+        let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
             created_at: 1000,
@@ -156,13 +156,13 @@ mod tests {
             signature: None,
         };
 
-        let manifest = CapabilityManifest {
+        let manifest = Manifest {
             doc_type: "kinetic.manifest.v1".to_string(),
             kid: did,
             version: 1,
             valid_from: 1000,
             expires_at: None,
-            services: vec![ServiceEntry {
+            services: vec![Service {
                 id: "web".to_string(),
                 service_type: "website".to_string(),
                 protocol: "https".to_string(),
@@ -177,14 +177,14 @@ mod tests {
 
         // A manifest signed by a different key must be rejected
         let bad_keypair = generate_keypair();
-        let bad_doc = KidDocument {
+        let bad_doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
-            kid: KineticDid::new(&format!("did:kin:{}", "b".repeat(64))).unwrap(),
+            kid: Did::new(&format!("did:kin:{}", "b".repeat(64))).unwrap(),
             created_at: 1000,
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#bad", "b".repeat(64)),
                 key_type: "MlDsa65".to_string(),
-                public_key: b64_url.encode(&bad_keypair.public_key_bytes()),
+                public_key: b64_url.encode(&bad_keypair.pubkey_bytes()),
             }],
             manifest: None,
             revocation_keys: vec![],
@@ -194,7 +194,7 @@ mod tests {
 
         assert!(matches!(
             signed_manifest.verify_local(&bad_doc),
-            Err(KidError::UnauthorizedManifestSignature)
+            Err(Error::UnauthorizedManifestSignature)
         ));
 
         // Test explicit verify_at_time with Drand / explicit timestamps
@@ -204,7 +204,7 @@ mod tests {
         // Manifest with future valid_from beyond 300s skew must fail
         assert!(matches!(
             signed_manifest.verify_at_time(&doc, 500),
-            Err(KidError::InvalidValidFrom)
+            Err(Error::InvalidValidFrom)
         ));
 
         // Manifest with expiration
@@ -214,11 +214,11 @@ mod tests {
         assert!(signed_expiring.verify_at_time(&doc, 1500).is_ok());
         assert!(matches!(
             signed_expiring.verify_at_time(&doc, 2000),
-            Err(KidError::ManifestExpired)
+            Err(Error::ManifestExpired)
         ));
         assert!(matches!(
             signed_expiring.verify_at_time(&doc, 2500),
-            Err(KidError::ManifestExpired)
+            Err(Error::ManifestExpired)
         ));
     }
 }

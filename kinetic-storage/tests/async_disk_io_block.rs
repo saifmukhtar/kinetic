@@ -4,7 +4,7 @@ use std::time::Instant;
 use tempfile::tempdir;
 
 #[test]
-fn test_007_async_disk_io_block() {
+fn test_async_disk_io_block() {
     let dir = tempdir().unwrap();
     let storage = KineticStorage::new(dir.path()).unwrap();
 

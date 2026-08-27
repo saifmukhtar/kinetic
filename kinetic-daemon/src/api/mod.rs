@@ -180,12 +180,12 @@ pub fn app(state: ApiState) -> Router {
 
     // Auth-guarded routes (CLI uses these bare paths with a bearer token)
     let auth_routes = Router::new()
-        .route("/commit", post(handle_commit))
-        .route("/publish", post(handle_publish))
+        .route("/commit", post(handle_publish_commit))
+        .route("/publish", post(handle_publish_record))
         .route("/publish-kid", post(handle_publish_kid))
         .route("/publish-manifest", post(handle_publish_manifest))
         .route("/publish-governance", post(handle_publish_governance))
-        .route("/config", axum::routing::get(handle_config))
+        .route("/config", axum::routing::get(handle_get_config))
         .route("/config", axum::routing::post(handle_set_config))
         .route(
             "/vdf/status/{task_id}",
@@ -232,8 +232,8 @@ pub fn app(state: ApiState) -> Router {
         ));
 
     let public_api_routes = Router::new()
-        .route("/health", axum::routing::get(handle_health))
-        .route("/peer_id", axum::routing::get(handle_peer_id))
+        .route("/health", axum::routing::get(handle_get_health))
+        .route("/peer_id", axum::routing::get(handle_get_peer_id))
         .route("/network-status", axum::routing::get(handle_network_status))
         .route(
             "/names/reserved",
@@ -248,7 +248,7 @@ pub fn app(state: ApiState) -> Router {
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
         .route("/kid", axum::routing::get(handle_list_kids))
-        .route("/kid/{name}", axum::routing::get(handle_get_kid))
+        .route("/kid/{name}", axum::routing::get(handle_fetch_kid))
         .route(
             "/kid/{name}/manifest",
             axum::routing::get(handle_get_kid_manifest),

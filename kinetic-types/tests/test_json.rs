@@ -1,7 +1,7 @@
 use kinetic_types::governance::{GovernanceAction, SignedGovernanceMessage};
 
 #[test]
-fn test_json_output() {
+fn test_governance_json_output() {
     let action = GovernanceAction::EmergencyHalt;
     let msg = SignedGovernanceMessage {
         action,

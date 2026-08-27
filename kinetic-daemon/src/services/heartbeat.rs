@@ -86,7 +86,7 @@ pub fn start_heartbeat_loop(
             }
 
             let current_live = lklr.load(Ordering::Relaxed);
-            if !kyn.is_usable_for_heartbeat(current_live) {
+            if !kyn.can_heartbeat(current_live) {
                 continue;
             }
 

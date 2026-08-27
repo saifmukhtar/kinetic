@@ -100,7 +100,7 @@ your scrutiny.
 ## 7. Governance Signatures (ML-DSA-65)
 
 - Actions are serialized to **canonical, domain-separated bytes**
-  (`SignedGovernanceMessage::to_canonical_bytes`): a 1-byte action tag followed by
+  (`SignedGovernanceMessage::to_bytes`): a 1-byte action tag followed by
   length-prefixed fields, then `timestamp_kyn`.
 - Signatures are post-quantum **ML-DSA-65** by the Sovereign Root Key.
 - **Invariants:** (a) Emergency actions (`EmergencyHalt` / `EmergencyResume`) and key rotations (`RotateRootKey`) execute immediately upon Root key verification; (b) the production ML-DSA-65 root key is pinned and tested via SHA-256 fingerprint in `prod_keys::ROOT_PUBLIC_KEY_HEX`.

@@ -2,7 +2,7 @@ use kinetic_storage::KineticStorage;
 use tempfile::tempdir;
 
 #[test]
-fn test_008_locked_database_ux() {
+fn test_locked_database_ux() {
     let dir = tempdir().unwrap();
 
     // First instance acquires the storage lock

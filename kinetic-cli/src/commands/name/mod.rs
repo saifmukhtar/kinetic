@@ -66,15 +66,15 @@ pub async fn handle_name_command(
 ) -> anyhow::Result<()> {
     match cmd {
         NameCommands::Register { name, iterations } => {
-            register::handle(name, iterations, config, client).await
+            register::handle_name_register(name, iterations, config, client).await
         }
-        NameCommands::Publish { name } => publish::handle(name, config, client).await,
+        NameCommands::Publish { name } => publish::handle_name_publish(name, config, client).await,
         NameCommands::Renew { name, iterations } => {
-            renew::handle(name, iterations, config, client).await
+            renew::handle_name_renew(name, iterations, config, client).await
         }
-        NameCommands::List => query::handle_list(config, client).await,
-        NameCommands::Info { name } => query::handle_info(name, config, client).await,
-        NameCommands::Resolve { name } => query::handle_resolve(name, config, client).await,
+        NameCommands::List => query::handle_name_list(config, client).await,
+        NameCommands::Info { name } => query::handle_name_info(name, config, client).await,
+        NameCommands::Resolve { name } => query::handle_name_resolve(name, config, client).await,
         #[cfg(test)]
         NameCommands::Guard { .. } => Ok(()), // Just for tests
     }

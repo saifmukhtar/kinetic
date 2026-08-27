@@ -103,14 +103,14 @@ pub struct NetworkEventLoop {
     pub gossip_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
     pub(crate) light_nodes: FxHashSet<libp2p::PeerId>,
     pub(crate) light_node_ips: rustc_hash::FxHashMap<String, usize>,
-    pub(crate) has_bootstrapped: bool,
+    pub(crate) bootstrapped: bool,
     pub(crate) proxy_cdn_usage: (usize, web_time::Instant),
 }
 
 impl NetworkEventLoop {
     /// Returns true if the Kademlia bootstrap has been triggered
-    pub fn has_bootstrapped(&self) -> bool {
-        self.has_bootstrapped
+    pub fn bootstrapped(&self) -> bool {
+        self.bootstrapped
     }
 
     /// Checks if a peer is currently banned
@@ -123,7 +123,7 @@ impl NetworkEventLoop {
     /// If the peer accumulates 3 invalid messages within 60 seconds, it is added to
     /// `banned_peers` and should be disconnected by the caller. Extracted to be testable
     /// without a live swarm.
-    pub fn record_invalid_gossip(&mut self, source: libp2p::PeerId) {
+    pub fn ban_gossip(&mut self, source: libp2p::PeerId) {
         let now = web_time::Instant::now();
         let (count, last_time) = self
             .bad_vdf_counts
@@ -341,7 +341,7 @@ impl NetworkEventLoop {
                             .behaviour_mut()
                             .kademlia
                             .store_mut()
-                            .put_verified_record(record.clone());
+                            .put_verified(record.clone());
 
                         // Advertise that we are caching this record (Edge Caching / Option 3)
                         let _ = self
@@ -370,7 +370,7 @@ impl NetworkEventLoop {
                     .report_message_validation_result(&message_id, &source, acceptance);
 
                 if let Some(false) = is_valid {
-                    self.record_invalid_gossip(source);
+                    self.ban_gossip(source);
                     // Disconnect after recording — banned_peers is updated inside record_invalid_gossip.
                     if self.is_banned(&source) {
                         let _ = self.swarm.disconnect_peer_id(source);
@@ -456,7 +456,7 @@ impl NetworkEventLoop {
                         .behaviour_mut()
                         .kademlia
                         .store_mut()
-                        .handle_record(&record, true)
+                        .handle_put_record(&record, true)
                         .is_ok()
                     {
                         tracing::info!(

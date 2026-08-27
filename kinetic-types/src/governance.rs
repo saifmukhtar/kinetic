@@ -98,7 +98,7 @@ impl SignedGovernanceMessage {
     ///
     /// A deterministic `Vec<u8>` suitable for SHA-256 hashing to derive the action hash,
     /// or for ML-DSA-65 signature verification.
-    pub fn to_canonical_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
             GovernanceAction::MapPrime {
@@ -215,7 +215,7 @@ impl GovernanceTypeError {
     }
 
     /// RFC 7807 problem details type URI.
-    pub fn error_type_uri(&self) -> String {
+    pub fn type_uri(&self) -> String {
         format!("https://kinetic.network/errors/{}", self.code())
     }
 }
@@ -227,7 +227,7 @@ impl GovernanceAction {
     /// - 1 byte opcode
     /// - Opcode-specific variable-length payload
     /// - 8 bytes timestamp (`u64` big-endian) at the very end
-    pub fn parse_canonical_payload(bytes: &[u8]) -> Result<(Self, u64), GovernanceTypeError> {
+    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, u64), GovernanceTypeError> {
         if bytes.len() < 9 {
             // At least 1 byte opcode + 8 bytes timestamp
             return Err(GovernanceTypeError::BufferTooSmall);
@@ -344,11 +344,11 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
-    fn test_invalid_opcode() {
+    fn test_parse_invalid_opcode() {
         // Opcode 0xFF is not a valid governance action
         let mut buf = vec![0xFF];
         buf.extend_from_slice(&[0; 8]); // Dummy timestamp
-        let result = GovernanceAction::parse_canonical_payload(&buf);
+        let result = GovernanceAction::parse_payload(&buf);
         assert_eq!(result, Err(GovernanceTypeError::UnknownOpcode(0xFF)));
     }
 
@@ -357,13 +357,13 @@ mod tests {
         // Buffer < 9 bytes should fail
         let buf = vec![0x0A, 0, 0, 0, 0, 0, 0, 0]; // 8 bytes
         assert_eq!(
-            GovernanceAction::parse_canonical_payload(&buf),
+            GovernanceAction::parse_payload(&buf),
             Err(GovernanceTypeError::BufferTooSmall)
         );
 
         let buf = vec![]; // 0 bytes
         assert_eq!(
-            GovernanceAction::parse_canonical_payload(&buf),
+            GovernanceAction::parse_payload(&buf),
             Err(GovernanceTypeError::BufferTooSmall)
         );
     }
@@ -379,7 +379,7 @@ mod tests {
         buf.extend_from_slice(&[1, 2, 3]);
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
-        let result = GovernanceAction::parse_canonical_payload(&buf);
+        let result = GovernanceAction::parse_payload(&buf);
         assert_eq!(result, Err(GovernanceTypeError::InvalidPubkeyLength));
     }
 
@@ -392,7 +392,7 @@ mod tests {
         buf.extend_from_slice(&[0; 1952]); // Valid pubkey length
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
-        let result = GovernanceAction::parse_canonical_payload(&buf);
+        let result = GovernanceAction::parse_payload(&buf);
         assert_eq!(result, Err(GovernanceTypeError::InvalidUtf8));
     }
 
@@ -408,8 +408,8 @@ mod tests {
             signatures: vec![],
         };
 
-        let buf = msg.to_canonical_bytes();
-        let (parsed_action, parsed_time) = GovernanceAction::parse_canonical_payload(&buf).unwrap();
+        let buf = msg.to_bytes();
+        let (parsed_action, parsed_time) = GovernanceAction::parse_payload(&buf).unwrap();
 
         assert_eq!(parsed_action, action);
         assert_eq!(parsed_time, 123456);
@@ -417,11 +417,11 @@ mod tests {
 
     proptest! {
         #[test]
-        fn doesnt_crash_on_random_garbage(
+        fn test_parse_random_garbage(
             raw_payload in any::<Vec<u8>>()
         ) {
             // Fuzzer guarantees this will not panic under any garbage P2P input
-            let _ = GovernanceAction::parse_canonical_payload(&raw_payload);
+            let _ = GovernanceAction::parse_payload(&raw_payload);
         }
     }
 }

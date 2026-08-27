@@ -244,7 +244,7 @@ mod tests {
 
     // --- SECURITY: Tampered proof must be rejected ---
     #[test]
-    fn test_tampered_pi_is_rejected() {
+    fn test_tampered_pi_rejected() {
         let engine = RsaVdfEngine::new();
         let challenge = Commitment { hash: [2u8; 32] };
         let iterations = 5_000;
@@ -263,7 +263,7 @@ mod tests {
 
     // --- SECURITY: Tampered output (y) must be rejected ---
     #[test]
-    fn test_tampered_y_is_rejected() {
+    fn test_tampered_y_rejected() {
         let engine = RsaVdfEngine::new();
         let challenge = Commitment { hash: [3u8; 32] };
         let iterations = 5_000;
@@ -282,7 +282,7 @@ mod tests {
 
     // --- SECURITY: Verifying with wrong iteration count must be rejected ---
     #[test]
-    fn test_wrong_iterations_is_rejected() {
+    fn test_wrong_iterations_rejected() {
         let engine = RsaVdfEngine::new();
         let challenge = Commitment { hash: [4u8; 32] };
         let real_iterations = 5_000;
@@ -301,7 +301,7 @@ mod tests {
 
     // --- SECURITY: Truncated proof must return Err, not panic ---
     #[test]
-    fn test_truncated_proof_returns_error() {
+    fn test_truncated_proof_error() {
         let engine = RsaVdfEngine::new();
         let challenge = Commitment { hash: [5u8; 32] };
 
@@ -318,7 +318,7 @@ mod tests {
 
     // --- SECURITY: Empty proof must return Err, not panic ---
     #[test]
-    fn test_empty_proof_returns_error() {
+    fn test_empty_proof_error() {
         let engine = RsaVdfEngine::new();
         let challenge = Commitment { hash: [6u8; 32] };
 
@@ -335,7 +335,7 @@ mod tests {
 
     // --- SOUNDNESS: Different challenges produce different outputs ---
     #[test]
-    fn test_different_challenges_produce_different_outputs() {
+    fn test_distinct_challenge_outputs() {
         let engine = RsaVdfEngine::new();
         let iterations = 3_000;
 
@@ -355,7 +355,7 @@ mod tests {
 
     // --- SOUNDNESS: Cross-challenge verification must be rejected ---
     #[test]
-    fn test_cross_challenge_proof_is_rejected() {
+    fn test_cross_challenge_proof_rejected() {
         let engine = RsaVdfEngine::new();
         let iterations = 3_000;
 
@@ -388,7 +388,7 @@ mod tests {
     // --- CONSENSUS: Same inputs must always produce bit-identical proof bytes ---
     // If the Prover is non-deterministic, two nodes will split on which proof is canonical.
     #[test]
-    fn test_prover_is_deterministic() {
+    fn test_prover_deterministic() {
         let engine = RsaVdfEngine::new();
         let challenge = Commitment { hash: [8u8; 32] };
         let iterations = 8_000;
@@ -407,7 +407,7 @@ mod tests {
     // zero proof that verifies trivially against any challenge. The engine must
     // reject this at the evaluate() boundary with VdfError::InvalidChallenge.
     #[test]
-    fn test_all_zero_challenge_is_rejected() {
+    fn test_all_zero_challenge_rejected() {
         let engine = RsaVdfEngine::new();
         let zero_challenge = Commitment { hash: [0u8; 32] };
 
@@ -438,7 +438,7 @@ mod tests {
 
     // --- ERROR GUARD: evaluate() with zero iterations must return InvalidChallenge ---
     #[test]
-    fn test_zero_iterations_evaluate_is_rejected() {
+    fn test_zero_iterations_evaluate_rejected() {
         let engine = RsaVdfEngine::new();
         let challenge = Commitment { hash: [0xABu8; 32] };
 
@@ -452,7 +452,7 @@ mod tests {
 
     // --- ERROR GUARD: verify() with zero iterations must return InvalidProof ---
     #[test]
-    fn test_zero_iterations_verify_is_rejected() {
+    fn test_zero_iterations_verify_rejected() {
         let engine = RsaVdfEngine::new();
         let challenge = Commitment { hash: [0xCDu8; 32] };
 

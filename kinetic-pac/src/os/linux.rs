@@ -73,7 +73,7 @@ impl ProxyConfigurator for KdeConfigurator {
         Ok(())
     }
 
-    fn save_previous_state(&self) -> Result<SavedState, PacError> {
+    fn save_state(&self) -> Result<SavedState, PacError> {
         let proxy_type = Command::new("kreadconfig5")
             .args([
                 "--file",
@@ -199,7 +199,7 @@ impl ProxyConfigurator for GnomeConfigurator {
         Ok(())
     }
 
-    fn save_previous_state(&self) -> Result<SavedState, PacError> {
+    fn save_state(&self) -> Result<SavedState, PacError> {
         let proxy_type = Command::new("gsettings")
             .args(["get", "org.gnome.system.proxy", "mode"])
             .output()

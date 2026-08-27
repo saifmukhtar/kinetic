@@ -77,19 +77,13 @@ impl KineticTime {
     }
 }
 
-/// Converts an absolute Drand kyn number to deterministic Unix epoch seconds.
-///
-/// Uses saturating arithmetic. Overflow would require `kyn × period > u64::MAX`
-/// (~570 billion years at a 3-second period) and is physically impossible in practice.
-/// On overflow the result silently saturates to `u64::MAX` rather than panicking.
-#[inline]
-pub fn kyn_to_unix_secs(kyn: u64, drand_genesis_time: u64, drand_period: u64) -> u64 {
+/// Converts a Drand kyn number into a Unix epoch timestamp in seconds.
+pub fn kyn_to_unix_time(kyn: u64, drand_genesis_time: u64, drand_period: u64) -> u64 {
     drand_genesis_time.saturating_add(kyn.saturating_mul(drand_period))
 }
 
-/// Converts a Unix timestamp (in seconds) to the corresponding absolute Drand kyn number.
-#[inline]
-pub fn unix_secs_to_kyn(unix_secs: u64, drand_genesis_time: u64, drand_period: u64) -> u64 {
+/// Converts a Unix epoch timestamp (in seconds) into an estimated Drand kyn number.
+pub fn unix_time_to_kyn(unix_secs: u64, drand_genesis_time: u64, drand_period: u64) -> u64 {
     if drand_period == 0 {
         return 0;
     }
@@ -111,16 +105,16 @@ mod tests {
         let period: u64 = 3;
         let kyn: u64 = 500;
 
-        let unix_secs = kyn_to_unix_secs(kyn, genesis_time, period);
+        let unix_secs = kyn_to_unix_time(kyn, genesis_time, period);
         assert_eq!(unix_secs, genesis_time + (kyn * period));
 
-        let recovered_kyn = unix_secs_to_kyn(unix_secs, genesis_time, period);
+        let recovered_kyn = unix_time_to_kyn(unix_secs, genesis_time, period);
         assert_eq!(recovered_kyn, kyn);
     }
 
     #[test]
-    fn test_unix_secs_to_kyn_zero_period() {
-        assert_eq!(unix_secs_to_kyn(100, 50, 0), 0);
+    fn test_unix_time_to_kyn_zero_period() {
+        assert_eq!(unix_time_to_kyn(100, 50, 0), 0);
     }
 
     #[test]
@@ -159,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn test_large_epochs() {
+    fn test_time_large_epochs() {
         let genesis = 0;
 
         // 1 Matrix = 7 Prisms = 7 × 28,800 = 201,600 kyns

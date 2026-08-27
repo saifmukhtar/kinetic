@@ -5,7 +5,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
 
     #[test]
-    fn test_xor_tie_breaker_no_panic(
+    fn test_xor_tie_breaker_panic_safety(
         kyn in any::<u64>(),
         payloads in prop::collection::vec(any::<Vec<u8>>(), 0..20)
     ) {

@@ -53,14 +53,14 @@ mod tests {
     async fn test_auth_middleware_enforcement() {
         let (app, _, _) = setup_test_app().await;
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/commit")
             .method("POST")
             .body(Body::empty())
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
@@ -74,7 +74,7 @@ mod tests {
             }
         });
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
@@ -82,9 +82,9 @@ mod tests {
             .body(Body::from(req_body.to_string()))
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        let body = res.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         assert!(body_str.contains("Commitment hash must not be all-zeros"));
     }
@@ -100,7 +100,7 @@ mod tests {
             }
         });
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
@@ -108,9 +108,9 @@ mod tests {
             .body(Body::from(req_body.to_string()))
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        let body = res.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         assert!(body_str.contains("Invalid name"));
     }
@@ -137,7 +137,7 @@ mod tests {
             }
         });
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
@@ -145,9 +145,9 @@ mod tests {
             .body(Body::from(req_body.to_string()))
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        let body = res.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         assert!(body_str.contains("Invalid name"));
     }
@@ -175,7 +175,7 @@ mod tests {
             }
         });
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
@@ -183,9 +183,9 @@ mod tests {
             .body(Body::from(req_body.to_string()))
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        let body = res.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         assert!(body_str.contains("Invalid Reveal"));
     }
@@ -230,7 +230,7 @@ mod tests {
             }
         });
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
@@ -238,14 +238,14 @@ mod tests {
             .body(Body::from(req_body.to_string()))
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
-        let status = response.status();
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let res = app.oneshot(req).await.unwrap();
+        let status = res.status();
+        let body = res.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         assert_eq!(
             status,
             StatusCode::BAD_REQUEST,
-            "Unexpected response: {}",
+            "Unexpected res: {}",
             body_str
         );
         assert!(body_str.contains("Reveal rejected: VDF kyn"));
@@ -299,15 +299,15 @@ mod tests {
             }
         });
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/resolve/validname.kin")
             .method("GET")
             .body(Body::empty())
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = res.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         assert!(body_str.contains("validname.kin"));
     }
@@ -316,15 +316,15 @@ mod tests {
     async fn test_zone_publish_missing_registration() {
         let (app, _, _) = setup_test_app().await;
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/zone/validname.kin/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .body(Body::empty())
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
@@ -338,7 +338,7 @@ mod tests {
 
         let req_body_str = req_body.to_string();
 
-        let request1 = Request::builder()
+        let req1 = Request::builder()
             .uri("/vdf/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
@@ -346,7 +346,7 @@ mod tests {
             .body(Body::from(req_body_str.clone()))
             .unwrap();
 
-        let request2 = Request::builder()
+        let req2 = Request::builder()
             .uri("/vdf/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
@@ -354,7 +354,7 @@ mod tests {
             .body(Body::from(req_body_str.clone()))
             .unwrap();
 
-        let (resp1, resp2) = tokio::join!(app.clone().oneshot(request1), app.oneshot(request2));
+        let (resp1, resp2) = tokio::join!(app.clone().oneshot(req1), app.oneshot(req2));
 
         let s1 = resp1.unwrap().status();
         let s2 = resp2.unwrap().status();
@@ -377,7 +377,7 @@ mod tests {
             "signature": "invalid_signature"
         });
 
-        let request = Request::builder()
+        let req = Request::builder()
             .uri("/publish-kid")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
@@ -385,9 +385,9 @@ mod tests {
             .body(Body::from(req_body.to_string()))
             .unwrap();
 
-        let response = app.oneshot(request).await.unwrap();
+        let res = app.oneshot(req).await.unwrap();
         // Since we provided totally invalid base58 encoded strings,
         // it will fail at the structure or verification level.
-        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
     }
 }

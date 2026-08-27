@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_protocol_version() {
+    fn test_reveal_invalid_version() {
         let mut reveal = valid_reveal();
         reveal.protocol_version = 2;
         assert!(matches!(

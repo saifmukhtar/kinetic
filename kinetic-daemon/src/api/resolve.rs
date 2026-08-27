@@ -154,7 +154,7 @@ pub async fn handle_resolve_kid(
         }
     };
 
-    let kid_doc: kinetic_kid::KidDocument =
+    let kid_doc: kinetic_kid::Document =
         match serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&kid_payload) {
             Ok(auth) => auth.kid_doc,
             Err(_) => {
@@ -171,7 +171,7 @@ pub async fn handle_resolve_kid(
     // Try to resolve Manifest
     let manifest_key = hex::encode(kinetic_primitives::sha256_hash(format!("{}#manifest", did).as_bytes()));
 
-    let mut response = serde_json::json!({
+    let mut res = serde_json::json!({
         "kid_document": kid_doc,
     });
 
@@ -180,16 +180,16 @@ pub async fn handle_resolve_kid(
             match serde_json::from_slice::<kinetic_core::types::AuthorizedManifest>(&man_payload) {
                 Ok(auth) => Some(auth.manifest),
                 Err(_) => {
-                    serde_json::from_slice::<kinetic_kid::CapabilityManifest>(&man_payload).ok()
+                    serde_json::from_slice::<kinetic_kid::Manifest>(&man_payload).ok()
                 }
             };
 
         if let Some(manifest) = manifest_opt
             && let Ok(val) = serde_json::to_value(manifest)
         {
-            response["manifest_document"] = val;
+            res["manifest_document"] = val;
         }
     }
 
-    Ok(Json(response))
+    Ok(Json(res))
 }

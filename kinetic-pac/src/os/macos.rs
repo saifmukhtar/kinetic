@@ -44,7 +44,7 @@ impl ProxyConfigurator for MacosConfigurator {
         Ok(())
     }
 
-    fn save_previous_state(&self) -> Result<SavedState, PacError> {
+    fn save_state(&self) -> Result<SavedState, PacError> {
         let mut macos_services = std::collections::HashMap::new();
         if let Ok(output) = Command::new("networksetup")
             .arg("-listallnetworkservices")

@@ -172,7 +172,7 @@ mod proptests {
 
     proptest! {
         #[test]
-        fn proxy_handles_chaotic_requests_gracefully(
+        fn test_proxy_chaotic_requests(
             method in "[a-zA-Z]{1,10}",
             path in "/[a-zA-Z0-9%_=+-]*",
             body in prop::collection::vec(any::<u8>(), 0..50)

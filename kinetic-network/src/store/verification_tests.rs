@@ -59,7 +59,7 @@ mod tests {
         use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
         use kinetic_kid::document::KidDocument;
         let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
-        let ml_pub_bytes = ml_kp.public_key_bytes();
+        let ml_pub_bytes = ml_kp.pubkey_bytes();
 
         let reveal = Reveal {
             protocol_version: 1,
@@ -89,7 +89,7 @@ mod tests {
             let _ = write!(&mut hex_hash, "{:02x}", byte);
         }
 
-        let kid = kinetic_kid::did::KineticDid::new(&format!(
+        let kid = kinetic_kid::did::Did::new(&format!(
             "{}{}",
             kinetic_core::constants::DID_PREFIX,
             hex_hash

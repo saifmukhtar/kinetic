@@ -61,7 +61,7 @@ impl RawKyn {
     }
 
     /// Returns `true` if this kyn is suitable for driving VDF name registrations (must be live).
-    pub fn is_usable_for_registration(&self) -> bool {
+    pub fn can_register(&self) -> bool {
         !self.is_unavailable && !self.is_from_cache
     }
 
@@ -69,7 +69,7 @@ impl RawKyn {
     ///
     /// Accepts cached kyns if their kyn age relative to `current_live_kyn` does not
     /// exceed `MAX_STALE_ROUNDS_FOR_HEARTBEAT` (200 kyns / 10 minutes).
-    pub fn is_usable_for_heartbeat(&self, current_live_kyn: u64) -> bool {
+    pub fn can_heartbeat(&self, current_live_kyn: u64) -> bool {
         if self.is_unavailable {
             return false;
         }
@@ -102,7 +102,7 @@ impl RawKyn {
             None => return false,
         };
 
-        let pk = match G2PubkeyRfc::from_fixed(pubkey_bytes) {
+        let pubkey = match G2PubkeyRfc::from_fixed(pubkey_bytes) {
             Ok(p) => p,
             Err(_) => return false,
         };
@@ -113,7 +113,7 @@ impl RawKyn {
         };
 
         // 1. Verify BLS signature over the kyn (Quicknet is unchained, so previous_signature is empty array)
-        if !pk.verify(self.kyn, &[], &sig_bytes).unwrap_or(false) {
+        if !pubkey.verify(self.kyn, &[], &sig_bytes).unwrap_or(false) {
             return false;
         }
 
@@ -430,15 +430,15 @@ mod tests {
             is_from_cache: false,
             is_unavailable: false,
         };
-        assert!(kyn.is_usable_for_registration());
+        assert!(kyn.can_register());
 
         // A cached kyn is NOT usable for registration
         kyn.is_from_cache = true;
-        assert!(!kyn.is_usable_for_registration());
+        assert!(!kyn.can_register());
 
         // An unavailable sentinel is NOT usable
         let sentinel = RawKyn::unavailable();
-        assert!(!sentinel.is_usable_for_registration());
+        assert!(!sentinel.can_register());
     }
 
     #[test]
@@ -451,26 +451,26 @@ mod tests {
             is_from_cache: false,
             is_unavailable: false,
         };
-        assert!(kyn.is_usable_for_heartbeat(1000));
-        assert!(kyn.is_usable_for_heartbeat(5000)); // live kyns don't check staleness locally here
+        assert!(kyn.can_heartbeat(1000));
+        assert!(kyn.can_heartbeat(5000)); // live kyns don't check staleness locally here
 
         // A cached kyn checks staleness against the provided current_live_kyn
         kyn.is_from_cache = true;
 
         // Exact same kyn (0 staleness)
-        assert!(kyn.is_usable_for_heartbeat(1000));
+        assert!(kyn.can_heartbeat(1000));
 
         // Max allowed staleness (200 rounds)
-        assert!(kyn.is_usable_for_heartbeat(1200));
+        assert!(kyn.can_heartbeat(1200));
 
         // Exceeds max staleness (201 rounds)
-        assert!(!kyn.is_usable_for_heartbeat(1201));
+        assert!(!kyn.can_heartbeat(1201));
 
         // Edge case: current_live_kyn is somehow behind the cached kyn
-        assert!(kyn.is_usable_for_heartbeat(999));
+        assert!(kyn.can_heartbeat(999));
 
         // An unavailable sentinel is never usable
         let sentinel = RawKyn::unavailable();
-        assert!(!sentinel.is_usable_for_heartbeat(1000));
+        assert!(!sentinel.can_heartbeat(1000));
     }
 }

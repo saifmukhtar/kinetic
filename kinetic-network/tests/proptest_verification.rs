@@ -10,7 +10,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
 
     #[test]
-    fn test_store_handles_garbage_payloads_without_panic(
+    fn test_store_garbage_payloads(
         garbage in any::<Vec<u8>>()
     ) {
         let temp_dir = tempfile::tempdir().unwrap();
@@ -34,11 +34,11 @@ proptest! {
         let record = kad::Record::new(key, garbage);
 
         // Put record might fail because it's garbage, but it MUST NOT panic.
-        let _ = store.put_record(record);
+        let _ = store.put(record);
     }
 
     #[test]
-    fn test_required_iterations_math_no_panic(
+    fn test_required_iterations_panic_safety(
         name in "[a-z0-9-]{1,63}\\.kin",
         kyn in any::<u64>(),
         prev_pulse in any::<u64>(),
@@ -91,6 +91,6 @@ proptest! {
 
         // We expect an error (e.g., InvalidSignature, InvalidVdf),
         // but it should successfully compute iteration boundaries without underflowing.
-        let _ = store.put_record(record);
+        let _ = store.put(record);
     }
 }

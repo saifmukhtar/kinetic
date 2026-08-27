@@ -33,7 +33,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         .behaviour_mut()
                         .kademlia
                         .store_mut()
-                        .put_record(peer_record.record);
+                        .put(peer_record.record);
 
                     // 2. Re-trigger the async verification for the parked Reveal
                     if let Ok(parsed) =
@@ -185,7 +185,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 .behaviour_mut()
                 .kademlia
                 .store_mut()
-                .put_record(record.clone());
+                .put(record.clone());
 
             if let Err(e) = put_result {
                 if e.severity() == kinetic_core::error::Severity::Error {

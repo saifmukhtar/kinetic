@@ -33,7 +33,7 @@ impl KineticKeypair {
     }
 
     /// Returns the public key as raw bytes.
-    pub fn public_key_bytes(&self) -> Vec<u8> {
+    pub fn pubkey_bytes(&self) -> Vec<u8> {
         use ml_dsa::KeyExport;
         self.0.verifying_key().to_bytes().to_vec()
     }

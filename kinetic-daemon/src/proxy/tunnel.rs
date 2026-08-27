@@ -7,7 +7,7 @@ use super::*;
 ///
 /// # Errors
 /// Returns a `ProxyError` if the TLS handshake fails or the inner HTTP request cannot be served.
-pub async fn handle_connect(
+pub async fn handle_connect_req(
     raw_host: String,
     apex_domain: String,
     upgraded: hyper::upgrade::Upgraded,

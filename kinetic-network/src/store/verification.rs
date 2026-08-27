@@ -148,10 +148,10 @@ pub(crate) fn compute_required_iterations(
             .try_into()
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
-        let pk = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
+        let pubkey = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
-        if !pk
+        if !pubkey
             .verify(reveal.kyn, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
@@ -165,7 +165,7 @@ pub(crate) fn compute_required_iterations(
         }
     }
 
-    let base_required_iterations = consensus_math.required_iterations(&reveal.name);
+    let base_required_iterations = consensus_math.iterations(&reveal.name);
     let required_iterations = if let Some(prev) = &reveal.previous_proof {
         // Verify previous proof
         // Verify previous proof
@@ -186,10 +186,10 @@ pub(crate) fn compute_required_iterations(
                 .try_into()
                 .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
-            let pk = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
+            let pubkey = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
                 .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
-            if !pk
+            if !pubkey
                 .verify(prev.kyn, &[], &prev_drand_sig_bytes)
                 .unwrap_or(false)
             {
@@ -214,7 +214,7 @@ pub(crate) fn compute_required_iterations(
             Ok(true)
         );
 
-        let prev_req = consensus_math.required_iterations(&reveal.name);
+        let prev_req = consensus_math.iterations(&reveal.name);
 
         let paused_kyns =
             if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
@@ -342,10 +342,10 @@ pub(crate) fn verify_reveal(
             .try_into()
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
-        let pk = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
+        let pubkey = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
-        if !pk
+        if !pubkey
             .verify(reveal.kyn, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
@@ -526,7 +526,7 @@ pub(crate) fn verify_authorized_kid(
             // Update: new document must be signed by a key from the previous document.
             if let Ok(old_auth_kid) =
                 serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&record.value)
-                && !auth_kid.kid_doc.is_authorized_update(&old_auth_kid.kid_doc)
+                && !auth_kid.kid_doc.is_authorized(&old_auth_kid.kid_doc)
             {
                 let err = KineticStoreError::UnauthorizedUpdate;
                 err.log_warning(

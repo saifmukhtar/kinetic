@@ -67,7 +67,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                                 .unwrap_or_else(|e| e.into_inner());
                             if let Ok(root_key) = gov.get_root_key() {
                                 drop(gov);
-                                let action_bytes = signed_msg.to_canonical_bytes();
+                                let action_bytes = signed_msg.to_bytes();
                                 return signed_msg.signatures.iter().any(|sig| {
                                     kinetic_core::governance::verify_signature(
                                         &root_key,

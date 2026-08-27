@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
-fn test_006_redb_corruption_recovery() {
+fn test_redb_corruption_recovery() {
     let dir = tempdir().unwrap();
     let db_dir = dir.path().join("storage_db");
 

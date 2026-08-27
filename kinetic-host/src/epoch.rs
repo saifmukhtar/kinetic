@@ -7,7 +7,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 
 /// Starts an async loop publishing dynamic HostRoutingRecords to the DHT every 30 seconds.
-pub async fn start_dynamic_routing_publisher(
+pub async fn start_routing_publisher(
     publisher_host_key: libp2p::identity::Keypair,
     local_peer_id_str: Arc<RwLock<String>>,
     host_peer_id_str: String,

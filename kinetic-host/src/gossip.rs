@@ -35,7 +35,7 @@ pub async fn start_gossip_listener(
                         .unwrap_or_default()
                         .as_secs();
                     let current_kyn =
-                        kinetic_core::types::clock::unix_secs_to_network_kyn(current_time);
+                        kinetic_core::types::clock::unix_time_to_network_kyn(current_time);
 
                     match kinetic_core::governance::process_governance_message(
                         &mut state,
@@ -84,7 +84,7 @@ mod proptests {
 
     proptest! {
         #[test]
-        fn doesnt_panic_on_garbage_gossip(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
+        fn test_gossip_garbage_payloads(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
             // Guarantee that receiving absolute garbage over the P2P gossip network
             // will never cause a deserialization panic.
             let _ = serde_json::from_slice::<kinetic_core::governance::SignedGovernanceMessage>(&payload);

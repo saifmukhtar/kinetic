@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tempfile::tempdir;
 
 #[test]
-fn test_009_memory_store_bloat() {
+fn test_memory_store_bloat() {
     let dir = tempdir().unwrap();
     let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
     let peer_id = PeerId::from(Keypair::generate_ed25519().public());

@@ -23,7 +23,7 @@ pub fn start_gossip_processor(
             };
             if topic == kinetic_core::constants::GOSSIP_TOPIC_GLOBAL {
                 if payload.is_empty() {
-                    network_client.report_gossip_validation(message_id, propagation_source, false);
+                    network_client.report_gossip(message_id, propagation_source, false);
                     continue;
                 }
                 let opcode = payload[0];
@@ -37,7 +37,7 @@ pub fn start_gossip_processor(
                     {
                         let current_kyn = match drand_client_gossip.fetch_latest().await {
                             Ok(kyn) => kyn.kyn,
-                            Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+                            Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
                                 std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
@@ -47,7 +47,7 @@ pub fn start_gossip_processor(
                         let Ok(mut state) =
                             kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
                         else {
-                            network_client.report_gossip_validation(
+                            network_client.report_gossip(
                                 message_id,
                                 propagation_source,
                                 is_valid,
@@ -134,7 +134,7 @@ pub fn start_gossip_processor(
                             }
                         }
                     }
-                    network_client.report_gossip_validation(
+                    network_client.report_gossip(
                         message_id,
                         propagation_source,
                         is_valid,
@@ -156,13 +156,13 @@ pub fn start_gossip_processor(
                             let _ = kyn_tx_gossip.send(kyn.kyn);
                         }
                     }
-                    network_client.report_gossip_validation(
+                    network_client.report_gossip(
                         message_id,
                         propagation_source,
                         is_valid,
                     );
                 } else {
-                    network_client.report_gossip_validation(message_id, propagation_source, false);
+                    network_client.report_gossip(message_id, propagation_source, false);
                 }
             }
         }

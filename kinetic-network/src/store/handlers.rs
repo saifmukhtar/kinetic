@@ -6,7 +6,7 @@ use crate::store::core::KineticRecordStore;
 use kinetic_verify::signatures::VerifySignature;
 
 impl KineticRecordStore {
-    pub(crate) fn handle_record(
+    pub(crate) fn handle_put_record(
         &mut self,
         record: &kinetic_core::types::NameRecord,
         skip_verify: bool,
@@ -50,7 +50,7 @@ impl KineticRecordStore {
             return Err(e);
         }
 
-        if let Some(existing_record) = self.get_record_with_fallback(record.name()) {
+        if let Some(existing_record) = self.get_fallback(record.name()) {
             if existing_record.pubkey() != record.pubkey() {
                 let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
                 let last_hb_kyn = self
@@ -73,8 +73,8 @@ impl KineticRecordStore {
                     }
                 };
 
-                let base_diff = consensus_math.required_iterations(&new_reveal.name);
-                let steal_threshold = consensus_math.steal_difficulty(base_diff, hb_age);
+                let base_diff = consensus_math.iterations(&new_reveal.name);
+                let steal_threshold = consensus_math.steal_diff(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
                 if new_reveal.iterations == existing_reveal.iterations && hb_age < 100 {
@@ -159,7 +159,7 @@ impl KineticRecordStore {
                 let existing_pulse = match &existing_record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
                     kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                        kinetic_core::types::clock::unix_secs_to_kyn(
+                        kinetic_core::types::clock::unix_time_to_kyn(
                             *granted_at,
                             kinetic_core::constants::DRAND_GENESIS_TIME,
                             kinetic_core::constants::DRAND_PERIOD,
@@ -170,7 +170,7 @@ impl KineticRecordStore {
                 let new_pulse = match &record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
                     kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                        kinetic_core::types::clock::unix_secs_to_kyn(
+                        kinetic_core::types::clock::unix_time_to_kyn(
                             *granted_at,
                             kinetic_core::constants::DRAND_GENESIS_TIME,
                             kinetic_core::constants::DRAND_PERIOD,
@@ -296,7 +296,7 @@ impl KineticRecordStore {
         Ok(())
     }
 
-    pub(crate) fn handle_heartbeat(
+    pub(crate) fn handle_process_heartbeat(
         &mut self,
         heartbeat: &kinetic_core::types::Heartbeat,
     ) -> Result<(), KineticStoreError> {
@@ -318,7 +318,7 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        let existing_record = match self.get_record_with_fallback(&heartbeat.name) {
+        let existing_record = match self.get_fallback(&heartbeat.name) {
             Some(r) => r,
             None => {
                 let err = KineticStoreError::RevealNotFound;
@@ -360,8 +360,8 @@ impl KineticRecordStore {
             for ck in &kid_doc.controller_keys {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                 if ck.key_type == "ML-DSA-65"
-                    && let Ok(pk_bytes) = b64_url.decode(&ck.public_key)
-                    && kinetic_primitives::verify_mldsa(&pk_bytes, &signable, &heartbeat.signature).is_ok()
+                    && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
+                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, &heartbeat.signature).is_ok()
                 {
                     verified = true;
                     break;

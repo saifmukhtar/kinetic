@@ -61,11 +61,11 @@ pub enum IdentityError {
 
     /// A KID document was malformed or missing fields.
     #[error("Malformed KID document: {0}")]
-    MalformedKidDocument(String),
+    MalformedDocument(String),
 
     /// An apex KID document was malformed or missing fields.
     #[error("Malformed apex KID document: {0}")]
-    MalformedApexKidDocument(String),
+    MalformedApexDocument(String),
 
     /// A capability manifest was malformed or missing fields.
     #[error("Malformed capability manifest: {0}")]
@@ -99,8 +99,8 @@ impl PartialEq for IdentityError {
             (Self::InvalidDid(a), Self::InvalidDid(b)) => a == b,
             (Self::KidDeactivated(a), Self::KidDeactivated(b)) => a == b,
             (Self::Json(a), Self::Json(b)) => a == b,
-            (Self::MalformedKidDocument(a), Self::MalformedKidDocument(b)) => a == b,
-            (Self::MalformedApexKidDocument(a), Self::MalformedApexKidDocument(b)) => a == b,
+            (Self::MalformedDocument(a), Self::MalformedDocument(b)) => a == b,
+            (Self::MalformedApexDocument(a), Self::MalformedApexDocument(b)) => a == b,
             (Self::MalformedManifest(a), Self::MalformedManifest(b)) => a == b,
             (Self::SerializationFailed(a), Self::SerializationFailed(b)) => a == b,
             (Self::ManifestSigningFailed(a), Self::ManifestSigningFailed(b)) => a == b,
@@ -128,8 +128,8 @@ impl IdentityError {
             Self::InvalidDid(_) => "KIN-IDN-010",
             Self::KidDeactivated(_) => "KIN-IDN-011",
             Self::Json(_) => "KIN-IDN-012",
-            Self::MalformedKidDocument(_) => "KIN-IDN-013",
-            Self::MalformedApexKidDocument(_) => "KIN-IDN-014",
+            Self::MalformedDocument(_) => "KIN-IDN-013",
+            Self::MalformedApexDocument(_) => "KIN-IDN-014",
             Self::MalformedManifest(_) => "KIN-IDN-015",
             Self::SerializationFailed(_) => "KIN-IDN-016",
             Self::ManifestSigningFailed(_) => "KIN-IDN-017",
@@ -153,8 +153,8 @@ impl IdentityError {
             | Self::KidSigningFailed(_)
             | Self::InvalidDid(_)
             | Self::Json(_)
-            | Self::MalformedKidDocument(_)
-            | Self::MalformedApexKidDocument(_)
+            | Self::MalformedDocument(_)
+            | Self::MalformedApexDocument(_)
             | Self::MalformedManifest(_)
             | Self::SerializationFailed(_)
             | Self::ManifestSigningFailed(_) => Severity::Error,
@@ -207,10 +207,10 @@ impl IdentityError {
             Self::Json(msg) => {
                 format!("JSON processing error: {msg}")
             }
-            Self::MalformedKidDocument(msg) => {
+            Self::MalformedDocument(msg) => {
                 format!("The KID document is malformed: {msg}")
             }
-            Self::MalformedApexKidDocument(msg) => {
+            Self::MalformedApexDocument(msg) => {
                 format!("The apex KID document is malformed: {msg}")
             }
             Self::MalformedManifest(msg) => {

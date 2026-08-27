@@ -40,7 +40,7 @@ pub async fn handle_list_kids()
 }
 
 /// Handles API requests to retrieve a specific local KID document by its domain name.
-pub async fn handle_get_kid(
+pub async fn handle_fetch_kid(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let (doc, path) = kinetic_core::types::load_local_kid(&name).map_err(|e| {
@@ -83,7 +83,7 @@ pub async fn handle_generate_kid(
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
     let current_kyn = match drand_client.fetch_latest().await {
         Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -214,7 +214,7 @@ pub async fn handle_revoke_kid(
     })))
 }
 
-/// Retrieves the locally stored CapabilityManifest for a given identity name if present.
+/// Retrieves the locally stored Manifest for a given identity name if present.
 pub async fn handle_get_kid_manifest(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
@@ -241,7 +241,7 @@ pub async fn handle_get_kid_manifest(
 #[derive(serde::Deserialize)]
 pub struct UpdateManifestRequest {
     /// List of service entries to publish in the manifest.
-    pub services: Vec<kinetic_kid::manifest::ServiceEntry>,
+    pub services: Vec<kinetic_kid::manifest::Service>,
 }
 
 /// Creates, signs, persists, and publishes a new version of the capability manifest for an identity.
@@ -263,7 +263,7 @@ pub async fn handle_update_kid_manifest(
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
     let current_kyn = match drand_client.fetch_latest().await {
         Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()

@@ -19,7 +19,7 @@ use tracing::info;
 /// # Errors
 /// Returns an `anyhow::Error` if the previous reveal is not found locally,
 /// keypairs don't match, or network/VDF generation steps fail.
-pub async fn handle(
+pub async fn handle_name_renew(
     name: String,
     iterations: u64,
     config: &KineticConfig,
@@ -51,7 +51,7 @@ pub async fn handle(
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
-    let pubkey = keypair.public_key_bytes();
+    let pubkey = keypair.pubkey_bytes();
 
     if old_reveal.pubkey != pubkey.as_slice() {
         return Err(anyhow::anyhow!(
@@ -99,7 +99,7 @@ pub async fn handle(
     info!("Commitment accepted. Starting discounted VDF computation...");
 
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-    let base_iterations = consensus_math.required_iterations(&fqdn);
+    let base_iterations = consensus_math.iterations(&fqdn);
 
     // 80% discount
     let discounted_iterations = std::cmp::max(1, base_iterations / 5);

@@ -6,8 +6,8 @@ use kinetic_primitives::keys::KineticKeypair;
 fn test_013_kid_hijack() {
     // 1. Victim generates their identity
     let victim_key = KineticKeypair::generate();
-    let victim_pub_b64 = b64_url.encode(&victim_key.public_key_bytes());
-    let hash = kinetic_primitives::sha256_hash(&victim_key.public_key_bytes());
+    let victim_pub_b64 = b64_url.encode(&victim_key.pubkey_bytes());
+    let hash = kinetic_primitives::sha256_hash(&victim_key.pubkey_bytes());
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;
@@ -34,7 +34,7 @@ fn test_013_kid_hijack() {
 
     // 2. Attacker generates a random key and hijacks the victim's DID
     let attacker_key = KineticKeypair::generate();
-    let attacker_pub_b64 = b64_url.encode(&attacker_key.public_key_bytes());
+    let attacker_pub_b64 = b64_url.encode(&attacker_key.pubkey_bytes());
 
     let forged_doc = KidDocument {
         doc_type: "kinetic.kid.v1".to_string(),

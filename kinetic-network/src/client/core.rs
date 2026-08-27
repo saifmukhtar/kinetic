@@ -91,7 +91,7 @@ impl NetworkClient {
     pub async fn send_proxy_request(
         &self,
         peer: libp2p::PeerId,
-        request: ProxyRequest,
+        req: ProxyRequest,
     ) -> std::result::Result<ProxyResponse, ProxyError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self
@@ -102,7 +102,7 @@ impl NetworkClient {
         sender_clone
             .send(Command::SendProxyRequest {
                 peer,
-                request: Box::new(request),
+                req: Box::new(req),
                 responder: tx,
             })
             .await
@@ -118,7 +118,7 @@ impl NetworkClient {
     pub async fn send_proxy_response(
         &self,
         channel: libp2p::request_response::ResponseChannel<ProxyResponse>,
-        response: ProxyResponse,
+        res: ProxyResponse,
     ) -> std::result::Result<(), NetworkClientError> {
         let sender_clone = self
             .sender
@@ -128,7 +128,7 @@ impl NetworkClient {
         sender_clone
             .send(Command::SendProxyResponse {
                 channel,
-                response: Box::new(response),
+                res: Box::new(res),
             })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
@@ -454,7 +454,7 @@ impl NetworkClient {
     }
 
     /// Report the validation result of a gossipsub message to the swarm.
-    pub fn report_gossip_validation(
+    pub fn report_gossip(
         &self,
         message_id: libp2p::gossipsub::MessageId,
         propagation_source: libp2p::PeerId,

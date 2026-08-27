@@ -199,7 +199,7 @@ pub async fn handle_publish_zone(
         }
     };
 
-    let pubkey_bytes = keypair.public_key_bytes();
+    let pubkey_bytes = keypair.pubkey_bytes();
     if record.pubkey() != pubkey_bytes.as_slice() {
         return Err((
             StatusCode::CONFLICT,

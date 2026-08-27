@@ -13,7 +13,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
 
     #[test]
-    fn test_sybil_pow_does_not_panic(
+    fn test_sybil_pow_panic_safety(
         kyn in any::<u64>(),
         difficulty in 0..=32u32
     ) {

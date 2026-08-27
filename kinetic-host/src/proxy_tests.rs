@@ -171,7 +171,7 @@ mod tests {
 
     // 7
     #[tokio::test]
-    async fn test_forward_request_invalid_method_fallback_to_get() {
+    async fn test_proxy_invalid_method() {
         let port = start_mock_backend().await;
         let client = test_client();
         let req = ProxyRequest {
@@ -344,7 +344,7 @@ mod tests {
 
     // 17
     #[tokio::test]
-    async fn test_forward_request_multiple_headers_same_key() {
+    async fn test_proxy_duplicate_headers() {
         // reqwest RequestBuilder headers overwrites keys if called sequentially with same key,
         // but in HTTP you can have multiple. For our proxy, it just iterates HashMap which guarantees unique keys,
         // so we just test that inserting a single header is correctly passed and parsed.
@@ -405,7 +405,7 @@ mod tests {
 
     // 20
     #[tokio::test]
-    async fn test_forward_request_response_headers_are_proxied() {
+    async fn test_proxy_response_headers() {
         let port = start_mock_backend().await;
         let client = test_client();
         let req = ProxyRequest {

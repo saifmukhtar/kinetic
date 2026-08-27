@@ -7,7 +7,7 @@ use kinetic_vdf_rsa::RsaVdfEngine;
 
 #[test]
 #[ignore = "Slow cryptographic test: takes >60s to compute VDF proof"]
-fn test_010_xor_eclipse() {
+fn test_xor_eclipse_routing() {
     let keypair = SigningKey::from_bytes(&[1u8; 32]);
     let pubkey = keypair.verifying_key();
 
@@ -19,7 +19,7 @@ fn test_010_xor_eclipse() {
 
     let name = "thisisaverylongnamethatisverycheap.kin";
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-    let iterations = consensus_math.required_iterations(name);
+    let iterations = consensus_math.iterations(name);
 
     // Generate REAL VDF Proof
     let challenge = kinetic_core::types::Commitment::derive(

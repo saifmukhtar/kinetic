@@ -8,7 +8,7 @@ use libp2p::kad::store::RecordStore;
 use tempfile::tempdir;
 
 #[tokio::test]
-async fn test_016_governance_integration_halt() {
+async fn test_governance_integration_halt() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
     let storage = std::sync::Arc::new(
@@ -69,7 +69,7 @@ async fn test_016_governance_integration_halt() {
 }
 
 #[tokio::test]
-async fn test_016_governance_integration_premium() {
+async fn test_governance_integration_premium() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
     let storage = std::sync::Arc::new(

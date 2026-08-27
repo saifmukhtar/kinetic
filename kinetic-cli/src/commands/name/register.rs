@@ -21,7 +21,7 @@ use tracing::{info, warn};
 /// # Errors
 /// Returns an `anyhow::Error` if Drand fetching, proof generation, identity loading,
 /// or network broadcast fails.
-pub async fn handle(
+pub async fn handle_name_register(
     name: String,
     iterations: u64,
     config: &KineticConfig,
@@ -54,7 +54,7 @@ pub async fn handle(
     // Construct commitment: H(name || salt || drand_signature || pubkey)
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
-    let pubkey = keypair.public_key_bytes();
+    let pubkey = keypair.pubkey_bytes();
 
     let drand_sig_bytes = hex::decode(&drand_data.signature)
         .map_err(|_| anyhow::anyhow!("Received corrupted Drand signature from the beacon"))?;
@@ -89,7 +89,7 @@ pub async fn handle(
     info!("Commitment accepted. Starting VDF computation (Phase 2 of 2)...");
 
     let required_iterations =
-        kinetic_core::consensus_math::ConsensusParams::default().required_iterations(&fqdn);
+        kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
     let actual_iterations = std::cmp::max(iterations, required_iterations);
 
     let label = kinetic_core::types::names::extract_apex_name(&fqdn);
@@ -179,7 +179,7 @@ pub async fn handle(
     let drand_client = kinetic_core::drand::DrandClient::new(None);
     let current_kyn = match drand_client.fetch_latest().await {
         Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_secs_to_network_kyn(
+        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
