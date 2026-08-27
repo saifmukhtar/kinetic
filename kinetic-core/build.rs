@@ -391,20 +391,22 @@ fn main() {
     let prod_key = extract_root_key(&constants_src, "prod_keys");
     let test_key = extract_root_key(&constants_src, "test_keys");
 
-    // Compute the PROD salt
+    // Compute the PROD salt (ROOT_KEY + DRAND_KEY + GENESIS_TIME)
     let mut hasher = Sha256::new();
-    hasher.update(config.network.network_id.as_bytes());
     hasher.update(prod_key.as_bytes());
+    hasher.update(config.drand.drand_public_key.as_bytes());
+    hasher.update(config.drand.drand_genesis_time.to_be_bytes());
     let prod_salt = hasher.finalize();
 
-    // Compute the TEST salt
+    // Compute the TEST salt (ROOT_KEY + DRAND_KEY + GENESIS_TIME)
     let mut hasher_test = Sha256::new();
-    hasher_test.update(config.network.network_id.as_bytes());
     hasher_test.update(test_key.as_bytes());
+    hasher_test.update(config.drand.drand_public_key.as_bytes());
+    hasher_test.update(config.drand.drand_genesis_time.to_be_bytes());
     let test_salt = hasher_test.finalize();
 
     out.push_str(&format!(
-        "/// The mathematical network salt for production, derived from NETWORK_ID + ROOT_PUBLIC_KEY.\n\
+        "/// The mathematical network salt for production, derived from ROOT_PUBLIC_KEY + DRAND_PUBLIC_KEY + DRAND_GENESIS_TIME.\n\
          pub const NETWORK_SALT_PROD: [u8; 32] = {:?};\n\n",
         prod_salt.as_slice()
     ));
@@ -416,15 +418,15 @@ fn main() {
     ));
 
     // Export the first 4 hex chars of the prod salt as a compile-time env var.
-    // Used in constants.rs to namespace DB keys as "<nsp>-<salt_prefix>:..." 
-    // (e.g. "kin-83cf:...") — consistent with the data directory naming.
+    // Used in constants.rs to namespace DB keys as \"<nsp>-<salt_prefix>:...\" 
+    // (e.g. \"kin-83cf:...\") — consistent with the data directory naming.
     println!(
         "cargo:rustc-env=KINETIC_SALT_PREFIX={}",
         &hex::encode(prod_salt)[..4]
     );
 
     out.push_str(&format!(
-        "/// The mathematical network salt for testing, derived from NETWORK_ID + ROOT_PUBLIC_KEY.\n\
+        "/// The mathematical network salt for testing, derived from ROOT_PUBLIC_KEY + DRAND_PUBLIC_KEY + DRAND_GENESIS_TIME.\n\
          pub const NETWORK_SALT_TEST: [u8; 32] = {:?};\n\n",
         test_salt.as_slice()
     ));
