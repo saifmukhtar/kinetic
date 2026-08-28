@@ -2,7 +2,6 @@ use super::*;
 use axum::{
     Json,
     extract::{Extension, Path, State},
-    http::StatusCode,
 };
 use serde::Deserialize;
 
@@ -26,31 +25,16 @@ fn default_inherit() -> bool {
 }
 
 /// Handles API requests to list all local KID documents stored on the filesystem.
-pub async fn handle_list_kids()
--> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let summaries = kinetic_core::types::list_local_kids().map_err(|e| {
-        let api_err = kinetic_core::ApiError::from(e);
-        (
-            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(serde_json::to_value(api_err).unwrap_or_default()),
-        )
-    })?;
-
+pub async fn handle_list_kids() -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    let summaries = kinetic_core::types::list_local_kids()?;
     Ok(Json(serde_json::json!({ "kids": summaries })))
 }
 
 /// Handles API requests to retrieve a specific local KID document by its domain name.
 pub async fn handle_fetch_kid(
     Path(name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let (doc, path) = kinetic_core::types::load_local_kid(&name).map_err(|e| {
-        let api_err = kinetic_core::ApiError::from(e);
-        (
-            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(serde_json::to_value(api_err).unwrap_or_default()),
-        )
-    })?;
-
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    let (doc, path) = kinetic_core::types::load_local_kid(&name)?;
     Ok(Json(serde_json::json!({
         "name": kinetic_core::types::normalize_name(&name),
         "kid_doc": doc,
@@ -63,14 +47,19 @@ pub async fn handle_generate_kid(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<GenerateKidRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
-            ),
-        ));
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            title: "Unauthorized".to_string(),
+            status: 403,
+            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
+            instance: None,
+            code: "KIN-API-001".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
 
     let base_fqdn = kinetic_core::types::normalize_name(&req.base_name);
@@ -98,14 +87,7 @@ pub async fn handle_generate_kid(
         req.force,
         current_kyn,
         &identity_path,
-    )
-    .map_err(|e| {
-        let api_err = kinetic_core::ApiError::from(e);
-        (
-            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(serde_json::to_value(api_err).unwrap_or_default()),
-        )
-    })?;
+    )?;
 
     // Publish AuthorizedKid wrapper to DHT
     if let Ok(payload_bytes) = serde_json::to_vec(&res.auth_kid) {
@@ -129,24 +111,23 @@ pub async fn handle_rotate_kid(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
-            ),
-        ));
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            title: "Unauthorized".to_string(),
+            status: 403,
+            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
+            instance: None,
+            code: "KIN-API-001".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let rotated = kinetic_core::types::rotate_name_kid(&name, &identity_path).map_err(|e| {
-        let api_err = kinetic_core::ApiError::from(e);
-        (
-            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(serde_json::to_value(api_err).unwrap_or_default()),
-        )
-    })?;
+    let rotated = kinetic_core::types::rotate_name_kid(&name, &identity_path)?;
 
     // Publish rotated document to DHT
     if let Ok(payload_bytes) = serde_json::to_vec(&rotated.auth_kid) {
@@ -169,33 +150,25 @@ pub async fn handle_revoke_kid(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
-            ),
-        ));
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            title: "Unauthorized".to_string(),
+            status: 403,
+            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
+            instance: None,
+            code: "KIN-API-001".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
 
-    let revoked_doc = kinetic_core::types::revoke_local_kid(&name).map_err(|e| {
-        let api_err = kinetic_core::ApiError::from(e);
-        (
-            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(serde_json::to_value(api_err).unwrap_or_default()),
-        )
-    })?;
+    let revoked_doc = kinetic_core::types::revoke_local_kid(&name)?;
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let auth_kid = kinetic_core::types::authorize_kid_document(&name, &revoked_doc, &identity_path)
-        .map_err(|e| {
-            let api_err = kinetic_core::ApiError::from(e);
-            (
-                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap_or_default()),
-            )
-        })?;
+    let auth_kid = kinetic_core::types::authorize_kid_document(&name, &revoked_doc, &identity_path)?;
 
     // Publish revoked document to DHT
     if let Ok(payload_bytes) = serde_json::to_vec(&auth_kid) {
@@ -217,24 +190,12 @@ pub async fn handle_revoke_kid(
 /// Retrieves the locally stored Manifest for a given identity name if present.
 pub async fn handle_get_kid_manifest(
     Path(name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    match kinetic_core::types::load_local_manifest(&name) {
-        Ok(Some(manifest)) => Ok(Json(serde_json::json!({
-            "name": kinetic_core::types::normalize_name(&name),
-            "manifest": manifest,
-        }))),
-        Ok(None) => Ok(Json(serde_json::json!({
-            "name": kinetic_core::types::normalize_name(&name),
-            "manifest": null,
-        }))),
-        Err(e) => {
-            let api_err = kinetic_core::ApiError::from(e);
-            Err((
-                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap_or_default()),
-            ))
-        }
-    }
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    let manifest = kinetic_core::types::load_local_manifest(&name)?;
+    Ok(Json(serde_json::json!({
+        "name": kinetic_core::types::normalize_name(&name),
+        "manifest": manifest,
+    })))
 }
 
 /// Request payload for updating an identity's capability manifest.
@@ -250,14 +211,19 @@ pub async fn handle_update_kid_manifest(
     State(state): State<ApiState>,
     Path(name): Path<String>,
     Json(req): Json<UpdateManifestRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
-            ),
-        ));
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            title: "Unauthorized".to_string(),
+            status: 403,
+            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
+            instance: None,
+            code: "KIN-API-001".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
 
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
@@ -277,14 +243,7 @@ pub async fn handle_update_kid_manifest(
         req.services,
         current_kyn,
         &identity_path,
-    )
-    .map_err(|e| {
-        let api_err = kinetic_core::ApiError::from(e);
-        (
-            StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            Json(serde_json::to_value(api_err).unwrap_or_default()),
-        )
-    })?;
+    )?;
 
     // Publish to DHT under hex(sha256(did#manifest))
     let manifest_key = hex::encode(kinetic_primitives::sha256_hash(format!("{}#manifest", manifest.kid).as_bytes()));

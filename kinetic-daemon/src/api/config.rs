@@ -4,16 +4,25 @@ use super::*;
 use axum::{
     Json,
     extract::{Extension, State},
-    http::StatusCode,
 };
 
 /// Handles requests to retrieve the current daemon configuration.
 pub async fn handle_get_config(
     Extension(role): Extension<Role>,
     State(_state): State<ApiState>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
-        return Err(StatusCode::FORBIDDEN);
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            title: "Unauthorized".to_string(),
+            status: 403,
+            detail: "Forbidden".to_string(),
+            instance: None,
+            code: "KIN-API-001".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
     let config = kinetic_core::config::KineticConfig::load();
     Ok(Json(serde_json::json!({
@@ -26,16 +35,26 @@ pub async fn handle_get_config(
 pub async fn handle_owned_names(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
-) -> Result<Json<Vec<String>>, StatusCode> {
+) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(StatusCode::FORBIDDEN);
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            title: "Unauthorized".to_string(),
+            status: 403,
+            detail: "Forbidden".to_string(),
+            instance: None,
+            code: "KIN-API-001".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
     let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
     let owned_names: Vec<String> = match state.storage.get(owned_key) {
         Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
             Ok(v) => v,
             Err(e) => {
-                tracing::error!(error_code="KIN-IMP-003", error=?e, "Corrupted data in Sled storage for owned_names key");
+                tracing::error!(error_code="KIN-STO-007", error=?e, "Corrupted data in Sled storage for owned_names key");
                 Vec::new()
             }
         },
@@ -58,12 +77,12 @@ pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_
 }
 
 /// Handles requests to retrieve the active governance state file.
-pub async fn handle_get_governance() -> impl axum::response::IntoResponse {
+pub async fn handle_get_governance() -> Result<Vec<u8>, crate::api::error::AppError> {
     let gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
         .lock()
         .unwrap();
     let data = bincode::serialize(&*gov).unwrap_or_default();
-    (axum::http::StatusCode::OK, data)
+    Ok(data)
 }
 
 /// Handles requests to update the daemon configuration.
@@ -71,9 +90,19 @@ pub async fn handle_set_config(
     Extension(role): Extension<Role>,
     State(_state): State<ApiState>,
     Json(payload): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
-        return Err(StatusCode::FORBIDDEN);
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            title: "Unauthorized".to_string(),
+            status: 403,
+            detail: "Forbidden".to_string(),
+            instance: None,
+            code: "KIN-API-001".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
     
     if let Some(config_payload) = payload.get("config") {
@@ -87,17 +116,31 @@ pub async fn handle_set_config(
                 })))
             }
             Err(e) => {
-                Ok(Json(serde_json::json!({
-                    "status": "error",
-                    "message": format!("Invalid config payload format: {}", e)
-                })))
+                Err(crate::api::error::AppError(kinetic_core::ApiError {
+                    error_type: format!("{}/errors/KIN-API-400", kinetic_core::constants::DOCS_URL),
+                    title: "Bad Request".to_string(),
+                    status: 400,
+                    detail: format!("Invalid config payload format: {}", e),
+                    instance: None,
+                    code: "KIN-API-400".to_string(),
+                    retryable: false,
+                    details: serde_json::Value::Null,
+                    request_id: "".to_string(),
+                }))
             }
         }
     } else {
-        Ok(Json(serde_json::json!({
-            "status": "error",
-            "message": "Missing 'config' object in payload."
-        })))
+        Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-400", kinetic_core::constants::DOCS_URL),
+            title: "Bad Request".to_string(),
+            status: 400,
+            detail: "Missing 'config' object in payload.".to_string(),
+            instance: None,
+            code: "KIN-API-400".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }))
     }
 }
 
@@ -127,21 +170,37 @@ pub async fn handle_get_health(State(state): State<ApiState>) -> Json<serde_json
 }
 
 /// Handles requests to retrieve the local peer ID.
-pub async fn handle_get_peer_id(State(state): State<ApiState>) -> impl axum::response::IntoResponse {
+pub async fn handle_get_peer_id(State(state): State<ApiState>) -> Result<String, crate::api::error::AppError> {
     match state.network.get_network_status().await {
         Ok(status) => {
             if let Some(peer_id) = status.get("peer_id").and_then(|p| p.as_str()) {
-                (axum::http::StatusCode::OK, peer_id.to_string())
+                Ok(peer_id.to_string())
             } else {
-                (
-                    axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                    "Peer ID unknown (Node offline)".to_string(),
-                )
+                Err(crate::api::error::AppError(kinetic_core::ApiError {
+                    error_type: format!("{}/errors/KIN-API-503", kinetic_core::constants::DOCS_URL),
+                    title: "Service Unavailable".to_string(),
+                    status: 503,
+                    detail: "Peer ID unknown (Node offline)".to_string(),
+                    instance: None,
+                    code: "KIN-API-503".to_string(),
+                    retryable: true,
+                    details: serde_json::Value::Null,
+                    request_id: "".to_string(),
+                }))
             }
         }
-        Err(_) => (
-            axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            "Network channel closed".to_string(),
-        ),
+        Err(_) => {
+            Err(crate::api::error::AppError(kinetic_core::ApiError {
+                error_type: format!("{}/errors/KIN-API-503", kinetic_core::constants::DOCS_URL),
+                title: "Service Unavailable".to_string(),
+                status: 503,
+                detail: "Network channel closed".to_string(),
+                instance: None,
+                code: "KIN-API-503".to_string(),
+                retryable: true,
+                details: serde_json::Value::Null,
+                request_id: "".to_string(),
+            }))
+        }
     }
 }

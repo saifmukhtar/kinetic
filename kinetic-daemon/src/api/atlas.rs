@@ -15,14 +15,19 @@ pub async fn handle_atlas_sync(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
     Json(payload): Json<AtlasSyncPayload>,
-) -> axum::response::Response {
+) -> Result<String, crate::api::error::AppError> {
     if role != crate::api::Role::Atlas && !role.is_admin() {
-        return axum::response::Response::builder()
-            .status(axum::http::StatusCode::FORBIDDEN)
-            .body(axum::body::Body::from(
-                "Forbidden: Requires Atlas or Admin role",
-            ))
-            .unwrap();
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            title: "Unauthorized".to_string(),
+            status: 403,
+            detail: "Forbidden: Requires Atlas or Admin role".to_string(),
+            instance: None,
+            code: "KIN-API-001".to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
 
     let mut clean_nsps = std::collections::HashSet::new();
@@ -49,17 +54,21 @@ pub async fn handle_atlas_sync(
             );
 
             // Return 200 OK
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::OK)
-                .body(axum::body::Body::from("Atlas NSPs synced successfully"))
-                .unwrap()
+            Ok("Atlas NSPs synced successfully".to_string())
         }
         Err(_) => {
-            tracing::error!("KIN-DMN-006: Failed to acquire write lock on atlas_nsps");
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-                .body(axum::body::Body::from("Internal Server Error"))
-                .unwrap()
+            tracing::error!("KIN-STO-006: Failed to acquire write lock on atlas_nsps");
+            Err(crate::api::error::AppError(kinetic_core::ApiError {
+                error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+                title: "Internal Server Error".to_string(),
+                status: 500,
+                detail: "Failed to acquire write lock on atlas_nsps".to_string(),
+                instance: None,
+                code: "KIN-API-500".to_string(),
+                retryable: true,
+                details: serde_json::Value::Null,
+                request_id: "".to_string(),
+            }))
         }
     }
 }

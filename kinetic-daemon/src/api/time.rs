@@ -1,13 +1,13 @@
 //! HTTP REST API handler for retrieving verified Kinetic network time.
 
 use crate::api::ApiState;
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{Json, extract::State};
 use kinetic_core::types::clock::KineticTime;
 
 /// Returns the current verified Kinetic Time from the daemon's internal state.
 pub async fn handle_get_time(
     State(state): State<ApiState>,
-) -> Result<Json<KineticTime>, (StatusCode, String)> {
+) -> Result<Json<KineticTime>, crate::api::error::AppError> {
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
 
     // Read the latest verified Drand kyn directly from the local database cache.
@@ -22,14 +22,21 @@ pub async fn handle_get_time(
             Ok(Json(time))
         }
         Err(e) => {
-            tracing::error!("KIN-DMN-008: Failed to read cached Drand kyn for /api/time: {}", e);
+            tracing::error!("KIN-DRN-005: Failed to read cached Drand kyn for /api/time: {}", e);
             // If offline, we could fallback mathematically here as well,
             // but since it's the daemon, returning an error ensures consumers
             // know the node isn't synced. The CLI implements the offline fallback.
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to read synchronized network time from cache".to_string(),
-            ))
+            Err(crate::api::error::AppError(kinetic_core::ApiError {
+                error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+                title: "Internal Server Error".to_string(),
+                status: 500,
+                detail: "Failed to read synchronized network time from cache".to_string(),
+                instance: None,
+                code: "KIN-API-500".to_string(),
+                retryable: true,
+                details: serde_json::Value::Null,
+                request_id: "".to_string(),
+            }))
         }
     }
 }

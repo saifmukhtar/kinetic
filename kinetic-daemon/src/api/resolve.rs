@@ -4,7 +4,6 @@ use super::*;
 use axum::{
     Json,
     extract::{Path, State},
-    http::StatusCode,
 };
 use kinetic_verify::signatures::VerifySignature;
 
@@ -15,12 +14,12 @@ use tracing::info;
 ///
 /// # Errors
 ///
-/// Returns a tuple containing a `StatusCode` and an error JSON payload if the name is not found
+/// Returns a standard Kinetic ApiError if the name is not found
 /// or if resolution fails due to network offline states or data corruption.
 pub async fn handle_resolve_name(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<kinetic_core::types::NameRecord>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<kinetic_core::types::NameRecord>, crate::api::error::AppError> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     if kinetic_core::types::names::is_reserved_name(&fqdn) {
@@ -47,87 +46,76 @@ pub async fn handle_resolve_name(
             }
         }
 
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(
-                serde_json::json!({"error": format!("Reserved name {} has no local override in zones/local/", fqdn)}),
-            ),
-        ));
+        return Err(kinetic_core::error::ResolutionError::NotFound {
+            name: fqdn,
+            peers_queried: 0,
+        }
+        .into());
     }
 
-    match state.network.resolve_redundant_payload(&fqdn).await {
-        Ok(payload) => match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
-            Ok(record) => {
-                let dev_mode = kinetic_core::config::is_dev_mode();
-                if !dev_mode
-                    && let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT)
-                {
-                    tracing::warn!(
-                        "KIN-DMN-009: Rejecting spoofed NameRecord from network (CDN cache poisoning): {:?}",
-                        e
-                    );
-                    return Err((
-                        StatusCode::FORBIDDEN,
-                        Json(
-                            serde_json::json!({"error": "NameRecord cryptographic signature verification failed. The record is spoofed or corrupted."}),
-                        ),
-                    ));
-                }
-                Ok(Json(record))
+    let record = match state.network.resolve_redundant_payload(&fqdn).await {
+        Ok(payload) => {
+            let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
+                .map_err(|_| kinetic_core::error::ResolutionError::Internal {
+                    message: "Invalid NameRecord payload on DHT".to_string(),
+                    source: None,
+                })?;
+
+            let dev_mode = kinetic_core::config::is_dev_mode();
+            if !dev_mode
+                && let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT)
+            {
+                tracing::warn!(
+                    "KIN-QRY-013: Rejecting spoofed NameRecord from network (CDN cache poisoning): {:?}",
+                    e
+                );
+                return Err(crate::api::error::AppError(kinetic_core::ApiError {
+                    error_type: format!("{}/errors/KIN-QRY-003", kinetic_core::constants::DOCS_URL),
+                    title: "Signature Spoofed".to_string(),
+                    status: 403,
+                    detail: "NameRecord cryptographic signature verification failed. The record is spoofed or corrupted.".to_string(),
+                    instance: None,
+                    code: "KIN-QRY-003".to_string(),
+                    retryable: false,
+                    details: serde_json::Value::Null,
+                    request_id: "".to_string(),
+                }));
             }
-            Err(_) => Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Invalid NameRecord payload on DHT"})),
-            )),
-        },
+            record
+        }
         Err(kinetic_core::error::ResolutionError::NotFound { .. }) => {
             // Fallback to local storage if DHT lookup fails or returns nothing
             // This rescues users who lost their local reveal.json and the DHT dropped their record
             let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
             match state.storage.get(reveal_key.as_bytes()) {
                 Ok(Some(bytes)) => {
-                    match serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                        Ok(record) => {
-                            tracing::info!("Recovered {} from local daemon storage backup!", fqdn);
-                            Ok(Json(record))
-                        }
-                        Err(_) => Err((
-                            StatusCode::NOT_FOUND,
-                            Json(
-                                serde_json::json!({"error": format!("Name {} not found on DHT and local backup corrupted", fqdn)}),
-                            ),
-                        )),
-                    }
+                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes).map_err(
+                        |_| kinetic_core::error::ResolutionError::NotFound {
+                            name: fqdn.clone(),
+                            peers_queried: 0,
+                        },
+                    )?
                 }
-                _ => Err((
-                    StatusCode::NOT_FOUND,
-                    Json(
-                        serde_json::json!({"error": format!("Name {} not found on DHT or local daemon cache", fqdn)}),
-                    ),
-                )),
+                _ => {
+                    return Err(kinetic_core::error::ResolutionError::NotFound {
+                        name: fqdn,
+                        peers_queried: 0,
+                    }
+                    .into());
+                }
             }
         }
-        Err(kinetic_core::error::ResolutionError::Offline) => {
-            let api_err =
-                kinetic_core::ApiError::from(kinetic_core::error::ResolutionError::Offline);
-            Err((
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(serde_json::to_value(api_err).unwrap_or_default()),
-            ))
-        }
         Err(e) => {
-            let api_err = kinetic_core::ApiError::from(e);
             tracing::warn!(
-                error_code = api_err.code,
+                error_code = e.code(),
                 "Resolution error: {}",
-                api_err.detail
+                e.to_string()
             );
-            Err((
-                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap_or_default()),
-            ))
+            return Err(e.into());
         }
-    }
+    };
+
+    Ok(Json(record))
 }
 
 /// Handles API requests to resolve a Kinetic Identifier (KID) and its associated manifest.
@@ -138,21 +126,11 @@ pub async fn handle_resolve_name(
 pub async fn handle_resolve_kid(
     State(state): State<ApiState>,
     Path(did): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     info!("Resolving KID via API: {}", did);
 
-    // Resolve KID
-    let kid_payload = match state.network.resolve_redundant_payload(&did).await {
-        Ok(p) => p,
-        Err(e) => {
-            let status = match &e {
-                kinetic_core::error::ResolutionError::NotFound { .. } => StatusCode::NOT_FOUND,
-                kinetic_core::error::ResolutionError::Offline => StatusCode::SERVICE_UNAVAILABLE,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            };
-            return Err((status, format!("DHT error: {}", e)));
-        }
-    };
+    // Resolve KID - Notice how this entire massive match block is now just a single `?`
+    let kid_payload = state.network.resolve_redundant_payload(&did).await?;
 
     let kid_doc: kinetic_kid::Document =
         match serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&kid_payload) {
@@ -160,16 +138,18 @@ pub async fn handle_resolve_kid(
             Err(_) => {
                 // Fallback for older raw documents
                 serde_json::from_slice(&kid_payload).map_err(|_| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Invalid KID data".to_string(),
-                    )
+                    kinetic_core::error::ResolutionError::Internal {
+                        message: "Invalid KID data payload".to_string(),
+                        source: None,
+                    }
                 })?
             }
         };
 
     // Try to resolve Manifest
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(format!("{}#manifest", did).as_bytes()));
+    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+        format!("{}#manifest", did).as_bytes(),
+    ));
 
     let mut res = serde_json::json!({
         "kid_document": kid_doc,
@@ -179,9 +159,7 @@ pub async fn handle_resolve_kid(
         let manifest_opt =
             match serde_json::from_slice::<kinetic_core::types::AuthorizedManifest>(&man_payload) {
                 Ok(auth) => Some(auth.manifest),
-                Err(_) => {
-                    serde_json::from_slice::<kinetic_kid::Manifest>(&man_payload).ok()
-                }
+                Err(_) => serde_json::from_slice::<kinetic_kid::Manifest>(&man_payload).ok(),
             };
 
         if let Some(manifest) = manifest_opt
