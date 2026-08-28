@@ -57,7 +57,7 @@ pub async fn handle_atlas_sync(
             Ok("Atlas NSPs synced successfully".to_string())
         }
         Err(_) => {
-            tracing::error!("KIN-STO-006: Failed to acquire write lock on atlas_nsps");
+            tracing::error!("KIN-DBE-004: Failed to acquire write lock on atlas_nsps");
             Err(crate::api::error::AppError(kinetic_core::ApiError {
                 error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
                 title: "Internal Server Error".to_string(),
