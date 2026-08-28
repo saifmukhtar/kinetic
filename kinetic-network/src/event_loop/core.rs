@@ -221,7 +221,7 @@ impl NetworkEventLoop {
                     let info = self.swarm.network_info();
                     let num_peers = info.num_peers();
                     if num_peers == 0 {
-                        tracing::warn!("KIN-P2P-020: 0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
+                        tracing::warn!("KIN-NET-060: 0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
                         for addr in &self.bootstrap_nodes {
                             let _ = self.swarm.dial(addr.clone());
                         }
