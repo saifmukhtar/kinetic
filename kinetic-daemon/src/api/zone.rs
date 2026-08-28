@@ -48,12 +48,12 @@ pub async fn handle_get_zone(
             Ok(zone) => return Ok(Json(zone)),
             Err(e) => {
                 return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                    error_type: format!("{}/errors/KIN-API-422", kinetic_core::constants::DOCS_URL),
+                    error_type: format!("{}/errors/KIN-VAL-010", kinetic_core::constants::DOCS_URL),
                     title: "Unprocessable Entity".to_string(),
                     status: 422,
                     detail: format!("Invalid zone file format: {}", e),
                     instance: None,
-                    code: "KIN-API-422".to_string(),
+                    code: "KIN-VAL-010".to_string(),
                     retryable: false,
                     details: serde_json::Value::Null,
                     request_id: "".to_string(),
@@ -62,12 +62,12 @@ pub async fn handle_get_zone(
         }
     }
     Err(crate::api::error::AppError(kinetic_core::ApiError {
-        error_type: format!("{}/errors/KIN-API-404", kinetic_core::constants::DOCS_URL),
+        error_type: format!("{}/errors/KIN-DBE-007", kinetic_core::constants::DOCS_URL),
         title: "Not Found".to_string(),
         status: 404,
         detail: "Zone not found".to_string(),
         instance: None,
-        code: "KIN-API-404".to_string(),
+        code: "KIN-DBE-007".to_string(),
         retryable: false,
         details: serde_json::Value::Null,
         request_id: "".to_string(),
@@ -107,12 +107,12 @@ pub async fn handle_post_zone(
         Ok(c) => c,
         Err(e) => {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-VAL-017", kinetic_core::constants::DOCS_URL),
                 title: "Internal Server Error".to_string(),
                 status: 500,
                 detail: format!("Serialization failed: {}", e),
                 instance: None,
-                code: "KIN-API-500".to_string(),
+                code: "KIN-VAL-017".to_string(),
                 retryable: false,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -121,12 +121,12 @@ pub async fn handle_post_zone(
     };
     if let Err(e) = std::fs::write(&path, content) {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-SYS-006", kinetic_core::constants::DOCS_URL),
             title: "Internal Server Error".to_string(),
             status: 500,
             detail: format!("File write failed: {}", e),
             instance: None,
-            code: "KIN-API-500".to_string(),
+            code: "KIN-SYS-006".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -169,12 +169,12 @@ pub async fn handle_publish_zone(
         Ok(c) => c,
         Err(_) => {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-404", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-DBE-007", kinetic_core::constants::DOCS_URL),
                 title: "Not Found".to_string(),
                 status: 404,
                 detail: "Zone file not found. Save your zone first via POST /zone/{name}.".to_string(),
                 instance: None,
-                code: "KIN-API-404".to_string(),
+                code: "KIN-DBE-007".to_string(),
                 retryable: false,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -185,12 +185,12 @@ pub async fn handle_publish_zone(
         Ok(z) => z,
         Err(_) => {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-422", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-VAL-010", kinetic_core::constants::DOCS_URL),
                 title: "Unprocessable Entity".to_string(),
                 status: 422,
                 detail: "Invalid zone file format".to_string(),
                 instance: None,
-                code: "KIN-API-422".to_string(),
+                code: "KIN-VAL-010".to_string(),
                 retryable: false,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -204,12 +204,12 @@ pub async fn handle_publish_zone(
         Ok(Some(b)) => b,
         _ => {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-404", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-REG-007", kinetic_core::constants::DOCS_URL),
                 title: "Not Found".to_string(),
                 status: 404,
                 detail: "No registration record found for this name. Register the name first.".to_string(),
                 instance: None,
-                code: "KIN-API-404".to_string(),
+                code: "KIN-REG-007".to_string(),
                 retryable: false,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -220,12 +220,12 @@ pub async fn handle_publish_zone(
         Ok(r) => r,
         Err(_) => {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-DBE-008", kinetic_core::constants::DOCS_URL),
                 title: "Internal Server Error".to_string(),
                 status: 500,
                 detail: "Stored registration data is corrupted.".to_string(),
                 instance: None,
-                code: "KIN-API-500".to_string(),
+                code: "KIN-DBE-008".to_string(),
                 retryable: false,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -239,12 +239,12 @@ pub async fn handle_publish_zone(
         Ok(k) => k,
         Err(_) => {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-IDN-007", kinetic_core::constants::DOCS_URL),
                 title: "Internal Server Error".to_string(),
                 status: 500,
                 detail: "Could not load identity keypair.".to_string(),
                 instance: None,
-                code: "KIN-API-500".to_string(),
+                code: "KIN-IDN-007".to_string(),
                 retryable: false,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -255,12 +255,12 @@ pub async fn handle_publish_zone(
     let pubkey_bytes = keypair.pubkey_bytes();
     if record.pubkey() != pubkey_bytes.as_slice() {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-409", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-IDN-006", kinetic_core::constants::DOCS_URL),
             title: "Conflict".to_string(),
             status: 409,
             detail: "Identity key mismatch with name registration".to_string(),
             instance: None,
-            code: "KIN-API-409".to_string(),
+            code: "KIN-IDN-006".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -351,12 +351,12 @@ pub async fn handle_post_local_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-400", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-NAM-007", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
             instance: None,
-            code: "KIN-API-400".to_string(),
+            code: "KIN-NAM-007".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -374,12 +374,12 @@ pub async fn handle_post_local_zone(
         Ok(c) => c,
         Err(e) => {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-VAL-017", kinetic_core::constants::DOCS_URL),
                 title: "Internal Server Error".to_string(),
                 status: 500,
                 detail: format!("Serialization failed: {}", e),
                 instance: None,
-                code: "KIN-API-500".to_string(),
+                code: "KIN-VAL-017".to_string(),
                 retryable: false,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -389,12 +389,12 @@ pub async fn handle_post_local_zone(
 
     if let Err(e) = std::fs::write(&path, content) {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-SYS-006", kinetic_core::constants::DOCS_URL),
             title: "Internal Server Error".to_string(),
             status: 500,
             detail: format!("File write failed: {}", e),
             instance: None,
-            code: "KIN-API-500".to_string(),
+            code: "KIN-SYS-006".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -426,12 +426,12 @@ pub async fn handle_delete_local_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-400", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-NAM-007", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
             instance: None,
-            code: "KIN-API-400".to_string(),
+            code: "KIN-NAM-007".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -448,12 +448,12 @@ pub async fn handle_delete_local_zone(
     if path.exists() {
         if let Err(e) = std::fs::remove_file(&path) {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-SYS-013", kinetic_core::constants::DOCS_URL),
                 title: "Internal Server Error".to_string(),
                 status: 500,
                 detail: format!("File delete failed: {}", e),
                 instance: None,
-                code: "KIN-API-500".to_string(),
+                code: "KIN-SYS-013".to_string(),
                 retryable: false,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -472,12 +472,12 @@ pub async fn handle_get_local_zone(
 
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-400", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-NAM-007", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
             instance: None,
-            code: "KIN-API-400".to_string(),
+            code: "KIN-NAM-007".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -498,12 +498,12 @@ pub async fn handle_get_local_zone(
     }
 
     Err(crate::api::error::AppError(kinetic_core::ApiError {
-        error_type: format!("{}/errors/KIN-API-404", kinetic_core::constants::DOCS_URL),
+        error_type: format!("{}/errors/KIN-DBE-007", kinetic_core::constants::DOCS_URL),
         title: "Not Found".to_string(),
         status: 404,
         detail: "Local zone override not found".to_string(),
         instance: None,
-        code: "KIN-API-404".to_string(),
+        code: "KIN-DBE-007".to_string(),
         retryable: false,
         details: serde_json::Value::Null,
         request_id: "".to_string(),

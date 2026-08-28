@@ -117,12 +117,12 @@ pub async fn handle_set_config(
             }
             Err(e) => {
                 Err(crate::api::error::AppError(kinetic_core::ApiError {
-                    error_type: format!("{}/errors/KIN-API-400", kinetic_core::constants::DOCS_URL),
+                    error_type: format!("{}/errors/KIN-CFG-003", kinetic_core::constants::DOCS_URL),
                     title: "Bad Request".to_string(),
                     status: 400,
                     detail: format!("Invalid config payload format: {}", e),
                     instance: None,
-                    code: "KIN-API-400".to_string(),
+                    code: "KIN-CFG-003".to_string(),
                     retryable: false,
                     details: serde_json::Value::Null,
                     request_id: "".to_string(),
@@ -131,12 +131,12 @@ pub async fn handle_set_config(
         }
     } else {
         Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-400", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-CFG-003", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "Missing 'config' object in payload.".to_string(),
             instance: None,
-            code: "KIN-API-400".to_string(),
+            code: "KIN-CFG-003".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -177,12 +177,12 @@ pub async fn handle_get_peer_id(State(state): State<ApiState>) -> Result<String,
                 Ok(peer_id.to_string())
             } else {
                 Err(crate::api::error::AppError(kinetic_core::ApiError {
-                    error_type: format!("{}/errors/KIN-API-503", kinetic_core::constants::DOCS_URL),
+                    error_type: format!("{}/errors/KIN-NET-105", kinetic_core::constants::DOCS_URL),
                     title: "Service Unavailable".to_string(),
                     status: 503,
                     detail: "Peer ID unknown (Node offline)".to_string(),
                     instance: None,
-                    code: "KIN-API-503".to_string(),
+                    code: "KIN-NET-105".to_string(),
                     retryable: true,
                     details: serde_json::Value::Null,
                     request_id: "".to_string(),
@@ -191,12 +191,12 @@ pub async fn handle_get_peer_id(State(state): State<ApiState>) -> Result<String,
         }
         Err(_) => {
             Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-503", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-NET-106", kinetic_core::constants::DOCS_URL),
                 title: "Service Unavailable".to_string(),
                 status: 503,
                 detail: "Network channel closed".to_string(),
                 instance: None,
-                code: "KIN-API-503".to_string(),
+                code: "KIN-NET-106".to_string(),
                 retryable: true,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),

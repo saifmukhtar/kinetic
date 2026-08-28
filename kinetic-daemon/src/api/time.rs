@@ -27,12 +27,12 @@ pub async fn handle_get_time(
             // but since it's the daemon, returning an error ensures consumers
             // know the node isn't synced. The CLI implements the offline fallback.
             Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-500", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-DRN-004", kinetic_core::constants::DOCS_URL),
                 title: "Internal Server Error".to_string(),
                 status: 500,
                 detail: "Failed to read synchronized network time from cache".to_string(),
                 instance: None,
-                code: "KIN-API-500".to_string(),
+                code: "KIN-DRN-004".to_string(),
                 retryable: true,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
