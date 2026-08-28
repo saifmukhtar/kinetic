@@ -52,10 +52,10 @@ pub async fn start_health_api(
             axum::serve(listener, app)
                 .with_graceful_shutdown(kinetic_core::shutdown::shutdown_signal())
                 .await
-                .map_err(|e| anyhow::anyhow!("KIN-HST-014: Health API server crashed: {}", e))?;
+                .map_err(|e| anyhow::anyhow!("KIN-SYS-002: Health API server crashed: {}", e))?;
         }
         Err(_) => {
-            tracing::info!("KIN-HST-015: Port {} is in use. Gracefully degrading to Worker mode for instance '{}'.", api_port, instance_name);
+            tracing::info!("KIN-SYS-001: Port {} is in use. Gracefully degrading to Worker mode for instance '{}'.", api_port, instance_name);
             // Block forever until shutdown signal so the main daemon loop stays alive
             kinetic_core::shutdown::shutdown_signal().await;
         }

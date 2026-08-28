@@ -33,9 +33,9 @@ impl HostConfig {
     /// Save the current configuration to disk.
     pub fn save(&self, path: &PathBuf) -> anyhow::Result<()> {
         let bytes = serde_json::to_vec_pretty(self)
-            .map_err(|e| anyhow::anyhow!("KIN-HST-016: Failed to serialize host config: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("KIN-SYS-006: Failed to serialize host config: {}", e))?;
         std::fs::write(path, bytes)
-            .map_err(|e| anyhow::anyhow!("KIN-HST-017: Failed to save host config to disk: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("KIN-SYS-006: Failed to save host config to disk: {}", e))?;
         Ok(())
     }
 }
