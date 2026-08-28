@@ -21,7 +21,7 @@ pub async fn start_routing_publisher(
     };
     let ed_bytes = ed_key.to_bytes();
     let Ok(dalek_kp) = ed25519_dalek::SigningKey::try_from(&ed_bytes[0..32]) else {
-        tracing::error!("KIN-SYS-003: Cryptographic conversion failed for static host key");
+        tracing::error!("KIN-VER-022: Cryptographic conversion failed for static host key");
         return;
     };
 

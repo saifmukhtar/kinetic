@@ -275,12 +275,12 @@ fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<Stri
     let mut token_bytes = [0u8; 32];
     getrandom::fill(&mut token_bytes).map_err(|e| {
         tracing::error!(
-            error_code = "KIN-SYS-003",
+            error_code = "KIN-SYS-014",
             severity = "Critical",
             "FATAL: getrandom failed — cannot generate secure API token. Refusing to start with a predictable token. Error: {}",
             e
         );
-        anyhow::anyhow!("[KIN-SYS-003] getrandom failed: {}. Cannot generate a secure API token.", e)
+        anyhow::anyhow!("[KIN-SYS-014] getrandom failed: {}. Cannot generate a secure API token.", e)
     })?;
     let token = hex::encode(token_bytes);
 

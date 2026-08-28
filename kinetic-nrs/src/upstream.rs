@@ -17,7 +17,7 @@ use tracing::{error, warn};
 pub fn create_resolver() -> TokioAsyncResolver {
     let (config, opts) = read_system_conf().unwrap_or_else(|e| {
         tracing::warn!(
-            error_code = "KIN-VAL-015",
+            error_code = "KIN-SYS-015",
             "Failed to read OS DNS config ({}). Falling back to Cloudflare 1.1.1.1",
             e
         );

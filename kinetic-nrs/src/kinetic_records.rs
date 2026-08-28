@@ -255,7 +255,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     Ok(n) => n,
                                     Err(e) => {
                                         error!(
-                                            error_code = "KIN-VER-021",
+                                            error_code = "KIN-VAL-015",
                                             "Invalid query name format: {}", e
                                         );
                                         let response = builder.error_msg(
@@ -295,7 +295,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 std::net::IpAddr::V4(*ip),
                                             ) {
                                                 warn!(
-                                                    error_code = "KIN-VER-021",
+                                                    error_code = "KIN-SEC-009",
                                                     "Blocked SSRF attempt: A record points to forbidden IP {}. Reason: {}",
                                                     ip,
                                                     e
