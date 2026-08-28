@@ -35,7 +35,7 @@ pub async fn handle_owned_names(
         Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
             Ok(v) => v,
             Err(e) => {
-                tracing::error!(error_code="KIN-IMPL-003", error=?e, "Corrupted data in Sled storage for owned_names key");
+                tracing::error!(error_code="KIN-IMP-003", error=?e, "Corrupted data in Sled storage for owned_names key");
                 Vec::new()
             }
         },

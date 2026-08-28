@@ -37,7 +37,7 @@ where
             if let Ok(data) = frame.into_data() {
                 body_bytes.extend_from_slice(data.as_ref());
                 if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                    tracing::warn!("KIN-PROXY-018: Blocked oversized IPFS proxy request body");
+                    tracing::warn!("KIN-PRX-018: Blocked oversized IPFS proxy request body");
                     return Err(ProxyError::InvalidPayload);
                 }
             }
@@ -65,7 +65,7 @@ where
             format!("{}/{}/{}", gateway, cid, path)
         };
 
-        tracing::info!("KIN-PROXY-017: Proxying IPFS request to gateway: {}", ipfs_url);
+        tracing::info!("KIN-PRX-017: Proxying IPFS request to gateway: {}", ipfs_url);
 
         let client = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))

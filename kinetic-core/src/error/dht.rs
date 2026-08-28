@@ -5,7 +5,7 @@
 //!
 //! - [`RecordRejectReason`] — fine-grained reasons a DHT `PUT` was rejected by
 //!   the local `KineticRecordStore`.
-//! - [`ResolutionError`] — errors during DHT name lookup (`KIN-RES-NNN`).
+//! - [`ResolutionError`] — errors during DHT name lookup (`KIN-QRY-NNN`).
 //! - [`PublishError`] — errors when pushing records to the DHT (`KIN-PUB-NNN`).
 //! - [`RegistrationError`] — errors in the full name registration flow (`KIN-REG-NNN`).
 //!
@@ -109,12 +109,12 @@ impl ResolutionError {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Offline => "KIN-RES-001",
-            Self::NotFound { .. } => "KIN-RES-002",
-            Self::VdfVerificationFailed { .. } => "KIN-RES-003",
-            Self::Expired { .. } => "KIN-RES-004",
-            Self::Timeout { .. } => "KIN-RES-005",
-            Self::Internal { .. } => "KIN-RES-006",
+            Self::Offline => "KIN-QRY-001",
+            Self::NotFound { .. } => "KIN-QRY-002",
+            Self::VdfVerificationFailed { .. } => "KIN-QRY-003",
+            Self::Expired { .. } => "KIN-QRY-004",
+            Self::Timeout { .. } => "KIN-QRY-005",
+            Self::Internal { .. } => "KIN-QRY-006",
         }
     }
 

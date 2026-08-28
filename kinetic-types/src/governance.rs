@@ -17,7 +17,7 @@
 //! | `0x0F` | [`GovernanceAction::MapInfra`] | Grant a Category 2 infrastructure name (Root key only) |
 //! | `0x10` | [`GovernanceAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Root key only) |
 
-use crate::error::Severity;
+
 use thiserror::Error;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
@@ -167,58 +167,6 @@ pub enum GovernanceTypeError {
     InvalidPubkeyLength,
 }
 
-impl GovernanceTypeError {
-    /// Protocol error code following the Kinetic error taxonomy.
-    pub fn code(&self) -> &'static str {
-        match self {
-            Self::BufferTooSmall => "KIN-GOV-030",
-            Self::UnknownOpcode(_) => "KIN-GOV-031",
-            Self::InvalidUtf8 => "KIN-GOV-032",
-            Self::InvalidPubkeyLength => "KIN-GOV-033",
-        }
-    }
-
-    /// Severity level for logging and telemetry.
-    pub fn severity(&self) -> Severity {
-        match self {
-            Self::BufferTooSmall | Self::InvalidUtf8 | Self::InvalidPubkeyLength => {
-                Severity::Warning
-            }
-            Self::UnknownOpcode(_) => Severity::Error,
-        }
-    }
-
-    /// Whether this parsing error can be retried without modifying payload data.
-    pub fn is_retryable(&self) -> bool {
-        false
-    }
-
-    /// Clean, user-facing error message suitable for frontend display.
-    pub fn user_message(&self) -> String {
-        match self {
-            Self::BufferTooSmall => {
-                "The governance payload buffer is truncated or smaller than required.".to_string()
-            }
-            Self::UnknownOpcode(op) => {
-                format!(
-                    "The governance action opcode (0x{op:02X}) is unrecognized by this protocol version."
-                )
-            }
-            Self::InvalidUtf8 => {
-                "The governance proposal contains an invalid UTF-8 name label.".to_string()
-            }
-            Self::InvalidPubkeyLength => {
-                "The governance public key length does not match the ML-DSA-65 parameter size."
-                    .to_string()
-            }
-        }
-    }
-
-    /// RFC 7807 problem details type URI.
-    pub fn type_uri(&self) -> String {
-        format!("https://kinetic.network/errors/{}", self.code())
-    }
-}
 
 impl GovernanceAction {
     /// Parses a [`GovernanceAction`] and its trailing timestamp from a canonical byte slice.

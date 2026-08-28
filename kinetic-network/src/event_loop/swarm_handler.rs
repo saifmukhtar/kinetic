@@ -87,7 +87,7 @@ impl super::core::NetworkEventLoop {
                                 }
                             } else {
                                 tracing::warn!(
-                                    error_code = "KIN-RES-002",
+                                    error_code = "KIN-QRY-002",
                                     name = %name_clean,
                                     peers_queried = %peers_q,
                                     "DHT resolution: name not found in network or local cache"

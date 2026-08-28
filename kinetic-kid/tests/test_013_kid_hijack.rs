@@ -1,5 +1,5 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-use kinetic_kid::{ControllerKey, KidDocument, KineticDid};
+use kinetic_kid::{ControllerKey, Document, Did};
 use kinetic_primitives::keys::KineticKeypair;
 
 #[test]
@@ -15,9 +15,9 @@ fn test_013_kid_hijack() {
     }
     let victim_did = format!("did:kin:{}", hex_hash);
 
-    let doc = KidDocument {
+    let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
-        kid: KineticDid::new(&victim_did).unwrap(),
+        kid: Did::new(&victim_did).unwrap(),
         created_at: 1000,
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
@@ -36,9 +36,9 @@ fn test_013_kid_hijack() {
     let attacker_key = KineticKeypair::generate();
     let attacker_pub_b64 = b64_url.encode(&attacker_key.pubkey_bytes());
 
-    let forged_doc = KidDocument {
+    let forged_doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
-        kid: KineticDid::new(&victim_did).unwrap(), // Claiming victim's DID!
+        kid: Did::new(&victim_did).unwrap(), // Claiming victim's DID!
         created_at: 2000,
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),

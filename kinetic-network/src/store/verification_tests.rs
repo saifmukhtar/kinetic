@@ -57,7 +57,7 @@ mod tests {
         use crate::error::KineticStoreError;
         use crate::store::verification::verify_authorized_kid;
         use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
-        use kinetic_kid::document::KidDocument;
+        use kinetic_kid::document::Document;
         let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
         let ml_pub_bytes = ml_kp.pubkey_bytes();
 
@@ -95,7 +95,7 @@ mod tests {
             hex_hash
         ))
         .unwrap();
-        let doc = KidDocument {
+        let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,
             created_at: 1234567890,

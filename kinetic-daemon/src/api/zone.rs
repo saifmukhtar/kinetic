@@ -210,10 +210,10 @@ pub async fn handle_publish_zone(
     let payload = match serde_json::to_vec(&zone) {
         Ok(v) => v,
         Err(e) => {
-            tracing::error!(error_code="KIN-VDF-002", error=?e, "Failed to serialize zone payload — cannot publish");
+            tracing::error!(error_code="KIN-DMN-025", error=?e, "Failed to serialize zone payload — cannot publish");
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": "[KIN-VDF-002] Failed to serialize zone data" })),
+                Json(serde_json::json!({ "error": "[KIN-DMN-025] Failed to serialize zone data" })),
             ));
         }
     };

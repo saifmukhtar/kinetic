@@ -30,7 +30,7 @@ pub async fn handle_gossip_subscribe(
                         }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                    tracing::warn!("KIN-DAEMON-007: SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);
+                    tracing::warn!("KIN-DMN-007: SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);
                     continue;
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => {

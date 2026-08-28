@@ -22,9 +22,9 @@ async fn test_client_proxy_command() {
 
     if let Some(cmd) = rx.recv().await {
         match cmd {
-            Command::SendProxyRequest { request, .. } => {
-                assert_eq!(request.body, vec![1, 2, 3]);
-                assert_eq!(request.method.as_ref(), "GET");
+            Command::SendProxyRequest { req, .. } => {
+                assert_eq!(req.body, vec![1, 2, 3]);
+                assert_eq!(req.method.as_ref(), "GET");
             }
             _ => panic!("Expected SendProxyRequest command"),
         }

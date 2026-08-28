@@ -267,14 +267,14 @@ mod tests {
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 
 
-        let dummy_did = kinetic_kid::did::KineticDid::new(
+        let dummy_did = kinetic_kid::did::Did::new(
             "did:kin:0000000000000000000000000000000000000000000000000000000000000000",
         )
         .unwrap();
 
         let mut auth = kinetic_types::identity::AuthorizedManifest {
             name: "kin".to_string(),
-            manifest: kinetic_kid::manifest::CapabilityManifest {
+            manifest: kinetic_kid::manifest::Manifest {
                 doc_type: "kinetic.manifest.v1".to_string(),
                 kid: dummy_did.clone(),
                 version: 1,
@@ -288,7 +288,7 @@ mod tests {
                 }],
                 signature: None,
             },
-            kid_doc: Some(kinetic_kid::document::KidDocument {
+            kid_doc: Some(kinetic_kid::document::Document {
                 doc_type: "kinetic.kid.v1".to_string(),
                 kid: dummy_did,
                 created_at: 0,

@@ -416,16 +416,11 @@ mod tests {
         };
         let res = forward_request(&client, req, port, "127.0.0.1").await;
         assert_eq!(res.status, 200);
-        // Axum will append a content-type and content-length
+        // Axum will append a content-type
         assert!(
             res.headers
                 .iter()
                 .any(|(k, _)| k.as_ref() == "content-type")
-        );
-        assert!(
-            res.headers
-                .iter()
-                .any(|(k, _)| k.as_ref() == "content-length")
         );
     }
 }

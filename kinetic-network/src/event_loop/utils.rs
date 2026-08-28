@@ -248,7 +248,7 @@ impl super::core::NetworkEventLoop {
 
                     if !valid_sig {
                         tracing::warn!(
-                            error_code = "KIN-RES-004",
+                            error_code = "KIN-KAD-104",
                             name = %reveal.name,
                             "Skipping candidate: Invalid signature in tie-breaker"
                         );
@@ -264,7 +264,7 @@ impl super::core::NetworkEventLoop {
                         Ok(b) => b,
                         Err(e) => {
                             tracing::warn!(
-                                error_code = "KIN-RES-003",
+                                error_code = "KIN-KAD-103",
                                 "Skipping candidate: invalid drand_signature hex: {}",
                                 e
                             );
@@ -292,7 +292,7 @@ impl super::core::NetworkEventLoop {
                             .unwrap_or(false)
                         {
                             tracing::warn!(
-                                error_code = "KIN-RES-011",
+                                error_code = "KIN-KAD-111",
                                 "Skipping candidate: invalid drand BLS signature"
                             );
                             continue;
@@ -312,7 +312,7 @@ impl super::core::NetworkEventLoop {
                         > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
-                            error_code = "KIN-RES-005",
+                            error_code = "KIN-KAD-105",
                             name = %reveal.name,
                             "Skipping candidate: Reveal expired (older than RESQUARING_EPOCH_KYNS)"
                         );
@@ -330,7 +330,7 @@ impl super::core::NetworkEventLoop {
                             Ok(req) => req,
                             Err(e) => {
                                 tracing::warn!(
-                                    error_code = "KIN-RES-006",
+                                    error_code = "KIN-KAD-106",
                                     name = %reveal.name,
                                     "Skipping candidate: failed to compute required iterations: {:?}", e
                                 );
@@ -340,7 +340,7 @@ impl super::core::NetworkEventLoop {
 
                     if !dev_mode && reveal.iterations < required_iterations {
                         tracing::warn!(
-                            error_code = "KIN-RES-007",
+                            error_code = "KIN-KAD-107",
                             name = %reveal.name,
                             "Skipping candidate: Insufficient VDF iterations. Provided {}, Required {}",
                             reveal.iterations, required_iterations
@@ -360,7 +360,7 @@ impl super::core::NetworkEventLoop {
                         Ok(true) => return Some(p),
                         Ok(false) => {
                             tracing::warn!(
-                                error_code = "KIN-RES-008",
+                                error_code = "KIN-KAD-108",
                                 name = %reveal.name,
                                 "Skipping candidate: VDF verification failed"
                             );
@@ -368,7 +368,7 @@ impl super::core::NetworkEventLoop {
                         }
                         Err(kinetic_core::error::VdfError::UnsupportedPlatform) => {
                             tracing::error!(
-                                error_code = "KIN-RES-009",
+                                error_code = "KIN-KAD-109",
                                 name = %reveal.name,
                                 "VDF verification is unsupported on this platform. Resolution failed."
                             );
@@ -376,7 +376,7 @@ impl super::core::NetworkEventLoop {
                         }
                         Err(e) => {
                             tracing::warn!(
-                                error_code = "KIN-RES-010",
+                                error_code = "KIN-KAD-110",
                                 name = %reveal.name,
                                 "Skipping candidate: VDF verification error: {:?}", e
                             );

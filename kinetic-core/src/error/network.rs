@@ -5,12 +5,13 @@
 //!
 //! ## Namespace Note
 //!
-//! `KIN-NET-NNN` is shared between this type and `KineticStoreError` in `kinetic-network`.
-//! The two ranges do not overlap:
-//! - `KIN-NET-001..009`: This type (client-side failures)
-//! - `KIN-NET-001..020`: `KineticStoreError` (store-layer rejections)
+//! `KIN-NET` is shared between this type and `KineticStoreError` in `kinetic-network`.
+//! To avoid overlaps:
+//! - `KIN-NET-100+`: This type (client-side P2P failures)
+//! - `KIN-NET-001..099`: `KineticStoreError` (store-layer validations and rejections)
 //!
-//! The `KineticStoreError` codes take precedence in external-facing API responses
+//! Note that query-related failures (like timeouts or empty routing tables)
+//! correctly return `KIN-QRY` codes, matching the global taxonomy.
 //! because they carry richer rejection context. This type is used internally within
 //! the event loop for command dispatch failures.
 
@@ -53,15 +54,15 @@ impl NetworkClientError {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Timeout => "KIN-NET-001",
-            Self::Offline => "KIN-NET-002",
-            Self::RoutingTableEmpty => "KIN-NET-003",
-            Self::ChannelClosed => "KIN-NET-004",
-            Self::StreamDropped => "KIN-NET-005",
-            Self::UnsupportedProtocol => "KIN-NET-006",
-            Self::GossipSubError(_) => "KIN-NET-007",
-            Self::StoreError(_) => "KIN-NET-008",
-            Self::Other(_) => "KIN-NET-009",
+            Self::Timeout => "KIN-QRY-005",
+            Self::Offline => "KIN-QRY-001",
+            Self::RoutingTableEmpty => "KIN-QRY-001",
+            Self::ChannelClosed => "KIN-QRY-006",
+            Self::StreamDropped => "KIN-NET-105",
+            Self::UnsupportedProtocol => "KIN-NET-106",
+            Self::GossipSubError(_) => "KIN-NET-107",
+            Self::StoreError(_) => "KIN-NET-108",
+            Self::Other(_) => "KIN-NET-109",
         }
     }
 

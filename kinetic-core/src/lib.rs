@@ -62,7 +62,7 @@ pub use api_error::ApiError;
 /// - [`KineticError`]: Top-level unified error enum.
 /// - [`PublishError`]: Record publication failures (`KIN-PUB-*`).
 /// - [`RegistrationError`]: Name registration failures (`KIN-REG-*`).
-/// - [`ResolutionError`]: DHT name resolution failures (`KIN-RES-*`).
+/// - [`ResolutionError`]: DHT name resolution failures (`KIN-QRY-*`).
 /// - [`RecordRejectReason`]: Storage engine rejection codes.
 /// - [`VdfRejectReason`]: VDF proof validation rejection reasons.
 /// - [`Severity`]: Logging & monitoring alert severity classifier (`Info`, `Warning`, `Error`, `Critical`).

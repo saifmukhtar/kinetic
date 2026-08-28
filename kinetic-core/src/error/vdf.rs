@@ -105,16 +105,16 @@ impl RevealValidationError {
 /// Why a VDF proof was rejected.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum VdfRejectReason {
-    /// The proof byte array was the wrong size or could not be parsed.
+    /// Malformed Proof. The proof byte array was the wrong size or could not be parsed.
     #[error("proof bytes are malformed")]
     MalformedProof,
-    /// The proof verified successfully, but for a different challenge than expected.
+    /// Challenge Mismatch. The proof verified successfully, but for a different challenge than expected.
     #[error("proof does not match the challenge")]
     ChallengeMismatch,
-    /// The underlying VDF verifier threw an internal error.
+    /// Engine Error. The underlying VDF verifier threw an internal error.
     #[error("VDF engine error: {0}")]
     EngineError(String),
-    /// Generating the discriminant from the challenge failed.
+    /// Discriminant Failed. Generating the discriminant from the challenge failed.
     #[error("discriminant creation failed")]
     DiscriminantFailed,
 }
@@ -123,10 +123,10 @@ impl VdfRejectReason {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::MalformedProof => "KIN-VDF-101",
-            Self::ChallengeMismatch => "KIN-VDF-102",
-            Self::EngineError(_) => "KIN-VDF-103",
-            Self::DiscriminantFailed => "KIN-VDF-104",
+            Self::MalformedProof => "KIN-VDF-008",
+            Self::ChallengeMismatch => "KIN-VDF-009",
+            Self::EngineError(_) => "KIN-VDF-010",
+            Self::DiscriminantFailed => "KIN-VDF-011",
         }
     }
 
@@ -169,25 +169,25 @@ impl VdfRejectReason {
 /// Errors originating from the VDF engine
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum VdfError {
-    /// The filesystem could not create the lock file needed to serialize VDF tasks.
+    /// Lock File Error. The filesystem could not create the lock file needed to serialize VDF tasks.
     #[error("Failed to create VDF lock file: {0}")]
     LockFileError(String),
-    /// A timeout or OS error occurred while attempting to acquire the VDF lock.
+    /// Lock Acquire Error. A timeout or OS error occurred while attempting to acquire the VDF lock.
     #[error("Failed to acquire VDF lock: {0}")]
     LockAcquireError(String),
-    /// Generating the discriminant from the challenge failed.
+    /// Discriminant Error. Generating the discriminant from the challenge failed.
     #[error("Failed to create VDF discriminant")]
     DiscriminantError,
-    /// The underlying VDF prover threw an internal error or panicked.
+    /// Proof Generation Error. The underlying VDF prover threw an internal error or panicked.
     #[error("Failed to generate VDF proof")]
     ProofGenerationError,
-    /// The current architecture or OS is not supported by the embedded VDF library.
+    /// Unsupported Platform. The current architecture or OS is not supported by the embedded VDF library.
     #[error("VDF operation is unsupported on this platform")]
     UnsupportedPlatform,
-    /// The proof exceeds acceptable bounds or is malformed before parsing.
+    /// Invalid Proof. The proof exceeds acceptable bounds or is malformed before parsing.
     #[error("VDF proof is structurally invalid or too large")]
     InvalidProof,
-    /// The challenge is degenerate (e.g. all-zero) and would produce a universally-forgeable proof.
+    /// Invalid Challenge. The challenge is degenerate (e.g. all-zero) and would produce a universally-forgeable proof.
     #[error("VDF challenge is degenerate and cannot be safely evaluated")]
     InvalidChallenge,
 }

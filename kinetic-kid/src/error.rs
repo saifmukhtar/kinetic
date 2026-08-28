@@ -3,65 +3,63 @@ use thiserror::Error;
 /// Error type returned by all operations in the `kinetic-kid` crate.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
-    /// The DID string does not start with the expected prefix.
+    /// Malformed DID String Prefix. The DID string does not start with the expected prefix.
     #[error("Invalid DID prefix, expected did:<method>:")]
     InvalidDidPrefix,
-    /// Reserved error code for future DID format specifications (KIN-KID-002).
+    /// Reserved error code for extreme future use (KIN-KID-002).
     #[error("Reserved error code (KIN-KID-002)")]
     Reserved002,
-    /// The method-specific ID is not exactly 64 characters long.
+    /// DID String Hex Length Invalid. The method-specific ID is not exactly 64 characters long.
     #[error("DID method-specific ID must be exactly 64 characters long")]
     InvalidDidHexLength,
-    /// The method-specific ID contains invalid lowercase hexadecimal characters.
+    /// DID String Non-Hex Characters. The method-specific ID contains invalid lowercase hexadecimal characters.
     #[error("DID method-specific ID must contain only lowercase hexadecimal characters")]
     InvalidDidHexCharacters,
-    /// JSON deserialization failed.
+    /// Identity Document JSON Parsing Failed.
     #[error("Failed to parse JSON: {0}")]
     JsonParseError(String),
-    /// JCS canonicalization failed.
+    /// Identity Document JCS Canonicalization Failed.
     #[error("Failed to canonicalize JSON (JCS): {0}")]
     CanonicalizationError(String),
-    /// The signature bytes are invalid or do not verify against any controller key.
+    /// ML-DSA-65 Signature Invalid on Identity Document. The signature bytes are invalid or do not verify.
     #[error("Invalid signature")]
     InvalidSignature,
-    /// The document or manifest does not contain a signature field.
+    /// Missing Signature field on Identity Document or manifest.
     #[error("Missing signature in document")]
     MissingSignature,
-    /// Base64url decoding of a key or signature failed.
+    /// Base64 decode failed for Identity key/signature.
     #[error("Base64 decode error: {0}")]
     Base64Error(String),
-    /// An ML-DSA-65 public key could not be parsed from the provided bytes.
+    /// ML-DSA-65 key bytes could not be parsed from the provided bytes.
     #[error("Key parse error: {0}")]
     KeyParseError(String),
-    /// The manifest signature was produced by a key not listed in the KID document.
+    /// Manifest signed by key not authorized in KID document.
     #[error("Manifest signed by unauthorized key")]
     UnauthorizedManifestSignature,
-    /// The identity document exceeds maximum key bounds.
+    /// Too many keys in Identity Document (Max 20).
     #[error("Identity document exceeds maximum key bounds (max 20)")]
     KeyLimitExceeded,
-    /// The manifest pointer exceeds maximum location bounds.
+    /// Too many manifest pointers (Max 20).
     #[error("Manifest pointer exceeds maximum location bounds (max 20)")]
     LocationLimitExceeded,
-    /// The capability manifest exceeds maximum service endpoints.
+    /// Too many service endpoints (Max 50).
     #[error("Capability manifest exceeds maximum service endpoints (max 50)")]
     ServiceLimitExceeded,
-    /// A string field exceeds its maximum allowed byte length.
+    /// String field exceeds byte length limits.
     #[error("Field '{0}' exceeds maximum allowed byte length")]
     StringLengthExceeded(String),
-    /// The valid_from timestamp is set in the future beyond acceptable skew.
+    /// Manifest valid_from timestamp is in the future.
     #[error("Manifest valid_from is in the future")]
     InvalidValidFrom,
-    /// The manifest has expired based on its expires_at timestamp.
+    /// Manifest has expired.
     #[error("Manifest has expired")]
     ManifestExpired,
-    /// The `kid` DID identifier does not match the SHA-256 hash of the primary controller key.
-    /// Returned by `verify_genesis()` when publishing a KID document for the first time.
+    /// Genesis DID does not match SHA-256 of primary controller key.
     #[error(
         "KID document genesis binding failed: DID does not match SHA-256 of primary controller key (KIN-KID-015)"
     )]
     DidKeyMismatch,
-    /// A KID document update was rejected because it was not signed by a key
-    /// that appeared in the previously stored version of this document.
+    /// Identity Update not signed by a key in the existing document.
     #[error(
         "KID document update rejected: not authorized by any key in the existing document (KIN-KID-016)"
     )]

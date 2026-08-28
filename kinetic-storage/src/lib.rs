@@ -32,8 +32,8 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::DatabaseLocked`](kinetic_core::error::StorageError::DatabaseLocked) (`KIN-STO-001`) if the database directory is already opened by another process.
-        /// - Returns [`StorageError::OpenFailed`](kinetic_core::error::StorageError::OpenFailed) (`KIN-STO-007`) if IO errors occur.
+        /// - Returns [`StorageError::DatabaseLocked`](kinetic_core::error::StorageError::DatabaseLocked) (`KIN-DBE-001`) if the database directory is already opened by another process.
+        /// - Returns [`StorageError::OpenFailed`](kinetic_core::error::StorageError::OpenFailed) (`KIN-DBE-007`) if IO errors occur.
         pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
             let base_path = path.as_ref();
             // Sled used directories, Redb uses a single file. For backward compatibility
@@ -121,7 +121,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::OpenFailed`](kinetic_core::error::StorageError::OpenFailed) (`KIN-STO-007`) if temporary storage creation fails.
+        /// - Returns [`StorageError::OpenFailed`](kinetic_core::error::StorageError::OpenFailed) (`KIN-DBE-007`) if temporary storage creation fails.
         pub fn new_temp() -> Result<Self, StorageError> {
             let temp_path = std::env::temp_dir().join(format!(
                 "kinetic-temp-{}",
@@ -139,7 +139,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::ScanFailed`](kinetic_core::error::StorageError::ScanFailed) (`KIN-STO-006`) if iteration fails.
+        /// - Returns [`StorageError::ScanFailed`](kinetic_core::error::StorageError::ScanFailed) (`KIN-DBE-006`) if iteration fails.
         fn scan_prefix(
             &self,
             prefix: &[u8],
@@ -178,7 +178,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::WriteFailed`](kinetic_core::error::StorageError::WriteFailed) (`KIN-STO-004`) if insertion fails.
+        /// - Returns [`StorageError::WriteFailed`](kinetic_core::error::StorageError::WriteFailed) (`KIN-DBE-004`) if insertion fails.
         fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
             let write_txn = self
                 .db
@@ -202,7 +202,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::ReadFailed`](kinetic_core::error::StorageError::ReadFailed) (`KIN-STO-003`) if lookup fails.
+        /// - Returns [`StorageError::ReadFailed`](kinetic_core::error::StorageError::ReadFailed) (`KIN-DBE-003`) if lookup fails.
         fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError> {
             let read_txn = self
                 .db
@@ -222,7 +222,7 @@ mod native {
         ///
         /// # Errors
         ///
-        /// - Returns [`StorageError::DeleteFailed`](kinetic_core::error::StorageError::DeleteFailed) (`KIN-STO-005`) if deletion fails.
+        /// - Returns [`StorageError::DeleteFailed`](kinetic_core::error::StorageError::DeleteFailed) (`KIN-DBE-005`) if deletion fails.
         fn delete(&self, key: &[u8]) -> Result<(), StorageError> {
             let write_txn = self
                 .db

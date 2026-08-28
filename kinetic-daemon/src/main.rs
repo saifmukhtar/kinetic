@@ -442,7 +442,7 @@ async fn run_daemon() -> Result<()> {
     {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
-            .map_err(|e| anyhow::anyhow!("KIN-DAEMON-005: Governance state lock poisoned: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("KIN-DMN-005: Governance state lock poisoned: {}", e))?;
         *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
     }
 
@@ -508,7 +508,7 @@ async fn run_daemon() -> Result<()> {
     let root_ca = match ca::load_or_create_root_ca(&base_config_dir) {
         Ok((root_ca, _is_new)) => std::sync::Arc::new(root_ca),
         Err(e) => {
-            tracing::error!("KIN-DAEMON-001: Failed to initialize Root CA: {}", e);
+            tracing::error!("KIN-DMN-001: Failed to initialize Root CA: {}", e);
             return Err(anyhow::anyhow!("CA Init Failed: {}", e));
         }
     };
@@ -530,7 +530,7 @@ async fn run_daemon() -> Result<()> {
         )
         .await
         {
-            tracing::error!("KIN-DAEMON-002: Proxy server crashed: {}", e);
+            tracing::error!("KIN-DMN-002: Proxy server crashed: {}", e);
         }
     });
 
@@ -630,19 +630,19 @@ async fn run_daemon() -> Result<()> {
                         config.daemon.nrs_port
                     );
                     if let Err(e) = server.block_until_done().await {
-                        tracing::error!("KIN-DAEMON-003: DNS Server error: {}", e);
+                        tracing::error!("KIN-DMN-003: DNS Server error: {}", e);
                     }
                 });
             }
             (Err(e), _) | (_, Err(e)) => {
-                tracing::error!("KIN-DAEMON-006: Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}", config.daemon.nrs_port, e);
+                tracing::error!("KIN-DMN-006: Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}", config.daemon.nrs_port, e);
             }
         }
     }
 
     tokio::select! {
         res = api_future => {
-            tracing::error!("KIN-DAEMON-004: API Server exited unexpectedly: {:?}", res);
+            tracing::error!("KIN-DMN-004: API Server exited unexpectedly: {:?}", res);
         },
         _ = kinetic_core::shutdown::shutdown_signal() => {
             info!("Shutdown signal received. Commencing graceful shutdown...");

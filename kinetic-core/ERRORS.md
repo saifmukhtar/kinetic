@@ -14,7 +14,7 @@ https://kinetic.network/errors/KIN-XXX-NNN
 
 | Namespace | Name | Error Type |
 |---|---|---|
-| [KIN-RES](#kin-res--dht-name-resolution) | DHT Name Resolution | `ResolutionError` |
+| [KIN-QRY](#kin-res--dht-name-resolution) | DHT Name Resolution | `ResolutionError` |
 | [KIN-PUB](#kin-pub--dht-record-publishing) | DHT Record Publishing | `PublishError` |
 | [KIN-REG](#kin-reg--name-registration) | Name Registration Flow | `RegistrationError` |
 | [KIN-VDF](#kin-vdf--verifiable-delay-function) | VDF Engine | `VdfError` |
@@ -23,20 +23,20 @@ https://kinetic.network/errors/KIN-XXX-NNN
 | [KIN-DRA](#kin-dra--drand-randomness-beacon) | Drand Beacon | `DrandError` |
 | [KIN-IDN](#kin-idn--node-identity) | Node Identity Keys | `IdentityError` |
 | [KIN-NAM](#kin-nam--name-validation) | Name Validation | `NamesError` |
-| [KIN-STO](#kin-sto--local-storage) | Sled Storage Engine | `StorageError` |
+| [KIN-DBE](#kin-dbe--local-storage) | Sled Storage Engine | `StorageError` |
 | [KIN-NET](#kin-net--p2p-network-client) | P2P Network Client | `NetworkClientError` |
 
 ---
 
-## KIN-RES — DHT Name Resolution
+## KIN-QRY — DHT Name Resolution
 
 Errors produced during a DHT name lookup. These are returned when a node attempts to resolve a `.kin` name to its DNS zone or ownership record.
 
-**Retryable variants:** `KIN-RES-001`, `KIN-RES-005`
+**Retryable variants:** `KIN-QRY-001`, `KIN-QRY-005`
 
 ---
 
-### KIN-RES-001 — Offline
+### KIN-QRY-001 — Offline
 
 | Field | Value |
 |---|---|
@@ -58,7 +58,7 @@ Errors produced during a DHT name lookup. These are returned when a node attempt
 
 ---
 
-### KIN-RES-002 — NotFound
+### KIN-QRY-002 — NotFound
 
 | Field | Value |
 |---|---|
@@ -80,7 +80,7 @@ Errors produced during a DHT name lookup. These are returned when a node attempt
 
 ---
 
-### KIN-RES-003 — VdfVerificationFailed
+### KIN-QRY-003 — VdfVerificationFailed
 
 | Field | Value |
 |---|---|
@@ -102,7 +102,7 @@ Errors produced during a DHT name lookup. These are returned when a node attempt
 
 ---
 
-### KIN-RES-004 — Expired
+### KIN-QRY-004 — Expired
 
 | Field | Value |
 |---|---|
@@ -123,7 +123,7 @@ Errors produced during a DHT name lookup. These are returned when a node attempt
 
 ---
 
-### KIN-RES-005 — Timeout
+### KIN-QRY-005 — Timeout
 
 | Field | Value |
 |---|---|
@@ -144,7 +144,7 @@ Errors produced during a DHT name lookup. These are returned when a node attempt
 
 ---
 
-### KIN-RES-006 — Internal
+### KIN-QRY-006 — Internal
 
 | Field | Value |
 |---|---|
@@ -182,7 +182,7 @@ Errors produced when pushing a record to the DHT. These occur after local VDF pr
 
 **What it is:** The node has no connected peers and cannot write to the DHT.
 
-**Why it occurs:** Same causes as `KIN-RES-001` — no active peers in the routing table.
+**Why it occurs:** Same causes as `KIN-QRY-001` — no active peers in the routing table.
 
 **What it means:** The generated record cannot be published until the node comes back online.
 
@@ -986,7 +986,7 @@ Errors from the drand Quicknet HTTP client and kyn cache. Network kyns are the t
 
 **What it is:** A Sled storage error occurred while reading or writing the drand kyn cache.
 
-**Solution:** Check disk space and storage integrity. See [KIN-STO errors](#kin-sto--local-storage).
+**Solution:** Check disk space and storage integrity. See [KIN-DBE errors](#kin-dbe--local-storage).
 
 ---
 
@@ -1275,13 +1275,13 @@ Errors from name structural validation. These are returned before any network op
 
 ---
 
-## KIN-STO — Local Storage
+## KIN-DBE — Local Storage
 
 Errors from the Sled embedded B-tree database used for all local persistence (kyn cache, commitments, governance state).
 
 ---
 
-### KIN-STO-001 — DatabaseLocked
+### KIN-DBE-001 — DatabaseLocked
 
 | Field | Value |
 |---|---|
@@ -1300,7 +1300,7 @@ Errors from the Sled embedded B-tree database used for all local persistence (ky
 
 ---
 
-### KIN-STO-002 — Corruption
+### KIN-DBE-002 — Corruption
 
 | Field | Value |
 |---|---|
@@ -1319,7 +1319,7 @@ Errors from the Sled embedded B-tree database used for all local persistence (ky
 
 ---
 
-### KIN-STO-003 — OperationFailed
+### KIN-DBE-003 — OperationFailed
 
 | Field | Value |
 |---|---|
@@ -1332,7 +1332,7 @@ Errors from the Sled embedded B-tree database used for all local persistence (ky
 
 **Why it occurs:** Disk full, I/O error, or a transient Sled internal error.
 
-**Solution:** Check disk space and I/O health. Retry the operation. If persistent, see `KIN-STO-002` guidance.
+**Solution:** Check disk space and I/O health. Retry the operation. If persistent, see `KIN-DBE-002` guidance.
 
 ---
 

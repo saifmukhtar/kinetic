@@ -273,12 +273,12 @@ fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<Stri
     let mut token_bytes = [0u8; 32];
     getrandom::fill(&mut token_bytes).map_err(|e| {
         tracing::error!(
-            error_code = "KIN-IMPL-001",
+            error_code = "KIN-IMP-001",
             severity = "Critical",
             "FATAL: getrandom failed — cannot generate secure API token. Refusing to start with a predictable token. Error: {}",
             e
         );
-        anyhow::anyhow!("[KIN-IMPL-001] getrandom failed: {}. Cannot generate a secure API token.", e)
+        anyhow::anyhow!("[KIN-IMP-001] getrandom failed: {}. Cannot generate a secure API token.", e)
     })?;
     let token = hex::encode(token_bytes);
 
@@ -372,7 +372,7 @@ pub async fn start_server(
             break;
         } else if let Ok(l) = tokio::net::TcpListener::bind(format!("[::1]:{}", port)).await {
             tracing::warn!(
-                "KIN-DAEMON-010: Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
+                "KIN-DMN-010: Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
                 bind_ip
             );
             listener = Some(l);
@@ -412,13 +412,13 @@ async fn auth_middleware(
     let header = match auth_header {
         Some(h) => h,
         None => {
-            tracing::warn!("KIN-DAEMON-011: Rejecting API request: Missing Authorization header");
+            tracing::warn!("KIN-DMN-011: Rejecting API request: Missing Authorization header");
             return Err(StatusCode::UNAUTHORIZED);
         }
     };
 
     if !header.starts_with("Bearer ") {
-        tracing::warn!("KIN-DAEMON-012: Rejecting API request: Authorization header is not a Bearer token");
+        tracing::warn!("KIN-DMN-012: Rejecting API request: Authorization header is not a Bearer token");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -453,7 +453,7 @@ async fn auth_middleware(
             Ok(next.run(req).await)
         }
         None => {
-            tracing::warn!("KIN-DAEMON-013: Rejecting API request: Invalid API token");
+            tracing::warn!("KIN-DMN-013: Rejecting API request: Invalid API token");
             Err(StatusCode::UNAUTHORIZED)
         }
     }

@@ -273,7 +273,7 @@ pub async fn handle_vdf_register(
                     format!("Serialization failed in VDF task: {}", e),
                 );
                 tracing::error!(
-                    error_code = "KIN-VDF-002",
+                    error_code = "KIN-DMN-026",
                     "Serialization failed in VDF task: {}",
                     e
                 );
@@ -312,7 +312,7 @@ pub async fn handle_vdf_register(
                     format!("Serialization failed in VDF task: {}", e),
                 );
                 tracing::error!(
-                    error_code = "KIN-VDF-002",
+                    error_code = "KIN-DMN-026",
                     "Serialization failed in VDF task: {}",
                     e
                 );
@@ -360,7 +360,7 @@ pub async fn handle_vdf_register(
             && let Err(e) = std::fs::write(&path, s)
         {
             tracing::warn!(
-                error_code = "KIN-IMPL-005",
+                error_code = "KIN-IMP-005",
                 "Failed to write zone file: {}",
                 e
             );

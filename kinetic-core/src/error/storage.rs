@@ -1,10 +1,10 @@
-//! Redb embedded storage engine error types (`KIN-STO-NNN`).
+//! Redb embedded storage engine error types (`KIN-DBE-NNN`).
 //!
 //! [`StorageError`] is returned by the [`StorageEngine`](crate::traits::StorageEngine)
 //! implementation in `kinetic-storage` when the Redb B-tree database encounters
 //! lock contention, structural corruption, or a failed read/write operation.
 //!
-//! `KIN-STO-001` (`DatabaseLocked`) is `Severity::Critical` — it means a second
+//! `KIN-DBE-001` (`DatabaseLocked`) is `Severity::Critical` — it means a second
 //! daemon instance is competing for the same database file, which is a fatal condition.
 use super::Severity;
 use thiserror::Error;
@@ -39,13 +39,13 @@ impl StorageError {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::DatabaseLocked => "KIN-STO-001",
-            Self::Corruption(_) => "KIN-STO-002",
-            Self::ReadFailed(_) => "KIN-STO-003",
-            Self::WriteFailed(_) => "KIN-STO-004",
-            Self::DeleteFailed(_) => "KIN-STO-005",
-            Self::ScanFailed(_) => "KIN-STO-006",
-            Self::OpenFailed(_) => "KIN-STO-007",
+            Self::DatabaseLocked => "KIN-DBE-001",
+            Self::Corruption(_) => "KIN-DBE-002",
+            Self::ReadFailed(_) => "KIN-DBE-003",
+            Self::WriteFailed(_) => "KIN-DBE-004",
+            Self::DeleteFailed(_) => "KIN-DBE-005",
+            Self::ScanFailed(_) => "KIN-DBE-006",
+            Self::OpenFailed(_) => "KIN-DBE-007",
         }
     }
 

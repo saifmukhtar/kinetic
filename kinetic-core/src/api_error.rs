@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// RFC 7807 Problem Details representation for HTTP API responses, augmented with Kinetic extensions.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ApiError {
-    /// RFC 7807: URI identifying the specific error category (e.g. `"https://kinetic.network/errors/KIN-RES-002"`).
+    /// RFC 7807: URI identifying the specific error category (e.g. `"https://kinetic.network/errors/KIN-QRY-002"`).
     #[serde(rename = "type")]
     pub error_type: String,
     /// RFC 7807: Short human-readable title summarizing the error category.
@@ -25,7 +25,7 @@ pub struct ApiError {
     /// RFC 7807: Optional URI identifying the specific request instance.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<String>,
-    /// Kinetic Extension: Stable protocol error code (e.g. `"KIN-RES-002"`).
+    /// Kinetic Extension: Stable protocol error code (e.g. `"KIN-QRY-002"`).
     pub code: String,
     /// Kinetic Extension: Indicates whether client applications should retry the request.
     pub retryable: bool,

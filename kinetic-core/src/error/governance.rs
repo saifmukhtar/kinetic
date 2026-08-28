@@ -21,43 +21,43 @@ use thiserror::Error;
 /// Errors relating to Kinetic global governance actions.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum GovernanceError {
-    /// The `ROOT_PUBLIC_KEY_HEX` environment variable is absent; no governance can proceed.
+    /// Missing Root Key. The `ROOT_PUBLIC_KEY_HEX` environment variable is absent; no governance can proceed.
     #[error("ROOT_PUBLIC_KEY_HEX is not configured. This is a fatal error.")]
     MissingRootKey,
-    /// The `ROOT_PUBLIC_KEY_HEX` string is present but is not valid hex.
+    /// Malformed Root Key. The `ROOT_PUBLIC_KEY_HEX` string is present but is not valid hex.
     #[error("ROOT_PUBLIC_KEY_HEX is malformed and cannot be decoded as hex.")]
     MalformedRootKey,
 
-    /// A supplied public key byte slice does not match the required length (e.g. 1,952 bytes for ML-DSA-65).
+    /// Key Length Mismatch. A supplied public key byte slice does not match the required length (e.g. 1,952 bytes for ML-DSA-65).
     #[error("Key length mismatch")]
     KeyLengthMismatch,
-    /// The governance proposal timestamp is older than the allowed replay window.
+    /// Stale Proposal. The governance proposal timestamp is older than the allowed replay window.
     #[error("Governance action too old, replay rejected")]
     StaleProposal,
-    /// The governance action has already been executed previously (replay attack).
+    /// Already Executed. The governance action has already been executed previously (replay attack).
     #[error("Governance action has already been executed")]
     AlreadyExecuted,
 
-    /// Governance modifications are completely disabled in this network environment.
+    /// Governance Disabled. Governance modifications are completely disabled in this network environment.
     #[error("Governance is disabled in permissionless mode")]
     GovernanceDisabled,
 
-    /// The number of valid signatures does not meet the required threshold.
+    /// Insufficient Signatures. The number of valid signatures does not meet the required threshold.
     #[error("Insufficient valid signatures")]
     InsufficientSignatures,
-    /// A prime name mapping/unmapping was attempted on a name that is not exactly 1 character long.
+    /// Invalid Prime Length. A prime name mapping/unmapping was attempted on a name that is not exactly 1 character long.
     #[error("Prime name mappings must be exactly 1 character long")]
     InvalidPrimeLength,
-    /// A protocol name mapping/unmapping was attempted on a name not in the Category 2 list.
+    /// Invalid Protocol Name. A protocol name mapping/unmapping was attempted on a name not in the Category 2 list.
     #[error("Protocol name mappings must target a valid Category 2 protocol name")]
     InvalidProtocolName,
-    /// A name mapping was attempted on a name that is already mapped.
+    /// Already Mapped. A name mapping was attempted on a name that is already mapped.
     #[error("Name is already mapped, explicitly unmap it first")]
     AlreadyMapped,
-    /// A name revoke was attempted on a name that is not currently mapped.
+    /// Not Mapped. A name revoke was attempted on a name that is not currently mapped.
     #[error("Name is not currently mapped")]
     NotMapped,
-    /// A name mapping/unmapping payload was unnormalized (e.g. contains `.kin` suffix, mixed case, or whitespace).
+    /// Unnormalized Name. A name mapping/unmapping payload was unnormalized (e.g. contains `.kin` suffix, mixed case, or whitespace).
     #[error(
         "Name payloads in governance actions must be strictly normalized (no .kin suffix, lowercase, length checks)"
     )]
@@ -69,18 +69,17 @@ impl GovernanceError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::MissingRootKey => "KIN-GOV-001",
-            Self::MalformedRootKey => "KIN-GOV-008", // Next available ID
-            Self::GovernanceDisabled => "KIN-GOV-002",
-            Self::KeyLengthMismatch => "KIN-GOV-003",
-            Self::StaleProposal => "KIN-GOV-004",
-            Self::AlreadyExecuted => "KIN-GOV-009", // Next available ID
-
-            Self::InsufficientSignatures => "KIN-GOV-016",
-            Self::InvalidPrimeLength => "KIN-GOV-019",
-            Self::InvalidProtocolName => "KIN-GOV-020",
-            Self::AlreadyMapped => "KIN-GOV-013",
-            Self::NotMapped => "KIN-GOV-014",
-            Self::UnnormalizedName => "KIN-GOV-024",
+            Self::MalformedRootKey => "KIN-GOV-002",
+            Self::GovernanceDisabled => "KIN-GOV-003",
+            Self::KeyLengthMismatch => "KIN-GOV-004",
+            Self::StaleProposal => "KIN-GOV-005",
+            Self::AlreadyExecuted => "KIN-GOV-006",
+            Self::InsufficientSignatures => "KIN-GOV-007",
+            Self::InvalidPrimeLength => "KIN-GOV-008",
+            Self::InvalidProtocolName => "KIN-GOV-009",
+            Self::AlreadyMapped => "KIN-GOV-010",
+            Self::NotMapped => "KIN-GOV-011",
+            Self::UnnormalizedName => "KIN-GOV-012",
         }
     }
 

@@ -67,7 +67,7 @@ pub trait StorageEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`StorageError::WriteFailed`] (`KIN-STO-004`) if the write fails.
+    /// - Returns [`StorageError::WriteFailed`] (`KIN-DBE-004`) if the write fails.
     fn put(&self, key: &[u8], value: &[u8]) -> Result<(), StorageError>;
 
     /// Retrieves the stored value for a given key.
@@ -79,7 +79,7 @@ pub trait StorageEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`StorageError::ReadFailed`] (`KIN-STO-003`) if the read fails.
+    /// - Returns [`StorageError::ReadFailed`] (`KIN-DBE-003`) if the read fails.
     fn get(&self, key: &[u8]) -> Result<Option<bytes::Bytes>, StorageError>;
 
     /// Removes an entry by key.
@@ -89,7 +89,7 @@ pub trait StorageEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`StorageError::DeleteFailed`] (`KIN-STO-005`) if the deletion fails.
+    /// - Returns [`StorageError::DeleteFailed`] (`KIN-DBE-005`) if the deletion fails.
     fn delete(&self, key: &[u8]) -> Result<(), StorageError>;
 
     /// Iterates over all key-value pairs whose keys begin with `prefix`, up to an optional `limit`.
@@ -101,7 +101,7 @@ pub trait StorageEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`StorageError::ScanFailed`] (`KIN-STO-006`) if prefix iteration fails.
+    /// - Returns [`StorageError::ScanFailed`] (`KIN-DBE-006`) if prefix iteration fails.
     #[allow(clippy::type_complexity)]
     fn scan_prefix(
         &self,

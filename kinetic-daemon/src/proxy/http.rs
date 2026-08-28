@@ -85,7 +85,7 @@ pub async fn handle_proxy_request(
 
     let host_name = kinetic_core::types::normalize_name(&host);
     if !host_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
-        tracing::warn!("KIN-PROXY-037: Rejected proxy request for non-.kin name: {}", host_name);
+        tracing::warn!("KIN-PRX-037: Rejected proxy request for non-.kin name: {}", host_name);
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
             .body(axum::body::Body::from(
@@ -138,7 +138,7 @@ pub async fn forward_to_backend_direct(
             .resolve_redundant_payload(&apex_name)
             .await
             .map_err(|e| {
-                tracing::warn!("KIN-PROXY-033: DHT resolution failed for apex name '{}': {}", apex_name, e);
+                tracing::warn!("KIN-PRX-033: DHT resolution failed for apex name '{}': {}", apex_name, e);
                 ProxyError::NameNotFound(apex_name.clone())
             })?;
 
@@ -146,14 +146,14 @@ pub async fn forward_to_backend_direct(
         // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
         let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
             .map_err(|e| {
-                tracing::warn!("KIN-PROXY-034: Failed to deserialize NameRecord JSON from DHT for '{}': {}", apex_name, e);
+                tracing::warn!("KIN-PRX-034: Failed to deserialize NameRecord JSON from DHT for '{}': {}", apex_name, e);
                 ProxyError::InvalidPayload
             })?;
 
         use kinetic_verify::signatures::VerifySignature;
         if !kinetic_core::config::is_dev_mode() {
             if let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT) {
-                tracing::warn!("KIN-PROXY-024: Proxy Error: Security violation! NameRecord signature verification failed (Spoofed DHT response): {:?}", e);
+                tracing::warn!("KIN-PRX-024: Proxy Error: Security violation! NameRecord signature verification failed (Spoofed DHT response): {:?}", e);
                 return Err(ProxyError::SecurityViolation("NameRecord signature verification failed".to_string()));
             }
         }
@@ -161,7 +161,7 @@ pub async fn forward_to_backend_direct(
         let zone = match kinetic_core::types::NrsZone::parse_payload(record.payload()) {
             Ok(z) => z,
             Err(e) => {
-                tracing::warn!("KIN-PROXY-025: Proxy Error: Invalid NrsZone payload: {}", e);
+                tracing::warn!("KIN-PRX-025: Proxy Error: Invalid NrsZone payload: {}", e);
                 return Err(ProxyError::InvalidPayload);
             }
         };
@@ -185,7 +185,7 @@ pub async fn forward_to_backend_direct(
         let records = match zone.records.get(&subname) {
             Some(r) => r,
             None => {
-                tracing::warn!("KIN-PROXY-026: Proxy Error: Subname '{}' not found in zone", subname);
+                tracing::warn!("KIN-PRX-026: Proxy Error: Subname '{}' not found in zone", subname);
                 return Err(ProxyError::NameNotFound(current_name.clone()));
             }
         };
@@ -243,7 +243,7 @@ pub async fn forward_to_backend_direct(
     }
 
     if target_str.is_empty() {
-        tracing::warn!("KIN-PROXY-035: No routable targets found in NrsZone for name '{}'", name);
+        tracing::warn!("KIN-PRX-035: No routable targets found in NrsZone for name '{}'", name);
         return Err(ProxyError::NameNotFound(name.to_string()));
     }
 
@@ -264,7 +264,7 @@ pub async fn forward_to_backend_direct(
         return crate::proxy::route_p2p::forward_to_p2p(req, name, peer_id, network_client).await;
     } else {
         tracing::warn!(
-            "KIN-PROXY-036: Unrecognized target format in DHT payload for '{}': {:?}",
+            "KIN-PRX-036: Unrecognized target format in DHT payload for '{}': {:?}",
             name, ip_str
         );
         Err(ProxyError::InvalidPayload)

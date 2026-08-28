@@ -6,25 +6,25 @@ use thiserror::Error;
 /// Errors arising from ML-DSA-65 post-quantum signature verification on VDF reveal and name payloads.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum SignatureVerifyError {
-    /// Provided public key bytes could not be parsed into a valid ML-DSA-65 verifying key.
+    /// Malformed Public Key. Provided public key bytes could not be parsed into a valid ML-DSA-65 verifying key.
     #[error("Malformed ML-DSA-65 public key")]
     MalformedPublicKey,
-    /// Signature byte slice does not conform to the ML-DSA-65 signature structure.
+    /// Malformed Signature. Signature byte slice does not conform to the ML-DSA-65 signature structure.
     #[error("Malformed ML-DSA-65 signature bytes")]
     MalformedSignature,
-    /// Cryptographic verification failed over the canonical signable bytes.
+    /// Invalid Signature. Cryptographic verification failed over the canonical signable bytes.
     #[error("Invalid ML-DSA-65 post-quantum signature")]
     InvalidSignature,
-    /// The delegated manifest does not grant the required capability.
+    /// Delegated Capability Missing. The delegated manifest does not grant the required capability.
     #[error("Delegated capability missing from authorized manifest")]
     DelegatedCapabilityMissing,
-    /// The delegated authorization proof is structurally invalid or fails signature check.
+    /// Delegated Authorization Invalid. The delegated authorization proof is structurally invalid or fails signature check.
     #[error("Delegated authorization proof is invalid")]
     DelegatedAuthorizationInvalid,
-    /// The delegated manifest name scope does not match the target name.
+    /// Delegated Scope Violation. The delegated manifest name scope does not match the target name.
     #[error("Delegated manifest name scope does not match the target name")]
     DelegatedScopeViolation,
-    /// The delegated manifest is missing the required KID document.
+    /// Delegated KID Document Missing. The delegated manifest is missing the required KID document.
     #[error("Delegated manifest is missing the required KID document")]
     DelegatedKidDocumentMissing,
 }
@@ -33,13 +33,13 @@ impl SignatureVerifyError {
     /// Protocol error code following the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::MalformedPublicKey => "KIN-VDF-040",
-            Self::MalformedSignature => "KIN-VDF-041",
-            Self::InvalidSignature => "KIN-VDF-042",
-            Self::DelegatedCapabilityMissing => "KIN-VDF-043",
-            Self::DelegatedAuthorizationInvalid => "KIN-VDF-044",
-            Self::DelegatedScopeViolation => "KIN-VDF-045",
-            Self::DelegatedKidDocumentMissing => "KIN-VDF-046",
+            Self::MalformedPublicKey => "KIN-VER-001",
+            Self::MalformedSignature => "KIN-VER-002",
+            Self::InvalidSignature => "KIN-VER-003",
+            Self::DelegatedCapabilityMissing => "KIN-VER-004",
+            Self::DelegatedAuthorizationInvalid => "KIN-VER-005",
+            Self::DelegatedScopeViolation => "KIN-VER-006",
+            Self::DelegatedKidDocumentMissing => "KIN-VER-007",
         }
     }
 
@@ -104,7 +104,7 @@ mod tests {
     fn test_signature_verify_error_taxonomy() {
         assert_eq!(
             SignatureVerifyError::DelegatedScopeViolation.code(),
-            "KIN-VDF-045"
+            "KIN-VER-006"
         );
         assert_eq!(
             SignatureVerifyError::DelegatedScopeViolation.severity(),
@@ -114,7 +114,7 @@ mod tests {
 
         assert_eq!(
             SignatureVerifyError::DelegatedKidDocumentMissing.code(),
-            "KIN-VDF-046"
+            "KIN-VER-007"
         );
         assert_eq!(
             SignatureVerifyError::DelegatedKidDocumentMissing.severity(),

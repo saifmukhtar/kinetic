@@ -56,7 +56,7 @@ pub async fn forward_request(
                 if let Ok(chunk) = chunk_res {
                     body.extend_from_slice(&chunk);
                     if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                        warn!("KIN-HOST-007: Blocked oversized backend response from local web server");
+                        warn!("KIN-HST-007: Blocked oversized backend response from local web server");
                         body.clear();
                         body.extend_from_slice(b"Payload Too Large");
                         status = 502;
@@ -72,7 +72,7 @@ pub async fn forward_request(
             }
         }
         Err(e) => {
-            warn!("KIN-HOST-008: Failed to forward P2P request to local backend web server: {}", e);
+            warn!("KIN-HST-008: Failed to forward P2P request to local backend web server: {}", e);
             ProxyResponse {
                 status: 502,
                 headers: Vec::new(),
@@ -125,7 +125,7 @@ pub async fn handle_incoming_proxy_requests(
                 .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
 
             if decoded_path.contains("..") || !decoded_path.starts_with('/') {
-                warn!("KIN-HOST-009: Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
+                warn!("KIN-HST-009: Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
                 let _ = client_clone
                     .send_proxy_response(
                         channel,
@@ -141,7 +141,7 @@ pub async fn handle_incoming_proxy_requests(
 
             if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                 warn!(
-                    "KIN-HOST-010: Blocked oversized incoming P2P proxy request payload ({} bytes)",
+                    "KIN-HST-010: Blocked oversized incoming P2P proxy request payload ({} bytes)",
                     req.body.len()
                 );
                 let _ = client_clone

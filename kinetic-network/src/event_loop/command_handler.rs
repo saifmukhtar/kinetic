@@ -133,7 +133,7 @@ impl super::core::NetworkEventLoop {
                 if info.num_peers() == 0 {
                     let name_clean = name.trim_end_matches('.').to_string();
                     tracing::warn!(
-                        error_code = "KIN-RES-001",
+                        error_code = "KIN-QRY-001",
                         name = %name_clean,
                         "Resolution failed: node is offline (0 peers)"
                     );

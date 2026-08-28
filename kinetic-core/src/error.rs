@@ -9,7 +9,7 @@
 //! Every specialized domain error (e.g. [`ResolutionError`], [`PublishError`], [`RegistrationError`])
 //! provides a rich metadata interface:
 //!
-//! 1. **Stable Protocol Code**: Unique string code (e.g. `KIN-RES-001`, `KIN-PUB-003`, `KIN-REG-005`).
+//! 1. **Stable Protocol Code**: Unique string code (e.g. `KIN-QRY-001`, `KIN-PUB-003`, `KIN-REG-005`).
 //! 2. **RFC 7807 Type URI**: Web specification URI for standard error documentation.
 //! 3. **Retryability Flag** ([`is_retryable`](ResolutionError::is_retryable)): Indicates if clients should retry.
 //! 4. **Severity Classifier** ([`Severity`]): Directs logging and alert levels (`Info`, `Warning`, `Error`, `Critical`).
@@ -20,7 +20,7 @@
 //!
 //! | Prefix | Error Type | Domain |
 //! |---|---|---|
-//! | `KIN-RES-NNN` | [`ResolutionError`] | DHT name resolution |
+//! | `KIN-QRY-NNN` | [`ResolutionError`] | DHT name resolution |
 //! | `KIN-PUB-NNN` | [`PublishError`] | DHT record publishing |
 //! | `KIN-REG-NNN` | [`RegistrationError`] | Name registration flow |
 //! | `KIN-VDF-NNN` | `VdfError` | VDF engine operations |
@@ -29,7 +29,7 @@
 //! | `KIN-DRA-NNN` | `DrandError` | Drand beacon |
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
 //! | `KIN-NAM-NNN` | `NamesError` | Name validation |
-//! | `KIN-STO-NNN` | `StorageError` | Sled storage engine |
+//! | `KIN-DBE-NNN` | `StorageError` | Sled storage engine |
 //! | `KIN-NET-NNN` | `NetworkClientError` + `KineticStoreError` | P2P network client and store layer |
 //! | `KIN-SEC-NNN` | `SsrfError` | IP Server-Side Request Forgery filtering |
 //! | `KIN-SHU-NNN` | `ShutdownError` | Graceful daemon shutdown |

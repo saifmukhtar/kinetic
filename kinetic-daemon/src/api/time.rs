@@ -22,7 +22,7 @@ pub async fn handle_get_time(
             Ok(Json(time))
         }
         Err(e) => {
-            tracing::error!("KIN-DAEMON-008: Failed to read cached Drand kyn for /api/time: {}", e);
+            tracing::error!("KIN-DMN-008: Failed to read cached Drand kyn for /api/time: {}", e);
             // If offline, we could fallback mathematically here as well,
             // but since it's the daemon, returning an error ensures consumers
             // know the node isn't synced. The CLI implements the offline fallback.

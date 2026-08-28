@@ -16,12 +16,12 @@ pub async fn start_routing_publisher(
 ) {
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     let Ok(ed_key) = publisher_host_key.try_into_ed25519() else {
-        tracing::error!("KIN-HOST-001: Static host key configuration is invalid (must be ed25519)");
+        tracing::error!("KIN-HST-001: Static host key configuration is invalid (must be ed25519)");
         return;
     };
     let ed_bytes = ed_key.to_bytes();
     let Ok(dalek_kp) = ed25519_dalek::SigningKey::try_from(&ed_bytes[0..32]) else {
-        tracing::error!("KIN-HOST-002: Cryptographic conversion failed for static host key");
+        tracing::error!("KIN-HST-002: Cryptographic conversion failed for static host key");
         return;
     };
 
@@ -46,7 +46,7 @@ pub async fn start_routing_publisher(
         record.signature = signature.to_bytes().to_vec();
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {
-            tracing::warn!("KIN-HOST-003: Failed to broadcast dynamic HostRoutingRecord to DHT: {}", e);
+            tracing::warn!("KIN-HST-003: Failed to broadcast dynamic HostRoutingRecord to DHT: {}", e);
         } else {
             tracing::info!("Published dynamic HostRoutingRecord to DHT");
         }
@@ -125,7 +125,7 @@ pub async fn start_drand_heartbeat(
                     .await
                     .unwrap_or_else(|_| {
                         tracing::error!(
-                            "KIN-HOST-004: Background PoW mining task panicked, falling back to an unverified identity"
+                            "KIN-HST-004: Background PoW mining task panicked, falling back to an unverified identity"
                         );
                         libp2p::identity::Keypair::generate_ed25519()
                     });
@@ -157,7 +157,7 @@ pub async fn start_drand_heartbeat(
                                 break;
                             }
                             Err(e) => {
-                                tracing::warn!("KIN-HOST-005: Hot-swap bind failed, OS sockets likely in TIME_WAIT. Retrying in 2 seconds... (Error: {})", e);
+                                tracing::warn!("KIN-HST-005: Hot-swap bind failed, OS sockets likely in TIME_WAIT. Retrying in 2 seconds... (Error: {})", e);
                                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                                 retries += 1;
                             }
@@ -175,7 +175,7 @@ pub async fn start_drand_heartbeat(
                             );
                         }
                         None => {
-                            tracing::error!("KIN-HOST-006: CRITICAL: Failed to hot-swap P2P network after 5 retries. Forcing daemon crash for systemd recovery.");
+                            tracing::error!("KIN-HST-006: CRITICAL: Failed to hot-swap P2P network after 5 retries. Forcing daemon crash for systemd recovery.");
                             panic!("Network hot-swap failed permanently due to bound ports.");
                         }
                     }
