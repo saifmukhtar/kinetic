@@ -221,7 +221,7 @@ impl NetworkEventLoop {
                     let info = self.swarm.network_info();
                     let num_peers = info.num_peers();
                     if num_peers == 0 {
-                        tracing::warn!("0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
+                        tracing::warn!("KIN-P2P-020: 0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
                         for addr in &self.bootstrap_nodes {
                             let _ = self.swarm.dial(addr.clone());
                         }
@@ -235,13 +235,13 @@ impl NetworkEventLoop {
                                 for domain in &domains {
                                     let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
                                     if addrs.is_empty() {
-                                        tracing::warn!("Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
+                                        tracing::warn!("KIN-DNS-001: Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
                                     }
                                     for multiaddr in addrs {
                                         if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {
                                             let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
                                         } else {
-                                            tracing::warn!("Rejected unroutable DNS seed multiaddr: {}", multiaddr);
+                                            tracing::warn!("KIN-NET-051: Rejected unroutable DNS seed multiaddr: {}", multiaddr);
                                         }
                                     }
                                 }

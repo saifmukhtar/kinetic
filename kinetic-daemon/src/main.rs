@@ -157,7 +157,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     println!("Installing Kinetic Daemon service...");
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -182,7 +182,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
 fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
@@ -191,7 +191,7 @@ fn uninstall_service() -> Result<()> {
 fn start_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -200,7 +200,7 @@ fn start_background_service() -> Result<()> {
 fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -220,7 +220,7 @@ fn stop_background_service() -> Result<()> {
 /// Returns an `anyhow::Error` if any fundamental networking or storage components fail to bind/initialize.
 async fn run_daemon() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
-        tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");
+        tracing::error!("KIN-SYS-011: FATAL: Governance keys are not initialized (using placeholders).");
         tracing::error!(
             "The network cannot boot in production mode with a bricked governance plane."
         );
@@ -261,7 +261,7 @@ async fn run_daemon() -> Result<()> {
         .daemon
         .storage_dir
         .to_str()
-        .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 path in storage_dir"))?;
+        .ok_or_else(|| anyhow::anyhow!("KIN-SYS-008: Invalid UTF-8 path in storage_dir"))?;
     let storage = Arc::new(KineticStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
@@ -417,7 +417,7 @@ async fn run_daemon() -> Result<()> {
                     }
 
                     if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
-                        tracing::warn!("Failed to save downloaded governance state to disk: {}", e);
+                        tracing::warn!("KIN-SYS-006: Failed to save downloaded governance state to disk: {}", e);
                     } else {
                         tracing::info!(
                             "Successfully bootstrapped governance state from seed node."
@@ -426,7 +426,7 @@ async fn run_daemon() -> Result<()> {
                         break;
                     }
                 } else {
-                    tracing::warn!("Seed node provided invalid governance state bytes.");
+                    tracing::warn!("KIN-GOV-004: Seed node provided invalid governance state bytes.");
                 }
             }
         }

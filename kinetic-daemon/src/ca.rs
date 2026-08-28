@@ -236,7 +236,7 @@ fn trust_root_ca(cert_path: &Path) {
 
         match status {
             Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on Windows."),
-            _ => tracing::warn!("Failed or rejected Root CA trust installation on Windows."),
+            _ => tracing::warn!("KIN-SYS-003: Failed or rejected Root CA trust installation on Windows."),
         }
     }
 
@@ -253,7 +253,7 @@ fn trust_root_ca(cert_path: &Path) {
 
         match status {
             Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on macOS."),
-            _ => tracing::warn!("Failed or rejected Root CA trust installation on macOS."),
+            _ => tracing::warn!("KIN-SYS-003: Failed or rejected Root CA trust installation on macOS."),
         }
     }
 
@@ -273,7 +273,7 @@ fn trust_root_ca(cert_path: &Path) {
 
         match status {
             Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on Linux."),
-            _ => tracing::warn!("Failed or rejected Root CA trust installation on Linux."),
+            _ => tracing::warn!("KIN-SYS-003: Failed or rejected Root CA trust installation on Linux."),
         }
     }
 }

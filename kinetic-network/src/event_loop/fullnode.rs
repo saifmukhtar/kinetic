@@ -251,7 +251,7 @@ pub(crate) fn build_full_swarm(
                     tracing::info!("Listening on TCP: {}", addr);
                     tcp_success = true;
                 }
-                Err(e) => tracing::warn!("Failed to bind TCP on {}: {}", addr, e),
+                Err(e) => tracing::warn!("KIN-SYS-001: Failed to bind TCP on {}: {}", addr, e),
             }
         }
     }
@@ -263,12 +263,12 @@ pub(crate) fn build_full_swarm(
                     tracing::info!("Listening on QUIC: {}", quic_addr);
                     quic_success = true;
                 }
-                Err(e) => tracing::warn!("Failed to bind QUIC on {}: {}", quic_addr, e),
+                Err(e) => tracing::warn!("KIN-SYS-001: Failed to bind QUIC on {}: {}", quic_addr, e),
             }
         }
     }
     if !quic_success && !config.quic_listen_addrs.is_empty() {
-        tracing::warn!("Failed to bind any QUIC addresses. Falling back to TCP only.");
+        tracing::warn!("KIN-SYS-001: Failed to bind any QUIC addresses. Falling back to TCP only.");
     }
 
     if !tcp_success && !quic_success {
