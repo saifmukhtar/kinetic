@@ -103,19 +103,19 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                             payload.extend_from_slice(&chunk);
                         }
                         if limit_exceeded {
-                            warn!(error_code = "KIN-NRS-001", "API response exceeded 100KB limit for {}", apex_name_clone);
+                            warn!(error_code = "KIN-API-007", "API response exceeded 100KB limit for {}", apex_name_clone);
                             Ok::<_, Arc<anyhow::Error>>(None)
                         } else {
                             if !is_reserved_clone {
                                 match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
                                     Ok(name_record) => {
                                         if name_record.verify_signature(kinetic_core::constants::NETWORK_SALT).is_err() {
-                                            warn!(error_code = "KIN-NRS-002", "Rejecting .kin resolution: record signature invalid for {}", apex_name_clone);
+                                            warn!(error_code = "KIN-VER-020", "Rejecting .kin resolution: record signature invalid for {}", apex_name_clone);
                                             return Err(Arc::new(anyhow::anyhow!("Invalid signature")));
                                         }
                                     }
                                     Err(e) => {
-                                        warn!(error_code = "KIN-NRS-003", "Invalid NameRecord format for {}: {}", apex_name_clone, e);
+                                        warn!(error_code = "KIN-VAL-010", "Invalid NameRecord format for {}: {}", apex_name_clone, e);
                                         return Err(Arc::new(anyhow::anyhow!("Invalid format")));
                                     }
                                 }
@@ -125,12 +125,12 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                     } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
                         Ok(None)
                     } else {
-                        warn!(error_code = "KIN-NRS-004", "Daemon API returned status: {}", resp.status());
+                        warn!(error_code = "KIN-API-006", "Daemon API returned status: {}", resp.status());
                         Err(Arc::new(anyhow::anyhow!("API error: {}", resp.status())))
                     }
                 }
                 Err(e) => {
-                    warn!(error_code = "KIN-NRS-005", "Daemon API request failed: {}", e);
+                    warn!(error_code = "KIN-API-006", "Daemon API request failed: {}", e);
                     Err(Arc::new(e.into()))
                 }
             }
@@ -214,7 +214,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             }
                                             Err(e) => {
                                                 warn!(
-                                                    error_code = "KIN-NRS-010",
+                                                    error_code = "KIN-VAL-013",
                                                     "E2E Auth Request failed: {}", e
                                                 );
                                                 let response = builder.error_msg(
@@ -255,7 +255,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     Ok(n) => n,
                                     Err(e) => {
                                         error!(
-                                            error_code = "KIN-NRS-006",
+                                            error_code = "KIN-VER-021",
                                             "Invalid query name format: {}", e
                                         );
                                         let response = builder.error_msg(
@@ -295,7 +295,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 std::net::IpAddr::V4(*ip),
                                             ) {
                                                 warn!(
-                                                    error_code = "KIN-NRS-007",
+                                                    error_code = "KIN-VER-021",
                                                     "Blocked SSRF attempt: A record points to forbidden IP {}. Reason: {}",
                                                     ip,
                                                     e
@@ -315,7 +315,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 std::net::IpAddr::V6(*ip),
                                             ) {
                                                 warn!(
-                                                    error_code = "KIN-NRS-016",
+                                                    error_code = "KIN-VAL-014",
                                                     "Blocked SSRF attempt: AAAA record points to forbidden IP {}. Reason: {}",
                                                     ip,
                                                     e
@@ -349,7 +349,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
                                             if is_blocked_cname {
                                                 warn!(
-                                                    error_code = "KIN-NRS-008",
+                                                    error_code = "KIN-VAL-011",
                                                     "Blocked SSRF attempt: CNAME record points to forbidden local/internal name {}",
                                                     target
                                                 );
@@ -361,7 +361,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                     kinetic_core::net::validate_ssrf_safe(ip)
                                             {
                                                 warn!(
-                                                    error_code = "KIN-NRS-009",
+                                                    error_code = "KIN-VAL-012",
                                                     "Blocked SSRF attempt: CNAME record points to forbidden IP {}. Reason: {}",
                                                     target,
                                                     e
@@ -447,30 +447,30 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 }
                             } else {
                                 warn!(
-                                    error_code = "KIN-NRS-011",
+                                    error_code = "KIN-VAL-017",
                                     "No records found for subname: {}", subname
                                 );
                             }
                         }
                         Err(e) => warn!(
-                            error_code = "KIN-NRS-012",
+                            error_code = "KIN-VAL-017",
                             "Payload was not a valid NrsZone: {}", e
                         ),
                     }
                 }
                 Err(e) => warn!(
-                    error_code = "KIN-NRS-013",
+                    error_code = "KIN-VAL-017",
                     "Payload was not a valid NameRecord: {}", e
                 ),
             }
         }
         Ok(None) => warn!(
-            error_code = "KIN-NRS-014",
+            error_code = "KIN-VAL-017",
             "No payload found for .kin query (NXDOMAIN cached)"
         ),
         Err(e) => {
             error!(
-                error_code = "KIN-NRS-015",
+                error_code = "KIN-VAL-017",
                 "Error resolving .kin query via DHT/Cache: {:?}", e
             );
             let response =

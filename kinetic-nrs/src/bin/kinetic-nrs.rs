@@ -247,7 +247,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     .group("nogroup")
                     .apply()
                 {
-                    tracing::error!(error_code = "KIN-NRS-021", "Failed to drop privileges: {}", e);
+                    tracing::error!(error_code = "KIN-SYS-012", "Failed to drop privileges: {}", e);
                     std::process::exit(1);
                 } else {
                     tracing::info!(
@@ -259,7 +259,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
             tokio::select! {
                 res = server.block_until_done() => {
                     if let Err(e) = res {
-                        tracing::error!(error_code = "KIN-NRS-022", "DNS Server error: {:?}", e);
+                        tracing::error!(error_code = "KIN-SYS-002", "DNS Server error: {:?}", e);
                     }
                 }
                 _ = kinetic_core::shutdown::shutdown_signal() => {
@@ -272,7 +272,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
         }
         Err(e) => {
             warn!(
-                error_code = "KIN-NRS-023",
+                error_code = "KIN-NRS-003",
                 "Failed to bind DNS proxy to {}:{}: {}",
                 bind_ip, nrs_port, e
             );
@@ -305,7 +305,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                             .group("nogroup")
                             .apply()
                         {
-                            tracing::error!(error_code = "KIN-NRS-024", "Failed to drop privileges: {}", e);
+                            tracing::error!(error_code = "KIN-SYS-012", "Failed to drop privileges: {}", e);
                             std::process::exit(1);
                         } else {
                             tracing::info!(
@@ -317,7 +317,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     tokio::select! {
                         res = server.block_until_done() => {
                             if let Err(e) = res {
-                                tracing::error!(error_code = "KIN-NRS-025", "DNS Server fallback error: {:?}", e);
+                                tracing::error!(error_code = "KIN-SYS-002", "DNS Server fallback error: {:?}", e);
                             }
                         }
                         _ = kinetic_core::shutdown::shutdown_signal() => {
@@ -330,7 +330,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                 }
                 Err(e2) => {
                     warn!(
-                        error_code = "KIN-NRS-026",
+                        error_code = "KIN-NRS-003",
                         "Failed to bind DNS proxy to fallback port {}: {}",
                         fallback_port, e2
                     );
