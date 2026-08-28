@@ -24,9 +24,9 @@ pub fn load_or_generate_key(key_path: &Path) -> Keypair {
             let corrupt_path = key_path.with_file_name(corrupt_name);
             
             if let Err(e) = std::fs::rename(key_path, &corrupt_path) {
-                tracing::error!("CRITICAL: Node identity was corrupted, but failed to preserve file: {}", e);
+                tracing::error!("KIN-SYS-005: CRITICAL: Node identity was corrupted, but failed to preserve file: {}", e);
             } else {
-                tracing::error!("CRITICAL: Node identity was corrupted! Preserved forensic evidence at {:?}. Booting with a newly generated PeerId.", corrupt_path);
+                tracing::error!("KIN-SYS-005: CRITICAL: Node identity was corrupted! Preserved forensic evidence at {:?}. Booting with a newly generated PeerId.", corrupt_path);
             }
 
             let k = Keypair::generate_ed25519();
@@ -42,7 +42,7 @@ pub fn load_or_generate_key(key_path: &Path) -> Keypair {
         if let Ok(encoded) = k.to_protobuf_encoding()
             && let Err(e) = kinetic_core::secure_fs::write_secret(key_path, &encoded)
         {
-            tracing::warn!("Failed to save generated infrastructure identity: {}", e);
+            tracing::warn!("KIN-SYS-006: Failed to save generated infrastructure identity: {}", e);
         }
         tracing::info!("Generated new static infrastructure identity");
         k

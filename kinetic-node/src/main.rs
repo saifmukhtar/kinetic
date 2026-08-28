@@ -63,7 +63,7 @@ fn install_service() -> Result<()> {
     println!("Installing Kinetic Node service...");
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -86,7 +86,7 @@ fn install_service() -> Result<()> {
 fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
@@ -95,7 +95,7 @@ fn uninstall_service() -> Result<()> {
 fn start_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -104,7 +104,7 @@ fn start_background_service() -> Result<()> {
 fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -148,9 +148,12 @@ async fn main() -> Result<()> {
 /// Returns an `anyhow::Error` if fundamental networking, storage, or key generation fails.
 async fn run_node() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
-        tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");
+        tracing::error!("KIN-SYS-011: FATAL: Governance keys are not initialized (using placeholders).");
         tracing::error!(
-            "The network cannot boot in production mode with a bricked governance plane."
+            "KIN-SYS-011: Please run 'kinetic-node config init' to generate production keys."
+        );
+        tracing::error!(
+            "KIN-SYS-011: A manual hot-swap of the Node governance keypair is required."
         );
         tracing::error!(
             error_code = e.code(),
@@ -192,7 +195,7 @@ async fn run_node() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("Drand beacon unavailable on startup: {}", e);
+            warn!("KIN-DRN-002: Drand beacon unavailable on startup: {}", e);
             RawKyn::unavailable()
         }
     };
@@ -288,7 +291,7 @@ async fn run_node() -> Result<()> {
 
     tokio::spawn(async move {
         network_loop.run().await;
-        tracing::warn!("Network loop exited");
+        tracing::warn!("KIN-SYS-002: Network loop exited");
     });
 
     // Subscribe to Global Gossip
@@ -376,7 +379,7 @@ async fn run_node() -> Result<()> {
 
                     if estimated_kyn > latest.kyn + 5 {
                         tracing::warn!(
-                            "P2P Drand fallback triggered! We are behind by {} kyns.",
+                            "KIN-DRN-003: P2P Drand fallback triggered! We are behind by {} kyns.",
                             estimated_kyn.saturating_sub(latest.kyn)
                         );
                         should_fetch_http = true;
