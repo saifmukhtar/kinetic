@@ -54,7 +54,7 @@ pub async fn handle_owned_names(
         Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
             Ok(v) => v,
             Err(e) => {
-                tracing::error!(error_code="KIN-DBE-003", error=?e, "Failed to deserialize owned_names from storage");
+                tracing::error!(error_code="KIN-DBE-008", error=?e, "Failed to deserialize owned_names from storage");
                 Vec::new()
             }
         },
