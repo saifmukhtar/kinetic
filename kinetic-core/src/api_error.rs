@@ -295,8 +295,7 @@ impl From<IdentityError> for ApiError {
         let (status, title): (u16, &'static str) = match &e {
             IdentityError::Io(_)
             | IdentityError::CorruptedIdentityFile(_)
-            | IdentityError::KidSigningFailed(_)
-            | IdentityError::Json(_) => (500, "Internal Server Error"),
+            | IdentityError::KidSigningFailed(_) => (500, "Internal Server Error"),
             IdentityError::IdentityNotFound(_) | IdentityError::KidNotFound(_) => {
                 (404, "Not Found")
             }

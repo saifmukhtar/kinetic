@@ -55,10 +55,6 @@ pub enum IdentityError {
     #[error("KID is deactivated: {0}")]
     KidDeactivated(String),
 
-    /// JSON serialization or deserialization failed.
-    #[error("JSON error: {0}")]
-    Json(String),
-
     /// A KID document was malformed or missing fields.
     #[error("Malformed KID document: {0}")]
     MalformedDocument(String),
@@ -102,7 +98,6 @@ impl PartialEq for IdentityError {
             (Self::KidSigningFailed(a), Self::KidSigningFailed(b)) => a == b,
             (Self::InvalidDid(a), Self::InvalidDid(b)) => a == b,
             (Self::KidDeactivated(a), Self::KidDeactivated(b)) => a == b,
-            (Self::Json(a), Self::Json(b)) => a == b,
             (Self::MalformedDocument(a), Self::MalformedDocument(b)) => a == b,
             (Self::MalformedApexDocument(a), Self::MalformedApexDocument(b)) => a == b,
             (Self::MalformedManifest(a), Self::MalformedManifest(b)) => a == b,
@@ -132,14 +127,13 @@ impl IdentityError {
             Self::KidSigningFailed(_) => "KIN-IDN-009",
             Self::InvalidDid(_) => "KIN-IDN-010",
             Self::KidDeactivated(_) => "KIN-IDN-011",
-            Self::Json(_) => "KIN-IDN-012",
-            Self::MalformedDocument(_) => "KIN-IDN-013",
-            Self::MalformedApexDocument(_) => "KIN-IDN-014",
-            Self::MalformedManifest(_) => "KIN-IDN-015",
-            Self::SerializationFailed(_) => "KIN-IDN-016",
-            Self::ManifestSigningFailed(_) => "KIN-IDN-017",
-            Self::KidPrivateKeyNotFound(_) => "KIN-IDN-018",
-            Self::PubkeyMismatch(_) => "KIN-IDN-019",
+            Self::MalformedDocument(_) => "KIN-IDN-012",
+            Self::MalformedApexDocument(_) => "KIN-IDN-013",
+            Self::MalformedManifest(_) => "KIN-IDN-014",
+            Self::SerializationFailed(_) => "KIN-IDN-015",
+            Self::ManifestSigningFailed(_) => "KIN-IDN-016",
+            Self::KidPrivateKeyNotFound(_) => "KIN-IDN-017",
+            Self::PubkeyMismatch(_) => "KIN-IDN-018",
         }
     }
 
@@ -158,7 +152,6 @@ impl IdentityError {
             | Self::InvalidRotation(_)
             | Self::KidSigningFailed(_)
             | Self::InvalidDid(_)
-            | Self::Json(_)
             | Self::MalformedDocument(_)
             | Self::MalformedApexDocument(_)
             | Self::MalformedManifest(_)
@@ -210,9 +203,6 @@ impl IdentityError {
             }
             Self::KidDeactivated(name) => {
                 format!("The KID document for {name} has been permanently deactivated.")
-            }
-            Self::Json(msg) => {
-                format!("JSON processing error: {msg}")
             }
             Self::MalformedDocument(msg) => {
                 format!("The KID document is malformed: {msg}")
