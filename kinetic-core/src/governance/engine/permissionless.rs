@@ -17,7 +17,7 @@ impl GovernanceEngine for PermissionlessEngine {
     ///
     /// # Errors
     ///
-    /// - Always returns [`GovernanceError::InsufficientSignatures`].
+    /// - Always returns [`GovernanceError::GovernanceDisabled`].
     fn verify_action(
         &self,
         _state: &mut GovernanceState,
