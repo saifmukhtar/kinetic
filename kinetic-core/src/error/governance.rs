@@ -12,9 +12,6 @@
 //!
 //! Key roles:
 //! - **Root key**: Ultimate authority; can ratify any action in Sovereign phase.
-//!
-//! > Note: `KIN-ACN-010`, `KIN-ACN-011`, and `KIN-ACN-012` are intentionally
-//! > skipped in the stable code registry to allow for future expansion.
 use super::Severity;
 use thiserror::Error;
 
