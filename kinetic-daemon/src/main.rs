@@ -125,7 +125,10 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     } else {
         kinetic_core::config::get_base_dir()
     };
-    std::fs::create_dir_all(&base_config_dir)?;
+    if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
+        tracing::error!("KIN-CFG-001: Failed to create config directory {:?}: {}", base_config_dir, e);
+        return Err(e.into());
+    }
 
     println!("Generating root CA...");
     let _ = ca::load_or_create_root_ca(&base_config_dir)?;
@@ -359,7 +362,10 @@ async fn run_daemon() -> Result<()> {
     };
 
     let base_config_dir = kinetic_core::config::get_base_dir();
-    std::fs::create_dir_all(&base_config_dir)?;
+    if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
+        tracing::error!("KIN-CFG-001: Failed to create config directory {:?}: {}", base_config_dir, e);
+        return Err(e.into());
+    }
 
     let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
         .map(std::path::PathBuf::from)
@@ -503,7 +509,10 @@ async fn run_daemon() -> Result<()> {
     );
 
     let base_config_dir = kinetic_core::config::get_base_dir();
-    std::fs::create_dir_all(&base_config_dir)?;
+    if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
+        tracing::error!("KIN-CFG-001: Failed to create config directory {:?}: {}", base_config_dir, e);
+        return Err(e.into());
+    }
 
     let root_ca = match ca::load_or_create_root_ca(&base_config_dir) {
         Ok((root_ca, _is_new)) => std::sync::Arc::new(root_ca),

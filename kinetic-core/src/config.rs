@@ -366,7 +366,7 @@ impl KineticConfig {
                 if let Some(parent) = config_path.parent() {
                     if let Err(e) = fs::create_dir_all(parent) {
                         tracing::error!(
-                            "KIN-CFG-005: Failed to create config directory {:?}: {}. Refusing to start.",
+                            "KIN-CFG-001: Failed to create config directory {:?}: {}. Refusing to start.",
                             parent,
                             e
                         );
