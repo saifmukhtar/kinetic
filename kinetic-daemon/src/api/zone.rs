@@ -237,19 +237,7 @@ pub async fn handle_publish_zone(
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let keypair = match kinetic_core::types::load_keypair(&identity_path) {
         Ok(k) => k,
-        Err(_) => {
-            return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-IDN-007", kinetic_core::constants::DOCS_URL),
-                title: "Internal Server Error".to_string(),
-                status: 500,
-                detail: "Could not load identity keypair.".to_string(),
-                instance: None,
-                code: "KIN-IDN-007".to_string(),
-                retryable: false,
-                details: serde_json::Value::Null,
-                request_id: "".to_string(),
-            }));
-        }
+        Err(e) => return Err(crate::api::error::AppError(e.into())),
     };
 
     let pubkey_bytes = keypair.pubkey_bytes();

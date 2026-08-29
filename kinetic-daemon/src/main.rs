@@ -268,7 +268,13 @@ async fn run_daemon() -> Result<()> {
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(RsaVdfEngine::new());
     info!("VDF Engine initialized");
 
-    let daemon_keypair = load_keypair(std::path::Path::new("identity.key"))?;
+    let daemon_keypair = match load_keypair(std::path::Path::new("identity.key")) {
+        Ok(k) => k,
+        Err(e) => {
+            tracing::error!("{}: CRITICAL: Daemon failed to load identity: {}", e.code(), e);
+            return Err(e.into());
+        }
+    };
     info!(
         "Daemon identity loaded: {:?}",
         hex::encode(daemon_keypair.pubkey_bytes())
