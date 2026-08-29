@@ -26,7 +26,7 @@
 //! | `KIN-VDF-NNN` | `VdfError` | VDF engine operations |
 //! | `KIN-GOV-NNN` | `GovernanceError` | Council governance |
 //! | `KIN-NRS-NNN` | `NrsError` | NRS zone parsing |
-//! | `KIN-DRA-NNN` | `DrandError` | Drand beacon |
+//! | `KIN-RND-NNN` | `DrandError` | Drand beacon |
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
 //! | `KIN-NAM-NNN` | `NamesError` | Name validation |
 //! | `KIN-DBE-NNN` | `StorageError` | Sled storage engine |

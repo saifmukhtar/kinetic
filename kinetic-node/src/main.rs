@@ -195,7 +195,7 @@ async fn run_node() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("KIN-DRA-035: Drand beacon unavailable on startup: {}", e);
+            warn!("KIN-RND-035: Drand beacon unavailable on startup: {}", e);
             RawKyn::unavailable()
         }
     };
@@ -379,7 +379,7 @@ async fn run_node() -> Result<()> {
 
                     if estimated_kyn > latest.kyn + 5 {
                         tracing::warn!(
-                            "KIN-DRA-036: P2P Drand fallback triggered! We are behind by {} kyns.",
+                            "KIN-RND-036: P2P Drand fallback triggered! We are behind by {} kyns.",
                             estimated_kyn.saturating_sub(latest.kyn)
                         );
                         should_fetch_http = true;

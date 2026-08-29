@@ -8,7 +8,7 @@
 //! 1. Try each HTTP endpoint (from `config.toml` and DNS TXT records) with up to 3 attempts and 500ms/1s/2s backoff.
 //! 2. For each successful response: verify BLS signature + SHA-256 binding + staleness (≤200 rounds / 10 minutes).
 //! 3. If all endpoints fail: fall back to local storage cache (may be stale but still usable for heartbeats).
-//! 4. If no cache exists: return `DrandError::NoCachedKyn` (`KIN-DRA-004`).
+//! 4. If no cache exists: return `DrandError::NoCachedKyn` (`KIN-RND-004`).
 //!
 //! ## Dev Mode Behavior
 //!
@@ -213,7 +213,7 @@ impl DrandClient {
                 Ok(mut kyn) => {
                     if !kyn.verify() {
                         warn!(
-                            "KIN-DRA-039: Drand endpoint {} returned a cryptographically invalid kyn!",
+                            "KIN-RND-039: Drand endpoint {} returned a cryptographically invalid kyn!",
                             endpoint
                         );
                         last_error = Some(DrandError::InvalidSignature);
@@ -230,7 +230,7 @@ impl DrandClient {
 
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
                         warn!(
-                            "KIN-DRA-040: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
+                            "KIN-RND-040: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
                             endpoint, kyn.kyn, estimated_kyn
                         );
                         last_error = Some(DrandError::StaleKyn {
@@ -247,14 +247,14 @@ impl DrandClient {
                     return Ok(kyn);
                 }
                 Err(e) => {
-                    warn!("KIN-DRA-041: Drand endpoint {} unreachable: {}", endpoint, e);
+                    warn!("KIN-RND-041: Drand endpoint {} unreachable: {}", endpoint, e);
                     last_error = Some(e);
                 }
             }
         }
 
         // All endpoints failed — try cache
-        warn!("KIN-DRA-042: All Drand endpoints unreachable — falling back to cached kyn");
+        warn!("KIN-RND-042: All Drand endpoints unreachable — falling back to cached kyn");
         self.load_cached_kyn()
             .map_err(|_| last_error.unwrap_or(DrandError::AllEndpointsFailed))
     }
@@ -268,11 +268,11 @@ impl DrandClient {
     ///
     /// # Errors
     ///
-    /// - Returns [`DrandError::HttpError`] (`KIN-DRA-003`) if the final attempt returns a non-2xx HTTP status.
-    /// - Returns [`DrandError::StreamReadFailed`] (`KIN-DRA-010`) on connection/stream failure.
-    /// - Returns [`DrandError::ResponseTooLarge`] (`KIN-DRA-011`) if response body exceeds 64 KB.
-    /// - Returns [`DrandError::Serde`] (`KIN-DRA-005`) if the response body fails JSON deserialization.
-    /// - Returns [`DrandError::AllEndpointsFailed`] (`KIN-DRA-001`) if all 3 attempts are exhausted without success.
+    /// - Returns [`DrandError::HttpError`] (`KIN-RND-003`) if the final attempt returns a non-2xx HTTP status.
+    /// - Returns [`DrandError::StreamReadFailed`] (`KIN-RND-010`) on connection/stream failure.
+    /// - Returns [`DrandError::ResponseTooLarge`] (`KIN-RND-011`) if response body exceeds 64 KB.
+    /// - Returns [`DrandError::Serde`] (`KIN-RND-005`) if the response body fails JSON deserialization.
+    /// - Returns [`DrandError::AllEndpointsFailed`] (`KIN-RND-001`) if all 3 attempts are exhausted without success.
     async fn fetch_with_backoff(&self, url: &str) -> Result<RawKyn, DrandError> {
         let mut delay = Duration::from_millis(500);
         let max_attempts = 3;
@@ -365,7 +365,7 @@ impl DrandClient {
         }
 
         if crate::config::is_dev_mode() {
-            tracing::warn!("KIN-DRA-043: DEV MODE: Returning mock drand kyn because cache is empty.");
+            tracing::warn!("KIN-RND-043: DEV MODE: Returning mock drand kyn because cache is empty.");
             return Ok(RawKyn {
                 kyn: 5000000,
                 randomness: "mock_randomness".to_string(),

@@ -1,4 +1,4 @@
-//! Drand Quicknet kyn acquisition and verification error types (`KIN-DRA-NNN`).
+//! Drand Quicknet kyn acquisition and verification error types (`KIN-RND-NNN`).
 //!
 //! [`DrandError`] is returned by [`DrandClient::fetch_latest`](crate::drand::DrandClient::fetch_latest)
 //! when the Quicknet randomness beacon cannot be reached, returns an invalid kyn, or the
@@ -87,16 +87,16 @@ impl DrandError {
     /// Stable protocol error code.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::AllEndpointsFailed => "KIN-DRA-001",
-            Self::HttpError(_) => "KIN-DRA-003",
-            Self::NoCachedKyn => "KIN-DRA-004",
-            Self::Serde(_) => "KIN-DRA-005",
-            Self::Storage(_) => "KIN-DRA-006",
-            Self::Reqwest(_) => "KIN-DRA-007",
-            Self::InvalidSignature => "KIN-DRA-008",
-            Self::StaleKyn { .. } => "KIN-DRA-009",
-            Self::StreamReadFailed(_) => "KIN-DRA-010",
-            Self::ResponseTooLarge(_) => "KIN-DRA-011",
+            Self::AllEndpointsFailed => "KIN-RND-001",
+            Self::HttpError(_) => "KIN-RND-003",
+            Self::NoCachedKyn => "KIN-RND-004",
+            Self::Serde(_) => "KIN-RND-005",
+            Self::Storage(_) => "KIN-RND-006",
+            Self::Reqwest(_) => "KIN-RND-007",
+            Self::InvalidSignature => "KIN-RND-008",
+            Self::StaleKyn { .. } => "KIN-RND-009",
+            Self::StreamReadFailed(_) => "KIN-RND-010",
+            Self::ResponseTooLarge(_) => "KIN-RND-011",
         }
     }
 

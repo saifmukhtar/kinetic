@@ -147,7 +147,7 @@ async fn run_host() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("KIN-DRA-047: Drand beacon unavailable on startup: {}", e);
+            warn!("KIN-RND-047: Drand beacon unavailable on startup: {}", e);
             RawKyn::unavailable()
         }
     };
