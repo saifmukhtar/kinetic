@@ -255,8 +255,13 @@ impl DrandClient {
 
         // All endpoints failed — try cache
         warn!("KIN-RND-042: All Drand endpoints unreachable — falling back to cached kyn");
-        self.load_cached_kyn()
-            .map_err(|_| last_error.unwrap_or(DrandError::AllEndpointsFailed))
+        match self.load_cached_kyn() {
+            Ok(kyn) => Ok(kyn),
+            Err(e) => {
+                warn!("KIN-RND-004: Cache fallback failed: {}", e);
+                Err(DrandError::AllEndpointsFailed)
+            }
+        }
     }
 
     /// Attempts to fetch a single Drand kyn from a URL with up to 3 attempts and exponential backoff.
