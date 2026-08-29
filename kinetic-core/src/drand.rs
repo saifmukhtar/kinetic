@@ -206,7 +206,6 @@ impl DrandClient {
         }
 
         // Try each endpoint with exponential backoff
-        let mut last_error = None;
 
         for endpoint in &endpoints {
             match self.fetch_with_backoff(endpoint).await {
@@ -216,7 +215,6 @@ impl DrandClient {
                             "KIN-RND-039: Drand endpoint {} returned a cryptographically invalid kyn!",
                             endpoint
                         );
-                        last_error = Some(DrandError::InvalidSignature);
                         continue;
                     }
 
@@ -233,10 +231,6 @@ impl DrandClient {
                             "KIN-RND-040: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
                             endpoint, kyn.kyn, estimated_kyn
                         );
-                        last_error = Some(DrandError::StaleKyn {
-                            expected: estimated_kyn,
-                            got: kyn.kyn,
-                        });
                         continue;
                     }
 
@@ -248,7 +242,6 @@ impl DrandClient {
                 }
                 Err(e) => {
                     warn!("KIN-RND-041: Drand endpoint {} unreachable: {}", endpoint, e);
-                    last_error = Some(e);
                 }
             }
         }
@@ -258,7 +251,7 @@ impl DrandClient {
         match self.load_cached_kyn() {
             Ok(kyn) => Ok(kyn),
             Err(e) => {
-                warn!("KIN-RND-004: Cache fallback failed: {}", e);
+                warn!("{}: Cache fallback failed: {}", e.code(), e);
                 Err(DrandError::AllEndpointsFailed)
             }
         }
