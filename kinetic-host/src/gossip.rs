@@ -66,7 +66,7 @@ pub async fn start_gossip_listener(
                     tokio::task::spawn_blocking(move || {
                         if let Err(e) = cloned_state.save_to_disk(&path_clone) {
                             tracing::error!(
-                                "KIN-SYS-073: CRITICAL: Failed to save governance state to disk: {}",
+                                "KIN-ACN-013: Failed to save modified governance state to disk: {}",
                                 e
                             );
                         }

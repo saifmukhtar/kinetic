@@ -69,13 +69,17 @@ pub fn handle_governance_gossip(
                     }
                 }
                 tokio::task::spawn_blocking(move || {
-                    let _ = state_snapshot.save_to_disk(&gossip_gov_path);
+                    if let Err(e) = state_snapshot.save_to_disk(&gossip_gov_path) {
+                        tracing::error!("KIN-ACN-013: Failed to save modified governance state to disk: {}", e);
+                    }
                 });
             }
             Ok(None) => {
                 tracing::info!("Governance state updated via gossip. No immediate effect.");
                 tokio::task::spawn_blocking(move || {
-                    let _ = state_snapshot.save_to_disk(&gossip_gov_path);
+                    if let Err(e) = state_snapshot.save_to_disk(&gossip_gov_path) {
+                        tracing::error!("KIN-ACN-013: Failed to save modified governance state to disk: {}", e);
+                    }
                 });
             }
             Err(e) => {
