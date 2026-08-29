@@ -429,14 +429,14 @@ async fn run_daemon() -> Result<()> {
                         break;
                     }
                 } else {
-                    tracing::warn!("KIN-ACN-035: Seed node provided invalid governance state bytes.");
+                    tracing::warn!("KIN-ACN-015: Seed node provided invalid governance state bytes.");
                 }
             }
         }
 
         if !success {
             tracing::warn!(
-                "KIN-ACN-038: Failed to fetch governance state from any bootstrap node. Initializing a default genesis state."
+                "KIN-ACN-018: Failed to fetch governance state from any bootstrap node. Initializing a default genesis state."
             );
         }
     }
