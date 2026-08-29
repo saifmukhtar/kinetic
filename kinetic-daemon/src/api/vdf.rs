@@ -477,6 +477,7 @@ pub async fn handle_vdf_renew(
             match serde_json::from_slice(&old_reveal_bytes) {
                 Ok(r) => r,
                 Err(e) => {
+                    tracing::error!(error_code="KIN-DBE-008", error=?e, "Local Reveal corrupted during VDF evaluation");
                     update_task_error(
                         &tasks_clone,
                         &task_id_clone,
