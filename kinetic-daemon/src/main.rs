@@ -284,8 +284,8 @@ async fn run_daemon() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("KIN-RND-035: Drand beacon unavailable on startup: {}", e);
-            warn!("KIN-RND-045: P2P swarm and proxy will start — registration disabled until beacon reachable");
+            warn!("KIN-RND-012: Drand beacon unavailable on startup: {}", e);
+            warn!("KIN-RND-015: P2P swarm and proxy will start — registration disabled until beacon reachable");
             kinetic_core::drand::RawKyn::unavailable()
         }
     };

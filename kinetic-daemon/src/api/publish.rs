@@ -69,7 +69,7 @@ pub async fn handle_publish_record(
                 // If even that is unavailable, we allow the publish to proceed —
                 // the DHT store layer will still enforce its own staleness check.
                 tracing::warn!(
-                    error_code = "KIN-RND-048",
+                    error_code = "KIN-RND-016",
                     "handle_publish_record: Could not fetch live drand kyn, \
                      falling back to cached value for staleness check"
                 );
