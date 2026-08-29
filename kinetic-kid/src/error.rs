@@ -30,21 +30,21 @@ pub enum Error {
     /// Base64 decode failed for Identity key/signature.
     #[error("Base64 decode error: {0}")]
     Base64Error(String),
+    /// String field exceeds byte length limits.
+    #[error("Field '{0}' exceeds maximum allowed byte length")]
+    StringLengthExceeded(String),
     /// Manifest signed by key not authorized in KID document.
     #[error("Manifest signed by unauthorized key")]
     UnauthorizedManifestSignature,
     /// Too many keys in Identity Document (Max 20).
     #[error("Identity document exceeds maximum key bounds (max 20)")]
     KeyLimitExceeded,
-    /// Too many manifest pointers (Max 20).
-    #[error("Manifest pointer exceeds maximum location bounds (max 20)")]
-    LocationLimitExceeded,
     /// Too many service endpoints (Max 50).
     #[error("Capability manifest exceeds maximum service endpoints (max 50)")]
     ServiceLimitExceeded,
-    /// String field exceeds byte length limits.
-    #[error("Field '{0}' exceeds maximum allowed byte length")]
-    StringLengthExceeded(String),
+    /// Too many manifest pointers (Max 20).
+    #[error("Manifest pointer exceeds maximum location bounds (max 20)")]
+    LocationLimitExceeded,
     /// Manifest valid_from timestamp is in the future.
     #[error("Manifest valid_from is in the future")]
     InvalidValidFrom,
@@ -56,11 +56,6 @@ pub enum Error {
         "KID document genesis binding failed: DID does not match SHA-256 of primary controller key (KIN-KID-015)"
     )]
     DidKeyMismatch,
-    /// Identity Update not signed by a key in the existing document.
-    #[error(
-        "KID document update rejected: not authorized by any key in the existing document (KIN-KID-016)"
-    )]
-    UnauthorizedKidUpdate,
 }
 
 impl From<serde_json::Error> for Error {
@@ -97,15 +92,14 @@ impl Error {
             Self::InvalidSignature => "KIN-KID-007",
             Self::MissingSignature => "KIN-KID-008",
             Self::Base64Error(_) => "KIN-KID-009",
+            Self::StringLengthExceeded(_) => "KIN-KID-010",
             Self::UnauthorizedManifestSignature => "KIN-KID-011",
             Self::KeyLimitExceeded => "KIN-KID-012",
             Self::InvalidValidFrom => "KIN-KID-013",
             Self::ManifestExpired => "KIN-KID-014",
             Self::DidKeyMismatch => "KIN-KID-015",
-            Self::UnauthorizedKidUpdate => "KIN-KID-016",
+            Self::ServiceLimitExceeded => "KIN-KID-016",
             Self::LocationLimitExceeded => "KIN-KID-017",
-            Self::ServiceLimitExceeded => "KIN-KID-018",
-            Self::StringLengthExceeded(_) => "KIN-KID-010",
         }
     }
 
@@ -123,8 +117,7 @@ impl Error {
             | Self::LocationLimitExceeded
             | Self::ServiceLimitExceeded
             | Self::StringLengthExceeded(_)
-            | Self::DidKeyMismatch
-            | Self::UnauthorizedKidUpdate => Severity::Error,
+            | Self::DidKeyMismatch => Severity::Error,
             _ => Severity::Warning,
         }
     }
@@ -180,9 +173,6 @@ impl Error {
             Self::ManifestExpired => "Capability manifest has expired.".to_string(),
             Self::DidKeyMismatch => {
                 "DID identity mismatch: the document identifier does not correspond to the primary controller key.".to_string()
-            }
-            Self::UnauthorizedKidUpdate => {
-                "KID update rejected: the update must be signed by a key listed in the current identity document.".to_string()
             }
         }
     }
