@@ -256,7 +256,8 @@ impl DrandClient {
         }
 
         // All endpoints failed — try cache
-        warn!("KIN-RND-042: All Drand endpoints unreachable — falling back to cached kyn");
+        let err = DrandError::AllEndpointsFailed;
+        warn!("{}: All Drand endpoints unreachable — falling back to cached kyn", err.code());
         match self.load_cached_kyn() {
             Ok(kyn) => Ok(kyn),
             Err(e) => {
