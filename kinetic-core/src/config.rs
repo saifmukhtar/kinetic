@@ -415,7 +415,7 @@ impl KineticConfig {
             }
             Err(e) => {
                 tracing::error!(
-                    "KIN-CFG-008: Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
+                    "KIN-CFG-005: Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
                     e
                 );
                 std::process::exit(1);
@@ -497,7 +497,7 @@ impl KineticConfig {
 
         if tcp_ports.len() != tcp_len {
             tracing::error!(
-                "KIN-CFG-009: Configuration Error: TCP port collision detected in config.toml! Ensure all TCP ports (api, proxy, p2p, backend, pac) are strictly unique."
+                "KIN-CFG-006: Configuration Error: TCP port collision detected in config.toml! Ensure all TCP ports (api, proxy, p2p, backend, pac) are strictly unique."
             );
             std::process::exit(1);
         }
@@ -515,7 +515,7 @@ impl KineticConfig {
 
         if udp_ports.len() != udp_len {
             tracing::error!(
-                "KIN-CFG-010: Configuration Error: UDP port collision detected in config.toml! Ensure all UDP ports (nrs, atlas, quic) are strictly unique."
+                "KIN-CFG-007: Configuration Error: UDP port collision detected in config.toml! Ensure all UDP ports (nrs, atlas, quic) are strictly unique."
             );
             std::process::exit(1);
         }

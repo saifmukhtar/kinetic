@@ -117,12 +117,12 @@ pub async fn handle_set_config(
             }
             Err(e) => {
                 Err(crate::api::error::AppError(kinetic_core::ApiError {
-                    error_type: format!("{}/errors/KIN-CFG-013", kinetic_core::constants::DOCS_URL),
+                    error_type: format!("{}/errors/KIN-CFG-010", kinetic_core::constants::DOCS_URL),
                     title: "Bad Request".to_string(),
                     status: 400,
                     detail: format!("Invalid config payload format: {}", e),
                     instance: None,
-                    code: "KIN-CFG-013".to_string(),
+                    code: "KIN-CFG-010".to_string(),
                     retryable: false,
                     details: serde_json::Value::Null,
                     request_id: "".to_string(),
@@ -131,12 +131,12 @@ pub async fn handle_set_config(
         }
     } else {
         Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-CFG-013", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-CFG-010", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "Missing 'config' object in payload.".to_string(),
             instance: None,
-            code: "KIN-CFG-013".to_string(),
+            code: "KIN-CFG-010".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),

@@ -242,11 +242,11 @@ async fn run_daemon() -> Result<()> {
         || config.daemon.backend_port == config.network.daemon_port
     {
         tracing::error!(
-            "KIN-CFG-011: FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
+            "KIN-CFG-008: FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
             config.daemon.backend_port
         );
         tracing::error!(
-            "KIN-CFG-012: This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml."
+            "KIN-CFG-009: This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml."
         );
         std::process::exit(1);
     }
