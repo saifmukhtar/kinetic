@@ -13,12 +13,12 @@ pub async fn handle_get_config(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-API-008", kinetic_core::constants::DOCS_URL),
             title: "Unauthorized".to_string(),
             status: 403,
             detail: "Forbidden".to_string(),
             instance: None,
-            code: "KIN-API-001".to_string(),
+            code: "KIN-API-008".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -38,12 +38,12 @@ pub async fn handle_owned_names(
 ) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
     if !role.can_publish() {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-API-008", kinetic_core::constants::DOCS_URL),
             title: "Unauthorized".to_string(),
             status: 403,
             detail: "Forbidden".to_string(),
             instance: None,
-            code: "KIN-API-001".to_string(),
+            code: "KIN-API-008".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -93,12 +93,12 @@ pub async fn handle_set_config(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-001", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-API-008", kinetic_core::constants::DOCS_URL),
             title: "Unauthorized".to_string(),
             status: 403,
             detail: "Forbidden".to_string(),
             instance: None,
-            code: "KIN-API-001".to_string(),
+            code: "KIN-API-008".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
