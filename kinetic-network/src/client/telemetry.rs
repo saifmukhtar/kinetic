@@ -110,7 +110,7 @@ pub fn start_telemetry_service(
                     .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL, payload)
                     .await
                 {
-                    tracing::warn!("Failed to broadcast telemetry: {}", e);
+                    tracing::warn!("KIN-TEL-002: Failed to broadcast telemetry: {}", e);
                 }
             }
         }

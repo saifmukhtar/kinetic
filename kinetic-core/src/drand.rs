@@ -213,7 +213,7 @@ impl DrandClient {
                 Ok(mut kyn) => {
                     if !kyn.verify() {
                         warn!(
-                            "Drand endpoint {} returned a cryptographically invalid kyn!",
+                            "KIN-DRA-039: Drand endpoint {} returned a cryptographically invalid kyn!",
                             endpoint
                         );
                         last_error = Some(DrandError::InvalidSignature);
@@ -230,7 +230,7 @@ impl DrandClient {
 
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
                         warn!(
-                            "Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
+                            "KIN-DRA-040: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
                             endpoint, kyn.kyn, estimated_kyn
                         );
                         last_error = Some(DrandError::StaleKyn {
@@ -247,14 +247,14 @@ impl DrandClient {
                     return Ok(kyn);
                 }
                 Err(e) => {
-                    warn!("Drand endpoint {} unreachable: {}", endpoint, e);
+                    warn!("KIN-DRA-041: Drand endpoint {} unreachable: {}", endpoint, e);
                     last_error = Some(e);
                 }
             }
         }
 
         // All endpoints failed — try cache
-        warn!("All Drand endpoints unreachable — falling back to cached kyn");
+        warn!("KIN-DRA-042: All Drand endpoints unreachable — falling back to cached kyn");
         self.load_cached_kyn()
             .map_err(|_| last_error.unwrap_or(DrandError::AllEndpointsFailed))
     }
@@ -365,7 +365,7 @@ impl DrandClient {
         }
 
         if crate::config::is_dev_mode() {
-            tracing::warn!("DEV MODE: Returning mock drand kyn because cache is empty.");
+            tracing::warn!("KIN-DRA-043: DEV MODE: Returning mock drand kyn because cache is empty.");
             return Ok(RawKyn {
                 kyn: 5000000,
                 randomness: "mock_randomness".to_string(),

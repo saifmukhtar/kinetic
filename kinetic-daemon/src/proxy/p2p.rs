@@ -30,7 +30,7 @@ pub async fn handle_incoming_proxy_requests(
                 .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
 
             let safe_path = if decoded_path.contains("..") || !decoded_path.starts_with('/') {
-                tracing::warn!("Blocked malicious P2P proxy path: {}", req.path);
+                tracing::warn!("KIN-SEC-010: Blocked malicious P2P proxy path: {}", req.path);
                 let _ = client_clone
                     .send_proxy_response(
                         channel,
@@ -49,7 +49,7 @@ pub async fn handle_incoming_proxy_requests(
             // Limit body size to 5MB to prevent OOM
             if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                 tracing::warn!(
-                    "Blocked oversized P2P proxy request ({} bytes)",
+                    "KIN-SEC-011: Blocked oversized P2P proxy request ({} bytes)",
                     req.body.len()
                 );
                 let _ = client_clone
@@ -70,7 +70,7 @@ pub async fn handle_incoming_proxy_requests(
             let method = match req.method.parse::<reqwest::Method>() {
                 Ok(m) => m,
                 Err(_) => {
-                    tracing::warn!("Blocked invalid HTTP method: {}", req.method);
+                    tracing::warn!("KIN-SEC-012: Blocked invalid HTTP method: {}", req.method);
                     let _ = client_clone
                         .send_proxy_response(
                             channel,
@@ -112,7 +112,7 @@ pub async fn handle_incoming_proxy_requests(
                         if let Ok(chunk) = chunk_res {
                             body.extend_from_slice(&chunk);
                             if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                                tracing::warn!("Blocked oversized P2P backend response (>5MB)");
+                                tracing::warn!("KIN-SEC-013: Blocked oversized P2P backend response (>5MB)");
                                 body.clear();
                                 body.extend_from_slice(b"Payload Too Large");
                                 status = 502; // Or 413
@@ -127,7 +127,7 @@ pub async fn handle_incoming_proxy_requests(
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to forward request to local web server: {}", e);
+                    warn!("KIN-PRX-033: Failed to forward request to local web server: {}", e);
                     ProxyResponse {
                         status: 502,
                         headers: Vec::new(),

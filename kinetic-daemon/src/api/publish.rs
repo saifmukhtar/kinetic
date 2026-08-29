@@ -407,7 +407,7 @@ pub async fn handle_publish_kid(
             }))
         }
         Err(e) => {
-            error!("Failed to publish KID to DHT: {}", e);
+            error!("KIN-PUB-017: Failed to publish KID to DHT: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to publish: {}", e),
@@ -552,7 +552,7 @@ pub async fn handle_publish_manifest(
             }))
         }
         Err(e) => {
-            error!("Failed to publish Manifest to DHT: {}", e);
+            error!("KIN-PUB-018: Failed to publish Manifest to DHT: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to publish: {}", e),

@@ -222,10 +222,10 @@ async fn run_daemon() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
         tracing::error!("KIN-SYS-011: FATAL: Governance keys are not initialized (using placeholders).");
         tracing::error!(
-            "The network cannot boot in production mode with a bricked governance plane."
+            "KIN-SYS-067: The network cannot boot in production mode with a bricked governance plane."
         );
         tracing::error!(
-            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
+            "KIN-SYS-068: Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
             e
         );
         std::process::exit(1);
@@ -239,11 +239,11 @@ async fn run_daemon() -> Result<()> {
         || config.daemon.backend_port == config.network.daemon_port
     {
         tracing::error!(
-            "FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
+            "KIN-CFG-011: FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
             config.daemon.backend_port
         );
         tracing::error!(
-            "This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml."
+            "KIN-CFG-012: This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml."
         );
         std::process::exit(1);
     }
@@ -281,8 +281,8 @@ async fn run_daemon() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("Drand beacon unavailable on startup: {}", e);
-            warn!("P2P swarm and proxy will start — registration disabled until beacon reachable");
+            warn!("KIN-DRA-044: Drand beacon unavailable on startup: {}", e);
+            warn!("KIN-DRA-045: P2P swarm and proxy will start — registration disabled until beacon reachable");
             kinetic_core::drand::RawKyn::unavailable()
         }
     };
@@ -291,7 +291,7 @@ async fn run_daemon() -> Result<()> {
     // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately
     // without having to wait for the 30-40 second PoW mining loop to finish.
     if let Err(e) = kinetic_daemon::api::ensure_api_tokens() {
-        tracing::error!("Failed to generate or read API tokens: {}", e);
+        tracing::error!("KIN-SYS-069: Failed to generate or read API tokens: {}", e);
         std::process::exit(1);
     }
 
@@ -433,7 +433,7 @@ async fn run_daemon() -> Result<()> {
 
         if !success {
             tracing::warn!(
-                "Failed to fetch governance state from any bootstrap node. Initializing a default genesis state."
+                "KIN-GOV-038: Failed to fetch governance state from any bootstrap node. Initializing a default genesis state."
             );
         }
     }

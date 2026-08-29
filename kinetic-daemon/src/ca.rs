@@ -100,7 +100,7 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
             
             if thirty_days_from_now > params.not_after {
                 tracing::warn!(
-                    "Local Root CA expires within 30 days (on {}). Auto-rotating...",
+                    "KIN-SYS-065: Local Root CA expires within 30 days (on {}). Auto-rotating...",
                     params.not_after
                 );
                 // Fall through to the new CA generation logic below
@@ -164,7 +164,7 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         } else {
             #[cfg(not(test))]
             tracing::warn!(
-                "Failed to store Root CA key in OS Keychain. Falling back to disk storage."
+                "KIN-SYS-066: Failed to store Root CA key in OS Keychain. Falling back to disk storage."
             );
 
             #[cfg(unix)]

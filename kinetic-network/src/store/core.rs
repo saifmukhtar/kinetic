@@ -143,7 +143,7 @@ impl KineticRecordStore {
                         reveals_by_name.put(name, record);
                     } else {
                         tracing::warn!(
-                            "[KRS restore] Discarding invalid locally stored NameRecord for {}",
+                            "KIN-STO-011: [KRS restore] Discarding invalid locally stored NameRecord for {}",
                             name
                         );
                     }
@@ -165,7 +165,7 @@ impl KineticRecordStore {
                         tracing::info!("[KRS restore] Heartbeat kyn {} for {}", kyn, name);
                         last_heartbeats_by_name.insert(name, kyn);
                     } else {
-                        tracing::warn!("[KRS restore] Purging orphaned heartbeat for {}", name);
+                        tracing::warn!("KIN-STO-012: [KRS restore] Purging orphaned heartbeat for {}", name);
                         let _ = storage.delete(&key_bytes);
                     }
                 }

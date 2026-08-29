@@ -132,7 +132,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
         } => {
             if event_loop.light_nodes.contains(&source) {
                 tracing::warn!(
-                    "Light node {} attempted to PutRecord (Write). Rejecting and disconnecting.",
+                    "KIN-NET-073: Light node {} attempted to PutRecord (Write). Rejecting and disconnecting.",
                     source
                 );
                 let _ = event_loop.swarm.disconnect_peer_id(source);
@@ -205,7 +205,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
 
                     if new_val.0 >= 3 {
                         tracing::warn!(
-                            "Peer {} sent 3 invalid records within 60s — disconnecting and banning",
+                            "KIN-NET-074: Peer {} sent 3 invalid records within 60s — disconnecting and banning",
                             source
                         );
                         let _ = event_loop.swarm.disconnect_peer_id(source);

@@ -57,10 +57,10 @@ fn setup_macos_alias(ip: &str) {
 
     if let Ok(s) = status {
         if !s.success() {
-            tracing::warn!("Failed to create macOS loopback alias for {}", ip);
+            tracing::warn!("KIN-SYS-082: Failed to create macOS loopback alias for {}", ip);
         }
     } else {
-        tracing::warn!("Failed to execute ifconfig for macOS alias setup");
+        tracing::warn!("KIN-SYS-083: Failed to execute ifconfig for macOS alias setup");
     }
 }
 

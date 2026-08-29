@@ -55,10 +55,10 @@ pub async fn handle_proxy_request(
                     )
                     .await
                     {
-                        error!("CONNECT tunnel error: {}", e);
+                        error!("KIN-PRX-030: CONNECT tunnel error: {}", e);
                     }
                 }
-                Err(e) => error!("Upgrade error: {}", e),
+                Err(e) => error!("KIN-PRX-031: Upgrade error: {}", e),
             }
         });
 
@@ -102,7 +102,7 @@ pub async fn handle_proxy_request(
     {
         Ok(resp) => Ok(resp),
         Err(e) => {
-            warn!("Proxy request failed: {}", e);
+            warn!("KIN-PRX-032: Proxy request failed: {}", e);
             let status = match e {
                 ProxyError::SecurityViolation(_) => StatusCode::FORBIDDEN,
                 ProxyError::PeerUnreachable(_) => StatusCode::GATEWAY_TIMEOUT,

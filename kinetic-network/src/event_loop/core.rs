@@ -138,7 +138,7 @@ impl NetworkEventLoop {
         self.bad_vdf_counts.put(source, new_val);
         if new_val.0 >= 3 {
             tracing::warn!(
-                "Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning",
+                "KIN-NET-066: Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning",
                 source
             );
             let expire_kyn = self.current_kyn + 28800;
@@ -164,7 +164,7 @@ impl NetworkEventLoop {
             let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
             if addrs.is_empty() {
                 tracing::warn!(
-                    "Failed to resolve DNS TXT seed domain or found no multiaddrs: {}",
+                    "KIN-NRS-028: Failed to resolve DNS TXT seed domain or found no multiaddrs: {}",
                     domain
                 );
             }
@@ -322,7 +322,7 @@ impl NetworkEventLoop {
 
                             if new_val.0 >= 3 {
                                 tracing::warn!(
-                                    "Peer {} sent 3 invalid records within 60s — disconnecting and banning",
+                                    "KIN-NET-067: Peer {} sent 3 invalid records within 60s — disconnecting and banning",
                                     source
                                 );
                                 let _ = self.swarm.disconnect_peer_id(source);
@@ -407,7 +407,7 @@ impl NetworkEventLoop {
 
                     if self.light_nodes.len() >= 50 {
                         tracing::warn!(
-                            "Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion",
+                            "KIN-NET-068: Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion",
                             peer_id
                         );
                         let _ = self.swarm.disconnect_peer_id(peer_id);
@@ -415,7 +415,7 @@ impl NetworkEventLoop {
                         let count = self.light_node_ips.entry(identifier.clone()).or_insert(0);
                         if *count >= 3 {
                             tracing::warn!(
-                                "Identifier {} exceeded limit of 3 light clients. Disconnecting peer {}.",
+                                "KIN-NET-069: Identifier {} exceeded limit of 3 light clients. Disconnecting peer {}.",
                                 identifier,
                                 peer_id
                             );

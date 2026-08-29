@@ -40,7 +40,7 @@ pub(crate) fn build_full_swarm(
         Ok(b) => b,
         Err(e) => {
             tracing::warn!(
-                "Failed to build TCP transport with port_reuse(true): {}. Falling back to port_reuse(false).",
+                "KIN-SYS-077: Failed to build TCP transport with port_reuse(true): {}. Falling back to port_reuse(false).",
                 e
             );
             build_tcp(false)?
@@ -162,7 +162,7 @@ pub(crate) fn build_full_swarm(
                     }
                     Err(e) => {
                         tracing::warn!(
-                            "Failed to bind mDNS: {}. Local peer discovery disabled.",
+                            "KIN-NET-071: Failed to bind mDNS: {}. Local peer discovery disabled.",
                             e
                         );
                         libp2p::swarm::behaviour::toggle::Toggle::from(None)

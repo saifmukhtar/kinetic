@@ -88,11 +88,11 @@ pub fn start_pow_miner_loop(
                             Err(e) => {
                                 retries += 1;
                                 if retries > 10 {
-                                    tracing::error!("FATAL: Failed to hot-swap P2P backend: {}", e);
+                                    tracing::error!("KIN-SYS-070: FATAL: Failed to hot-swap P2P backend: {}", e);
                                     return; // Abort miner task
                                 }
                                 tracing::warn!(
-                                    "Port in use during hot-swap, retrying... ({}/10)",
+                                    "KIN-SYS-071: Port in use during hot-swap, retrying... ({}/10)",
                                     retries
                                 );
                                 backoff *= 2;

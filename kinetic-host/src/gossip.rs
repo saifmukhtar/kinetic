@@ -27,7 +27,7 @@ pub async fn start_gossip_listener(
                 let (should_save, cloned_state) = {
                     let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
                     else {
-                        tracing::error!("FATAL: Global governance state mutex is poisoned!");
+                        tracing::error!("KIN-SYS-072: FATAL: Global governance state mutex is poisoned!");
                         continue;
                     };
                     let current_time = std::time::SystemTime::now()
@@ -66,7 +66,7 @@ pub async fn start_gossip_listener(
                     tokio::task::spawn_blocking(move || {
                         if let Err(e) = cloned_state.save_to_disk(&path_clone) {
                             tracing::error!(
-                                "CRITICAL: Failed to save governance state to disk: {}",
+                                "KIN-SYS-073: CRITICAL: Failed to save governance state to disk: {}",
                                 e
                             );
                         }

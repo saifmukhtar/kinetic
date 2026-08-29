@@ -18,7 +18,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
             Ok(p) => p,
             Err(_) => {
                 tracing::warn!(
-                    "Gossip semaphore saturated — dropping message from {} on topic {}",
+                    "KIN-NET-072: Gossip semaphore saturated — dropping message from {} on topic {}",
                     propagation_source,
                     topic
                 );

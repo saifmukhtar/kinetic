@@ -76,7 +76,7 @@ impl GovernanceState {
                     let corrupt_path = path.with_file_name(new_name);
                     let _ = std::fs::rename(path, &corrupt_path);
                     tracing::error!(
-                        "CRITICAL: Governance state corrupted: {}. Refusing to start with a reset state.",
+                        "KIN-GOV-036: CRITICAL: Governance state corrupted: {}. Refusing to start with a reset state.",
                         e
                     );
                     panic!(
@@ -90,7 +90,7 @@ impl GovernanceState {
                 Self::new(crate::constants::KINETIC_GENESIS_KYN)
             }
             Err(e) => {
-                tracing::error!("CRITICAL: Failed to read Governance state file: {}.", e);
+                tracing::error!("KIN-GOV-037: CRITICAL: Failed to read Governance state file: {}.", e);
                 panic!(
                     "Governance state at {} is unreadable; manual recovery required.",
                     path.display()

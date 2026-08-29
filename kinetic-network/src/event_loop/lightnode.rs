@@ -172,7 +172,7 @@ pub(crate) fn build_light_swarm(
                     }
                     Err(e) => {
                         tracing::warn!(
-                            "Failed to bind mDNS: {}. Local peer discovery disabled.",
+                            "KIN-NET-075: Failed to bind mDNS: {}. Local peer discovery disabled.",
                             e
                         );
                         libp2p::swarm::behaviour::toggle::Toggle::from(None)

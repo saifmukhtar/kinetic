@@ -38,7 +38,7 @@ pub fn start_heartbeat_loop(
 
                     if expected_kyn > latest.kyn + 5 {
                         tracing::warn!(
-                            "P2P Drand fallback triggered! We are behind by {} kyns.",
+                            "KIN-DRA-046: P2P Drand fallback triggered! We are behind by {} kyns.",
                             expected_kyn.saturating_sub(latest.kyn)
                         );
                         should_fetch_http = true;

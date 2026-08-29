@@ -119,7 +119,7 @@ impl super::core::NetworkEventLoop {
                 if let Some(&expire_time) = self.banned_peers.peek(&peer_id) {
                     if expire_time > now {
                         tracing::warn!(
-                            "Banned peer {} attempted to connect, disconnecting immediately.",
+                            "KIN-NET-077: Banned peer {} attempted to connect, disconnecting immediately.",
                             peer_id
                         );
                         let _ = self.swarm.disconnect_peer_id(peer_id);
@@ -243,7 +243,7 @@ impl super::core::NetworkEventLoop {
                     && conn_time.elapsed() > web_time::Duration::from_secs(24 * 3600)
                 {
                     tracing::warn!(
-                        "Bootstrap peer {} failed to provide valid PoW after 24 hours. Disconnecting.",
+                        "KIN-NET-078: Bootstrap peer {} failed to provide valid PoW after 24 hours. Disconnecting.",
                         peer_id
                     );
                     let _ = self.swarm.disconnect_peer_id(peer_id);
@@ -292,7 +292,7 @@ impl super::core::NetworkEventLoop {
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 tracing::warn!(
-                    "Outgoing connection error to peer {:?}: {:?}",
+                    "KIN-NET-079: Outgoing connection error to peer {:?}: {:?}",
                     peer_id,
                     error
                 );

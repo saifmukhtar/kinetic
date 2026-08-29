@@ -350,7 +350,7 @@ impl KineticConfig {
                 Ok(config) => config,
                 Err(e) => {
                     tracing::error!(
-                        "Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
+                        "KIN-CFG-004: Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
                         e
                     );
                     std::process::exit(1);
@@ -366,7 +366,7 @@ impl KineticConfig {
                 if let Some(parent) = config_path.parent() {
                     if let Err(e) = fs::create_dir_all(parent) {
                         tracing::error!(
-                            "Failed to create config directory {:?}: {}. Refusing to start.",
+                            "KIN-CFG-005: Failed to create config directory {:?}: {}. Refusing to start.",
                             parent,
                             e
                         );
@@ -385,7 +385,7 @@ impl KineticConfig {
                             use std::io::Write;
                             if let Err(e) = file.write_all(toml_str.as_bytes()) {
                                 tracing::error!(
-                                    "Failed to write default config to {:?}: {}. Refusing to start.",
+                                    "KIN-CFG-006: Failed to write default config to {:?}: {}. Refusing to start.",
                                     config_path,
                                     e
                                 );
@@ -398,7 +398,7 @@ impl KineticConfig {
                         }
                         Err(e) => {
                             tracing::error!(
-                                "Failed to create default config at {:?}: {}. Refusing to start.",
+                                "KIN-CFG-007: Failed to create default config at {:?}: {}. Refusing to start.",
                                 config_path,
                                 e
                             );
@@ -410,7 +410,7 @@ impl KineticConfig {
             }
             Err(e) => {
                 tracing::error!(
-                    "Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
+                    "KIN-CFG-008: Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
                     e
                 );
                 std::process::exit(1);
@@ -492,7 +492,7 @@ impl KineticConfig {
 
         if tcp_ports.len() != tcp_len {
             tracing::error!(
-                "Configuration Error: TCP port collision detected in config.toml! Ensure all TCP ports (api, proxy, p2p, backend, pac) are strictly unique."
+                "KIN-CFG-009: Configuration Error: TCP port collision detected in config.toml! Ensure all TCP ports (api, proxy, p2p, backend, pac) are strictly unique."
             );
             std::process::exit(1);
         }
@@ -510,7 +510,7 @@ impl KineticConfig {
 
         if udp_ports.len() != udp_len {
             tracing::error!(
-                "Configuration Error: UDP port collision detected in config.toml! Ensure all UDP ports (nrs, atlas, quic) are strictly unique."
+                "KIN-CFG-010: Configuration Error: UDP port collision detected in config.toml! Ensure all UDP ports (nrs, atlas, quic) are strictly unique."
             );
             std::process::exit(1);
         }
