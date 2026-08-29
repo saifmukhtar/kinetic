@@ -237,7 +237,9 @@ impl DrandClient {
                     kyn.is_from_cache = false;
                     kyn.is_unavailable = false;
                     // Cache on every successful fetch
-                    let _ = self.cache_kyn(&kyn);
+                    if let Err(e) = self.cache_kyn(&kyn) {
+                        tracing::error!("{}: Failed to cache drand kyn after fetch: {}", e.code(), e);
+                    }
                     return Ok(kyn);
                 }
                 Err(e) => {
@@ -354,12 +356,12 @@ impl DrandClient {
     /// - Returns [`DrandError::NoCachedKyn`](crate::error::DrandError::NoCachedKyn) if storage is empty or missing (outside dev mode).
     /// - Returns [`DrandError::Storage`](crate::error::DrandError::Storage) if database reading fails.
     pub fn load_cached_kyn(&self) -> Result<RawKyn, DrandError> {
-        if let Some(storage) = &self.storage
-            && let Ok(Some(bytes)) = storage.get(crate::constants::DB_PREFIX_LAST_DRAND)
-            && let Ok(mut kyn) = serde_json::from_slice::<RawKyn>(&bytes)
-        {
-            kyn.is_from_cache = true;
-            return Ok(kyn);
+        if let Some(storage) = &self.storage {
+            if let Some(bytes) = storage.get(crate::constants::DB_PREFIX_LAST_DRAND)? {
+                let mut kyn = serde_json::from_slice::<RawKyn>(&bytes)?;
+                kyn.is_from_cache = true;
+                return Ok(kyn);
+            }
         }
 
         if crate::config::is_dev_mode() {

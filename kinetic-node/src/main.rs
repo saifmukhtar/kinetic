@@ -342,14 +342,29 @@ async fn run_node() -> Result<()> {
                         Some(gossip_storage.clone()),
                         current_kyn,
                     );
-                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8
-                    && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
-                    && kyn.verify()
-                    && let Ok(latest) = drand_client_gossip.load_cached_kyn()
-                    && (kyn.kyn > latest.kyn || latest.is_unavailable)
-                    && drand_client_gossip.cache_kyn(&kyn).is_ok()
-                {
-                    let _ = kyn_tx_gossip.send(kyn.kyn);
+                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
+                    if let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload) {
+                        if kyn.verify() {
+                            let latest_kyn = match drand_client_gossip.load_cached_kyn() {
+                                Ok(latest) => {
+                                    if latest.is_unavailable { 0 } else { latest.kyn }
+                                },
+                                Err(e) => {
+                                    if !matches!(e, kinetic_core::error::DrandError::NoCachedKyn) {
+                                        tracing::error!("{}: Failed to load cached kyn in node gossip handler: {}", e.code(), e);
+                                    }
+                                    0
+                                }
+                            };
+
+                            if kyn.kyn > latest_kyn {
+                                if let Err(e) = drand_client_gossip.cache_kyn(&kyn) {
+                                    tracing::error!("{}: Failed to cache drand kyn in node gossip handler: {}", e.code(), e);
+                                }
+                                let _ = kyn_tx_gossip.send(kyn.kyn);
+                            }
+                        }
+                    }
                 }
             }
         }
