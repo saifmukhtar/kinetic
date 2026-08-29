@@ -129,7 +129,7 @@ impl From<GovernanceError> for ApiError {
                 (500, "Configuration Error")
             }
             GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
-            GovernanceError::InsufficientSignatures => (401, "Unauthorized"),
+            GovernanceError::InvalidSignature => (401, "Unauthorized"),
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
             GovernanceError::KeyLengthMismatch
             | GovernanceError::InvalidPrimeLength

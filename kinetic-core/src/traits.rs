@@ -131,7 +131,7 @@ pub trait GovernanceEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::InsufficientSignatures`] (`KIN-ACN-007`) if required signatures or threshold are not met.
+    /// - Returns [`GovernanceError::InvalidSignature`] (`KIN-ACN-007`) if required signatures or threshold are not met.
     /// - Returns [`GovernanceError::StaleProposal`] (`KIN-ACN-005`) if the proposal timestamp is outside the replay window.
     /// - Returns [`GovernanceError::GovernanceDisabled`] (`KIN-ACN-003`) if governance actions are disabled in this mode.
     /// - Returns [`GovernanceError::KeyLengthMismatch`] (`KIN-ACN-004`) if a key length is invalid.

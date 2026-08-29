@@ -42,9 +42,9 @@ pub enum GovernanceError {
     #[error("Governance is disabled in permissionless mode")]
     GovernanceDisabled,
 
-    /// Insufficient Signatures. The number of valid signatures does not meet the required threshold.
-    #[error("Insufficient valid signatures")]
-    InsufficientSignatures,
+    /// Invalid Signature. The cryptographic signature does not verify against the root key.
+    #[error("Invalid signature")]
+    InvalidSignature,
     /// Invalid Prime Length. A prime name mapping/unmapping was attempted on a name that is not exactly 1 character long.
     #[error("Prime name mappings must be exactly 1 character long")]
     InvalidPrimeLength,
@@ -74,7 +74,7 @@ impl GovernanceError {
             Self::KeyLengthMismatch => "KIN-ACN-004",
             Self::StaleProposal => "KIN-ACN-005",
             Self::AlreadyExecuted => "KIN-ACN-006",
-            Self::InsufficientSignatures => "KIN-ACN-007",
+            Self::InvalidSignature => "KIN-ACN-007",
             Self::InvalidPrimeLength => "KIN-ACN-008",
             Self::InvalidProtocolName => "KIN-ACN-009",
             Self::AlreadyMapped => "KIN-ACN-010",
@@ -95,7 +95,7 @@ impl GovernanceError {
             Self::StaleProposal | Self::AlreadyExecuted => Severity::Info,
             Self::KeyLengthMismatch => Severity::Error,
             Self::GovernanceDisabled
-            | Self::InsufficientSignatures
+            | Self::InvalidSignature
             | Self::InvalidPrimeLength
             | Self::InvalidProtocolName
             | Self::AlreadyMapped
@@ -106,7 +106,7 @@ impl GovernanceError {
 
     /// Whether the client should offer a retry action.
     pub fn is_retryable(&self) -> bool {
-        matches!(self, Self::InsufficientSignatures)
+        matches!(self, Self::InvalidSignature)
     }
 
     /// Clean user-facing message with no developer details.
@@ -122,8 +122,8 @@ impl GovernanceError {
             Self::GovernanceDisabled => {
                 "The network is operating in permissionless mode where governance actions are universally rejected.".to_string()
             }
-            Self::InsufficientSignatures => {
-                "The message lacks the required cryptographic signatures to meet the required threshold.".to_string()
+            Self::InvalidSignature => {
+                "The message signature does not cryptographically match the configured root key.".to_string()
             }
             Self::InvalidPrimeLength => "Prime names governed by this action must be exactly 1 character long.".to_string(),
             Self::InvalidProtocolName => "Protocol names governed by this action must be valid Category 2 names.".to_string(),
