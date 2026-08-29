@@ -305,6 +305,7 @@ impl From<IdentityError> for ApiError {
             }
             IdentityError::DecryptionFailed(_) => (401, "Unauthorized"),
             IdentityError::KidAlreadyExists(_) => (409, "Conflict"),
+            IdentityError::PubkeyMismatch(_) => (409, "Conflict"),
             IdentityError::InvalidRotation(_) => (422, "Unprocessable Entity"),
             IdentityError::KidDeactivated(_) => (410, "Gone"),
             IdentityError::SerializationFailed(_) | IdentityError::ManifestSigningFailed(_) => {

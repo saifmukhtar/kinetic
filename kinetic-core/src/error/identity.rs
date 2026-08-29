@@ -82,6 +82,10 @@ pub enum IdentityError {
     /// A private key file was not found.
     #[error("KID private key not found: {0}")]
     KidPrivateKeyNotFound(String),
+
+    /// The presented public key does not match the registered owner key for this name.
+    #[error("Public key mismatch: {0}")]
+    PubkeyMismatch(String),
 }
 
 impl PartialEq for IdentityError {
@@ -105,6 +109,7 @@ impl PartialEq for IdentityError {
             (Self::SerializationFailed(a), Self::SerializationFailed(b)) => a == b,
             (Self::ManifestSigningFailed(a), Self::ManifestSigningFailed(b)) => a == b,
             (Self::KidPrivateKeyNotFound(a), Self::KidPrivateKeyNotFound(b)) => a == b,
+            (Self::PubkeyMismatch(a), Self::PubkeyMismatch(b)) => a == b,
             _ => false,
         }
     }
@@ -134,6 +139,7 @@ impl IdentityError {
             Self::SerializationFailed(_) => "KIN-IDN-016",
             Self::ManifestSigningFailed(_) => "KIN-IDN-017",
             Self::KidPrivateKeyNotFound(_) => "KIN-IDN-018",
+            Self::PubkeyMismatch(_) => "KIN-IDN-019",
         }
     }
 
@@ -162,7 +168,8 @@ impl IdentityError {
             | Self::KidAlreadyExists(_)
             | Self::KidNotFound(_)
             | Self::KidDeactivated(_)
-            | Self::KidPrivateKeyNotFound(_) => Severity::Warning,
+            | Self::KidPrivateKeyNotFound(_)
+            | Self::PubkeyMismatch(_) => Severity::Warning,
         }
     }
 
@@ -224,6 +231,9 @@ impl IdentityError {
             }
             Self::KidPrivateKeyNotFound(name) => {
                 format!("The private key file for {name} could not be found.")
+            }
+            Self::PubkeyMismatch(name) => {
+                format!("The presented public key does not match the registered owner key for '{name}'. You cannot update a name you do not own.")
             }
         }
     }

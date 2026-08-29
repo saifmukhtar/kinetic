@@ -242,17 +242,11 @@ pub async fn handle_publish_zone(
 
     let pubkey_bytes = keypair.pubkey_bytes();
     if record.pubkey() != pubkey_bytes.as_slice() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-IDN-006", kinetic_core::constants::DOCS_URL),
-            title: "Conflict".to_string(),
-            status: 409,
-            detail: "Identity key mismatch with name registration".to_string(),
-            instance: None,
-            code: "KIN-IDN-006".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError(
+            kinetic_core::error::IdentityError::PubkeyMismatch(
+                "The daemon key does not match the owner key for this name registration.".to_string()
+            ).into()
+        ));
     }
 
     let payload = match serde_json::to_vec(&zone) {
