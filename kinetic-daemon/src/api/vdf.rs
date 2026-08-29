@@ -58,12 +58,12 @@ pub async fn handle_vdf_register(
     const MAX_USER_ITERATIONS: u64 = 10_000_000;
     if req.iterations.unwrap_or(0) > MAX_USER_ITERATIONS {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-002", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-VDF-009", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "Iteration count exceeds maximum".to_string(),
             instance: None,
-            code: "KIN-API-002".to_string(),
+            code: "KIN-VDF-009".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -90,12 +90,12 @@ pub async fn handle_vdf_register(
 
         if tasks.len() >= 50 {
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-003", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/KIN-VDF-010", kinetic_core::constants::DOCS_URL),
                 title: "Too Many Requests".to_string(),
                 status: 429,
                 detail: "Too many concurrent VDF tasks. Please wait.".to_string(),
                 instance: None,
-                code: "KIN-API-003".to_string(),
+                code: "KIN-VDF-010".to_string(),
                 retryable: true,
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
@@ -414,12 +414,12 @@ pub async fn handle_vdf_renew(
     const MAX_USER_ITERATIONS: u64 = 10_000_000;
     if req.iterations.unwrap_or(0) > MAX_USER_ITERATIONS {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-002", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-VDF-009", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "Iteration count exceeds maximum".to_string(),
             instance: None,
-            code: "KIN-API-002".to_string(),
+            code: "KIN-VDF-009".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -430,12 +430,12 @@ pub async fn handle_vdf_renew(
     tasks.retain(|_, t| t.progress < 100 && t.error.is_none());
     if tasks.len() >= 50 {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-003", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-VDF-010", kinetic_core::constants::DOCS_URL),
             title: "Too Many Requests".to_string(),
             status: 429,
             detail: "Too many concurrent VDF tasks. Please wait.".to_string(),
             instance: None,
-            code: "KIN-API-003".to_string(),
+            code: "KIN-VDF-010".to_string(),
             retryable: true,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
