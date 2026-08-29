@@ -390,7 +390,7 @@ impl KineticConfig {
                             use std::io::Write;
                             if let Err(e) = file.write_all(toml_str.as_bytes()) {
                                 tracing::error!(
-                                    "KIN-CFG-006: Failed to write default config to {:?}: {}. Refusing to start.",
+                                    "KIN-CFG-003: Failed to write default config to {:?}: {}. Refusing to start.",
                                     config_path,
                                     e
                                 );
@@ -403,7 +403,7 @@ impl KineticConfig {
                         }
                         Err(e) => {
                             tracing::error!(
-                                "KIN-CFG-007: Failed to create default config at {:?}: {}. Refusing to start.",
+                                "KIN-CFG-003: Failed to create default config at {:?}: {}. Refusing to start.",
                                 config_path,
                                 e
                             );
