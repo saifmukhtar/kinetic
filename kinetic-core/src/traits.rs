@@ -131,11 +131,11 @@ pub trait GovernanceEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::InsufficientSignatures`] (`KIN-GOV-016`) if required signatures or threshold are not met.
-    /// - Returns [`GovernanceError::StaleProposal`] (`KIN-GOV-004`) if the proposal timestamp is outside the replay window.
-    /// - Returns [`GovernanceError::GovernanceDisabled`] (`KIN-GOV-002`) if governance actions are disabled in this mode.
-    /// - Returns [`GovernanceError::KeyLengthMismatch`] (`KIN-GOV-003`) if a key length is invalid.
-    /// - Returns [`GovernanceError::MissingRootKey`] (`KIN-GOV-001`) if the root key is unconfigured.
+    /// - Returns [`GovernanceError::InsufficientSignatures`] (`KIN-ACN-007`) if required signatures or threshold are not met.
+    /// - Returns [`GovernanceError::StaleProposal`] (`KIN-ACN-005`) if the proposal timestamp is outside the replay window.
+    /// - Returns [`GovernanceError::GovernanceDisabled`] (`KIN-ACN-003`) if governance actions are disabled in this mode.
+    /// - Returns [`GovernanceError::KeyLengthMismatch`] (`KIN-ACN-004`) if a key length is invalid.
+    /// - Returns [`GovernanceError::MissingRootKey`] (`KIN-ACN-001`) if the root key is unconfigured.
     fn verify_action(
         &self,
         state: &mut GovernanceState,

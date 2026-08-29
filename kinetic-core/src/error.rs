@@ -24,7 +24,7 @@
 //! | `KIN-PUB-NNN` | [`PublishError`] | DHT record publishing |
 //! | `KIN-REG-NNN` | [`RegistrationError`] | Name registration flow |
 //! | `KIN-VDF-NNN` | `VdfError` | VDF engine operations |
-//! | `KIN-GOV-NNN` | `GovernanceError` | Council governance |
+//! | `KIN-ACN-NNN` | `GovernanceError` | Council governance |
 //! | `KIN-NRS-NNN` | `NrsError` | NRS zone parsing |
 //! | `KIN-RND-NNN` | `DrandError` | Drand beacon |
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |

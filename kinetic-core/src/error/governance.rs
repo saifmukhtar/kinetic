@@ -1,4 +1,4 @@
-//! Governance action verification and voting error types (`KIN-GOV-NNN`).
+//! Governance action verification and voting error types (`KIN-ACN-NNN`).
 //!
 //! [`GovernanceError`] is returned by the active [`GovernanceEngine`](crate::traits::GovernanceEngine)
 //! when a [`SignedGovernanceMessage`](crate::governance::types::SignedGovernanceMessage) fails
@@ -13,7 +13,7 @@
 //! Key roles:
 //! - **Root key**: Ultimate authority; can ratify any action in Sovereign phase.
 //!
-//! > Note: `KIN-GOV-010`, `KIN-GOV-011`, and `KIN-GOV-012` are intentionally
+//! > Note: `KIN-ACN-010`, `KIN-ACN-011`, and `KIN-ACN-012` are intentionally
 //! > skipped in the stable code registry to allow for future expansion.
 use super::Severity;
 use thiserror::Error;
@@ -68,18 +68,18 @@ impl GovernanceError {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::MissingRootKey => "KIN-GOV-001",
-            Self::MalformedRootKey => "KIN-GOV-002",
-            Self::GovernanceDisabled => "KIN-GOV-003",
-            Self::KeyLengthMismatch => "KIN-GOV-004",
-            Self::StaleProposal => "KIN-GOV-005",
-            Self::AlreadyExecuted => "KIN-GOV-006",
-            Self::InsufficientSignatures => "KIN-GOV-007",
-            Self::InvalidPrimeLength => "KIN-GOV-008",
-            Self::InvalidProtocolName => "KIN-GOV-009",
-            Self::AlreadyMapped => "KIN-GOV-010",
-            Self::NotMapped => "KIN-GOV-011",
-            Self::UnnormalizedName => "KIN-GOV-012",
+            Self::MissingRootKey => "KIN-ACN-001",
+            Self::MalformedRootKey => "KIN-ACN-002",
+            Self::GovernanceDisabled => "KIN-ACN-003",
+            Self::KeyLengthMismatch => "KIN-ACN-004",
+            Self::StaleProposal => "KIN-ACN-005",
+            Self::AlreadyExecuted => "KIN-ACN-006",
+            Self::InsufficientSignatures => "KIN-ACN-007",
+            Self::InvalidPrimeLength => "KIN-ACN-008",
+            Self::InvalidProtocolName => "KIN-ACN-009",
+            Self::AlreadyMapped => "KIN-ACN-010",
+            Self::NotMapped => "KIN-ACN-011",
+            Self::UnnormalizedName => "KIN-ACN-012",
         }
     }
 
