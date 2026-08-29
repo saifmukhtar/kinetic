@@ -95,6 +95,7 @@ mod native {
                         bak_path.set_file_name(new_name);
 
                         tracing::error!(
+                            error_code = "KIN-DBE-002",
                             "CRITICAL: Redb database corruption detected at {:?}. Backing up to {:?}",
                             base_path,
                             bak_path
