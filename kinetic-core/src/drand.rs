@@ -211,8 +211,10 @@ impl DrandClient {
             match self.fetch_with_backoff(endpoint).await {
                 Ok(mut kyn) => {
                     if !kyn.verify() {
+                        let err = DrandError::InvalidSignature;
                         warn!(
-                            "KIN-RND-039: Drand endpoint {} returned a cryptographically invalid kyn!",
+                            "{}: Drand endpoint {} returned a cryptographically invalid kyn!",
+                            err.code(),
                             endpoint
                         );
                         continue;
@@ -227,8 +229,13 @@ impl DrandClient {
                     let age = estimated_kyn.saturating_sub(kyn.kyn);
 
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
+                        let err = DrandError::StaleKyn {
+                            expected: estimated_kyn,
+                            got: kyn.kyn,
+                        };
                         warn!(
-                            "KIN-RND-040: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
+                            "{}: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
+                            err.code(),
                             endpoint, kyn.kyn, estimated_kyn
                         );
                         continue;
@@ -243,7 +250,7 @@ impl DrandClient {
                     return Ok(kyn);
                 }
                 Err(e) => {
-                    warn!("KIN-RND-041: Drand endpoint {} unreachable: {}", endpoint, e);
+                    warn!("{}: Drand endpoint {} unreachable: {}", e.code(), endpoint, e);
                 }
             }
         }
