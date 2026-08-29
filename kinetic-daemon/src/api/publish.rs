@@ -601,7 +601,7 @@ pub async fn handle_publish_governance(
                 true
             }
             Err(e) => {
-                tracing::warn!("KIN-ACN-033: Rejecting governance message via API: {}", e);
+                tracing::warn!("{}: Rejecting governance message via API: {}", e.code(), e);
                 return Err((
                     StatusCode::BAD_REQUEST,
                     format!("Invalid governance message: {}", e),

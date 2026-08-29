@@ -223,12 +223,9 @@ fn stop_background_service() -> Result<()> {
 /// Returns an `anyhow::Error` if any fundamental networking or storage components fail to bind/initialize.
 async fn run_daemon() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
-        tracing::error!("KIN-SYS-011: FATAL: Governance keys are not initialized (using placeholders).");
         tracing::error!(
-            "KIN-SYS-067: The network cannot boot in production mode with a bricked governance plane."
-        );
-        tracing::error!(
-            "KIN-SYS-068: Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
+            "{}: FATAL: Network cannot boot with a bricked governance plane. {}",
+            e.code(),
             e
         );
         std::process::exit(1);

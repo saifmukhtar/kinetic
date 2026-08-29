@@ -148,18 +148,10 @@ async fn main() -> Result<()> {
 /// Returns an `anyhow::Error` if fundamental networking, storage, or key generation fails.
 async fn run_node() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
-        tracing::error!("KIN-SYS-011: FATAL: Governance keys are not initialized (using placeholders).");
         tracing::error!(
-            "KIN-SYS-011: Please run 'kinetic-node config init' to generate production keys."
-        );
-        tracing::error!(
-            "KIN-SYS-011: A manual hot-swap of the Node governance keypair is required."
-        );
-        tracing::error!(
-            error_code = e.code(),
-            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {} ({})",
-            e.user_message(),
-            e.code()
+            "{}: FATAL: Network cannot boot with a bricked governance plane. {}",
+            e.code(),
+            e
         );
         std::process::exit(1);
     }

@@ -106,12 +106,9 @@ async fn main() -> Result<()> {
 
 async fn run_host() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
-        tracing::error!("KIN-SYS-074: FATAL: Governance keys are not initialized (using placeholders).");
         tracing::error!(
-            "KIN-SYS-075: The network cannot boot in production mode with a bricked governance plane."
-        );
-        tracing::error!(
-            "KIN-SYS-076: Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
+            "{}: FATAL: Network cannot boot with a bricked governance plane. {}",
+            e.code(),
             e
         );
         std::process::exit(1);
