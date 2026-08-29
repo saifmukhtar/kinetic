@@ -373,8 +373,13 @@ impl KineticConfig {
                         std::process::exit(1);
                     }
 
-                    let toml_str = toml::to_string_pretty(&default_cfg)
-                        .expect("Failed to serialize default config");
+                    let toml_str = match toml::to_string_pretty(&default_cfg) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            tracing::error!("KIN-CFG-002: Failed to serialize default config: {}. Refusing to start.", e);
+                            std::process::exit(1);
+                        }
+                    };
 
                     match std::fs::OpenOptions::new()
                         .write(true)
