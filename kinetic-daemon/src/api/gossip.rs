@@ -29,7 +29,7 @@ pub async fn handle_gossip_subscribe(
                         }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                    tracing::warn!("KIN-API-006: SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);
+                    tracing::warn!("KIN-API-002: SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);
                     continue;
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => {
@@ -55,12 +55,12 @@ pub async fn handle_gossip_publish(
 ) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_publish() {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-008", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
             title: "Unauthorized".to_string(),
             status: 403,
             detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
             instance: None,
-            code: "KIN-API-008".to_string(),
+            code: "KIN-API-004".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),

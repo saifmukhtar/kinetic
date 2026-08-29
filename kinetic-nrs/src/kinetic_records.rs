@@ -103,7 +103,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                             payload.extend_from_slice(&chunk);
                         }
                         if limit_exceeded {
-                            warn!(error_code = "KIN-API-007", "API response exceeded 100KB limit for {}", apex_name_clone);
+                            warn!(error_code = "KIN-API-003", "API response exceeded 100KB limit for {}", apex_name_clone);
                             Ok::<_, Arc<anyhow::Error>>(None)
                         } else {
                             if !is_reserved_clone {
@@ -125,12 +125,12 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                     } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
                         Ok(None)
                     } else {
-                        warn!(error_code = "KIN-API-006", "Daemon API returned status: {}", resp.status());
+                        warn!(error_code = "KIN-API-002", "Daemon API returned status: {}", resp.status());
                         Err(Arc::new(anyhow::anyhow!("API error: {}", resp.status())))
                     }
                 }
                 Err(e) => {
-                    warn!(error_code = "KIN-API-006", "Daemon API request failed: {}", e);
+                    warn!(error_code = "KIN-API-002", "Daemon API request failed: {}", e);
                     Err(Arc::new(e.into()))
                 }
             }
