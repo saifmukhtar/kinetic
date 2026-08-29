@@ -30,9 +30,6 @@ pub enum Error {
     /// Base64 decode failed for Identity key/signature.
     #[error("Base64 decode error: {0}")]
     Base64Error(String),
-    /// ML-DSA-65 key bytes could not be parsed from the provided bytes.
-    #[error("Key parse error: {0}")]
-    KeyParseError(String),
     /// Manifest signed by key not authorized in KID document.
     #[error("Manifest signed by unauthorized key")]
     UnauthorizedManifestSignature,
@@ -100,7 +97,6 @@ impl Error {
             Self::InvalidSignature => "KIN-KID-007",
             Self::MissingSignature => "KIN-KID-008",
             Self::Base64Error(_) => "KIN-KID-009",
-            Self::KeyParseError(_) => "KIN-KID-010",
             Self::UnauthorizedManifestSignature => "KIN-KID-011",
             Self::KeyLimitExceeded => "KIN-KID-012",
             Self::InvalidValidFrom => "KIN-KID-013",
@@ -109,7 +105,7 @@ impl Error {
             Self::UnauthorizedKidUpdate => "KIN-KID-016",
             Self::LocationLimitExceeded => "KIN-KID-017",
             Self::ServiceLimitExceeded => "KIN-KID-018",
-            Self::StringLengthExceeded(_) => "KIN-KID-019",
+            Self::StringLengthExceeded(_) => "KIN-KID-010",
         }
     }
 
@@ -163,7 +159,6 @@ impl Error {
                 "The identity document is missing a required signature.".to_string()
             }
             Self::Base64Error(_) => "Failed to decode key or signature data.".to_string(),
-            Self::KeyParseError(_) => "Failed to parse ML-DSA-65 verification key.".to_string(),
             Self::UnauthorizedManifestSignature => {
                 "The capability manifest was signed by an unauthorized key.".to_string()
             }
