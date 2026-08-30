@@ -164,7 +164,7 @@ impl NetworkEventLoop {
             let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
             if addrs.is_empty() {
                 tracing::warn!(
-                    "KIN-NRS-028: Failed to resolve DNS TXT seed domain or found no multiaddrs: {}",
+                    "KIN-NRS-057: Failed to resolve DNS TXT seed domain or found no multiaddrs: {}",
                     domain
                 );
             }
@@ -235,7 +235,7 @@ impl NetworkEventLoop {
                                 for domain in &domains {
                                     let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
                                     if addrs.is_empty() {
-                                        tracing::warn!("KIN-NRS-025: Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
+                                        tracing::warn!("KIN-NRS-054: Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
                                     }
                                     for multiaddr in addrs {
                                         if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {

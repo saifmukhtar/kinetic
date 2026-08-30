@@ -64,7 +64,7 @@ impl KineticNrsHandler {
             .build()
             .unwrap_or_else(|e| {
                 tracing::warn!(
-                    error_code = "KIN-NRS-016",
+                    error_code = "KIN-NRS-051",
                     "Failed to build custom reqwest client ({}). Falling back to default",
                     e
                 );
