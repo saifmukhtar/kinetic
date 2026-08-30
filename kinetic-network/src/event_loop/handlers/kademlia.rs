@@ -136,12 +136,8 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                     source
                 );
                 let _ = event_loop.swarm.disconnect_peer_id(source);
-                let expire_time = web_time::SystemTime::now()
-                    .duration_since(web_time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs()
-                    + 86400;
-                event_loop.banned_peers.put(source, expire_time);
+                let expire_kyn = event_loop.current_kyn + 28800;
+                event_loop.banned_peers.put(source, expire_kyn);
                 return;
             }
 
@@ -209,13 +205,8 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                             source
                         );
                         let _ = event_loop.swarm.disconnect_peer_id(source);
-                        let expire_time = web_time::SystemTime::now()
-                            .duration_since(web_time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs()
-                            + 86400;
-
-                        event_loop.banned_peers.put(source, expire_time);
+                        let expire_kyn = event_loop.current_kyn + 28800;
+                        event_loop.banned_peers.put(source, expire_kyn);
 
                         let key = format!(
                             "{}{}",
