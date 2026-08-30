@@ -39,7 +39,7 @@ pub async fn handle_connect_req(
             match forward_to_backend_direct(req, &d, &nc, config_clone, &peer_id_clone).await {
                 Ok(resp) => Ok::<_, std::convert::Infallible>(resp),
                 Err(e) => {
-                    warn!("KIN-PRX-037: Forwarding error: {}", e);
+                    warn!("KIN-PRX-061: Forwarding error: {}", e);
                     Ok(Response::builder()
                         .status(StatusCode::BAD_GATEWAY)
                         .body(axum::body::Body::from(format!("Backend Error: {}", e)))

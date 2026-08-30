@@ -76,7 +76,7 @@ pub async fn forward_to_p2p(
     let mut body_stream = req.into_body();
     while let Some(chunk) = body_stream.frame().await {
         let frame = chunk.map_err(|e| {
-            tracing::warn!("KIN-PRX-031: Failed to read P2P request body stream: {}", e);
+            tracing::warn!("KIN-PRX-055: Failed to read P2P request body stream: {}", e);
             ProxyError::InvalidPayload
         })?;
         if let Ok(data) = frame.into_data() {
@@ -125,7 +125,7 @@ pub async fn forward_to_p2p(
     }
 
     let final_resp = resp_builder.body(axum::body::Body::from(proxy_resp.body)).map_err(|e| {
-        tracing::error!("KIN-PRX-032: Failed to construct HTTP response from P2P tunnel data: {}", e);
+        tracing::error!("KIN-PRX-056: Failed to construct HTTP response from P2P tunnel data: {}", e);
         ProxyError::Http(e)
     })?;
 

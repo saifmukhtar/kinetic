@@ -64,7 +64,7 @@ pub async fn forward_to_ip(
         } else {
             ssrf_result.unwrap_err().to_string()
         };
-        tracing::warn!("KIN-PRX-030: SSRF attempt blocked to {}", ip_addr);
+        tracing::warn!("KIN-PRX-054: SSRF attempt blocked to {}", ip_addr);
         return Err(ProxyError::SecurityViolation(format!(
             "Cannot proxy to loopback or private IPs. Reason: {}. (Use Dev Mode to bypass)",
             reason

@@ -80,7 +80,7 @@ where
             Ok(backend_resp) => {
                 let status = backend_resp.status();
                 if status.is_server_error() || status == reqwest::StatusCode::NOT_FOUND {
-                    tracing::warn!("KIN-PRX-034: Gateway {} failed with {}. Trying next...", gateway, status);
+                    tracing::warn!("KIN-PRX-058: Gateway {} failed with {}. Trying next...", gateway, status);
                     last_error = Some(format!("Gateway returned {}", status));
                     continue;
                 }
@@ -99,14 +99,14 @@ where
                 return Ok(resp_builder.body(body)?);
             }
             Err(e) => {
-                tracing::warn!("KIN-PRX-035: Gateway {} unreachable: {}. Trying next...", gateway, e);
+                tracing::warn!("KIN-PRX-059: Gateway {} unreachable: {}. Trying next...", gateway, e);
                 last_error = Some(e.to_string());
                 continue;
             }
         }
     }
 
-    tracing::error!("KIN-PRX-036: All IPFS gateways failed to resolve CID: {}", cid);
+    tracing::error!("KIN-PRX-060: All IPFS gateways failed to resolve CID: {}", cid);
     Err(ProxyError::PeerUnreachable(
         last_error.unwrap_or_else(|| "All gateways failed".to_string())
     ))

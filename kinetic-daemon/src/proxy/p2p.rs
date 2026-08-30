@@ -127,7 +127,7 @@ pub async fn handle_incoming_proxy_requests(
                     }
                 }
                 Err(e) => {
-                    warn!("KIN-PRX-033: Failed to forward request to local web server: {}", e);
+                    warn!("KIN-PRX-057: Failed to forward request to local web server: {}", e);
                     ProxyResponse {
                         status: 502,
                         headers: Vec::new(),
