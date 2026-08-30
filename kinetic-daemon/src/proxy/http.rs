@@ -89,7 +89,7 @@ pub async fn handle_proxy_request(
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
             .body(axum::body::Body::from(
-                "Only .kin names are supported by this proxy",
+                "KIN-PRX-004: Only .kin names are supported by this proxy",
             ))
             .unwrap_or_else(|_| Response::new(axum::body::Body::from("Internal Proxy Error"))));
     }
@@ -111,7 +111,7 @@ pub async fn handle_proxy_request(
             };
             Ok(Response::builder()
                 .status(status)
-                .body(axum::body::Body::from(format!("Proxy Error: {}", e)))
+                .body(axum::body::Body::from(format!("KIN-PRX-007: Proxy Error: {}", e)))
                 .unwrap_or_else(|_| Response::new(axum::body::Body::from("Internal Proxy Error"))))
         }
     }

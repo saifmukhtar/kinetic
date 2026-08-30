@@ -109,7 +109,7 @@ pub async fn start_proxy_server(
     let listener = listener.ok_or_else(|| {
         tracing::error!("KIN-PRX-001: TCP Listener failed to bind proxy to {} or [::1] on port {}", bind_ip, port);
         anyhow::anyhow!(
-            "Failed to bind Proxy to {} or [::1] on port {}",
+            "KIN-PRX-001: Failed to bind Proxy to {} or [::1] on port {}",
             bind_ip,
             port
         )
