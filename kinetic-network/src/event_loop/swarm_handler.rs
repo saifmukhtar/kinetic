@@ -292,7 +292,7 @@ impl super::core::NetworkEventLoop {
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 tracing::warn!(
-                    "KIN-P2P-016: Outgoing connection error to peer {:?}: {:?}",
+                    "KIN-P2P-012: Outgoing connection error to peer {:?}: {:?}",
                     peer_id,
                     error
                 );
