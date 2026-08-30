@@ -65,7 +65,7 @@ where
             format!("{}/{}/{}", gateway, cid, path)
         };
 
-        tracing::info!("KIN-PRX-017: Proxying IPFS request to gateway: {}", ipfs_url);
+        tracing::info!("KIN-GTW-001: Proxying request to gateway: {}", ipfs_url);
 
         let client = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))
@@ -80,7 +80,7 @@ where
             Ok(backend_resp) => {
                 let status = backend_resp.status();
                 if status.is_server_error() || status == reqwest::StatusCode::NOT_FOUND {
-                    tracing::warn!("KIN-PRX-058: Gateway {} failed with {}. Trying next...", gateway, status);
+                    tracing::warn!("KIN-GTW-002: Gateway {} failed with {}. Trying next...", gateway, status);
                     last_error = Some(format!("Gateway returned {}", status));
                     continue;
                 }
@@ -99,14 +99,14 @@ where
                 return Ok(resp_builder.body(body)?);
             }
             Err(e) => {
-                tracing::warn!("KIN-PRX-059: Gateway {} unreachable: {}. Trying next...", gateway, e);
+                tracing::warn!("KIN-GTW-003: Gateway {} unreachable: {}. Trying next...", gateway, e);
                 last_error = Some(e.to_string());
                 continue;
             }
         }
     }
 
-    tracing::error!("KIN-PRX-060: All IPFS gateways failed to resolve CID: {}", cid);
+    tracing::error!("KIN-GTW-004: All storage gateways failed to resolve target: {}", cid);
     Err(ProxyError::PeerUnreachable(
         last_error.unwrap_or_else(|| "All gateways failed".to_string())
     ))
