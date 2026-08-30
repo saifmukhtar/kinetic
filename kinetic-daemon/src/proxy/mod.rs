@@ -98,7 +98,7 @@ pub async fn start_proxy_server(
             break;
         } else if let Ok(l) = TcpListener::bind(format!("[::1]:{}", port)).await {
             tracing::warn!(
-                "KIN-PRX-040: Failed to bind Proxy to {}, successfully bound to IPv6 loopback [::1] (Case 198)",
+                "KIN-PRX-002: Failed to bind Proxy to {}, successfully bound to IPv6 loopback [::1] (Case 198)",
                 bind_ip
             );
             listener = Some(l);
@@ -107,7 +107,7 @@ pub async fn start_proxy_server(
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
     let listener = listener.ok_or_else(|| {
-        tracing::error!("KIN-PRX-041: TCP Listener failed to bind proxy to {} or [::1] on port {}", bind_ip, port);
+        tracing::error!("KIN-PRX-001: TCP Listener failed to bind proxy to {} or [::1] on port {}", bind_ip, port);
         anyhow::anyhow!(
             "Failed to bind Proxy to {} or [::1] on port {}",
             bind_ip,
@@ -149,7 +149,7 @@ pub async fn start_proxy_server(
                 .with_upgrades()
                 .await
             {
-                warn!("KIN-PRX-039: Proxy connection dropped unexpectedly: {}", err);
+                warn!("KIN-PRX-003: Proxy connection dropped unexpectedly: {}", err);
             }
         });
     }
