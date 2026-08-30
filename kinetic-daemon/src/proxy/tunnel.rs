@@ -39,10 +39,10 @@ pub async fn handle_connect_req(
             match forward_to_backend_direct(req, &d, &nc, config_clone, &peer_id_clone).await {
                 Ok(resp) => Ok::<_, std::convert::Infallible>(resp),
                 Err(e) => {
-                    warn!("KIN-P2P-024: Tunnel Forwarding error: {}", e);
+                    warn!("KIN-PRX-021: Tunnel Forwarding error: {}", e);
                     Ok(Response::builder()
                         .status(StatusCode::BAD_GATEWAY)
-                        .body(axum::body::Body::from(format!("KIN-P2P-024: Backend Error: {}", e)))
+                        .body(axum::body::Body::from(format!("KIN-PRX-021: Backend Error: {}", e)))
                         .unwrap_or_else(|_| {
                             Response::new(axum::body::Body::from("Internal Proxy Error"))
                         }))

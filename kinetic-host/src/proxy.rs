@@ -72,12 +72,12 @@ pub async fn forward_request(
             }
         }
         Err(e) => {
-            warn!("KIN-P2P-025: Failed to forward P2P request to local backend web server: {}", e);
+            warn!("KIN-PRX-022: Failed to forward P2P request to local backend web server: {}", e);
             ProxyResponse {
                 status: 502,
                 headers: Vec::new(),
                 body: format!(
-                    "KIN-P2P-025: Bad Gateway: Local web server not responding on port {}\nError: {}",
+                    "KIN-PRX-022: Bad Gateway: Local web server not responding on port {}\nError: {}",
                     local_port, e
                 )
                 .into_bytes()

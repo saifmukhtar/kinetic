@@ -31,7 +31,7 @@ pub async fn forward_to_p2p(
             peer_id = dynamic_peer_id;
         } else {
             tracing::warn!(
-                "KIN-P2P-020: HostRoutingRecord returned invalid PeerId: {}",
+                "KIN-PRX-017: HostRoutingRecord returned invalid PeerId: {}",
                 record.current_peer_id
             );
         }
@@ -76,8 +76,8 @@ pub async fn forward_to_p2p(
     let mut body_stream = req.into_body();
     while let Some(chunk) = body_stream.frame().await {
         let frame = chunk.map_err(|e| {
-            tracing::warn!("KIN-P2P-022: Failed to read P2P request body stream: {}", e);
-            ProxyError::InvalidPayload("KIN-P2P-022: Failed to read P2P request body stream".to_string())
+            tracing::warn!("KIN-PRX-018: Failed to read P2P request body stream: {}", e);
+            ProxyError::InvalidPayload("Failed to read P2P request body stream".to_string())
         })?;
         if let Ok(data) = frame.into_data() {
             body_bytes.extend_from_slice(&data);
@@ -101,8 +101,8 @@ pub async fn forward_to_p2p(
         .send_proxy_request(peer_id, proxy_req)
         .await
         .map_err(|e| {
-            tracing::error!("KIN-P2P-021: Libp2p tunnel failed to reach target peer: {}", e);
-            ProxyError::PeerUnreachable(format!("KIN-P2P-021: P2P swarm could not deliver request to target peer: {}", e))
+            tracing::error!("KIN-PRX-019: Libp2p tunnel failed to reach target peer: {}", e);
+            ProxyError::PeerUnreachable(format!("P2P swarm could not deliver request to target peer: {}", e))
         })?;
 
     let mut resp_builder = Response::builder().status(proxy_resp.status);
@@ -125,8 +125,8 @@ pub async fn forward_to_p2p(
     }
 
     let final_resp = resp_builder.body(axum::body::Body::from(proxy_resp.body)).map_err(|e| {
-        tracing::error!("KIN-P2P-023: Failed to construct HTTP response from P2P tunnel data: {}", e);
-        ProxyError::Other(format!("KIN-P2P-023: Failed to construct HTTP response from P2P tunnel data: {}", e))
+        tracing::error!("KIN-PRX-020: Failed to construct HTTP response from P2P tunnel data: {}", e);
+        ProxyError::Other(format!("Failed to construct HTTP response from P2P tunnel data: {}", e))
     })?;
 
     Ok(final_resp)
