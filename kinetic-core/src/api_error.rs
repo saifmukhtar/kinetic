@@ -155,16 +155,13 @@ impl From<GovernanceError> for ApiError {
 impl From<NetworkClientError> for ApiError {
     fn from(e: NetworkClientError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            NetworkClientError::Timeout | NetworkClientError::StreamDropped => {
-                (504, "Gateway Timeout")
-            }
+            NetworkClientError::Timeout => (504, "Gateway Timeout"),
             NetworkClientError::Offline | NetworkClientError::RoutingTableEmpty => {
                 (503, "Service Unavailable")
             }
-            NetworkClientError::ChannelClosed
-            | NetworkClientError::StoreError(_)
-            | NetworkClientError::Other(_) => (500, "Internal Server Error"),
-            NetworkClientError::UnsupportedProtocol => (501, "Not Implemented"),
+            NetworkClientError::ChannelClosed | NetworkClientError::Other(_) => {
+                (500, "Internal Server Error")
+            }
             NetworkClientError::GossipSubError(_) => (502, "Bad Gateway"),
         };
         ApiError {

@@ -7,7 +7,7 @@
 //!
 //! `KIN-NET` is shared between this type and `KineticStoreError` in `kinetic-network`.
 //! To avoid overlaps:
-//! - `KIN-NET-100+`: This type (client-side P2P failures)
+//! - `KIN-RPC-001+`: This type (client-side P2P failures)
 //! - `KIN-DHT-001..099`: `KineticStoreError` (store-layer validations and rejections)
 //!
 //! Note that query-related failures (like timeouts or empty routing tables)
@@ -33,18 +33,9 @@ pub enum NetworkClientError {
     /// The internal mpsc/oneshot channel between the caller and the network loop was closed.
     #[error("Internal channel closed")]
     ChannelClosed,
-    /// The remote peer closed the stream before the response was fully delivered.
-    #[error("Stream dropped by peer")]
-    StreamDropped,
-    /// The remote peer does not speak the requested Kinetic protocol version.
-    #[error("Unsupported protocol")]
-    UnsupportedProtocol,
     /// A GossipSub publish or subscribe operation failed.
     #[error("Gossipsub error: {0}")]
     GossipSubError(String),
-    /// The Kademlia record store rejected a `PUT` or returned an error for a `GET`.
-    #[error("Kademlia store error: {0}")]
-    StoreError(String),
     /// A catch-all for miscellaneous network errors.
     #[error("Other network error: {0}")]
     Other(String),
@@ -58,11 +49,8 @@ impl NetworkClientError {
             Self::Offline => "KIN-QRY-001",
             Self::RoutingTableEmpty => "KIN-QRY-001",
             Self::ChannelClosed => "KIN-QRY-006",
-            Self::StreamDropped => "KIN-RPC-001",
-            Self::UnsupportedProtocol => "KIN-RPC-002",
-            Self::GossipSubError(_) => "KIN-RPC-003",
-            Self::StoreError(_) => "KIN-RPC-004",
-            Self::Other(_) => "KIN-RPC-005",
+            Self::GossipSubError(_) => "KIN-RPC-001",
+            Self::Other(_) => "KIN-RPC-002",
         }
     }
 
@@ -78,9 +66,8 @@ impl NetworkClientError {
             | Self::Offline
             | Self::RoutingTableEmpty
             | Self::ChannelClosed
-            | Self::StreamDropped
             | Self::GossipSubError(_) => Severity::Warning,
-            Self::UnsupportedProtocol | Self::StoreError(_) | Self::Other(_) => Severity::Error,
+            Self::Other(_) => Severity::Error,
         }
     }
 
@@ -88,7 +75,7 @@ impl NetworkClientError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::Timeout | Self::Offline | Self::RoutingTableEmpty | Self::StreamDropped
+            Self::Timeout | Self::Offline | Self::RoutingTableEmpty
         )
     }
 
@@ -99,10 +86,7 @@ impl NetworkClientError {
             Self::Offline => "The node is offline or unreachable.".to_string(),
             Self::RoutingTableEmpty => "The Kademlia routing table is empty.".to_string(),
             Self::ChannelClosed => "Internal channel closed.".to_string(),
-            Self::StreamDropped => "Stream dropped by peer.".to_string(),
-            Self::UnsupportedProtocol => "Unsupported protocol.".to_string(),
             Self::GossipSubError(_) => "A GossipSub operation failed.".to_string(),
-            Self::StoreError(_) => "Kademlia store error.".to_string(),
             Self::Other(_) => "A network error occurred.".to_string(),
         }
     }
