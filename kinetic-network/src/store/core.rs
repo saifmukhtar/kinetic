@@ -429,7 +429,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-VAL-004", severity = ?err.severity(), "Failed to parse Commitment schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse Commitment schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -444,7 +444,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-VAL-005", severity = ?err.severity(), "Failed to parse NameRecord schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse NameRecord schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -459,7 +459,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-VAL-006", severity = ?err.severity(), "Failed to parse Heartbeat schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse Heartbeat schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -476,7 +476,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-VAL-007", severity = ?err.severity(), "Failed to parse AuthorizedKid schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse AuthorizedKid schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -493,7 +493,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-VAL-008", severity = ?err.severity(), "Failed to parse AuthorizedManifest schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse AuthorizedManifest schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -511,21 +511,21 @@ impl KineticRecordStore {
                                 );
                             }
                             Err(err) => {
-                                tracing::warn!(error_code = "KIN-VAL-010", host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);
+                                tracing::warn!(error_code = err.code(), host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);
                                 return Err(err);
                             }
                         }
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-VAL-009", severity = ?err.severity(), "Failed to parse HostRoutingRecord schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse HostRoutingRecord schema: {}", e);
                         return Err(err);
                     }
                 }
             } else {
                 let err = KineticStoreError::UnknownRecordType;
                 tracing::warn!(
-                    error_code = "KIN-VAL-003",
+                    error_code = err.code(),
                     severity = ?err.severity(),
                     "Rejecting Kademlia record: {}", err
                 );
@@ -534,7 +534,7 @@ impl KineticRecordStore {
         } else {
             let err = KineticStoreError::MalformedJson;
             tracing::warn!(
-                error_code = "KIN-VAL-002",
+                error_code = err.code(),
                 severity = ?err.severity(),
                 "Rejecting Kademlia record due to malformed JSON: {}", err
             );
