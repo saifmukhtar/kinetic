@@ -312,7 +312,7 @@ impl super::core::NetworkEventLoop {
                         > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
-                            error_code = "KIN-PRV-015",
+                            error_code = "KIN-VDF-012",
                             name = %reveal.name,
                             "Skipping candidate: Reveal expired (older than RESQUARING_EPOCH_KYNS)"
                         );
