@@ -482,13 +482,20 @@ pub(crate) fn verify_authorized_kid(
         record.pubkey(),
         &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
         auth_kid.owner_signature.as_slice(),
-    ).is_err()
-        || auth_kid.kid_doc.verify().is_err()
-    {
+    ).is_err() {
+        let err = KineticStoreError::InvalidKidSignature;
+        err.log_warning(
+            &auth_kid.name,
+            "Rejecting AuthorizedKid: invalid owner signature",
+        );
+        return Err(err);
+    }
+
+    if auth_kid.kid_doc.verify().is_err() {
         let err = KineticStoreError::InvalidKidDocument;
         err.log_warning(
             &auth_kid.name,
-            "Rejecting AuthorizedKid: invalid signature or invalid document",
+            "Rejecting AuthorizedKid: invalid document",
         );
         return Err(err);
     }
