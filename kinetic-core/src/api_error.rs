@@ -260,8 +260,7 @@ impl From<DrandError> for ApiError {
 impl From<NrsError> for ApiError {
     fn from(e: NrsError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            NrsError::NestedTooDeeply
-            | NrsError::ParseError(_)
+            NrsError::ParseError(_)
             | NrsError::TooManyRecords
             | NrsError::InvalidLabelLength(_)
             | NrsError::InvalidLabelCharacters(_)

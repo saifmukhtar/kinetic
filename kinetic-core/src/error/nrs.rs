@@ -11,10 +11,6 @@ use thiserror::Error;
 /// Error type for NRS zone payloads and record validation.
 #[derive(Error, Debug)]
 pub enum NrsError {
-    /// The NRS JSON payload is nested too deeply.
-    #[error("Payload rejected: JSON nested too deeply")]
-    NestedTooDeeply,
-
     /// The NRS JSON payload could not be parsed.
     #[error("Failed to parse NRS zone: {0}")]
     ParseError(#[from] serde_json::Error),
@@ -63,7 +59,6 @@ pub enum NrsError {
 impl PartialEq for NrsError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::NestedTooDeeply, Self::NestedTooDeeply) => true,
             (Self::ParseError(a), Self::ParseError(b)) => a.to_string() == b.to_string(),
             (Self::TooManyRecords, Self::TooManyRecords) => true,
             (Self::InvalidLabelLength(a), Self::InvalidLabelLength(b)) => a == b,
@@ -86,7 +81,7 @@ impl NrsError {
     /// Stable protocol error code.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::NestedTooDeeply => "KIN-NRS-001",
+            Self::MultipleCnames(_) => "KIN-NRS-001",
             Self::ParseError(_) => "KIN-NRS-002",
             Self::TooManyRecords => "KIN-NRS-003",
             Self::InvalidLabelLength(_) => "KIN-NRS-004",
@@ -97,7 +92,6 @@ impl NrsError {
             Self::InvalidPeerId(_) => "KIN-NRS-009",
             Self::InvalidKid(_) => "KIN-NRS-010",
             Self::InvalidIpfsCid(_) => "KIN-NRS-011",
-            Self::MultipleCnames(_) => "KIN-NRS-012",
         }
     }
 
@@ -120,9 +114,6 @@ impl NrsError {
     /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
         match self {
-            Self::NestedTooDeeply => {
-                "The NRS zone contains data that is nested too deeply.".to_string()
-            }
             Self::ParseError(_) => "Failed to parse the NRS zone data.".to_string(),
             Self::TooManyRecords => {
                 "The NRS zone contains too many records (maximum 50).".to_string()
