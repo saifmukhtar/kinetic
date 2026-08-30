@@ -333,12 +333,12 @@ pub async fn handle_post_local_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-NAM-007", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-API-006", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
             instance: None,
-            code: "KIN-NAM-007".to_string(),
+            code: "KIN-API-006".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -408,12 +408,12 @@ pub async fn handle_delete_local_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-NAM-007", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-API-006", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
             instance: None,
-            code: "KIN-NAM-007".to_string(),
+            code: "KIN-API-006".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
@@ -454,12 +454,12 @@ pub async fn handle_get_local_zone(
 
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-NAM-007", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/KIN-API-006", kinetic_core::constants::DOCS_URL),
             title: "Bad Request".to_string(),
             status: 400,
             detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
             instance: None,
-            code: "KIN-NAM-007".to_string(),
+            code: "KIN-API-006".to_string(),
             retryable: false,
             details: serde_json::Value::Null,
             request_id: "".to_string(),
