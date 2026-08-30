@@ -190,6 +190,12 @@ pub enum VdfError {
     /// Invalid Challenge. The challenge is degenerate (e.g. all-zero) and would produce a universally-forgeable proof.
     #[error("VDF challenge is degenerate and cannot be safely evaluated")]
     InvalidChallenge,
+    /// Max Iterations Exceeded. The requested iterations exceed the maximum allowed for a user VDF task.
+    #[error("Iteration count exceeds maximum")]
+    MaxIterationsExceeded,
+    /// Too Many Tasks. The node is already processing the maximum number of concurrent VDF tasks.
+    #[error("Too many concurrent VDF tasks. Please wait.")]
+    TooManyTasks,
 }
 
 impl VdfError {
@@ -203,6 +209,8 @@ impl VdfError {
             Self::UnsupportedPlatform => "KIN-VDF-005",
             Self::InvalidProof => "KIN-VDF-006",
             Self::InvalidChallenge => "KIN-VDF-007",
+            Self::MaxIterationsExceeded => "KIN-VDF-012",
+            Self::TooManyTasks => "KIN-VDF-013",
         }
     }
 
@@ -219,13 +227,15 @@ impl VdfError {
                 Severity::Error
             }
             Self::UnsupportedPlatform => Severity::Critical,
-            Self::InvalidChallenge => Severity::Warning,
+            Self::InvalidChallenge
+            | Self::MaxIterationsExceeded
+            | Self::TooManyTasks => Severity::Warning,
         }
     }
 
     /// Whether the client should offer a retry action.
     pub fn is_retryable(&self) -> bool {
-        matches!(self, Self::LockAcquireError(_))
+        matches!(self, Self::LockAcquireError(_) | Self::TooManyTasks)
     }
 
     /// Returns the user-facing message.
@@ -241,6 +251,12 @@ impl VdfError {
             Self::InvalidProof => "The VDF proof is structurally invalid or too large.".to_string(),
             Self::InvalidChallenge => {
                 "The VDF challenge is degenerate and cannot be safely evaluated.".to_string()
+            }
+            Self::MaxIterationsExceeded => {
+                "The requested iteration count exceeds the maximum allowed for a user VDF task.".to_string()
+            }
+            Self::TooManyTasks => {
+                "Too many concurrent VDF tasks are currently processing. Please wait and retry.".to_string()
             }
         }
     }

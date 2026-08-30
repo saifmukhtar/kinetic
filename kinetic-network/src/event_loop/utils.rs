@@ -312,7 +312,7 @@ impl super::core::NetworkEventLoop {
                         > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
-                            error_code = "KIN-VDF-012",
+                            error = ?kinetic_core::error::RecordRejectReason::Expired,
                             name = %reveal.name,
                             "Skipping candidate: Reveal expired (older than RESQUARING_EPOCH_KYNS)"
                         );
@@ -330,7 +330,7 @@ impl super::core::NetworkEventLoop {
                             Ok(req) => req,
                             Err(e) => {
                                 tracing::warn!(
-                                    error_code = "KIN-VDF-018",
+                                    error = ?e,
                                     name = %reveal.name,
                                     "Skipping candidate: failed to compute required iterations: {:?}", e
                                 );
@@ -340,7 +340,7 @@ impl super::core::NetworkEventLoop {
 
                     if !dev_mode && reveal.iterations < required_iterations {
                         tracing::warn!(
-                            error_code = "KIN-VDF-019",
+                            error = ?kinetic_core::error::RecordRejectReason::InsufficientIterations,
                             name = %reveal.name,
                             "Skipping candidate: Insufficient VDF iterations. Provided {}, Required {}",
                             reveal.iterations, required_iterations
@@ -360,7 +360,7 @@ impl super::core::NetworkEventLoop {
                         Ok(true) => return Some(p),
                         Ok(false) => {
                             tracing::warn!(
-                                error_code = "KIN-VDF-020",
+                                error = ?kinetic_core::error::RecordRejectReason::InvalidVdf,
                                 name = %reveal.name,
                                 "Skipping candidate: VDF verification failed"
                             );
@@ -368,7 +368,7 @@ impl super::core::NetworkEventLoop {
                         }
                         Err(kinetic_core::error::VdfError::UnsupportedPlatform) => {
                             tracing::error!(
-                                error_code = "KIN-VDF-021",
+                                error = ?kinetic_core::error::VdfError::UnsupportedPlatform,
                                 name = %reveal.name,
                                 "VDF verification is unsupported on this platform. Resolution failed."
                             );
@@ -376,7 +376,7 @@ impl super::core::NetworkEventLoop {
                         }
                         Err(e) => {
                             tracing::warn!(
-                                error_code = "KIN-VDF-022",
+                                error = ?e,
                                 name = %reveal.name,
                                 "Skipping candidate: VDF verification error: {:?}", e
                             );

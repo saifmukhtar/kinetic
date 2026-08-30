@@ -216,6 +216,8 @@ impl From<VdfError> for ApiError {
             VdfError::UnsupportedPlatform => (501, "Not Implemented"),
             VdfError::InvalidProof => (400, "Bad Request"),
             VdfError::InvalidChallenge => (400, "Bad Request"),
+            VdfError::MaxIterationsExceeded => (400, "Bad Request"),
+            VdfError::TooManyTasks => (429, "Too Many Requests"),
         };
         ApiError {
             error_type: e.error_type_uri(),
