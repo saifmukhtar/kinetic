@@ -110,7 +110,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
                                     Ok(name_record) => {
                                         if name_record.verify_signature(kinetic_core::constants::NETWORK_SALT).is_err() {
-                                            warn!(error_code = "KIN-VER-020", "Rejecting .kin resolution: record signature invalid for {}", apex_name_clone);
+                                            warn!(
+                                                error = ?kinetic_verify::error::SignatureVerifyError::InvalidSignature,
+                                                "Rejecting .kin resolution: record signature invalid for {}", apex_name_clone
+                                            );
                                             return Err(Arc::new(anyhow::anyhow!("Invalid signature")));
                                         }
                                     }

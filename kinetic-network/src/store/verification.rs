@@ -168,7 +168,8 @@ pub(crate) fn compute_required_iterations(
             Ok(bytes) => bytes,
             Err(_) => {
                 tracing::warn!(
-                    "KIN-VER-008: Invalid PreviousProof attached for {}: Invalid Drand signature hex. Falling back to full difficulty.",
+                    error = ?kinetic_core::error::RecordRejectReason::InvalidDrandHex,
+                    "Invalid PreviousProof attached for {}: Invalid Drand signature hex. Falling back to full difficulty.",
                     reveal.name
                 );
                 return Ok(base_required_iterations);
@@ -189,7 +190,8 @@ pub(crate) fn compute_required_iterations(
                 .unwrap_or(false)
             {
                 tracing::warn!(
-                    "KIN-VER-009: Invalid PreviousProof attached for {}: Invalid Drand BLS signature. Falling back to full difficulty.",
+                    error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
+                    "Invalid PreviousProof attached for {}: Invalid Drand BLS signature. Falling back to full difficulty.",
                     reveal.name
                 );
                 return Ok(base_required_iterations);

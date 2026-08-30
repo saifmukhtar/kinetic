@@ -248,7 +248,7 @@ impl super::core::NetworkEventLoop {
 
                     if !valid_sig {
                         tracing::warn!(
-                            error_code = "KIN-VER-018",
+                            error = ?kinetic_verify::error::SignatureVerifyError::InvalidSignature,
                             name = %reveal.name,
                             "Skipping candidate: Invalid signature in tie-breaker"
                         );
@@ -264,7 +264,7 @@ impl super::core::NetworkEventLoop {
                         Ok(b) => b,
                         Err(e) => {
                             tracing::warn!(
-                                error_code = "KIN-VER-017",
+                                error = ?kinetic_core::error::RecordRejectReason::InvalidDrandHex,
                                 "Skipping candidate: invalid drand_signature hex: {}",
                                 e
                             );
@@ -292,7 +292,7 @@ impl super::core::NetworkEventLoop {
                             .unwrap_or(false)
                         {
                             tracing::warn!(
-                                error_code = "KIN-VER-019",
+                                error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
                                 "Skipping candidate: invalid drand BLS signature"
                             );
                             continue;
