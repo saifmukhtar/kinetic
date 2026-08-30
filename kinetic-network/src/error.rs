@@ -32,16 +32,15 @@ pub enum KineticStoreError {
     /// Signature bytes are malformed.
     #[error("signature bytes are malformed")]
     MalformedSignature,
-
     /// Lost the PoW XOR tie-break against an existing record.
     #[error("lost the XOR tie-break against an existing record")]
     TieBroken,
     /// Insufficient iterations to steal this name.
     #[error("insufficient VDF iterations to steal this name")]
     InsufficientIterations,
-    /// No existing reveal was found for the requested name.
-    #[error("no existing reveal found for this name")]
-    RevealNotFound,
+    /// Internal Kademlia store failure
+    #[error("internal Kademlia DHT store failed to save the record")]
+    InternalStoreError,
     /// KID document signature failed verification.
     #[error("KID document signature is invalid")]
     InvalidKidSignature,
@@ -57,9 +56,6 @@ pub enum KineticStoreError {
     /// Finding 8: heartbeat kyn was not strictly greater than the stored value.
     #[error("stale heartbeat: received kyn is not newer than existing record")]
     StaleHeartbeat,
-    /// The network has been emergency paused by the Root Key.
-    #[error("network registration and renewals are currently halted")]
-    NetworkHalted,
     /// Finding 13: HostRoutingRecord failed signature verification or timestamp check.
     #[error("HostRoutingRecord signature verification failed or record is stale")]
     InvalidHostRouteSignature,
@@ -69,15 +65,15 @@ pub enum KineticStoreError {
     /// Reveal commitment is too recent
     #[error("reveal commitment is too recent")]
     StaleReveal,
-    /// Missing prior commitment in DHT
-    #[error("no prior commitment found in DHT")]
-    MissingCommitment {
-        /// The derived Kademlia DHT key of the missing commitment.
-        commit_key: Vec<u8>,
-    },
+    /// JSON is valid but does not match the strict Kinetic schema
+    #[error("payload violates the expected record schema")]
+    SchemaValidationError,
     /// Invalid apex name
     #[error("the provided name is not a valid kinetic apex name")]
     InvalidName,
+    /// The network has been emergency paused by the Root Key.
+    #[error("network registration and renewals are currently halted")]
+    NetworkHalted,
     /// The delegated manifest does not grant the required capability.
     #[error("delegated capability missing from authorized manifest")]
     DelegatedCapabilityMissing,
@@ -87,9 +83,9 @@ pub enum KineticStoreError {
     /// Drand BLS signature failed math verification
     #[error("drand signature failed BLS verification")]
     InvalidDrandSignature,
-    /// Name not found locally
-    #[error("name not found locally")]
-    NameNotFound,
+    /// Raw bytes could not be parsed as JSON
+    #[error("payload contains malformed or invalid JSON")]
+    MalformedJson,
     /// KID document failed internal validation
     #[error("kid document failed validation")]
     InvalidKidDocument,
@@ -111,18 +107,26 @@ pub enum KineticStoreError {
     /// Name type is immutable
     #[error("Prime and Infra names are immutable and cannot be stolen")]
     ImmutableName,
+    
+    // ==========================================
+    // KIN-QRY Error Codes
+    // ==========================================
+    
+    /// No existing reveal was found for the requested name.
+    #[error("no existing reveal found for this name")]
+    RevealNotFound,
+    /// Missing prior commitment in DHT
+    #[error("no prior commitment found in DHT")]
+    MissingCommitment {
+        /// The derived Kademlia DHT key of the missing commitment.
+        commit_key: Vec<u8>,
+    },
+    /// Name not found locally
+    #[error("name not found locally")]
+    NameNotFound,
     /// KID document missing
     #[error("KID document is missing from the authorization payload")]
     MissingKidDocument,
-    /// Raw bytes could not be parsed as JSON
-    #[error("payload contains malformed or invalid JSON")]
-    MalformedJson,
-    /// JSON is valid but does not match the strict Kinetic schema
-    #[error("payload violates the expected record schema")]
-    SchemaValidationError,
-    /// Internal Kademlia store failure
-    #[error("internal Kademlia DHT store failed to save the record")]
-    InternalStoreError,
 }
 
 impl KineticStoreError {
@@ -138,7 +142,7 @@ impl KineticStoreError {
             Self::MalformedSignature => "KIN-NET-007",
             Self::TieBroken => "KIN-NET-008",
             Self::InsufficientIterations => "KIN-NET-009",
-            Self::RevealNotFound => "KIN-QRY-007",
+            Self::InternalStoreError => "KIN-NET-010",
             Self::InvalidKidSignature => "KIN-NET-011",
             Self::InvalidManifestSignature => "KIN-NET-012",
             Self::UnknownRecordType => "KIN-NET-013",
@@ -147,13 +151,13 @@ impl KineticStoreError {
             Self::InvalidHostRouteSignature => "KIN-NET-016",
             Self::RateLimited => "KIN-NET-017",
             Self::StaleReveal => "KIN-NET-018",
-            Self::MissingCommitment { .. } => "KIN-QRY-008",
+            Self::SchemaValidationError => "KIN-NET-019",
             Self::InvalidName => "KIN-NET-020",
             Self::NetworkHalted => "KIN-NET-021",
             Self::DelegatedCapabilityMissing => "KIN-NET-022",
             Self::DelegatedAuthorizationInvalid => "KIN-NET-023",
             Self::InvalidDrandSignature => "KIN-NET-024",
-            Self::NameNotFound => "KIN-QRY-009",
+            Self::MalformedJson => "KIN-NET-025",
             Self::InvalidKidDocument => "KIN-NET-026",
             Self::GenesisBindingFailed => "KIN-NET-027",
             Self::UnauthorizedUpdate => "KIN-NET-028",
@@ -161,10 +165,11 @@ impl KineticStoreError {
             Self::ManifestVerificationFailed => "KIN-NET-030",
             Self::FutureHeartbeat => "KIN-NET-031",
             Self::ImmutableName => "KIN-NET-032",
+
+            Self::RevealNotFound => "KIN-QRY-007",
+            Self::MissingCommitment { .. } => "KIN-QRY-008",
+            Self::NameNotFound => "KIN-QRY-009",
             Self::MissingKidDocument => "KIN-QRY-010",
-            Self::MalformedJson => "KIN-NET-034",
-            Self::SchemaValidationError => "KIN-NET-035",
-            Self::InternalStoreError => "KIN-NET-036",
         }
     }
 
@@ -192,7 +197,9 @@ impl KineticStoreError {
             Self::InsufficientIterations => {
                 "Insufficient VDF iterations to override existing record".to_string()
             }
-            Self::RevealNotFound => "No reveal record found for name".to_string(),
+            Self::InternalStoreError => {
+                "Internal DHT memory store rejected the put operation".to_string()
+            }
             Self::InvalidKidSignature => "KID document signature verification failed".to_string(),
             Self::InvalidManifestSignature => "Manifest signature verification failed".to_string(),
             Self::UnknownRecordType => "Record payload prefix is unrecognized".to_string(),
@@ -203,9 +210,7 @@ impl KineticStoreError {
             }
             Self::RateLimited => "Rate limit exceeded for submission".to_string(),
             Self::StaleReveal => "Reveal commitment is too recent".to_string(),
-            Self::MissingCommitment { .. } => {
-                "No prior commitment found in DHT for this reveal".to_string()
-            }
+            Self::SchemaValidationError => "Parsed JSON failed strict type validation".to_string(),
             Self::InvalidName => "Name is not a valid Kinetic apex name".to_string(),
             Self::NetworkHalted => "Network Registration Halted".to_string(),
             Self::DelegatedCapabilityMissing => {
@@ -217,7 +222,7 @@ impl KineticStoreError {
                     .to_string()
             }
             Self::InvalidDrandSignature => "Drand signature math verification failed".to_string(),
-            Self::NameNotFound => "Active record missing for this name".to_string(),
+            Self::MalformedJson => "Failed to parse raw bytes as JSON".to_string(),
             Self::InvalidKidDocument => "KID document failed self-verification".to_string(),
             Self::GenesisBindingFailed => "KID genesis binding failed on first publish".to_string(),
             Self::UnauthorizedUpdate => {
@@ -231,13 +236,14 @@ impl KineticStoreError {
             Self::ImmutableName => {
                 "This name type is immortal and cannot be transferred via PoW".to_string()
             }
+
+            Self::RevealNotFound => "No reveal record found for name".to_string(),
+            Self::MissingCommitment { .. } => {
+                "No prior commitment found in DHT for this reveal".to_string()
+            }
+            Self::NameNotFound => "Active record missing for this name".to_string(),
             Self::MissingKidDocument => {
                 "Authorization payload is missing the required KID document".to_string()
-            }
-            Self::MalformedJson => "Failed to parse raw bytes as JSON".to_string(),
-            Self::SchemaValidationError => "Parsed JSON failed strict type validation".to_string(),
-            Self::InternalStoreError => {
-                "Internal DHT memory store rejected the put operation".to_string()
             }
         }
     }
