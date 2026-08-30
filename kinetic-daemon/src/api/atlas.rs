@@ -57,15 +57,16 @@ pub async fn handle_atlas_sync(
             Ok("Atlas NSPs synced successfully".to_string())
         }
         Err(_) => {
-            tracing::error!("KIN-SYS-032: Failed to acquire write lock on atlas_nsps");
+            let sys_err = kinetic_core::error::SystemError::MutexPoisoned("atlas_nsps".into());
+            tracing::error!(error = ?sys_err, "Failed to acquire write lock on atlas_nsps");
             Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-SYS-032", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
                 title: "Internal Server Error".to_string(),
                 status: 500,
-                detail: "Failed to acquire write lock on atlas_nsps".to_string(),
+                detail: sys_err.user_message(),
                 instance: None,
-                code: "KIN-SYS-032".to_string(),
-                retryable: true,
+                code: sys_err.code().to_string(),
+                retryable: sys_err.is_retryable(),
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
             }))

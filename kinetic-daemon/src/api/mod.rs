@@ -274,13 +274,13 @@ pub fn app(state: ApiState) -> Router {
 fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<String> {
     let mut token_bytes = [0u8; 32];
     getrandom::fill(&mut token_bytes).map_err(|e| {
+        let sys_err = kinetic_core::error::SystemError::InvalidOsEnvironment(format!("getrandom failed: {}", e));
         tracing::error!(
-            error_code = "KIN-SYS-014",
+            error = ?sys_err,
             severity = "Critical",
-            "FATAL: getrandom failed — cannot generate secure API token. Refusing to start with a predictable token. Error: {}",
-            e
+            "FATAL: getrandom failed — cannot generate secure API token. Refusing to start with a predictable token."
         );
-        anyhow::anyhow!("[KIN-SYS-014] getrandom failed: {}. Cannot generate a secure API token.", e)
+        anyhow::Error::from(sys_err)
     })?;
     let token = hex::encode(token_bytes);
 
@@ -374,7 +374,8 @@ pub async fn start_server(
             break;
         } else if let Ok(l) = tokio::net::TcpListener::bind(format!("[::1]:{}", port)).await {
             tracing::warn!(
-                "KIN-SYS-001: Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
+                error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", bind_ip, port)),
+                "Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
                 bind_ip
             );
             listener = Some(l);

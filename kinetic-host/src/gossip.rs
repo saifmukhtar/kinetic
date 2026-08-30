@@ -27,7 +27,10 @@ pub async fn start_gossip_listener(
                 let (should_save, cloned_state) = {
                     let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
                     else {
-                        tracing::error!("KIN-SYS-072: FATAL: Global governance state mutex is poisoned!");
+                        tracing::error!(
+                            error = ?kinetic_core::error::SystemError::MutexPoisoned("GLOBAL_GOVERNANCE_STATE".into()),
+                            "FATAL: Global governance state mutex is poisoned!"
+                        );
                         continue;
                     };
                     let current_time = std::time::SystemTime::now()

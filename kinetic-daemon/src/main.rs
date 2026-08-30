@@ -160,7 +160,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     println!("Installing Kinetic Daemon service...");
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -185,7 +185,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
 fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
@@ -194,7 +194,7 @@ fn uninstall_service() -> Result<()> {
 fn start_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -203,7 +203,7 @@ fn start_background_service() -> Result<()> {
 fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -261,7 +261,7 @@ async fn run_daemon() -> Result<()> {
         .daemon
         .storage_dir
         .to_str()
-        .ok_or_else(|| anyhow::anyhow!("KIN-SYS-008: Invalid UTF-8 path in storage_dir"))?;
+        .ok_or_else(|| anyhow::Error::from(kinetic_core::error::SystemError::InvalidOsEnvironment("Invalid UTF-8 path in storage_dir".into())))?;
     let storage = Arc::new(KineticStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
@@ -297,7 +297,10 @@ async fn run_daemon() -> Result<()> {
     // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately
     // without having to wait for the 30-40 second PoW mining loop to finish.
     if let Err(e) = kinetic_daemon::api::ensure_api_tokens() {
-        tracing::error!("KIN-SYS-069: Failed to generate or read API tokens: {}", e);
+        tracing::error!(
+            error = ?kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string()),
+            "Failed to generate or read API tokens"
+        );
         std::process::exit(1);
     }
 
@@ -426,7 +429,10 @@ async fn run_daemon() -> Result<()> {
                     }
 
                     if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
-                        tracing::warn!("KIN-SYS-006: Failed to save downloaded governance state to disk: {}", e);
+                        tracing::warn!(
+                            error = ?kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string()),
+                            "Failed to save downloaded governance state to disk"
+                        );
                     } else {
                         tracing::info!(
                             "Successfully bootstrapped governance state from seed node."
@@ -451,7 +457,7 @@ async fn run_daemon() -> Result<()> {
     {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
-            .map_err(|e| anyhow::anyhow!("KIN-SYS-004: Governance state lock poisoned: {}", e))?;
+            .map_err(|e| anyhow::Error::from(kinetic_core::error::SystemError::MutexPoisoned(e.to_string())))?;
         *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
     }
 
@@ -520,7 +526,10 @@ async fn run_daemon() -> Result<()> {
     let root_ca = match ca::load_or_create_root_ca(&base_config_dir) {
         Ok((root_ca, _is_new)) => std::sync::Arc::new(root_ca),
         Err(e) => {
-            tracing::error!("KIN-SYS-003: Failed to initialize Root CA: {}", e);
+            tracing::error!(
+                error = ?kinetic_core::error::SystemError::TrustInstallationFailed(e.to_string()),
+                "Failed to initialize Root CA"
+            );
             return Err(anyhow::anyhow!("CA Init Failed: {}", e));
         }
     };
@@ -542,7 +551,10 @@ async fn run_daemon() -> Result<()> {
         )
         .await
         {
-            tracing::error!("KIN-SYS-002: Proxy server crashed: {}", e);
+            tracing::error!(
+                error = ?kinetic_core::error::SystemError::ServerCrashed(e.to_string()),
+                "Proxy server crashed"
+            );
         }
     });
 
@@ -642,19 +654,29 @@ async fn run_daemon() -> Result<()> {
                         config.daemon.nrs_port
                     );
                     if let Err(e) = server.block_until_done().await {
-                        tracing::error!("KIN-SYS-002: DNS Server error: {}", e);
+                        tracing::error!(
+                            error = ?kinetic_core::error::SystemError::ServerCrashed(e.to_string()),
+                            "DNS Server error"
+                        );
                     }
                 });
             }
             (Err(e), _) | (_, Err(e)) => {
-                tracing::error!("KIN-SYS-001: Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}", config.daemon.nrs_port, e);
+                tracing::error!(
+                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", config.daemon.bind_ip, config.daemon.nrs_port)),
+                    "Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}",
+                    config.daemon.nrs_port, e
+                );
             }
         }
     }
 
     tokio::select! {
         res = api_future => {
-            tracing::error!("KIN-SYS-002: API Server exited unexpectedly: {:?}", res);
+            tracing::error!(
+                error = ?kinetic_core::error::SystemError::ServerCrashed(format!("{:?}", res)),
+                "API Server exited unexpectedly"
+            );
         },
         _ = kinetic_core::shutdown::shutdown_signal() => {
             info!("Shutdown signal received. Commencing graceful shutdown...");

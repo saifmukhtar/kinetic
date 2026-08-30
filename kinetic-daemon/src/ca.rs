@@ -100,8 +100,8 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
             
             if thirty_days_from_now > params.not_after {
                 tracing::warn!(
-                    "KIN-SYS-065: Local Root CA expires within 30 days (on {}). Auto-rotating...",
-                    params.not_after
+                    error = ?kinetic_core::error::SystemError::CaRotationFailed(params.not_after.to_string()),
+                    "Local Root CA expires within 30 days. Auto-rotating..."
                 );
                 // Fall through to the new CA generation logic below
             } else {
@@ -164,7 +164,8 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         } else {
             #[cfg(not(test))]
             tracing::warn!(
-                "KIN-SYS-066: Failed to store Root CA key in OS Keychain. Falling back to disk storage."
+                error = ?kinetic_core::error::SystemError::KeychainStorageFailed("root_ca_key".into()),
+                "Failed to store Root CA key in OS Keychain. Falling back to disk storage."
             );
 
             #[cfg(unix)]
@@ -236,7 +237,10 @@ fn trust_root_ca(cert_path: &Path) {
 
         match status {
             Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on Windows."),
-            _ => tracing::warn!("KIN-SYS-003: Failed or rejected Root CA trust installation on Windows."),
+            _ => tracing::warn!(
+                error = ?kinetic_core::error::SystemError::TrustInstallationFailed("Windows certutil".into()),
+                "Failed or rejected Root CA trust installation on Windows."
+            ),
         }
     }
 
@@ -253,7 +257,10 @@ fn trust_root_ca(cert_path: &Path) {
 
         match status {
             Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on macOS."),
-            _ => tracing::warn!("KIN-SYS-003: Failed or rejected Root CA trust installation on macOS."),
+            _ => tracing::warn!(
+                error = ?kinetic_core::error::SystemError::TrustInstallationFailed("macOS osascript".into()),
+                "Failed or rejected Root CA trust installation on macOS."
+            ),
         }
     }
 
@@ -273,7 +280,10 @@ fn trust_root_ca(cert_path: &Path) {
 
         match status {
             Ok(s) if s.success() => tracing::info!("Successfully trusted Root CA on Linux."),
-            _ => tracing::warn!("KIN-SYS-003: Failed or rejected Root CA trust installation on Linux."),
+            _ => tracing::warn!(
+                error = ?kinetic_core::error::SystemError::TrustInstallationFailed("Linux pkexec".into()),
+                "Failed or rejected Root CA trust installation on Linux."
+            ),
         }
     }
 }

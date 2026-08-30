@@ -104,14 +104,15 @@ pub async fn handle_post_zone(
         }
     };
     if let Err(e) = std::fs::write(&path, content) {
+        let sys_err = kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string());
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-SYS-006", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
             title: "Internal Server Error".to_string(),
             status: 500,
-            detail: format!("File write failed: {}", e),
+            detail: sys_err.user_message(),
             instance: None,
-            code: "KIN-SYS-006".to_string(),
-            retryable: false,
+            code: sys_err.code().to_string(),
+            retryable: sys_err.is_retryable(),
             details: serde_json::Value::Null,
             request_id: "".to_string(),
         }));
@@ -333,14 +334,15 @@ pub async fn handle_post_local_zone(
     };
 
     if let Err(e) = std::fs::write(&path, content) {
+        let sys_err = kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string());
         return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-SYS-006", kinetic_core::constants::DOCS_URL),
+            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
             title: "Internal Server Error".to_string(),
             status: 500,
-            detail: format!("File write failed: {}", e),
+            detail: sys_err.user_message(),
             instance: None,
-            code: "KIN-SYS-006".to_string(),
-            retryable: false,
+            code: sys_err.code().to_string(),
+            retryable: sys_err.is_retryable(),
             details: serde_json::Value::Null,
             request_id: "".to_string(),
         }));
@@ -392,14 +394,15 @@ pub async fn handle_delete_local_zone(
 
     if path.exists() {
         if let Err(e) = std::fs::remove_file(&path) {
+            let sys_err = kinetic_core::error::SystemError::DiskPersistenceFailed(format!("File delete failed: {}", e));
             return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-SYS-013", kinetic_core::constants::DOCS_URL),
+                error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
                 title: "Internal Server Error".to_string(),
                 status: 500,
-                detail: format!("File delete failed: {}", e),
+                detail: sys_err.user_message(),
                 instance: None,
-                code: "KIN-SYS-013".to_string(),
-                retryable: false,
+                code: sys_err.code().to_string(),
+                retryable: sys_err.is_retryable(),
                 details: serde_json::Value::Null,
                 request_id: "".to_string(),
             }));

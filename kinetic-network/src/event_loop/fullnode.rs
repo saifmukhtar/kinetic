@@ -40,8 +40,8 @@ pub(crate) fn build_full_swarm(
         Ok(b) => b,
         Err(e) => {
             tracing::warn!(
-                "KIN-SYS-077: Failed to build TCP transport with port_reuse(true): {}. Falling back to port_reuse(false).",
-                e
+                error = ?kinetic_core::error::SystemError::PortInUse(e.to_string()),
+                "Failed to build TCP transport with port_reuse(true). Falling back to port_reuse(false)."
             );
             build_tcp(false)?
         }
@@ -251,7 +251,10 @@ pub(crate) fn build_full_swarm(
                     tracing::info!("Listening on TCP: {}", addr);
                     tcp_success = true;
                 }
-                Err(e) => tracing::warn!("KIN-SYS-001: Failed to bind TCP on {}: {}", addr, e),
+                Err(e) => tracing::warn!(
+                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}: {}", addr, e)),
+                    "Failed to bind TCP on {}", addr
+                ),
             }
         }
     }
@@ -263,12 +266,18 @@ pub(crate) fn build_full_swarm(
                     tracing::info!("Listening on QUIC: {}", quic_addr);
                     quic_success = true;
                 }
-                Err(e) => tracing::warn!("KIN-SYS-001: Failed to bind QUIC on {}: {}", quic_addr, e),
+                Err(e) => tracing::warn!(
+                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}: {}", quic_addr, e)),
+                    "Failed to bind QUIC on {}", quic_addr
+                ),
             }
         }
     }
     if !quic_success && !config.quic_listen_addrs.is_empty() {
-        tracing::warn!("KIN-SYS-001: Failed to bind any QUIC addresses. Falling back to TCP only.");
+        tracing::warn!(
+            error = ?kinetic_core::error::SystemError::PortInUse("All QUIC addresses".into()),
+            "Failed to bind any QUIC addresses. Falling back to TCP only."
+        );
     }
 
     if !tcp_success && !quic_success {

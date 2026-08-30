@@ -63,7 +63,7 @@ fn install_service() -> Result<()> {
     println!("Installing Kinetic Node service...");
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -86,7 +86,7 @@ fn install_service() -> Result<()> {
 fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
@@ -95,7 +95,7 @@ fn uninstall_service() -> Result<()> {
 fn start_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -104,7 +104,7 @@ fn start_background_service() -> Result<()> {
 fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("KIN-SYS-007: Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -283,7 +283,10 @@ async fn run_node() -> Result<()> {
 
     tokio::spawn(async move {
         network_loop.run().await;
-        tracing::warn!("KIN-SYS-002: Network loop exited");
+        tracing::warn!(
+            error = ?kinetic_core::error::SystemError::ServerCrashed("Network loop exited".into()),
+            "Network loop exited"
+        );
     });
 
     // Subscribe to Global Gossip

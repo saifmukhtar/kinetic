@@ -26,7 +26,10 @@ fn compute_pow_hash(argon2: &Argon2, peer_bytes: &[u8], epoch: u64) -> Option<[u
     let mut output = [0u8; 32];
     // Argon2 requires a salt of at least 8 bytes, and epoch.to_be_bytes() is 8 bytes.
     if let Err(e) = argon2.hash_password_into(peer_bytes, &epoch.to_be_bytes(), &mut output) {
-        tracing::error!("KIN-SYS-078: Argon2 memory allocation failed during PoW hash: {}", e);
+        tracing::error!(
+            error = ?kinetic_core::error::SystemError::ServerCrashed(format!("Argon2 memory allocation failed: {}", e)),
+            "Argon2 memory allocation failed during PoW hash"
+        );
         return None;
     }
     Some(output)
