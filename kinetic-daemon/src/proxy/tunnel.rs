@@ -42,7 +42,7 @@ pub async fn handle_connect_req(
                     warn!("KIN-P2P-024: Tunnel Forwarding error: {}", e);
                     Ok(Response::builder()
                         .status(StatusCode::BAD_GATEWAY)
-                        .body(axum::body::Body::from(format!("Backend Error: {}", e)))
+                        .body(axum::body::Body::from(format!("KIN-P2P-024: Backend Error: {}", e)))
                         .unwrap_or_else(|_| {
                             Response::new(axum::body::Body::from("Internal Proxy Error"))
                         }))

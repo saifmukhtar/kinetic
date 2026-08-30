@@ -132,7 +132,7 @@ pub async fn handle_incoming_proxy_requests(
                         status: 502,
                         headers: Vec::new(),
                         body: format!(
-                            "Bad Gateway: Local web server not responding on port {}\nError: {}",
+                            "KIN-P2P-025: Bad Gateway: Local web server not responding on port {}\nError: {}",
                             local_port, e
                         )
                         .into_bytes()

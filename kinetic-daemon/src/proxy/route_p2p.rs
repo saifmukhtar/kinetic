@@ -102,7 +102,7 @@ pub async fn forward_to_p2p(
         .await
         .map_err(|e| {
             tracing::error!("KIN-P2P-021: Libp2p tunnel failed to reach target peer: {}", e);
-            ProxyError::PeerUnreachable(format!("P2P swarm could not deliver request to target peer: {}", e))
+            ProxyError::PeerUnreachable(format!("KIN-P2P-021: P2P swarm could not deliver request to target peer: {}", e))
         })?;
 
     let mut resp_builder = Response::builder().status(proxy_resp.status);
@@ -126,7 +126,7 @@ pub async fn forward_to_p2p(
 
     let final_resp = resp_builder.body(axum::body::Body::from(proxy_resp.body)).map_err(|e| {
         tracing::error!("KIN-P2P-023: Failed to construct HTTP response from P2P tunnel data: {}", e);
-        ProxyError::Http(e)
+        ProxyError::Other(format!("KIN-P2P-023: Failed to construct HTTP response from P2P tunnel data: {}", e))
     })?;
 
     Ok(final_resp)
