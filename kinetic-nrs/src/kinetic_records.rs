@@ -296,8 +296,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             ) {
                                                 warn!(
                                                     error_code = "KIN-SEC-009",
-                                                    "Blocked SSRF attempt: A record points to forbidden IP {}. Reason: {}",
+                                                    "Blocked SSRF attempt: A record points to forbidden IP {}. Rule: [{}] {}",
                                                     ip,
+                                                    e.code(),
                                                     e
                                                 );
                                                 continue;
@@ -315,9 +316,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 std::net::IpAddr::V6(*ip),
                                             ) {
                                                 warn!(
-                                                    error_code = "KIN-VAL-014",
-                                                    "Blocked SSRF attempt: AAAA record points to forbidden IP {}. Reason: {}",
+                                                    error_code = "KIN-SEC-009",
+                                                    "Blocked SSRF attempt: AAAA record points to forbidden IP {}. Rule: [{}] {}",
                                                     ip,
+                                                    e.code(),
                                                     e
                                                 );
                                                 continue;

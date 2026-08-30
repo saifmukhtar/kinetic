@@ -57,29 +57,28 @@ pub async fn forward_to_ip(
 
     let ssrf_result = security::validate_ssrf_risk(ip_addr);
     let is_ssrf = ssrf_result.is_err() || ip_addr.is_unspecified();
+    let dev_mode = kinetic_core::config::is_dev_mode();
 
-    if is_ssrf && !kinetic_core::config::is_dev_mode() {
-        let reason = if ip_addr.is_unspecified() {
-            "Unspecified IP".to_string()
+    if is_ssrf {
+        let (ssrf_code, reason) = if ip_addr.is_unspecified() {
+            ("KIN-SEC-003", "Unspecified IP".to_string())
         } else {
-            ssrf_result.unwrap_err().to_string()
+            let err = ssrf_result.unwrap_err();
+            (err.code(), err.to_string())
         };
-        tracing::warn!("KIN-SEC-014: SSRF attempt blocked to {}", ip_addr);
-        return Err(ProxyError::SecurityViolation(format!(
-            "Cannot proxy to loopback or private IPs. Reason: {}. (Use Dev Mode to bypass)",
-            reason
-        )));
-    } else if is_ssrf {
-        let reason = if ip_addr.is_unspecified() {
-            "Unspecified IP".to_string()
+
+        if dev_mode {
+            tracing::warn!(
+                "KIN-SEC-015: DEV MODE: Forwarding to private IP {}. Reason: [{}] {}. This would be blocked in production.",
+                ip_addr, ssrf_code, reason
+            );
         } else {
-            ssrf_result.unwrap_err().to_string()
-        };
-        tracing::warn!(
-            "KIN-SEC-015: DEV MODE: Forwarding to private IP {}. Reason: {}. This would be blocked in production.",
-            ip_addr,
-            reason
-        );
+            tracing::warn!("KIN-SEC-014: SSRF attempt blocked to {}. Rule: {}", ip_addr, ssrf_code);
+            return Err(ProxyError::SecurityViolation(format!(
+                "KIN-SEC-014: Cannot proxy to loopback or private IPs. Reason: [{}] {}. (Use Dev Mode to bypass)",
+                ssrf_code, reason
+            )));
+        }
     }
 
     let scheme = if is_ssrf { "http" } else { "https" };
