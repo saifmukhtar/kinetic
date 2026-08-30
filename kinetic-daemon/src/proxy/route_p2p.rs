@@ -84,7 +84,7 @@ pub async fn forward_to_p2p(
             
             // Note: libp2p::request_response::cbor hardcodes a 1MB limit (1024 * 1024)
             if body_bytes.len() > 1048576 {
-                tracing::warn!("KIN-PRX-022: Blocked P2P proxy request payload exceeding 1MB Libp2p limit");
+                tracing::warn!("KIN-SEC-011: Blocked P2P proxy request payload exceeding 1MB Libp2p limit");
                 return Err(ProxyError::InvalidPayload);
             }
         }

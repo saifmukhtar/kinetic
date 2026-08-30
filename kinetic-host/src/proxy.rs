@@ -56,7 +56,7 @@ pub async fn forward_request(
                 if let Ok(chunk) = chunk_res {
                     body.extend_from_slice(&chunk);
                     if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                        warn!("KIN-PRX-050: Blocked oversized backend response from local web server");
+                        warn!("KIN-SEC-013: Blocked oversized backend response from local web server");
                         body.clear();
                         body.extend_from_slice(b"Payload Too Large");
                         status = 502;
@@ -125,7 +125,7 @@ pub async fn handle_incoming_proxy_requests(
                 .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
 
             if decoded_path.contains("..") || !decoded_path.starts_with('/') {
-                warn!("KIN-PRX-052: Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
+                warn!("KIN-SEC-010: Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
                 let _ = client_clone
                     .send_proxy_response(
                         channel,
@@ -141,7 +141,7 @@ pub async fn handle_incoming_proxy_requests(
 
             if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                 warn!(
-                    "KIN-PRX-053: Blocked oversized incoming P2P proxy request payload ({} bytes)",
+                    "KIN-SEC-011: Blocked oversized incoming P2P proxy request payload ({} bytes)",
                     req.body.len()
                 );
                 let _ = client_clone
