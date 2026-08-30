@@ -183,6 +183,7 @@ impl From<StorageError> for ApiError {
         let (status, title): (u16, &'static str) = match &e {
             StorageError::DatabaseLocked => (423, "Locked"),
             StorageError::Corruption(_) => (500, "Storage Corruption"),
+            StorageError::DeserializationFailed(_) => (500, "Storage Deserialization Failed"),
             StorageError::ReadFailed(_)
             | StorageError::WriteFailed(_)
             | StorageError::DeleteFailed(_)

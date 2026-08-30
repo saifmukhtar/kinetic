@@ -33,6 +33,9 @@ pub enum StorageError {
     /// The database failed to open or initialize.
     #[error("Storage initialization failed: {0}")]
     OpenFailed(String),
+    /// Failed to deserialize stored data from the database.
+    #[error("Storage deserialization failed: {0}")]
+    DeserializationFailed(String),
 }
 
 impl StorageError {
@@ -46,6 +49,7 @@ impl StorageError {
             Self::DeleteFailed(_) => "KIN-DBE-005",
             Self::ScanFailed(_) => "KIN-DBE-006",
             Self::OpenFailed(_) => "KIN-DBE-007",
+            Self::DeserializationFailed(_) => "KIN-DBE-008",
         }
     }
 
@@ -58,7 +62,7 @@ impl StorageError {
     pub fn severity(&self) -> Severity {
         match self {
             Self::DatabaseLocked => Severity::Critical,
-            Self::Corruption(_) => Severity::Error,
+            Self::Corruption(_) | Self::DeserializationFailed(_) => Severity::Error,
             Self::ReadFailed(_)
             | Self::WriteFailed(_)
             | Self::DeleteFailed(_)
@@ -94,6 +98,7 @@ impl StorageError {
             Self::DeleteFailed(_) => "A delete operation failed on the local storage.".to_string(),
             Self::ScanFailed(_) => "A scan operation failed on the local storage.".to_string(),
             Self::OpenFailed(_) => "Failed to open the local storage database.".to_string(),
+            Self::DeserializationFailed(_) => "Stored data could not be deserialized due to version mismatch or corruption.".to_string(),
         }
     }
 }

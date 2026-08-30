@@ -219,17 +219,12 @@ pub async fn handle_publish_zone(
     let mut record: kinetic_core::types::NameRecord = match serde_json::from_slice(&reveal_bytes) {
         Ok(r) => r,
         Err(_) => {
-            return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-DBE-008", kinetic_core::constants::DOCS_URL),
-                title: "Internal Server Error".to_string(),
-                status: 500,
-                detail: "Stored registration data is corrupted.".to_string(),
-                instance: None,
-                code: "KIN-DBE-008".to_string(),
-                retryable: false,
-                details: serde_json::Value::Null,
-                request_id: "".to_string(),
-            }));
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::StorageError::DeserializationFailed(
+                    "Stored registration data is corrupted.".to_string(),
+                )
+                .into(),
+            ));
         }
     };
 

@@ -91,7 +91,12 @@ pub async fn handle_resolve_name(
                 Ok(Some(bytes)) => {
                     serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes).map_err(
                         |e| {
-                            tracing::error!(error_code="KIN-DBE-008", error=?e, name=%fqdn, "Stored registration data is corrupted in local fallback");
+                            tracing::error!(
+                                error = ?kinetic_core::error::StorageError::DeserializationFailed(e.to_string()),
+                                name = %fqdn,
+                                "{}",
+                                kinetic_core::error::StorageError::DeserializationFailed(e.to_string()).user_message()
+                            );
                             kinetic_core::error::ResolutionError::Internal {
                                 message: "Stored registration data is corrupted.".to_string(),
                                 source: None,
