@@ -26,7 +26,7 @@ pub async fn forward_to_ip(
         sa.ip()
     } else {
         tracing::warn!("KIN-PRX-015: Invalid IP format for name '{}': {}", name, ip_str);
-        return Err(ProxyError::NameNotFound(format!("KIN-PRX-015: Invalid IP format for name '{}'", name)));
+        return Err(ProxyError::NameNotFound(format!("Invalid IP format for name '{}'", name)));
     };
 
     let original_port = req
@@ -51,7 +51,7 @@ pub async fn forward_to_ip(
     {
         tracing::error!("KIN-SEC-016: Proxy loop blocked for port {}", original_port);
         return Err(ProxyError::Other(
-            "KIN-SEC-016: Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
+            "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
         ));
     }
 
@@ -75,7 +75,7 @@ pub async fn forward_to_ip(
         } else {
             tracing::warn!("KIN-SEC-014: SSRF attempt blocked to {}. Rule: {}", ip_addr, ssrf_code);
             return Err(ProxyError::SecurityViolation(format!(
-                "KIN-SEC-014: Cannot proxy to loopback or private IPs. Reason: [{}] {}. (Use Dev Mode to bypass)",
+                "Cannot proxy to loopback or private IPs. Reason: [{}] {}. (Use Dev Mode to bypass)",
                 ssrf_code, reason
             )));
         }
@@ -140,7 +140,7 @@ pub async fn forward_to_ip(
                 body_bytes.extend_from_slice(&data);
                 if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                     tracing::warn!("KIN-SEC-011: Blocked oversized IP proxy request body");
-                    return Err(ProxyError::InvalidPayload("KIN-SEC-011: Blocked oversized IP proxy request body".to_string()));
+                    return Err(ProxyError::InvalidPayload("Blocked oversized IP proxy request body".to_string()));
                 }
             }
         }
@@ -149,7 +149,7 @@ pub async fn forward_to_ip(
 
     let backend_resp = backend_req.send().await.map_err(|e| {
         tracing::error!("KIN-PRX-016: Failed to reach IP gateway: {}", e);
-        ProxyError::PeerUnreachable(format!("KIN-PRX-016: Failed to reach Web2 server: {}", e))
+        ProxyError::PeerUnreachable(format!("Failed to reach Web2 server: {}", e))
     })?;
 
     let mut resp_builder = Response::builder().status(backend_resp.status());
