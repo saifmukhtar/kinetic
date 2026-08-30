@@ -26,7 +26,7 @@ pub async fn forward_to_ip(
         sa.ip()
     } else {
         tracing::warn!("KIN-PRX-015: Invalid IP format for name '{}': {}", name, ip_str);
-        return Err(ProxyError::NameNotFound(name.to_string()));
+        return Err(ProxyError::NameNotFound(format!("KIN-PRX-015: Invalid IP format for name '{}'", name)));
     };
 
     let original_port = req
@@ -141,7 +141,7 @@ pub async fn forward_to_ip(
                 body_bytes.extend_from_slice(&data);
                 if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                     tracing::warn!("KIN-SEC-011: Blocked oversized IP proxy request body");
-                    return Err(ProxyError::InvalidPayload);
+                    return Err(ProxyError::InvalidPayload("KIN-SEC-011: Blocked oversized IP proxy request body".to_string()));
                 }
             }
         }
@@ -150,7 +150,7 @@ pub async fn forward_to_ip(
 
     let backend_resp = backend_req.send().await.map_err(|e| {
         tracing::error!("KIN-PRX-016: Failed to reach IP gateway: {}", e);
-        ProxyError::PeerUnreachable(format!("Failed to reach Web2 server: {}", e))
+        ProxyError::PeerUnreachable(format!("KIN-PRX-016: Failed to reach Web2 server: {}", e))
     })?;
 
     let mut resp_builder = Response::builder().status(backend_resp.status());

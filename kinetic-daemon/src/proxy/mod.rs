@@ -48,8 +48,8 @@ pub enum ProxyError {
     #[error("Name not found: {0}")]
     NameNotFound(String),
     /// The payload format is invalid.
-    #[error("Invalid payload")]
-    InvalidPayload,
+    #[error("{0}")]
+    InvalidPayload(String),
     /// Hyper HTTP library error.
     #[error("Proxy failed to negotiate HTTP layer: {0}")]
     Hyper(#[from] hyper::Error),

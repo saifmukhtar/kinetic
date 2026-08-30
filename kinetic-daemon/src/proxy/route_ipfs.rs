@@ -38,7 +38,7 @@ where
                 body_bytes.extend_from_slice(data.as_ref());
                 if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                     tracing::warn!("KIN-SEC-011: Blocked oversized IPFS proxy request body");
-                    return Err(ProxyError::InvalidPayload);
+                    return Err(ProxyError::InvalidPayload("KIN-SEC-011: Blocked oversized IPFS proxy request body".to_string()));
                 }
             }
         }

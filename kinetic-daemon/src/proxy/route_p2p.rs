@@ -77,7 +77,7 @@ pub async fn forward_to_p2p(
     while let Some(chunk) = body_stream.frame().await {
         let frame = chunk.map_err(|e| {
             tracing::warn!("KIN-P2P-022: Failed to read P2P request body stream: {}", e);
-            ProxyError::InvalidPayload
+            ProxyError::InvalidPayload("KIN-P2P-022: Failed to read P2P request body stream".to_string())
         })?;
         if let Ok(data) = frame.into_data() {
             body_bytes.extend_from_slice(&data);
@@ -85,7 +85,7 @@ pub async fn forward_to_p2p(
             // Note: libp2p::request_response::cbor hardcodes a 1MB limit (1024 * 1024)
             if body_bytes.len() > 1048576 {
                 tracing::warn!("KIN-SEC-011: Blocked P2P proxy request payload exceeding 1MB Libp2p limit");
-                return Err(ProxyError::InvalidPayload);
+                return Err(ProxyError::InvalidPayload("KIN-SEC-011: Blocked P2P proxy request payload exceeding 1MB Libp2p limit".to_string()));
             }
         }
     }

@@ -147,14 +147,14 @@ pub async fn forward_to_backend_direct(
         let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
             .map_err(|e| {
                 tracing::warn!("KIN-PRX-010: Failed to deserialize NameRecord JSON from DHT for '{}': {}", apex_name, e);
-                ProxyError::InvalidPayload
+                ProxyError::InvalidPayload("KIN-PRX-010: Failed to deserialize NameRecord JSON from DHT".to_string())
             })?;
 
         use kinetic_verify::signatures::VerifySignature;
         if !kinetic_core::config::is_dev_mode() {
             if let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT) {
                 tracing::warn!("KIN-PRX-009: Proxy Error: Security violation! NameRecord signature verification failed (Spoofed DHT response): {:?}", e);
-                return Err(ProxyError::SecurityViolation("NameRecord signature verification failed".to_string()));
+                return Err(ProxyError::SecurityViolation("KIN-PRX-009: NameRecord signature verification failed (Spoofed DHT response)".to_string()));
             }
         }
 
@@ -162,7 +162,7 @@ pub async fn forward_to_backend_direct(
             Ok(z) => z,
             Err(e) => {
                 tracing::warn!("KIN-PRX-011: Proxy Error: Invalid NrsZone payload: {}", e);
-                return Err(ProxyError::InvalidPayload);
+                return Err(ProxyError::InvalidPayload("KIN-PRX-011: Invalid NrsZone payload".to_string()));
             }
         };
 
@@ -186,7 +186,7 @@ pub async fn forward_to_backend_direct(
             Some(r) => r,
             None => {
                 tracing::warn!("KIN-PRX-012: Proxy Error: Subname '{}' not found in zone", subname);
-                return Err(ProxyError::NameNotFound(current_name.clone()));
+                return Err(ProxyError::NameNotFound(format!("KIN-PRX-012: Subname '{}' not found in zone", subname)));
             }
         };
 
@@ -244,7 +244,7 @@ pub async fn forward_to_backend_direct(
 
     if target_str.is_empty() {
         tracing::warn!("KIN-PRX-013: No routable targets found in NrsZone for name '{}'", name);
-        return Err(ProxyError::NameNotFound(name.to_string()));
+        return Err(ProxyError::NameNotFound(format!("KIN-PRX-013: No routable targets found in NrsZone for name '{}'", name)));
     }
 
     let ip_str = target_str;
@@ -267,6 +267,6 @@ pub async fn forward_to_backend_direct(
             "KIN-PRX-014: Unrecognized target format in DHT payload for '{}': {:?}",
             name, ip_str
         );
-        Err(ProxyError::InvalidPayload)
+        Err(ProxyError::InvalidPayload(format!("KIN-PRX-014: Unrecognized target format in DHT payload for '{}'", name)))
     }
 }
