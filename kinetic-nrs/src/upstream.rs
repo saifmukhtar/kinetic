@@ -62,7 +62,10 @@ pub async fn resolve_upstream<R: ResponseHandler>(
     let name = match Name::from_str(query_name) {
         Ok(n) => n,
         Err(e) => {
-            error!(error_code = "KIN-VAL-015", "Failed to parse query name: {}", e);
+            error!(
+                error = ?kinetic_core::error::NamesError::InvalidCharacter,
+                "Failed to parse query name: {}", e
+            );
             let response =
                 builder.error_msg(request.header(), hickory_proto::op::ResponseCode::FormErr);
             let _ = response_handle.send_response(response).await;

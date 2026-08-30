@@ -251,7 +251,7 @@ pub(crate) fn compute_required_iterations(
             )
         } else {
             tracing::warn!(
-                "KIN-VAL-032: Invalid PreviousProof attached for {}. Falling back to full difficulty.",
+                "KIN-VDF-006: Invalid PreviousProof attached for {}. Falling back to full difficulty.",
                 reveal.name
             );
             base_required_iterations

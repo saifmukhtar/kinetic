@@ -47,17 +47,9 @@ pub async fn handle_get_zone(
         match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(zone) => return Ok(Json(zone)),
             Err(e) => {
-                return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                    error_type: format!("{}/errors/KIN-VAL-010", kinetic_core::constants::DOCS_URL),
-                    title: "Unprocessable Entity".to_string(),
-                    status: 422,
-                    detail: format!("Invalid zone file format: {}", e),
-                    instance: None,
-                    code: "KIN-VAL-010".to_string(),
-                    retryable: false,
-                    details: serde_json::Value::Null,
-                    request_id: "".to_string(),
-                }));
+                return Err(crate::api::error::AppError(
+                    kinetic_core::error::NrsError::ParseError(e).into(),
+                ));
             }
         }
     }
@@ -106,17 +98,9 @@ pub async fn handle_post_zone(
     let content = match serde_json::to_string_pretty(&zone) {
         Ok(c) => c,
         Err(e) => {
-            return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-VAL-017", kinetic_core::constants::DOCS_URL),
-                title: "Internal Server Error".to_string(),
-                status: 500,
-                detail: format!("Serialization failed: {}", e),
-                instance: None,
-                code: "KIN-VAL-017".to_string(),
-                retryable: false,
-                details: serde_json::Value::Null,
-                request_id: "".to_string(),
-            }));
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::StorageError::WriteFailed(format!("Serialization failed: {}", e)).into(),
+            ));
         }
     };
     if let Err(e) = std::fs::write(&path, content) {
@@ -183,18 +167,10 @@ pub async fn handle_publish_zone(
     };
     let zone: kinetic_core::types::NrsZone = match serde_json::from_str(&content) {
         Ok(z) => z,
-        Err(_) => {
-            return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-VAL-010", kinetic_core::constants::DOCS_URL),
-                title: "Unprocessable Entity".to_string(),
-                status: 422,
-                detail: "Invalid zone file format".to_string(),
-                instance: None,
-                code: "KIN-VAL-010".to_string(),
-                retryable: false,
-                details: serde_json::Value::Null,
-                request_id: "".to_string(),
-            }));
+        Err(e) => {
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::NrsError::ParseError(e).into(),
+            ));
         }
     };
 
@@ -350,17 +326,9 @@ pub async fn handle_post_local_zone(
     let content = match serde_json::to_string_pretty(&zone) {
         Ok(c) => c,
         Err(e) => {
-            return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-VAL-017", kinetic_core::constants::DOCS_URL),
-                title: "Internal Server Error".to_string(),
-                status: 500,
-                detail: format!("Serialization failed: {}", e),
-                instance: None,
-                code: "KIN-VAL-017".to_string(),
-                retryable: false,
-                details: serde_json::Value::Null,
-                request_id: "".to_string(),
-            }));
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::StorageError::WriteFailed(format!("Serialization failed: {}", e)).into(),
+            ));
         }
     };
 

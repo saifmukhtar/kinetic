@@ -115,7 +115,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                         }
                                     }
                                     Err(e) => {
-                                        warn!(error_code = "KIN-VAL-010", "Invalid NameRecord format for {}: {}", apex_name_clone, e);
+                                        warn!(
+                                            error = ?kinetic_core::error::NrsError::ParseError(e),
+                                            "Invalid NameRecord format for {apex_name_clone}"
+                                        );
                                         return Err(Arc::new(anyhow::anyhow!("Invalid format")));
                                     }
                                 }
@@ -214,7 +217,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             }
                                             Err(e) => {
                                                 warn!(
-                                                    error_code = "KIN-VAL-013",
+                                                    error = ?kinetic_core::error::NetworkClientError::Other(e.to_string()),
                                                     "E2E Auth Request failed: {}", e
                                                 );
                                                 let response = builder.error_msg(
@@ -255,7 +258,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     Ok(n) => n,
                                     Err(e) => {
                                         error!(
-                                            error_code = "KIN-VAL-015",
+                                            error = ?kinetic_core::error::NamesError::InvalidCharacter,
                                             "Invalid query name format: {}", e
                                         );
                                         let response = builder.error_msg(
@@ -351,7 +354,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
                                             if is_blocked_cname {
                                                 warn!(
-                                                    error_code = "KIN-VAL-011",
+                                                    error = ?kinetic_core::error::SsrfError::Loopback,
                                                     "Blocked SSRF attempt: CNAME record points to forbidden local/internal name {}",
                                                     target
                                                 );
@@ -363,10 +366,10 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                     kinetic_core::net::validate_ssrf_safe(ip)
                                             {
                                                 warn!(
-                                                    error_code = "KIN-VAL-012",
+                                                    error = ?e,
                                                     "Blocked SSRF attempt: CNAME record points to forbidden IP {}. Reason: {}",
                                                     target,
-                                                    e
+                                                    e.user_message()
                                                 );
                                                 continue;
                                             }
@@ -449,30 +452,30 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 }
                             } else {
                                 warn!(
-                                    error_code = "KIN-VAL-017",
+                                    error_code = "KIN-QRY-002",
                                     "No records found for subname: {}", subname
                                 );
                             }
                         }
                         Err(e) => warn!(
-                            error_code = "KIN-VAL-017",
+                            error_code = "KIN-QRY-006",
                             "Payload was not a valid NrsZone: {}", e
                         ),
                     }
                 }
                 Err(e) => warn!(
-                    error_code = "KIN-VAL-017",
+                    error_code = "KIN-QRY-006",
                     "Payload was not a valid NameRecord: {}", e
                 ),
             }
         }
         Ok(None) => warn!(
-            error_code = "KIN-VAL-017",
+            error_code = "KIN-QRY-002",
             "No payload found for .kin query (NXDOMAIN cached)"
         ),
         Err(e) => {
             error!(
-                error_code = "KIN-VAL-017",
+                error_code = "KIN-QRY-006",
                 "Error resolving .kin query via DHT/Cache: {:?}", e
             );
             let response =
