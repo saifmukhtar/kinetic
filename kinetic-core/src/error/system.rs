@@ -1,13 +1,13 @@
-//! Daemon shutdown signal error types (`KIN-SHU-NNN`).
+//! Operating System execution error types (`KIN-SYS-NNN`).
 //!
-//! Emitted when the operating system fails to bind termination signals (Ctrl+C, SIGTERM).
+//! Emitted when the operating system fails to bind termination signals (Ctrl+C, SIGTERM), or encounters OS-level faults.
 
 use kinetic_types::error::Severity;
 use thiserror::Error;
 
-/// Error emitted when graceful shutdown listeners fail to bind to the OS.
+/// Error emitted during OS-level system failures.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum ShutdownError {
+pub enum SystemError {
     /// Failed to bind to the SIGINT (Ctrl+C) keyboard signal.
     #[error("Failed to bind Ctrl+C handler: {0}")]
     SigIntBindingFailed(String),
@@ -16,12 +16,12 @@ pub enum ShutdownError {
     SigTermBindingFailed(String),
 }
 
-impl ShutdownError {
+impl SystemError {
     /// Stable protocol error code.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::SigIntBindingFailed(_) => "KIN-SHU-001",
-            Self::SigTermBindingFailed(_) => "KIN-SHU-002",
+            Self::SigIntBindingFailed(_) => "KIN-SYS-098",
+            Self::SigTermBindingFailed(_) => "KIN-SYS-099",
         }
     }
 

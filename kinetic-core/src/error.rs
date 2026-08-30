@@ -32,7 +32,7 @@
 //! | `KIN-DBE-NNN` | `StorageError` | Sled storage engine |
 //! | `KIN-NET-NNN` | `NetworkClientError` + `KineticStoreError` | P2P network client and store layer |
 //! | `KIN-SEC-NNN` | `SsrfError` | IP Server-Side Request Forgery filtering |
-//! | `KIN-SHU-NNN` | `ShutdownError` | Graceful daemon shutdown |
+//! | `KIN-SYS-NNN` | `SystemError` | Operating System execution and shutdown |
 //! | `KIN-TEL-NNN` | `TelemetryError` | Tracing and correlation correlation IDs |
 
 use thiserror::Error;
@@ -53,8 +53,8 @@ pub mod names;
 pub mod network;
 /// NRS Zone parsing and validation error types.
 pub mod nrs;
-/// Daemon shutdown signal error types.
-pub mod shutdown;
+/// Operating System execution error types.
+pub mod system;
 /// SSRF security validation error types.
 pub mod ssrf;
 /// Sled storage engine error types.
