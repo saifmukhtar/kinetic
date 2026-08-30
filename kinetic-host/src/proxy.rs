@@ -72,7 +72,7 @@ pub async fn forward_request(
             }
         }
         Err(e) => {
-            warn!("KIN-PRX-051: Failed to forward P2P request to local backend web server: {}", e);
+            warn!("KIN-P2P-025: Failed to forward P2P request to local backend web server: {}", e);
             ProxyResponse {
                 status: 502,
                 headers: Vec::new(),
