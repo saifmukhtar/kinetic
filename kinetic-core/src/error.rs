@@ -73,7 +73,10 @@ pub use identity::IdentityError;
 pub use names::NamesError;
 pub use network::NetworkClientError;
 pub use nrs::NrsError;
+pub use ssrf::SsrfError;
 pub use storage::StorageError;
+pub use system::SystemError;
+pub use telemetry::TelemetryError;
 pub use vdf::{VdfError, VdfRejectReason};
 
 /// Top-level error type for core Kinetic protocol operations.
