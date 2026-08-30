@@ -219,7 +219,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                             .kademlia
                             .store_mut()
                             .storage
-                            .put(key.as_bytes(), &expire_time.to_be_bytes());
+                            .put(key.as_bytes(), &expire_kyn.to_be_bytes());
                     }
                 } else {
                     tracing::debug!(
