@@ -581,17 +581,35 @@ pub(crate) fn verify_authorized_manifest(
         return Err(err);
     }
 
-    let kid_doc = auth_manifest
-        .kid_doc
-        .as_ref()
-        .ok_or(KineticStoreError::InvalidKidDocument)?;
-    kid_doc
-        .verify()
-        .map_err(|_| KineticStoreError::InvalidManifestSignature)?;
-    auth_manifest
-        .manifest
-        .verify_local(kid_doc)
-        .map_err(|_| KineticStoreError::ManifestVerificationFailed)?;
+    let kid_doc = match auth_manifest.kid_doc.as_ref() {
+        Some(doc) => doc,
+        None => {
+            let err = KineticStoreError::MissingKidDocument;
+            err.log_warning(
+                &auth_manifest.name,
+                "Rejecting AuthorizedManifest: missing KID document",
+            );
+            return Err(err);
+        }
+    };
+
+    if kid_doc.verify().is_err() {
+        let err = KineticStoreError::InvalidKidDocument;
+        err.log_warning(
+            &auth_manifest.name,
+            "Rejecting AuthorizedManifest: invalid KID document",
+        );
+        return Err(err);
+    }
+
+    if auth_manifest.manifest.verify_local(kid_doc).is_err() {
+        let err = KineticStoreError::ManifestVerificationFailed;
+        err.log_warning(
+            &auth_manifest.name,
+            "Rejecting AuthorizedManifest: manifest failed local verification",
+        );
+        return Err(err);
+    }
 
     if let Some(existing) = existing_record
         && let Ok(old_manifest) =
