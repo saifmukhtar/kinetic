@@ -330,7 +330,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                 }
                 Err(e2) => {
                     warn!(
-                        error_code = "KIN-NRS-053",
+                        error_code = "KIN-NRS-052",
                         "Failed to bind DNS proxy to fallback port {}: {}",
                         fallback_port, e2
                     );
