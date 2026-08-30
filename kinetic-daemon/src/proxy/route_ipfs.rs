@@ -108,7 +108,7 @@ where
 
     tracing::error!("KIN-GTW-004: All storage gateways failed to resolve target: {}", cid);
     Err(ProxyError::PeerUnreachable(
-        last_error.unwrap_or_else(|| "All gateways failed".to_string())
+        format!("KIN-GTW-004: All storage gateways failed. Last error: {}", last_error.unwrap_or_else(|| "None".to_string()))
     ))
 }
 
