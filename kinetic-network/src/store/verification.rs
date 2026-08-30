@@ -34,7 +34,6 @@ pub(crate) fn verify_host_routing_record(
     if current_kyn.saturating_sub(record.kyn) > 100 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
-            "KIN-VDF-009",
             &record.host_id,
             &format!(
                 "HostRoutingRecord is stale ({} kyns old)",
@@ -47,7 +46,6 @@ pub(crate) fn verify_host_routing_record(
     if record.kyn > current_kyn + 2 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
-            "KIN-VDF-010",
             &record.host_id,
             &format!(
                 "HostRoutingRecord is too far in the future ({} kyns ahead, max 2 allowed)",
@@ -121,7 +119,6 @@ pub(crate) fn compute_required_iterations(
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&reveal.name) {
         let err = KineticStoreError::InvalidName;
         err.log_warning(
-            "KIN-VDF-013",
             &reveal.name,
             &format!("Rejecting Kademlia Reveal: Invalid name: {:?}", e),
         );
@@ -135,7 +132,6 @@ pub(crate) fn compute_required_iterations(
     let drand_sig_bytes = hex::decode(&reveal.drand_signature).map_err(|_| {
         let err = KineticStoreError::InvalidDrandHex;
         err.log_warning(
-            "KIN-VER-008",
             &reveal.name,
             "Rejecting Kademlia Reveal: Invalid Drand signature hex",
         );
@@ -157,7 +153,6 @@ pub(crate) fn compute_required_iterations(
         {
             let err = KineticStoreError::InvalidDrandSignature;
             err.log_warning(
-                "KIN-VER-009",
                 &reveal.name,
                 "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
             );
@@ -301,7 +296,6 @@ pub(crate) fn verify_reveal(
     if let Err(e) = reveal.validate() {
         let err = KineticStoreError::InvalidName;
         err.log_warning(
-            "KIN-VDF-013",
             &reveal.name,
             &format!("Rejecting Kademlia Reveal: Validation failed: {:?}", e),
         );
@@ -319,7 +313,6 @@ pub(crate) fn verify_reveal(
     {
         let err = KineticStoreError::InvalidSignature;
         err.log_warning(
-            "KIN-VDF-011",
             &reveal.name,
             "Rejecting Kademlia Reveal: Invalid Post-Quantum Signature",
         );
@@ -329,7 +322,6 @@ pub(crate) fn verify_reveal(
     let drand_sig_bytes = hex::decode(&reveal.drand_signature).map_err(|_| {
         let err = KineticStoreError::InvalidDrandHex;
         err.log_warning(
-            "KIN-VER-008",
             &reveal.name,
             "Rejecting Kademlia Reveal: Invalid Drand Signature Hex",
         );
@@ -351,7 +343,6 @@ pub(crate) fn verify_reveal(
         {
             let err = KineticStoreError::InvalidDrandSignature;
             err.log_warning(
-                "KIN-VER-009",
                 &reveal.name,
                 "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
             );
@@ -381,7 +372,6 @@ pub(crate) fn verify_reveal(
         {
             let err = KineticStoreError::StaleReveal;
             err.log_warning(
-                "KIN-VDF-012",
                 &reveal.name,
                 "Rejecting Reveal: Commitment is too recent (age < minimum commit age)",
             );
@@ -395,7 +385,6 @@ pub(crate) fn verify_reveal(
     } else if !dev_mode {
         let err = KineticStoreError::MissingCommitment { commit_key };
         err.log_warning(
-            "KIN-VDF-015",
             &reveal.name,
             "Rejecting Reveal: No prior Commitment found in DHT!",
         );
@@ -421,7 +410,6 @@ pub(crate) fn verify_reveal(
     if reveal.iterations < required_iterations {
         let err = KineticStoreError::InsufficientIterations;
         err.log_warning(
-            "KIN-VDF-014",
             &reveal.name,
             &format!(
                 "Rejecting Reveal: Insufficient VDF iterations. Provided {}, Required {}",
@@ -436,7 +424,6 @@ pub(crate) fn verify_reveal(
         Ok(false) => {
             let err = KineticStoreError::InvalidVdf;
             err.log_warning(
-                "KIN-VDF-016",
                 &reveal.name,
                 "Rejecting Kademlia Reveal: Invalid VDF Proof",
             );
@@ -445,7 +432,6 @@ pub(crate) fn verify_reveal(
         Err(e) => {
             let err = KineticStoreError::VdfEngineError(e.to_string());
             err.log_warning(
-                "KIN-VDF-017",
                 &reveal.name,
                 "Rejecting Kademlia Reveal: VDF Engine Failure",
             );
@@ -486,7 +472,6 @@ pub(crate) fn verify_authorized_kid(
     let record = active_record.ok_or_else(|| {
         let err = KineticStoreError::NameNotFound;
         err.log_warning(
-            "KIN-VER-012",
             &auth_kid.name,
             "Rejecting AuthorizedKid: No active reveal found",
         );
@@ -502,7 +487,6 @@ pub(crate) fn verify_authorized_kid(
     {
         let err = KineticStoreError::InvalidKidDocument;
         err.log_warning(
-            "KIN-VER-010",
             &auth_kid.name,
             "Rejecting AuthorizedKid: invalid signature or invalid document",
         );
@@ -515,7 +499,6 @@ pub(crate) fn verify_authorized_kid(
             auth_kid.kid_doc.verify_genesis().map_err(|e| {
                 let err = KineticStoreError::GenesisBindingFailed;
                 err.log_warning(
-                    "KIN-VER-015",
                     &auth_kid.name,
                     &format!("Rejecting AuthorizedKid: genesis DID binding failed: {}", e),
                 );
@@ -530,7 +513,6 @@ pub(crate) fn verify_authorized_kid(
             {
                 let err = KineticStoreError::UnauthorizedUpdate;
                 err.log_warning(
-                        "KIN-VER-016",
                         &auth_kid.name,
                         "Rejecting AuthorizedKid update: not signed by any key in the existing document",
                     );
@@ -572,7 +554,6 @@ pub(crate) fn verify_authorized_manifest(
     let record = active_record.ok_or_else(|| {
         let err = KineticStoreError::NameNotFound;
         err.log_warning(
-            "KIN-VER-013",
             &auth_manifest.name,
             "Rejecting AuthorizedManifest: No active reveal found",
         );
@@ -587,7 +568,6 @@ pub(crate) fn verify_authorized_manifest(
     {
         let err = KineticStoreError::InvalidManifestSignature;
         err.log_warning(
-            "KIN-VER-011",
             &auth_manifest.name,
             "Rejecting AuthorizedManifest: invalid owner signature",
         );
@@ -613,7 +593,6 @@ pub(crate) fn verify_authorized_manifest(
     {
         let err = KineticStoreError::ManifestVersionRollback;
         err.log_warning(
-            "KIN-VER-014",
             &auth_manifest.name,
             "Rejecting AuthorizedManifest: Version rollback detected",
         );

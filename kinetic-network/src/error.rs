@@ -285,8 +285,9 @@ impl KineticStoreError {
     }
 
     /// Logs the error utilizing its severity level with contextual fields
-    pub fn log_warning(&self, error_code: &str, name: &str, extra_context: &str) {
+    pub fn log_warning(&self, name: &str, extra_context: &str) {
         let severity = self.severity();
+        let error_code = self.code();
         match severity {
             Severity::Info => tracing::info!(
                 error_code = error_code,

@@ -403,7 +403,7 @@ impl KineticRecordStore {
         if r.value.len() > kinetic_core::constants::LIMITS_STORAGE_MAX_VALUE_BYTES {
             let err = KineticStoreError::PayloadTooLarge;
             tracing::warn!(
-                error_code = "KIN-VAL-001",
+                error_code = err.code(),
                 size = r.value.len(),
                 severity = ?err.severity(),
                 "Rejecting Kademlia record: {}", err
