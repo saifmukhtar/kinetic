@@ -326,11 +326,11 @@ pub async fn handle_publish_kid(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            "Insufficient privileges: Requires Publish or Admin role".to_string(),
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
         ));
     }
     info!(
@@ -342,7 +342,7 @@ pub async fn handle_publish_kid(
     if let Err(e) = auth_kid.kid_doc.verify() {
         return Err((
             StatusCode::BAD_REQUEST,
-            format!("Invalid KID signature: {}", e),
+            Json(serde_json::json!({"error": format!("Invalid KID signature: {}", e)})),
         ));
     }
 
@@ -378,7 +378,7 @@ pub async fn handle_publish_kid(
     if !is_authorized {
         return Err((
             StatusCode::UNAUTHORIZED,
-            "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner.".to_string(),
+            Json(serde_json::json!({"error": "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner."})),
         ));
     }
 
@@ -388,7 +388,7 @@ pub async fn handle_publish_kid(
         Err(e) => {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Serialization failed: {}", e),
+                Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
             ));
         }
     };
@@ -408,9 +408,10 @@ pub async fn handle_publish_kid(
         }
         Err(e) => {
             error!("KIN-PUB-017: Failed to publish KID to DHT: {}", e);
+            let api_err = kinetic_core::ApiError::from(e);
             Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to publish: {}", e),
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
             ))
         }
     }
@@ -426,11 +427,11 @@ pub async fn handle_publish_manifest(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            "Insufficient privileges: Requires Publish or Admin role".to_string(),
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
         ));
     }
     let did_str = auth_manifest.manifest.kid.as_str();
@@ -470,7 +471,7 @@ pub async fn handle_publish_manifest(
     if !is_authorized {
         return Err((
             StatusCode::UNAUTHORIZED,
-            "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner.".to_string(),
+            Json(serde_json::json!({"error": "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner."})),
         ));
     }
 
@@ -484,7 +485,7 @@ pub async fn handle_publish_manifest(
                 kinetic_core::error::ResolutionError::Offline => StatusCode::SERVICE_UNAVAILABLE,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             };
-            return Err((status, format!("DHT lookup failed: {}", e)));
+            return Err((status, Json(serde_json::json!({"error": format!("DHT lookup failed: {}", e)}))));
         }
     };
 
@@ -498,7 +499,7 @@ pub async fn handle_publish_manifest(
                     Err(_) => {
                         return Err((
                             StatusCode::INTERNAL_SERVER_ERROR,
-                            "Invalid KID payload on DHT".to_string(),
+                            Json(serde_json::json!({"error": "Invalid KID payload on DHT"})),
                         ));
                     }
                 }
@@ -523,7 +524,7 @@ pub async fn handle_publish_manifest(
     {
         return Err((
             StatusCode::BAD_REQUEST,
-            format!("Invalid Manifest signature: {}", e),
+            Json(serde_json::json!({"error": format!("Invalid Manifest signature: {}", e)})),
         ));
     }
 
@@ -535,7 +536,7 @@ pub async fn handle_publish_manifest(
         Err(e) => {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Serialization failed: {}", e),
+                Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
             ));
         }
     };
@@ -553,9 +554,10 @@ pub async fn handle_publish_manifest(
         }
         Err(e) => {
             error!("KIN-PUB-018: Failed to publish Manifest to DHT: {}", e);
+            let api_err = kinetic_core::ApiError::from(e);
             Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to publish: {}", e),
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
             ))
         }
     }
