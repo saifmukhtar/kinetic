@@ -58,7 +58,7 @@ pub async fn forward_request(
                     if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                         warn!("KIN-SEC-013: Blocked oversized backend response from local web server");
                         body.clear();
-                        body.extend_from_slice(b"Payload Too Large");
+                        body.extend_from_slice(b"KIN-SEC-013: Payload Too Large");
                         status = 502;
                         break;
                     }
@@ -132,7 +132,7 @@ pub async fn handle_incoming_proxy_requests(
                         ProxyResponse {
                             status: 400,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"Bad Request: Invalid Path"),
+                            body: bytes::Bytes::from_static(b"KIN-SEC-010: Bad Request: Invalid Path"),
                         },
                     )
                     .await;
@@ -150,7 +150,7 @@ pub async fn handle_incoming_proxy_requests(
                         ProxyResponse {
                             status: 413,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"Payload Too Large"),
+                            body: bytes::Bytes::from_static(b"KIN-SEC-011: Payload Too Large"),
                         },
                     )
                     .await;

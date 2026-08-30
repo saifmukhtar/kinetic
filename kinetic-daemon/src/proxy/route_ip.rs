@@ -51,7 +51,7 @@ pub async fn forward_to_ip(
     {
         tracing::error!("KIN-SEC-016: Proxy loop blocked for port {}", original_port);
         return Err(ProxyError::Other(
-            "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
+            "KIN-SEC-016: Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
         ));
     }
 
