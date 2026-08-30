@@ -54,7 +54,7 @@ impl super::core::NetworkEventLoop {
                     .add_address(&peer_id, addr.clone());
             }
             if let Err(e) = swarm.dial(addr.clone()) {
-                tracing::warn!("KIN-NET-076: Failed to dial bootstrap node {}: {:?}", addr, e);
+                tracing::warn!("KIN-P2P-013: Failed to dial bootstrap node {}: {:?}", addr, e);
             } else {
                 tracing::info!("Dialing bootstrap node: {}", addr);
             }

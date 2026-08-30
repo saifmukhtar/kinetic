@@ -138,7 +138,7 @@ impl NetworkEventLoop {
         self.bad_vdf_counts.put(source, new_val);
         if new_val.0 >= 3 {
             tracing::warn!(
-                "KIN-NET-066: Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning",
+                "KIN-P2P-003: Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning",
                 source
             );
             let expire_kyn = self.current_kyn + 28800;
@@ -221,7 +221,7 @@ impl NetworkEventLoop {
                     let info = self.swarm.network_info();
                     let num_peers = info.num_peers();
                     if num_peers == 0 {
-                        tracing::warn!("KIN-NET-060: 0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
+                        tracing::warn!("KIN-P2P-002: 0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
                         for addr in &self.bootstrap_nodes {
                             let _ = self.swarm.dial(addr.clone());
                         }
@@ -241,7 +241,7 @@ impl NetworkEventLoop {
                                         if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {
                                             let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
                                         } else {
-                                            tracing::warn!("KIN-NET-051: Rejected unroutable DNS seed multiaddr: {}", multiaddr);
+                                            tracing::warn!("KIN-P2P-001: Rejected unroutable DNS seed multiaddr: {}", multiaddr);
                                         }
                                     }
                                 }
@@ -322,7 +322,7 @@ impl NetworkEventLoop {
 
                             if new_val.0 >= 3 {
                                 tracing::warn!(
-                                    "KIN-NET-067: Peer {} sent 3 invalid records within 60s — disconnecting and banning",
+                                    "KIN-P2P-004: Peer {} sent 3 invalid records within 60s — disconnecting and banning",
                                     source
                                 );
                                 let _ = self.swarm.disconnect_peer_id(source);
@@ -407,7 +407,7 @@ impl NetworkEventLoop {
 
                     if self.light_nodes.len() >= 50 {
                         tracing::warn!(
-                            "KIN-NET-068: Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion",
+                            "KIN-P2P-005: Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion",
                             peer_id
                         );
                         let _ = self.swarm.disconnect_peer_id(peer_id);
@@ -415,7 +415,7 @@ impl NetworkEventLoop {
                         let count = self.light_node_ips.entry(identifier.clone()).or_insert(0);
                         if *count >= 3 {
                             tracing::warn!(
-                                "KIN-NET-069: Identifier {} exceeded limit of 3 light clients. Disconnecting peer {}.",
+                                "KIN-P2P-006: Identifier {} exceeded limit of 3 light clients. Disconnecting peer {}.",
                                 identifier,
                                 peer_id
                             );

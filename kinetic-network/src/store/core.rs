@@ -368,7 +368,7 @@ impl KineticRecordStore {
     /// # Errors
     ///
     /// Returns a [`KineticStoreError`] if the record payload is malformed, cryptographic proofs fail,
-    /// the heartbeat is stale, or the payload size exceeds the 80 KB limit (`KIN-NET-001`).
+    /// the heartbeat is stale, or the payload size exceeds the 80 KB limit (`KIN-DHT-001`).
     pub fn put(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         self.put_record_internal(r, false)
     }
@@ -384,7 +384,7 @@ impl KineticRecordStore {
     ///
     /// # Errors
     ///
-    /// Returns a [`KineticStoreError`] if the payload size exceeds the maximum 80 KB limit (`KIN-NET-001`).
+    /// Returns a [`KineticStoreError`] if the payload size exceeds the maximum 80 KB limit (`KIN-DHT-001`).
     pub fn put_verified(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         self.put_record_internal(r, true)
     }

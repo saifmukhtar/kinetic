@@ -211,7 +211,7 @@ impl super::core::NetworkEventLoop {
 
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
-                    tracing::warn!("KIN-NET-070: Offline mode: Failing fast for VerifyQuorum (0 peers)");
+                    tracing::warn!("KIN-P2P-007: Offline mode: Failing fast for VerifyQuorum (0 peers)");
                     let _ = responder.send(Ok(0));
                     return;
                 }

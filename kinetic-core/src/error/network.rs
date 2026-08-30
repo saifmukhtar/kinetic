@@ -8,7 +8,7 @@
 //! `KIN-NET` is shared between this type and `KineticStoreError` in `kinetic-network`.
 //! To avoid overlaps:
 //! - `KIN-NET-100+`: This type (client-side P2P failures)
-//! - `KIN-NET-001..099`: `KineticStoreError` (store-layer validations and rejections)
+//! - `KIN-DHT-001..099`: `KineticStoreError` (store-layer validations and rejections)
 //!
 //! Note that query-related failures (like timeouts or empty routing tables)
 //! correctly return `KIN-QRY` codes, matching the global taxonomy.
@@ -58,11 +58,11 @@ impl NetworkClientError {
             Self::Offline => "KIN-QRY-001",
             Self::RoutingTableEmpty => "KIN-QRY-001",
             Self::ChannelClosed => "KIN-QRY-006",
-            Self::StreamDropped => "KIN-NET-105",
-            Self::UnsupportedProtocol => "KIN-NET-106",
-            Self::GossipSubError(_) => "KIN-NET-107",
-            Self::StoreError(_) => "KIN-NET-108",
-            Self::Other(_) => "KIN-NET-109",
+            Self::StreamDropped => "KIN-RPC-001",
+            Self::UnsupportedProtocol => "KIN-RPC-002",
+            Self::GossipSubError(_) => "KIN-RPC-003",
+            Self::StoreError(_) => "KIN-RPC-004",
+            Self::Other(_) => "KIN-RPC-005",
         }
     }
 
