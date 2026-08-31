@@ -269,11 +269,8 @@ impl KineticRecordStore {
                     }
                 }
                 kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                    let grant_kyn = kinetic_core::types::clock::unix_time_to_kyn(
-                        *granted_at,
-                        kinetic_core::constants::DRAND_GENESIS_TIME,
-                        kinetic_core::constants::DRAND_PERIOD,
-                    );
+                    use kinetic_core::types::clock::UTimeNetworkExt;
+                    let grant_kyn = kinetic_types::clock::UTime(*granted_at).to_network_kyn().0;
                     let last_hb = self
                         .last_heartbeats_by_name
                         .get(name)

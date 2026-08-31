@@ -510,7 +510,10 @@ pub async fn handle_publish_manifest(
     ))
     .load_cached_kyn()
     {
-        Ok(raw_kyn) => kinetic_core::types::clock::network_kyn_to_unix_time(raw_kyn.kyn),
+        Ok(raw_kyn) => {
+            use kinetic_core::types::clock::NetworkClockExt;
+            kinetic_core::types::Kyn(raw_kyn.kyn).to_network_utime().0
+        }
         Err(_) => std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -587,11 +590,8 @@ pub async fn handle_publish_governance(
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let current_kyn = kinetic_core::types::clock::unix_time_to_network_kyn(current_time);
+        use kinetic_core::types::clock::UTimeNetworkExt;
+        let current_kyn = kinetic_core::types::UTime::now().to_network_kyn().0;
         match kinetic_core::governance::process_governance_message(&mut gov, &msg, current_kyn) {
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");

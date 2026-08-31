@@ -62,14 +62,12 @@ pub async fn handle_generate_kid(
     };
 
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+    use kinetic_core::types::clock::UTimeNetworkExt;
+    use kinetic_core::types::{Kyn, UTime};
+    
     let current_kyn = match drand_client.fetch_latest().await {
-        Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        ),
+        Ok(kyn) => Kyn(kyn.kyn),
+        Err(_) => UTime::now().to_network_kyn(),
     };
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
@@ -195,14 +193,12 @@ pub async fn handle_update_kid_manifest(
     }
 
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+    use kinetic_core::types::clock::UTimeNetworkExt;
+    use kinetic_core::types::{Kyn, UTime};
+    
     let current_kyn = match drand_client.fetch_latest().await {
-        Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        ),
+        Ok(kyn) => Kyn(kyn.kyn),
+        Err(_) => UTime::now().to_network_kyn(),
     };
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");

@@ -177,14 +177,12 @@ pub async fn handle_name_register(
     let mut records = std::collections::HashMap::new();
 
     let drand_client = kinetic_core::drand::DrandClient::new(None);
+    use kinetic_core::types::clock::UTimeNetworkExt;
+    use kinetic_core::types::{Kyn, UTime};
+    
     let current_kyn = match drand_client.fetch_latest().await {
-        Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        ),
+        Ok(kyn) => Kyn(kyn.kyn),
+        Err(_) => UTime::now().to_network_kyn(),
     };
 
     let kid_res = kinetic_core::types::get_or_create_kid_for_name(

@@ -101,13 +101,9 @@ pub fn get_kids_dir() -> PathBuf {
 ///
 /// Derives the network time by mapping the estimated Drand kyn to exact Unix
 /// seconds aligned to 3-second network heartbeats using network constants.
-pub fn unix_time() -> u64 {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    let estimated_kyn = crate::types::clock::unix_time_to_network_kyn(now);
-    crate::types::clock::network_kyn_to_unix_time(estimated_kyn)
+pub fn unix_time() -> kinetic_types::clock::UTime {
+    use crate::types::clock::{NetworkClockExt, UTimeNetworkExt};
+    kinetic_types::clock::UTime::now().to_network_kyn().to_network_utime()
 }
 
 /// Resolves the filesystem paths for a name's KID document and private key.
@@ -216,7 +212,7 @@ pub fn get_or_create_kid_for_name(
     name: &str,
     inherit_subname: bool,
     force: bool,
-    current_kyn: u64,
+    current_kyn: kinetic_types::clock::Kyn,
     master_key_path: &Path,
 ) -> Result<GeneratedKid, IdentityError> {
     let fqdn = normalize_name(name);
@@ -264,7 +260,8 @@ pub fn get_or_create_kid_for_name(
     let kid_did = Did::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
-    let now_ts = crate::types::clock::network_kyn_to_unix_time(current_kyn);
+    use crate::types::clock::NetworkClockExt;
+    let now_ts = current_kyn.to_network_utime().0;
 
     let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
@@ -512,7 +509,7 @@ pub fn load_local_manifest(name: &str) -> Result<Option<Manifest>, IdentityError
 pub fn save_and_sign_local_manifest(
     name: &str,
     services: Vec<Service>,
-    current_kyn: u64,
+    current_kyn: kinetic_types::clock::Kyn,
     master_key_path: &Path,
 ) -> Result<(Manifest, AuthorizedManifest), IdentityError> {
     let fqdn = normalize_name(name);
@@ -546,7 +543,8 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    let current_time = crate::types::clock::network_kyn_to_unix_time(current_kyn);
+    use crate::types::clock::NetworkClockExt;
+    let current_time = current_kyn.to_network_utime().0;
 
     let manifest = Manifest {
         doc_type: "kinetic.manifest.v1".to_string(),

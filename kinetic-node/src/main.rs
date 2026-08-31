@@ -323,14 +323,10 @@ async fn run_node() -> Result<()> {
                 let actual_payload = &payload[1..];
 
                 if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                    use kinetic_core::types::clock::UTimeNetworkExt;
                     let current_kyn = match drand_client_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-                            std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs(),
-                        ),
+                        Err(_) => kinetic_core::types::UTime::now().to_network_kyn().0,
                     };
                     gossip::handle_governance_gossip(
                         actual_payload,

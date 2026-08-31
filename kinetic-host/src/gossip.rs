@@ -33,12 +33,8 @@ pub async fn start_gossip_listener(
                         );
                         continue;
                     };
-                    let current_time = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
-                    let current_kyn =
-                        kinetic_core::types::clock::unix_time_to_network_kyn(current_time);
+                    use kinetic_core::types::clock::UTimeNetworkExt;
+                    let current_kyn = kinetic_core::types::UTime::now().to_network_kyn().0;
 
                     match kinetic_core::governance::process_governance_message(
                         &mut state,

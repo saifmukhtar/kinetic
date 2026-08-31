@@ -16,8 +16,8 @@ pub async fn handle_get_time(
     match drand_client.load_cached_kyn() {
         Ok(drand_data) => {
             let time = KineticTime::from_kyn(
-                drand_data.kyn,
-                kinetic_core::constants::KINETIC_GENESIS_KYN,
+                kinetic_core::types::Kyn(drand_data.kyn),
+                kinetic_core::types::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
             );
             Ok(Json(time))
         }
