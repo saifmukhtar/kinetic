@@ -30,10 +30,8 @@ pub async fn forward_to_p2p(
         if let Ok(dynamic_peer_id) = record.current_peer_id.parse::<libp2p::PeerId>() {
             peer_id = dynamic_peer_id;
         } else {
-            tracing::warn!(
-                "KIN-PRX-017: HostRoutingRecord returned invalid PeerId: {}",
-                record.current_peer_id
-            );
+            let err = super::ProxyError::InvalidPeerId(record.current_peer_id.clone());
+            tracing::warn!(error_code = err.code(), "{}", err);
         }
     } else {
         tracing::debug!("No dynamic route found for {}, routing directly.", peer_id);
@@ -76,7 +74,8 @@ pub async fn forward_to_p2p(
     let mut body_stream = req.into_body();
     while let Some(chunk) = body_stream.frame().await {
         let frame = chunk.map_err(|e| {
-            tracing::warn!("KIN-PRX-018: Failed to read P2P request body stream: {}", e);
+            let err = super::ProxyError::P2pRequestBodyReadFailed(e.to_string());
+            tracing::warn!(error_code = err.code(), "{}", err);
             ProxyError::InvalidPayload("Failed to read P2P request body stream".to_string())
         })?;
         if let Ok(data) = frame.into_data() {
@@ -101,7 +100,8 @@ pub async fn forward_to_p2p(
         .send_proxy_request(peer_id, proxy_req)
         .await
         .map_err(|e| {
-            tracing::error!("KIN-PRX-019: Libp2p tunnel failed to reach target peer: {}", e);
+            let err = super::ProxyError::Libp2pTunnelFailed(e.to_string());
+            tracing::error!(error_code = err.code(), "{}", err);
             ProxyError::PeerUnreachable(format!("P2P swarm could not deliver request to target peer: {}", e))
         })?;
 
@@ -125,7 +125,8 @@ pub async fn forward_to_p2p(
     }
 
     let final_resp = resp_builder.body(axum::body::Body::from(proxy_resp.body)).map_err(|e| {
-        tracing::error!("KIN-PRX-020: Failed to construct HTTP response from P2P tunnel data: {}", e);
+        let err = super::ProxyError::HttpResponseConstructionFailed(e.to_string());
+        tracing::error!(error_code = err.code(), "{}", err);
         ProxyError::Other(format!("Failed to construct HTTP response from P2P tunnel data: {}", e))
     })?;
 

@@ -222,6 +222,45 @@ pub enum PublishError {
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
+    /// The network did not reach the required replication quorum for the zone.
+    /// Wait and retry publishing later.
+    #[error("Quorum failed for {0}: only {1}/5 nodes confirmed storage")]
+    QuorumFailed(String, usize),
+    /// The quorum verification check failed due to a network error.
+    /// Check network connectivity and retry.
+    #[error("Quorum check failed for {0}: {1}")]
+    QuorumCheckError(String, String),
+    /// Failed to publish the zone payload to the DHT.
+    #[error("Failed to publish to DHT: {0}")]
+    ZonePublishFailed(String),
+    /// The network did not reach the required replication quorum for the commitment.
+    #[error("Quorum failed for commitment of {0}: only {1}/5 nodes confirmed storage")]
+    CommitmentQuorumFailed(String, usize),
+    /// The quorum verification check failed for the commitment due to a network error.
+    #[error("Quorum check failed for commitment of {0}: {1}")]
+    CommitmentQuorumCheckError(String, String),
+    /// Failed to publish the commitment to the DHT.
+    #[error("Failed to publish Commitment to DHT: {0}")]
+    CommitmentPublishFailed(String),
+    /// Local reveal could not be found to verify the AuthorizedKid locally.
+    /// It will be forwarded, but the network might reject it.
+    #[error("Could not find local reveal for name {0} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.")]
+    MissingLocalRevealForKid(String),
+    /// Local reveal could not be found to verify the AuthorizedManifest locally.
+    #[error("Could not find local reveal for name {0} to verify AuthorizedManifest. Forwarding to DHT anyway.")]
+    MissingLocalRevealForManifest(String),
+    /// The zone payload failed to serialize into JSON.
+    #[error("Failed to serialize zone data: {0}")]
+    ZoneSerializationFailed(String),
+    /// Failed to broadcast the dynamic HostRoutingRecord to the DHT.
+    #[error("Failed to broadcast dynamic HostRoutingRecord to DHT: {0}")]
+    HostRoutingRecordPublishFailed(String),
+    /// Failed to publish the KID document to the DHT.
+    #[error("Failed to publish KID to DHT: {0}")]
+    KidPublishFailed(String),
+    /// Failed to publish the Manifest to the DHT.
+    #[error("Failed to publish Manifest to DHT: {0}")]
+    ManifestPublishFailed(String),
 }
 
 impl PublishError {
@@ -234,6 +273,18 @@ impl PublishError {
             Self::AllFailed { .. } => "KIN-PUB-004",
             Self::Rejected(_) => "KIN-PUB-005",
             Self::Internal { .. } => "KIN-PUB-006",
+            Self::QuorumFailed(..) => "KIN-PUB-007",
+            Self::QuorumCheckError(..) => "KIN-PUB-008",
+            Self::ZonePublishFailed(_) => "KIN-PUB-009",
+            Self::CommitmentQuorumFailed(..) => "KIN-PUB-010",
+            Self::CommitmentQuorumCheckError(..) => "KIN-PUB-011",
+            Self::CommitmentPublishFailed(_) => "KIN-PUB-012",
+            Self::MissingLocalRevealForKid(_) => "KIN-PUB-013",
+            Self::MissingLocalRevealForManifest(_) => "KIN-PUB-014",
+            Self::ZoneSerializationFailed(_) => "KIN-PUB-015",
+            Self::HostRoutingRecordPublishFailed(_) => "KIN-PUB-016",
+            Self::KidPublishFailed(_) => "KIN-PUB-017",
+            Self::ManifestPublishFailed(_) => "KIN-PUB-018",
         }
     }
 
@@ -256,6 +307,18 @@ impl PublishError {
             Self::AllFailed { .. } => Severity::Warning,
             Self::Rejected(_) => Severity::Warning,
             Self::Internal { .. } => Severity::Error,
+            Self::QuorumFailed(..) => Severity::Warning,
+            Self::QuorumCheckError(..) => Severity::Warning,
+            Self::ZonePublishFailed(_) => Severity::Error,
+            Self::CommitmentQuorumFailed(..) => Severity::Warning,
+            Self::CommitmentQuorumCheckError(..) => Severity::Warning,
+            Self::CommitmentPublishFailed(_) => Severity::Error,
+            Self::MissingLocalRevealForKid(_) => Severity::Warning,
+            Self::MissingLocalRevealForManifest(_) => Severity::Warning,
+            Self::ZoneSerializationFailed(_) => Severity::Error,
+            Self::HostRoutingRecordPublishFailed(_) => Severity::Error,
+            Self::KidPublishFailed(_) => Severity::Error,
+            Self::ManifestPublishFailed(_) => Severity::Error,
         }
     }
 
@@ -272,6 +335,7 @@ impl PublishError {
             }
             Self::Rejected(reason) => format!("Publish rejected: {}", reason),
             Self::Internal { .. } => "An internal error occurred during publishing.".to_string(),
+            _ => self.to_string(),
         }
     }
 

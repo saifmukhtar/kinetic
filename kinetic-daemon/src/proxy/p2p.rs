@@ -127,16 +127,12 @@ pub async fn handle_incoming_proxy_requests(
                     }
                 }
                 Err(e) => {
-                    warn!("KIN-PRX-022: Failed to forward request to local web server: {}", e);
+                    let err = super::ProxyError::LocalWebServerForwardingFailed(local_port, e.to_string());
+                    warn!(error_code = err.code(), "{}", err);
                     ProxyResponse {
                         status: 502,
                         headers: Vec::new(),
-                        body: format!(
-                            "KIN-PRX-022: Bad Gateway: Local web server not responding on port {}\nError: {}",
-                            local_port, e
-                        )
-                        .into_bytes()
-                        .into(),
+                        body: err.user_message().into_bytes().into(),
                     }
                 }
             };

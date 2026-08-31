@@ -192,11 +192,9 @@ pub async fn handle_publish_zone(
     let payload = match serde_json::to_vec(&zone) {
         Ok(v) => v,
         Err(e) => {
-            tracing::error!(error_code="KIN-PUB-015", error=?e, "Failed to serialize zone payload — cannot publish");
-            return Err(kinetic_core::error::PublishError::Internal {
-                message: "[KIN-PUB-015] Failed to serialize zone data".to_string(),
-                source: None,
-            }.into());
+            let err = kinetic_core::error::PublishError::ZoneSerializationFailed(e.to_string());
+            tracing::error!(error_code = err.code(), "{}", err);
+            return Err(err.into());
         }
     };
 

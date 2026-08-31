@@ -184,12 +184,13 @@ pub async fn handle_publish_record(
                         );
                     }
                     Ok(quorum) => {
-                        tracing::warn!(
-                            "KIN-PUB-007: Quorum failed for {}: only {}/5 nodes confirmed storage.",
-                            fqdn_clone, quorum
-                        );
+                        let err = kinetic_core::error::PublishError::QuorumFailed(fqdn_clone.to_string(), quorum);
+                        tracing::warn!(error_code = err.code(), "{}", err);
                     }
-                    Err(e) => tracing::warn!("KIN-PUB-008: Quorum check failed for {}: {}", fqdn_clone, e),
+                    Err(e) => {
+                        let err = kinetic_core::error::PublishError::QuorumCheckError(fqdn_clone.to_string(), e.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
+                    }
                 }
             });
 
@@ -199,7 +200,8 @@ pub async fn handle_publish_record(
             }))
         }
         Err(e) => {
-            tracing::error!("KIN-PUB-009: Failed to publish to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::ZonePublishFailed(e.to_string());
+            tracing::error!(error_code = err.code(), "{}", err);
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -288,16 +290,14 @@ pub async fn handle_publish_commit(
                         fqdn_clone,
                         quorum
                     ),
-                    Ok(quorum) => tracing::warn!(
-                        "KIN-PUB-010: Quorum failed for commitment of {}: only {}/5 nodes confirmed storage.",
-                        fqdn_clone,
-                        quorum
-                    ),
-                    Err(e) => tracing::warn!(
-                        "KIN-PUB-011: Quorum check failed for commitment of {}: {}",
-                        fqdn_clone,
-                        e
-                    ),
+                    Ok(quorum) => {
+                        let err = kinetic_core::error::PublishError::CommitmentQuorumFailed(fqdn_clone.to_string(), quorum);
+                        tracing::warn!(error_code = err.code(), "{}", err);
+                    },
+                    Err(e) => {
+                        let err = kinetic_core::error::PublishError::CommitmentQuorumCheckError(fqdn_clone.to_string(), e.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
+                    }
                 }
             });
 
@@ -307,7 +307,8 @@ pub async fn handle_publish_commit(
             }))
         }
         Err(e) => {
-            tracing::error!("KIN-PUB-012: Failed to publish Commitment to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::CommitmentPublishFailed(e.to_string());
+            tracing::error!(error_code = err.code(), "{}", err);
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -367,10 +368,8 @@ pub async fn handle_publish_kid(
             }
         }
         _ => {
-            tracing::warn!(
-                "KIN-PUB-013: Could not find local reveal for name {} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.",
-                auth_kid.name
-            );
+            let err = kinetic_core::error::PublishError::MissingLocalRevealForKid(auth_kid.name.clone());
+            tracing::warn!(error_code = err.code(), "{}", err);
             true // If we don't have it cached, we let the network decide.
         }
     };
@@ -407,7 +406,8 @@ pub async fn handle_publish_kid(
             }))
         }
         Err(e) => {
-            error!("KIN-PUB-017: Failed to publish KID to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::KidPublishFailed(e.to_string());
+            error!(error_code = err.code(), "{}", err);
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -460,10 +460,8 @@ pub async fn handle_publish_manifest(
             }
         }
         _ => {
-            tracing::warn!(
-                "KIN-PUB-014: Could not find local reveal for name {} to verify AuthorizedManifest. Forwarding to DHT anyway.",
-                auth_manifest.name
-            );
+            let err = kinetic_core::error::PublishError::MissingLocalRevealForManifest(auth_manifest.name.clone());
+            tracing::warn!(error_code = err.code(), "{}", err);
             true
         }
     };
@@ -553,7 +551,8 @@ pub async fn handle_publish_manifest(
             }))
         }
         Err(e) => {
-            error!("KIN-PUB-018: Failed to publish Manifest to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::ManifestPublishFailed(e.to_string());
+            error!(error_code = err.code(), "{}", err);
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),

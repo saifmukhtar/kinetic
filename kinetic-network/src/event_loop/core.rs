@@ -137,10 +137,8 @@ impl NetworkEventLoop {
         };
         self.bad_vdf_counts.put(source, new_val);
         if new_val.0 >= 3 {
-            tracing::warn!(
-                "KIN-P2P-003: Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning",
-                source
-            );
+            let err = kinetic_core::error::P2pError::GossipSpamBan(source.to_string());
+            tracing::warn!(error_code = err.code(), "{}", err);
             let expire_kyn = self.current_kyn + 28800;
             self.banned_peers.put(source, expire_kyn);
         }
@@ -219,7 +217,8 @@ impl NetworkEventLoop {
                     let info = self.swarm.network_info();
                     let num_peers = info.num_peers();
                     if num_peers == 0 {
-                        tracing::warn!("KIN-P2P-002: 0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
+                        let err = kinetic_core::error::P2pError::ZeroPeersDetected;
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         for addr in &self.bootstrap_nodes {
                             let _ = self.swarm.dial(addr.clone());
                         }
@@ -240,7 +239,8 @@ impl NetworkEventLoop {
                                         if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {
                                             let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
                                         } else {
-                                            tracing::warn!("KIN-P2P-001: Rejected unroutable DNS seed multiaddr: {}", multiaddr);
+                                            let err = kinetic_core::error::P2pError::UnroutableSeedMultiaddr(multiaddr.to_string());
+                                            tracing::warn!(error_code = err.code(), "{}", err);
                                         }
                                     }
                                 }
@@ -320,10 +320,8 @@ impl NetworkEventLoop {
                             self.bad_vdf_counts.put(source, new_val);
 
                             if new_val.0 >= 3 {
-                                tracing::warn!(
-                                    "KIN-P2P-004: Peer {} sent 3 invalid records within 60s — disconnecting and banning",
-                                    source
-                                );
+                                let err = kinetic_core::error::P2pError::RecordSpamBan(source.to_string());
+                                tracing::warn!(error_code = err.code(), "{}", err);
                                 let _ = self.swarm.disconnect_peer_id(source);
                                 let expire_kyn = self.current_kyn + 28800;
                                 self.banned_peers.put(source, expire_kyn);
@@ -405,19 +403,14 @@ impl NetworkEventLoop {
                     };
 
                     if self.light_nodes.len() >= 50 {
-                        tracing::warn!(
-                            "KIN-P2P-005: Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion",
-                            peer_id
-                        );
+                        let err = kinetic_core::error::P2pError::LightNodePowFailureLimit(peer_id.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
                     } else {
                         let count = self.light_node_ips.entry(identifier.clone()).or_insert(0);
                         if *count >= 3 {
-                            tracing::warn!(
-                                "KIN-P2P-006: Identifier {} exceeded limit of 3 light clients. Disconnecting peer {}.",
-                                identifier,
-                                peer_id
-                            );
+                            let err = kinetic_core::error::P2pError::LightNodeIdentityLimit(identifier.to_string(), peer_id.to_string());
+                            tracing::warn!(error_code = err.code(), "{}", err);
                             let _ = self.swarm.disconnect_peer_id(peer_id);
                         } else {
                             *count += 1;

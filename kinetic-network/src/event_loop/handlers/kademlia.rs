@@ -112,10 +112,9 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                             tracing::debug!(name = %name, success = %pending.success_count, "Publish succeeded over network");
                             let _ = pending.responder.send(Ok(()));
                         } else {
-                            tracing::warn!(error_code = "KIN-PUB-005", name = %name, "Publish: all DHT puts failed over network");
-                            let _ = pending.responder.send(Err(
-                                kinetic_core::error::PublishError::AllFailed { count: 0 },
-                            ));
+                            let err = kinetic_core::error::PublishError::AllFailed { count: 0 };
+                            tracing::warn!(error_code = err.code(), name = %name, "{}", err);
+                            let _ = pending.responder.send(Err(err));
                         }
                     }
                 }
@@ -131,10 +130,8 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 },
         } => {
             if event_loop.light_nodes.contains(&source) {
-                tracing::warn!(
-                    "KIN-P2P-010: Light node {} attempted to PutRecord (Write). Rejecting and disconnecting.",
-                    source
-                );
+                let err = kinetic_core::error::P2pError::LightNodeWriteRejected(source.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
                 let _ = event_loop.swarm.disconnect_peer_id(source);
                 let expire_kyn = event_loop.current_kyn + 28800;
                 event_loop.banned_peers.put(source, expire_kyn);
@@ -200,10 +197,8 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                     event_loop.bad_vdf_counts.put(source, new_val);
 
                     if new_val.0 >= 3 {
-                        tracing::warn!(
-                            "KIN-P2P-011: Peer {} sent 3 invalid records within 60s — disconnecting and banning",
-                            source
-                        );
+                        let err = kinetic_core::error::P2pError::KademliaRecordSpamBan(source.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = event_loop.swarm.disconnect_peer_id(source);
                         let expire_kyn = event_loop.current_kyn + 28800;
                         event_loop.banned_peers.put(source, expire_kyn);

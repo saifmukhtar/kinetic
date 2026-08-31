@@ -5,8 +5,8 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use crate::error::{
-    DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError,
-    NrsError, PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
+    DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError, NrsError, P2pError,
+    PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -82,6 +82,11 @@ impl From<PublishError> for ApiError {
             PublishError::AllFailed { .. } => (503, "Publish Failed"),
             PublishError::Rejected(_) => (422, "Publish Rejected"),
             PublishError::Internal { .. } => (500, "Internal Publish Error"),
+            PublishError::QuorumFailed(..) | PublishError::CommitmentQuorumFailed(..) => (503, "Quorum Failed"),
+            PublishError::QuorumCheckError(..) | PublishError::CommitmentQuorumCheckError(..) => (503, "Quorum Check Failed"),
+            PublishError::ZonePublishFailed(_) | PublishError::CommitmentPublishFailed(_) | PublishError::KidPublishFailed(_) | PublishError::ManifestPublishFailed(_) | PublishError::HostRoutingRecordPublishFailed(_) => (502, "DHT Publish Failed"),
+            PublishError::MissingLocalRevealForKid(_) | PublishError::MissingLocalRevealForManifest(_) => (404, "Missing Local Reveal"),
+            PublishError::ZoneSerializationFailed(_) => (500, "Serialization Failed"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -254,6 +259,22 @@ impl From<DrandError> for ApiError {
             error_type: e.error_type_uri(),
             title: title.to_string(),
             status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<P2pError> for ApiError {
+    fn from(e: P2pError) -> Self {
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: "Service Unavailable".to_string(),
+            status: 503,
             detail: e.user_message(),
             instance: None,
             code: e.code().to_string(),

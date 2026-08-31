@@ -55,10 +55,14 @@ pub async fn handle_proxy_request(
                     )
                     .await
                     {
-                        error!("KIN-PRX-005: CONNECT tunnel error: {}", e);
+                        let err = super::ProxyError::ConnectTunnelError(e.to_string());
+                        error!(error_code = err.code(), "{}", err);
                     }
                 }
-                Err(e) => error!("KIN-PRX-006: Upgrade error: {}", e),
+                Err(e) => {
+                    let err = super::ProxyError::UpgradeError(e.to_string());
+                    error!(error_code = err.code(), "{}", err);
+                }
             }
         });
 
@@ -85,7 +89,8 @@ pub async fn handle_proxy_request(
 
     let host_name = kinetic_core::types::normalize_name(&host);
     if !host_name.ends_with(kinetic_core::constants::NSP_SUFFIX) {
-        tracing::warn!("KIN-PRX-004: Rejected proxy request for non-.kin name: {}", host_name);
+        let err = super::ProxyError::NonKinName(host_name.to_string());
+        tracing::warn!(error_code = err.code(), "{}", err);
         return Ok(Response::builder()
             .status(StatusCode::BAD_GATEWAY)
             .body(axum::body::Body::from(
@@ -102,7 +107,8 @@ pub async fn handle_proxy_request(
     {
         Ok(resp) => Ok(resp),
         Err(e) => {
-            warn!("KIN-PRX-007: Proxy request failed: {}", e);
+            let err = super::ProxyError::RequestFailed(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             let status = match e {
                 ProxyError::SecurityViolation(_) => StatusCode::FORBIDDEN,
                 ProxyError::PeerUnreachable(_) => StatusCode::GATEWAY_TIMEOUT,
@@ -138,7 +144,8 @@ pub async fn forward_to_backend_direct(
             .resolve_redundant_payload(&apex_name)
             .await
             .map_err(|e| {
-                tracing::warn!("KIN-PRX-008: DHT resolution failed for apex name '{}': {}", apex_name, e);
+                let err = super::ProxyError::DhtResolutionFailed(apex_name.to_string(), e.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
                 ProxyError::NameNotFound(apex_name.clone())
             })?;
 
@@ -146,14 +153,16 @@ pub async fn forward_to_backend_direct(
         // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
         let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
             .map_err(|e| {
-                tracing::warn!("KIN-PRX-010: Failed to deserialize NameRecord JSON from DHT for '{}': {}", apex_name, e);
+                let err = super::ProxyError::NameRecordDeserializationFailed(apex_name.to_string(), e.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
                 ProxyError::InvalidPayload("Failed to deserialize NameRecord JSON from DHT".to_string())
             })?;
 
         use kinetic_verify::signatures::VerifySignature;
         if !kinetic_core::config::is_dev_mode() {
             if let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT) {
-                tracing::warn!("KIN-PRX-009: Proxy Error: Security violation! NameRecord signature verification failed (Spoofed DHT response): {:?}", e);
+                let err = super::ProxyError::SignatureVerificationFailed(format!("{:?}", e));
+                tracing::warn!(error_code = err.code(), "{}", err);
                 return Err(ProxyError::SecurityViolation("NameRecord signature verification failed (Spoofed DHT response)".to_string()));
             }
         }
@@ -161,7 +170,8 @@ pub async fn forward_to_backend_direct(
         let zone = match kinetic_core::types::NrsZone::parse_payload(record.payload()) {
             Ok(z) => z,
             Err(e) => {
-                tracing::warn!("KIN-PRX-011: Proxy Error: Invalid NrsZone payload: {}", e);
+                let err = super::ProxyError::InvalidNrsZonePayload(e.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
                 return Err(ProxyError::InvalidPayload("Invalid NrsZone payload".to_string()));
             }
         };
@@ -185,7 +195,8 @@ pub async fn forward_to_backend_direct(
         let records = match zone.records.get(&subname) {
             Some(r) => r,
             None => {
-                tracing::warn!("KIN-PRX-012: Proxy Error: Subname '{}' not found in zone", subname);
+                let err = super::ProxyError::SubnameNotFound(subname.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
                 return Err(ProxyError::NameNotFound(format!("Subname '{}' not found in zone", subname)));
             }
         };
@@ -243,7 +254,8 @@ pub async fn forward_to_backend_direct(
     }
 
     if target_str.is_empty() {
-        tracing::warn!("KIN-PRX-013: No routable targets found in NrsZone for name '{}'", name);
+        let err = super::ProxyError::NoRoutableTargets(name.to_string());
+        tracing::warn!(error_code = err.code(), "{}", err);
         return Err(ProxyError::NameNotFound(format!("No routable targets found in NrsZone for name '{}'", name)));
     }
 
@@ -263,10 +275,8 @@ pub async fn forward_to_backend_direct(
     } else if let Ok(peer_id) = ip_str.parse::<libp2p::PeerId>() {
         return crate::proxy::route_p2p::forward_to_p2p(req, name, peer_id, network_client).await;
     } else {
-        tracing::warn!(
-            "KIN-PRX-014: Unrecognized target format in DHT payload for '{}': {:?}",
-            name, ip_str
-        );
+        let err = super::ProxyError::UnrecognizedTargetFormat(name.to_string(), ip_str.clone());
+        tracing::warn!(error_code = err.code(), "{}", err);
         Err(ProxyError::InvalidPayload(format!("Unrecognized target format in DHT payload for '{}'", name)))
     }
 }

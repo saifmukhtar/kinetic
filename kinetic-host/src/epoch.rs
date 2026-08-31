@@ -52,7 +52,8 @@ pub async fn start_routing_publisher(
         record.signature = signature.to_bytes().to_vec();
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {
-            tracing::warn!("KIN-PUB-016: Failed to broadcast dynamic HostRoutingRecord to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::HostRoutingRecordPublishFailed(e.to_string());
+            tracing::warn!(error_code = err.code(), "{}", err);
         } else {
             tracing::info!("Published dynamic HostRoutingRecord to DHT");
         }

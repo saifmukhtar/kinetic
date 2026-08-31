@@ -25,7 +25,8 @@ pub async fn forward_to_ip(
     } else if let Ok(sa) = ip_str.parse::<std::net::SocketAddr>() {
         sa.ip()
     } else {
-        tracing::warn!("KIN-PRX-015: Invalid IP format for name '{}': {}", name, ip_str);
+        let err = super::ProxyError::InvalidIpFormat(name.to_string(), ip_str.to_string());
+        tracing::warn!(error_code = err.code(), "{}", err);
         return Err(ProxyError::NameNotFound(format!("Invalid IP format for name '{}'", name)));
     };
 
@@ -148,7 +149,8 @@ pub async fn forward_to_ip(
     backend_req = backend_req.body(body_bytes);
 
     let backend_resp = backend_req.send().await.map_err(|e| {
-        tracing::error!("KIN-PRX-016: Failed to reach IP gateway: {}", e);
+        let err = super::ProxyError::IpGatewayUnreachable(e.to_string());
+        tracing::error!(error_code = err.code(), "{}", err);
         ProxyError::PeerUnreachable(format!("Failed to reach Web2 server: {}", e))
     })?;
 

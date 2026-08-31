@@ -2,6 +2,35 @@ use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
 
 use tracing::{info, warn};
 
+/// Errors related to the local host's proxying operations.
+#[derive(Debug)]
+pub enum HostProxyError {
+    /// Failed to forward a P2P request to the local backend web server.
+    /// The host's local web server is offline or rejecting connections.
+    LocalWebServerForwardingFailed(u16, String),
+}
+
+impl std::fmt::Display for HostProxyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LocalWebServerForwardingFailed(port, err) => {
+                write!(f, "Bad Gateway: Local web server not responding on port {}\nError: {}", port, err)
+            }
+        }
+    }
+}
+
+impl std::error::Error for HostProxyError {}
+
+impl HostProxyError {
+    /// Returns the stable protocol error code.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::LocalWebServerForwardingFailed(..) => "KIN-PRX-022",
+        }
+    }
+}
+
 /// Forwards a P2P proxy request to the local web server.
 ///
 /// Takes a `ProxyRequest` received from the DHT network and translates it into
@@ -72,16 +101,12 @@ pub async fn forward_request(
             }
         }
         Err(e) => {
-            warn!("KIN-PRX-022: Failed to forward P2P request to local backend web server: {}", e);
+            let err = HostProxyError::LocalWebServerForwardingFailed(local_port, e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             ProxyResponse {
                 status: 502,
                 headers: Vec::new(),
-                body: format!(
-                    "KIN-PRX-022: Bad Gateway: Local web server not responding on port {}\nError: {}",
-                    local_port, e
-                )
-                .into_bytes()
-                .into(),
+                body: err.to_string().into_bytes().into(),
             }
         }
     }

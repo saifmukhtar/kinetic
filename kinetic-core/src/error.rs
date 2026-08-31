@@ -31,6 +31,8 @@
 //! | `KIN-NAM-NNN` | `NamesError` | Name validation |
 //! | `KIN-DBE-NNN` | `StorageError` | Sled storage engine |
 //! | `KIN-RPC-NNN` | `NetworkClientError` | P2P network client operations |
+//! | `KIN-P2P-NNN` | `P2pError` | Swarm, mesh, and peer management |
+//! | `KIN-PRX-NNN` | `ProxyError` (daemon/host) | Local HTTP proxy operations |
 //! | `KIN-DHT-NNN` | `KineticStoreError` | Distributed Hash Table store logic |
 //! | `KIN-SEC-NNN` | `SsrfError` | IP Server-Side Request Forgery filtering |
 //! | `KIN-SYS-NNN` | `SystemError` | Operating System execution and shutdown |
@@ -54,6 +56,8 @@ pub mod names;
 pub mod network;
 /// NRS Zone parsing and validation error types.
 pub mod nrs;
+/// P2P Swarm and Mesh connection error types.
+pub mod p2p;
 /// Operating System execution error types.
 pub mod system;
 /// SSRF security validation error types.
@@ -74,6 +78,7 @@ pub use identity::IdentityError;
 pub use names::NamesError;
 pub use network::NetworkClientError;
 pub use nrs::NrsError;
+pub use p2p::P2pError;
 pub use ssrf::SsrfError;
 pub use storage::StorageError;
 pub use system::SystemError;
