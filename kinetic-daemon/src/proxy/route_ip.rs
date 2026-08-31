@@ -50,7 +50,8 @@ pub async fn forward_to_ip(
             || original_port == config.network.daemon_port
             || original_port == config.daemon.pac_port)
     {
-        tracing::error!("KIN-SEC-016: Proxy loop blocked for port {}", original_port);
+        let err = kinetic_core::error::SecurityError::ProxyLoop;
+        tracing::error!(error_code = err.code(), "Proxy loop blocked for port {}", original_port);
         return Err(ProxyError::Other(
             "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
         ));
@@ -61,23 +62,25 @@ pub async fn forward_to_ip(
     let dev_mode = kinetic_core::config::is_dev_mode();
 
     if is_ssrf {
-        let (ssrf_code, reason) = if ip_addr.is_unspecified() {
-            ("KIN-SEC-003", "Unspecified IP".to_string())
+        let err_obj = if ip_addr.is_unspecified() {
+            kinetic_core::error::SecurityError::Unspecified
         } else {
-            let err = ssrf_result.unwrap_err();
-            (err.code(), err.to_string())
+            ssrf_result.unwrap_err()
         };
 
         if dev_mode {
+            let warn_err = kinetic_core::error::SecurityError::DevModePrivateIp;
             tracing::warn!(
-                "KIN-SEC-015: DEV MODE: Forwarding to private IP {}. Reason: [{}] {}. This would be blocked in production.",
-                ip_addr, ssrf_code, reason
+                error_code = warn_err.code(),
+                "DEV MODE: Forwarding to private IP {}. Reason: [{}] {}. This would be blocked in production.",
+                ip_addr, err_obj.code(), err_obj
             );
         } else {
-            tracing::warn!("KIN-SEC-014: SSRF attempt blocked to {}. Rule: {}", ip_addr, ssrf_code);
+            let sec_err = kinetic_core::error::SecurityError::DangerousIpBlocked;
+            tracing::warn!(error_code = sec_err.code(), "SSRF attempt blocked to {}. Rule: {}", ip_addr, err_obj.code());
             return Err(ProxyError::SecurityViolation(format!(
                 "Cannot proxy to loopback or private IPs. Reason: [{}] {}. (Use Dev Mode to bypass)",
-                ssrf_code, reason
+                err_obj.code(), err_obj
             )));
         }
     }
@@ -140,7 +143,8 @@ pub async fn forward_to_ip(
             if let Ok(data) = frame.into_data() {
                 body_bytes.extend_from_slice(&data);
                 if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                    tracing::warn!("KIN-SEC-011: Blocked oversized IP proxy request body");
+                    let err = kinetic_core::error::SecurityError::PayloadTooLarge;
+                    tracing::warn!(error_code = err.code(), "Blocked oversized IP proxy request body");
                     return Err(ProxyError::InvalidPayload("Blocked oversized IP proxy request body".to_string()));
                 }
             }

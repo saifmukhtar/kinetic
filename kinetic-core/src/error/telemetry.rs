@@ -9,9 +9,13 @@ use thiserror::Error;
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum TelemetryError {
     /// A network function requested a correlation ID, but no async tracing scope was initialized.
+    /// This happens if a network operation is spawned outside of the main HTTP router tracing span.
+    /// Ensure all tasks are properly instrumented with `#[tracing::instrument]`.
     #[error("Missing request ID scope for telemetry")]
     MissingCorrelationId,
     /// Failed to broadcast telemetry data to the network.
+    /// The node could not push its periodic health metrics to the diagnostic mesh.
+    /// Check your P2P connections or disable telemetry in the config if not desired.
     #[error("Failed to broadcast telemetry: {0}")]
     BroadcastFailed(String),
 }

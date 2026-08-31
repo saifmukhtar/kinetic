@@ -14,45 +14,53 @@ use thiserror::Error;
 /// Errors related to name validation and RFC reserved name checks.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum NamesError {
-    /// The name exceeds the strict 253-character limit defined by RFC 1035, or is completely empty.
+    /// The submitted name exceeds the strict 253-character limit or is completely empty.
+    /// The Kinetic naming system strictly inherits RFC 1035 length limits to prevent buffer overflow vulnerabilities.
     /// Choose a shorter, concise name to ensure network compatibility.
     #[error("Name is empty or exceeds the 253 character limit")]
     NameTooLong,
 
-    /// A single label (the word between dots) exceeds the 63-character limit defined by RFC 1035.
-    /// Break the name up or choose a shorter label.
+    /// A single label (the word between dots) within the name exceeds the 63-character limit.
+    /// The network enforces RFC 1035 label constraints for efficient DNS compatibility and routing.
+    /// Break the name up using dots or choose a shorter label.
     #[error("Label is empty or exceeds the 63 character limit")]
     LabelTooLong,
 
-    /// A single label (the word between dots) is empty, which usually means consecutive dots were used (e.g., `foo..kin`).
-    /// Ensure there is exactly one dot separating each valid label.
+    /// A single label (the word between dots) is completely empty.
+    /// This usually occurs when consecutive dots are used (e.g., `foo..kin`) or a dot is placed at the start of the string.
+    /// Ensure there is exactly one dot separating each valid label and no leading dots.
     #[error("Label is empty (e.g. consecutive dots)")]
     EmptyLabel,
 
-    /// The name contains invalid characters not permitted by the LDH (Letters, Digits, Hyphen) rule.
-    /// Ensure the name strictly contains only lowercase letters, numbers, and internal hyphens. No emojis, spaces, or uppercase letters are allowed.
+    /// The name contains characters not permitted by the LDH (Letters, Digits, Hyphen) rule.
+    /// To prevent homograph attacks and Unicode confusion, only a highly restricted character set is allowed.
+    /// Ensure the name strictly contains only lowercase alphanumeric characters and internal hyphens. No emojis or spaces.
     #[error(
         "Name contains invalid characters (only lowercase letters, digits, and internal hyphens allowed)"
     )]
     InvalidCharacter,
 
     /// A hyphen was placed at the very start or end of a label (e.g., `-example` or `example-`).
-    /// Ensure all hyphens are strictly internal and surrounded by valid alphanumeric characters.
+    /// Hyphens must be strictly internal according to the LDH rule to prevent parsing ambiguities.
+    /// Ensure all hyphens are strictly surrounded by valid alphanumeric characters.
     #[error("Labels cannot start or end with a hyphen")]
     InvalidHyphenPlacement,
 
     /// The name is a permanently reserved public utility name (e.g., `localhost`, `test`, `example`).
-    /// These Category 1 names are protected by RFC 2606 and can never be registered on the Kinetic network.
+    /// These Category 1 names are strictly protected by RFC 2606 to prevent catastrophic network confusion.
+    /// These names can never be registered on the Kinetic network. Choose a different name.
     #[error("Name is a protected public utility name (e.g., localhost, test)")]
     ReservedName,
 
     /// The name is reserved for critical network protocol functionality (e.g., `seed`, `explorer`, `docs`).
-    /// These Category 2 names are locked until Phase 2 governance is activated. Choose a different name.
+    /// These Category 2 names are locked by the core protocol to ensure official infrastructure remains secure.
+    /// These names are locked until Phase 2 governance is activated. Choose a different name.
     #[error("Name is a protected protocol name (e.g., seed, explorer)")]
     ProtocolName,
 
-    /// An operation was attempted on a subname (e.g., `sub.example.kin`), but the operation strictly requires an apex name (`example.kin`).
-    /// The core network only manages apex names. Subnames must be managed independently by the apex owner.
+    /// An operation was attempted on a subname (e.g., `sub.example.kin`), but the operation strictly requires an apex name.
+    /// The core Kinetic DHT only manages apex names (`example.kin`) to prevent state bloat.
+    /// Subnames must be managed independently by the apex owner via their local zone file.
     #[error("Only apex names are allowed (subnames must be managed by the apex owner)")]
     NotAnApexName,
 }

@@ -4,11 +4,11 @@
 
 use std::net::IpAddr;
 
-pub use crate::error::ssrf::SsrfError;
+pub use crate::error::security::SecurityError;
 
 /// Checks whether an IP address is safe to connect to or proxy through.
 ///
-/// Returns an `SsrfError` for loopback, unspecified, private, link-local, broadcast,
+/// Returns an `SecurityError` for loopback, unspecified, private, link-local, broadcast,
 /// multicast, documentation, CGNAT (`100.64.0.0/10`), NAT64 (`64:ff9b::/96`),
 /// and IPv4-mapped IPv6 internal targets.
 ///
@@ -16,58 +16,58 @@ pub use crate::error::ssrf::SsrfError;
 ///
 /// ```
 /// use std::net::IpAddr;
-/// use kinetic_core::net::{validate_ssrf_safe, SsrfError};
+/// use kinetic_core::net::{validate_ssrf_safe, SecurityError};
 ///
 /// assert!(validate_ssrf_safe("1.1.1.1".parse::<IpAddr>().unwrap()).is_ok());
-/// assert_eq!(validate_ssrf_safe("127.0.0.1".parse::<IpAddr>().unwrap()), Err(SsrfError::Loopback));
-/// assert_eq!(validate_ssrf_safe("192.168.1.1".parse::<IpAddr>().unwrap()), Err(SsrfError::Private));
+/// assert_eq!(validate_ssrf_safe("127.0.0.1".parse::<IpAddr>().unwrap()), Err(SecurityError::Loopback));
+/// assert_eq!(validate_ssrf_safe("192.168.1.1".parse::<IpAddr>().unwrap()), Err(SecurityError::Private));
 /// ```
-pub fn validate_ssrf_safe(ip: IpAddr) -> Result<(), SsrfError> {
+pub fn validate_ssrf_safe(ip: IpAddr) -> Result<(), SecurityError> {
     match ip {
         IpAddr::V4(v4) => {
             if v4.is_loopback() {
-                return Err(SsrfError::Loopback);
+                return Err(SecurityError::Loopback);
             }
             if v4.is_unspecified() {
-                return Err(SsrfError::Unspecified);
+                return Err(SecurityError::Unspecified);
             }
             if v4.is_private() {
-                return Err(SsrfError::Private);
+                return Err(SecurityError::Private);
             }
             if v4.is_link_local() || v4.is_broadcast() || v4.is_multicast() {
-                return Err(SsrfError::LocalNetworkRouting);
+                return Err(SecurityError::LocalNetworkRouting);
             }
             if v4.is_documentation() {
-                return Err(SsrfError::Reserved);
+                return Err(SecurityError::Reserved);
             }
             let octets = v4.octets();
             if octets[0] == 0 {
-                return Err(SsrfError::Reserved); // 0.0.0.0/8
+                return Err(SecurityError::Reserved); // 0.0.0.0/8
             }
             if octets[0] == 100 && (octets[1] & 0xC0) == 64 {
-                return Err(SsrfError::CgNat); // 100.64.0.0/10 CGNAT
+                return Err(SecurityError::CgNat); // 100.64.0.0/10 CGNAT
             }
             Ok(())
         }
         IpAddr::V6(v6) => {
             if v6.is_loopback() {
-                return Err(SsrfError::Loopback);
+                return Err(SecurityError::Loopback);
             }
             if v6.is_unspecified() {
-                return Err(SsrfError::Unspecified);
+                return Err(SecurityError::Unspecified);
             }
             if v6.is_multicast() {
-                return Err(SsrfError::LocalNetworkRouting);
+                return Err(SecurityError::LocalNetworkRouting);
             }
 
             let segments = v6.segments();
             // IPv6 Link-Local (fe80::/10)
             if segments[0] & 0xffc0 == 0xfe80 {
-                return Err(SsrfError::LocalNetworkRouting);
+                return Err(SecurityError::LocalNetworkRouting);
             }
             // IPv6 Unique Local (fc00::/7)
             if segments[0] & 0xfe00 == 0xfc00 {
-                return Err(SsrfError::Private);
+                return Err(SecurityError::Private);
             }
 
             // IPv4-Compatible IPv6 (::/96) - Deprecated but some kernels still route to loopback
@@ -78,14 +78,14 @@ pub fn validate_ssrf_safe(ip: IpAddr) -> Result<(), SsrfError> {
                 && segments[4] == 0
                 && segments[5] == 0
             {
-                return Err(SsrfError::Ipv6MappedExploit);
+                return Err(SecurityError::Ipv6MappedExploit);
             }
 
             // Check for IPv4-mapped IPv6 address that wraps a dangerous v4
             if let Some(v4_mapped) = v6.to_ipv4_mapped() {
                 // If it resolves to an error, we can map it to a specific exploit log
                 if validate_ssrf_safe(IpAddr::V4(v4_mapped)).is_err() {
-                    return Err(SsrfError::Ipv6MappedExploit);
+                    return Err(SecurityError::Ipv6MappedExploit);
                 }
             }
 
@@ -98,7 +98,7 @@ pub fn validate_ssrf_safe(ip: IpAddr) -> Result<(), SsrfError> {
                 && segments[4] == 0
                 && segments[5] == 0
             {
-                return Err(SsrfError::Nat64);
+                return Err(SecurityError::Nat64);
             }
             Ok(())
         }
@@ -121,15 +121,15 @@ mod tests {
     fn test_loopback_ips() {
         assert_eq!(
             validate_ssrf_safe("127.0.0.1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Loopback)
+            Err(SecurityError::Loopback)
         );
         assert_eq!(
             validate_ssrf_safe("127.12.34.56".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Loopback)
+            Err(SecurityError::Loopback)
         );
         assert_eq!(
             validate_ssrf_safe("::1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Loopback)
+            Err(SecurityError::Loopback)
         );
     }
 
@@ -137,23 +137,23 @@ mod tests {
     fn test_private_ips() {
         assert_eq!(
             validate_ssrf_safe("10.0.0.1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Private)
+            Err(SecurityError::Private)
         );
         assert_eq!(
             validate_ssrf_safe("192.168.1.1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Private)
+            Err(SecurityError::Private)
         );
         assert_eq!(
             validate_ssrf_safe("172.16.0.1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Private)
+            Err(SecurityError::Private)
         );
         assert_eq!(
             validate_ssrf_safe("fc00::1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Private)
+            Err(SecurityError::Private)
         ); // IPv6 Unique Local
         assert_eq!(
             validate_ssrf_safe("fd12::34".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Private)
+            Err(SecurityError::Private)
         ); // IPv6 Unique Local
     }
 
@@ -162,17 +162,17 @@ mod tests {
         // IPv4-mapped IPv6 pointing to loopback
         assert_eq!(
             validate_ssrf_safe("::ffff:127.0.0.1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Ipv6MappedExploit)
+            Err(SecurityError::Ipv6MappedExploit)
         );
         // IPv4-compatible IPv6 pointing to loopback
         assert_eq!(
             validate_ssrf_safe("::127.0.0.1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Ipv6MappedExploit)
+            Err(SecurityError::Ipv6MappedExploit)
         );
         // IPv6 NAT64
         assert_eq!(
             validate_ssrf_safe("64:ff9b::192.0.2.33".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Nat64)
+            Err(SecurityError::Nat64)
         );
     }
 
@@ -180,15 +180,15 @@ mod tests {
     fn test_cgnat_and_zero() {
         assert_eq!(
             validate_ssrf_safe("0.0.0.0".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::Unspecified)
+            Err(SecurityError::Unspecified)
         );
         assert_eq!(
             validate_ssrf_safe("100.64.0.1".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::CgNat)
+            Err(SecurityError::CgNat)
         );
         assert_eq!(
             validate_ssrf_safe("100.127.255.254".parse::<IpAddr>().unwrap()),
-            Err(SsrfError::CgNat)
+            Err(SecurityError::CgNat)
         );
         // But 100.63.x.x is public, not CGNAT
         assert!(validate_ssrf_safe("100.63.255.255".parse::<IpAddr>().unwrap()).is_ok());

@@ -10,78 +10,93 @@ use thiserror::Error;
 /// P2P Swarm and Mesh connection error types.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum P2pError {
-    /// A DNS seed returned a multiaddr that is unroutable.
-    /// Ensure DNS seeds only return valid, publicly routable multiaddrs.
+    /// A DNS seed returned a multiaddr that is unroutable (e.g., localhost, private IP).
+    /// The node queries bootstrap DNS seeds to find peers, but the seed provided an address that cannot be dialed over the public internet.
+    /// Ensure DNS seeds only return valid, publicly routable multiaddrs or update your config to ignore bad seeds.
     #[error("Rejected unroutable DNS seed multiaddr: {0}")]
     UnroutableSeedMultiaddr(String),
 
-    /// The node lost all peer connections and is isolated.
-    /// Check internet connection. The node will aggressively redial bootstrap nodes.
+    /// The node lost all peer connections and is isolated from the P2P mesh.
+    /// The local internet connection dropped, or all connected peers went offline simultaneously.
+    /// Check your internet connection. The node will aggressively redial bootstrap nodes in the background to automatically recover.
     #[error("0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...")]
     ZeroPeersDetected,
 
-    /// A peer spammed the node with invalid gossip messages.
-    /// The peer is operating maliciously or on an incompatible protocol version. It has been banned.
+    /// A peer spammed the node with invalid GossipSub messages.
+    /// The peer is operating maliciously, running an incompatible protocol version, or has severe clock drift.
+    /// The offending peer has been banned. No action is required unless this happens constantly, which may indicate a network-wide attack.
     #[error("Peer {0} sent 3 invalid gossip messages within 60s — disconnecting and banning")]
     GossipSpamBan(String),
 
     /// A peer spammed the node with invalid DHT records.
-    /// The peer is operating maliciously. It has been banned.
+    /// The peer is attempting to pollute the network with bad data or is operating maliciously.
+    /// The offending peer has been banned. No action is required.
     #[error("Peer {0} sent 3 invalid records within 60s — disconnecting and banning")]
     RecordSpamBan(String),
 
-    /// A light node failed the proof-of-work handshake when the node was at capacity.
-    /// The node disconnected the light node to preserve connection slots for full nodes.
+    /// A light node failed the proof-of-work handshake when the node was at maximum connection capacity.
+    /// To prevent connection slot exhaustion during high load, the node disconnects unauthenticated light nodes.
+    /// If you run a light client, ensure it correctly computes the PoW handshake before dialing full nodes.
     #[error("Light Node limit reached. Peer {0} failed PoW, disconnecting them to prevent connection slot exhaustion")]
     LightNodePowFailureLimit(String),
 
-    /// A single identifier attempted to multiplex too many light client connections.
-    /// The node enforces a maximum of 3 light clients per identity to prevent Sybil exhaustion.
+    /// A single cryptographic identifier attempted to multiplex too many light client connections.
+    /// The node enforces a strict limit of 3 light clients per identity to prevent Sybil resource exhaustion.
+    /// Disconnect redundant light clients using the same identity key, or generate distinct identities for each client.
     #[error("Identifier {0} exceeded limit of 3 light clients. Disconnecting peer {1}.")]
     LightNodeIdentityLimit(String, String),
 
     /// A quorum verification was attempted while the node had no peers.
-    /// The operation failed fast. The node must discover peers before verifying quorums.
+    /// The node cannot verify network state or resolve conflicts if it is completely isolated from the mesh.
+    /// Wait for the node to discover peers and sync the network state before attempting quorum operations.
     #[error("Offline mode: Failing fast for VerifyQuorum (0 peers)")]
     OfflineVerifyQuorum,
 
-    /// The node failed to bind to the mDNS port for local peer discovery.
-    /// Ensure port 5353 is available. Local peer discovery will remain disabled.
+    /// The node failed to bind to the UDP port required for local mDNS peer discovery.
+    /// Port 5353 is already in use by another application (like Avahi or Bonjour) on the host machine.
+    /// Ensure port 5353 is available, or safely ignore this error if you do not need to discover peers on your local LAN.
     #[error("Failed to bind mDNS: {0}. Local peer discovery disabled.")]
     MdnsBindFailed(String),
 
-    /// The gossipsub message semaphore is saturated due to extreme load.
-    /// Messages are being aggressively dropped to prevent memory exhaustion.
+    /// The internal GossipSub message semaphore is saturated due to extreme load.
+    /// The node is receiving gossip messages faster than the event loop can process them, indicating severe network congestion.
+    /// Messages are being aggressively dropped to prevent memory exhaustion. Consider allocating more CPU resources to the daemon.
     #[error("Gossip semaphore saturated — dropping message from {0} on topic {1}")]
     GossipSemaphoreSaturated(String, String),
 
-    /// A light node incorrectly attempted a DHT Write operation.
-    /// Light nodes do not have Write privileges. The peer was disconnected.
+    /// A light node incorrectly attempted a DHT Write (`PutRecord`) operation.
+    /// By protocol design, light nodes do not have Write privileges and can only perform Read operations.
+    /// The offending peer was immediately disconnected. Ensure your light client applications only emit Read queries.
     #[error("Light node {0} attempted to PutRecord (Write). Rejecting and disconnecting.")]
     LightNodeWriteRejected(String),
 
-    /// A peer spammed Kademlia with invalid routing records.
-    /// The peer is attempting to pollute the routing table. It has been banned.
+    /// A peer spammed the Kademlia routing table with invalid routing records.
+    /// The peer is attempting an Eclipse attack or routing table pollution.
+    /// The offending peer has been banned. No action is required.
     #[error("Peer {0} sent 3 invalid records within 60s — disconnecting and banning")]
     KademliaRecordSpamBan(String),
 
-    /// An outgoing connection to a peer failed.
-    /// The peer may be offline, behind a NAT, or blocking traffic.
+    /// An outgoing connection to a peer failed at the transport layer.
+    /// The peer may have gone offline, is behind a restrictive NAT, or dropped the TCP connection.
+    /// The network will automatically route around the failed peer. No action is required.
     #[error("Outgoing connection error to peer {0}: {1}")]
     OutgoingConnectionError(String, String),
 
-    /// The node failed to dial a critical bootstrap node.
-    /// Ensure the bootstrap node is online and its multiaddr is correct.
+    /// The node failed to dial a critical hardcoded bootstrap node.
+    /// The bootstrap node is offline, its IP changed, or its multiaddr configuration is incorrect.
+    /// Ensure your node has internet access. If the problem persists, check the official Kinetic docs for updated bootstrap addresses.
     #[error("Failed to dial bootstrap node {0}: {1}")]
     BootstrapDialFailed(String, String),
 
-    /// A previously banned peer attempted to reconnect.
-    /// The connection was aggressively dropped at the transport layer.
+    /// A previously banned peer attempted to reconnect to the node.
+    /// The malicious or incompatible peer is aggressively retrying the connection.
+    /// The connection was dropped instantly at the transport layer to save resources. No action is required.
     #[error("Banned peer {0} attempted to connect, disconnecting immediately.")]
     BannedPeerConnectionAttempt(String),
 
     /// A bootstrap peer failed to provide a valid Proof of Work handshake.
-    /// The connection was kept alive for 24 hours but is now being reaped.
+    /// The connection was kept alive for 24 hours (a grace period for bootstrap nodes) but the peer never authenticated.
+    /// The connection is now being reaped. No action is required.
     #[error("Bootstrap peer {0} failed to provide valid PoW after 24 hours. Disconnecting.")]
     BootstrapPowTimeout(String),
 }

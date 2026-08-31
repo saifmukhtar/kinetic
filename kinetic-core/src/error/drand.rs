@@ -19,27 +19,43 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum DrandError {
     /// All configured endpoints returned errors or timed out.
+    /// The node could not fetch the latest drand beacon from any of the public HTTP endpoints.
+    /// Ensure your node has outbound internet access or provide custom drand endpoint URLs.
     #[error("All Drand endpoints failed")]
     AllEndpointsFailed,
     /// An endpoint returned a non-2xx HTTP status.
+    /// The public drand League of Entropy relays might be experiencing downtime or rate-limiting you.
+    /// Try adding alternate endpoints to your daemon configuration.
     #[error("HTTP status error: {0}")]
     HttpError(u16),
     /// No kyn was found in the local cache (and the network is also unavailable).
+    /// The node needs a recent kyn to bootstrap its clock, but none was saved and the internet is down.
+    /// Connect to the internet briefly so the node can cache the latest beacon.
     #[error("No cached kyn found")]
     NoCachedKyn,
     /// JSON (de)serialization failed.
+    /// An endpoint returned a malformed response that did not match the expected drand schema.
+    /// This may indicate a Man-in-the-Middle attack or a broken API endpoint.
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
     /// A storage engine error occurred while reading or writing the cache.
+    /// The daemon lacks permissions to write to its data directory, or the disk is full.
+    /// Ensure the storage directory is writable.
     #[error("Storage error: {0}")]
     Storage(#[from] crate::error::StorageError),
-    /// An HTTP client error from the `reqwest` library.
-    #[error("Reqwest error: {0}")]
-    Reqwest(#[from] reqwest::Error),
+    /// An HTTP client error from the network library.
+    /// DNS resolution failed, the connection timed out, or TLS negotiation failed.
+    /// Check your internet connection and system DNS settings.
+    #[error("HTTP client error: {0}")]
+    HttpClient(String),
     /// The BLS threshold signature was mathematically invalid.
+    /// A malicious endpoint attempted to feed the node a forged random beacon.
+    /// The beacon was safely rejected.
     #[error("Invalid Drand signature")]
     InvalidSignature,
     /// The returned kyn is too old compared to the system clock.
+    /// An endpoint is serving outdated drand rounds, potentially as a replay attack.
+    /// The node expects the round to roughly match the current Unix time.
     #[error("Stale kyn: expected kyn ~{expected}, but got {got}")]
     StaleKyn {
         /// The expected Drand kyn based on the local system clock.
@@ -48,15 +64,23 @@ pub enum DrandError {
         got: u64,
     },
     /// A network stream reading error occurred.
+    /// The connection to the endpoint dropped mid-download while reading the beacon payload.
+    /// Retry the fetch operation.
     #[error("Stream read failed: {0}")]
     StreamReadFailed(String),
     /// The endpoint returned a response body exceeding the maximum allowed size.
+    /// A malicious endpoint tried to exhaust the node's memory with an infinitely long response.
+    /// The connection was terminated safely.
     #[error("Response too large: {0} bytes")]
     ResponseTooLarge(usize),
     /// The drand beacon was unavailable when the node started up.
+    /// The node cannot initialize its internal clock without a valid drand round.
+    /// The node will fail to start until it can reach a drand endpoint.
     #[error("Drand beacon unavailable on startup: {0}")]
     UnavailableOnStartup(String),
     /// The node fell too far behind and triggered the P2P drand fallback mechanism.
+    /// The node's clock drifted too far from the network's clock.
+    /// The node is now relying on P2P peers to catch up.
     #[error("P2P Drand fallback triggered! We are behind by {behind} kyns.")]
     P2pFallbackTriggered {
         /// Number of kyns the node was behind.
@@ -81,7 +105,7 @@ impl PartialEq for DrandError {
             (Self::NoCachedKyn, Self::NoCachedKyn) => true,
             (Self::Serde(a), Self::Serde(b)) => a.to_string() == b.to_string(),
             (Self::Storage(a), Self::Storage(b)) => a == b,
-            (Self::Reqwest(a), Self::Reqwest(b)) => a.to_string() == b.to_string(),
+            (Self::HttpClient(a), Self::HttpClient(b)) => a.to_string() == b.to_string(),
             (Self::InvalidSignature, Self::InvalidSignature) => true,
             (Self::StreamReadFailed(a), Self::StreamReadFailed(b)) => a == b,
             (Self::ResponseTooLarge(a), Self::ResponseTooLarge(b)) => a == b,
@@ -107,7 +131,7 @@ impl PartialEq for DrandError {
 impl Eq for DrandError {}
 
 impl DrandError {
-    /// Stable protocol error code.
+    /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
             Self::AllEndpointsFailed => "KIN-RND-001",
@@ -115,7 +139,7 @@ impl DrandError {
             Self::NoCachedKyn => "KIN-RND-004",
             Self::Serde(_) => "KIN-RND-005",
             Self::Storage(_) => "KIN-RND-006",
-            Self::Reqwest(_) => "KIN-RND-007",
+            Self::HttpClient(_) => "KIN-RND-007",
             Self::InvalidSignature => "KIN-RND-008",
             Self::StaleKyn { .. } => "KIN-RND-009",
             Self::StreamReadFailed(_) => "KIN-RND-010",
@@ -139,7 +163,7 @@ impl DrandError {
             Self::AllEndpointsFailed
             | Self::HttpError(_)
             | Self::NoCachedKyn
-            | Self::Reqwest(_)
+            | Self::HttpClient(_)
             | Self::StreamReadFailed(_)
             | Self::StaleKyn { .. } => Severity::Warning,
             Self::Serde(_)
@@ -159,10 +183,10 @@ impl DrandError {
         matches!(
             self,
             Self::AllEndpointsFailed
-                | Self::HttpError(_)
-                | Self::Reqwest(_)
-                | Self::StreamReadFailed(_)
-                | Self::StaleKyn { .. }
+            | Self::HttpError(_)
+            | Self::HttpClient(_)
+            | Self::StreamReadFailed(_)
+            | Self::StaleKyn { .. }
         )
     }
 
@@ -170,7 +194,7 @@ impl DrandError {
     pub fn user_message(&self) -> String {
         match self {
             Self::AllEndpointsFailed => "All network endpoints failed.".to_string(),
-            Self::HttpError(_) | Self::Reqwest(_) | Self::StreamReadFailed(_) => {
+            Self::HttpError(_) | Self::HttpClient(_) | Self::StreamReadFailed(_) => {
                 "A network error occurred while fetching the network kyn.".to_string()
             }
             Self::ResponseTooLarge(_) => {

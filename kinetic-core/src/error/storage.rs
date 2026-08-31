@@ -1,7 +1,7 @@
-//! Redb embedded storage engine error types (`KIN-DBE-NNN`).
+//! Embedded storage engine error types (`KIN-DBE-NNN`).
 //!
 //! [`StorageError`] is returned by the [`StorageEngine`](crate::traits::StorageEngine)
-//! implementation in `kinetic-storage` when the Redb B-tree database encounters
+//! implementation in `kinetic-storage` when the embedded B-tree database encounters
 //! lock contention, structural corruption, or a failed read/write operation.
 //!
 //! `KIN-DBE-001` (`DatabaseLocked`) is `Severity::Critical` — it means a second
@@ -12,6 +12,7 @@ use thiserror::Error;
 /// Errors originating from local storage
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum StorageError {
+
     /// The daemon attempted to open the embedded database file, but it is exclusively locked.
     /// This typically means a second instance of the Kinetic daemon is already running on this machine.
     #[error("Another instance of Kinetic daemon is already running (Database is locked).")]

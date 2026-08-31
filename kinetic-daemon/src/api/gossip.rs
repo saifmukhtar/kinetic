@@ -29,7 +29,8 @@ pub async fn handle_gossip_subscribe(
                         }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                    tracing::warn!("KIN-API-002: SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);
+                    let err = kinetic_core::error::api::RestApiError::SseStreamLagged;
+                    tracing::warn!(error_code = err.code(), "SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);
                     continue;
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => {

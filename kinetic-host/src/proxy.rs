@@ -85,9 +85,10 @@ pub async fn forward_request(
                 if let Ok(chunk) = chunk_res {
                     body.extend_from_slice(&chunk);
                     if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                        warn!("KIN-SEC-013: Blocked oversized backend response from local web server");
+                        let err = kinetic_core::error::SecurityError::BackendResponseTooLarge;
+                        warn!(error_code = err.code(), "Blocked oversized backend response from local web server");
                         body.clear();
-                        body.extend_from_slice(b"KIN-SEC-013: Payload Too Large");
+                        body.extend_from_slice(format!("{}: {}", err.code(), err).as_bytes());
                         status = 502;
                         break;
                     }
@@ -150,14 +151,15 @@ pub async fn handle_incoming_proxy_requests(
                 .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
 
             if decoded_path.contains("..") || !decoded_path.starts_with('/') {
-                warn!("KIN-SEC-010: Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
+                let err = kinetic_core::error::SecurityError::PathTraversalAttempt;
+                warn!(error_code = err.code(), "Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
                 let _ = client_clone
                     .send_proxy_response(
                         channel,
                         ProxyResponse {
                             status: 400,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"KIN-SEC-010: Bad Request: Invalid Path"),
+                            body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                         },
                     )
                     .await;
@@ -165,8 +167,10 @@ pub async fn handle_incoming_proxy_requests(
             }
 
             if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
+                let err = kinetic_core::error::SecurityError::PayloadTooLarge;
                 warn!(
-                    "KIN-SEC-011: Blocked oversized incoming P2P proxy request payload ({} bytes)",
+                    error_code = err.code(),
+                    "Blocked oversized incoming P2P proxy request payload ({} bytes)",
                     req.body.len()
                 );
                 let _ = client_clone
@@ -175,7 +179,7 @@ pub async fn handle_incoming_proxy_requests(
                         ProxyResponse {
                             status: 413,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"KIN-SEC-011: Payload Too Large"),
+                            body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                         },
                     )
                     .await;

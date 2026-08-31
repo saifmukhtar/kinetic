@@ -103,7 +103,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                             payload.extend_from_slice(&chunk);
                         }
                         if limit_exceeded {
-                            warn!(error_code = "KIN-API-003", "API response exceeded 100KB limit for {}", apex_name_clone);
+                            let err = kinetic_core::error::api::RestApiError::ResponseTooLarge;
+                            warn!(error_code = err.code(), "API response exceeded 100KB limit for {}", apex_name_clone);
                             Ok::<_, Arc<anyhow::Error>>(None)
                         } else {
                             if !is_reserved_clone {
@@ -131,12 +132,14 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                     } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
                         Ok(None)
                     } else {
-                        warn!(error_code = "KIN-API-002", "Daemon API returned status: {}", resp.status());
+                        let err = kinetic_core::error::api::RestApiError::BadRequest(format!("Daemon API returned status: {}", resp.status()));
+                        warn!(error_code = err.code(), "Daemon API returned status: {}", resp.status());
                         Err(Arc::new(anyhow::anyhow!("API error: {}", resp.status())))
                     }
                 }
                 Err(e) => {
-                    warn!(error_code = "KIN-API-002", "Daemon API request failed: {}", e);
+                    let err = kinetic_core::error::api::RestApiError::BadRequest(format!("Daemon API request failed: {}", e));
+                    warn!(error_code = err.code(), "Daemon API request failed: {}", e);
                     Err(Arc::new(e.into()))
                 }
             }
@@ -300,8 +303,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             if let Err(e) = kinetic_core::net::validate_ssrf_safe(
                                                 std::net::IpAddr::V4(*ip),
                                             ) {
+                                                let err = kinetic_core::error::SecurityError::NrsSsrfBlocked;
                                                 warn!(
-                                                    error_code = "KIN-SEC-009",
+                                                    error_code = err.code(),
                                                     "Blocked SSRF attempt: A record points to forbidden IP {}. Rule: [{}] {}",
                                                     ip,
                                                     e.code(),
@@ -321,8 +325,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             if let Err(e) = kinetic_core::net::validate_ssrf_safe(
                                                 std::net::IpAddr::V6(*ip),
                                             ) {
+                                                let err = kinetic_core::error::SecurityError::NrsSsrfBlocked;
                                                 warn!(
-                                                    error_code = "KIN-SEC-009",
+                                                    error_code = err.code(),
                                                     "Blocked SSRF attempt: AAAA record points to forbidden IP {}. Rule: [{}] {}",
                                                     ip,
                                                     e.code(),
@@ -357,7 +362,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 
                                             if is_blocked_cname {
                                                 warn!(
-                                                    error = ?kinetic_core::error::SsrfError::Loopback,
+                                                    error = ?kinetic_core::error::SecurityError::Loopback,
                                                     "Blocked SSRF attempt: CNAME record points to forbidden local/internal name {}",
                                                     target
                                                 );

@@ -296,7 +296,7 @@ impl DrandClient {
                 Ok(mut resp) if resp.status().is_success() => {
                     #[cfg(target_arch = "wasm32")]
                     {
-                        let bytes = resp.bytes().await.map_err(DrandError::Reqwest)?;
+                        let bytes = resp.bytes().await.map_err(|e| DrandError::HttpClient(e.to_string()))?;
                         if bytes.len() > crate::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
                             return Err(DrandError::ResponseTooLarge(bytes.len()));
                         }
@@ -335,7 +335,7 @@ impl DrandClient {
                     gloo_timers::future::sleep(delay).await;
                     delay *= 2; // exponential backoff
                 }
-                Err(e) => return Err(DrandError::Reqwest(e)),
+                Err(e) => return Err(DrandError::HttpClient(e.to_string())),
             }
         }
         Err(DrandError::AllEndpointsFailed)

@@ -7,6 +7,7 @@
 use crate::error::{
     DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError, NrsError, P2pError,
     PublishError, RegistrationError, ResolutionError, StorageError, VdfError, ConfigError,
+    vdf::RevealValidationError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -250,7 +251,7 @@ impl From<DrandError> for ApiError {
             DrandError::AllEndpointsFailed
             | DrandError::StreamReadFailed(_)
             | DrandError::ResponseTooLarge(_)
-            | DrandError::Reqwest(_)
+            | DrandError::HttpClient(_)
             | DrandError::HttpError(_) => (502, "Bad Gateway"),
             DrandError::NoCachedKyn => (404, "Not Found"),
             DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
@@ -423,6 +424,22 @@ impl From<ConfigError> for ApiError {
             error_type: e.error_type_uri(),
             title: title.to_string(),
             status,
+            detail: e.to_string(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<RevealValidationError> for ApiError {
+    fn from(e: RevealValidationError) -> Self {
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: "Invalid Reveal".to_string(),
+            status: 400,
             detail: e.to_string(),
             instance: None,
             code: e.code().to_string(),

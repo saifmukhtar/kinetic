@@ -18,35 +18,52 @@ use thiserror::Error;
 /// Why a DHT record was rejected by the local store.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum RecordRejectReason {
-    /// The record's Ed25519 signature did not verify against the public key.
+    /// The record's cryptographic signature did not verify against the public key.
+    /// This happens if the payload was tampered with, or signed with the wrong key.
+    /// Verify that the record is generated using the authorized identity key (ML-DSA-65) or transport key (Ed25519).
     #[error("invalid signature")]
     InvalidSignature,
-    /// The embedded VDF proof failed verification.
+    /// The embedded VDF proof failed cryptographic verification.
+    /// A peer attempted to submit a forged or malformed proof of time.
+    /// Ensure your local RSA VDF engine is generating valid proofs.
     #[error("VDF proof invalid")]
     InvalidVdf,
     /// The registration epoch has passed and the record is no longer valid.
+    /// The current drand round has advanced past the record's expiry window.
+    /// The apex owner must generate a fresh heartbeat to maintain registration.
     #[error("registration has expired")]
     Expired,
     /// The name is already owned by a different public key.
+    /// The DHT already contains a valid, stronger commitment for this name from another user.
+    /// You must choose a different, unregistered name.
     #[error("name already owned by a different key")]
     AlreadyOwned,
 
     /// The VDF iteration count is below the minimum required for this name and kyn.
+    /// The submitter did not compute the VDF for a long enough time.
+    /// Ensure the client enforces the global dynamic difficulty floor.
     #[error("insufficient VDF iterations to claim ownership")]
     InsufficientIterations,
     /// The record lost an XOR-distance tie-break to a competing record.
+    /// Two valid commitments were submitted for the same name at the exact same kyn.
+    /// The network resolved the tie cryptographically. Try registering again in the next epoch.
     #[error("lost XOR tie-break to stronger record")]
     TieBroken,
     /// The revealed data's hash does not match the stored commitment.
+    /// A peer tried to reveal a payload that differs from the hash they previously committed.
+    /// The publish flow requires the reveal payload to perfectly hash to the commitment.
     #[error("commitment mismatch")]
     CommitmentMismatch,
     /// The `drand_signature` field contains non-hex characters.
+    /// All signature proofs must be strictly hex-encoded strings.
     #[error("drand_signature contains invalid hex")]
     InvalidDrandHex,
-    /// The public key bytes could not be parsed as a valid Ed25519 key.
+    /// The public key bytes could not be parsed as a valid cryptographic key.
+    /// The key is either the wrong length or cryptographically invalid (e.g. malformed Ed25519 or ML-DSA-65 key).
     #[error("public key bytes are malformed")]
     InvalidPublicKey,
-    /// The signature bytes are not 64 bytes long or are otherwise malformed.
+    /// The signature bytes are the wrong length or otherwise malformed.
+    /// The signature must match the expected byte length for the record's underlying algorithm.
     #[error("signature bytes are malformed")]
     MalformedSignature,
 }
@@ -58,9 +75,13 @@ pub enum RecordRejectReason {
 #[derive(Error, Debug)]
 pub enum ResolutionError {
     /// The local node has no connected peers and cannot reach the DHT.
+    /// The P2P swarm must be connected to at least one bootstrap or regular peer to resolve names.
+    /// Check your internet connection or verify that bootstrap nodes are online.
     #[error("Node is offline — no peers connected")]
     Offline,
     /// The name was not found after querying the given number of peers.
+    /// The DHT was successfully traversed, but the requested `.kin` name has no active records.
+    /// The name may be unregistered, expired, or misspelled.
     #[error("'{name}' not found after querying {peers_queried} peers")]
     NotFound {
         /// The `.kin` name that was queried.
@@ -69,6 +90,8 @@ pub enum ResolutionError {
         peers_queried: usize,
     },
     /// The name was found but one or more of the returned records failed VDF verification.
+    /// A peer returned a payload with a cryptographically invalid proof of time.
+    /// The malicious records were discarded. If all records fail, the name cannot be safely resolved.
     #[error("'{name}' found but {count} record(s) failed VDF verification")]
     VdfVerificationFailed {
         /// The `.kin` name that was queried.
@@ -77,6 +100,8 @@ pub enum ResolutionError {
         count: usize,
     },
     /// The name's registration has passed its validity window.
+    /// The network time (drand kyn) has advanced past the expiration limit of the NameRecord.
+    /// The owner must renew the registration by publishing a fresh heartbeat.
     #[error("'{name}' registration has expired ({age} rounds old)")]
     Expired {
         /// The `.kin` name that was queried.
@@ -85,6 +110,8 @@ pub enum ResolutionError {
         age: u64,
     },
     /// The resolution attempt timed out before a result was returned.
+    /// The DHT query took longer than the configured strict timeout bounds.
+    /// The network may be heavily congested or the user's connection is unstable. Retry the query.
     #[error("Resolution timed out after {elapsed_ms}ms ({peers_queried} peers queried)")]
     Timeout {
         /// The `.kin` name that was queried.
@@ -95,6 +122,8 @@ pub enum ResolutionError {
         peers_queried: usize,
     },
     /// An unexpected internal error occurred during resolution.
+    /// A localized crash, parse failure, or channel panic occurred inside the Kademlia handler.
+    /// Check the daemon logs for stack traces and ensure the database isn't corrupted.
     #[error("Internal error: {message}")]
     Internal {
         /// Developer-facing description of what went wrong.
@@ -104,6 +133,8 @@ pub enum ResolutionError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// The record's signature failed cryptographic verification (spoofed/tampered).
+    /// A peer attempted to route a malicious record posing as the apex owner.
+    /// The record was safely dropped.
     #[error("Signature verification failed: {0}")]
     SignatureVerificationFailed(String),
 }
@@ -184,27 +215,39 @@ impl ResolutionError {
 #[derive(Error, Debug)]
 pub enum PublishError {
     /// The local node has no connected peers and cannot write to the DHT.
+    /// The publish operation requires a live P2P mesh to broadcast the record.
+    /// Check your internet connection or verify that bootstrap nodes are online.
     #[error("Node is offline — cannot publish to the DHT")]
     Offline,
     /// The VDF proof attached to the record failed verification.
+    /// You attempted to publish a record with a corrupted, forged, or insufficient proof of time.
+    /// Ensure your node successfully generates a valid proof before publishing.
     #[error("VDF proof is invalid: {0}")]
     InvalidProof(#[from] VdfRejectReason),
-    /// The name is already owned by a different Ed25519 public key.
+    /// The name is already owned by a different identity key (ML-DSA-65).
+    /// Another user has a valid registration for this name in the DHT.
+    /// You must choose a different, unregistered name.
     #[error("'{name}' is already owned by a different key")]
     AlreadyOwned {
         /// The `.kin` name that is already registered.
         name: String,
     },
     /// Every DHT `PUT` attempt for this record failed.
+    /// The network is heavily congested or peers are refusing to store the record.
+    /// Wait a few minutes and try publishing again.
     #[error("All {count} DHT put operations failed")]
     AllFailed {
         /// Number of failed PUT operations.
         count: usize,
     },
     /// The record was rejected by the store (e.g. invalid signature, stale).
+    /// The DHT nodes validated the payload and found it cryptographically or temporally invalid.
+    /// Ensure your local clock is synced and your signature keys are correct.
     #[error("Rejected by the network: {0}")]
     Rejected(String),
     /// An unexpected internal error occurred during the publish flow.
+    /// A localized crash, parse failure, or channel panic occurred inside the Kademlia handler.
+    /// Check the daemon logs for stack traces and ensure the database isn't corrupted.
     #[error("Internal error: {message}")]
     Internal {
         /// Developer-facing description of what went wrong.
@@ -214,15 +257,19 @@ pub enum PublishError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// The network did not reach the required replication quorum for the zone.
+    /// A required minimum number of DHT peers must confirm they stored the record.
     /// Wait and retry publishing later.
     #[error("Quorum failed for {0}: only {1}/5 nodes confirmed storage")]
     QuorumFailed(String, usize),
     /// The quorum verification check failed due to a network error.
-    /// Check network connectivity and retry.
+    /// The node lost connection to the DHT while verifying the quorum.
+    /// Retry the publish operation.
     #[error("Quorum check failed for {0}: {1}")]
     QuorumCheckError(String, String),
-    /// Failed to publish the zone payload to the DHT.
-    #[error("Failed to publish to DHT: {0}")]
+    /// A lower-level network error occurred while publishing the zone record.
+    /// This could be a timeout or stream failure.
+    /// Retry the publish operation.
+    #[error("Failed to publish zone record: {0}")]
     ZonePublishFailed(String),
     /// The network did not reach the required replication quorum for the commitment.
     #[error("Quorum failed for commitment of {0}: only {1}/5 nodes confirmed storage")]

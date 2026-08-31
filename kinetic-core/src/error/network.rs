@@ -1,40 +1,49 @@
 //! libp2p P2P network client error types (`KIN-RPC-NNN`).
 //!
 //! [`NetworkClientError`] is emitted by `KineticNetworkClient` operations. It transparently wraps
-//! libp2p Kademlia, GossipSub, or the internal mpsc command channel fails.
+//! P2P network client error types (`KIN-RPC-NNN`).
 //!
-//! ## Namespace Note
+//! Emitted when interacting with the network overlay (`kinetic-network`).
+//! This includes failures when Kademlia, GossipSub, or the internal mpsc command channel fails.
 //!
-//! To avoid overlaps, network errors are strictly partitioned:
+//! # Note
 //! - `KIN-RPC-001+`: This type (client-side P2P failures like GossipSub)
-//! - `KIN-DHT-001..099`: `KineticStoreError` (store-layer validations and rejections)
-//!
-//! Note that query-related failures (like timeouts or empty routing tables)
-//! correctly return `KIN-QRY` codes, matching the global taxonomy.
-//! This type is used internally within the event loop for command dispatch failures.
+//! - `KIN-P2P-001+`: P2P connection and swarm management errors.
 
-use super::Severity;
+use kinetic_types::error::Severity;
 use thiserror::Error;
 
 /// Errors originating from the Network Client (DHT, proxy, gossipsub)
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NetworkClientError {
     /// A DHT query or stream operation exceeded its deadline.
+    /// The network is severely congested or the target peers are deliberately tarpitting connections.
+    /// Check your internet connection or increase the timeout limit.
     #[error("Request timed out")]
     Timeout,
     /// The local node has no reachable peers.
+    /// The P2P swarm is disconnected from the mesh and cannot route messages.
+    /// Verify your internet connection and ensure bootstrap nodes are reachable.
     #[error("Node is offline or unreachable")]
     Offline,
     /// The Kademlia routing table contains no known peers.
+    /// The node is online but hasn't successfully discovered any peers yet.
+    /// Wait for the initial bootstrap process to complete.
     #[error("Routing table is empty")]
     RoutingTableEmpty,
     /// The internal mpsc/oneshot channel between the caller and the network loop was closed.
+    /// The network loop crashed or the daemon is in the middle of a shutdown sequence.
+    /// Check the daemon logs for panic traces in the P2P subsystem.
     #[error("Internal channel closed")]
     ChannelClosed,
     /// A GossipSub publish or subscribe operation failed.
+    /// The node attempted to broadcast a message to a topic but failed, potentially due to missing peers.
+    /// Wait for the mesh to fully form before broadcasting to GossipSub topics.
     #[error("Gossipsub error: {0}")]
     GossipSubError(String),
     /// A catch-all for miscellaneous network errors.
+    /// An unexpected low-level P2P or TCP/QUIC stream error occurred.
+    /// Examine the appended error string for more details.
     #[error("Other network error: {0}")]
     Other(String),
 }

@@ -10,62 +10,92 @@ use thiserror::Error;
 pub enum SystemError {
     // --- Networking (001–002) ---
     /// Failed to bind to a required network port (EADDRINUSE).
+    /// The node attempted to bind the HTTP or P2P socket to a port that is already taken.
+    /// Stop any conflicting processes or change the port in the configuration.
     #[error("Failed to bind network port: {0}")]
     PortInUse(String),
     /// Failed to hot-swap the libp2p network backend.
+    /// The runtime attempted to migrate the network layer (e.g. Quic to TCP) but encountered an OS error.
+    /// The node must be fully restarted to recover the network interface.
     #[error("Fatal network backend hot-swap failure: {0}")]
     NetworkHotswapFailed(String),
 
     // --- Runtime (003) ---
     /// A background daemon or API server exited unexpectedly.
+    /// A localized panic or unhandled error occurred in one of the async worker pools.
+    /// Check the daemon logs for a stack trace.
     #[error("Background server or runtime crashed: {0}")]
     ServerCrashed(String),
 
     // --- Identity & Keys (004–005) ---
     /// A required static identity or host key on disk is missing, invalid, or corrupted.
+    /// The daemon cannot start without its cryptographic identity.
+    /// Restore the keyfile from backup or let the daemon generate a fresh identity.
     #[error("Identity keyfile is missing or corrupted: {0}")]
     IdentityCorrupted(String),
     /// Failed to store credentials in the OS Keychain/Keyring.
+    /// The daemon attempted to securely store API tokens but was blocked by the OS.
+    /// Ensure dbus/keyring services are running, or fall back to plaintext file storage.
     #[error("Failed to store credentials in OS Keychain: {0}")]
     KeychainStorageFailed(String),
 
     // --- Disk (006) ---
     /// Failed to persist infrastructure state or config to disk.
+    /// The daemon lacks permissions to write to its data directory, or the disk is full.
+    /// Ensure the app directory is writable by the daemon's user.
     #[error("Failed to persist system files to disk: {0}")]
     DiskPersistenceFailed(String),
 
     // --- OS Integration (007–010) ---
     /// Failed to interact with the native OS service manager (systemd, launchd, winsw).
+    /// The CLI could not start, stop, or install the Kinetic background service.
+    /// Ensure you are running with administrator/root privileges.
     #[error("Native OS service manager error: {0}")]
     ServiceManagerError(String),
     /// The OS environment or filesystem paths are invalid (e.g., non-UTF8 paths, arg parse failures).
+    /// The daemon was launched in a broken or highly restrictive terminal environment.
+    /// Ensure environment variables like `$HOME` are valid UTF-8 strings.
     #[error("Invalid OS environment or filesystem path: {0}")]
     InvalidOsEnvironment(String),
     /// Failed to drop system privileges (setuid/setgid).
+    /// The daemon attempted to drop root privileges for security, but the syscall failed.
+    /// Ensure the target unprivileged user exists on the system.
     #[error("Failed to drop system privileges: {0}")]
     PrivilegeDropFailed(String),
     /// Failed to setup OS loopback interface (macOS alias).
+    /// The daemon could not bind to the secondary loopback IP required for local proxying.
+    /// Ensure `ifconfig lo0 alias` can be run, or reboot the OS.
     #[error("Failed to setup OS loopback interface: {0}")]
     LoopbackSetupFailed(String),
 
     // --- Concurrency (011) ---
     /// A global concurrency mutex was poisoned during a panic.
+    /// A thread crashed while holding a critical global lock, corrupting shared state.
+    /// The daemon must be restarted to safely recover.
     #[error("Global concurrency lock poisoned: {0}")]
     MutexPoisoned(String),
 
     // --- PKI / CA (012–013) ---
     /// Failed to install the Root CA into the OS system trust store.
+    /// The node attempted to install the TLS intercept root cert, but was blocked by the OS.
+    /// Follow the manual installation instructions in the Kinetic UI, or run as administrator.
     #[error("Failed to install Root CA trust: {0}")]
     TrustInstallationFailed(String),
     /// Local Root CA is expiring or auto-rotation failed.
+    /// The node could not generate a new Root CA or clean up the old one from the OS.
+    /// Manually delete the `~/.kinetic/certs` folder and restart the daemon.
     #[error("Local Root CA expiring or rotation failed: {0}")]
     CaRotationFailed(String),
 
     // --- OS Signals (014–015) ---
     /// Failed to bind to the SIGINT (Ctrl+C) keyboard signal.
+    /// The OS prevented the daemon from intercepting keyboard interrupts.
+    /// The daemon may not shut down gracefully when terminated via terminal.
     #[error("Failed to bind Ctrl+C handler: {0}")]
     SigIntBindingFailed(String),
     /// Failed to bind to the POSIX SIGTERM signal.
+    /// The OS prevented the daemon from intercepting standard termination requests.
+    /// The daemon may not shut down gracefully during system reboots or service stops.
     #[error("Failed to bind SIGTERM handler: {0}")]
     SigTermBindingFailed(String),
 }

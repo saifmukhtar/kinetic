@@ -176,10 +176,10 @@ impl super::core::NetworkEventLoop {
 
                         // Reject future-dated documents (allowing 300s clock drift)
                         if doc.created_at > current_time + 300 {
-                            tracing::warn!(
-                                "KIN-IDN-012: Rejecting Document: created_at ({}) is in the future",
-                                doc.created_at
+                            let err = kinetic_core::error::IdentityError::MalformedDocument(
+                                format!("created_at ({}) is in the future", doc.created_at)
                             );
+                            tracing::warn!(error_code = err.code(), "Rejecting Document: {}", err);
                             return None;
                         }
 

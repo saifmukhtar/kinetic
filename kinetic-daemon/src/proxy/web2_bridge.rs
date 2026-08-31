@@ -52,19 +52,20 @@ pub async fn forward_to_web2_backend(
     // 2. Strict SSRF Protection Check
     let ssrf_result = kinetic_core::net::validate_ssrf_safe(ip_addr);
     if ssrf_result.is_err() || ip_addr.is_unspecified() {
-        let (ssrf_code, reason) = if ip_addr.is_unspecified() {
-            ("KIN-SEC-003", "Unspecified IP".to_string())
+        let err_obj = if ip_addr.is_unspecified() {
+            kinetic_core::error::SecurityError::Unspecified
         } else {
-            let err = ssrf_result.unwrap_err();
-            (err.code(), err.to_string())
+            ssrf_result.unwrap_err()
         };
+        let sec_err = kinetic_core::error::SecurityError::DangerousIpBlocked;
         warn!(
-            "KIN-SEC-014: Web2 Bridge SSRF Blocked: {} resolved to a dangerous IP ({}). Rule: {}",
-            target_domain_clean, ip_addr, ssrf_code
+            error_code = sec_err.code(),
+            "Web2 Bridge SSRF Blocked: {} resolved to a dangerous IP ({}). Rule: {}",
+            target_domain_clean, ip_addr, err_obj.code()
         );
         return Err(ProxyError::SecurityViolation(format!(
-            "KIN-SEC-014: Web2 Bridge target resolved to a dangerous IP. Reason: [{}] {}",
-            ssrf_code, reason
+            "Web2 Bridge target resolved to a dangerous IP. Reason: [{}] {}",
+            err_obj.code(), err_obj
         )));
     }
 

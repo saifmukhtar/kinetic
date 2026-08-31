@@ -30,14 +30,15 @@ pub async fn handle_incoming_proxy_requests(
                 .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
 
             let safe_path = if decoded_path.contains("..") || !decoded_path.starts_with('/') {
-                tracing::warn!("KIN-SEC-010: Blocked malicious P2P proxy path: {}", req.path);
+                let err = kinetic_core::error::SecurityError::PathTraversalAttempt;
+                tracing::warn!(error_code = err.code(), "Blocked malicious P2P proxy path: {}", req.path);
                 let _ = client_clone
                     .send_proxy_response(
                         channel,
                         ProxyResponse {
                             status: 400,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"KIN-SEC-010: Bad Request: Invalid Path"),
+                            body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                         },
                     )
                     .await;
@@ -48,8 +49,10 @@ pub async fn handle_incoming_proxy_requests(
 
             // Limit body size to 5MB to prevent OOM
             if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
+                let err = kinetic_core::error::SecurityError::PayloadTooLarge;
                 tracing::warn!(
-                    "KIN-SEC-011: Blocked oversized P2P proxy request ({} bytes)",
+                    error_code = err.code(),
+                    "Blocked oversized P2P proxy request ({} bytes)",
                     req.body.len()
                 );
                 let _ = client_clone
@@ -58,7 +61,7 @@ pub async fn handle_incoming_proxy_requests(
                         ProxyResponse {
                             status: 413,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"KIN-SEC-011: Payload Too Large"),
+                            body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                         },
                     )
                     .await;
@@ -70,14 +73,15 @@ pub async fn handle_incoming_proxy_requests(
             let method = match req.method.parse::<reqwest::Method>() {
                 Ok(m) => m,
                 Err(_) => {
-                    tracing::warn!("KIN-SEC-012: Blocked invalid HTTP method: {}", req.method);
+                    let err = kinetic_core::error::SecurityError::InvalidMethod;
+                    tracing::warn!(error_code = err.code(), "Blocked invalid HTTP method: {}", req.method);
                     let _ = client_clone
                         .send_proxy_response(
                             channel,
                             ProxyResponse {
                                 status: 400,
                                 headers: Vec::new(),
-                                body: bytes::Bytes::from_static(b"KIN-SEC-012: Bad Request: Invalid Method"),
+                                body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                             },
                         )
                         .await;
@@ -112,9 +116,10 @@ pub async fn handle_incoming_proxy_requests(
                         if let Ok(chunk) = chunk_res {
                             body.extend_from_slice(&chunk);
                             if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                                tracing::warn!("KIN-SEC-013: Blocked oversized P2P backend response (>5MB)");
+                                let err = kinetic_core::error::SecurityError::BackendResponseTooLarge;
+                                tracing::warn!(error_code = err.code(), "Blocked oversized P2P backend response (>5MB)");
                                 body.clear();
-                                body.extend_from_slice(b"KIN-SEC-013: Payload Too Large");
+                                body.extend_from_slice(format!("{}: {}", err.code(), err).as_bytes());
                                 status = 502; // Or 413
                                 break;
                             }

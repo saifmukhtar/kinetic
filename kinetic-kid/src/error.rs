@@ -3,88 +3,105 @@ use thiserror::Error;
 /// Error type returned by all operations in the `kinetic-kid` crate.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
-    /// The provided DID string does not start with the expected `did:<method>:` prefix.
-    /// Ensure the DID strictly follows the Kinetic Decentralized Identifier specification.
+    /// The provided DID string does not start with the expected `did:kin:` prefix.
+    /// The Kinetic identity system strictly requires all identifiers to follow the W3C DID specification format for the `kin` method.
+    /// Prepend the 64-character identity hash with `did:kin:`.
     #[error("Invalid DID prefix, expected did:<method>:")]
     InvalidDidPrefix,
 
-    /// Reserved error code for extreme future use (KIN-KID-002).
-    /// This code is explicitly kept empty to maintain backward compatibility in the taxonomy.
+    /// Reserved error code (KIN-KID-002).
+    /// This code is explicitly kept empty to maintain backward compatibility in the error taxonomy.
+    /// This error should never be encountered in production.
     #[error("Reserved error code (KIN-KID-002)")]
     Reserved002,
 
     /// The method-specific ID portion of the DID is not exactly 64 characters long.
-    /// Kinetic uses SHA-256 hashes for method IDs, which must be exactly 64 hex characters.
+    /// Kinetic uses SHA-256 hashes for method IDs, which map strictly to 64 hexadecimal characters.
+    /// Ensure you are passing a complete, untruncated SHA-256 hash in the DID string.
     #[error("DID method-specific ID must be exactly 64 characters long")]
     InvalidDidHexLength,
 
     /// The method-specific ID contains invalid characters.
-    /// It must strictly contain only lowercase hexadecimal characters (0-9, a-f).
+    /// To prevent encoding ambiguity, the method ID must strictly contain only lowercase hexadecimal characters (0-9, a-f).
+    /// Convert any uppercase hex characters to lowercase and remove any spaces or special characters.
     #[error("DID method-specific ID must contain only lowercase hexadecimal characters")]
     InvalidDidHexCharacters,
 
-    /// The daemon failed to parse the identity document as valid JSON.
-    /// Ensure the payload is a correctly formatted JSON object.
+    /// The identity document or capability manifest could not be parsed from JSON.
+    /// The payload is malformed, missing required fields, or has incorrect data types.
+    /// Ensure the payload is a correctly formatted JSON object adhering to the DID Document specification.
     #[error("Failed to parse JSON: {0}")]
     JsonParseError(String),
 
     /// The daemon failed to apply JCS (JSON Canonicalization Scheme) to the identity document.
-    /// Canonicalization is strictly required before cryptographic signing.
+    /// Canonicalization is strictly required before cryptographic signing to ensure the byte representation is deterministic across platforms.
+    /// This usually indicates a deeply nested or malformed JSON payload that breaks RFC 8785 rules.
     #[error("Failed to canonicalize JSON (JCS): {0}")]
     CanonicalizationError(String),
 
     /// The ML-DSA-65 signature bytes on the Identity Document are invalid or do not verify.
-    /// This indicates the payload was tampered with or signed by an incorrect private key.
+    /// The payload was either tampered with in transit or signed by an incorrect private key.
+    /// Ensure you are cryptographically signing the exact JCS-canonicalized bytes of the document.
     #[error("Invalid signature")]
     InvalidSignature,
 
-    /// The Identity Document or capability manifest is missing a required signature field.
-    /// All identity actions must be cryptographically signed by the controller.
+    /// The Identity Document or capability manifest is missing a required `proof` signature field.
+    /// By protocol design, all identity mutations and manifests must be cryptographically authenticated by the controller.
+    /// You must attach a valid ML-DSA-65 signature proof to the document before publishing.
     #[error("Missing signature in document")]
     MissingSignature,
 
-    /// The daemon failed to decode a base64-encoded key or signature.
-    /// Ensure all cryptographic fields use standard base64url encoding without padding.
+    /// The daemon failed to decode a base64-encoded cryptographic key or signature.
+    /// The string contains invalid characters, is missing padding, or uses standard base64 instead of the required base64url encoding.
+    /// Ensure all cryptographic fields strictly use standard base64url encoding without padding.
     #[error("Base64 decode error: {0}")]
     Base64Error(String),
 
     /// A string field in the document exceeds the maximum allowed byte length.
-    /// This prevents memory exhaustion attacks via massive payloads.
+    /// The network enforces strict string length bounds to prevent memory exhaustion attacks via massive payloads.
+    /// Reduce the length of the specified field to comply with protocol limits.
     #[error("Field '{0}' exceeds maximum allowed byte length")]
     StringLengthExceeded(String),
 
     /// The capability manifest was signed by a key that is not authorized in the parent KID document.
-    /// Verify that the signing key is officially listed as an active controller in the KID.
+    /// The network strictly verifies the delegation chain to ensure only authorized controllers can emit capability manifests.
+    /// Verify that the signing key is officially listed as an active `assertionMethod` controller in the root KID Document.
     #[error("Manifest signed by unauthorized key")]
     UnauthorizedManifestSignature,
 
     /// The Identity Document contains more keys than the maximum allowed limit (20).
-    /// This strict bound ensures fast cryptographic validation across the network.
+    /// This strict upper bound ensures fast cryptographic validation across the network and prevents state bloat.
+    /// You must prune the identity document to remove unused or deprecated keys.
     #[error("Identity document exceeds maximum key bounds (max 20)")]
     KeyLimitExceeded,
 
     /// The capability manifest contains more service endpoints than the maximum allowed limit (50).
-    /// Remove unused endpoints to comply with the network bounds.
+    /// This strict upper bound ensures fast DHT replication and prevents network bloat.
+    /// Remove unused or redundant service endpoints to comply with the network bounds.
     #[error("Capability manifest exceeds maximum service endpoints (max 50)")]
     ServiceLimitExceeded,
 
     /// The Identity Document contains more manifest pointers than the maximum allowed limit (20).
-    /// Remove unused locations to comply with the network bounds.
+    /// This strict upper bound ensures fast DHT replication and prevents network bloat.
+    /// Remove unused capability locations to comply with the network bounds.
     #[error("Manifest pointer exceeds maximum location bounds (max 20)")]
     LocationLimitExceeded,
 
     /// The capability manifest's `valid_from` timestamp is set in the future.
-    /// Ensure the issuer's system clock is synchronized via NTP.
+    /// To prevent timing attacks and desync issues, capabilities cannot become valid at a future date.
+    /// Ensure the issuer's system clock is synchronized via NTP and recreate the manifest.
     #[error("Manifest valid_from is in the future")]
     InvalidValidFrom,
 
     /// The capability manifest's expiration timestamp has passed.
-    /// A new, freshly signed capability manifest must be generated.
+    /// Capabilities are strictly time-bound to ensure keys and access rights can be reliably rotated.
+    /// A new, freshly signed capability manifest must be generated and published.
     #[error("Manifest has expired")]
     ManifestExpired,
 
     /// The Genesis DID does not match the SHA-256 hash of the primary controller key.
-    /// The initial DID must always be cryptographically bound to its root key.
+    /// The initial DID must always be cryptographically bound to its root key to prevent hijacking during network bootstrap.
+    /// Ensure the DID is exactly `did:kin:<sha256_of_key>`.
     #[error("KID document genesis binding failed: DID does not match SHA-256 of primary controller key")]
     DidKeyMismatch,
 }

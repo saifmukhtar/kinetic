@@ -415,13 +415,15 @@ async fn auth_middleware(
     let header = match auth_header {
         Some(h) => h,
         None => {
-            tracing::warn!("KIN-API-001: Rejecting API request: Missing Authorization header");
+            let err = kinetic_core::error::api::RestApiError::InvalidToken;
+            tracing::warn!(error_code = err.code(), "Rejecting API request: Missing Authorization header");
             return Err(StatusCode::UNAUTHORIZED);
         }
     };
 
     if !header.starts_with("Bearer ") {
-        tracing::warn!("KIN-API-001: Rejecting API request: Authorization header is not a Bearer token");
+        let err = kinetic_core::error::api::RestApiError::InvalidToken;
+        tracing::warn!(error_code = err.code(), "Rejecting API request: Authorization header is not a Bearer token");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -456,7 +458,8 @@ async fn auth_middleware(
             Ok(next.run(req).await)
         }
         None => {
-            tracing::warn!("KIN-API-001: Rejecting API request: Invalid API token");
+            let err = kinetic_core::error::api::RestApiError::InvalidToken;
+            tracing::warn!(error_code = err.code(), "Rejecting API request: Invalid API token");
             Err(StatusCode::UNAUTHORIZED)
         }
     }
