@@ -256,6 +256,11 @@ impl From<DrandError> for ApiError {
             DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
             DrandError::InvalidSignature => (422, "Cryptographic Verification Failed"),
             DrandError::StaleKyn { .. } => (400, "Stale Network Kyn"),
+            DrandError::UnavailableOnStartup(_) => (503, "Service Unavailable"),
+            DrandError::P2pFallbackTriggered { .. } => (503, "P2P Fallback Active"),
+            DrandError::DevModeMockKyn => (200, "Dev Mode Mock"),
+            DrandError::RegistrationDisabled => (503, "Registration Disabled"),
+            DrandError::LiveFetchFailedFallback => (502, "Live Fetch Failed"),
         };
         ApiError {
             error_type: e.error_type_uri(),

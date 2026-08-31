@@ -68,10 +68,10 @@ pub async fn handle_publish_record(
                 // Graceful fallback: read the last known kyn from sled.
                 // If even that is unavailable, we allow the publish to proceed —
                 // the DHT store layer will still enforce its own staleness check.
+                let err = kinetic_core::error::DrandError::LiveFetchFailedFallback;
                 tracing::warn!(
-                    error_code = "KIN-RND-016",
-                    "handle_publish_record: Could not fetch live drand kyn, \
-                     falling back to cached value for staleness check"
+                    error_code = err.code(),
+                    "{}", err
                 );
                 match drand_client.load_cached_kyn() {
                     Ok(kyn) => kyn.kyn,

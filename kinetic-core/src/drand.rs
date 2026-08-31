@@ -373,7 +373,8 @@ impl DrandClient {
         }
 
         if crate::config::is_dev_mode() {
-            tracing::warn!("KIN-RND-014: DEV MODE: Returning mock drand kyn because cache is empty.");
+            let err = crate::error::DrandError::DevModeMockKyn;
+            tracing::warn!(error_code = err.code(), "{}", err);
             return Ok(RawKyn {
                 kyn: 5000000,
                 randomness: "mock_randomness".to_string(),

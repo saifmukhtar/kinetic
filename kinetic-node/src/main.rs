@@ -187,7 +187,8 @@ async fn run_node() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("KIN-RND-012: Drand beacon unavailable on startup: {}", e);
+            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             RawKyn::unavailable()
         }
     };
@@ -388,10 +389,8 @@ async fn run_node() -> Result<()> {
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if estimated_kyn > latest.kyn + 5 {
-                        tracing::warn!(
-                            "KIN-RND-013: P2P Drand fallback triggered! We are behind by {} kyns.",
-                            estimated_kyn.saturating_sub(latest.kyn)
-                        );
+                        let err = kinetic_core::error::DrandError::P2pFallbackTriggered { behind: estimated_kyn.saturating_sub(latest.kyn) };
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
                     }
                 } else {

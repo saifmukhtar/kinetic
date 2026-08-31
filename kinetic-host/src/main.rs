@@ -144,7 +144,8 @@ async fn run_host() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("KIN-RND-012: Drand beacon unavailable on startup: {}", e);
+            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             RawKyn::unavailable()
         }
     };

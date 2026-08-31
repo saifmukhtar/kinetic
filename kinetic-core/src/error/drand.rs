@@ -53,6 +53,24 @@ pub enum DrandError {
     /// The endpoint returned a response body exceeding the maximum allowed size.
     #[error("Response too large: {0} bytes")]
     ResponseTooLarge(usize),
+    /// The drand beacon was unavailable when the node started up.
+    #[error("Drand beacon unavailable on startup: {0}")]
+    UnavailableOnStartup(String),
+    /// The node fell too far behind and triggered the P2P drand fallback mechanism.
+    #[error("P2P Drand fallback triggered! We are behind by {behind} kyns.")]
+    P2pFallbackTriggered {
+        /// Number of kyns the node was behind.
+        behind: u64,
+    },
+    /// Dev mode warning: returning a mock kyn because the cache was empty.
+    #[error("DEV MODE: Returning mock drand kyn because cache is empty.")]
+    DevModeMockKyn,
+    /// Registration is disabled because the beacon could not be reached.
+    #[error("P2P swarm and proxy will start — registration disabled until beacon reachable")]
+    RegistrationDisabled,
+    /// Live fetch failed, gracefully falling back to local cached kyn.
+    #[error("Could not fetch live drand kyn, falling back to cached value for staleness check")]
+    LiveFetchFailedFallback,
 }
 
 impl PartialEq for DrandError {
@@ -77,6 +95,11 @@ impl PartialEq for DrandError {
                     got: g2,
                 },
             ) => e1 == e2 && g1 == g2,
+            (Self::UnavailableOnStartup(a), Self::UnavailableOnStartup(b)) => a == b,
+            (Self::P2pFallbackTriggered { behind: a }, Self::P2pFallbackTriggered { behind: b }) => a == b,
+            (Self::DevModeMockKyn, Self::DevModeMockKyn) => true,
+            (Self::RegistrationDisabled, Self::RegistrationDisabled) => true,
+            (Self::LiveFetchFailedFallback, Self::LiveFetchFailedFallback) => true,
             _ => false,
         }
     }
@@ -97,6 +120,11 @@ impl DrandError {
             Self::StaleKyn { .. } => "KIN-RND-009",
             Self::StreamReadFailed(_) => "KIN-RND-010",
             Self::ResponseTooLarge(_) => "KIN-RND-011",
+            Self::UnavailableOnStartup(_) => "KIN-RND-012",
+            Self::P2pFallbackTriggered { .. } => "KIN-RND-013",
+            Self::DevModeMockKyn => "KIN-RND-014",
+            Self::RegistrationDisabled => "KIN-RND-015",
+            Self::LiveFetchFailedFallback => "KIN-RND-016",
         }
     }
 
@@ -117,7 +145,12 @@ impl DrandError {
             Self::Serde(_)
             | Self::Storage(_)
             | Self::InvalidSignature
-            | Self::ResponseTooLarge(_) => Severity::Error,
+            | Self::ResponseTooLarge(_)
+            | Self::UnavailableOnStartup(_) => Severity::Error,
+            Self::P2pFallbackTriggered { .. } 
+            | Self::DevModeMockKyn 
+            | Self::RegistrationDisabled 
+            | Self::LiveFetchFailedFallback => Severity::Warning,
         }
     }
 
@@ -150,6 +183,11 @@ impl DrandError {
             }
             Self::InvalidSignature => "Invalid network signature.".to_string(),
             Self::StaleKyn { .. } => "The fetched network kyn was too old.".to_string(),
+            Self::UnavailableOnStartup(e) => format!("Drand beacon unavailable on startup: {}", e),
+            Self::P2pFallbackTriggered { behind } => format!("P2P Drand fallback triggered! We are behind by {} kyns.", behind),
+            Self::DevModeMockKyn => "DEV MODE: Returning mock drand kyn because cache is empty.".to_string(),
+            Self::RegistrationDisabled => "P2P swarm and proxy will start — registration disabled until beacon reachable".to_string(),
+            Self::LiveFetchFailedFallback => "Could not fetch live drand kyn, falling back to cached value for staleness check".to_string(),
         }
     }
 }

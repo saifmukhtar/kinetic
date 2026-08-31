@@ -37,10 +37,8 @@ pub fn start_heartbeat_loop(
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if expected_kyn > latest.kyn + 5 {
-                        tracing::warn!(
-                            "KIN-RND-013: P2P Drand fallback triggered! We are behind by {} kyns.",
-                            expected_kyn.saturating_sub(latest.kyn)
-                        );
+                        let err = kinetic_core::error::DrandError::P2pFallbackTriggered { behind: expected_kyn.saturating_sub(latest.kyn) };
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
                     }
                 } else {
