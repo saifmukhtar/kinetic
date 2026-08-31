@@ -9,7 +9,7 @@
 //!
 //! ## Protocol Context
 //!
-//! Kinetic uses a Wesolowski RSA VDF (pure Rust, no C++ dependencies) where
+//! Kinetic uses a Wesolowski VDF where
 //! the challenge is derived from Drand randomness at commitment time:
 //! `challenge = SHA-256(NETWORK_SALT || name || salt || drand_signature_hex)`.
 //!

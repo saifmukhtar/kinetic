@@ -25,7 +25,7 @@ pub enum RecordRejectReason {
     InvalidSignature,
     /// The embedded VDF proof failed cryptographic verification.
     /// A peer attempted to submit a forged or malformed proof of time.
-    /// Ensure your local RSA VDF engine is generating valid proofs.
+    /// Ensure your local VDF engine is generating valid proofs.
     #[error("VDF proof invalid")]
     InvalidVdf,
     /// The registration epoch has passed and the record is no longer valid.
@@ -417,7 +417,7 @@ pub enum RegistrationError {
         /// The invalid name that was submitted.
         name: String,
     },
-    /// The VDF computation step failed (e.g., chiavdf returned an error or crashed).
+    /// The VDF computation step failed (e.g., the underlying engine returned an error or crashed).
     /// The CPU could not complete the required time-delay proof for the registration.
     /// Check system logs, ensure the VDF binary is executable, and try again.
     #[error("VDF computation failed: {0}")]

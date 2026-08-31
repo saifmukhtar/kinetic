@@ -2,7 +2,7 @@
 //!
 //! Defines the abstract contracts for Kinetic's three primary pluggable backends:
 //!
-//! - `VdfEngine`: CPU-bound Wesolowski VDF proof evaluation and verification (chiavdf).
+//! - `VdfEngine`: CPU-bound Wesolowski VDF proof evaluation and verification.
 //! - `StorageEngine`: Key-value persistence and prefix scanning (B-tree storage engine).
 //! - `GovernanceEngine`: Protocol proposal verification and state transitions.
 //!
@@ -17,7 +17,7 @@ use crate::types::{Commitment, VdfProof};
 
 /// Abstract interface for Verifiable Delay Function (VDF) computation engines.
 ///
-/// The canonical implementation in `kinetic-vdf` wraps the `chiavdf` Wesolowski
+/// The canonical implementation wraps a Wesolowski
 /// VDF library. The challenge is always a 32-byte SHA-256 hash derived from
 /// `NETWORK_SALT || name || salt || drand_signature_hex`.
 pub trait VdfEngine: Send + Sync {
@@ -32,7 +32,7 @@ pub trait VdfEngine: Send + Sync {
     /// - Returns [`VdfError::LockFileError`] (`KIN-VDF-001`) if the serialization lock file cannot be created.
     /// - Returns [`VdfError::LockAcquireError`] (`KIN-VDF-002`) if the lock cannot be acquired (retryable).
     /// - Returns [`VdfError::DiscriminantError`] (`KIN-VDF-003`) if discriminant generation fails.
-    /// - Returns [`VdfError::ProofGenerationError`] (`KIN-VDF-004`) if chiavdf prover panics or fails.
+    /// - Returns [`VdfError::ProofGenerationError`] (`KIN-VDF-004`) if the underlying prover panics or fails.
     /// - Returns [`VdfError::UnsupportedPlatform`] (`KIN-VDF-005`) if the platform is not supported.
     fn evaluate(&self, challenge: &Commitment, iterations: u64) -> Result<VdfProof, VdfError>;
 
