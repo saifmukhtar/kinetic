@@ -101,7 +101,7 @@ pub fn get_kids_dir() -> PathBuf {
 ///
 /// Derives the network time by mapping the estimated Drand kyn to exact Unix
 /// seconds aligned to 3-second network heartbeats using network constants.
-pub fn current_network_unix_timestamp() -> u64 {
+pub fn unix_time() -> u64 {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()

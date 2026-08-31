@@ -26,7 +26,7 @@ pub enum RevealValidationError {
     /// The protocol version is unsupported.
     #[error("Invalid protocol version {0}. Only protocol version 1 is supported.")]
     InvalidProtocolVersion(u8),
-    /// The domain name fails apex validation rules.
+    /// The name fails apex validation rules.
     #[error("Invalid name: {0}")]
     InvalidName(#[from] crate::error::NamesError),
     /// The payload size exceeds the protocol maximum.

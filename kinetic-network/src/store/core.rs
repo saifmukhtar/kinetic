@@ -21,7 +21,7 @@ use crate::store::constants::*;
 
 /// Custom Kademlia record store for Kinetic name records.
 ///
-/// Implements `libp2p::kad::store::RecordStore` to provide domain validation,
+/// Implements `libp2p::kad::store::RecordStore` to provide apex name validation,
 /// commit-reveal timelocks, heartbeat liveness tracking, and database persistence.
 pub struct KineticRecordStore {
     inner: kad::store::MemoryStore,
@@ -29,9 +29,9 @@ pub struct KineticRecordStore {
     pub storage: Arc<dyn StorageEngine>,
     /// VDF Engine used for proof validation.
     pub vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
-    /// Cache of verified domain records.
+    /// Cache of verified apex name records.
     pub reveals_by_name: LruCache<String, kinetic_core::types::NameRecord>,
-    /// The latest heartbeat kyn observed for each domain.
+    /// The latest heartbeat kyn observed for each apex name.
     pub last_heartbeats_by_name: HashMap<String, u64>,
 
     /// History of timestamps for accepted reveals used for rate limiting per name.
@@ -55,7 +55,7 @@ impl KineticRecordStore {
     /// * `storage` - A thread-safe reference to the underlying embedded database wrapper.
     /// * `initial_kyn` - The starting drand kyn kyn to initialize the store.
     /// * `lru_cache_size` - The maximum number of reveals to cache in memory.
-    /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per domain name.
+    /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per apex name.
     /// * `vdf_engine` - The backend engine used to verify VDF proofs.
     /// * `gov_state` - The global governance state for emergency pause checks.
     ///

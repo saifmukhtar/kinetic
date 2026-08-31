@@ -1,4 +1,4 @@
-//! Handler logic for processing domain reveals and liveness heartbeats.
+//! Handler logic for processing apex name reveals and liveness heartbeats.
 
 use crate::error::KineticStoreError;
 use crate::store::constants::*;
@@ -187,7 +187,7 @@ impl KineticRecordStore {
                 {
                     return Ok(());
                 } else {
-                    // Updating payload of existing domain. Verify the updated payload signature!
+                    // Updating payload of existing apex name. Verify the updated payload signature!
                     let dev_mode = kinetic_core::config::is_dev_mode();
                     if !skip_verify
                         && !dev_mode

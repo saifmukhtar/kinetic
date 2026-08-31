@@ -10,7 +10,7 @@
 //! atomically renamed into place. This prevents partial writes from corrupting the state.
 //!
 //! On load, if the state file is Bincode-unreadable, the daemon:
-//! 1. Renames the corrupted file to `governance.state.corrupt.{unix_timestamp}` for recovery.
+//! 1. Renames the corrupted file to `governance.state.corrupt.{unix_time}` for recovery.
 //! 2. **Panics** with a human-readable error requiring manual intervention.
 //!
 //! This is intentional: a corrupted governance state may indicate an active attack and

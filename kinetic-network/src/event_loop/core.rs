@@ -14,7 +14,7 @@ use crate::client::Command;
 
 use crate::event_loop::utils::*;
 
-/// Internal identifier mapping a Kademlia query ID back to the requested domain name and intent.
+/// Internal identifier mapping a Kademlia query ID back to the requested apex name and intent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum QueryType {
     Get(std::sync::Arc<str>),
@@ -69,7 +69,7 @@ pub struct NetworkEventLoop {
     >,
     pub(crate) pending_cdn_requests: FxHashMap<
         libp2p::request_response::OutboundRequestId,
-        std::sync::Arc<str>, // The domain name being requested
+        std::sync::Arc<str>, // The apex name being requested
     >,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(

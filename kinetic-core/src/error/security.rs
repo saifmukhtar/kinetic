@@ -58,7 +58,7 @@ pub enum SecurityError {
     Reserved,
     
     /// An NRS DNS resolution returned an A/AAAA record that points to a forbidden, internal IP address.
-    /// An attacker registered a Kinetic domain pointing to a local IP to trick the proxy into launching an SSRF attack.
+    /// An attacker registered a Kinetic apex name pointing to a local IP to trick the proxy into launching an SSRF attack.
     /// The DNS resolution and request were immediately dropped.
     #[error("NRS A/AAAA record resolved to a forbidden IP address")]
     NrsSsrfBlocked,
@@ -158,7 +158,7 @@ impl SecurityError {
             Self::Ipv6MappedExploit => "Security block: IPv4-mapped IPv6 bypass exploit blocked.".to_string(),
             Self::Nat64 => "Security block: NAT64 translation bypass exploit blocked.".to_string(),
             Self::Reserved => "Security block: Reserved IP address proxying is prohibited.".to_string(),
-            Self::NrsSsrfBlocked => "Security block: Domain resolved to a prohibited internal IP address.".to_string(),
+            Self::NrsSsrfBlocked => "Security block: Apex name resolved to a prohibited internal IP address.".to_string(),
             Self::PathTraversalAttempt => "Security block: Malicious path traversal attempt blocked.".to_string(),
             Self::PayloadTooLarge => "Security block: Request payload size exceeded.".to_string(),
             Self::InvalidMethod => "Security block: Invalid HTTP method used.".to_string(),
