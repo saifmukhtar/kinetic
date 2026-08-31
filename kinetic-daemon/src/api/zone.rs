@@ -148,17 +148,9 @@ pub async fn handle_publish_zone(
     let reveal_bytes = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(b)) => b,
         _ => {
-            return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-REG-007", kinetic_core::constants::DOCS_URL),
-                title: "Not Found".to_string(),
-                status: 404,
-                detail: "No registration record found for this name. Register the name first.".to_string(),
-                instance: None,
-                code: "KIN-REG-007".to_string(),
-                retryable: false,
-                details: serde_json::Value::Null,
-                request_id: "".to_string(),
-            }));
+            return Err(crate::api::error::AppError(kinetic_core::ApiError::from(
+                kinetic_core::error::RegistrationError::NotRegisteredLocal { name: fqdn.to_string() }
+            )));
         }
     };
     let mut record: kinetic_core::types::NameRecord = match serde_json::from_slice(&reveal_bytes) {

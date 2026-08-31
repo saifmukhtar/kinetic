@@ -113,6 +113,7 @@ impl From<RegistrationError> for ApiError {
             RegistrationError::AlreadyInProgress { .. } => (409, "Registration In Progress"),
             RegistrationError::NetworkRejected { .. } => (422, "Registration Rejected"),
             RegistrationError::Internal { .. } => (500, "Internal Registration Error"),
+            RegistrationError::NotRegisteredLocal { .. } => (404, "Not Found"),
         };
         ApiError {
             error_type: e.error_type_uri(),

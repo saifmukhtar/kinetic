@@ -384,6 +384,12 @@ pub enum RegistrationError {
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
+    /// The name has not been registered on this node, so local operations cannot proceed.
+    #[error("No registration record found for {name}. Register the name first.")]
+    NotRegisteredLocal {
+        /// The `.kin` name.
+        name: String,
+    },
 }
 
 impl RegistrationError {
@@ -397,6 +403,7 @@ impl RegistrationError {
             Self::AlreadyInProgress { .. } => "KIN-REG-005",
             Self::NetworkRejected { .. } => "KIN-REG-006",
             Self::Internal { .. } => "KIN-REG-007",
+            Self::NotRegisteredLocal { .. } => "KIN-REG-008",
         }
     }
 
@@ -420,6 +427,7 @@ impl RegistrationError {
             Self::AlreadyInProgress { .. } => Severity::Info,
             Self::NetworkRejected { .. } => Severity::Warning,
             Self::Internal { .. } => Severity::Error,
+            Self::NotRegisteredLocal { .. } => Severity::Info,
         }
     }
 
@@ -443,6 +451,7 @@ impl RegistrationError {
             }
             Self::NetworkRejected { reason } => format!("Registration was rejected: {}", reason),
             Self::Internal { .. } => "An internal error occurred during registration.".to_string(),
+            Self::NotRegisteredLocal { name } => format!("No registration record found for '{}'. Register the name first.", name),
         }
     }
 
