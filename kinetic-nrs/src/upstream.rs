@@ -87,7 +87,8 @@ pub async fn resolve_upstream<R: ResponseHandler>(
             header.into()
         }
         Err(e) => {
-            warn!(error_code = "KIN-NRS-050", "Upstream resolve error: {}", e);
+            let err = kinetic_core::error::NrsError::UpstreamResolveError(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             let rcode = match e.kind() {
                 hickory_resolver::error::ResolveErrorKind::NoRecordsFound { .. } => {
                     hickory_proto::op::ResponseCode::NXDomain

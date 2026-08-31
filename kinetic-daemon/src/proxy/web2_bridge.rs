@@ -31,7 +31,8 @@ pub async fn forward_to_web2_backend(
     let mut addrs = match lookup_host(&lookup_string).await {
         Ok(a) => a,
         Err(e) => {
-            warn!("KIN-NRS-056: Web2 Bridge: Failed to resolve {}: {}", target_domain_clean, e);
+            let err = kinetic_core::error::NrsError::Web2BridgeResolveFailed(target_domain_clean.to_string(), e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             return Err(ProxyError::NameNotFound(target_domain_clean.to_string()));
         }
     };
@@ -40,7 +41,8 @@ pub async fn forward_to_web2_backend(
     let socket_addr = match addrs.next() {
         Some(addr) => addr,
         None => {
-            warn!("KIN-NRS-057: Web2 Bridge: No IPs found for {}", target_domain_clean);
+            let err = kinetic_core::error::NrsError::Web2BridgeNoIpsFound(target_domain_clean.to_string());
+            warn!(error_code = err.code(), "{}", err);
             return Err(ProxyError::NameNotFound(target_domain_clean.to_string()));
         }
     };

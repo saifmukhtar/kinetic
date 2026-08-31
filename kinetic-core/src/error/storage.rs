@@ -12,30 +12,53 @@ use thiserror::Error;
 /// Errors originating from local storage
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum StorageError {
-    /// The database file is locked by another instance of the kinetic daemon.
+    /// The daemon attempted to open the embedded database file, but it is exclusively locked.
+    /// This typically means a second instance of the Kinetic daemon is already running on this machine.
     #[error("Another instance of Kinetic daemon is already running (Database is locked).")]
     DatabaseLocked,
-    /// The local database has detected structural corruption.
+
+    /// The database engine detected structural corruption in the B-tree on disk.
+    /// This can happen after a hard power loss. The node may need to wipe its state and re-sync.
     #[error("Storage corruption detected: {0}")]
     Corruption(String),
-    /// A read operation failed at the storage engine level.
+
+    /// The local node failed to read a value from the database engine.
+    /// This could indicate underlying disk issues or unreadable sectors.
     #[error("Storage read failed: {0}")]
     ReadFailed(String),
-    /// A write operation failed at the storage engine level.
+
+    /// The local node failed to write a value to the database engine.
+    /// Ensure the disk is not completely full and the daemon has write permissions.
     #[error("Storage write failed: {0}")]
     WriteFailed(String),
-    /// A delete operation failed at the storage engine level.
+
+    /// The local node failed to delete a record from the database.
     #[error("Storage delete failed: {0}")]
     DeleteFailed(String),
-    /// A prefix scan operation failed at the storage engine level.
+
+    /// The local node failed to iterate over a range of keys in the database.
     #[error("Storage scan failed: {0}")]
     ScanFailed(String),
-    /// The database failed to open or initialize.
+
+    /// The daemon failed to initialize or create the database engine at startup.
+    /// Check the filesystem permissions and ensure the target directory exists.
     #[error("Storage initialization failed: {0}")]
     OpenFailed(String),
-    /// Failed to deserialize stored data from the database.
+
+    /// The bytes were successfully read from disk, but failed to deserialize into a valid Kinetic structure.
+    /// This can happen after a daemon upgrade if the data schema changed without a migration.
     #[error("Storage deserialization failed: {0}")]
     DeserializationFailed(String),
+
+    /// During node startup, the Kinetic Record Store (KRS) detected an invalid or expired NameRecord on disk.
+    /// The daemon safely discarded it automatically. No action is required.
+    #[error("Discarding invalid locally stored NameRecord")]
+    InvalidRecordDiscarded,
+
+    /// During node startup, the Kinetic Record Store (KRS) detected a heartbeat for a name that no longer exists.
+    /// The daemon safely purged the orphan automatically. No action is required.
+    #[error("Purging orphaned heartbeat")]
+    OrphanedHeartbeatPurged,
 }
 
 impl StorageError {
@@ -50,6 +73,8 @@ impl StorageError {
             Self::ScanFailed(_) => "KIN-DBE-006",
             Self::OpenFailed(_) => "KIN-DBE-007",
             Self::DeserializationFailed(_) => "KIN-DBE-008",
+            Self::InvalidRecordDiscarded => "KIN-DBE-011",
+            Self::OrphanedHeartbeatPurged => "KIN-DBE-012",
         }
     }
 
@@ -68,6 +93,7 @@ impl StorageError {
             | Self::DeleteFailed(_)
             | Self::ScanFailed(_)
             | Self::OpenFailed(_) => Severity::Error,
+            Self::InvalidRecordDiscarded | Self::OrphanedHeartbeatPurged => Severity::Warning,
         }
     }
 
@@ -99,6 +125,8 @@ impl StorageError {
             Self::ScanFailed(_) => "A scan operation failed on the local storage.".to_string(),
             Self::OpenFailed(_) => "Failed to open the local storage database.".to_string(),
             Self::DeserializationFailed(_) => "Stored data could not be deserialized due to version mismatch or corruption.".to_string(),
+            Self::InvalidRecordDiscarded => "An invalid or expired local record was safely discarded.".to_string(),
+            Self::OrphanedHeartbeatPurged => "An orphaned heartbeat was safely purged from local storage.".to_string(),
         }
     }
 }

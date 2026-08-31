@@ -53,17 +53,9 @@ pub async fn handle_get_zone(
             }
         }
     }
-    Err(crate::api::error::AppError(kinetic_core::ApiError {
-        error_type: format!("{}/errors/KIN-API-005", kinetic_core::constants::DOCS_URL),
-        title: "Not Found".to_string(),
-        status: 404,
-        detail: "Zone not found".to_string(),
-        instance: None,
-        code: "KIN-API-005".to_string(),
-        retryable: false,
-        details: serde_json::Value::Null,
-        request_id: "".to_string(),
-    }))
+    Err(crate::api::error::AppError::from(
+        kinetic_core::error::RestApiError::NotFound
+    ))
 }
 
 /// Handles API requests to save changes to a local zone file without broadcasting to the network.
@@ -77,17 +69,9 @@ pub async fn handle_post_zone(
     Json(zone): Json<kinetic_core::types::NrsZone>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
@@ -133,17 +117,9 @@ pub async fn handle_publish_zone(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
@@ -153,17 +129,9 @@ pub async fn handle_publish_zone(
     let content = match std::fs::read_to_string(&zone_path) {
         Ok(c) => c,
         Err(_) => {
-            return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/KIN-API-005", kinetic_core::constants::DOCS_URL),
-                title: "Not Found".to_string(),
-                status: 404,
-                detail: "Zone file not found. Save your zone first via POST /zone/{name}.".to_string(),
-                instance: None,
-                code: "KIN-API-005".to_string(),
-                retryable: false,
-                details: serde_json::Value::Null,
-                request_id: "".to_string(),
-            }));
+            return Err(crate::api::error::AppError::from(
+                kinetic_core::error::RestApiError::NotFound
+            ));
         }
     };
     let zone: kinetic_core::types::NrsZone = match serde_json::from_str(&content) {
@@ -289,32 +257,16 @@ pub async fn handle_post_local_zone(
     Json(zone): Json<kinetic_core::types::NrsZone>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let fqdn = kinetic_core::types::normalize_name(&name);
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-006", kinetic_core::constants::DOCS_URL),
-            title: "Bad Request".to_string(),
-            status: 400,
-            detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
-            instance: None,
-            code: "KIN-API-006".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("This endpoint is strictly for reserved local names (e.g. example.kin).".to_string())
+        ));
     }
 
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
@@ -357,32 +309,16 @@ pub async fn handle_delete_local_zone(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let fqdn = kinetic_core::types::normalize_name(&name);
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-006", kinetic_core::constants::DOCS_URL),
-            title: "Bad Request".to_string(),
-            status: 400,
-            detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
-            instance: None,
-            code: "KIN-API-006".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("This endpoint is strictly for reserved local names (e.g. example.kin).".to_string())
+        ));
     }
 
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
@@ -419,17 +355,9 @@ pub async fn handle_get_local_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-006", kinetic_core::constants::DOCS_URL),
-            title: "Bad Request".to_string(),
-            status: 400,
-            detail: "This endpoint is strictly for reserved local names (e.g. example.kin).".to_string(),
-            instance: None,
-            code: "KIN-API-006".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("This endpoint is strictly for reserved local names (e.g. example.kin).".to_string())
+        ));
     }
 
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
@@ -445,15 +373,7 @@ pub async fn handle_get_local_zone(
         }
     }
 
-    Err(crate::api::error::AppError(kinetic_core::ApiError {
-        error_type: format!("{}/errors/KIN-API-005", kinetic_core::constants::DOCS_URL),
-        title: "Not Found".to_string(),
-        status: 404,
-        detail: "Local zone override not found".to_string(),
-        instance: None,
-        code: "KIN-API-005".to_string(),
-        retryable: false,
-        details: serde_json::Value::Null,
-        request_id: "".to_string(),
-    }))
+    Err(crate::api::error::AppError::from(
+        kinetic_core::error::RestApiError::NotFound
+    ))
 }

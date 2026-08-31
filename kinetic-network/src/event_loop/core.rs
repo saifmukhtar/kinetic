@@ -163,10 +163,8 @@ impl NetworkEventLoop {
         for domain in &self.seed_domain {
             let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
             if addrs.is_empty() {
-                tracing::warn!(
-                    "KIN-NRS-053: Failed to resolve DNS TXT seed domain or found no multiaddrs: {}",
-                    domain
-                );
+                let err = kinetic_core::error::NrsError::SeedDomainResolutionFailed(domain.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
             }
             for multiaddr in addrs {
                 if self.swarm.dial(multiaddr.clone()).is_ok() {
@@ -235,7 +233,8 @@ impl NetworkEventLoop {
                                 for domain in &domains {
                                     let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
                                     if addrs.is_empty() {
-                                        tracing::warn!("KIN-NRS-053: Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
+                                        let err = kinetic_core::error::NrsError::SeedDomainResolutionFailed(domain.to_string());
+                                        tracing::warn!(error_code = err.code(), "{}", err);
                                     }
                                     for multiaddr in addrs {
                                         if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {

@@ -283,11 +283,8 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
             teardown_macos_alias(bind_ip);
         }
         Err(e) => {
-            warn!(
-                error_code = "KIN-NRS-052",
-                "Failed to bind DNS proxy to {}:{}: {}",
-                bind_ip, nrs_port, e
-            );
+            let err = kinetic_core::error::NrsError::NrsServerExecutionError(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             warn!("Falling back to non-privileged port. Use sudo for native DNS interception.");
             let fallback_port = if nrs_port == 53 {
                 5353
@@ -347,11 +344,8 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     teardown_macos_alias(bind_ip);
                 }
                 Err(e2) => {
-                    warn!(
-                        error_code = "KIN-NRS-052",
-                        "Failed to bind DNS proxy to fallback port {}: {}",
-                        fallback_port, e2
-                    );
+                    let err = kinetic_core::error::NrsError::NrsServerExecutionError(e2.to_string());
+                    warn!(error_code = err.code(), "{}", err);
                 }
             }
         }

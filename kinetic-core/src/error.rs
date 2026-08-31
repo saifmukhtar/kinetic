@@ -30,7 +30,8 @@
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
 //! | `KIN-NAM-NNN` | `NamesError` | Name validation |
 //! | `KIN-DBE-NNN` | `StorageError` | Sled storage engine |
-//! | `KIN-NET-NNN` | `NetworkClientError` + `KineticStoreError` | P2P network client and store layer |
+//! | `KIN-RPC-NNN` | `NetworkClientError` | P2P network client operations |
+//! | `KIN-DHT-NNN` | `KineticStoreError` | Distributed Hash Table store logic |
 //! | `KIN-SEC-NNN` | `SsrfError` | IP Server-Side Request Forgery filtering |
 //! | `KIN-SYS-NNN` | `SystemError` | Operating System execution and shutdown |
 //! | `KIN-TEL-NNN` | `TelemetryError` | Tracing and correlation correlation IDs |
@@ -78,6 +79,7 @@ pub use storage::StorageError;
 pub use system::SystemError;
 pub use telemetry::TelemetryError;
 pub use vdf::{VdfError, VdfRejectReason};
+pub use api::RestApiError;
 
 /// Top-level error type for core Kinetic protocol operations.
 ///
@@ -203,3 +205,5 @@ pub enum Severity {
     /// node cannot participate in network operations.
     Critical,
 }
+/// REST API errors (`KIN-API-NNN`).
+pub mod api;

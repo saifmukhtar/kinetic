@@ -43,7 +43,7 @@ impl ApiError {
     }
 }
 
-fn current_request_id() -> String {
+pub(crate) fn current_request_id() -> String {
     crate::request_id::current().to_string()
 }
 
@@ -125,18 +125,21 @@ impl From<RegistrationError> for ApiError {
 impl From<GovernanceError> for ApiError {
     fn from(e: GovernanceError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            GovernanceError::MissingRootKey | GovernanceError::MalformedRootKey => {
-                (500, "Configuration Error")
+            GovernanceError::MissingRootKey | GovernanceError::MalformedRootKey | GovernanceError::StateCorrupted => {
+                (500, "Internal Server Error")
             }
-            GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
-            GovernanceError::InvalidSignature => (401, "Unauthorized"),
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
+            GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
             GovernanceError::KeyLengthMismatch
+            | GovernanceError::InvalidSignature
             | GovernanceError::InvalidPrimeLength
             | GovernanceError::InvalidProtocolName
             | GovernanceError::AlreadyMapped
             | GovernanceError::NotMapped
-            | GovernanceError::UnnormalizedName => (400, "Bad Request"),
+            | GovernanceError::UnnormalizedName
+            | GovernanceError::InvalidSeedState => (400, "Bad Request"),
+            GovernanceError::StateSaveFailed | GovernanceError::StateReadFailed => (500, "Internal Server Error"),
+            GovernanceError::P2pPublishFailed | GovernanceError::BootstrapFetchFailed => (502, "Bad Gateway"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -189,6 +192,7 @@ impl From<StorageError> for ApiError {
             | StorageError::DeleteFailed(_)
             | StorageError::ScanFailed(_)
             | StorageError::OpenFailed(_) => (500, "Storage Operation Failed"),
+            StorageError::InvalidRecordDiscarded | StorageError::OrphanedHeartbeatPurged => (500, "Storage Consistency Warning"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -263,8 +267,7 @@ impl From<DrandError> for ApiError {
 impl From<NrsError> for ApiError {
     fn from(e: NrsError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            NrsError::ParseError(_)
-            | NrsError::TooManyRecords
+            NrsError::TooManyRecords
             | NrsError::InvalidLabelLength(_)
             | NrsError::InvalidLabelCharacters(_)
             | NrsError::InvalidCnameConfiguration(_)
@@ -273,7 +276,16 @@ impl From<NrsError> for ApiError {
             | NrsError::InvalidPeerId(_)
             | NrsError::InvalidKid(_)
             | NrsError::InvalidIpfsCid(_)
+            | NrsError::ParseError(_)
             | NrsError::MultipleCnames(_) => (400, "Bad Request"),
+            NrsError::UpstreamResolveError(_)
+            | NrsError::DnsRequestFailed(_)
+            | NrsError::NrsServerExecutionError(_)
+            | NrsError::SeedDomainResolutionFailed(_)
+            | NrsError::DnsResolverInitFailed(_)
+            | NrsError::DnsLookupFailed { .. }
+            | NrsError::Web2BridgeResolveFailed { .. }
+            | NrsError::Web2BridgeNoIpsFound(_) => (502, "Bad Gateway"),
         };
         ApiError {
             error_type: e.error_type_uri(),

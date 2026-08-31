@@ -49,17 +49,9 @@ pub async fn handle_generate_kid(
     Json(req): Json<GenerateKidRequest>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let base_fqdn = kinetic_core::types::normalize_name(&req.base_name);
@@ -113,17 +105,9 @@ pub async fn handle_rotate_kid(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
@@ -152,17 +136,9 @@ pub async fn handle_revoke_kid(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let revoked_doc = kinetic_core::types::revoke_local_kid(&name)?;
@@ -213,17 +189,9 @@ pub async fn handle_update_kid_manifest(
     Json(req): Json<UpdateManifestRequest>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));

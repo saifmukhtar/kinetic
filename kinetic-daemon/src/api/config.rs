@@ -12,17 +12,9 @@ pub async fn handle_get_config(
     State(_state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Forbidden".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let config = kinetic_core::config::KineticConfig::load();
     Ok(Json(serde_json::json!({
@@ -37,17 +29,9 @@ pub async fn handle_owned_names(
     State(state): State<ApiState>,
 ) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Forbidden".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
     let owned_names: Vec<String> = match state.storage.get(owned_key) {
@@ -96,17 +80,9 @@ pub async fn handle_set_config(
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Forbidden".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     
     if let Some(config_payload) = payload.get("config") {

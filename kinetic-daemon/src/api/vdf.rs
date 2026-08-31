@@ -40,17 +40,9 @@ pub async fn handle_vdf_register(
     Json(req): Json<VdfRegisterRequest>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires VDF or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
@@ -377,17 +369,9 @@ pub async fn handle_vdf_renew(
     Json(req): Json<NameRenewRequest>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires VDF or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
@@ -708,17 +692,9 @@ pub async fn handle_vdf_status(
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires VDF or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let task = {
         let tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
@@ -738,17 +714,9 @@ pub async fn handle_vdf_status_delete(
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires VDF or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let removed = {
         let mut tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());

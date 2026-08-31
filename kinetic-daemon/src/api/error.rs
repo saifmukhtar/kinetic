@@ -82,6 +82,12 @@ impl From<kinetic_core::error::network::NetworkClientError> for AppError {
     }
 }
 
+impl From<kinetic_core::error::RestApiError> for AppError {
+    fn from(err: kinetic_core::error::RestApiError) -> Self {
+        AppError(ApiError::from(err))
+    }
+}
+
 impl From<ApiError> for AppError {
     fn from(err: ApiError) -> Self {
         AppError(err)

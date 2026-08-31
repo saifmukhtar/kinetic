@@ -1,19 +1,17 @@
-//! libp2p P2P network client error types (`KIN-NET-NNN`).
+//! libp2p P2P network client error types (`KIN-RPC-NNN`).
 //!
 //! [`NetworkClientError`] is emitted by `KineticNetworkClient` operations. It transparently wraps
 //! libp2p Kademlia, GossipSub, or the internal mpsc command channel fails.
 //!
 //! ## Namespace Note
 //!
-//! `KIN-NET` is shared between this type and `KineticStoreError` in `kinetic-network`.
-//! To avoid overlaps:
-//! - `KIN-RPC-001+`: This type (client-side P2P failures)
+//! To avoid overlaps, network errors are strictly partitioned:
+//! - `KIN-RPC-001+`: This type (client-side P2P failures like GossipSub)
 //! - `KIN-DHT-001..099`: `KineticStoreError` (store-layer validations and rejections)
 //!
 //! Note that query-related failures (like timeouts or empty routing tables)
 //! correctly return `KIN-QRY` codes, matching the global taxonomy.
-//! because they carry richer rejection context. This type is used internally within
-//! the event loop for command dispatch failures.
+//! This type is used internally within the event loop for command dispatch failures.
 
 use super::Severity;
 use thiserror::Error;

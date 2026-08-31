@@ -5,17 +5,53 @@ use thiserror::Error;
 /// Error type for configuration load, save, and validation failures.
 #[derive(Error, Debug)]
 pub enum ConfigError {
-    /// Failed to create the directory for the configuration file.
+    /// The daemon failed to create the OS-level directory structure for the configuration files (e.g., `base_dir/networks/nsp-salt_id/`).
+    /// Check the file permissions for the user running the daemon.
     #[error("Failed to create config directory: {0}")]
     DirectoryCreationFailed(String),
 
-    /// Failed to serialize the configuration to TOML.
+    /// The node attempted to write the default configuration, but the TOML serialization engine failed.
+    /// This indicates a critical structural flaw in the default config structs.
     #[error("Failed to serialize config: {0}")]
     SerializationFailed(String),
 
-    /// Failed to write the configuration to disk.
+    /// The configuration file could not be written to disk.
+    /// Ensure the disk is not full and the daemon has write permissions to the config directory.
     #[error("Failed to write config file: {0}")]
     WriteFailed(String),
+
+    /// The `config.toml` file exists but contains invalid TOML syntax or structural errors.
+    /// The node will refuse to start rather than failing-open with missing parameters.
+    #[error("Failed to parse config.toml: {0}")]
+    ParseFailed(String),
+
+    /// The `config.toml` file exists but could not be read from disk (e.g., permission denied).
+    #[error("Failed to read config.toml: {0}")]
+    ReadFailed(String),
+
+    /// The daemon detected that two or more internal services are trying to bind to the same TCP port.
+    /// Update `config.toml` to ensure all TCP ports (api, proxy, p2p, backend) are unique.
+    #[error("TCP port collision detected in config.toml")]
+    TcpPortCollision,
+
+    /// The daemon detected that two or more internal services are trying to bind to the same UDP port.
+    /// Update `config.toml` to ensure all UDP ports (nrs, atlas, quic) are unique.
+    #[error("UDP port collision detected in config.toml")]
+    UdpPortCollision,
+
+    /// The `backend_port` in the configuration is set to a port already used by the daemon.
+    /// This must be blocked to prevent infinite SSRF loops if the proxy tries to hit itself.
+    #[error("backend_port conflicts with an internal daemon port")]
+    BackendPortCollision,
+
+    /// A secondary fatal warning paired with KIN-CFG-008.
+    /// Leaving this misconfigured opens the node to infinite loops and SSRF proxy exploits.
+    #[error("SSRF loop risk detected in backend_port")]
+    BackendPortSsrfRisk,
+
+    /// A REST API request attempted to update the daemon configuration with invalid data.
+    #[error("Invalid configuration payload provided to the API")]
+    InvalidApiUpdate(String),
 }
 
 impl ConfigError {
@@ -25,6 +61,13 @@ impl ConfigError {
             Self::DirectoryCreationFailed(_) => "KIN-CFG-001",
             Self::SerializationFailed(_) => "KIN-CFG-002",
             Self::WriteFailed(_) => "KIN-CFG-003",
+            Self::ParseFailed(_) => "KIN-CFG-004",
+            Self::ReadFailed(_) => "KIN-CFG-005",
+            Self::TcpPortCollision => "KIN-CFG-006",
+            Self::UdpPortCollision => "KIN-CFG-007",
+            Self::BackendPortCollision => "KIN-CFG-008",
+            Self::BackendPortSsrfRisk => "KIN-CFG-009",
+            Self::InvalidApiUpdate(_) => "KIN-CFG-010",
         }
     }
 

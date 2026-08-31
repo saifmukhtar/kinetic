@@ -3,58 +3,89 @@ use thiserror::Error;
 /// Error type returned by all operations in the `kinetic-kid` crate.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
-    /// Malformed DID String Prefix. The DID string does not start with the expected prefix.
+    /// The provided DID string does not start with the expected `did:<method>:` prefix.
+    /// Ensure the DID strictly follows the Kinetic Decentralized Identifier specification.
     #[error("Invalid DID prefix, expected did:<method>:")]
     InvalidDidPrefix,
+
     /// Reserved error code for extreme future use (KIN-KID-002).
+    /// This code is explicitly kept empty to maintain backward compatibility in the taxonomy.
     #[error("Reserved error code (KIN-KID-002)")]
     Reserved002,
-    /// DID String Hex Length Invalid. The method-specific ID is not exactly 64 characters long.
+
+    /// The method-specific ID portion of the DID is not exactly 64 characters long.
+    /// Kinetic uses SHA-256 hashes for method IDs, which must be exactly 64 hex characters.
     #[error("DID method-specific ID must be exactly 64 characters long")]
     InvalidDidHexLength,
-    /// DID String Non-Hex Characters. The method-specific ID contains invalid lowercase hexadecimal characters.
+
+    /// The method-specific ID contains invalid characters.
+    /// It must strictly contain only lowercase hexadecimal characters (0-9, a-f).
     #[error("DID method-specific ID must contain only lowercase hexadecimal characters")]
     InvalidDidHexCharacters,
-    /// Identity Document JSON Parsing Failed.
+
+    /// The daemon failed to parse the identity document as valid JSON.
+    /// Ensure the payload is a correctly formatted JSON object.
     #[error("Failed to parse JSON: {0}")]
     JsonParseError(String),
-    /// Identity Document JCS Canonicalization Failed.
+
+    /// The daemon failed to apply JCS (JSON Canonicalization Scheme) to the identity document.
+    /// Canonicalization is strictly required before cryptographic signing.
     #[error("Failed to canonicalize JSON (JCS): {0}")]
     CanonicalizationError(String),
-    /// ML-DSA-65 Signature Invalid on Identity Document. The signature bytes are invalid or do not verify.
+
+    /// The ML-DSA-65 signature bytes on the Identity Document are invalid or do not verify.
+    /// This indicates the payload was tampered with or signed by an incorrect private key.
     #[error("Invalid signature")]
     InvalidSignature,
-    /// Missing Signature field on Identity Document or manifest.
+
+    /// The Identity Document or capability manifest is missing a required signature field.
+    /// All identity actions must be cryptographically signed by the controller.
     #[error("Missing signature in document")]
     MissingSignature,
-    /// Base64 decode failed for Identity key/signature.
+
+    /// The daemon failed to decode a base64-encoded key or signature.
+    /// Ensure all cryptographic fields use standard base64url encoding without padding.
     #[error("Base64 decode error: {0}")]
     Base64Error(String),
-    /// String field exceeds byte length limits.
+
+    /// A string field in the document exceeds the maximum allowed byte length.
+    /// This prevents memory exhaustion attacks via massive payloads.
     #[error("Field '{0}' exceeds maximum allowed byte length")]
     StringLengthExceeded(String),
-    /// Manifest signed by key not authorized in KID document.
+
+    /// The capability manifest was signed by a key that is not authorized in the parent KID document.
+    /// Verify that the signing key is officially listed as an active controller in the KID.
     #[error("Manifest signed by unauthorized key")]
     UnauthorizedManifestSignature,
-    /// Too many keys in Identity Document (Max 20).
+
+    /// The Identity Document contains more keys than the maximum allowed limit (20).
+    /// This strict bound ensures fast cryptographic validation across the network.
     #[error("Identity document exceeds maximum key bounds (max 20)")]
     KeyLimitExceeded,
-    /// Too many service endpoints (Max 50).
+
+    /// The capability manifest contains more service endpoints than the maximum allowed limit (50).
+    /// Remove unused endpoints to comply with the network bounds.
     #[error("Capability manifest exceeds maximum service endpoints (max 50)")]
     ServiceLimitExceeded,
-    /// Too many manifest pointers (Max 20).
+
+    /// The Identity Document contains more manifest pointers than the maximum allowed limit (20).
+    /// Remove unused locations to comply with the network bounds.
     #[error("Manifest pointer exceeds maximum location bounds (max 20)")]
     LocationLimitExceeded,
-    /// Manifest valid_from timestamp is in the future.
+
+    /// The capability manifest's `valid_from` timestamp is set in the future.
+    /// Ensure the issuer's system clock is synchronized via NTP.
     #[error("Manifest valid_from is in the future")]
     InvalidValidFrom,
-    /// Manifest has expired.
+
+    /// The capability manifest's expiration timestamp has passed.
+    /// A new, freshly signed capability manifest must be generated.
     #[error("Manifest has expired")]
     ManifestExpired,
-    /// Genesis DID does not match SHA-256 of primary controller key.
-    #[error(
-        "KID document genesis binding failed: DID does not match SHA-256 of primary controller key (KIN-KID-015)"
-    )]
+
+    /// The Genesis DID does not match the SHA-256 hash of the primary controller key.
+    /// The initial DID must always be cryptographically bound to its root key.
+    #[error("KID document genesis binding failed: DID does not match SHA-256 of primary controller key")]
     DidKeyMismatch,
 }
 

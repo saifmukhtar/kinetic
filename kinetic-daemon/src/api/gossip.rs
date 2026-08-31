@@ -54,17 +54,9 @@ pub async fn handle_gossip_publish(
     Json(payload): Json<Value>,
 ) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
-            error_type: format!("{}/errors/KIN-API-004", kinetic_core::constants::DOCS_URL),
-            title: "Unauthorized".to_string(),
-            status: 403,
-            detail: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-            instance: None,
-            code: "KIN-API-004".to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        }));
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let payload_bytes = match serde_json::to_vec(&payload) {
