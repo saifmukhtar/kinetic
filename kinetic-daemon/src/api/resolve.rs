@@ -65,21 +65,12 @@ pub async fn handle_resolve_name(
             if !dev_mode
                 && let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT)
             {
+                let err = kinetic_core::error::ResolutionError::SignatureVerificationFailed(e.to_string());
                 tracing::warn!(
-                    "KIN-QRY-011: Rejecting spoofed NameRecord from network (CDN cache poisoning): {:?}",
-                    e
+                    error_code = err.code(),
+                    "{}", err
                 );
-                return Err(crate::api::error::AppError(kinetic_core::ApiError {
-                    error_type: format!("{}/errors/KIN-QRY-003", kinetic_core::constants::DOCS_URL),
-                    title: "Signature Spoofed".to_string(),
-                    status: 403,
-                    detail: "NameRecord cryptographic signature verification failed. The record is spoofed or corrupted.".to_string(),
-                    instance: None,
-                    code: "KIN-QRY-003".to_string(),
-                    retryable: false,
-                    details: serde_json::Value::Null,
-                    request_id: "".to_string(),
-                }));
+                return Err(crate::api::error::AppError(err.into()));
             }
             record
         }

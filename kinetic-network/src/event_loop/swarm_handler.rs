@@ -86,11 +86,15 @@ impl super::core::NetworkEventLoop {
                                     let _ = responder.send(Ok(payload.clone()));
                                 }
                             } else {
+                                let err = kinetic_core::error::ResolutionError::NotFound {
+                                    name: name_clean.clone(),
+                                    peers_queried: peers_q,
+                                };
                                 tracing::warn!(
-                                    error_code = "KIN-QRY-002",
+                                    error_code = err.code(),
                                     name = %name_clean,
                                     peers_queried = %peers_q,
-                                    "DHT resolution: name not found in network or local cache"
+                                    "{}", err
                                 );
                                 for responder in p.responders {
                                     let _ = responder.send(Err(ResolutionError::NotFound {

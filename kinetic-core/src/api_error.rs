@@ -58,6 +58,7 @@ impl From<ResolutionError> for ApiError {
             ResolutionError::Expired { .. } => (410, "Registration Expired"),
             ResolutionError::Timeout { .. } => (504, "Resolution Timeout"),
             ResolutionError::Internal { .. } => (500, "Internal Resolution Error"),
+            ResolutionError::SignatureVerificationFailed(_) => (403, "Signature Spoofed"),
         };
         ApiError {
             error_type: e.error_type_uri(),

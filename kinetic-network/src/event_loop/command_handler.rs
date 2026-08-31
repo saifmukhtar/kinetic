@@ -133,10 +133,11 @@ impl super::core::NetworkEventLoop {
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
                     let name_clean = name.trim_end_matches('.').to_string();
+                    let err = kinetic_core::error::ResolutionError::Offline;
                     tracing::warn!(
-                        error_code = "KIN-QRY-001",
+                        error_code = err.code(),
                         name = %name_clean,
-                        "Resolution failed: node is offline (0 peers)"
+                        "{}", err
                     );
 
                     // Fallback to local store as a last resort since we're offline

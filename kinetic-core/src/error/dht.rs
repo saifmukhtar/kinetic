@@ -103,6 +103,9 @@ pub enum ResolutionError {
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
+    /// The record's signature failed cryptographic verification (spoofed/tampered).
+    #[error("Signature verification failed: {0}")]
+    SignatureVerificationFailed(String),
 }
 
 impl ResolutionError {
@@ -115,6 +118,7 @@ impl ResolutionError {
             Self::Expired { .. } => "KIN-QRY-004",
             Self::Timeout { .. } => "KIN-QRY-005",
             Self::Internal { .. } => "KIN-QRY-006",
+            Self::SignatureVerificationFailed(_) => "KIN-QRY-011",
         }
     }
 
@@ -137,33 +141,20 @@ impl ResolutionError {
             Self::Expired { .. } => Severity::Info,
             Self::Timeout { .. } => Severity::Warning,
             Self::Internal { .. } => Severity::Error,
+            Self::SignatureVerificationFailed(_) => Severity::Error,
         }
     }
 
     /// Clean user-facing message with no developer details.
     pub fn user_message(&self) -> String {
         match self {
-            Self::Offline => {
-                "You appear to be offline. Check your internet connection.".to_string()
-            }
-            Self::NotFound { name, .. } => {
-                format!("'{}' is not registered on the Kinetic network.", name)
-            }
-            Self::VdfVerificationFailed { name, .. } => format!(
-                "'{}' has an invalid cryptographic proof. This record may have been tampered with.",
-                name
-            ),
-            Self::Expired { name, .. } => format!(
-                "'{}' registration has expired. The owner needs to renew it.",
-                name
-            ),
-            Self::Timeout { name, .. } => format!(
-                "The network took too long to respond for '{}'. Please try again.",
-                name
-            ),
-            Self::Internal { .. } => {
-                "An internal network error occurred. Please try again.".to_string()
-            }
+            Self::Offline => "You appear to be offline. Check your internet connection.".to_string(),
+            Self::NotFound { name, .. } => format!("'{}' is not registered on the Kinetic network.", name),
+            Self::VdfVerificationFailed { name, .. } => format!("'{}' has an invalid cryptographic proof. This record may have been tampered with.", name),
+            Self::Expired { name, .. } => format!("'{}' registration has expired. The owner needs to renew it.", name),
+            Self::Timeout { name, .. } => format!("The network took too long to respond for '{}'. Please try again.", name),
+            Self::Internal { .. } => "An internal network error occurred. Please try again.".to_string(),
+            Self::SignatureVerificationFailed(_) => "The network returned a spoofed or tampered record. Query rejected for your safety.".to_string(),
         }
     }
 

@@ -454,32 +454,34 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     return header.into();
                                 }
                             } else {
+                                let err = kinetic_core::error::ResolutionError::NotFound { name: subname.clone(), peers_queried: 0 };
                                 warn!(
-                                    error_code = "KIN-QRY-002",
-                                    "No records found for subname: {}", subname
+                                    error_code = err.code(),
+                                    "{}", err
                                 );
                             }
                         }
-                        Err(e) => warn!(
-                            error_code = "KIN-QRY-006",
-                            "Payload was not a valid NrsZone: {}", e
-                        ),
+                        Err(e) => {
+                            let err = kinetic_core::error::ResolutionError::Internal { message: format!("Payload was not a valid NrsZone: {}", e), source: None };
+                            warn!(error_code = err.code(), "{}", err);
+                        }
                     }
                 }
-                Err(e) => warn!(
-                    error_code = "KIN-QRY-006",
-                    "Payload was not a valid NameRecord: {}", e
-                ),
+                Err(e) => {
+                    let err = kinetic_core::error::ResolutionError::Internal { message: format!("Payload was not a valid NameRecord: {}", e), source: None };
+                    warn!(error_code = err.code(), "{}", err);
+                }
             }
         }
-        Ok(None) => warn!(
-            error_code = "KIN-QRY-002",
-            "No payload found for .kin query (NXDOMAIN cached)"
-        ),
+        Ok(None) => {
+            let err = kinetic_core::error::ResolutionError::NotFound { name: query_name.to_string(), peers_queried: 0 };
+            warn!(error_code = err.code(), "{}", err);
+        }
         Err(e) => {
+            let err = kinetic_core::error::ResolutionError::Internal { message: format!("Error resolving .kin query via DHT/Cache: {:?}", e), source: None };
             error!(
-                error_code = "KIN-QRY-006",
-                "Error resolving .kin query via DHT/Cache: {:?}", e
+                error_code = err.code(),
+                "{}", err
             );
             let response =
                 builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
