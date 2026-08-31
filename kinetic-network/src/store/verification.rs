@@ -87,7 +87,7 @@ pub(crate) fn verify_host_routing_record(
 }
 
 #[inline]
-fn get_u64_from_sled(
+fn get_u64_from_db(
     storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
     key: &[u8],
 ) -> Option<u64> {
@@ -273,7 +273,7 @@ pub(crate) fn compute_required_iterations(
 /// # Arguments
 ///
 /// * `reveal` - The Reveal payload.
-/// * `storage` - The local sled storage engine (to look up the commitment).
+/// * `storage` - The local database storage engine (to look up the commitment).
 /// * `current_kyn` - The current drand kyn kyn.
 /// * `engine` - The VDF engine used to verify the proof.
 ///
@@ -366,7 +366,7 @@ pub(crate) fn verify_reveal(
     commit_key.extend_from_slice(crate::store::constants::KRS_COMMIT_PREFIX);
     commit_key.extend_from_slice(&hash);
 
-    let commit_kyn = get_u64_from_sled(storage, &commit_key);
+    let commit_kyn = get_u64_from_db(storage, &commit_key);
 
     if let Some(commit_kyn) = commit_kyn {
         if !dev_mode

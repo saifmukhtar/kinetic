@@ -138,10 +138,10 @@ impl KineticRecordStore {
                 );
                 for key_bytes in keys {
                     let k = libp2p::kad::RecordKey::new(&key_bytes);
-                    let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
-                    sled_key.extend_from_slice(b"kad_record:");
-                    sled_key.extend_from_slice(k.as_ref());
-                    let _ = self.storage.delete(&sled_key);
+                    let mut db_key = Vec::with_capacity(11 + k.as_ref().len());
+                    db_key.extend_from_slice(b"kad_record:");
+                    db_key.extend_from_slice(k.as_ref());
+                    let _ = self.storage.delete(&db_key);
                 }
                 let hb_keys = kinetic_core::types::derive_heartbeat_keys(
                     &new_reveal.name,
@@ -149,10 +149,10 @@ impl KineticRecordStore {
                 );
                 for key_bytes in hb_keys {
                     let k = libp2p::kad::RecordKey::new(&key_bytes);
-                    let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
-                    sled_key.extend_from_slice(b"kad_record:");
-                    sled_key.extend_from_slice(k.as_ref());
-                    let _ = self.storage.delete(&sled_key);
+                    let mut db_key = Vec::with_capacity(11 + k.as_ref().len());
+                    db_key.extend_from_slice(b"kad_record:");
+                    db_key.extend_from_slice(k.as_ref());
+                    let _ = self.storage.delete(&db_key);
                 }
             } else {
                 let existing_pulse = match &existing_record {

@@ -36,7 +36,7 @@ mod native {
         /// - Returns [`StorageError::OpenFailed`](kinetic_core::error::StorageError::OpenFailed) (`KIN-DBE-007`) if IO errors occur.
         pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
             let base_path = path.as_ref();
-            // Sled used directories, Redb uses a single file. For backward compatibility
+            // Older storage engines used directories, Redb uses a single file. For backward compatibility
             // with the rest of the workspace, we treat the input as a directory and append a filename.
             let db_path = base_path.join("state.redb");
 

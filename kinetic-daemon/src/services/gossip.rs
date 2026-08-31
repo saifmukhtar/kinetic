@@ -92,7 +92,7 @@ pub fn start_gossip_processor(
                                             if let Ok(json_bytes) = serde_json::to_vec(&record) {
                                                 let _ = storage.put(key.as_bytes(), &json_bytes);
                                                 tracing::info!(
-                                                    "Injected NameRecord::Prime into Sled for {}",
+                                                    "Injected NameRecord::Prime into storage for {}",
                                                     name
                                                 );
                                             }
@@ -101,7 +101,7 @@ pub fn start_gossip_processor(
                                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                                             let _ = storage.delete(key.as_bytes());
                                             tracing::info!(
-                                                "Revoked NameRecord::Prime from Sled for {}",
+                                                "Revoked NameRecord::Prime from storage for {}",
                                                 name
                                             );
                                         }
@@ -109,7 +109,7 @@ pub fn start_gossip_processor(
                                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                                             let _ = storage.delete(key.as_bytes());
                                             tracing::info!(
-                                                "Revoked NameRecord::Infra from Sled for {}",
+                                                "Revoked NameRecord::Infra from storage for {}",
                                                 name
                                             );
                                         }

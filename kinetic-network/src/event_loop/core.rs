@@ -147,7 +147,7 @@ impl NetworkEventLoop {
     /// Starts the event loop. Blocks indefinitely until the command channel is closed.
     ///
     /// The event loop continuously multiplexes between:
-    /// - Periodic background tasks (e.g., pruning Sled storage, redialing bootstraps).
+    /// - Periodic background tasks (e.g., pruning database storage, redialing bootstraps).
     /// - External commands coming from the `NetworkClient` (e.g., publish, resolve).
     /// - Loopback results from CPU-intensive cryptographic validations (e.g., VDF, PoW).
     /// - Raw network events surfaced by `libp2p::Swarm`.
@@ -192,7 +192,7 @@ impl NetworkEventLoop {
                 _ = &mut prune_delay => {
                     let jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 60) as u64;
                     prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(kinetic_core::constants::TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS + jitter));
-                    tracing::info!("Running periodic Sled pruning...");
+                    tracing::info!("Running periodic Storage pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                     let storage = self.swarm.behaviour_mut().kademlia.store_mut().storage.clone();
                     let current_kyn = self.current_kyn;

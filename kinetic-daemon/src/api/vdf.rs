@@ -408,7 +408,7 @@ pub async fn handle_vdf_renew(
     let iterations = req.iterations.unwrap_or(4_194_304);
 
     tokio::spawn(async move {
-        // Step 1: Read previous Reveal from Sled storage
+        // Step 1: Read previous Reveal from database storage
         update_task_status(&tasks_clone, &task_id_clone, "Loading previous reveal", 5);
         let local_reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
         let old_reveal_bytes = match storage_clone.get(local_reveal_key.as_bytes()) {

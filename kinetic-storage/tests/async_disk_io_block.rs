@@ -15,8 +15,8 @@ fn test_async_disk_io_block() {
     }
     let duration = start.elapsed();
 
-    // Redb guarantees full ACID durability on every commit (fsync).
-    // This is safer than Sled's background flusher, but means 100 separate
+    // The database guarantees full ACID durability on every commit (fsync).
+    // This is safer than older embedded databases' background flusher, but means 100 separate
     // transactions will take ~50-100ms. We set a generous 1000ms bound to ensure
     // it's not pathologically slow on slower disks.
     assert!(

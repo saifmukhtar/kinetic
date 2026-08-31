@@ -59,13 +59,13 @@ pub async fn handle_publish_record(
 
     // Finding 4 (High): Enforce drand staleness — reject Reveals whose VDF kyn is older
     // than RESQUARING_EPOCH_KYNS. Fetch the current beacon kyn, falling back to the
-    // sled-cached value so offline-first nodes aren’t broken.
+    // storage-cached value so offline-first nodes aren’t broken.
     let current_kyn: u64 = {
         let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
         match drand_client.fetch_latest().await {
             Ok(kyn) => kyn.kyn,
             Err(_) => {
-                // Graceful fallback: read the last known kyn from sled.
+                // Graceful fallback: read the last known kyn from storage.
                 // If even that is unavailable, we allow the publish to proceed —
                 // the DHT store layer will still enforce its own staleness check.
                 let err = kinetic_core::error::DrandError::LiveFetchFailedFallback;

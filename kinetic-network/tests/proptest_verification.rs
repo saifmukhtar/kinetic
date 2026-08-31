@@ -14,7 +14,7 @@ proptest! {
         garbage in any::<Vec<u8>>()
     ) {
         let temp_dir = tempfile::tempdir().unwrap();
-        let sled_storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
         let keypair = libp2p::identity::ed25519::Keypair::generate();
         let public = keypair.public();
         let identity = libp2p::identity::PublicKey::from(public);
@@ -23,7 +23,7 @@ proptest! {
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
-            sled_storage,
+            db_storage,
             0,
             NonZeroUsize::new(100).unwrap(),
             100,
@@ -68,7 +68,7 @@ proptest! {
         };
 
         let temp_dir = tempfile::tempdir().unwrap();
-        let sled_storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
         let keypair = libp2p::identity::ed25519::Keypair::generate();
         let public = keypair.public();
         let identity = libp2p::identity::PublicKey::from(public);
@@ -77,7 +77,7 @@ proptest! {
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
-            sled_storage,
+            db_storage,
             0,
             NonZeroUsize::new(100).unwrap(),
             100,

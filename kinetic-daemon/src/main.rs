@@ -214,7 +214,7 @@ fn stop_background_service() -> Result<()> {
 ///
 /// This function is responsible for:
 /// - Validating the governance key state.
-/// - Initializing Sled storage and the VDF engine.
+/// - Initializing database storage and the VDF engine.
 /// - Starting the Drand heartbeat and PoW sybil mining loop.
 /// - Establishing the Kademlia P2P Swarm.
 /// - Starting the API server, PAC server, DNS proxy, and HTTP proxy.

@@ -3,7 +3,7 @@
 //! Defines the abstract contracts for Kinetic's three primary pluggable backends:
 //!
 //! - `VdfEngine`: CPU-bound Wesolowski VDF proof evaluation and verification (chiavdf).
-//! - `StorageEngine`: Key-value persistence and prefix scanning (Sled B-tree).
+//! - `StorageEngine`: Key-value persistence and prefix scanning (B-tree storage engine).
 //! - `GovernanceEngine`: Protocol proposal verification and state transitions.
 //!
 //! These traits enable `kinetic-core` to be network-agnostic. The concrete implementations
@@ -59,7 +59,7 @@ pub trait VdfEngine: Send + Sync {
 
 /// Abstract interface for local embedded database storage engines.
 ///
-/// The canonical implementation in `kinetic-storage` wraps a Sled B-tree database.
+/// The canonical implementation in `kinetic-storage` wraps a B-tree storage engine database.
 /// All keys in Kinetic are namespaced with a `{NETWORK_ID}_` prefix so that multiple
 /// NSP networks can share a physical database file without key collisions.
 pub trait StorageEngine: Send + Sync {

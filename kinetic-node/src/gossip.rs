@@ -52,18 +52,18 @@ pub fn handle_governance_gossip(
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             if let Ok(json_bytes) = serde_json::to_vec(&record) {
                                 let _ = storage.put(key.as_bytes(), &json_bytes);
-                                tracing::info!("Injected NameRecord::Prime into Sled for {}", name);
+                                tracing::info!("Injected NameRecord::Prime into storage for {}", name);
                             }
                         }
                         GovernanceEffect::PrimeUnmapped { name } => {
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             let _ = storage.delete(key.as_bytes());
-                            tracing::info!("Revoked NameRecord::Prime from Sled for {}", name);
+                            tracing::info!("Revoked NameRecord::Prime from storage for {}", name);
                         }
                         GovernanceEffect::InfraUnmapped { name } => {
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             let _ = storage.delete(key.as_bytes());
-                            tracing::info!("Revoked NameRecord::Infra from Sled for {}", name);
+                            tracing::info!("Revoked NameRecord::Infra from storage for {}", name);
                         }
                         _ => {}
                     }

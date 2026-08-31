@@ -1,10 +1,10 @@
-//! Custom Kademlia `RecordStore` implementation managing persistent Sled storage, LRU caching, and validation dispatching.
+//! Custom Kademlia `RecordStore` implementation managing persistent database storage, LRU caching, and validation dispatching.
 //!
 //! This module defines the [`KineticRecordStore`], which implements libp2p's
 //! [`RecordStore`](libp2p::kad::store::RecordStore) trait. It intercepts DHT
 //! `put` requests to strictly enforce Kinetic protocol rules, such as VDF proof
 //! validation, Ed25519 signature checks, and heartbeat timestamp progression,
-//! before persisting records to the underlying `sled` database.
+//! before persisting records to the underlying embedded database.
 use libp2p::{PeerId, kad};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -22,7 +22,7 @@ use crate::store::constants::*;
 /// Custom Kademlia record store for Kinetic name records.
 ///
 /// Implements `libp2p::kad::store::RecordStore` to provide domain validation,
-/// commit-reveal timelocks, heartbeat liveness tracking, and sled persistence.
+/// commit-reveal timelocks, heartbeat liveness tracking, and database persistence.
 pub struct KineticRecordStore {
     inner: kad::store::MemoryStore,
     /// Persistent storage backend.
@@ -43,7 +43,7 @@ pub struct KineticRecordStore {
     pub max_reveals_per_hour: usize,
 }
 impl KineticRecordStore {
-    /// Creates a new `KineticRecordStore` instance and restores existing state from sled storage.
+    /// Creates a new `KineticRecordStore` instance and restores existing state from database storage.
     ///
     /// This initialization phase scans the persistent storage for existing reveals and heartbeats,
     /// re-verifying their validity (including VDF proofs and Ed25519 signatures) before
@@ -52,7 +52,7 @@ impl KineticRecordStore {
     /// # Arguments
     ///
     /// * `local_peer_id` - The libp2p [`PeerId`] of the local node.
-    /// * `storage` - A thread-safe reference to the underlying sled database wrapper.
+    /// * `storage` - A thread-safe reference to the underlying embedded database wrapper.
     /// * `initial_kyn` - The starting drand kyn kyn to initialize the store.
     /// * `lru_cache_size` - The maximum number of reveals to cache in memory.
     /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per domain name.
@@ -73,7 +73,7 @@ impl KineticRecordStore {
         let mut reveals_by_name = LruCache::new(lru_cache_size);
         let mut last_heartbeats_by_name = HashMap::new();
 
-        // Restore state from sled
+        // Restore state from storage
         // Added limit to prevent memory exhaustion
         if let Ok(iter) = storage.scan_prefix(KRS_REVEAL_PREFIX, Some(100_000)) {
             for (key_bytes, val_bytes) in iter {
@@ -217,7 +217,7 @@ impl KineticRecordStore {
         let current_kyn = self.current_kyn;
         let mut keys_to_delete = Vec::new();
 
-        // 1. Scan and Prune Commitments from Sled
+        // 1. Scan and Prune Commitments from storage
         if let Ok(iter) = self.storage.scan_prefix(KRS_COMMIT_PREFIX, None) {
             for (key_bytes, val_bytes) in iter {
                 if val_bytes.len() == 8 {
@@ -229,10 +229,10 @@ impl KineticRecordStore {
                                 &key_bytes[crate::store::constants::KRS_COMMIT_PREFIX.len()..];
                             let k = libp2p::kad::RecordKey::new(&hash);
                             self.inner.remove(&k);
-                            let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
-                            sled_key.extend_from_slice(b"kad_record:");
-                            sled_key.extend_from_slice(k.as_ref());
-                            keys_to_delete.push(sled_key);
+                            let mut db_key = Vec::with_capacity(11 + k.as_ref().len());
+                            db_key.extend_from_slice(b"kad_record:");
+                            db_key.extend_from_slice(k.as_ref());
+                            keys_to_delete.push(db_key);
                         }
                     }
                 }
@@ -306,10 +306,10 @@ impl KineticRecordStore {
             );
             for key_bytes in keys {
                 let k = kad::RecordKey::new(&key_bytes);
-                let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
-                sled_key.extend_from_slice(b"kad_record:");
-                sled_key.extend_from_slice(k.as_ref());
-                keys_to_delete.push(sled_key);
+                let mut db_key = Vec::with_capacity(11 + k.as_ref().len());
+                db_key.extend_from_slice(b"kad_record:");
+                db_key.extend_from_slice(k.as_ref());
+                keys_to_delete.push(db_key);
                 self.inner.remove(&k);
             }
 
@@ -319,10 +319,10 @@ impl KineticRecordStore {
             );
             for key_bytes in hb_keys {
                 let k = kad::RecordKey::new(&key_bytes);
-                let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
-                sled_key.extend_from_slice(b"kad_record:");
-                sled_key.extend_from_slice(k.as_ref());
-                keys_to_delete.push(sled_key);
+                let mut db_key = Vec::with_capacity(11 + k.as_ref().len());
+                db_key.extend_from_slice(b"kad_record:");
+                db_key.extend_from_slice(k.as_ref());
+                keys_to_delete.push(db_key);
                 self.inner.remove(&k);
             }
         }
@@ -544,10 +544,10 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        let mut sled_key = Vec::with_capacity(11 + r.key.as_ref().len());
-        sled_key.extend_from_slice(b"kad_record:");
-        sled_key.extend_from_slice(r.key.as_ref());
-        let _ = self.storage.put(&sled_key, &r.value);
+        let mut db_key = Vec::with_capacity(11 + r.key.as_ref().len());
+        db_key.extend_from_slice(b"kad_record:");
+        db_key.extend_from_slice(r.key.as_ref());
+        let _ = self.storage.put(&db_key, &r.value);
         self.inner
             .put(r)
             .map_err(|_| KineticStoreError::InternalStoreError)
@@ -602,7 +602,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_store_rejects_garbage() {
         let dir = tempdir().unwrap();
-        let sled_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
 
@@ -610,7 +610,7 @@ mod tests {
             std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
-            sled_storage,
+            db_storage,
             0,
             NonZeroUsize::new(100).unwrap(),
             100,
@@ -628,7 +628,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_pruning_idle_names() {
         let dir = tempdir().unwrap();
-        let sled_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
@@ -636,7 +636,7 @@ mod tests {
 
         let mut store = KineticRecordStore::new(
             peer_id,
-            sled_storage.clone(),
+            db_storage.clone(),
             1000000, // Very high drand kyn
             NonZeroUsize::new(100).unwrap(),
             100,
@@ -681,7 +681,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_pruning_exempt_names() {
         let dir = tempdir().unwrap();
-        let sled_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
@@ -689,7 +689,7 @@ mod tests {
 
         let mut store = KineticRecordStore::new(
             peer_id,
-            sled_storage.clone(),
+            db_storage.clone(),
             1000000,
             NonZeroUsize::new(100).unwrap(),
             100,
@@ -738,7 +738,7 @@ mod tests {
 
         assert!(
             storage.get(&hb_key).unwrap().is_some(),
-            "Heartbeat should exist in Sled"
+            "Heartbeat should exist in storage"
         );
 
         let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
@@ -759,7 +759,7 @@ mod tests {
         );
         assert!(
             storage.get(&hb_key).unwrap().is_none(),
-            "Should be purged from Sled"
+            "Should be purged from storage"
         );
     }
 

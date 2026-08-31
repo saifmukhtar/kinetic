@@ -87,17 +87,17 @@ pub const KADEMLIA_PUBLICATION_INTERVAL_SECS: u64 = 3 * 3600;
 pub const KINETIC_GOVERNANCE_KEY_PURPOSE: &str =
     concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_GOV_KEY_v1_PQC");
 
-/// Prefix for storing registered `.kin` names in local Sled/DB storage.
+/// Prefix for storing registered `.kin` names in local Local DB storage.
 /// Namespaced as `<nsp>-<salt_prefix>` (e.g. `kin-83cf`) to prevent cross-fork
 /// data collisions while staying consistent with the data directory naming convention.
 pub const DB_PREFIX_OWNED_NAMES: &[u8] =
     concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_owned_names").as_bytes();
 
-/// Key prefix for storing VDF reveal proof payloads in local Sled/DB storage.
+/// Key prefix for storing VDF reveal proof payloads in local Local DB storage.
 pub const DB_PREFIX_REVEAL: &str =
     concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_reveal:");
 
-/// Key prefix for storing banned peer multiaddrs in local Sled/DB storage.
+/// Key prefix for storing banned peer multiaddrs in local Local DB storage.
 pub const DB_PREFIX_BANNED_PEER: &str =
     concat!(env!("KINETIC_NSP"), "-", env!("KINETIC_SALT_PREFIX"), "_banned_peer:");
 
