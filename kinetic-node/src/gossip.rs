@@ -70,7 +70,8 @@ pub fn handle_governance_gossip(
                 }
                 tokio::task::spawn_blocking(move || {
                     if let Err(e) = state_snapshot.save_to_disk(&gossip_gov_path) {
-                        tracing::error!("KIN-ACN-013: Failed to save modified governance state to disk: {}", e);
+                        let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                        tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
                     }
                 });
             }
@@ -78,7 +79,8 @@ pub fn handle_governance_gossip(
                 tracing::info!("Governance state updated via gossip. No immediate effect.");
                 tokio::task::spawn_blocking(move || {
                     if let Err(e) = state_snapshot.save_to_disk(&gossip_gov_path) {
-                        tracing::error!("KIN-ACN-013: Failed to save modified governance state to disk: {}", e);
+                        let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                        tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
                     }
                 });
             }

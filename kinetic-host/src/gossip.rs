@@ -68,8 +68,10 @@ pub async fn start_gossip_listener(
                     let path_clone = gov_state_path.clone();
                     tokio::task::spawn_blocking(move || {
                         if let Err(e) = cloned_state.save_to_disk(&path_clone) {
+                            let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                             tracing::error!(
-                                "KIN-ACN-013: Failed to save modified governance state to disk: {}",
+                                error_code = err.code(),
+                                "Failed to save modified governance state to disk: {}",
                                 e
                             );
                         }

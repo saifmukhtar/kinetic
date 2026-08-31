@@ -349,8 +349,10 @@ impl KineticConfig {
             Ok(config_str) => match toml::from_str(&config_str) {
                 Ok(config) => config,
                 Err(e) => {
+                    let err = crate::error::ConfigError::ParseFailed(e.to_string());
                     tracing::error!(
-                        "KIN-CFG-004: Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
+                        error_code = err.code(),
+                        "Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
                         e
                     );
                     std::process::exit(1);
@@ -365,8 +367,10 @@ impl KineticConfig {
                 }
                 if let Some(parent) = config_path.parent() {
                     if let Err(e) = fs::create_dir_all(parent) {
+                        let err = crate::error::ConfigError::DirectoryCreationFailed(e.to_string());
                         tracing::error!(
-                            "KIN-CFG-001: Failed to create config directory {:?}: {}. Refusing to start.",
+                            error_code = err.code(),
+                            "Failed to create config directory {:?}: {}. Refusing to start.",
                             parent,
                             e
                         );
@@ -376,7 +380,8 @@ impl KineticConfig {
                     let toml_str = match toml::to_string_pretty(&default_cfg) {
                         Ok(s) => s,
                         Err(e) => {
-                            tracing::error!("KIN-CFG-002: Failed to serialize default config: {}. Refusing to start.", e);
+                            let err = crate::error::ConfigError::SerializationFailed(e.to_string());
+                            tracing::error!(error_code = err.code(), "Failed to serialize default config: {}. Refusing to start.", e);
                             std::process::exit(1);
                         }
                     };
@@ -389,8 +394,10 @@ impl KineticConfig {
                         Ok(mut file) => {
                             use std::io::Write;
                             if let Err(e) = file.write_all(toml_str.as_bytes()) {
+                                let err = crate::error::ConfigError::WriteFailed(e.to_string());
                                 tracing::error!(
-                                    "KIN-CFG-003: Failed to write default config to {:?}: {}. Refusing to start.",
+                                    error_code = err.code(),
+                                    "Failed to write default config to {:?}: {}. Refusing to start.",
                                     config_path,
                                     e
                                 );
@@ -402,8 +409,10 @@ impl KineticConfig {
                             // We can safely proceed with the default config.
                         }
                         Err(e) => {
+                            let err = crate::error::ConfigError::WriteFailed(e.to_string());
                             tracing::error!(
-                                "KIN-CFG-003: Failed to create default config at {:?}: {}. Refusing to start.",
+                                error_code = err.code(),
+                                "Failed to create default config at {:?}: {}. Refusing to start.",
                                 config_path,
                                 e
                             );
@@ -414,8 +423,10 @@ impl KineticConfig {
                 default_cfg
             }
             Err(e) => {
+                let err = crate::error::ConfigError::ReadFailed(e.to_string());
                 tracing::error!(
-                    "KIN-CFG-005: Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
+                    error_code = err.code(),
+                    "Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
                     e
                 );
                 std::process::exit(1);
@@ -496,8 +507,10 @@ impl KineticConfig {
         tcp_ports.dedup();
 
         if tcp_ports.len() != tcp_len {
+            let err = crate::error::ConfigError::TcpPortCollision;
             tracing::error!(
-                "KIN-CFG-006: Configuration Error: TCP port collision detected in config.toml! Ensure all TCP ports (api, proxy, p2p, backend, pac) are strictly unique."
+                error_code = err.code(),
+                "{}", err
             );
             std::process::exit(1);
         }
@@ -514,8 +527,10 @@ impl KineticConfig {
         udp_ports.dedup();
 
         if udp_ports.len() != udp_len {
+            let err = crate::error::ConfigError::UdpPortCollision;
             tracing::error!(
-                "KIN-CFG-007: Configuration Error: UDP port collision detected in config.toml! Ensure all UDP ports (nrs, atlas, quic) are strictly unique."
+                error_code = err.code(),
+                "{}", err
             );
             std::process::exit(1);
         }

@@ -117,7 +117,8 @@ pub fn start_gossip_processor(
                                     }
                                 }
                                 if let Err(e) = state.save_to_disk(&gossip_gov_path) {
-                                    tracing::error!("KIN-ACN-013: Failed to save modified governance state to disk: {}", e);
+                                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
                                 }
                             }
                             Ok(None) => {
@@ -126,7 +127,8 @@ pub fn start_gossip_processor(
                                     "Governance state updated via gossip. No immediate effect."
                                 );
                                 if let Err(e) = state.save_to_disk(&gossip_gov_path) {
-                                    tracing::error!("KIN-ACN-013: Failed to save modified governance state to disk: {}", e);
+                                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
                                 }
                             }
                             Err(e) => {

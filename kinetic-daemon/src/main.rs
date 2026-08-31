@@ -126,7 +126,8 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
         kinetic_core::config::get_base_dir()
     };
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
-        tracing::error!("KIN-CFG-001: Failed to create config directory {:?}: {}", base_config_dir, e);
+        let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
+        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
         return Err(e.into());
     }
 
@@ -238,12 +239,16 @@ async fn run_daemon() -> Result<()> {
         || config.daemon.backend_port == config.daemon.nrs_port
         || config.daemon.backend_port == config.network.daemon_port
     {
+        let err = kinetic_core::error::ConfigError::BackendPortCollision;
         tracing::error!(
-            "KIN-CFG-008: FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
+            error_code = err.code(),
+            "FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
             config.daemon.backend_port
         );
+        let err2 = kinetic_core::error::ConfigError::BackendPortSsrfRisk;
         tracing::error!(
-            "KIN-CFG-009: This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml."
+            error_code = err2.code(),
+            "This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml."
         );
         std::process::exit(1);
     }
@@ -371,7 +376,8 @@ async fn run_daemon() -> Result<()> {
 
     let base_config_dir = kinetic_core::config::get_base_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
-        tracing::error!("KIN-CFG-001: Failed to create config directory {:?}: {}", base_config_dir, e);
+        let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
+        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
         return Err(e.into());
     }
 
@@ -443,15 +449,15 @@ async fn run_daemon() -> Result<()> {
                         break;
                     }
                 } else {
-                    tracing::warn!("KIN-ACN-015: Seed node provided invalid governance state bytes.");
+                    let err = kinetic_core::error::GovernanceError::InvalidSeedState;
+                    tracing::warn!(error_code = err.code(), "{}", err);
                 }
             }
         }
 
         if !success {
-            tracing::warn!(
-                "KIN-ACN-018: Failed to fetch governance state from any bootstrap node. Initializing a default genesis state."
-            );
+            let err = kinetic_core::error::GovernanceError::BootstrapFetchFailed;
+            tracing::warn!(error_code = err.code(), "{}", err);
         }
     }
 
@@ -521,7 +527,8 @@ async fn run_daemon() -> Result<()> {
 
     let base_config_dir = kinetic_core::config::get_base_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
-        tracing::error!("KIN-CFG-001: Failed to create config directory {:?}: {}", base_config_dir, e);
+        let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
+        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
         return Err(e.into());
     }
 

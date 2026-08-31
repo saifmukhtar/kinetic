@@ -596,7 +596,8 @@ pub async fn handle_publish_governance(
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");
                 if let Err(e) = gov.save_to_disk(&path) {
-                    tracing::error!("KIN-ACN-013: Failed to save modified governance state to disk: {}", e);
+                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
                 }
 
                 true
@@ -645,7 +646,8 @@ pub async fn handle_publish_governance(
             }))
         }
         Err(e) => {
-            tracing::error!("KIN-ACN-014: Failed to publish Governance Message to P2P network: {}", e);
+            let err = kinetic_core::error::GovernanceError::P2pPublishFailed;
+            tracing::error!(error_code = err.code(), "Failed to publish Governance Message to P2P network: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to broadcast: {}", e),

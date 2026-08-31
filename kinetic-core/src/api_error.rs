@@ -6,7 +6,7 @@
 
 use crate::error::{
     DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError, NrsError, P2pError,
-    PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
+    PublishError, RegistrationError, ResolutionError, StorageError, VdfError, ConfigError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -410,5 +410,25 @@ mod tests {
         // Test crypto consistency (Invalid Proof should be 422, not 400)
         let pub_err = PublishError::InvalidProof(crate::error::VdfRejectReason::MalformedProof);
         assert_eq!(ApiError::from(pub_err).status, 422);
+    }
+}
+
+impl From<ConfigError> for ApiError {
+    fn from(e: ConfigError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            ConfigError::InvalidApiUpdate(_) => (400, "Bad Request"),
+            _ => (500, "Internal Configuration Error"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.to_string(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
     }
 }
