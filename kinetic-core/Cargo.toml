@@ -14,55 +14,48 @@ categories = ["cryptography", "network-programming"]
 simulation = []
 
 [dependencies]
-kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
-thiserror.workspace = true
-anyhow.workspace = true
-sha2 = "0.11.0"
-
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-tracing.workspace = true
-toml = "1.1.2"
-getrandom = "0.2.14"
-bincode = "1.3.3"
-hex = "0.4.3"
-base64 = "0.22"
-
-futures-util = "0.3.32"
-lazy_static = "1.5.0"
-web-time = { version = "1.1.0", features = ["serde"] }
-
-libp2p-identity = { version = "0.2.14", features = ["peerid"] }
-bip39 = "2.2.2"
-pbkdf2 = "0.13.0"
-drand-verify = "0.6.2"
+# --- Workspace & Internal Crates ---
 kinetic-kid = { version = "0.2.0", path = "../kinetic-kid" }
 kinetic-primitives = { version = "0.2.0", path = "../kinetic-primitives" }
-bytes = "1.6.0"
-zeroize = { version = "1", features = ["zeroize_derive"] }
-rand_chacha = "0.10.0"
-rand_core = "0.10.1"
-
-aes-gcm = "0.10.3"
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
+kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
+
+# --- Workspace Inherited ---
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+# --- External Crates ---
 async-trait = "0.1"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-
-
-
-
+base64 = "0.22"
+bincode = "1.3.3"
+bytes = "1.6.0"
+drand-verify = "0.6.2"
+futures-util = "0.3.32"
+getrandom = "0.2.14"
+hex = "0.4.3"
+libp2p-identity = { version = "0.2.14", features = ["peerid"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+zeroize = { version = "1", features = ["zeroize_derive"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.14", features = ["js"] }
 getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 
-
 [dev-dependencies]
 criterion = "0.8.2"
+ed25519-dalek = { version = "2.2.0", features = ["serde"] }
 mockito = "1.7.2"
 proptest = "1.5.0"
-ed25519-dalek = { version = "2.2.0", features = ["serde"] }
+sha2 = "0.11.0"
+web-time = "1.1.0"
+
+[build-dependencies]
+hex = "0.4.3"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+sha2 = "0.11.0"
 
 [[bench]]
 name = "crypto_bench"
@@ -71,10 +64,3 @@ harness = false
 [[bench]]
 name = "names_bench"
 harness = false
-
-
-[build-dependencies]
-hex = "0.4.3"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-sha2 = "0.11.0"
