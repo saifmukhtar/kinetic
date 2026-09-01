@@ -62,12 +62,12 @@ pub async fn handle_generate_kid(
     };
 
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
-    use kinetic_core::types::clock::UTimeNetworkExt;
-    use kinetic_core::types::{Kyn, UTime};
+    use kinetic_core::types::clock::KynNetworkExt;
+    use kinetic_core::types::Kyn;
     
     let current_kyn = match drand_client.fetch_latest().await {
         Ok(kyn) => Kyn(kyn.kyn),
-        Err(_) => UTime::now().to_network_kyn(),
+        Err(_) => Kyn::now_local(),
     };
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
@@ -193,12 +193,12 @@ pub async fn handle_update_kid_manifest(
     }
 
     let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
-    use kinetic_core::types::clock::UTimeNetworkExt;
-    use kinetic_core::types::{Kyn, UTime};
+    use kinetic_core::types::clock::KynNetworkExt;
+    use kinetic_core::types::Kyn;
     
     let current_kyn = match drand_client.fetch_latest().await {
         Ok(kyn) => Kyn(kyn.kyn),
-        Err(_) => UTime::now().to_network_kyn(),
+        Err(_) => Kyn::now_local(),
     };
 
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");

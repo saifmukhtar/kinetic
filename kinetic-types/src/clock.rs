@@ -41,7 +41,7 @@ impl UTime {
     }
 
     /// Returns the current local system time in seconds.
-    pub fn now() -> Self {
+    pub fn now_local() -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()

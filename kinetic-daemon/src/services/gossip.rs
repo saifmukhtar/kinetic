@@ -35,10 +35,10 @@ pub fn start_gossip_processor(
                         kinetic_core::governance::SignedGovernanceMessage,
                     >(actual_payload)
                     {
-                        use kinetic_core::types::clock::UTimeNetworkExt;
+                        use kinetic_core::types::clock::KynNetworkExt;
                         let current_kyn = match drand_client_gossip.fetch_latest().await {
                             Ok(kyn) => kyn.kyn,
-                            Err(_) => kinetic_core::types::UTime::now().to_network_kyn().0,
+                            Err(_) => kinetic_core::types::Kyn::now_local().0,
                         };
                         let Ok(mut state) =
                             kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()

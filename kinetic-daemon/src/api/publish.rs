@@ -591,7 +591,7 @@ pub async fn handle_publish_governance(
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         use kinetic_core::types::clock::UTimeNetworkExt;
-        let current_kyn = kinetic_core::types::UTime::now().to_network_kyn().0;
+        let current_kyn = kinetic_core::types::UTime::now_local().to_network_kyn().0;
         match kinetic_core::governance::process_governance_message(&mut gov, &msg, current_kyn) {
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");

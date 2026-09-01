@@ -102,8 +102,8 @@ pub fn get_kids_dir() -> PathBuf {
 /// Derives the network time by mapping the estimated Drand kyn to exact Unix
 /// seconds aligned to 3-second network heartbeats using network constants.
 pub fn unix_time() -> kinetic_types::clock::UTime {
-    use crate::types::clock::{KynNetworkExt, UTimeNetworkExt};
-    kinetic_types::clock::UTime::now().to_network_kyn().to_network_utime()
+    use crate::types::clock::KynNetworkExt;
+    kinetic_types::clock::Kyn::now_local().to_network_utime()
 }
 
 /// Resolves the filesystem paths for a name's KID document and private key.

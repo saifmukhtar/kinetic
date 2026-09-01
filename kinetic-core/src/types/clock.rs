@@ -11,12 +11,20 @@ use crate::constants::{DRAND_GENESIS_TIME, DRAND_PERIOD};
 pub trait KynNetworkExt {
     /// Converts a Drand kyn into deterministic Unix epoch seconds using local network constants.
     fn to_network_utime(&self) -> UTime;
+    
+    /// Returns the estimated current network Kyn based on the local OS clock.
+    fn now_local() -> Kyn;
 }
 
 impl KynNetworkExt for Kyn {
     #[inline]
     fn to_network_utime(&self) -> UTime {
         self.to_utime(DRAND_GENESIS_TIME, DRAND_PERIOD)
+    }
+
+    #[inline]
+    fn now_local() -> Kyn {
+        UTime::now_local().to_kyn(DRAND_GENESIS_TIME, DRAND_PERIOD)
     }
 }
 
