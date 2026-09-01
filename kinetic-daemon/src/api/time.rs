@@ -8,12 +8,12 @@ use kinetic_core::types::clock::KineticTime;
 pub async fn handle_get_time(
     State(state): State<ApiState>,
 ) -> Result<Json<KineticTime>, crate::api::error::AppError> {
-    let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
+    let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
 
-    // Read the latest verified Drand kyn directly from the local database cache.
-    // We do NOT call `fetch_latest()` here to prevent spamming the external Drand network
-    // on every UI tick. The background gossip/heartbeat services keep this cache fresh.
-    match drand_client.load_cached_kyn() {
+    // Always prefer the cache for instantaneous responses,
+    // the Heartbeat loop ensures this cache is populated.
+    // If the cache somehow fails, fallback to local clock estimation.
+    match kyn_provider.load_cached_kyn() {
         Ok(drand_data) => {
             let time = KineticTime::from_kyn(
                 kinetic_core::types::Kyn(drand_data.kyn),

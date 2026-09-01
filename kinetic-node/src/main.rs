@@ -180,9 +180,9 @@ async fn run_node() -> Result<()> {
     info!("Storage engine initialized at {}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
-    let drand_client = Arc::new(DrandProvider::new(Some(storage.clone())));
-
-    let initial_kyn = match drand_client.fetch_latest().await {
+    let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
+    
+    let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
             info!("Drand beacon connected — kyn #{}", kyn.kyn);
             kyn
@@ -298,13 +298,13 @@ async fn run_node() -> Result<()> {
     info!("P2P Network architecture wired");
 
     let gossip_gov_path = gov_state_path.clone();
-    let drand_client_gossip = drand_client.clone();
+    let kyn_provider_gossip = kyn_provider.clone();
     let kyn_tx_gossip = kyn_tx.clone();
     let gossip_storage = storage.clone();
 
     kinetic_network::client::telemetry::start_telemetry_service(
         network_client.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         config.clone(),
         kinetic_types::network::NodeType::Node,
     );
@@ -325,7 +325,7 @@ async fn run_node() -> Result<()> {
 
                 if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
                     use kinetic_core::types::clock::KynNetworkExt;
-                    let current_kyn = match drand_client_gossip.fetch_latest().await {
+                    let current_kyn = match kyn_provider_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
                         Err(_) => kinetic_core::types::Kyn::now_local().0,
                     };
@@ -338,7 +338,7 @@ async fn run_node() -> Result<()> {
                 } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
                     if let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload) {
                         if kyn.verify() {
-                            let latest_kyn = match drand_client_gossip.load_cached_kyn() {
+                            let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
                                 Ok(latest) => {
                                     if latest.is_unavailable { 0 } else { latest.kyn }
                                 },
@@ -351,7 +351,7 @@ async fn run_node() -> Result<()> {
                             };
 
                             if kyn.kyn > latest_kyn {
-                                if let Err(e) = drand_client_gossip.cache_kyn(&kyn) {
+                                if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
                                     tracing::error!(error_code = e.code(), "Failed to cache drand kyn in node gossip handler: {}", e);
                                 }
                                 let _ = kyn_tx_gossip.send(kyn.kyn);
@@ -364,7 +364,7 @@ async fn run_node() -> Result<()> {
     });
 
     // 6. Start Drand Heartbeat
-    let hb_drand = drand_client.clone();
+    let hb_kyn_provider = kyn_provider.clone();
     let hb_network = network_client.clone();
     let p2p_only = config.drand.p2p_only;
     tokio::spawn(async move {
@@ -376,7 +376,7 @@ async fn run_node() -> Result<()> {
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_drand.load_cached_kyn() {
+                if let Ok(latest) = hb_kyn_provider.load_cached_kyn() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
@@ -396,7 +396,7 @@ async fn run_node() -> Result<()> {
             }
 
             if should_fetch_http
-                && let Ok(kyn) = hb_drand.fetch_latest().await
+                && let Ok(kyn) = hb_kyn_provider.fetch_latest().await
                 && !kyn.is_unavailable
                 && !kyn.is_from_cache
             {

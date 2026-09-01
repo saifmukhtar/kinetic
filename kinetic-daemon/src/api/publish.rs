@@ -62,8 +62,8 @@ pub async fn handle_publish_record(
     // than RESQUARING_EPOCH_KYNS. Fetch the current beacon kyn, falling back to the
     // storage-cached value so offline-first nodes aren’t broken.
     let current_kyn: u64 = {
-        let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
-        match drand_client.fetch_latest().await {
+        let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
+        match kyn_provider.fetch_latest().await {
             Ok(kyn) => kyn.kyn,
             Err(_) => {
                 // Graceful fallback: read the last known kyn from storage.
@@ -74,7 +74,7 @@ pub async fn handle_publish_record(
                     error_code = err.code(),
                     "{}", err
                 );
-                match drand_client.load_cached_kyn() {
+                match kyn_provider.load_cached_kyn() {
                     Ok(kyn) => kyn.kyn,
                     Err(_) => 0,
                 }
@@ -586,11 +586,11 @@ pub async fn handle_publish_governance(
     tracing::info!("Received API publish request for Governance action");
 
     let current_kyn = {
-        let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
+        let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
         use kinetic_core::types::clock::KynNetworkExt;
-        match drand_client.load_cached_kyn() {
+        match kyn_provider.load_cached_kyn() {
             Ok(kyn) => kyn.kyn,
-            Err(_) => match drand_client.fetch_latest().await {
+            Err(_) => match kyn_provider.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,
                 Err(_) => kinetic_core::types::Kyn::now_local().0,
             }

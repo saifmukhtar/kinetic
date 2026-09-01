@@ -77,11 +77,11 @@ pub async fn handle_identity_command(
 
             let kid_did = kinetic_kid::did::Did::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
-            let drand_client = kinetic_core::drand::DrandProvider::new(None);
+            let kyn_provider = kinetic_core::drand::DrandProvider::new(None);
             use kinetic_core::types::clock::KynNetworkExt;
             use kinetic_core::types::Kyn;
             
-            let current_kyn = match drand_client.fetch_latest().await {
+            let current_kyn = match kyn_provider.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,
                 Err(_) => Kyn::now_local().0,
             };

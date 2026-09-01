@@ -11,7 +11,7 @@ pub fn start_gossip_processor(
         libp2p::PeerId,
     )>,
     gossip_gov_path: std::sync::Arc<std::path::PathBuf>,
-    drand_client_gossip: std::sync::Arc<kinetic_core::drand::DrandProvider>,
+    kyn_provider_gossip: std::sync::Arc<dyn KynProvider>,
     kyn_tx_gossip: tokio::sync::watch::Sender<u64>,
     storage: Option<std::sync::Arc<dyn kinetic_core::traits::StorageEngine>>,
 ) -> tokio::task::JoinHandle<()> {
@@ -37,7 +37,7 @@ pub fn start_gossip_processor(
                     >(actual_payload)
                     {
                         use kinetic_core::types::clock::KynNetworkExt;
-                        let current_kyn = match drand_client_gossip.fetch_latest().await {
+                        let current_kyn = match kyn_provider_gossip.fetch_latest().await {
                             Ok(kyn) => kyn.kyn,
                             Err(_) => kinetic_core::types::Kyn::now_local().0,
                         };
@@ -151,7 +151,7 @@ pub fn start_gossip_processor(
                             .await
                             .unwrap_or(false);
                         if is_valid {
-                            let latest_kyn = match drand_client_gossip.load_cached_kyn() {
+                            let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
                                 Ok(latest) => {
                                     if latest.is_unavailable { 0 } else { latest.kyn }
                                 },
@@ -164,7 +164,7 @@ pub fn start_gossip_processor(
                             };
 
                             if kyn.kyn > latest_kyn {
-                                if let Err(e) = drand_client_gossip.cache_kyn(&kyn) {
+                                if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
                                     tracing::error!(error_code = e.code(), "Failed to cache drand kyn in gossip handler: {}", e);
                                 }
                                 let _ = kyn_tx_gossip.send(kyn.kyn);

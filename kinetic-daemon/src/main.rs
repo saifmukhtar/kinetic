@@ -286,8 +286,8 @@ async fn run_daemon() -> Result<()> {
         hex::encode(daemon_keypair.pubkey_bytes())
     );
 
-    let drand_client = Arc::new(kinetic_core::drand::DrandProvider::new(Some(storage.clone())));
-    let initial_kyn = match drand_client.fetch_latest().await {
+    let kyn_provider: Arc<dyn KynProvider> = Arc::new(kinetic_core::drand::DrandProvider::new(Some(storage.clone())));
+    let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
             info!("Drand beacon connected — kyn #{}", kyn.kyn);
             kyn
@@ -514,14 +514,14 @@ async fn run_daemon() -> Result<()> {
         network_client.clone(),
         gossip_rx,
         gov_state_path.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         kyn_tx.clone(),
         Some(storage.clone()),
     );
 
     kinetic_network::client::telemetry::start_telemetry_service(
         network_client.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         config.clone(),
         kinetic_types::network::NodeType::Daemon,
     );
@@ -598,7 +598,7 @@ async fn run_daemon() -> Result<()> {
     kinetic_daemon::services::heartbeat::start_heartbeat_loop(
         storage.clone(),
         network_client.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         config.drand.p2p_only,
         initial_kyn,
         daemon_keypair.clone(),

@@ -137,9 +137,10 @@ async fn run_host() -> Result<()> {
     info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
-    let drand_client = Arc::new(DrandProvider::new(Some(storage.clone())));
-
-    let initial_kyn = match drand_client.fetch_latest().await {
+    let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
+    
+    // 6. Enforce Drand beacon availability on boot (unless in dev mode, which loads a mock cache)
+    let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
             info!("Drand beacon connected — kyn #{}", kyn.kyn);
             kyn
@@ -257,13 +258,13 @@ async fn run_host() -> Result<()> {
 
     kinetic_network::client::telemetry::start_telemetry_service(
         network_client.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         config.clone(),
         kinetic_types::network::NodeType::Host,
     );
 
     tokio::spawn(gossip::start_gossip_listener(
-        drand_client.clone(),
+        kyn_provider.clone(),
         gossip_rx,
         gov_state_path.clone(),
     ));
@@ -293,7 +294,7 @@ async fn run_host() -> Result<()> {
     ));
 
     tokio::spawn(epoch::start_drand_heartbeat(
-        drand_client.clone(),
+        kyn_provider.clone(),
         kyn_tx,
         local_peer_id,
         local_peer_id_str.clone(),

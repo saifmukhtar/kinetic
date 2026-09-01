@@ -36,8 +36,8 @@ pub async fn handle_name_register(
 
     // 1. Fetch latest Drand beacon
     info!("Fetching latest Drand entropy beacon...");
-    let drand_client = kinetic_core::drand::DrandProvider::new(None);
-    let drand_data = drand_client.fetch_latest().await?;
+    let kyn_provider = kinetic_core::drand::DrandProvider::new(None);
+    let drand_data = kyn_provider.fetch_latest().await?;
     info!(
         "Successfully fetched Drand kyn {}. Randomness: {}",
         drand_data.kyn, drand_data.randomness
@@ -176,11 +176,11 @@ pub async fn handle_name_register(
     // 3. Construct the NrsZone and auto-generate/inherit KID
     let mut records = std::collections::HashMap::new();
 
-    let drand_client = kinetic_core::drand::DrandProvider::new(None);
+    let kyn_provider = kinetic_core::drand::DrandProvider::new(None);
     use kinetic_core::types::clock::KynNetworkExt;
     use kinetic_core::types::Kyn;
     
-    let current_kyn = match drand_client.fetch_latest().await {
+    let current_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => Kyn(kyn.kyn),
         Err(_) => Kyn::now_local(),
     };

@@ -100,8 +100,8 @@ pub async fn handle_vdf_register(
     tokio::spawn(async move {
         // Step 1: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let drand_client = kinetic_core::drand::DrandProvider::new(Some(storage_clone.clone()));
-        let drand_data = match drand_client.fetch_latest().await {
+        let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(storage_clone.clone()));
+        let drand_data = match kyn_provider.fetch_latest().await {
             Ok(d) => d,
             Err(e) => {
                 update_task_error(&tasks_clone, &task_id_clone, format!("Drand error: {}", e));
@@ -455,8 +455,8 @@ pub async fn handle_vdf_renew(
 
         // Step 2: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let drand_client = kinetic_core::drand::DrandProvider::new(Some(storage_clone.clone()));
-        let drand_data = match drand_client.fetch_latest().await {
+        let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(storage_clone.clone()));
+        let drand_data = match kyn_provider.fetch_latest().await {
             Ok(d) => d,
             Err(e) => {
                 update_task_error(&tasks_clone, &task_id_clone, format!("Drand error: {}", e));

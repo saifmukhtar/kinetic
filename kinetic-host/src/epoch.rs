@@ -1,7 +1,6 @@
 //! Dynamic DHT routing record publisher and Drand epoch PoW hot-swapping heartbeat.
 
 use kinetic_core::traits::KynProvider;
-use kinetic_core::drand::DrandProvider;
 use kinetic_network::{NetworkClient, NetworkConfig, NetworkEventLoop};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
@@ -68,7 +67,7 @@ pub async fn start_routing_publisher(
 /// network loop, mines a new identity, and restarts the P2P swarm asynchronously to ensure seamless connectivity.
 #[allow(clippy::too_many_arguments)]
 pub async fn start_drand_heartbeat(
-    hb_drand: Arc<DrandProvider>,
+    hb_kyn_provider: Arc<dyn KynProvider>,
     kyn_tx: watch::Sender<u64>,
     mut hb_local_peer_id: libp2p::PeerId,
     shared_peer_id: Arc<RwLock<String>>,
@@ -93,7 +92,7 @@ pub async fn start_drand_heartbeat(
     let mut last_verified_epoch: Option<u64> = None;
     loop {
         interval.tick().await;
-        if let Ok(kyn) = hb_drand.fetch_latest().await
+        if let Ok(kyn) = hb_kyn_provider.fetch_latest().await
             && !kyn.is_unavailable
             && !kyn.is_from_cache
         {

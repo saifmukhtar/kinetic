@@ -12,7 +12,7 @@ use std::time::Duration;
 pub fn start_heartbeat_loop(
     hb_storage: Arc<dyn StorageEngine>,
     hb_network: kinetic_network::NetworkClient,
-    hb_drand: Arc<kinetic_core::drand::DrandProvider>,
+    hb_kyn_provider: Arc<dyn KynProvider>,
     p2p_only: bool,
     initial_kyn: u64,
     daemon_keypair_hb: kinetic_primitives::keys::KineticKeypair,
@@ -29,7 +29,7 @@ pub fn start_heartbeat_loop(
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_drand.load_cached_kyn() {
+                if let Ok(latest) = hb_kyn_provider.load_cached_kyn() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
@@ -48,7 +48,7 @@ pub fn start_heartbeat_loop(
             }
 
             let kyn = if should_fetch_http {
-                match hb_drand.fetch_latest().await {
+                match hb_kyn_provider.fetch_latest().await {
                     Ok(p) => {
                         if !p.is_unavailable && !p.is_from_cache {
                             let _ = kyn_tx_hb.send(p.kyn);
@@ -66,12 +66,12 @@ pub fn start_heartbeat_loop(
                         }
                         p
                     }
-                    Err(_) => hb_drand
+                    Err(_) => hb_kyn_provider
                         .load_cached_kyn()
                         .unwrap_or(kinetic_core::drand::RawKyn::unavailable()),
                 }
             } else {
-                hb_drand
+                hb_kyn_provider
                     .load_cached_kyn()
                     .unwrap_or(kinetic_core::drand::RawKyn::unavailable())
             };

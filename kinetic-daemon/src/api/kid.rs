@@ -62,11 +62,11 @@ pub async fn handle_generate_kid(
         base_fqdn
     };
 
-    let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
+    let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
     use kinetic_core::types::clock::KynNetworkExt;
     use kinetic_core::types::Kyn;
     
-    let current_kyn = match drand_client.fetch_latest().await {
+    let current_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => Kyn(kyn.kyn),
         Err(_) => Kyn::now_local(),
     };
@@ -193,11 +193,11 @@ pub async fn handle_update_kid_manifest(
         ));
     }
 
-    let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
+    let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
     use kinetic_core::types::clock::KynNetworkExt;
     use kinetic_core::types::Kyn;
     
-    let current_kyn = match drand_client.fetch_latest().await {
+    let current_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => Kyn(kyn.kyn),
         Err(_) => Kyn::now_local(),
     };
