@@ -723,7 +723,7 @@ async fn run_daemon() -> Result<()> {
                 "API Server exited unexpectedly"
             );
         },
-        _ = kinetic_core::shutdown::shutdown_signal() => {
+        _ = kinetic_local::shutdown::shutdown_signal() => {
             info!("Shutdown signal received. Commencing graceful shutdown...");
         }
     }

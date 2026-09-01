@@ -476,7 +476,7 @@ async fn run_node() -> Result<()> {
     );
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app)
-        .with_graceful_shutdown(kinetic_core::shutdown::shutdown_signal())
+        .with_graceful_shutdown(kinetic_local::shutdown::shutdown_signal())
         .await?;
 
     Ok(())

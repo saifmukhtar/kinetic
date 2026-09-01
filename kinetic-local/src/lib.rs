@@ -6,3 +6,4 @@ pub mod identity;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod kid_manager;
 pub mod secure_fs;
+pub mod shutdown;

@@ -54,7 +54,7 @@ pub async fn start_health_api(
                 bind_ip, api_port
             );
             axum::serve(listener, app)
-                .with_graceful_shutdown(kinetic_core::shutdown::shutdown_signal())
+                .with_graceful_shutdown(kinetic_local::shutdown::shutdown_signal())
                 .await
                 .map_err(|e| {
                     anyhow::Error::from(kinetic_core::error::SystemError::ServerCrashed(
@@ -70,7 +70,7 @@ pub async fn start_health_api(
                 instance_name
             );
             // Block forever until shutdown signal so the main daemon loop stays alive
-            kinetic_core::shutdown::shutdown_signal().await;
+            kinetic_local::shutdown::shutdown_signal().await;
         }
     }
 

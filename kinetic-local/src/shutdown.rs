@@ -12,9 +12,9 @@ pub async fn shutdown_signal() {
             Ok(_) => {}
             Err(e) => {
                 tracing::warn!(
-                    error = ?crate::error::system::SystemError::SigIntBindingFailed(e.to_string()),
+                    error = ?kinetic_core::error::system::SystemError::SigIntBindingFailed(e.to_string()),
                     "{}",
-                    crate::error::system::SystemError::SigIntBindingFailed(e.to_string()).user_message()
+                    kinetic_core::error::system::SystemError::SigIntBindingFailed(e.to_string()).user_message()
                 );
                 std::future::pending::<()>().await;
             }
@@ -29,9 +29,9 @@ pub async fn shutdown_signal() {
             }
             Err(e) => {
                 tracing::warn!(
-                    error = ?crate::error::system::SystemError::SigTermBindingFailed(e.to_string()),
+                    error = ?kinetic_core::error::system::SystemError::SigTermBindingFailed(e.to_string()),
                     "{}",
-                    crate::error::system::SystemError::SigTermBindingFailed(e.to_string()).user_message()
+                    kinetic_core::error::system::SystemError::SigTermBindingFailed(e.to_string()).user_message()
                 );
                 std::future::pending::<()>().await;
             }

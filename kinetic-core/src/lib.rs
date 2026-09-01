@@ -47,7 +47,6 @@ pub mod net;
 pub mod request_id;
 
 /// Cross-platform graceful shutdown signal listener.
-pub mod shutdown;
 /// Core trait definitions: [`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine).
 pub mod traits;
 /// Shared wire-format types for P2P messages, DNS zones, and name records.
