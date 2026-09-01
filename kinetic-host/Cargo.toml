@@ -33,6 +33,7 @@ clap = { version = "4.6.1", features = ["derive"] }
 service-manager = "0.11.0"
 futures-util = "0.3"
 percent-encoding = "2.3.1"
+kinetic-rpc = { version = "0.2.0", path = "../kinetic-rpc" }
 
 [dev-dependencies]
 proptest = "1.11.0"

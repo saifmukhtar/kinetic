@@ -209,7 +209,7 @@ pub async fn handle_publish_record(
         Err(e) => {
             let err = kinetic_core::error::PublishError::ZonePublishFailed(e.to_string());
             tracing::error!(error_code = err.code(), "{}", err);
-            let api_err = kinetic_core::ApiError::from(e);
+            let api_err = kinetic_rpc::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
                 Json(serde_json::to_value(api_err).unwrap_or_default()),
@@ -322,7 +322,7 @@ pub async fn handle_publish_commit(
         Err(e) => {
             let err = kinetic_core::error::PublishError::CommitmentPublishFailed(e.to_string());
             tracing::error!(error_code = err.code(), "{}", err);
-            let api_err = kinetic_core::ApiError::from(e);
+            let api_err = kinetic_rpc::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
                 Json(serde_json::to_value(api_err).unwrap_or_default()),
@@ -426,7 +426,7 @@ pub async fn handle_publish_kid(
         Err(e) => {
             let err = kinetic_core::error::PublishError::KidPublishFailed(e.to_string());
             error!(error_code = err.code(), "{}", err);
-            let api_err = kinetic_core::ApiError::from(e);
+            let api_err = kinetic_rpc::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
                 Json(serde_json::to_value(api_err).unwrap_or_default()),
@@ -584,7 +584,7 @@ pub async fn handle_publish_manifest(
         Err(e) => {
             let err = kinetic_core::error::PublishError::ManifestPublishFailed(e.to_string());
             error!(error_code = err.code(), "{}", err);
-            let api_err = kinetic_core::ApiError::from(e);
+            let api_err = kinetic_rpc::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
                 Json(serde_json::to_value(api_err).unwrap_or_default()),

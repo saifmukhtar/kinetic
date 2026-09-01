@@ -1,0 +1,13 @@
+[package]
+name = "kinetic-rpc"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
+kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
+tokio = { workspace = true, features = ["rt", "macros"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing.workspace = true
+

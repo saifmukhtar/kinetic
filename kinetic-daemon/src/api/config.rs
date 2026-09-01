@@ -98,12 +98,12 @@ pub async fn handle_set_config(
             }
             Err(e) => {
                 let err = kinetic_core::error::ConfigError::InvalidApiUpdate(format!("Invalid config payload format: {}", e));
-                Err(crate::api::error::AppError(kinetic_core::ApiError::from(err)))
+                Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(err)))
             }
         }
     } else {
         let err = kinetic_core::error::ConfigError::InvalidApiUpdate("Missing 'config' object in payload.".to_string());
-        Err(crate::api::error::AppError(kinetic_core::ApiError::from(err)))
+        Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(err)))
     }
 }
 
@@ -141,12 +141,12 @@ pub async fn handle_get_peer_id(
             if let Some(peer_id) = status.get("peer_id").and_then(|p| p.as_str()) {
                 Ok(peer_id.to_string())
             } else {
-                Err(crate::api::error::AppError(kinetic_core::ApiError::from(
+                Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
                     kinetic_core::error::ResolutionError::Offline,
                 )))
             }
         }
-        Err(_) => Err(crate::api::error::AppError(kinetic_core::ApiError::from(
+        Err(_) => Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
             kinetic_core::error::ResolutionError::Internal {
                 message: "Network channel closed".to_string(),
                 source: None,

@@ -15,7 +15,7 @@ pub fn parse_and_format_api_error(
     status: reqwest::StatusCode,
     body: &str,
 ) -> String {
-    if let Ok(api_err) = serde_json::from_str::<kinetic_core::ApiError>(body) {
+    if let Ok(api_err) = serde_json::from_str::<kinetic_rpc::ApiError>(body) {
         format!("[{}] {}: {}", api_err.code, context, api_err.detail)
     } else {
         format!("{}: HTTP {} - {}", context, status, body)

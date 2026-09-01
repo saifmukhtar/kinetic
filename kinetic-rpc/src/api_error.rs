@@ -1,10 +1,10 @@
 //! RFC 7807 Problem Details HTTP API error serialization boundary.
 //!
 //! `ApiError` is the single unified error payload that crosses HTTP network boundaries.
-//! All domain-specific error enums in [`crate::error`] implement `From<T> for ApiError`,
+//! All domain-specific error enums in [`kinetic_core::error`] implement `From<T> for ApiError`,
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
-use crate::error::{
+use kinetic_core::error::{
     ConfigError, GovernanceError, IdentityError, KynProviderError, NamesError, NetworkClientError,
     NrsError, P2pError, PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
     vdf::RevealValidationError,
@@ -406,7 +406,7 @@ impl From<NamesError> for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::{IdentityError, KynProviderError, PublishError, ResolutionError};
+    use kinetic_core::error::{IdentityError, KynProviderError, PublishError, ResolutionError};
 
     #[test]
     fn test_status_code_mappings() {
@@ -426,7 +426,7 @@ mod tests {
         assert_eq!(ApiError::from(id_err).status, 422);
 
         // Test crypto consistency (Invalid Proof should be 422, not 400)
-        let pub_err = PublishError::InvalidProof(crate::error::VdfRejectReason::MalformedProof);
+        let pub_err = PublishError::InvalidProof(kinetic_core::error::VdfRejectReason::MalformedProof);
         assert_eq!(ApiError::from(pub_err).status, 422);
     }
 }
@@ -457,6 +457,29 @@ impl From<RevealValidationError> for ApiError {
             error_type: e.error_type_uri(),
             title: "Invalid Reveal".to_string(),
             status: 400,
+            detail: e.to_string(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<kinetic_core::error::RestApiError> for ApiError {
+    fn from(e: kinetic_core::error::RestApiError) -> Self {
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: match e {
+                kinetic_core::error::RestApiError::InvalidToken => "Unauthorized".to_string(),
+                kinetic_core::error::RestApiError::InsufficientPrivileges => "Forbidden".to_string(),
+                kinetic_core::error::RestApiError::NotFound => "Not Found".to_string(),
+                kinetic_core::error::RestApiError::BadRequest(_) => "Bad Request".to_string(),
+                kinetic_core::error::RestApiError::SseStreamLagged => "SSE Lagged".to_string(),
+                kinetic_core::error::RestApiError::ResponseTooLarge => "Payload Too Large".to_string(),
+            },
+            status: e.status(),
             detail: e.to_string(),
             instance: None,
             code: e.code().to_string(),

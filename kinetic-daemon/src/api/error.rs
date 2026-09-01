@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use kinetic_core::ApiError;
+use kinetic_rpc::ApiError;
 
 /// A web-layer wrapper around the core `ApiError`.
 /// This implements the "Newtype" pattern, allowing us to define how

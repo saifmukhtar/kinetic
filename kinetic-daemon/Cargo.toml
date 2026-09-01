@@ -73,6 +73,7 @@ hickory-resolver = "0.24.4"
 keyring = "3.6.2"
 base64 = "0.23.1"
 percent-encoding = "2.3.2"
+kinetic-rpc = { version = "0.2.0", path = "../kinetic-rpc" }
 
 [dev-dependencies]
 http = "1.4.2"

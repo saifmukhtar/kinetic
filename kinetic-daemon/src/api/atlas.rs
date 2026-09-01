@@ -51,7 +51,7 @@ pub async fn handle_atlas_sync(
         Err(_) => {
             let sys_err = kinetic_core::error::SystemError::MutexPoisoned("atlas_nsps".into());
             tracing::error!(error = ?sys_err, "Failed to acquire write lock on atlas_nsps");
-            Err(crate::api::error::AppError(kinetic_core::ApiError {
+            Err(crate::api::error::AppError(kinetic_rpc::ApiError {
                 error_type: format!(
                     "{}/errors/{}",
                     kinetic_core::constants::DOCS_URL,

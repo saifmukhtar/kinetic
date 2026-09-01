@@ -94,7 +94,7 @@ pub async fn handle_post_zone(
     };
     if let Err(e) = std::fs::write(&path, content) {
         let sys_err = kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string());
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+        return Err(crate::api::error::AppError(kinetic_rpc::ApiError {
             error_type: format!(
                 "{}/errors/{}",
                 kinetic_core::constants::DOCS_URL,
@@ -157,7 +157,7 @@ pub async fn handle_publish_zone(
     let reveal_bytes = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(b)) => b,
         _ => {
-            return Err(crate::api::error::AppError(kinetic_core::ApiError::from(
+            return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
                 kinetic_core::error::RegistrationError::NotRegisteredLocal {
                     name: fqdn.to_string(),
                 },
@@ -308,7 +308,7 @@ pub async fn handle_post_local_zone(
 
     if let Err(e) = std::fs::write(&path, content) {
         let sys_err = kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string());
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+        return Err(crate::api::error::AppError(kinetic_rpc::ApiError {
             error_type: format!(
                 "{}/errors/{}",
                 kinetic_core::constants::DOCS_URL,
@@ -363,7 +363,7 @@ pub async fn handle_delete_local_zone(
             "File delete failed: {}",
             e
         ));
-        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+        return Err(crate::api::error::AppError(kinetic_rpc::ApiError {
             error_type: format!(
                 "{}/errors/{}",
                 kinetic_core::constants::DOCS_URL,

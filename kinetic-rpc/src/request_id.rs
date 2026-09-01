@@ -16,7 +16,7 @@ pub fn current() -> std::sync::Arc<String> {
     CURRENT_REQUEST_ID
         .try_with(|id| id.clone())
         .unwrap_or_else(|_| {
-            let err = crate::error::telemetry::TelemetryError::MissingCorrelationId;
+            let err = kinetic_core::error::telemetry::TelemetryError::MissingCorrelationId;
             tracing::warn!(
                 error = ?err,
                 code = err.code(),
