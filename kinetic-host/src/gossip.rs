@@ -47,7 +47,7 @@ pub async fn start_gossip_listener(
                     match kinetic_core::governance::process_governance_message(
                         &mut state,
                         &signed_msg,
-                        current_kyn,
+                        kinetic_types::clock::Kyn(current_kyn),
                     ) {
                         Ok(Some(effect)) => {
                             tracing::info!(

@@ -215,7 +215,7 @@ pub(crate) fn compute_required_iterations(
 
         let paused_kyns =
             if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                state.paused_kyns_since(prev.kyn)
+                state.paused_kyns_since(kinetic_core::types::Kyn(prev.kyn))
             } else {
                 0
             };

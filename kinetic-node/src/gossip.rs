@@ -21,7 +21,7 @@ pub fn handle_governance_gossip(
             let mut state = GLOBAL_GOVERNANCE_STATE
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let result = process_governance_message(&mut state, &signed_msg, current_kyn);
+            let result = process_governance_message(&mut state, &signed_msg, kinetic_types::clock::Kyn(current_kyn));
             (state.clone(), result)
         };
 

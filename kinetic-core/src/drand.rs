@@ -69,14 +69,14 @@ impl RawKyn {
     ///
     /// Accepts cached kyns if their kyn age relative to `current_live_kyn` does not
     /// exceed `MAX_STALE_ROUNDS_FOR_HEARTBEAT` (200 kyns / 10 minutes).
-    pub fn can_heartbeat(&self, current_live_kyn: u64) -> bool {
+    pub fn can_heartbeat(&self, current_live_kyn: kinetic_types::clock::Kyn) -> bool {
         if self.is_unavailable {
             return false;
         }
         if !self.is_from_cache {
             return true;
         }
-        let staleness = current_live_kyn.saturating_sub(self.kyn);
+        let staleness = current_live_kyn.0.saturating_sub(self.kyn);
         staleness <= MAX_STALE_ROUNDS_FOR_HEARTBEAT
     }
 
@@ -462,26 +462,26 @@ mod tests {
             is_from_cache: false,
             is_unavailable: false,
         };
-        assert!(kyn.can_heartbeat(1000));
-        assert!(kyn.can_heartbeat(5000)); // live kyns don't check staleness locally here
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(1000)));
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(5000))); // live kyns don't check staleness locally here
 
         // A cached kyn checks staleness against the provided current_live_kyn
         kyn.is_from_cache = true;
 
         // Exact same kyn (0 staleness)
-        assert!(kyn.can_heartbeat(1000));
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(1000)));
 
         // Max allowed staleness (200 rounds)
-        assert!(kyn.can_heartbeat(1200));
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(1200)));
 
         // Exceeds max staleness (201 rounds)
-        assert!(!kyn.can_heartbeat(1201));
+        assert!(!kyn.can_heartbeat(kinetic_types::clock::Kyn(1201)));
 
         // Edge case: current_live_kyn is somehow behind the cached kyn
-        assert!(kyn.can_heartbeat(999));
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(999)));
 
         // An unavailable sentinel is never usable
         let sentinel = RawKyn::unavailable();
-        assert!(!sentinel.can_heartbeat(1000));
+        assert!(!sentinel.can_heartbeat(kinetic_types::clock::Kyn(1000)));
     }
 }

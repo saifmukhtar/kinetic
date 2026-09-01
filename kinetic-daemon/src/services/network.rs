@@ -36,7 +36,7 @@ pub fn start_pow_miner_loop(
                 continue;
             }
             let peer_id = libp2p::PeerId::from_public_key(&current_local_key.public());
-            let current_epoch = kinetic_network::pow::get_staggered_epoch(&peer_id.to_bytes(), kyn);
+            let current_epoch = kinetic_network::pow::get_staggered_epoch(&peer_id.to_bytes(), kinetic_types::clock::Kyn(kyn));
 
             let needs_validation = match last_verified_epoch {
                 Some(epoch) => epoch != current_epoch,
@@ -48,7 +48,7 @@ pub fn start_pow_miner_loop(
                 let pow_valid = tokio::task::spawn_blocking(move || {
                     kinetic_network::pow::is_valid_sybil_pow(
                         &peer_id_clone,
-                        kyn,
+                        kinetic_types::clock::Kyn(kyn),
                         kinetic_core::constants::POW_DIFFICULTY_BITS,
                     )
                 })
@@ -59,7 +59,7 @@ pub fn start_pow_miner_loop(
                     tracing::info!("PoW epoch expired. Remining identity seamlessly...");
                     current_local_key = tokio::task::spawn_blocking(move || {
                         kinetic_network::pow::mine_sybil_keypair(
-                            kyn,
+                            kinetic_types::clock::Kyn(kyn),
                             kinetic_core::constants::POW_DIFFICULTY_BITS,
                         )
                     })

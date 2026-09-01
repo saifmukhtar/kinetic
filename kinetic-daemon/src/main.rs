@@ -313,7 +313,7 @@ async fn run_daemon() -> Result<()> {
 
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
     let local_key = kinetic_network::pow::mine_sybil_keypair(
-        initial_kyn,
+        kinetic_types::clock::Kyn(initial_kyn),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
@@ -428,7 +428,7 @@ async fn run_daemon() -> Result<()> {
                 {
                     // Enforce strict content validation to prevent MITM attacks over HTTP
                     if downloaded_state.genesis_kyn
-                        != kinetic_core::constants::KINETIC_GENESIS_KYN
+                        != kinetic_types::clock::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN)
                     {
                         tracing::warn!(
                             "Seed node provided governance state for wrong network genesis."

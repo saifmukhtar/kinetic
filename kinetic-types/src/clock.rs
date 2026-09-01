@@ -15,10 +15,12 @@ use serde::{Deserialize, Serialize};
 
 /// Strict type for Unix Time in seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct UTime(pub u64);
 
 /// Strict type for an absolute Drand network Kyn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Kyn(pub u64);
 
 impl Kyn {

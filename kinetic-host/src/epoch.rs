@@ -99,7 +99,7 @@ pub async fn start_drand_heartbeat(
             let _ = kyn_tx.send(kyn.kyn);
 
             let current_epoch =
-                kinetic_network::pow::get_staggered_epoch(&hb_local_peer_id.to_bytes(), kyn.kyn);
+                kinetic_network::pow::get_staggered_epoch(&hb_local_peer_id.to_bytes(), kinetic_types::clock::Kyn(kyn.kyn));
 
             let needs_validation = match last_verified_epoch {
                 Some(epoch) => epoch != current_epoch,
@@ -112,7 +112,7 @@ pub async fn start_drand_heartbeat(
                 let pow_valid = tokio::task::spawn_blocking(move || {
                     kinetic_network::pow::is_valid_sybil_pow(
                         &peer_id_clone,
-                        kyn_round,
+                        kinetic_types::clock::Kyn(kyn_round),
                         kinetic_core::constants::POW_DIFFICULTY_BITS,
                     )
                 })
@@ -125,7 +125,7 @@ pub async fn start_drand_heartbeat(
                     );
                     let current_local_key = tokio::task::spawn_blocking(move || {
                         kinetic_network::pow::mine_sybil_keypair(
-                            kyn_round,
+                            kinetic_types::clock::Kyn(kyn_round),
                             kinetic_core::constants::POW_DIFFICULTY_BITS,
                         )
                     })

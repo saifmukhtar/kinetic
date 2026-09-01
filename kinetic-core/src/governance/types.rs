@@ -70,7 +70,7 @@ pub enum GovernanceEffect {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GovernanceState {
     /// Genesis Kyn when governance tracking started.
-    pub genesis_kyn: u64,
+    pub genesis_kyn: kinetic_types::clock::Kyn,
     /// Active ML-DSA-65 root public key controlling the network.
     pub active_root_key: Option<PublicKeyBytes>,
     /// Master boolean flag if the network is currently paused.
@@ -78,16 +78,16 @@ pub struct GovernanceState {
     pub is_halted: bool,
     /// The exact Kyn when the network was halted (if currently halted).
     #[serde(default)]
-    pub halt_start_kyn: Option<u64>,
+    pub halt_start_kyn: Option<kinetic_types::clock::Kyn>,
     /// Total number of drand kyns the network has been paused for since genesis.
     #[serde(default)]
     pub total_paused_kyns: u64,
     /// Historical timeline of all network pauses (start_kyn, end_kyn).
     #[serde(default)]
-    pub pause_history: Vec<(u64, u64)>,
+    pub pause_history: Vec<(kinetic_types::clock::Kyn, kinetic_types::clock::Kyn)>,
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
-    pub executed_hashes: HashMap<Hash256, u64>,
+    pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
     /// Active 1-character prime names and their associated ML-DSA-65 public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
@@ -98,7 +98,7 @@ pub struct GovernanceState {
 
 impl GovernanceState {
     /// Calculates the exact number of paused kyns that occurred *after* a specific target kyn.
-    pub fn paused_kyns_since(&self, target_kyn: u64) -> u64 {
+    pub fn paused_kyns_since(&self, target_kyn: kinetic_types::clock::Kyn) -> u64 {
         let mut total = 0;
         for &(start, end) in &self.pause_history {
             if end <= target_kyn {
@@ -107,10 +107,10 @@ impl GovernanceState {
             }
             if start >= target_kyn {
                 // Pause happened entirely after the target kyn, add full duration.
-                total += end.saturating_sub(start);
+                total += end.0.saturating_sub(start.0);
             } else {
-                // Pause overlapped the target kyn, add only the portion after.
-                total += end.saturating_sub(target_kyn);
+                // Pause started before target kyn, but ended after. Only add the overlapping part.
+                total += end.0.saturating_sub(target_kyn.0);
             }
         }
         total

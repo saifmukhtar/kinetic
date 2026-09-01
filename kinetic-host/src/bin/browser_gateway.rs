@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let current_pulse = fetch_kyn().await;
     println!("Mining PoW to satisfy kinetic-host anti-spam...");
     let key = kinetic_network::pow::mine_sybil_keypair(
-        current_pulse,
+        kinetic_types::clock::Kyn(current_pulse),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     let storage = Arc::new(KineticStorage::new("./kinetic_gateway_db")?);

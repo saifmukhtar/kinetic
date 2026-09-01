@@ -32,7 +32,7 @@ pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
         return Err(GovernanceError::MissingRootKey);
     }
 
-    let dummy_state = GovernanceState::new(0);
+    let dummy_state = GovernanceState::new(kinetic_types::clock::Kyn(0));
     let _ = dummy_state.get_root_key()?;
 
     Ok(())
@@ -47,7 +47,7 @@ impl GovernanceState {
     /// # Returns
     ///
     /// A new `GovernanceState` ready for genesis block processing.
-    pub fn new(genesis_kyn: u64) -> Self {
+    pub fn new(genesis_kyn: kinetic_types::clock::Kyn) -> Self {
         Self {
             genesis_kyn,
             active_root_key: None,
@@ -77,11 +77,11 @@ impl GovernanceState {
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.
-    pub fn prune(&mut self, current_kyn: u64) {
+    pub fn prune(&mut self, current_kyn: kinetic_types::clock::Kyn) {
         // Remove executed hashes older than the max age
         let max_age_kyns = crate::constants::MAX_AGE_KYNS;
         self.executed_hashes
-            .retain(|_, exec_kyn| current_kyn <= *exec_kyn + max_age_kyns);
+            .retain(|_, exec_kyn| current_kyn.0 <= exec_kyn.0 + max_age_kyns);
     }
 
     /// Retrieves the static root verifying key.
@@ -110,7 +110,7 @@ impl GovernanceState {
     pub fn verify_action(
         &mut self,
         msg: &SignedGovernanceMessage,
-        current_kyn: u64,
+        current_kyn: kinetic_types::clock::Kyn,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
         crate::governance::engine::get_active_engine().verify_action(self, msg, current_kyn)
     }
@@ -119,7 +119,7 @@ impl GovernanceState {
     pub fn execute_action(
         &mut self,
         msg: &SignedGovernanceMessage,
-        current_kyn: u64,
+        current_kyn: kinetic_types::clock::Kyn,
     ) -> Option<GovernanceEffect> {
         crate::governance::engine::get_active_engine().execute_action(self, msg, current_kyn)
     }
@@ -133,7 +133,7 @@ impl GovernanceState {
 pub fn process_governance_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
-    current_kyn: u64,
+    current_kyn: kinetic_types::clock::Kyn,
 ) -> Result<Option<GovernanceEffect>, GovernanceError> {
     let effect = state.verify_action(msg, current_kyn)?;
 

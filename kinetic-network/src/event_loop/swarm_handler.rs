@@ -15,7 +15,7 @@ impl super::core::NetworkEventLoop {
         self.current_kyn > 0
             && crate::pow::is_valid_sybil_pow(
                 peer_id,
-                self.current_kyn,
+                kinetic_types::clock::Kyn(self.current_kyn),
                 kinetic_core::constants::POW_DIFFICULTY_BITS,
             )
     }
@@ -158,7 +158,7 @@ impl super::core::NetworkEventLoop {
                         let valid = crate::event_loop::utils::spawn_blocking(move || {
                             crate::pow::is_valid_sybil_pow(
                                 &peer_id_clone,
-                                current_kyn,
+                                kinetic_types::clock::Kyn(current_kyn),
                                 kinetic_core::constants::POW_DIFFICULTY_BITS,
                             )
                         })

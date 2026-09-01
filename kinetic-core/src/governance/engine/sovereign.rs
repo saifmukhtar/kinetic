@@ -26,9 +26,9 @@ impl GovernanceEngine for SovereignEngine {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_kyn: u64,
+        current_kyn: kinetic_types::clock::Kyn,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        if current_kyn.abs_diff(msg.timestamp_kyn) > crate::constants::MAX_AGE_KYNS {
+        if current_kyn.0.abs_diff(msg.timestamp_kyn) > crate::constants::MAX_AGE_KYNS {
             return Err(GovernanceError::StaleProposal);
         }
 
@@ -130,10 +130,10 @@ impl GovernanceEngine for SovereignEngine {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_kyn: u64,
+        current_kyn: kinetic_types::clock::Kyn,
     ) -> Option<GovernanceEffect> {
         let action_hash = GovernanceState::hash_action(msg);
-        state.executed_hashes.insert(action_hash, msg.timestamp_kyn);
+        state.executed_hashes.insert(action_hash, kinetic_types::clock::Kyn(msg.timestamp_kyn));
 
         match &msg.action {
             GovernanceAction::MapPrime {
@@ -187,7 +187,7 @@ impl GovernanceEngine for SovereignEngine {
                 if state.is_halted {
                     state.is_halted = false;
                     let start_kyn = state.halt_start_kyn.take().unwrap_or(current_kyn);
-                    let paused_kyns = current_kyn.saturating_sub(start_kyn);
+                    let paused_kyns = current_kyn.0.saturating_sub(start_kyn.0);
                     state.total_paused_kyns = state.total_paused_kyns.saturating_add(paused_kyns);
                     state.pause_history.push((start_kyn, current_kyn));
                 }

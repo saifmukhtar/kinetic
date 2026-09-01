@@ -600,7 +600,7 @@ pub async fn handle_publish_governance(
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        match kinetic_core::governance::process_governance_message(&mut gov, &msg, current_kyn) {
+        match kinetic_core::governance::process_governance_message(&mut gov, &msg, kinetic_types::clock::Kyn(current_kyn)) {
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");
                 if let Err(e) = gov.save_to_disk(&path) {

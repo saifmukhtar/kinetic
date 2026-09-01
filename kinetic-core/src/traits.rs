@@ -140,7 +140,7 @@ pub trait GovernanceEngine: Send + Sync {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_kyn: u64,
+        current_kyn: kinetic_types::clock::Kyn,
     ) -> Result<Option<GovernanceEffect>, GovernanceError>;
 
     /// Executes a previously verified governance action, applying state changes.
@@ -156,6 +156,6 @@ pub trait GovernanceEngine: Send + Sync {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_kyn: u64,
+        current_kyn: kinetic_types::clock::Kyn,
     ) -> Option<GovernanceEffect>;
 }
