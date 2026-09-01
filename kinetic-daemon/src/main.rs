@@ -36,6 +36,7 @@ use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
 use kinetic_core::types::load_keypair;
+use kinetic_core::traits::KynProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 use kinetic_vdf_rsa::RsaVdfEngine;
@@ -285,16 +286,16 @@ async fn run_daemon() -> Result<()> {
         hex::encode(daemon_keypair.pubkey_bytes())
     );
 
-    let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(Some(storage.clone())));
+    let drand_client = Arc::new(kinetic_core::drand::DrandProvider::new(Some(storage.clone())));
     let initial_kyn = match drand_client.fetch_latest().await {
         Ok(kyn) => {
             info!("Drand beacon connected — kyn #{}", kyn.kyn);
             kyn
         }
         Err(e) => {
-            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            let err = kinetic_core::error::KynProviderError::UnavailableOnStartup(e.to_string());
             warn!(error_code = err.code(), "{}", err);
-            let err2 = kinetic_core::error::DrandError::RegistrationDisabled;
+            let err2 = kinetic_core::error::KynProviderError::RegistrationDisabled;
             warn!(error_code = err2.code(), "{}", err2);
             kinetic_core::drand::RawKyn::unavailable()
         }

@@ -1,5 +1,6 @@
 //! Periodic name heartbeat generator and Drand kyn synchronization worker loop.
 
+use kinetic_core::traits::KynProvider;
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Heartbeat;
 
@@ -11,7 +12,7 @@ use std::time::Duration;
 pub fn start_heartbeat_loop(
     hb_storage: Arc<dyn StorageEngine>,
     hb_network: kinetic_network::NetworkClient,
-    hb_drand: Arc<kinetic_core::drand::DrandClient>,
+    hb_drand: Arc<kinetic_core::drand::DrandProvider>,
     p2p_only: bool,
     initial_kyn: u64,
     daemon_keypair_hb: kinetic_primitives::keys::KineticKeypair,
@@ -37,7 +38,7 @@ pub fn start_heartbeat_loop(
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if expected_kyn > latest.kyn + 5 {
-                        let err = kinetic_core::error::DrandError::P2pFallbackTriggered { behind: expected_kyn.saturating_sub(latest.kyn) };
+                        let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered { behind: expected_kyn.saturating_sub(latest.kyn) };
                         tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
                     }

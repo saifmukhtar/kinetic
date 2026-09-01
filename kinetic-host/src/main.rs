@@ -23,6 +23,7 @@
 //!   restarts the loop without any downtime.
 //! - **Health API**: Exposed on port 16004.
 
+use kinetic_core::traits::KynProvider;
 /// Health-check REST API.
 pub mod api;
 /// Configuration for the host proxy backend.
@@ -49,7 +50,7 @@ use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
-use kinetic_core::drand::{DrandClient, RawKyn};
+use kinetic_core::drand::{DrandProvider, RawKyn};
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -136,7 +137,7 @@ async fn run_host() -> Result<()> {
     info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
-    let drand_client = Arc::new(DrandClient::new(Some(storage.clone())));
+    let drand_client = Arc::new(DrandProvider::new(Some(storage.clone())));
 
     let initial_kyn = match drand_client.fetch_latest().await {
         Ok(kyn) => {
@@ -144,7 +145,7 @@ async fn run_host() -> Result<()> {
             kyn
         }
         Err(e) => {
-            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            let err = kinetic_core::error::KynProviderError::UnavailableOnStartup(e.to_string());
             warn!(error_code = err.code(), "{}", err);
             RawKyn::unavailable()
         }

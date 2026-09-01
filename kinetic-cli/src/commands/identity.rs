@@ -2,6 +2,7 @@
 
 use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
+use kinetic_core::traits::KynProvider;
 use reqwest::Client;
 use tracing::{info, warn};
 
@@ -76,7 +77,7 @@ pub async fn handle_identity_command(
 
             let kid_did = kinetic_kid::did::Did::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
-            let drand_client = kinetic_core::drand::DrandClient::new(None);
+            let drand_client = kinetic_core::drand::DrandProvider::new(None);
             use kinetic_core::types::clock::KynNetworkExt;
             use kinetic_core::types::Kyn;
             

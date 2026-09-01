@@ -1,4 +1,5 @@
 use super::*;
+use kinetic_core::traits::KynProvider;
 use axum::{
     Json,
     extract::{Extension, Path, State},
@@ -61,7 +62,7 @@ pub async fn handle_generate_kid(
         base_fqdn
     };
 
-    let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+    let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
     use kinetic_core::types::clock::KynNetworkExt;
     use kinetic_core::types::Kyn;
     
@@ -192,7 +193,7 @@ pub async fn handle_update_kid_manifest(
         ));
     }
 
-    let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+    let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
     use kinetic_core::types::clock::KynNetworkExt;
     use kinetic_core::types::Kyn;
     

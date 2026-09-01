@@ -1,5 +1,5 @@
-//! HTTP REST API handler for retrieving verified Kinetic network time.
 
+use kinetic_core::traits::KynProvider;
 use crate::api::ApiState;
 use axum::{Json, extract::State};
 use kinetic_core::types::clock::KineticTime;
@@ -8,7 +8,7 @@ use kinetic_core::types::clock::KineticTime;
 pub async fn handle_get_time(
     State(state): State<ApiState>,
 ) -> Result<Json<KineticTime>, crate::api::error::AppError> {
-    let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+    let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
 
     // Read the latest verified Drand kyn directly from the local database cache.
     // We do NOT call `fetch_latest()` here to prevent spamming the external Drand network

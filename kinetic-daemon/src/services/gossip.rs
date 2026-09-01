@@ -1,5 +1,6 @@
 //! Backgkyn pub/sub gossip message processor for governance updates and Drand time kyns.
 
+use kinetic_core::traits::KynProvider;
 /// Starts the backgkyn task that processes incoming pubsub gossip messages.
 pub fn start_gossip_processor(
     network_client: kinetic_network::NetworkClient,
@@ -10,7 +11,7 @@ pub fn start_gossip_processor(
         libp2p::PeerId,
     )>,
     gossip_gov_path: std::sync::Arc<std::path::PathBuf>,
-    drand_client_gossip: std::sync::Arc<kinetic_core::drand::DrandClient>,
+    drand_client_gossip: std::sync::Arc<kinetic_core::drand::DrandProvider>,
     kyn_tx_gossip: tokio::sync::watch::Sender<u64>,
     storage: Option<std::sync::Arc<dyn kinetic_core::traits::StorageEngine>>,
 ) -> tokio::task::JoinHandle<()> {
@@ -155,7 +156,7 @@ pub fn start_gossip_processor(
                                     if latest.is_unavailable { 0 } else { latest.kyn }
                                 },
                                 Err(e) => {
-                                    if !matches!(e, kinetic_core::error::DrandError::NoCachedKyn) {
+                                    if !matches!(e, kinetic_core::error::KynProviderError::NoCachedKyn) {
                                         tracing::error!(error_code = e.code(), "Failed to load cached kyn in gossip handler: {}", e);
                                     }
                                     0

@@ -1,5 +1,6 @@
 //! HTTP REST API endpoints and backgkyn task workers for VDF registration, renewal, and task progress tracking.
 
+use kinetic_core::traits::KynProvider;
 use super::*;
 use axum::{
     Json,
@@ -99,7 +100,7 @@ pub async fn handle_vdf_register(
     tokio::spawn(async move {
         // Step 1: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let drand_client = kinetic_core::drand::DrandClient::new(Some(storage_clone.clone()));
+        let drand_client = kinetic_core::drand::DrandProvider::new(Some(storage_clone.clone()));
         let drand_data = match drand_client.fetch_latest().await {
             Ok(d) => d,
             Err(e) => {
@@ -454,7 +455,7 @@ pub async fn handle_vdf_renew(
 
         // Step 2: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let drand_client = kinetic_core::drand::DrandClient::new(Some(storage_clone.clone()));
+        let drand_client = kinetic_core::drand::DrandProvider::new(Some(storage_clone.clone()));
         let drand_data = match drand_client.fetch_latest().await {
             Ok(d) => d,
             Err(e) => {

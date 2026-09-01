@@ -34,7 +34,8 @@ use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::config::KineticConfig;
-use kinetic_core::drand::{DrandClient, RawKyn};
+use kinetic_core::drand::{DrandProvider, RawKyn};
+use kinetic_core::traits::KynProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -179,7 +180,7 @@ async fn run_node() -> Result<()> {
     info!("Storage engine initialized at {}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
-    let drand_client = Arc::new(DrandClient::new(Some(storage.clone())));
+    let drand_client = Arc::new(DrandProvider::new(Some(storage.clone())));
 
     let initial_kyn = match drand_client.fetch_latest().await {
         Ok(kyn) => {
@@ -187,7 +188,7 @@ async fn run_node() -> Result<()> {
             kyn
         }
         Err(e) => {
-            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            let err = kinetic_core::error::KynProviderError::UnavailableOnStartup(e.to_string());
             warn!(error_code = err.code(), "{}", err);
             RawKyn::unavailable()
         }
@@ -342,7 +343,7 @@ async fn run_node() -> Result<()> {
                                     if latest.is_unavailable { 0 } else { latest.kyn }
                                 },
                                 Err(e) => {
-                                    if !matches!(e, kinetic_core::error::DrandError::NoCachedKyn) {
+                                    if !matches!(e, kinetic_core::error::KynProviderError::NoCachedKyn) {
                                         tracing::error!(error_code = e.code(), "Failed to load cached kyn in node gossip handler: {}", e);
                                     }
                                     0
@@ -385,7 +386,7 @@ async fn run_node() -> Result<()> {
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if estimated_kyn > latest.kyn + 5 {
-                        let err = kinetic_core::error::DrandError::P2pFallbackTriggered { behind: estimated_kyn.saturating_sub(latest.kyn) };
+                        let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered { behind: estimated_kyn.saturating_sub(latest.kyn) };
                         tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
                     }

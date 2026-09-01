@@ -1,5 +1,6 @@
 //! Governance gossip message handler and disk persistence listener for Kinetic host nodes.
 
+use kinetic_core::traits::KynProvider;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -8,7 +9,7 @@ use libp2p::gossipsub::MessageId;
 
 /// Starts an async loop to listen for governance gossip messages, update global state, and save to disk.
 pub async fn start_gossip_listener(
-    drand_client: Arc<kinetic_core::drand::DrandClient>,
+    drand_client: Arc<kinetic_core::drand::DrandProvider>,
     mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>, MessageId, PeerId)>,
     gov_state_path: Arc<PathBuf>,
 ) {

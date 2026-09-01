@@ -2,7 +2,7 @@
 
 use crate::utils::parse_and_format_api_error;
 use kinetic_core::config::{KineticConfig, get_zones_dir};
-use kinetic_core::traits::VdfEngine;
+use kinetic_core::traits::{VdfEngine, KynProvider};
 use kinetic_core::types::load_keypair;
 
 use reqwest::Client;
@@ -60,7 +60,7 @@ pub async fn handle_name_renew(
     }
 
     info!("Fetching latest Drand entropy beacon...");
-    let drand_client = kinetic_core::drand::DrandClient::new(None);
+    let drand_client = kinetic_core::drand::DrandProvider::new(None);
     let drand_data = drand_client.fetch_latest().await?;
     info!("Successfully fetched Drand kyn {}.", drand_data.kyn);
 

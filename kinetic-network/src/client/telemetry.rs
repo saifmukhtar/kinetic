@@ -1,6 +1,7 @@
 //! Periodic network telemetry heartbeat broadcast service.
 
 use kinetic_core::config::KineticConfig;
+use kinetic_core::traits::KynProvider;
 use kinetic_types::network::{
     NetworkMode, NetworkOpcode, NodeType, OsType, Reachability, TelemetryHeartbeat,
 };
@@ -12,7 +13,7 @@ use std::time::Duration;
 /// opt-in, anonymous network metrics over `GOSSIP_TOPIC_GLOBAL`.
 pub fn start_telemetry_service(
     network_client: crate::client::core::NetworkClient,
-    drand_client: Arc<kinetic_core::drand::DrandClient>,
+    drand_client: Arc<kinetic_core::drand::DrandProvider>,
     config: KineticConfig,
     node_type: NodeType,
 ) -> tokio::task::JoinHandle<()> {

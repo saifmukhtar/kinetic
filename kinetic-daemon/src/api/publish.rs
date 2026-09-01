@@ -1,5 +1,6 @@
 //! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Governance actions.
 
+use kinetic_core::traits::KynProvider;
 use super::*;
 use axum::{Json, extract::State, http::StatusCode};
 use kinetic_core::types::RevealExt;
@@ -61,14 +62,14 @@ pub async fn handle_publish_record(
     // than RESQUARING_EPOCH_KYNS. Fetch the current beacon kyn, falling back to the
     // storage-cached value so offline-first nodes aren’t broken.
     let current_kyn: u64 = {
-        let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+        let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
         match drand_client.fetch_latest().await {
             Ok(kyn) => kyn.kyn,
             Err(_) => {
                 // Graceful fallback: read the last known kyn from storage.
                 // If even that is unavailable, we allow the publish to proceed —
                 // the DHT store layer will still enforce its own staleness check.
-                let err = kinetic_core::error::DrandError::LiveFetchFailedFallback;
+                let err = kinetic_core::error::KynProviderError::LiveFetchFailedFallback;
                 tracing::warn!(
                     error_code = err.code(),
                     "{}", err
@@ -505,7 +506,7 @@ pub async fn handle_publish_manifest(
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time = match kinetic_core::drand::DrandClient::new(Some(
+    let current_network_time = match kinetic_core::drand::DrandProvider::new(Some(
         state.storage.clone(),
     ))
     .load_cached_kyn()
@@ -585,7 +586,7 @@ pub async fn handle_publish_governance(
     tracing::info!("Received API publish request for Governance action");
 
     let current_kyn = {
-        let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+        let drand_client = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
         use kinetic_core::types::clock::KynNetworkExt;
         match drand_client.load_cached_kyn() {
             Ok(kyn) => kyn.kyn,
