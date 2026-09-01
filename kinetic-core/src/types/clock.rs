@@ -8,12 +8,12 @@ pub use kinetic_types::clock::{Kyn, UTime, KineticTime};
 use crate::constants::{DRAND_GENESIS_TIME, DRAND_PERIOD};
 
 /// Extension trait that adds network-aware conversions to the pure math clock types.
-pub trait NetworkClockExt {
+pub trait KynNetworkExt {
     /// Converts a Drand kyn into deterministic Unix epoch seconds using local network constants.
     fn to_network_utime(&self) -> UTime;
 }
 
-impl NetworkClockExt for Kyn {
+impl KynNetworkExt for Kyn {
     #[inline]
     fn to_network_utime(&self) -> UTime {
         self.to_utime(DRAND_GENESIS_TIME, DRAND_PERIOD)

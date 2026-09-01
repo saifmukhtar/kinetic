@@ -102,7 +102,7 @@ pub fn get_kids_dir() -> PathBuf {
 /// Derives the network time by mapping the estimated Drand kyn to exact Unix
 /// seconds aligned to 3-second network heartbeats using network constants.
 pub fn unix_time() -> kinetic_types::clock::UTime {
-    use crate::types::clock::{NetworkClockExt, UTimeNetworkExt};
+    use crate::types::clock::{KynNetworkExt, UTimeNetworkExt};
     kinetic_types::clock::UTime::now().to_network_kyn().to_network_utime()
 }
 
@@ -260,7 +260,7 @@ pub fn get_or_create_kid_for_name(
     let kid_did = Did::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
-    use crate::types::clock::NetworkClockExt;
+    use crate::types::clock::KynNetworkExt;
     let now_ts = current_kyn.to_network_utime().0;
 
     let doc = Document {
@@ -543,7 +543,7 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    use crate::types::clock::NetworkClockExt;
+    use crate::types::clock::KynNetworkExt;
     let current_time = current_kyn.to_network_utime().0;
 
     let manifest = Manifest {

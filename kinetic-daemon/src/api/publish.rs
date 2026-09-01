@@ -511,7 +511,7 @@ pub async fn handle_publish_manifest(
     .load_cached_kyn()
     {
         Ok(raw_kyn) => {
-            use kinetic_core::types::clock::NetworkClockExt;
+            use kinetic_core::types::clock::KynNetworkExt;
             kinetic_core::types::Kyn(raw_kyn.kyn).to_network_utime().0
         }
         Err(_) => std::time::SystemTime::now()
