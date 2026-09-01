@@ -416,10 +416,9 @@ pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("json")
-            && let Ok(content) = fs::read_to_string(&path)
-            && let Ok(doc) = serde_json::from_str::<Document>(&content)
-        {
+        if path.extension().and_then(|s| s.to_str()) == Some("json") {
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(doc) = serde_json::from_str::<Document>(&content) {
             let stem = path
                 .file_stem()
                 .and_then(|s| s.to_str())
@@ -434,6 +433,8 @@ pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
                 has_key: key_path.exists(),
                 deactivated: doc.deactivated,
             });
+                }
+            }
         }
     }
 
@@ -586,6 +587,7 @@ pub fn save_and_sign_local_manifest(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kinetic_core::types::{Kyn, KynNetworkExt};
     use lazy_static::lazy_static;
     use std::sync::Mutex;
     use tempfile::tempdir;
@@ -610,7 +612,7 @@ mod tests {
 
             // Set data dir only (identity is passed explicitly now)
             unsafe {
-                std::env::set_var(crate::constants::ENV_DATA_DIR, dir.path());
+                std::env::set_var(kinetic_core::constants::ENV_DATA_DIR, dir.path());
             }
 
             Self {
@@ -624,7 +626,7 @@ mod tests {
     impl Drop for TestEnv {
         fn drop(&mut self) {
             unsafe {
-                std::env::remove_var(crate::constants::ENV_DATA_DIR);
+                std::env::remove_var(kinetic_core::constants::ENV_DATA_DIR);
             }
         }
     }
@@ -635,7 +637,7 @@ mod tests {
 
         // 1. Apex Name KID generation
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path).unwrap();
         assert_eq!(apex.name, "saif.kin");
         assert!(!apex.is_inherited);
         assert!(apex.did.starts_with(DID_PREFIX));
@@ -645,13 +647,13 @@ mod tests {
         assert!(apex.kid_doc.verify_genesis().is_ok());
 
         // Test Overwrite Guard (KIN-IDN-006)
-        let err = get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path)
+        let err = get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
             .unwrap_err();
         assert_eq!(err.code(), "KIN-IDN-006");
 
         // Test force overwrite
         let force_res =
-            get_or_create_kid_for_name("saif.kin", true, true, 100, &env.master_key_path).unwrap();
+            get_or_create_kid_for_name("saif.kin", true, true, Kyn(100), &env.master_key_path).unwrap();
         assert_eq!(force_res.name, "saif.kin");
     }
 
@@ -659,10 +661,10 @@ mod tests {
     fn test_kid_subname_inheritance() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path).unwrap();
 
         let sub =
-            get_or_create_kid_for_name("blog.saif.kin", true, false, 100, &env.master_key_path)
+            get_or_create_kid_for_name("blog.saif.kin", true, false, Kyn(100), &env.master_key_path)
                 .unwrap();
         assert_eq!(sub.name, "blog.saif.kin");
         assert!(sub.is_inherited);
@@ -675,10 +677,10 @@ mod tests {
     fn test_kid_subname_isolation() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path).unwrap();
 
         let isolated_sub =
-            get_or_create_kid_for_name("api.saif.kin", false, false, 100, &env.master_key_path)
+            get_or_create_kid_for_name("api.saif.kin", false, false, Kyn(100), &env.master_key_path)
                 .unwrap();
         assert_eq!(isolated_sub.name, "api.saif.kin");
         assert!(!isolated_sub.is_inherited);
@@ -692,7 +694,7 @@ mod tests {
     fn test_kid_rotation_handover() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path).unwrap();
         let old_pubkey = apex.kid_doc.controller_keys[0].public_key.clone();
 
         let rotated = rotate_name_kid("saif.kin", &env.master_key_path).unwrap();
@@ -708,7 +710,7 @@ mod tests {
     fn test_manifest_version_increments() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path).unwrap();
 
         let services = vec![Service {
             id: "web".to_string(),
@@ -718,11 +720,11 @@ mod tests {
         }];
 
         let (saved_manifest, auth_manifest) =
-            save_and_sign_local_manifest("saif.kin", services.clone(), 100, &env.master_key_path)
+            save_and_sign_local_manifest("saif.kin", services.clone(), Kyn(100), &env.master_key_path)
                 .unwrap();
         assert_eq!(saved_manifest.version, 1);
         assert_eq!(saved_manifest.services.len(), 1);
-        assert!(saved_manifest.verify_local(&apex.kid_doc).is_ok());
+        assert!(saved_manifest.verify_at_time(&apex.kid_doc, Kyn(100).to_network_utime().0).is_ok());
         assert_eq!(auth_manifest.name, "saif.kin");
 
         let loaded = load_local_manifest("saif.kin").unwrap();
@@ -730,22 +732,22 @@ mod tests {
         assert_eq!(loaded.unwrap().version, 1);
 
         let (v2_manifest, _) =
-            save_and_sign_local_manifest("saif.kin", services, 100, &env.master_key_path).unwrap();
+            save_and_sign_local_manifest("saif.kin", services, Kyn(100), &env.master_key_path).unwrap();
         assert_eq!(v2_manifest.version, 2);
     }
 
     #[test]
     fn test_invalid_fqdn_doesnt_crash() {
         let env = TestEnv::new([42u8; 32]);
-        let _ = get_or_create_kid_for_name("invalid..name", true, false, 100, &env.master_key_path);
+        let _ = get_or_create_kid_for_name("invalid..name", true, false, Kyn(100), &env.master_key_path);
     }
 
     #[test]
     fn test_rotate_inherited_subname_fails() {
         let env = TestEnv::new([42u8; 32]);
         let _ =
-            get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
-        let _ = get_or_create_kid_for_name("blog.saif.kin", true, false, 100, &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path).unwrap();
+        let _ = get_or_create_kid_for_name("blog.saif.kin", true, false, Kyn(100), &env.master_key_path)
             .unwrap();
 
         let err = rotate_name_kid("blog.saif.kin", &env.master_key_path).unwrap_err();
@@ -759,14 +761,14 @@ mod tests {
     #[test]
     fn test_revoked_kid_cannot_sign_manifest() {
         let env = TestEnv::new([42u8; 32]);
-        let _ = get_or_create_kid_for_name("api.saif.kin", false, false, 100, &env.master_key_path)
+        let _ = get_or_create_kid_for_name("api.saif.kin", false, false, Kyn(100), &env.master_key_path)
             .unwrap();
 
         let revoked = revoke_local_kid("api.saif.kin").unwrap();
         assert!(revoked.deactivated);
 
         let deactivated_err =
-            save_and_sign_local_manifest("api.saif.kin", vec![], 100, &env.master_key_path)
+            save_and_sign_local_manifest("api.saif.kin", vec![], Kyn(100), &env.master_key_path)
                 .unwrap_err();
         assert!(matches!(deactivated_err, IdentityError::KidDeactivated(_)));
     }
@@ -776,16 +778,16 @@ mod tests {
         let _guard = ENV_LOCK.lock().unwrap();
         let env = tempdir().unwrap();
         unsafe {
-            std::env::set_var(crate::constants::ENV_DATA_DIR, env.path());
+            std::env::set_var(kinetic_core::constants::ENV_DATA_DIR, env.path());
         }
         let missing_path = env.path().join("missing.key");
 
         let err =
-            get_or_create_kid_for_name("saif.kin", true, false, 100, &missing_path).unwrap_err();
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &missing_path).unwrap_err();
         assert!(matches!(err, IdentityError::IdentityNotFound(_)));
 
         unsafe {
-            std::env::remove_var(crate::constants::ENV_DATA_DIR);
+            std::env::remove_var(kinetic_core::constants::ENV_DATA_DIR);
         }
     }
 
@@ -793,7 +795,7 @@ mod tests {
     fn test_corrupted_kid_document() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, 100, &env.master_key_path).unwrap();
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path).unwrap();
 
         // Corrupt the json file
         std::fs::write(&apex.doc_path, "not valid json").unwrap();

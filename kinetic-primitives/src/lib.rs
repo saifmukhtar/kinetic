@@ -9,9 +9,9 @@ use ml_dsa::{KeyInit, MlDsa65};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
-/// Centralized error type for cryptographic primitive operations.
 pub mod keys;
 
+/// Centralized error type for cryptographic primitive operations.
 #[derive(Debug, Error)]
 pub enum CryptoError {
     /// Returned when a signature byte array cannot be decoded or is mathematically invalid.

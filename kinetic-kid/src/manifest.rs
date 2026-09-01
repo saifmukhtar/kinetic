@@ -69,37 +69,26 @@ impl Manifest {
             .map_err(|e| Error::CanonicalizationError(e.to_string()))
     }
 
-    /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document
-    /// against the local client's wall-clock time.
-    ///
-    /// # Security Warning: Client-Side Use Only
-    ///
-    /// This function uses the local unverified system clock (`web_time::SystemTime::now()`) and is strictly
-    /// for offline, client-side, or CLI use. It is vulnerable to clock drift and local time manipulation.
-    /// **Consensus nodes and daemons MUST NOT use this function.** They must use [`Manifest::verify_at_time`] and inject
-    /// the secure deterministic network consensus timestamp (e.g., Drand beacon time).
-    ///
-    /// # Errors
-    ///
-    /// - Returns [`Error::KeyLimitExceeded`] if key count bounds are exceeded.
-    /// - Returns [`Error::ServiceLimitExceeded`] if service bounds are exceeded.
-    /// - Returns [`Error::StringLengthExceeded`] if string length bounds are exceeded.
-    /// - Returns [`Error::UnauthorizedManifestSignature`] if manifest DID does not match document DID or signature is not authorized.
-    /// - Returns [`Error::InvalidValidFrom`] if `valid_from` is in the future beyond 5 minutes skew.
-    /// - Returns [`Error::ManifestExpired`] if `expires_at` timestamp has passed.
-    /// - Returns [`Error::MissingSignature`] if the signature field is absent.
-    /// - Returns [`Error::Base64Error`] if signature decoding fails.
-    /// - Returns [`Error::InvalidSignature`] if signature bytes are invalid.
-    pub fn verify_local(&self, kid_document: &Document) -> Result<(), Error> {
-        let current_time = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        self.verify_at_time(kid_document, current_time)
-    }
+
 
     /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document
-    /// against an explicit network Unix timestamp (e.g. Drand consensus kyn timestamp).
+    /// against an explicit Unix timestamp.
+    ///
+    /// # Time Verification Architecture
+    ///
+    /// Because `kinetic-kid` is a pure mathematical sandbox, it does not access the local operating system
+    /// or browser clock. Time must be explicitly injected via the `unix_time` parameter.
+    ///
+    /// There are two ways to provide this time in client/WASM environments:
+    ///
+    /// 1. **The Secure Way (Recommended):** Fetch the latest VDF (Verifiable Delay Function) proof
+    ///    from the Kinetic network, mathematically verify the proof locally, and convert the proven
+    ///    network `Kyn` into a Unix timestamp. This ensures the document is validated against
+    ///    the true consensus clock, preventing local clock manipulation.
+    ///
+    /// 2. **The Simple Way (Insecure/Offline):** Have the outer environment (e.g., JavaScript) fetch the
+    ///    local wall clock time (e.g., `Math.floor(Date.now() / 1000)`) and inject it. This is vulnerable
+    ///    to the user changing their device's calendar to bypass expiration dates.
     ///
     /// # Errors
     ///
@@ -124,10 +113,10 @@ impl Manifest {
         if self.valid_from > unix_time + 300 {
             return Err(Error::InvalidValidFrom);
         }
-        if let Some(expires) = self.expires_at
-            && unix_time >= expires
-        {
-            return Err(Error::ManifestExpired);
+        if let Some(expires) = self.expires_at {
+            if unix_time >= expires {
+                return Err(Error::ManifestExpired);
+            }
         }
         if self.services.len() > 50 {
             return Err(Error::ServiceLimitExceeded);
@@ -157,12 +146,14 @@ impl Manifest {
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
         for key in &kid_document.controller_keys {
-            if (key.key_type.eq_ignore_ascii_case("MlDsa65")
-                || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
-                && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
+            if key.key_type.eq_ignore_ascii_case("MlDsa65")
+                || key.key_type.eq_ignore_ascii_case("ML-DSA-65")
             {
-                return Ok(());
+                if let Ok(pubkey_bytes) = b64_url.decode(&key.public_key) {
+                    if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok() {
+                        return Ok(());
+                    }
+                }
             }
         }
 

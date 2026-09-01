@@ -49,12 +49,12 @@ pub fn load_encrypted_keypair(
     let cipher = Aes256Gcm::new((&derived_key).into());
     let nonce = Nonce::from_slice(nonce_bytes);
 
-    if let Ok(decrypted_seed) = cipher.decrypt(nonce, ciphertext)
-        && decrypted_seed.len() == 32
-    {
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&decrypted_seed);
-        return Ok(KineticKeypair::from_seed(&seed));
+    if let Ok(decrypted_seed) = cipher.decrypt(nonce, ciphertext) {
+        if decrypted_seed.len() == 32 {
+            let mut seed = [0u8; 32];
+            seed.copy_from_slice(&decrypted_seed);
+            return Ok(KineticKeypair::from_seed(&seed));
+        }
     }
 
     Err(IdentityError::IdentityNotFound(format!(

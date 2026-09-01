@@ -39,10 +39,10 @@ where
     where
         A: SeqAccess<'de>,
     {
-        if let Some(size) = seq.size_hint()
-            && size > self.max
-        {
-            return Err(A::Error::invalid_length(size, &self));
+        if let Some(size) = seq.size_hint() {
+            if size > self.max {
+                return Err(A::Error::invalid_length(size, &self));
+            }
         }
 
         let mut vec = Vec::with_capacity(seq.size_hint().unwrap_or(0).min(self.max));

@@ -31,10 +31,10 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
             let mut default_cfg = KineticConfig::default();
             default_cfg.drand.p2p_only = ctx == ConfigContext::Daemon;
 
-            if let Some(parent) = config_path.parent()
-                && let Err(e) = fs::create_dir_all(parent)
-            {
-                tracing::warn!("Failed to create config directory: {}", e);
+            if let Some(parent) = config_path.parent() {
+                if let Err(e) = fs::create_dir_all(parent) {
+                    tracing::warn!("Failed to create config directory: {}", e);
+                }
             }
 
             if let Ok(toml_str) = toml::to_string_pretty(&default_cfg) {

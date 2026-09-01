@@ -36,9 +36,6 @@ pub use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-
-    use tempfile::tempdir;
 
     #[test]
     fn test_signable_bytes_kid() {

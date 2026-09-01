@@ -105,7 +105,7 @@ fn test_manifest_verify_kid_mismatch() {
         signature: None,
     };
     assert!(matches!(
-        manifest.verify_local(&doc),
+        manifest.verify_at_time(&doc, 2000),
         Err(Error::UnauthorizedManifestSignature)
     ));
 }
@@ -124,7 +124,7 @@ fn test_manifest_verify_missing_signature() {
         signature: None,
     };
     assert!(matches!(
-        manifest.verify_local(&signed_doc),
+        manifest.verify_at_time(&signed_doc, 2000),
         Err(Error::MissingSignature)
     ));
 }
@@ -145,7 +145,7 @@ fn test_manifest_verify_invalid_signature() {
     let mut signed_manifest = manifest.sign(&key).unwrap();
     signed_manifest.signature = Some(b64_url.encode([0u8; 3309])); // Invalid signature bytes
     assert!(matches!(
-        signed_manifest.verify_local(&signed_doc),
+        signed_manifest.verify_at_time(&signed_doc, 2000),
         Err(Error::UnauthorizedManifestSignature)
     ));
 }
@@ -166,7 +166,7 @@ fn test_manifest_verify_short_signature() {
     let mut signed_manifest = manifest.sign(&key).unwrap();
     signed_manifest.signature = Some(b64_url.encode(b"short")); // Short signature
     assert!(matches!(
-        signed_manifest.verify_local(&signed_doc),
+        signed_manifest.verify_at_time(&signed_doc, 2000),
         Err(Error::UnauthorizedManifestSignature)
     ));
 }
@@ -189,7 +189,7 @@ fn test_manifest_verify_no_matching_key() {
     };
     let signed_manifest = manifest.sign(&other_key).unwrap(); // Signed with wrong key
     assert!(matches!(
-        signed_manifest.verify_local(&signed_doc),
+        signed_manifest.verify_at_time(&signed_doc, 2000),
         Err(Error::UnauthorizedManifestSignature)
     ));
 }

@@ -40,13 +40,13 @@ impl VerifySignature for Reveal {
             let mut verified = false;
             for ck in &kid_doc.controller_keys {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                if ck.key_type == "ML-DSA-65"
-                    && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, &self.signature)
-                        .is_ok()
-                {
-                    verified = true;
-                    break;
+                if ck.key_type == "ML-DSA-65" {
+                    if let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key) {
+                        if kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, &self.signature).is_ok() {
+                            verified = true;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -114,13 +114,13 @@ impl VerifySignature for NameRecord {
                     let mut verified = false;
                     for ck in &kid_doc.controller_keys {
                         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                        if ck.key_type == "ML-DSA-65"
-                            && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                            && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, signature)
-                                .is_ok()
-                        {
-                            verified = true;
-                            break;
+                        if ck.key_type == "ML-DSA-65" {
+                            if let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key) {
+                                if kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, signature).is_ok() {
+                                    verified = true;
+                                    break;
+                                }
+                            }
                         }
                     }
 

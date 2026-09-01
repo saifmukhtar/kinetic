@@ -601,11 +601,16 @@ pub(crate) fn verify_authorized_manifest(
         return Err(err);
     }
 
-    if auth_manifest.manifest.verify_local(kid_doc).is_err() {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+        
+    if auth_manifest.manifest.verify_at_time(kid_doc, current_time).is_err() {
         let err = KineticStoreError::ManifestVerificationFailed;
         err.log_warning(
             &auth_manifest.name,
-            "Rejecting AuthorizedManifest: manifest failed local verification",
+            "Rejecting AuthorizedManifest: manifest failed time verification",
         );
         return Err(err);
     }
