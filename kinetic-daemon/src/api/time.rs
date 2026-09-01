@@ -1,14 +1,14 @@
-
-use kinetic_core::traits::KynProvider;
 use crate::api::ApiState;
 use axum::{Json, extract::State};
+use kinetic_core::traits::KynProvider;
 use kinetic_core::types::clock::KineticTime;
 
 /// Returns the current verified Kinetic Time from the daemon's internal state.
 pub async fn handle_get_time(
     State(state): State<ApiState>,
 ) -> Result<Json<KineticTime>, crate::api::error::AppError> {
-    let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
+    let kyn_provider =
+        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
 
     // Always prefer the cache for instantaneous responses,
     // the Heartbeat loop ensures this cache is populated.

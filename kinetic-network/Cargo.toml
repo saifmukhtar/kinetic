@@ -5,11 +5,12 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-kinetic-core = { path = "../kinetic-core" }
+kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
 kinetic-primitives = { path = "../kinetic-primitives" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-kid = { path = "../kinetic-kid" }
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
+kinetic-local = { version = "0.2.0", path = "../kinetic-local" }
 kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
 libp2p = { version = "0.53", features = ["kad", "gossipsub", "noise", "yamux", "macros", "identify", "relay", "dcutr", "ping", "request-response", "cbor", "autonat", "upnp", "quic"] }
 tokio = { version = "1.38.0", features = ["sync", "macros"] }
@@ -27,6 +28,8 @@ uuid = { version = "1.2.3", features = ["v4"] }
 lru = "0.12.3"
 argon2 = "0.5"
 web-time = "1.1.0"
+reqwest = { version = "0.13.4", features = ["json"] }
+async-trait = "0.1"
 arc-swap = "1.9.2"
 bytes = { version = "1.12.1", features = ["serde"] }
 serde_bytes = "0.11.19"
@@ -37,6 +40,7 @@ drand-verify = "0.6.2"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+gloo-timers = { version = "0.3.0", features = ["futures"] }
 libp2p = { version = "0.53", features = ["wasm-bindgen", "websocket-websys"] }
 wasm-bindgen-futures = "0.4"
 futures = "0.3"

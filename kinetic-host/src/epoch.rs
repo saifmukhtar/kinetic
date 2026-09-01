@@ -42,7 +42,7 @@ pub async fn start_routing_publisher(
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            kyn: kyn,
+            kyn,
             signature: vec![],
         };
 
@@ -52,7 +52,8 @@ pub async fn start_routing_publisher(
         record.signature = signature.to_bytes().to_vec();
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {
-            let err = kinetic_core::error::PublishError::HostRoutingRecordPublishFailed(e.to_string());
+            let err =
+                kinetic_core::error::PublishError::HostRoutingRecordPublishFailed(e.to_string());
             tracing::warn!(error_code = err.code(), "{}", err);
         } else {
             tracing::info!("Published dynamic HostRoutingRecord to DHT");
@@ -98,8 +99,10 @@ pub async fn start_drand_heartbeat(
         {
             let _ = kyn_tx.send(kyn.kyn);
 
-            let current_epoch =
-                kinetic_network::pow::get_staggered_epoch(&hb_local_peer_id.to_bytes(), kinetic_types::clock::Kyn(kyn.kyn));
+            let current_epoch = kinetic_network::pow::get_staggered_epoch(
+                &hb_local_peer_id.to_bytes(),
+                kinetic_types::clock::Kyn(kyn.kyn),
+            );
 
             let needs_validation = match last_verified_epoch {
                 Some(epoch) => epoch != current_epoch,
@@ -177,7 +180,10 @@ pub async fn start_drand_heartbeat(
 
                     match new_network {
                         Some((new_client, new_loop)) => {
-                            hc_client.update_backend(new_client.get_sender(), new_client.stream_control());
+                            hc_client.update_backend(
+                                new_client.get_sender(),
+                                new_client.stream_control(),
+                            );
                             *handle = tokio::spawn(async move {
                                 new_loop.run().await;
                             });

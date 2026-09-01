@@ -49,8 +49,8 @@ use tokio::sync::watch;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_core::config::KineticConfig;
-use kinetic_core::drand::{DrandProvider, RawKyn};
+use kinetic_core::drand::RawKyn;
+use kinetic_network::client::drand::DrandProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -90,7 +90,7 @@ async fn main() -> Result<()> {
         Some(Commands::Stop) => service::stop_background_service()?,
         Some(Commands::Port { port }) => configure_port(*port).await?,
         Some(Commands::Id) => {
-            let key_path = kinetic_core::config::get_base_dir().join("host.key");
+            let key_path = kinetic_local::config::get_base_dir().join("host.key");
             let host_key = host_key::load_or_generate_host_key(&key_path);
             let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
             println!("============================================================");
@@ -115,7 +115,7 @@ async fn run_host() -> Result<()> {
         std::process::exit(1);
     }
 
-    let config = KineticConfig::load();
+    let config = kinetic_local::config::load_config();
 
     // 1. Initialize structured tracing
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
@@ -128,7 +128,7 @@ async fn run_host() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let storage_path = kinetic_core::config::get_base_dir().join("host_db");
+    let storage_path = kinetic_local::config::get_base_dir().join("host_db");
     let storage = Arc::new(KineticStorage::new(
         storage_path
             .to_str()
@@ -138,7 +138,7 @@ async fn run_host() -> Result<()> {
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
     let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
-    
+
     // 6. Enforce Drand beacon availability on boot (unless in dev mode, which loads a mock cache)
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
@@ -156,7 +156,7 @@ async fn run_host() -> Result<()> {
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity (The Permanent Host Key)
-    let key_path = kinetic_core::config::get_base_dir().join("host.key");
+    let key_path = kinetic_local::config::get_base_dir().join("host.key");
     let host_key = host_key::load_or_generate_host_key(&key_path);
     let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
     info!("Infrastructure Node static Host Identity: {}", host_peer_id);
@@ -223,7 +223,7 @@ async fn run_host() -> Result<()> {
         test_mode: false,
         disable_storage_sync: false,
     };
-    let base_config_dir = kinetic_core::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
     let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
@@ -231,10 +231,10 @@ async fn run_host() -> Result<()> {
         .unwrap_or_else(|_| base_config_dir.join("governance.db"));
     let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
-        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
             .map_err(|e| anyhow::anyhow!("Poison error: {}", e))?;
-        *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
+        *gov = kinetic_local::governance::load_governance_from_disk(&gov_state_path);
     }
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);
@@ -361,7 +361,7 @@ async fn configure_port(arg_port: Option<u16>) -> Result<()> {
         }
     }
 
-    let config_path = kinetic_core::config::get_base_dir().join("host_config.json");
+    let config_path = kinetic_local::config::get_base_dir().join("host_config.json");
     let config = crate::config::HostConfig {
         backend_port: port,
         backend_host: "127.0.0.1".to_string(),

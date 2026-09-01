@@ -13,10 +13,10 @@ pub async fn handle_get_config(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
-    let config = kinetic_core::config::KineticConfig::load();
+    let config = kinetic_local::config::load_config();
     Ok(Json(serde_json::json!({
         "status": "ok",
         "config": config
@@ -30,7 +30,7 @@ pub async fn handle_owned_names(
 ) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
     if !role.can_publish() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
     let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
@@ -66,7 +66,7 @@ pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_
 
 /// Handles requests to retrieve the active governance state file.
 pub async fn handle_get_governance() -> Result<Vec<u8>, crate::api::error::AppError> {
-    let gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+    let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
         .lock()
         .unwrap();
     let data = bincode::serialize(&*gov).unwrap_or_default();
@@ -81,17 +81,18 @@ pub async fn handle_set_config(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
-    
+
     if let Some(config_payload) = payload.get("config") {
-        match serde_json::from_value::<kinetic_core::config::KineticConfig>(config_payload.clone()) {
+        match serde_json::from_value::<kinetic_core::config::KineticConfig>(config_payload.clone())
+        {
             Ok(new_config) => {
                 new_config.validate(); // Ensure no port collisions before saving
-                let _ = new_config.save();
+                let _ = kinetic_local::config::save_config(&new_config);
                 Ok(Json(serde_json::json!({
-                    "status": "ok", 
+                    "status": "ok",
                     "message": "Configuration saved. Restart daemon to apply."
                 })))
             }
@@ -132,7 +133,9 @@ pub async fn handle_get_health(State(state): State<ApiState>) -> Json<serde_json
 }
 
 /// Handles requests to retrieve the local peer ID.
-pub async fn handle_get_peer_id(State(state): State<ApiState>) -> Result<String, crate::api::error::AppError> {
+pub async fn handle_get_peer_id(
+    State(state): State<ApiState>,
+) -> Result<String, crate::api::error::AppError> {
     match state.network.get_network_status().await {
         Ok(status) => {
             if let Some(peer_id) = status.get("peer_id").and_then(|p| p.as_str()) {
@@ -143,13 +146,11 @@ pub async fn handle_get_peer_id(State(state): State<ApiState>) -> Result<String,
                 )))
             }
         }
-        Err(_) => {
-            Err(crate::api::error::AppError(kinetic_core::ApiError::from(
-                kinetic_core::error::ResolutionError::Internal {
-                    message: "Network channel closed".to_string(),
-                    source: None,
-                }
-            )))
-        }
+        Err(_) => Err(crate::api::error::AppError(kinetic_core::ApiError::from(
+            kinetic_core::error::ResolutionError::Internal {
+                message: "Network channel closed".to_string(),
+                source: None,
+            },
+        ))),
     }
 }

@@ -160,22 +160,22 @@ pub trait GovernanceEngine: Send + Sync {
     ) -> Option<GovernanceEffect>;
 }
 
-use async_trait::async_trait;
 use crate::drand::RawKyn;
 use crate::error::kyn_provider::KynProviderError;
+use async_trait::async_trait;
 
 /// Abstract interface for fetching and validating the network's consensus clock (Kyn).
 ///
-/// The canonical implementation is `DrandProvider` which fetches cryptographic
+/// The canonical implementation is `kinetic_network::client::drand::DrandProvider` which fetches cryptographic
 /// randomness beacons from the League of Entropy's Quicknet.
 #[async_trait]
 pub trait KynProvider: Send + Sync {
     /// Fetches the latest cryptographically verifiable kyn from the network.
     async fn fetch_latest(&self) -> Result<RawKyn, KynProviderError>;
-    
+
     /// Loads the most recently cached kyn from local memory or disk.
     fn load_cached_kyn(&self) -> Result<RawKyn, KynProviderError>;
-    
+
     /// Caches a newly verified kyn to memory and disk.
     fn cache_kyn(&self, kyn: &RawKyn) -> Result<(), KynProviderError>;
 }

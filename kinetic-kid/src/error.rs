@@ -102,7 +102,9 @@ pub enum Error {
     /// The Genesis DID does not match the SHA-256 hash of the primary controller key.
     /// The initial DID must always be cryptographically bound to its root key to prevent hijacking during network bootstrap.
     /// Ensure the DID is exactly `did:kin:<sha256_of_key>`.
-    #[error("KID document genesis binding failed: DID does not match SHA-256 of primary controller key")]
+    #[error(
+        "KID document genesis binding failed: DID does not match SHA-256 of primary controller key"
+    )]
     DidKeyMismatch,
 }
 

@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Mined PeerId: {}", key.public().to_peer_id());
 
     let db_path = args.db_path.unwrap_or_else(|| {
-        kinetic_core::config::get_base_dir().join(kinetic_core::constants::DB_NAME_PING)
+        kinetic_local::config::get_base_dir().join(kinetic_core::constants::DB_NAME_PING)
     });
 
     let storage = Arc::new(KineticStorage::new(db_path)?);

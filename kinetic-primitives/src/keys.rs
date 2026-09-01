@@ -1,5 +1,5 @@
-use ml_dsa::{Generate, MlDsa65, SigningKey, KeyInit, Keypair};
 use ml_dsa::signature::Signer;
+use ml_dsa::{Generate, KeyInit, Keypair, MlDsa65, SigningKey};
 
 /// A unified wrapper around the ML-DSA-65 post-quantum signing key.
 /// Centralizing this here allows us to banish the `ml-dsa` dependency

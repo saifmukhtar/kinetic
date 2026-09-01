@@ -112,11 +112,7 @@ impl Manifest {
     /// - Returns [`Error::MissingSignature`] if the signature field is absent.
     /// - Returns [`Error::Base64Error`] if signature decoding fails.
     /// - Returns [`Error::InvalidSignature`] if signature bytes are invalid.
-    pub fn verify_at_time(
-        &self,
-        kid_document: &Document,
-        unix_time: u64,
-    ) -> Result<(), Error> {
+    pub fn verify_at_time(&self, kid_document: &Document, unix_time: u64) -> Result<(), Error> {
         if kid_document.controller_keys.len() > 20 {
             return Err(Error::KeyLimitExceeded);
         }
@@ -146,14 +142,10 @@ impl Manifest {
                 ));
             }
             if svc.protocol.len() > 64 {
-                return Err(Error::StringLengthExceeded(
-                    "service.protocol".to_string(),
-                ));
+                return Err(Error::StringLengthExceeded("service.protocol".to_string()));
             }
             if svc.endpoint.len() > crate::LIMITS_KID_MAX_ENDPOINT_BYTES {
-                return Err(Error::StringLengthExceeded(
-                    "service.endpoint".to_string(),
-                ));
+                return Err(Error::StringLengthExceeded("service.endpoint".to_string()));
             }
         }
 
@@ -168,10 +160,9 @@ impl Manifest {
             if (key.key_type.eq_ignore_ascii_case("MlDsa65")
                 || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
                 && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
+                && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
             {
-                if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok() {
-                    return Ok(());
-                }
+                return Ok(());
             }
         }
 
@@ -183,7 +174,10 @@ impl Manifest {
     /// # Errors
     ///
     /// - Returns [`Error::CanonicalizationError`] if JCS canonicalization fails.
-    pub fn sign(mut self, keypair: &kinetic_primitives::keys::KineticKeypair) -> Result<Self, Error> {
+    pub fn sign(
+        mut self,
+        keypair: &kinetic_primitives::keys::KineticKeypair,
+    ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
         let mut msg_bytes = b"kinetic-manifest-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());

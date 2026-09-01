@@ -18,7 +18,9 @@ fn test_db_corruption_recovery() {
     let storage_result = KineticStorage::new(&db_dir);
 
     let err_msg = match storage_result {
-        Ok(_) => panic!("SECURITY FLAW: Database corruption should fail closed, not silently recover!"),
+        Ok(_) => {
+            panic!("SECURITY FLAW: Database corruption should fail closed, not silently recover!")
+        }
         Err(e) => e.to_string(),
     };
 

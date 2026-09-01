@@ -116,7 +116,7 @@ impl VdfEngine for RsaVdfEngine {
         // 4. Pass 3: Simultaneous Multi-Exponentiation
         let mut pi = BigUint::one();
 
-        for bit_idx in (0..b_block_size as u64).rev() {
+        for bit_idx in (0..b_block_size).rev() {
             pi = (&pi * &pi) % n;
 
             let mut batch_mult = BigUint::one();

@@ -17,7 +17,6 @@
 //! | `0x0F` | [`GovernanceAction::MapInfra`] | Grant a Category 2 infrastructure name (Root key only) |
 //! | `0x10` | [`GovernanceAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Root key only) |
 
-
 use thiserror::Error;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
@@ -166,7 +165,6 @@ pub enum GovernanceTypeError {
     #[error("Invalid public key length, expected 1952 bytes for ML-DSA-65")]
     InvalidPubkeyLength,
 }
-
 
 impl GovernanceAction {
     /// Parses a [`GovernanceAction`] and its trailing timestamp from a canonical byte slice.

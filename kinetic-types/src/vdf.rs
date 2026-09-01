@@ -23,10 +23,10 @@ pub struct Commitment {
 
 impl Commitment {
     /// Canonically derives the VDF challenge hash.
-    /// 
+    ///
     /// This is the SINGLE source of truth for generating VDF challenges across
-    /// the Kinetic network. It cryptographically binds the network salt, the target 
-    /// name, the user's random salt, the compressed Drand randomness, and the 
+    /// the Kinetic network. It cryptographically binds the network salt, the target
+    /// name, the user's random salt, the compressed Drand randomness, and the
     /// user's public key.
     pub fn derive(
         network_salt: &[u8; 32],
@@ -36,7 +36,7 @@ impl Commitment {
         pubkey: &[u8],
     ) -> Self {
         use sha2::Digest;
-        
+
         // Compress the 96-byte BLS12-381 G2 Drand signature into a 32-byte hash
         let mut drand_hasher = sha2::Sha256::new();
         drand_hasher.update(drand_signature_bytes);

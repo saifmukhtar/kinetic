@@ -12,7 +12,6 @@ use thiserror::Error;
 /// Errors originating from local storage
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum StorageError {
-
     /// The daemon attempted to open the embedded database file, but it is exclusively locked.
     /// This typically means a second instance of the Kinetic daemon is already running on this machine.
     /// Stop the conflicting process and restart the daemon.
@@ -137,9 +136,16 @@ impl StorageError {
             Self::DeleteFailed(_) => "A delete operation failed on the local storage.".to_string(),
             Self::ScanFailed(_) => "A scan operation failed on the local storage.".to_string(),
             Self::OpenFailed(_) => "Failed to open the local storage database.".to_string(),
-            Self::DeserializationFailed(_) => "Stored data could not be deserialized due to version mismatch or corruption.".to_string(),
-            Self::InvalidRecordDiscarded => "An invalid or expired local record was safely discarded.".to_string(),
-            Self::OrphanedHeartbeatPurged => "An orphaned heartbeat was safely purged from local storage.".to_string(),
+            Self::DeserializationFailed(_) => {
+                "Stored data could not be deserialized due to version mismatch or corruption."
+                    .to_string()
+            }
+            Self::InvalidRecordDiscarded => {
+                "An invalid or expired local record was safely discarded.".to_string()
+            }
+            Self::OrphanedHeartbeatPurged => {
+                "An orphaned heartbeat was safely purged from local storage.".to_string()
+            }
         }
     }
 }

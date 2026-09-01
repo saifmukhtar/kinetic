@@ -1,12 +1,12 @@
 //! Core cryptographic primitives for the Kinetic Network.
 //!
 //! This module centralizes all hashing and Post-Quantum (ML-DSA-65) signature logic
-//! to prevent fragmentation across the workspace. It enforces strict typing and 
+//! to prevent fragmentation across the workspace. It enforces strict typing and
 //! canonical implementations of cryptographic operations.
 
-use sha2::{Digest, Sha256};
-use ml_dsa::{KeyInit, MlDsa65};
 use ml_dsa::signature::Verifier;
+use ml_dsa::{KeyInit, MlDsa65};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// Centralized error type for cryptographic primitive operations.
@@ -17,11 +17,11 @@ pub enum CryptoError {
     /// Returned when a signature byte array cannot be decoded or is mathematically invalid.
     #[error("Invalid ML-DSA-65 signature encoding")]
     InvalidSignature,
-    
+
     /// Returned when a public key byte array is the wrong length or malformed.
     #[error("Invalid ML-DSA-65 public key format")]
     InvalidPublicKey,
-    
+
     /// Returned when a signature is well-formed but does not match the message.
     #[error("Cryptographic verification failed")]
     VerificationFailed,
@@ -46,14 +46,14 @@ pub fn sha256_hash_concat(chunks: &[&[u8]]) -> [u8; 32] {
 }
 
 /// Verifies a post-quantum ML-DSA-65 signature against a given public key and message.
-/// 
+///
 /// # Arguments
 /// * `pubkey_bytes` - The raw public key bytes to verify against.
 /// * `message` - The raw message bytes that were signed.
 /// * `signature_bytes` - The raw ML-DSA-65 signature bytes.
 ///
 /// # Errors
-/// Returns a `CryptoError` if the public key or signature is malformed, 
+/// Returns a `CryptoError` if the public key or signature is malformed,
 /// or if the signature does not mathematically match the message.
 pub fn verify_mldsa(
     pubkey_bytes: &[u8],
@@ -66,6 +66,7 @@ pub fn verify_mldsa(
     let sig = ml_dsa::Signature::<MlDsa65>::try_from(signature_bytes)
         .map_err(|_| CryptoError::InvalidSignature)?;
 
-    pubkey.verify(message, &sig)
+    pubkey
+        .verify(message, &sig)
         .map_err(|_| CryptoError::VerificationFailed)
 }

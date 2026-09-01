@@ -20,6 +20,8 @@ getrandom = "0.4.3"
 hex = "0.4.3"
 bip39 = "2.2.2"
 kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
+kinetic-local = { version = "0.2.0", path = "../kinetic-local" }
+kinetic-network = { version = "0.2.0", path = "../kinetic-network" }
 kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 kinetic-kid = { version = "0.2.0", path = "../kinetic-kid" }
 kinetic-primitives = { path = "../kinetic-primitives" }

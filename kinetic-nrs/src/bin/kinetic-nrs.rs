@@ -126,7 +126,6 @@ fn remove_os_dns() {
     let os = std::env::consts::OS;
     let nsp = kinetic_core::constants::NSP;
 
-
     if os == "linux" {
         let conf_path = format!("/etc/systemd/resolved.conf.d/{}.conf", nsp);
         std::fs::remove_file(&conf_path).ok();
@@ -161,7 +160,7 @@ fn install_service() -> Result<()> {
         args: vec![
             "run".into(),
             "--dns-port".into(),
-            kinetic_core::config::KineticConfig::load()
+            kinetic_local::config::load_config()
                 .daemon
                 .nrs_port
                 .to_string()
@@ -175,7 +174,7 @@ fn install_service() -> Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    if let Err(e) = configure_os_dns(kinetic_core::config::KineticConfig::load().daemon.nrs_port) {
+    if let Err(e) = configure_os_dns(kinetic_local::config::load_config().daemon.nrs_port) {
         println!("Warning: Failed to configure OS DNS: {}", e);
     }
 
@@ -344,7 +343,8 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     teardown_macos_alias(bind_ip);
                 }
                 Err(e2) => {
-                    let err = kinetic_core::error::NrsError::NrsServerExecutionError(e2.to_string());
+                    let err =
+                        kinetic_core::error::NrsError::NrsServerExecutionError(e2.to_string());
                     warn!(error_code = err.code(), "{}", err);
                 }
             }

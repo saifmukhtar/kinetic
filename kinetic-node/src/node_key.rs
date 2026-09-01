@@ -22,7 +22,7 @@ pub fn load_or_generate_key(key_path: &Path) -> Keypair {
             let file_name = key_path.file_name().unwrap_or_default().to_string_lossy();
             let corrupt_name = format!("{}.{}.corrupt", file_name, timestamp);
             let corrupt_path = key_path.with_file_name(corrupt_name);
-            
+
             if let Err(e) = std::fs::rename(key_path, &corrupt_path) {
                 tracing::error!(
                     error = ?kinetic_core::error::SystemError::IdentityCorrupted(e.to_string()),
@@ -37,7 +37,7 @@ pub fn load_or_generate_key(key_path: &Path) -> Keypair {
 
             let k = Keypair::generate_ed25519();
             if let Ok(encoded) = k.to_protobuf_encoding()
-                && let Err(e) = kinetic_core::secure_fs::write_secret(key_path, &encoded)
+                && let Err(e) = kinetic_local::secure_fs::write_secret(key_path, &encoded)
             {
                 panic!("CRITICAL FATAL ERROR: Cannot save node identity to disk! Check folder permissions. Error: {}", e);
             }
@@ -46,7 +46,7 @@ pub fn load_or_generate_key(key_path: &Path) -> Keypair {
     } else {
         let k = Keypair::generate_ed25519();
         if let Ok(encoded) = k.to_protobuf_encoding()
-            && let Err(e) = kinetic_core::secure_fs::write_secret(key_path, &encoded)
+            && let Err(e) = kinetic_local::secure_fs::write_secret(key_path, &encoded)
         {
             tracing::warn!(
                 error = ?kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string()),

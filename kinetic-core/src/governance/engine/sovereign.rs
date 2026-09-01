@@ -133,7 +133,9 @@ impl GovernanceEngine for SovereignEngine {
         current_kyn: kinetic_types::clock::Kyn,
     ) -> Option<GovernanceEffect> {
         let action_hash = GovernanceState::hash_action(msg);
-        state.executed_hashes.insert(action_hash, kinetic_types::clock::Kyn(msg.timestamp_kyn));
+        state
+            .executed_hashes
+            .insert(action_hash, kinetic_types::clock::Kyn(msg.timestamp_kyn));
 
         match &msg.action {
             GovernanceAction::MapPrime {

@@ -53,7 +53,7 @@ fn setup_firefox() -> anyhow::Result<()> {
     println!("🦊 Kinetic Firefox NSS Configuration");
     println!("========================================================");
 
-    let base_dir = kinetic_core::config::get_base_dir();
+    let base_dir = kinetic_local::config::get_base_dir();
     let nsp = kinetic_core::constants::NSP_SUFFIX;
     let salt_prefix = &kinetic_core::constants::NETWORK_SALT_HEX[0..4];
     let ca_prefix = format!("{}-{}", nsp, salt_prefix);

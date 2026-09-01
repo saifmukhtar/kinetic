@@ -19,7 +19,7 @@ impl KineticRecordStore {
 
         if let Some(reveal) = reveal_ref {
             let paused_kyns =
-                if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+                if let Ok(state) = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock() {
                     state.paused_kyns_since(kinetic_core::types::Kyn(reveal.kyn))
                 } else {
                     0
@@ -108,10 +108,7 @@ impl KineticRecordStore {
 
                     if dist_new > dist_existing {
                         let err = KineticStoreError::TieBroken;
-                        err.log_warning(
-                            &new_reveal.name,
-                            "Rejecting Steal Reveal:",
-                        );
+                        err.log_warning(&new_reveal.name, "Rejecting Steal Reveal:");
                         return Err(err);
                     } else {
                         tracing::info!(
@@ -263,10 +260,7 @@ impl KineticRecordStore {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        let current_kyn = std::cmp::max(
-            self.current_kyn,
-            reveal_ref.map_or(0, |r| r.kyn),
-        );
+        let current_kyn = std::cmp::max(self.current_kyn, reveal_ref.map_or(0, |r| r.kyn));
         self.last_heartbeats_by_name
             .insert(name.to_string(), current_kyn);
         let hb_key = [KRS_HB_PREFIX, name.as_bytes()].concat();
@@ -324,7 +318,9 @@ impl KineticRecordStore {
                 existing_record.pubkey(),
                 &auth.signable_bytes(kinetic_core::constants::NETWORK_SALT),
                 &auth.owner_signature,
-            ).is_err() {
+            )
+            .is_err()
+            {
                 let err = KineticStoreError::DelegatedAuthorizationInvalid;
                 err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
                 return Err(err);
@@ -352,7 +348,12 @@ impl KineticRecordStore {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                 if ck.key_type == "ML-DSA-65"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, &heartbeat.signature).is_ok()
+                    && kinetic_primitives::verify_mldsa(
+                        &pubkey_bytes,
+                        &signable,
+                        &heartbeat.signature,
+                    )
+                    .is_ok()
                 {
                     verified = true;
                     break;
@@ -364,7 +365,8 @@ impl KineticRecordStore {
                 existing_record.pubkey(),
                 &signable,
                 &heartbeat.signature,
-            ).is_ok()
+            )
+            .is_ok()
         };
 
         if !is_valid_signature {
@@ -375,10 +377,7 @@ impl KineticRecordStore {
 
         if heartbeat.latest_kyn > self.current_kyn + 2 {
             let err = KineticStoreError::FutureHeartbeat;
-            err.log_warning(
-                &heartbeat.name,
-                "Rejecting Heartbeat: future-dated:",
-            );
+            err.log_warning(&heartbeat.name, "Rejecting Heartbeat: future-dated:");
             return Err(err);
         }
 

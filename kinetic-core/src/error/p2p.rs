@@ -37,7 +37,9 @@ pub enum P2pError {
     /// A light node failed the proof-of-work handshake when the node was at maximum connection capacity.
     /// To prevent connection slot exhaustion during high load, the node disconnects unauthenticated light nodes.
     /// If you run a light client, ensure it correctly computes the PoW handshake before dialing full nodes.
-    #[error("Light Node limit reached. Peer {0} failed PoW, disconnecting them to prevent connection slot exhaustion")]
+    #[error(
+        "Light Node limit reached. Peer {0} failed PoW, disconnecting them to prevent connection slot exhaustion"
+    )]
     LightNodePowFailureLimit(String),
 
     /// A single cryptographic identifier attempted to multiplex too many light client connections.
@@ -131,7 +133,9 @@ impl P2pError {
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
         match self {
-            Self::ZeroPeersDetected | Self::OfflineVerifyQuorum | Self::GossipSemaphoreSaturated(..) => Severity::Error,
+            Self::ZeroPeersDetected
+            | Self::OfflineVerifyQuorum
+            | Self::GossipSemaphoreSaturated(..) => Severity::Error,
             _ => Severity::Warning,
         }
     }
@@ -144,20 +148,46 @@ impl P2pError {
     /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
         match self {
-            Self::UnroutableSeedMultiaddr(_) => "Rejected unroutable DNS seed multiaddr.".to_string(),
-            Self::ZeroPeersDetected => "0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...".to_string(),
-            Self::GossipSpamBan(_) => "Peer sent too many invalid gossip messages and was banned.".to_string(),
-            Self::RecordSpamBan(_) | Self::KademliaRecordSpamBan(_) => "Peer sent too many invalid records and was banned.".to_string(),
-            Self::LightNodePowFailureLimit(_) => "Light Node limit reached; disconnected peer without valid PoW.".to_string(),
-            Self::LightNodeIdentityLimit(..) => "Identifier exceeded limit of 3 light clients; disconnected peer.".to_string(),
-            Self::OfflineVerifyQuorum => "Offline mode: Failing fast for VerifyQuorum (0 peers).".to_string(),
-            Self::MdnsBindFailed(_) => "Failed to bind mDNS. Local peer discovery disabled.".to_string(),
-            Self::GossipSemaphoreSaturated(..) => "Gossip semaphore saturated — dropping message.".to_string(),
-            Self::LightNodeWriteRejected(_) => "Light node attempted to Write. Rejecting and disconnecting.".to_string(),
+            Self::UnroutableSeedMultiaddr(_) => {
+                "Rejected unroutable DNS seed multiaddr.".to_string()
+            }
+            Self::ZeroPeersDetected => {
+                "0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh..."
+                    .to_string()
+            }
+            Self::GossipSpamBan(_) => {
+                "Peer sent too many invalid gossip messages and was banned.".to_string()
+            }
+            Self::RecordSpamBan(_) | Self::KademliaRecordSpamBan(_) => {
+                "Peer sent too many invalid records and was banned.".to_string()
+            }
+            Self::LightNodePowFailureLimit(_) => {
+                "Light Node limit reached; disconnected peer without valid PoW.".to_string()
+            }
+            Self::LightNodeIdentityLimit(..) => {
+                "Identifier exceeded limit of 3 light clients; disconnected peer.".to_string()
+            }
+            Self::OfflineVerifyQuorum => {
+                "Offline mode: Failing fast for VerifyQuorum (0 peers).".to_string()
+            }
+            Self::MdnsBindFailed(_) => {
+                "Failed to bind mDNS. Local peer discovery disabled.".to_string()
+            }
+            Self::GossipSemaphoreSaturated(..) => {
+                "Gossip semaphore saturated — dropping message.".to_string()
+            }
+            Self::LightNodeWriteRejected(_) => {
+                "Light node attempted to Write. Rejecting and disconnecting.".to_string()
+            }
             Self::OutgoingConnectionError(..) => "Outgoing connection error to peer.".to_string(),
             Self::BootstrapDialFailed(..) => "Failed to dial bootstrap node.".to_string(),
-            Self::BannedPeerConnectionAttempt(_) => "Banned peer attempted to connect; disconnected immediately.".to_string(),
-            Self::BootstrapPowTimeout(_) => "Bootstrap peer failed to provide valid PoW after 24 hours. Disconnecting.".to_string(),
+            Self::BannedPeerConnectionAttempt(_) => {
+                "Banned peer attempted to connect; disconnected immediately.".to_string()
+            }
+            Self::BootstrapPowTimeout(_) => {
+                "Bootstrap peer failed to provide valid PoW after 24 hours. Disconnecting."
+                    .to_string()
+            }
         }
     }
 }

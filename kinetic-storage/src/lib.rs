@@ -166,10 +166,10 @@ mod native {
                 if !k_val.starts_with(prefix) {
                     break;
                 }
-                if let Some(l) = limit {
-                    if results.len() >= l {
-                        break;
-                    }
+                if let Some(l) = limit
+                    && results.len() >= l
+                {
+                    break;
                 }
                 results.push((k_val.to_vec(), v.value().to_vec()));
             }

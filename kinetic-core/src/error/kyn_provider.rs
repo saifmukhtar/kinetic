@@ -105,7 +105,7 @@ impl PartialEq for KynProviderError {
             (Self::NoCachedKyn, Self::NoCachedKyn) => true,
             (Self::Serde(a), Self::Serde(b)) => a.to_string() == b.to_string(),
             (Self::Storage(a), Self::Storage(b)) => a == b,
-            (Self::HttpClient(a), Self::HttpClient(b)) => a.to_string() == b.to_string(),
+            (Self::HttpClient(a), Self::HttpClient(b)) => *a == *b,
             (Self::InvalidSignature, Self::InvalidSignature) => true,
             (Self::StreamReadFailed(a), Self::StreamReadFailed(b)) => a == b,
             (Self::ResponseTooLarge(a), Self::ResponseTooLarge(b)) => a == b,
@@ -120,7 +120,10 @@ impl PartialEq for KynProviderError {
                 },
             ) => e1 == e2 && g1 == g2,
             (Self::UnavailableOnStartup(a), Self::UnavailableOnStartup(b)) => a == b,
-            (Self::P2pFallbackTriggered { behind: a }, Self::P2pFallbackTriggered { behind: b }) => a == b,
+            (
+                Self::P2pFallbackTriggered { behind: a },
+                Self::P2pFallbackTriggered { behind: b },
+            ) => a == b,
             (Self::DevModeMockKyn, Self::DevModeMockKyn) => true,
             (Self::RegistrationDisabled, Self::RegistrationDisabled) => true,
             (Self::LiveFetchFailedFallback, Self::LiveFetchFailedFallback) => true,
@@ -171,9 +174,9 @@ impl KynProviderError {
             | Self::InvalidSignature
             | Self::ResponseTooLarge(_)
             | Self::UnavailableOnStartup(_) => Severity::Error,
-            Self::P2pFallbackTriggered { .. } 
-            | Self::DevModeMockKyn 
-            | Self::RegistrationDisabled 
+            Self::P2pFallbackTriggered { .. }
+            | Self::DevModeMockKyn
+            | Self::RegistrationDisabled
             | Self::LiveFetchFailedFallback => Severity::Warning,
         }
     }
@@ -183,10 +186,10 @@ impl KynProviderError {
         matches!(
             self,
             Self::AllEndpointsFailed
-            | Self::HttpError(_)
-            | Self::HttpClient(_)
-            | Self::StreamReadFailed(_)
-            | Self::StaleKyn { .. }
+                | Self::HttpError(_)
+                | Self::HttpClient(_)
+                | Self::StreamReadFailed(_)
+                | Self::StaleKyn { .. }
         )
     }
 
@@ -208,10 +211,21 @@ impl KynProviderError {
             Self::InvalidSignature => "Invalid network signature.".to_string(),
             Self::StaleKyn { .. } => "The fetched network kyn was too old.".to_string(),
             Self::UnavailableOnStartup(e) => format!("Beacon beacon unavailable on startup: {}", e),
-            Self::P2pFallbackTriggered { behind } => format!("P2P Beacon fallback triggered! We are behind by {} kyns.", behind),
-            Self::DevModeMockKyn => "DEV MODE: Returning mock beacon kyn because cache is empty.".to_string(),
-            Self::RegistrationDisabled => "P2P swarm and proxy will start — registration disabled until beacon reachable".to_string(),
-            Self::LiveFetchFailedFallback => "Could not fetch live beacon kyn, falling back to cached value for staleness check".to_string(),
+            Self::P2pFallbackTriggered { behind } => format!(
+                "P2P Beacon fallback triggered! We are behind by {} kyns.",
+                behind
+            ),
+            Self::DevModeMockKyn => {
+                "DEV MODE: Returning mock beacon kyn because cache is empty.".to_string()
+            }
+            Self::RegistrationDisabled => {
+                "P2P swarm and proxy will start — registration disabled until beacon reachable"
+                    .to_string()
+            }
+            Self::LiveFetchFailedFallback => {
+                "Could not fetch live beacon kyn, falling back to cached value for staleness check"
+                    .to_string()
+            }
         }
     }
 }

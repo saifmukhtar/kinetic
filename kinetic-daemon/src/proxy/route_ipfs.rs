@@ -21,7 +21,7 @@ where
         .to_string();
 
     let method = req.method().clone();
-    
+
     let mut req_headers = hyper::HeaderMap::new();
     for (name, value) in req.headers() {
         if name != hyper::header::HOST {
@@ -33,14 +33,19 @@ where
     let mut body_bytes = Vec::new();
     let mut body_stream = req.into_body();
     while let Some(chunk_res) = body_stream.frame().await {
-        if let Ok(frame) = chunk_res {
-            if let Ok(data) = frame.into_data() {
-                body_bytes.extend_from_slice(data.as_ref());
-                if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                    let err = kinetic_core::error::SecurityError::PayloadTooLarge;
-                    tracing::warn!(error_code = err.code(), "Blocked oversized IPFS proxy request body");
-                    return Err(ProxyError::InvalidPayload("Blocked oversized IPFS proxy request body".to_string()));
-                }
+        if let Ok(frame) = chunk_res
+            && let Ok(data) = frame.into_data()
+        {
+            body_bytes.extend_from_slice(data.as_ref());
+            if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
+                let err = kinetic_core::error::SecurityError::PayloadTooLarge;
+                tracing::warn!(
+                    error_code = err.code(),
+                    "Blocked oversized IPFS proxy request body"
+                );
+                return Err(ProxyError::InvalidPayload(
+                    "Blocked oversized IPFS proxy request body".to_string(),
+                ));
             }
         }
     }
@@ -82,14 +87,17 @@ where
             Ok(backend_resp) => {
                 let status = backend_resp.status();
                 if status.is_server_error() || status == reqwest::StatusCode::NOT_FOUND {
-                    let err = kinetic_core::error::GatewayError::GatewayFailedWithStatus(gateway.to_string(), status.to_string());
+                    let err = kinetic_core::error::GatewayError::GatewayFailedWithStatus(
+                        gateway.to_string(),
+                        status.to_string(),
+                    );
                     tracing::warn!(error_code = err.code(), "{}. Trying next...", err);
                     last_error = Some(format!("Gateway returned {}", status));
                     continue;
                 }
-                
+
                 let mut resp_builder = Response::builder().status(status);
-                
+
                 for (name, value) in backend_resp.headers() {
                     if name.as_str().to_lowercase() == "strict-transport-security" {
                         continue;
@@ -102,7 +110,10 @@ where
                 return Ok(resp_builder.body(body)?);
             }
             Err(e) => {
-                let err = kinetic_core::error::GatewayError::GatewayUnreachable(gateway.to_string(), e.to_string());
+                let err = kinetic_core::error::GatewayError::GatewayUnreachable(
+                    gateway.to_string(),
+                    e.to_string(),
+                );
                 tracing::warn!(error_code = err.code(), "{}. Trying next...", err);
                 last_error = Some(e.to_string());
                 continue;
@@ -112,18 +123,21 @@ where
 
     let err = kinetic_core::error::GatewayError::AllGatewaysFailed(cid.to_string());
     tracing::error!(error_code = err.code(), "{}", err);
-    Err(ProxyError::PeerUnreachable(
-        format!("{}: {}. Last error: {}", err.code(), err, last_error.unwrap_or_else(|| "None".to_string()))
-    ))
+    Err(ProxyError::PeerUnreachable(format!(
+        "{}: {}. Last error: {}",
+        err.code(),
+        err,
+        last_error.unwrap_or_else(|| "None".to_string())
+    )))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use httptest::{matchers::*, responders::*, Expectation, Server};
+    use httptest::{Expectation, Server, matchers::*, responders::*};
     use hyper::Request;
-    use std::sync::Arc;
     use kinetic_core::config::KineticConfig;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_ipfs_gateway_fallback() {
@@ -143,7 +157,11 @@ mod tests {
         );
 
         let mut config = KineticConfig::default();
-        config.daemon.ipfs_gateway = format!("{}, {}", server_private.url_str("/ipfs/"), server_public.url_str("/ipfs/"));
+        config.daemon.ipfs_gateway = format!(
+            "{}, {}",
+            server_private.url_str("/ipfs/"),
+            server_public.url_str("/ipfs/")
+        );
 
         // Use http_body_util::Full to mock a generic Body in tests
         let req = Request::builder()
@@ -152,7 +170,9 @@ mod tests {
             .body(http_body_util::Full::new(bytes::Bytes::from("")))
             .unwrap();
 
-        let resp = forward_to_ipfs(req, Arc::new(config), "QmTestCID123").await.expect("Fallback loop should succeed");
+        let resp = forward_to_ipfs(req, Arc::new(config), "QmTestCID123")
+            .await
+            .expect("Fallback loop should succeed");
         assert_eq!(resp.status(), 200);
 
         use http_body_util::BodyExt;
@@ -165,7 +185,7 @@ mod tests {
                 }
             }
         }
-        
+
         assert_eq!(body_bytes, b"success_image_bytes");
     }
 }

@@ -239,7 +239,8 @@ impl super::core::NetworkEventLoop {
                     && let Some(conn_time) = self.bootstrap_connection_time.get(&peer_id)
                     && conn_time.elapsed() > web_time::Duration::from_secs(24 * 3600)
                 {
-                    let err = kinetic_core::error::P2pError::BootstrapPowTimeout(peer_id.to_string());
+                    let err =
+                        kinetic_core::error::P2pError::BootstrapPowTimeout(peer_id.to_string());
                     tracing::warn!(error_code = err.code(), "{}", err);
                     let _ = self.swarm.disconnect_peer_id(peer_id);
                     return;
@@ -286,7 +287,10 @@ impl super::core::NetworkEventLoop {
                 }
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                let err = kinetic_core::error::P2pError::OutgoingConnectionError(format!("{:?}", peer_id), format!("{:?}", error));
+                let err = kinetic_core::error::P2pError::OutgoingConnectionError(
+                    format!("{:?}", peer_id),
+                    format!("{:?}", error),
+                );
                 tracing::warn!(error_code = err.code(), "{}", err);
                 if let Some(peer_id) = peer_id {
                     self.swarm.behaviour_mut().kademlia.remove_peer(&peer_id);

@@ -5,13 +5,13 @@ use hyper::{Request, Response, body::Incoming};
 ///
 /// **Architectural Note (WebSockets & Security):**
 /// This IP-bridge intentionally does NOT support connection upgrading (e.g., WebSockets).
-/// We rely on the `reqwest` HTTP client for outbound fetching because it securely manages 
-/// TLS/SSL verification, ALPN, and connection pooling by default. Replacing it with a raw 
-/// `hyper` TCP stream to support WebSockets would require manually implementing outbound TLS 
+/// We rely on the `reqwest` HTTP client for outbound fetching because it securely manages
+/// TLS/SSL verification, ALPN, and connection pooling by default. Replacing it with a raw
+/// `hyper` TCP stream to support WebSockets would require manually implementing outbound TLS
 /// via `rustls`, which introduces massive risk of critical Man-in-the-Middle (MitM) vulnerabilities.
-/// 
-/// **Alternative:** Developers building real-time applications on the `.kin` network should avoid 
-/// centralized WebSockets and instead utilize native Web3 architectures, such as P2P routing, 
+///
+/// **Alternative:** Developers building real-time applications on the `.kin` network should avoid
+/// centralized WebSockets and instead utilize native Web3 architectures, such as P2P routing,
 /// Libp2p streams, or WebRTC.
 pub async fn forward_to_ip(
     req: Request<Incoming>,
@@ -27,7 +27,10 @@ pub async fn forward_to_ip(
     } else {
         let err = super::ProxyError::InvalidIpFormat(name.to_string(), ip_str.to_string());
         tracing::warn!(error_code = err.code(), "{}", err);
-        return Err(ProxyError::NameNotFound(format!("Invalid IP format for name '{}'", name)));
+        return Err(ProxyError::NameNotFound(format!(
+            "Invalid IP format for name '{}'",
+            name
+        )));
     };
 
     let original_port = req
@@ -51,7 +54,11 @@ pub async fn forward_to_ip(
             || original_port == config.daemon.pac_port)
     {
         let err = kinetic_core::error::SecurityError::ProxyLoop;
-        tracing::error!(error_code = err.code(), "Proxy loop blocked for port {}", original_port);
+        tracing::error!(
+            error_code = err.code(),
+            "Proxy loop blocked for port {}",
+            original_port
+        );
         return Err(ProxyError::Other(
             "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
         ));
@@ -73,14 +80,22 @@ pub async fn forward_to_ip(
             tracing::warn!(
                 error_code = warn_err.code(),
                 "DEV MODE: Forwarding to private IP {}. Reason: [{}] {}. This would be blocked in production.",
-                ip_addr, err_obj.code(), err_obj
+                ip_addr,
+                err_obj.code(),
+                err_obj
             );
         } else {
             let sec_err = kinetic_core::error::SecurityError::DangerousIpBlocked;
-            tracing::warn!(error_code = sec_err.code(), "SSRF attempt blocked to {}. Rule: {}", ip_addr, err_obj.code());
+            tracing::warn!(
+                error_code = sec_err.code(),
+                "SSRF attempt blocked to {}. Rule: {}",
+                ip_addr,
+                err_obj.code()
+            );
             return Err(ProxyError::SecurityViolation(format!(
                 "Cannot proxy to loopback or private IPs. Reason: [{}] {}. (Use Dev Mode to bypass)",
-                err_obj.code(), err_obj
+                err_obj.code(),
+                err_obj
             )));
         }
     }
@@ -103,7 +118,10 @@ pub async fn forward_to_ip(
         scheme,
         formatted_host,
         port,
-        req.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/")
+        req.uri()
+            .path_and_query()
+            .map(|p| p.as_str())
+            .unwrap_or("/")
     );
 
     let client = reqwest::Client::builder()
@@ -139,14 +157,19 @@ pub async fn forward_to_ip(
     let mut body_bytes = Vec::new();
     let mut body_stream = req.into_body();
     while let Some(chunk_res) = body_stream.frame().await {
-        if let Ok(frame) = chunk_res {
-            if let Ok(data) = frame.into_data() {
-                body_bytes.extend_from_slice(&data);
-                if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                    let err = kinetic_core::error::SecurityError::PayloadTooLarge;
-                    tracing::warn!(error_code = err.code(), "Blocked oversized IP proxy request body");
-                    return Err(ProxyError::InvalidPayload("Blocked oversized IP proxy request body".to_string()));
-                }
+        if let Ok(frame) = chunk_res
+            && let Ok(data) = frame.into_data()
+        {
+            body_bytes.extend_from_slice(&data);
+            if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
+                let err = kinetic_core::error::SecurityError::PayloadTooLarge;
+                tracing::warn!(
+                    error_code = err.code(),
+                    "Blocked oversized IP proxy request body"
+                );
+                return Err(ProxyError::InvalidPayload(
+                    "Blocked oversized IP proxy request body".to_string(),
+                ));
             }
         }
     }

@@ -169,22 +169,21 @@ impl PacManager {
 
             if let Some(ref old_url) = previous.previous_pac_url {
                 if old_url.starts_with("http") {
-                    if let Ok(resp) = reqwest::blocking::get(old_url) {
-                        if let Ok(text) = resp.text() {
-                            let _ = std::fs::write(&original_js, text);
-                            tracing::info!(
-                                "Successfully downloaded original PAC script for passthrough merging."
-                            );
-                        }
-                    }
-                } else if old_url.starts_with("file://") {
-                    if let Ok(text) = std::fs::read_to_string(old_url.trim_start_matches("file://"))
+                    if let Ok(resp) = reqwest::blocking::get(old_url)
+                        && let Ok(text) = resp.text()
                     {
                         let _ = std::fs::write(&original_js, text);
                         tracing::info!(
-                            "Successfully read local original PAC script for passthrough merging."
+                            "Successfully downloaded original PAC script for passthrough merging."
                         );
                     }
+                } else if old_url.starts_with("file://")
+                    && let Ok(text) = std::fs::read_to_string(old_url.trim_start_matches("file://"))
+                {
+                    let _ = std::fs::write(&original_js, text);
+                    tracing::info!(
+                        "Successfully read local original PAC script for passthrough merging."
+                    );
                 }
             }
         }
@@ -358,7 +357,7 @@ pub fn build_pac_script(proxies_dir: &std::path::Path) -> String {
     > = std::collections::HashMap::new();
 
     // Scan proxies dir for JSON files
-    if let Ok(entries) = std::fs::read_dir(&proxies_dir) {
+    if let Ok(entries) = std::fs::read_dir(proxies_dir) {
         for entry in entries.flatten() {
             if let Some(ext) = entry.path().extension()
                 && ext == "json"

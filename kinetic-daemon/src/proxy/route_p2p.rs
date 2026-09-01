@@ -4,13 +4,13 @@ use hyper::{Request, Response, body::Incoming};
 /// Tunnels the proxy request securely over the Libp2p network to the target PeerId.
 ///
 /// **Architectural Note (Payload Limits):**
-/// This P2P proxy relies on the `libp2p::request_response::cbor` protocol, which has 
+/// This P2P proxy relies on the `libp2p::request_response::cbor` protocol, which has
 /// strict, hardcoded message limits at the binary codec level:
 /// - **Uploads (Requests):** Max 1MB (1,048,576 bytes)
 /// - **Downloads (Responses):** Max 10MB (10,485,760 bytes)
-/// 
-/// If a decentralized `.kin` app attempts to serve or receive media larger than these limits, 
-/// the Libp2p swarm will aggressively drop the packets. For large files, video streaming, 
+///
+/// If a decentralized `.kin` app attempts to serve or receive media larger than these limits,
+/// the Libp2p swarm will aggressively drop the packets. For large files, video streaming,
 /// or bulk data transfers, developers must use IPFS (`route_ipfs.rs`) instead of P2P routing.
 pub async fn forward_to_p2p(
     req: Request<Incoming>,
@@ -54,10 +54,9 @@ pub async fn forward_to_p2p(
         let name_lower = name.as_str().to_lowercase();
         if !strip_req_headers.contains(&name_lower.as_str())
             && name_lower != "host"
+            && let Ok(val_str) = value.to_str()
         {
-            if let Ok(val_str) = value.to_str() {
-                headers.push((name_lower.into(), val_str.into()));
-            }
+            headers.push((name_lower.into(), val_str.into()));
         }
     }
     headers.push(("host".into(), name.into()));
@@ -80,12 +79,17 @@ pub async fn forward_to_p2p(
         })?;
         if let Ok(data) = frame.into_data() {
             body_bytes.extend_from_slice(&data);
-            
+
             // Note: libp2p::request_response::cbor hardcodes a 1MB limit (1024 * 1024)
             if body_bytes.len() > 1048576 {
                 let err = kinetic_core::error::SecurityError::PayloadTooLarge;
-                tracing::warn!(error_code = err.code(), "Blocked P2P proxy request payload exceeding 1MB Libp2p limit");
-                return Err(ProxyError::InvalidPayload("Blocked P2P proxy request payload exceeding 1MB Libp2p limit".to_string()));
+                tracing::warn!(
+                    error_code = err.code(),
+                    "Blocked P2P proxy request payload exceeding 1MB Libp2p limit"
+                );
+                return Err(ProxyError::InvalidPayload(
+                    "Blocked P2P proxy request payload exceeding 1MB Libp2p limit".to_string(),
+                ));
             }
         }
     }
@@ -103,13 +107,16 @@ pub async fn forward_to_p2p(
         .map_err(|e| {
             let err = super::ProxyError::Libp2pTunnelFailed(e.to_string());
             tracing::error!(error_code = err.code(), "{}", err);
-            ProxyError::PeerUnreachable(format!("P2P swarm could not deliver request to target peer: {}", e))
+            ProxyError::PeerUnreachable(format!(
+                "P2P swarm could not deliver request to target peer: {}",
+                e
+            ))
         })?;
 
     let mut resp_builder = Response::builder().status(proxy_resp.status);
 
     let strip_resp_headers = [
-        "strict-transport-security", 
+        "strict-transport-security",
         "public-key-pins",
         "connection",
         "keep-alive",
@@ -125,11 +132,16 @@ pub async fn forward_to_p2p(
         resp_builder = resp_builder.header(name.as_ref(), value.as_ref());
     }
 
-    let final_resp = resp_builder.body(axum::body::Body::from(proxy_resp.body)).map_err(|e| {
-        let err = super::ProxyError::HttpResponseConstructionFailed(e.to_string());
-        tracing::error!(error_code = err.code(), "{}", err);
-        ProxyError::Other(format!("Failed to construct HTTP response from P2P tunnel data: {}", e))
-    })?;
+    let final_resp = resp_builder
+        .body(axum::body::Body::from(proxy_resp.body))
+        .map_err(|e| {
+            let err = super::ProxyError::HttpResponseConstructionFailed(e.to_string());
+            tracing::error!(error_code = err.code(), "{}", err);
+            ProxyError::Other(format!(
+                "Failed to construct HTTP response from P2P tunnel data: {}",
+                e
+            ))
+        })?;
 
     Ok(final_resp)
 }

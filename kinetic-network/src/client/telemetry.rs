@@ -8,7 +8,6 @@ use kinetic_types::network::{
 use std::env;
 use std::sync::Arc;
 
-
 /// Starts the background telemetry loop that occasionally broadcasts
 /// opt-in, anonymous network metrics over `GOSSIP_TOPIC_GLOBAL`.
 pub fn start_telemetry_service(

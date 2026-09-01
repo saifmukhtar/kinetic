@@ -29,11 +29,10 @@ use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 
 use serde::{Deserialize, Serialize};
 
-
-use crate::constants::DID_PREFIX;
-use crate::error::IdentityError;
-use crate::types::identity::load_keypair;
-use crate::types::names::{extract_apex_name, normalize_name};
+use crate::identity::load_keypair;
+use kinetic_core::constants::DID_PREFIX;
+use kinetic_core::error::IdentityError;
+use kinetic_core::types::names::{extract_apex_name, normalize_name};
 use kinetic_kid::Did;
 use kinetic_kid::document::{ControllerKey, Document};
 use kinetic_kid::manifest::{Manifest, Service};
@@ -102,7 +101,7 @@ pub fn get_kids_dir() -> PathBuf {
 /// Derives the network time by mapping the estimated Drand kyn to exact Unix
 /// seconds aligned to 3-second network heartbeats using network constants.
 pub fn unix_time() -> kinetic_types::clock::UTime {
-    use crate::types::clock::KynNetworkExt;
+    use kinetic_core::types::clock::KynNetworkExt;
     kinetic_types::clock::Kyn::now_local().to_network_utime()
 }
 
@@ -163,7 +162,9 @@ fn write_json_document(path: &Path, json_str: &str) -> Result<(), IdentityError>
 }
 
 /// Loads a raw ML-DSA-65 signing key from disk.
-fn load_raw_signing_key(path: &Path) -> Result<kinetic_primitives::keys::KineticKeypair, IdentityError> {
+fn load_raw_signing_key(
+    path: &Path,
+) -> Result<kinetic_primitives::keys::KineticKeypair, IdentityError> {
     if !path.exists() {
         return Err(IdentityError::KidPrivateKeyNotFound(
             path.to_string_lossy().to_string(),
@@ -190,7 +191,7 @@ pub fn authorize_kid_document(
         owner_signature: vec![],
     };
 
-    let signable = auth_kid.signable_bytes(crate::constants::NETWORK_SALT);
+    let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     auth_kid.owner_signature = identity_keypair.sign(&signable);
 
     Ok(auth_kid)
@@ -260,7 +261,7 @@ pub fn get_or_create_kid_for_name(
     let kid_did = Did::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
-    use crate::types::clock::KynNetworkExt;
+    use kinetic_core::types::clock::KynNetworkExt;
     let now_ts = current_kyn.to_network_utime().0;
 
     let doc = Document {
@@ -543,7 +544,7 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    use crate::types::clock::KynNetworkExt;
+    use kinetic_core::types::clock::KynNetworkExt;
     let current_time = current_kyn.to_network_utime().0;
 
     let manifest = Manifest {
@@ -575,7 +576,7 @@ pub fn save_and_sign_local_manifest(
         owner_signature: vec![],
     };
 
-    let signable = auth_manifest.signable_bytes(crate::constants::NETWORK_SALT);
+    let signable = auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     let owner_key = load_keypair(master_key_path)?;
     auth_manifest.owner_signature = owner_key.sign(&signable);
 

@@ -38,7 +38,9 @@ pub fn start_heartbeat_loop(
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if expected_kyn > latest.kyn + 5 {
-                        let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered { behind: expected_kyn.saturating_sub(latest.kyn) };
+                        let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
+                            behind: expected_kyn.saturating_sub(latest.kyn),
+                        };
                         tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
                     }
@@ -109,9 +111,10 @@ pub fn start_heartbeat_loop(
                     let signable_bytes =
                         heartbeat.signable_bytes(kinetic_core::constants::NETWORK_SALT);
                     let keypair = daemon_keypair_hb.clone();
-                    let sig_bytes = tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
-                        .await
-                        .unwrap();
+                    let sig_bytes =
+                        tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
+                            .await
+                            .unwrap();
 
                     heartbeat.signature = sig_bytes;
 

@@ -136,8 +136,7 @@ mod tests {
         };
 
         // Sign the stale heartbeat
-        hb.signature = ml_kp
-            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+        hb.signature = ml_kp.sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
         let result = store.handle_process_heartbeat(&hb);
         assert!(matches!(
@@ -193,8 +192,7 @@ mod tests {
             authorization: None,
         };
 
-        hb.signature = ml_kp
-            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+        hb.signature = ml_kp.sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
         let result = store.handle_process_heartbeat(&hb);
         assert!(matches!(

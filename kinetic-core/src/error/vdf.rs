@@ -253,9 +253,9 @@ impl VdfError {
                 Severity::Error
             }
             Self::UnsupportedPlatform => Severity::Critical,
-            Self::InvalidChallenge
-            | Self::MaxIterationsExceeded
-            | Self::TooManyTasks => Severity::Warning,
+            Self::InvalidChallenge | Self::MaxIterationsExceeded | Self::TooManyTasks => {
+                Severity::Warning
+            }
         }
     }
 
@@ -279,10 +279,12 @@ impl VdfError {
                 "The VDF challenge is degenerate and cannot be safely evaluated.".to_string()
             }
             Self::MaxIterationsExceeded => {
-                "The requested iteration count exceeds the maximum allowed for a user VDF task.".to_string()
+                "The requested iteration count exceeds the maximum allowed for a user VDF task."
+                    .to_string()
             }
             Self::TooManyTasks => {
-                "Too many concurrent VDF tasks are currently processing. Please wait and retry.".to_string()
+                "Too many concurrent VDF tasks are currently processing. Please wait and retry."
+                    .to_string()
             }
         }
     }

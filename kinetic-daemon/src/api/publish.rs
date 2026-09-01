@@ -1,8 +1,8 @@
 //! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Governance actions.
 
-use kinetic_core::traits::KynProvider;
 use super::*;
 use axum::{Json, extract::State, http::StatusCode};
+use kinetic_core::traits::KynProvider;
 use kinetic_core::types::RevealExt;
 
 use tracing::{error, info};
@@ -62,7 +62,8 @@ pub async fn handle_publish_record(
     // than RESQUARING_EPOCH_KYNS. Fetch the current beacon kyn, falling back to the
     // storage-cached value so offline-first nodes aren’t broken.
     let current_kyn: u64 = {
-        let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
+        let kyn_provider =
+            kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
         match kyn_provider.fetch_latest().await {
             Ok(kyn) => kyn.kyn,
             Err(_) => {
@@ -70,10 +71,7 @@ pub async fn handle_publish_record(
                 // If even that is unavailable, we allow the publish to proceed —
                 // the DHT store layer will still enforce its own staleness check.
                 let err = kinetic_core::error::KynProviderError::LiveFetchFailedFallback;
-                tracing::warn!(
-                    error_code = err.code(),
-                    "{}", err
-                );
+                tracing::warn!(error_code = err.code(), "{}", err);
                 match kyn_provider.load_cached_kyn() {
                     Ok(kyn) => kyn.kyn,
                     Err(_) => 0,
@@ -137,7 +135,9 @@ pub async fn handle_publish_record(
             let owned_key = kinetic_core::constants::DB_PREFIX_OWNED_NAMES;
             let fqdn_clone = fqdn.clone();
 
-            let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            let _lock = crate::api::OWNED_NAMES_LOCK
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             let mut owned = Vec::new();
             if let Ok(Some(bytes)) = state.storage.get(owned_key)
                 && let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes)
@@ -185,11 +185,17 @@ pub async fn handle_publish_record(
                         );
                     }
                     Ok(quorum) => {
-                        let err = kinetic_core::error::PublishError::QuorumFailed(fqdn_clone.to_string(), quorum);
+                        let err = kinetic_core::error::PublishError::QuorumFailed(
+                            fqdn_clone.to_string(),
+                            quorum,
+                        );
                         tracing::warn!(error_code = err.code(), "{}", err);
                     }
                     Err(e) => {
-                        let err = kinetic_core::error::PublishError::QuorumCheckError(fqdn_clone.to_string(), e.to_string());
+                        let err = kinetic_core::error::PublishError::QuorumCheckError(
+                            fqdn_clone.to_string(),
+                            e.to_string(),
+                        );
                         tracing::warn!(error_code = err.code(), "{}", err);
                     }
                 }
@@ -292,11 +298,17 @@ pub async fn handle_publish_commit(
                         quorum
                     ),
                     Ok(quorum) => {
-                        let err = kinetic_core::error::PublishError::CommitmentQuorumFailed(fqdn_clone.to_string(), quorum);
+                        let err = kinetic_core::error::PublishError::CommitmentQuorumFailed(
+                            fqdn_clone.to_string(),
+                            quorum,
+                        );
                         tracing::warn!(error_code = err.code(), "{}", err);
-                    },
+                    }
                     Err(e) => {
-                        let err = kinetic_core::error::PublishError::CommitmentQuorumCheckError(fqdn_clone.to_string(), e.to_string());
+                        let err = kinetic_core::error::PublishError::CommitmentQuorumCheckError(
+                            fqdn_clone.to_string(),
+                            e.to_string(),
+                        );
                         tracing::warn!(error_code = err.code(), "{}", err);
                     }
                 }
@@ -332,7 +344,9 @@ pub async fn handle_publish_kid(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
     info!(
@@ -369,7 +383,8 @@ pub async fn handle_publish_kid(
             }
         }
         _ => {
-            let err = kinetic_core::error::PublishError::MissingLocalRevealForKid(auth_kid.name.clone());
+            let err =
+                kinetic_core::error::PublishError::MissingLocalRevealForKid(auth_kid.name.clone());
             tracing::warn!(error_code = err.code(), "{}", err);
             true // If we don't have it cached, we let the network decide.
         }
@@ -378,7 +393,9 @@ pub async fn handle_publish_kid(
     if !is_authorized {
         return Err((
             StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner."})),
+            Json(
+                serde_json::json!({"error": "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner."}),
+            ),
         ));
     }
 
@@ -432,7 +449,9 @@ pub async fn handle_publish_manifest(
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
+            Json(
+                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+            ),
         ));
     }
     let did_str = auth_manifest.manifest.kid.as_str();
@@ -461,7 +480,9 @@ pub async fn handle_publish_manifest(
             }
         }
         _ => {
-            let err = kinetic_core::error::PublishError::MissingLocalRevealForManifest(auth_manifest.name.clone());
+            let err = kinetic_core::error::PublishError::MissingLocalRevealForManifest(
+                auth_manifest.name.clone(),
+            );
             tracing::warn!(error_code = err.code(), "{}", err);
             true
         }
@@ -470,7 +491,9 @@ pub async fn handle_publish_manifest(
     if !is_authorized {
         return Err((
             StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner."})),
+            Json(
+                serde_json::json!({"error": "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner."}),
+            ),
         ));
     }
 
@@ -484,7 +507,10 @@ pub async fn handle_publish_manifest(
                 kinetic_core::error::ResolutionError::Offline => StatusCode::SERVICE_UNAVAILABLE,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             };
-            return Err((status, Json(serde_json::json!({"error": format!("DHT lookup failed: {}", e)}))));
+            return Err((
+                status,
+                Json(serde_json::json!({"error": format!("DHT lookup failed: {}", e)})),
+            ));
         }
     };
 
@@ -506,20 +532,19 @@ pub async fn handle_publish_manifest(
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time = match kinetic_core::drand::DrandProvider::new(Some(
-        state.storage.clone(),
-    ))
-    .load_cached_kyn()
-    {
-        Ok(raw_kyn) => {
-            use kinetic_core::types::clock::KynNetworkExt;
-            kinetic_core::types::Kyn(raw_kyn.kyn).to_network_utime().0
-        }
-        Err(_) => std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs(),
-    };
+    let current_network_time =
+        match kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()))
+            .load_cached_kyn()
+        {
+            Ok(raw_kyn) => {
+                use kinetic_core::types::clock::KynNetworkExt;
+                kinetic_core::types::Kyn(raw_kyn.kyn).to_network_utime().0
+            }
+            Err(_) => std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        };
     if let Err(e) = auth_manifest
         .manifest
         .verify_at_time(&kid_doc, current_network_time)
@@ -531,7 +556,9 @@ pub async fn handle_publish_manifest(
     }
 
     // 3. Serialize and Publish to DHT under the derived manifest key
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(format!("{}#manifest", did_str).as_bytes()));
+    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+        format!("{}#manifest", did_str).as_bytes(),
+    ));
 
     let payload_bytes = match serde_json::to_vec(&auth_manifest) {
         Ok(b) => b,
@@ -586,27 +613,36 @@ pub async fn handle_publish_governance(
     tracing::info!("Received API publish request for Governance action");
 
     let current_kyn = {
-        let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(state.storage.clone()));
+        let kyn_provider =
+            kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
         use kinetic_core::types::clock::KynNetworkExt;
         match kyn_provider.load_cached_kyn() {
             Ok(kyn) => kyn.kyn,
             Err(_) => match kyn_provider.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,
                 Err(_) => kinetic_core::types::Kyn::now_local().0,
-            }
+            },
         }
     };
 
     let is_valid = {
-        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        match kinetic_core::governance::process_governance_message(&mut gov, &msg, kinetic_types::clock::Kyn(current_kyn)) {
+        match kinetic_core::governance::process_governance_message(
+            &mut gov,
+            &msg,
+            kinetic_types::clock::Kyn(current_kyn),
+        ) {
             Ok(_) => {
-                let path = kinetic_core::config::get_base_dir().join("governance.bin");
-                if let Err(e) = gov.save_to_disk(&path) {
+                let path = kinetic_local::config::get_base_dir().join("governance.bin");
+                if let Err(e) = kinetic_local::governance::save_governance_to_disk(&gov, &path) {
                     let err = kinetic_core::error::GovernanceError::StateSaveFailed;
-                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                    tracing::error!(
+                        error_code = err.code(),
+                        "Failed to save modified governance state to disk: {}",
+                        e
+                    );
                 }
 
                 true
@@ -656,7 +692,11 @@ pub async fn handle_publish_governance(
         }
         Err(e) => {
             let err = kinetic_core::error::GovernanceError::P2pPublishFailed;
-            tracing::error!(error_code = err.code(), "Failed to publish Governance Message to P2P network: {}", e);
+            tracing::error!(
+                error_code = err.code(),
+                "Failed to publish Governance Message to P2P network: {}",
+                e
+            );
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to broadcast: {}", e),

@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 kinetic-core = { path = "../kinetic-core" }
+kinetic-local = { version = "0.2.0", path = "../kinetic-local" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }

@@ -17,6 +17,7 @@ simulation = ["kinetic-core/simulation", "kinetic-kid/simulation"]
 
 [dependencies]
 kinetic-core = { path = "../kinetic-core" }
+kinetic-local = { version = "0.2.0", path = "../kinetic-local" }
 kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }

@@ -2578,6 +2578,8 @@ dependencies = [
  "hex",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-local",
+ "kinetic-network",
  "kinetic-primitives",
  "kinetic-vdf-rsa",
  "libp2p",
@@ -2614,9 +2616,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.2.17",
  "getrandom 0.4.3",
- "gloo-timers 0.3.0",
  "hex",
- "hickory-resolver",
  "kinetic-kid",
  "kinetic-primitives",
  "kinetic-types",
@@ -2628,14 +2628,13 @@ dependencies = [
  "proptest",
  "rand_chacha 0.10.0",
  "rand_core 0.10.1",
- "reqwest 0.13.4",
  "serde",
  "serde_json",
  "sha2 0.11.0",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "toml",
+ "toml 1.1.3+spec-1.1.0",
  "tracing",
  "web-time",
  "zeroize",
@@ -2668,6 +2667,7 @@ dependencies = [
  "keyring",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-local",
  "kinetic-network",
  "kinetic-nrs",
  "kinetic-primitives",
@@ -2738,6 +2738,7 @@ dependencies = [
  "hyper-util",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-local",
  "kinetic-network",
  "kinetic-storage",
  "kinetic-types",
@@ -2772,12 +2773,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "kinetic-local"
+version = "0.2.0"
+dependencies = [
+ "aes-gcm",
+ "base64 0.23.1",
+ "bincode",
+ "bip39",
+ "dirs 5.0.1",
+ "hex",
+ "kinetic-core",
+ "kinetic-kid",
+ "kinetic-primitives",
+ "kinetic-types",
+ "lazy_static",
+ "pbkdf2",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "toml 0.8.23",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "kinetic-network"
 version = "0.2.0"
 dependencies = [
  "anyhow",
  "arc-swap",
  "argon2",
+ "async-trait",
  "base64 0.22.1",
  "bytes",
  "drand-verify",
@@ -2786,10 +2813,12 @@ dependencies = [
  "futures-timer",
  "getrandom 0.2.17",
  "getrandom 0.3.4",
+ "gloo-timers 0.3.0",
  "hex",
  "hickory-resolver",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-local",
  "kinetic-primitives",
  "kinetic-storage",
  "kinetic-types",
@@ -2800,6 +2829,7 @@ dependencies = [
  "lru 0.12.5",
  "proptest",
  "rand_core 0.6.4",
+ "reqwest 0.13.4",
  "rustc-hash",
  "serde",
  "serde_bytes",
@@ -2826,6 +2856,7 @@ dependencies = [
  "hex",
  "http-body-util",
  "kinetic-core",
+ "kinetic-local",
  "kinetic-network",
  "kinetic-storage",
  "kinetic-types",
@@ -2857,6 +2888,7 @@ dependencies = [
  "hickory-resolver",
  "hickory-server",
  "kinetic-core",
+ "kinetic-local",
  "kinetic-network",
  "kinetic-primitives",
  "kinetic-verify",
@@ -5432,6 +5464,15 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf41e0cfaf7226dca15e8197172c295a782857fcb97fad1808a166870dee75a3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "serde_spanned"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
@@ -6028,13 +6069,25 @@ dependencies = [
 
 [[package]]
 name = "toml"
+version = "0.8.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362"
+dependencies = [
+ "serde",
+ "serde_spanned 0.6.9",
+ "toml_datetime 0.6.11",
+ "toml_edit",
+]
+
+[[package]]
+name = "toml"
 version = "1.1.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53c96ecdfa941c8fc4fcaed14f99ada8ebed502eef533015095a07e3301d4c3c"
 dependencies = [
  "indexmap",
  "serde_core",
- "serde_spanned",
+ "serde_spanned 1.1.1",
  "toml_datetime 1.1.1+spec-1.1.0",
  "toml_parser",
  "toml_writer",
@@ -6046,6 +6099,9 @@ name = "toml_datetime"
 version = "0.6.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "toml_datetime"
@@ -6063,6 +6119,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
  "indexmap",
+ "serde",
+ "serde_spanned 0.6.9",
  "toml_datetime 0.6.11",
  "toml_write",
  "winnow 0.7.15",

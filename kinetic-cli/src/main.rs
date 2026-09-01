@@ -23,7 +23,6 @@ mod utils;
 
 use clap::Parser;
 use commands::{Commands, handle_service_command};
-use kinetic_core::config::KineticConfig;
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser)]
@@ -44,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 
     let cli = Cli::parse();
-    let config = KineticConfig::load();
+    let config = kinetic_local::config::load_config();
 
     match cli.command {
         Commands::Setup(cmd) => {

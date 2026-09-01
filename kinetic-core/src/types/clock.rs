@@ -4,14 +4,14 @@
 //! The underlying consensus engine uses absolute network beacons, which this module
 //! translates into the official Kinetic time hierarchy (The Crystal Lexicon).
 
-pub use kinetic_types::clock::{Kyn, UTime, KineticTime};
 use crate::constants::{DRAND_GENESIS_TIME, DRAND_PERIOD};
+pub use kinetic_types::clock::{KineticTime, Kyn, UTime};
 
 /// Extension trait that adds network-aware conversions to the pure math clock types.
 pub trait KynNetworkExt {
     /// Converts a Drand kyn into deterministic Unix epoch seconds using local network constants.
     fn to_network_utime(&self) -> UTime;
-    
+
     /// Returns the estimated current network Kyn based on the local OS clock.
     fn now_local() -> Kyn;
 }

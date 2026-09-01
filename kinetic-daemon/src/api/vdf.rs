@@ -1,11 +1,11 @@
 //! HTTP REST API endpoints and backgkyn task workers for VDF registration, renewal, and task progress tracking.
 
-use kinetic_core::traits::KynProvider;
 use super::*;
 use axum::{
     Json,
     extract::{Extension, Path, State},
 };
+use kinetic_core::traits::KynProvider;
 
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -42,7 +42,7 @@ pub async fn handle_vdf_register(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
@@ -100,7 +100,8 @@ pub async fn handle_vdf_register(
     tokio::spawn(async move {
         // Step 1: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(storage_clone.clone()));
+        let kyn_provider =
+            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
         let drand_data = match kyn_provider.fetch_latest().await {
             Ok(d) => d,
             Err(e) => {
@@ -121,8 +122,8 @@ pub async fn handle_vdf_register(
         // SHA-256(name‖salt‖randomness‖pubkey) — opaque to any observer during the 32-second
         // window before the reveal appears.
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
-        let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-        let keypair = match kinetic_core::types::load_keypair(&identity_path) {
+        let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+        let keypair = match kinetic_local::identity::load_keypair(&identity_path) {
             Ok(k) => k,
             Err(e) => {
                 update_task_error(
@@ -318,7 +319,9 @@ pub async fn handle_vdf_register(
 
         // Save to internal storage so Dashboard can see it
         let fqdn_clone = fqdn.clone();
-        let _lock = crate::api::OWNED_NAMES_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _lock = crate::api::OWNED_NAMES_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let mut owned = Vec::new();
         if let Ok(Some(bytes)) = storage_clone.get(kinetic_core::constants::DB_PREFIX_OWNED_NAMES)
             && let Ok(names) = serde_json::from_slice::<Vec<String>>(&bytes)
@@ -338,7 +341,7 @@ pub async fn handle_vdf_register(
         drop(_lock);
 
         // Save default zone file
-        let zones_dir = kinetic_core::config::get_zones_dir();
+        let zones_dir = kinetic_local::config::get_zones_dir();
         let _ = std::fs::create_dir_all(&zones_dir);
         let path = zones_dir.join(format!("{}.json", fqdn));
         if let Ok(s) = serde_json::to_string_pretty(&zone)
@@ -371,7 +374,7 @@ pub async fn handle_vdf_renew(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
@@ -423,23 +426,24 @@ pub async fn handle_vdf_renew(
                 return;
             }
         };
-        let old_record: kinetic_core::types::NameRecord =
-            match serde_json::from_slice(&old_reveal_bytes) {
-                Ok(r) => r,
-                Err(e) => {
-                    tracing::error!(
-                        error = ?kinetic_core::error::StorageError::DeserializationFailed(e.to_string()),
-                        "{}",
-                        kinetic_core::error::StorageError::DeserializationFailed(e.to_string()).user_message()
-                    );
-                    update_task_error(
-                        &tasks_clone,
-                        &task_id_clone,
-                        format!("Local Reveal corrupted: {}", e),
-                    );
-                    return;
-                }
-            };
+        let old_record: kinetic_core::types::NameRecord = match serde_json::from_slice(
+            &old_reveal_bytes,
+        ) {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::error!(
+                    error = ?kinetic_core::error::StorageError::DeserializationFailed(e.to_string()),
+                    "{}",
+                    kinetic_core::error::StorageError::DeserializationFailed(e.to_string()).user_message()
+                );
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Local Reveal corrupted: {}", e),
+                );
+                return;
+            }
+        };
         let old_reveal = match old_record {
             kinetic_core::types::NameRecord::Standard(r) => r,
             kinetic_core::types::NameRecord::Prime { .. }
@@ -455,7 +459,8 @@ pub async fn handle_vdf_renew(
 
         // Step 2: Drand
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let kyn_provider = kinetic_core::drand::DrandProvider::new(Some(storage_clone.clone()));
+        let kyn_provider =
+            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
         let drand_data = match kyn_provider.fetch_latest().await {
             Ok(d) => d,
             Err(e) => {
@@ -466,8 +471,8 @@ pub async fn handle_vdf_renew(
 
         // Step 3: Commitment — generate privately; broadcast AFTER VDF (Option B / C-1 fix).
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
-        let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-        let keypair = match kinetic_core::types::load_keypair(&identity_path) {
+        let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+        let keypair = match kinetic_local::identity::load_keypair(&identity_path) {
             Ok(k) => k,
             Err(e) => {
                 update_task_error(
@@ -694,7 +699,7 @@ pub async fn handle_vdf_status(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
     let task = {
@@ -716,7 +721,7 @@ pub async fn handle_vdf_status_delete(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
     let removed = {

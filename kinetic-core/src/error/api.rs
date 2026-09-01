@@ -63,7 +63,7 @@ impl RestApiError {
             Self::SseStreamLagged | Self::ResponseTooLarge => 500,
         }
     }
-    
+
     /// Returns the RFC 7807 type URI pointing to documentation.
     pub fn error_type_uri(&self) -> String {
         format!("{}/errors/{}", crate::constants::DOCS_URL, self.code())

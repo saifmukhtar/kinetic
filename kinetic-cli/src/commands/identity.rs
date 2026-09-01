@@ -77,10 +77,10 @@ pub async fn handle_identity_command(
 
             let kid_did = kinetic_kid::did::Did::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
-            let kyn_provider = kinetic_core::drand::DrandProvider::new(None);
-            use kinetic_core::types::clock::KynNetworkExt;
+            let kyn_provider = kinetic_network::client::drand::DrandProvider::new(None);
             use kinetic_core::types::Kyn;
-            
+            use kinetic_core::types::clock::KynNetworkExt;
+
             let current_kyn = match kyn_provider.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,
                 Err(_) => Kyn::now_local().0,
@@ -128,8 +128,8 @@ pub async fn handle_identity_command(
             name,
         } => {
             // Load identity keypair to sign the AuthorizedKid
-            let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-            let keypair = kinetic_core::types::load_keypair(&identity_path)?;
+            let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+            let keypair = kinetic_local::identity::load_keypair(&identity_path)?;
 
             let mut kid_doc_opt = None;
 
@@ -257,7 +257,7 @@ pub async fn handle_identity_command(
             info!("Generating new ML-DSA-65 keypair for rotated identity...");
             let new_keypair = kinetic_primitives::keys::KineticKeypair::generate();
             use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-            let new_pub_b64 = b64_url.encode(&new_keypair.pubkey_bytes());
+            let new_pub_b64 = b64_url.encode(new_keypair.pubkey_bytes());
 
             // Replace primary controller key
             let primary_id = format!("{}#primary", doc.kid);

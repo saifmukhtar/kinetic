@@ -7,7 +7,7 @@ members = [
     "kinetic-daemon", "kinetic-cli", "kinetic-test", "kinetic-kid", "kinetic-node",
     "kinetic-host", "kinetic-wasm", "kinetic-forge", "kinetic-pac",
     "kinetic-verify", "kinetic-types"
-, "kinetic-primitives"]
+, "kinetic-primitives", "kinetic-local"]
 exclude = [
     "kinetic-core/fuzz",
     "kinetic-daemon/fuzz",

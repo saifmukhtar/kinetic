@@ -161,7 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/*path", any(handle_request))
         .with_state(state);
 
-    let kinetic_config = kinetic_core::config::KineticConfig::load();
+    let kinetic_config = kinetic_local::config::load_config();
     let addr = format!("{}:9999", kinetic_config.daemon.bind_ip);
     println!("============================================================");
     println!("🌐 HTTP to P2P Gateway is running!");

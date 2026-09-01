@@ -8,10 +8,11 @@ license.workspace = true
 simulation = ["kinetic-core/simulation"]
 
 [dependencies]
-kinetic-core = { path = "../kinetic-core" }
+kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
+kinetic-local = { version = "0.2.0", path = "../kinetic-local" }
 kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
 tokio = { workspace = true, features = ["net"] }
 anyhow.workspace = true

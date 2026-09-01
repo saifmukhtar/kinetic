@@ -18,18 +18,18 @@ use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
 pub mod http;
 /// P2P proxy networking
 pub mod p2p;
-/// Proxy security and certificates
-pub mod security;
-/// Network tunneling for proxy requests
-pub mod tunnel;
-/// Web2 CNAME bridge and SSRF safe resolution
-pub mod web2_bridge;
 /// Router for forwarding proxy requests to standard IP targets.
 pub mod route_ip;
 /// Router for translating IPFS targets into local gateway requests.
 pub mod route_ipfs;
 /// Router for securely forwarding HTTP proxy requests over libp2p.
 pub mod route_p2p;
+/// Proxy security and certificates
+pub mod security;
+/// Network tunneling for proxy requests
+pub mod tunnel;
+/// Web2 CNAME bridge and SSRF safe resolution
+pub mod web2_bridge;
 
 pub use http::*;
 pub use p2p::*;
@@ -86,7 +86,9 @@ pub enum ProxyError {
 
     /// The resolved DHT record failed cryptographic signature verification.
     /// A malicious peer attempted to spoof the DNS response. The record was dropped.
-    #[error("Security violation! NameRecord signature verification failed (Spoofed DHT response): {0}")]
+    #[error(
+        "Security violation! NameRecord signature verification failed (Spoofed DHT response): {0}"
+    )]
     SignatureVerificationFailed(String),
 
     /// The proxy failed to deserialize the NameRecord JSON payload from the DHT.

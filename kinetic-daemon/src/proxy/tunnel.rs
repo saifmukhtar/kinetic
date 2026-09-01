@@ -7,6 +7,7 @@ use super::*;
 ///
 /// # Errors
 /// Returns a `ProxyError` if the TLS handshake fails or the inner HTTP request cannot be served.
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_connect_req(
     raw_host: String,
     apex_domain: String,

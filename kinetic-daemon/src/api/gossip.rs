@@ -1,9 +1,7 @@
 use axum::{
     Json,
     extract::{Path, State},
-    response::{
-        sse::{Event, Sse},
-    },
+    response::sse::{Event, Sse},
 };
 use serde_json::Value;
 use std::{convert::Infallible, time::Duration};
@@ -56,7 +54,7 @@ pub async fn handle_gossip_publish(
 ) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_publish() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 

@@ -1,8 +1,7 @@
 //! Governance gossip message handler, state update processor, and disk persistence engine.
 
-use kinetic_core::governance::{
-    GLOBAL_GOVERNANCE_STATE, SignedGovernanceMessage, process_governance_message,
-};
+use kinetic_core::governance::{SignedGovernanceMessage, process_governance_message};
+use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -21,7 +20,11 @@ pub fn handle_governance_gossip(
             let mut state = GLOBAL_GOVERNANCE_STATE
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let result = process_governance_message(&mut state, &signed_msg, kinetic_types::clock::Kyn(current_kyn));
+            let result = process_governance_message(
+                &mut state,
+                &signed_msg,
+                kinetic_types::clock::Kyn(current_kyn),
+            );
             (state.clone(), result)
         };
 
@@ -52,7 +55,10 @@ pub fn handle_governance_gossip(
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             if let Ok(json_bytes) = serde_json::to_vec(&record) {
                                 let _ = storage.put(key.as_bytes(), &json_bytes);
-                                tracing::info!("Injected NameRecord::Prime into storage for {}", name);
+                                tracing::info!(
+                                    "Injected NameRecord::Prime into storage for {}",
+                                    name
+                                );
                             }
                         }
                         GovernanceEffect::PrimeUnmapped { name } => {
@@ -69,18 +75,32 @@ pub fn handle_governance_gossip(
                     }
                 }
                 tokio::task::spawn_blocking(move || {
-                    if let Err(e) = state_snapshot.save_to_disk(&gossip_gov_path) {
+                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                        &state_snapshot,
+                        &gossip_gov_path,
+                    ) {
                         let err = kinetic_core::error::GovernanceError::StateSaveFailed;
-                        tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                        tracing::error!(
+                            error_code = err.code(),
+                            "Failed to save modified governance state to disk: {}",
+                            e
+                        );
                     }
                 });
             }
             Ok(None) => {
                 tracing::info!("Governance state updated via gossip. No immediate effect.");
                 tokio::task::spawn_blocking(move || {
-                    if let Err(e) = state_snapshot.save_to_disk(&gossip_gov_path) {
+                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                        &state_snapshot,
+                        &gossip_gov_path,
+                    ) {
                         let err = kinetic_core::error::GovernanceError::StateSaveFailed;
-                        tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                        tracing::error!(
+                            error_code = err.code(),
+                            "Failed to save modified governance state to disk: {}",
+                            e
+                        );
                     }
                 });
             }

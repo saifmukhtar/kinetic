@@ -241,7 +241,9 @@ impl IdentityError {
                 format!("The private key file for {name} could not be found.")
             }
             Self::PubkeyMismatch(name) => {
-                format!("The presented public key does not match the registered owner key for '{name}'. You cannot update a name you do not own.")
+                format!(
+                    "The presented public key does not match the registered owner key for '{name}'. You cannot update a name you do not own."
+                )
             }
         }
     }

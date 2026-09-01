@@ -12,11 +12,8 @@ pub fn generate_prime_l(x: &BigUint, y: &BigUint) -> BigUint {
     let mut counter = 0u64;
 
     loop {
-        let hash_result = kinetic_primitives::sha256_hash_concat(&[
-            &x_bytes,
-            &y_bytes,
-            &counter.to_be_bytes(),
-        ]);
+        let hash_result =
+            kinetic_primitives::sha256_hash_concat(&[&x_bytes, &y_bytes, &counter.to_be_bytes()]);
         let mut candidate_bytes = hash_result.to_vec();
 
         // Force the lowest bit to 1 (must be odd to be prime)

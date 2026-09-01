@@ -214,7 +214,7 @@ pub(crate) fn compute_required_iterations(
         let prev_req = consensus_math.iterations(&reveal.name);
 
         let paused_kyns =
-            if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+            if let Ok(state) = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock() {
                 state.paused_kyns_since(kinetic_core::types::Kyn(prev.kyn))
             } else {
                 0
@@ -291,7 +291,7 @@ pub(crate) fn verify_reveal(
     current_kyn: u64,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> Result<(), KineticStoreError> {
-    if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
+    if let Ok(state) = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
         && state.is_halted
     {
         return Err(KineticStoreError::NetworkHalted);
@@ -399,8 +399,7 @@ pub(crate) fn verify_reveal(
         );
     }
 
-    let required_iterations =
-        compute_required_iterations(reveal, current_kyn, engine.as_ref())?;
+    let required_iterations = compute_required_iterations(reveal, current_kyn, engine.as_ref())?;
 
     if dev_mode {
         tracing::info!(
@@ -426,10 +425,7 @@ pub(crate) fn verify_reveal(
         Ok(true) => Ok(()),
         Ok(false) => {
             let err = KineticStoreError::InvalidVdf;
-            err.log_warning(
-                &reveal.name,
-                "Rejecting Kademlia Reveal: Invalid VDF Proof",
-            );
+            err.log_warning(&reveal.name, "Rejecting Kademlia Reveal: Invalid VDF Proof");
             Err(err)
         }
         Err(e) => {
@@ -485,7 +481,9 @@ pub(crate) fn verify_authorized_kid(
         record.pubkey(),
         &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
         auth_kid.owner_signature.as_slice(),
-    ).is_err() {
+    )
+    .is_err()
+    {
         let err = KineticStoreError::InvalidKidSignature;
         err.log_warning(
             &auth_kid.name,
@@ -496,10 +494,7 @@ pub(crate) fn verify_authorized_kid(
 
     if auth_kid.kid_doc.verify().is_err() {
         let err = KineticStoreError::InvalidKidDocument;
-        err.log_warning(
-            &auth_kid.name,
-            "Rejecting AuthorizedKid: invalid document",
-        );
+        err.log_warning(&auth_kid.name, "Rejecting AuthorizedKid: invalid document");
         return Err(err);
     }
 
@@ -574,7 +569,8 @@ pub(crate) fn verify_authorized_manifest(
         record.pubkey(),
         &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
         auth_manifest.owner_signature.as_slice(),
-    ).is_err()
+    )
+    .is_err()
     {
         let err = KineticStoreError::InvalidManifestSignature;
         err.log_warning(

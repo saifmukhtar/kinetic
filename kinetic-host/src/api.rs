@@ -1,7 +1,7 @@
 //! Host health-check and static Peer ID REST API listener.
 
 use anyhow::Result;
-use axum::{Router, routing::get, extract::Path, http::StatusCode};
+use axum::{Router, extract::Path, http::StatusCode, routing::get};
 use std::net::SocketAddr;
 use tracing::info;
 
@@ -11,8 +11,9 @@ pub async fn start_health_api(
     host_peer_id: libp2p::PeerId,
     bind_ip: std::net::IpAddr,
 ) -> Result<()> {
-    let instance_name = std::env::var("KINETIC_INSTANCE_NAME").unwrap_or_else(|_| "default".to_string());
-    
+    let instance_name =
+        std::env::var("KINETIC_INSTANCE_NAME").unwrap_or_else(|_| "default".to_string());
+
     // 1. The File-Drop (Worker State)
     let global_instances_dir = std::env::temp_dir().join("kinetic_host_instances");
     let _ = std::fs::create_dir_all(&global_instances_dir);
@@ -44,15 +45,22 @@ pub async fn start_health_api(
 
     let api_port = 16004;
     let addr = SocketAddr::from((bind_ip, api_port));
-    
+
     // 3. Graceful Fallback
     match tokio::net::TcpListener::bind(addr).await {
         Ok(listener) => {
-            info!("Host Health-check API (Master) listening on http://{}:{}", bind_ip, api_port);
+            info!(
+                "Host Health-check API (Master) listening on http://{}:{}",
+                bind_ip, api_port
+            );
             axum::serve(listener, app)
                 .with_graceful_shutdown(kinetic_core::shutdown::shutdown_signal())
                 .await
-                .map_err(|e| anyhow::Error::from(kinetic_core::error::SystemError::ServerCrashed(e.to_string())))?;
+                .map_err(|e| {
+                    anyhow::Error::from(kinetic_core::error::SystemError::ServerCrashed(
+                        e.to_string(),
+                    ))
+                })?;
         }
         Err(_) => {
             tracing::info!(

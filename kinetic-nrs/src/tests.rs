@@ -60,8 +60,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
     };
     let keypair = kinetic_primitives::keys::KineticKeypair::generate();
     reveal.pubkey = keypair.pubkey_bytes();
-    reveal.signature = keypair
-        .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+    reveal.signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
     reveal
 }
 

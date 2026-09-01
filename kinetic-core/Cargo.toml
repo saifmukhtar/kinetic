@@ -18,7 +18,7 @@ kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
 thiserror.workspace = true
 anyhow.workspace = true
 sha2 = "0.11.0"
-reqwest = { version = "0.13.4", features = ["json"] }
+
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 tracing.workspace = true
@@ -31,6 +31,7 @@ tempfile = "3.27.0"
 futures-util = "0.3.32"
 lazy_static = "1.5.0"
 web-time = { version = "1.1.0", features = ["serde"] }
+
 libp2p-identity = { version = "0.2.14", features = ["peerid"] }
 bip39 = "2.2.2"
 pbkdf2 = "0.13.0"
@@ -48,14 +49,14 @@ async-trait = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dirs = "6.0.0"
-hickory-resolver = "0.24.4"
+
 
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.14", features = ["js"] }
 getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
-gloo-timers = { version = "0.3.0", features = ["futures"] }
+
 
 [dev-dependencies]
 criterion = "0.8.2"

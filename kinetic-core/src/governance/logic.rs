@@ -9,7 +9,6 @@
 //! - [`GovernanceState::verify_action`] — engine action verification
 //! - [`GovernanceState::execute_action`] — engine action execution
 
-
 use std::collections::HashMap;
 
 use crate::constants::ROOT_PUBLIC_KEY_HEX;

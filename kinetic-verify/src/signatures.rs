@@ -18,12 +18,8 @@ impl VerifySignature for Reveal {
             }
 
             let auth_signable = auth.signable_bytes(network_salt);
-            if kinetic_primitives::verify_mldsa(
-                &self.pubkey,
-                &auth_signable,
-                &auth.owner_signature,
-            )
-            .is_err()
+            if kinetic_primitives::verify_mldsa(&self.pubkey, &auth_signable, &auth.owner_signature)
+                .is_err()
             {
                 return Err(SignatureVerifyError::DelegatedAuthorizationInvalid);
             }
@@ -120,7 +116,8 @@ impl VerifySignature for NameRecord {
                         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                         if ck.key_type == "ML-DSA-65"
                             && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                            && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, signature).is_ok()
+                            && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, signature)
+                                .is_ok()
                         {
                             verified = true;
                             break;
@@ -134,7 +131,9 @@ impl VerifySignature for NameRecord {
                             pubkey,
                             &auth_signable,
                             &auth.owner_signature,
-                        ).is_err() {
+                        )
+                        .is_err()
+                        {
                             return Err(SignatureVerifyError::DelegatedAuthorizationInvalid);
                         }
 
@@ -266,7 +265,6 @@ mod tests {
     ) -> kinetic_types::identity::AuthorizedManifest {
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 
-
         let dummy_did = kinetic_kid::did::Did::new(
             "did:kin:0000000000000000000000000000000000000000000000000000000000000000",
         )
@@ -353,7 +351,12 @@ mod tests {
         let network_salt = &[1u8; 32];
 
         // WRONG CAPABILITY!
-        let auth = generate_auth(&owner_sk, &bot_vk_bytes, "kinetic.capability.chat", network_salt);
+        let auth = generate_auth(
+            &owner_sk,
+            &bot_vk_bytes,
+            "kinetic.capability.chat",
+            network_salt,
+        );
 
         let name = "kin";
         let payload = b"data";

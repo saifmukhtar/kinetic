@@ -1,9 +1,10 @@
 //! Name renewal engine with cryptographic proof chaining and owner VDF difficulty discounts.
 
 use crate::utils::parse_and_format_api_error;
-use kinetic_core::config::{KineticConfig, get_zones_dir};
-use kinetic_core::traits::{VdfEngine, KynProvider};
-use kinetic_core::types::load_keypair;
+use kinetic_core::config::KineticConfig;
+use kinetic_core::traits::{KynProvider, VdfEngine};
+use kinetic_local::config::get_zones_dir;
+use kinetic_local::identity::load_keypair;
 
 use reqwest::Client;
 
@@ -49,7 +50,7 @@ pub async fn handle_name_renew(
         ));
     };
 
-    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
     let pubkey = keypair.pubkey_bytes();
 
@@ -60,7 +61,7 @@ pub async fn handle_name_renew(
     }
 
     info!("Fetching latest Drand entropy beacon...");
-    let kyn_provider = kinetic_core::drand::DrandProvider::new(None);
+    let kyn_provider = kinetic_network::client::drand::DrandProvider::new(None);
     let drand_data = kyn_provider.fetch_latest().await?;
     info!("Successfully fetched Drand kyn {}.", drand_data.kyn);
 
@@ -168,8 +169,8 @@ pub async fn handle_name_renew(
         miner_pubkey: None,
     };
 
-    new_reveal.signature = keypair
-        .sign(&new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+    new_reveal.signature =
+        keypair.sign(&new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
     let req_body = serde_json::json!({
         "reveal": new_reveal,

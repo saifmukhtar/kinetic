@@ -142,7 +142,8 @@ impl KineticRecordStore {
                         tracing::info!("[KRS restore] NameRecord for {}", name);
                         reveals_by_name.put(name, record);
                     } else {
-                        let err = kinetic_core::error::storage::StorageError::InvalidRecordDiscarded;
+                        let err =
+                            kinetic_core::error::storage::StorageError::InvalidRecordDiscarded;
                         tracing::warn!(
                             error_code = err.code(),
                             "[KRS restore] Discarding invalid locally stored NameRecord for {}",
@@ -167,8 +168,13 @@ impl KineticRecordStore {
                         tracing::info!("[KRS restore] Heartbeat kyn {} for {}", kyn, name);
                         last_heartbeats_by_name.insert(name, kyn);
                     } else {
-                        let err = kinetic_core::error::storage::StorageError::OrphanedHeartbeatPurged;
-                        tracing::warn!(error_code = err.code(), "[KRS restore] Purging orphaned heartbeat for {}", name);
+                        let err =
+                            kinetic_core::error::storage::StorageError::OrphanedHeartbeatPurged;
+                        tracing::warn!(
+                            error_code = err.code(),
+                            "[KRS restore] Purging orphaned heartbeat for {}",
+                            name
+                        );
                         let _ = storage.delete(&key_bytes);
                     }
                 }
@@ -337,10 +343,7 @@ impl KineticRecordStore {
         }
     }
 
-    pub(crate) fn get_fallback(
-        &mut self,
-        name: &str,
-    ) -> Option<kinetic_core::types::NameRecord> {
+    pub(crate) fn get_fallback(&mut self, name: &str) -> Option<kinetic_core::types::NameRecord> {
         if let Some(r) = self.reveals_by_name.get(name) {
             return Some(r.clone());
         }
@@ -419,9 +422,7 @@ impl KineticRecordStore {
                         let mut key = Vec::with_capacity(KRS_COMMIT_PREFIX.len() + 32);
                         key.extend_from_slice(KRS_COMMIT_PREFIX);
                         key.extend_from_slice(&commitment.hash);
-                        let _ = self
-                            .storage
-                            .put(&key, &self.current_kyn.to_be_bytes());
+                        let _ = self.storage.put(&key, &self.current_kyn.to_be_bytes());
                         return self
                             .inner
                             .put(r)

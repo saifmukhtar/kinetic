@@ -49,8 +49,8 @@ mod tests {
             };
             let keypair = kinetic_primitives::keys::KineticKeypair::generate();
             reveal.pubkey = keypair.pubkey_bytes();
-            reveal.signature = keypair
-                .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+            reveal.signature =
+                keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
             Ok(Json(kinetic_core::types::NameRecord::Standard(Box::new(
                 reveal,
             ))))

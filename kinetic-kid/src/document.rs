@@ -80,8 +80,7 @@ impl Document {
         let mut unsigned_doc = self.clone();
         unsigned_doc.signature = None; // Omit signature for canonicalization
 
-        serde_jcs::to_string(&unsigned_doc)
-            .map_err(|e| Error::CanonicalizationError(e.to_string()))
+        serde_jcs::to_string(&unsigned_doc).map_err(|e| Error::CanonicalizationError(e.to_string()))
     }
 
     /// Verifies the signature of the document against listed controller or revocation keys.
@@ -100,9 +99,7 @@ impl Document {
         }
         for key in &self.controller_keys {
             if key.id.len() > 256 {
-                return Err(Error::StringLengthExceeded(
-                    "controller_key.id".to_string(),
-                ));
+                return Err(Error::StringLengthExceeded("controller_key.id".to_string()));
             }
             if key.public_key.len() > crate::LIMITS_KID_MAX_PUBLIC_KEY_BYTES {
                 return Err(Error::StringLengthExceeded(
@@ -128,9 +125,7 @@ impl Document {
             }
             for loc in &manifest.locations {
                 if loc.len() > crate::LIMITS_KID_MAX_LOCATION_BYTES {
-                    return Err(Error::StringLengthExceeded(
-                        "manifest.location".to_string(),
-                    ));
+                    return Err(Error::StringLengthExceeded("manifest.location".to_string()));
                 }
             }
             if let Some(hash) = &manifest.hash
@@ -161,7 +156,8 @@ impl Document {
             // Document is deactivated (revoked), the signature MUST be from a revocation key
             for rk_b64 in &self.revocation_keys {
                 if let Ok(pubkey_bytes) = b64_url.decode(rk_b64)
-                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
+                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                        .is_ok()
                 {
                     return Ok(());
                 }
@@ -172,7 +168,8 @@ impl Document {
                 if (key.key_type.eq_ignore_ascii_case("MlDsa65")
                     || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
                     && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
+                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                        .is_ok()
                 {
                     return Ok(());
                 }
@@ -199,7 +196,6 @@ impl Document {
     /// - Returns [`Error::DidKeyMismatch`] if the DID hex suffix does not match
     ///   `hex(SHA-256(primary_controller_key_bytes))`.
     pub fn verify_genesis(&self) -> Result<(), Error> {
-
         use std::fmt::Write as FmtWrite;
 
         let primary_key = self
@@ -257,7 +253,8 @@ impl Document {
                 return false;
             }
             if let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key) {
-                return kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok();
+                return kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                    .is_ok();
             }
             false
         })
@@ -268,7 +265,10 @@ impl Document {
     /// # Errors
     ///
     /// - Returns [`Error::CanonicalizationError`] if JCS canonicalization fails.
-    pub fn sign(mut self, keypair: &kinetic_primitives::keys::KineticKeypair) -> Result<Self, Error> {
+    pub fn sign(
+        mut self,
+        keypair: &kinetic_primitives::keys::KineticKeypair,
+    ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
         let mut msg_bytes = b"kinetic-kid-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());

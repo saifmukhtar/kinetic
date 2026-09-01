@@ -162,9 +162,14 @@ impl GovernanceError {
     /// Severity level for logging and monitoring.
     pub fn severity(&self) -> Severity {
         match self {
-            Self::MissingRootKey | Self::MalformedRootKey | Self::StateCorrupted => Severity::Critical,
+            Self::MissingRootKey | Self::MalformedRootKey | Self::StateCorrupted => {
+                Severity::Critical
+            }
             Self::StaleProposal | Self::AlreadyExecuted => Severity::Info,
-            Self::KeyLengthMismatch | Self::StateSaveFailed | Self::P2pPublishFailed | Self::StateReadFailed => Severity::Error,
+            Self::KeyLengthMismatch
+            | Self::StateSaveFailed
+            | Self::P2pPublishFailed
+            | Self::StateReadFailed => Severity::Error,
             Self::GovernanceDisabled
             | Self::InvalidSignature
             | Self::InvalidPrimeLength
@@ -179,7 +184,10 @@ impl GovernanceError {
 
     /// Whether the client should offer a retry action.
     pub fn is_retryable(&self) -> bool {
-        matches!(self, Self::InvalidSignature | Self::P2pPublishFailed | Self::BootstrapFetchFailed)
+        matches!(
+            self,
+            Self::InvalidSignature | Self::P2pPublishFailed | Self::BootstrapFetchFailed
+        )
     }
 
     /// Clean user-facing message with no developer details.

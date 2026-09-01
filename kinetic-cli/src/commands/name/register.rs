@@ -1,9 +1,11 @@
 //! New .kin name registration engine featuring Drand entropy, two-phase commitment, and VDF proof generation.
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
-use kinetic_core::config::{KineticConfig, get_zones_dir};
-use kinetic_core::traits::{VdfEngine, KynProvider};
-use kinetic_core::types::{Reveal, load_keypair};
+use kinetic_core::config::KineticConfig;
+use kinetic_core::traits::{KynProvider, VdfEngine};
+use kinetic_core::types::Reveal;
+use kinetic_local::config::get_zones_dir;
+use kinetic_local::identity::load_keypair;
 
 use reqwest::Client;
 use serde_json::json;
@@ -36,7 +38,7 @@ pub async fn handle_name_register(
 
     // 1. Fetch latest Drand beacon
     info!("Fetching latest Drand entropy beacon...");
-    let kyn_provider = kinetic_core::drand::DrandProvider::new(None);
+    let kyn_provider = kinetic_network::client::drand::DrandProvider::new(None);
     let drand_data = kyn_provider.fetch_latest().await?;
     info!(
         "Successfully fetched Drand kyn {}. Randomness: {}",
@@ -52,7 +54,7 @@ pub async fn handle_name_register(
     getrandom::fill(&mut salt).expect("Failed to generate random salt");
 
     // Construct commitment: H(name || salt || drand_signature || pubkey)
-    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
     let pubkey = keypair.pubkey_bytes();
 
@@ -176,16 +178,16 @@ pub async fn handle_name_register(
     // 3. Construct the NrsZone and auto-generate/inherit KID
     let mut records = std::collections::HashMap::new();
 
-    let kyn_provider = kinetic_core::drand::DrandProvider::new(None);
-    use kinetic_core::types::clock::KynNetworkExt;
+    let kyn_provider = kinetic_network::client::drand::DrandProvider::new(None);
     use kinetic_core::types::Kyn;
-    
+    use kinetic_core::types::clock::KynNetworkExt;
+
     let current_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => Kyn(kyn.kyn),
         Err(_) => Kyn::now_local(),
     };
 
-    let kid_res = kinetic_core::types::get_or_create_kid_for_name(
+    let kid_res = kinetic_local::kid_manager::get_or_create_kid_for_name(
         &fqdn,
         true,
         false,

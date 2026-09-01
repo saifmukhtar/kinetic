@@ -9,6 +9,7 @@ simulation = ["kinetic-core/simulation"]
 
 [dependencies]
 kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
+kinetic-local = { version = "0.2.0", path = "../kinetic-local" }
 kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
 hickory-server = "0.24"
 async-trait = "0.1"

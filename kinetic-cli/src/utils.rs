@@ -1,7 +1,7 @@
 //! CLI utility functions for Bearer token loading, HTTP client configuration, and API error formatting.
 
 use anyhow::Context;
-use kinetic_core::config::get_zones_dir;
+use kinetic_local::config::get_zones_dir;
 use reqwest::Client;
 use std::time::Duration;
 
@@ -45,7 +45,7 @@ pub fn save_zone_file(fqdn: &str, zone: &kinetic_core::types::NrsZone) -> anyhow
 /// Returns an `anyhow::Error` if the token file cannot be read, which likely indicates
 /// Reads the admin API token from the `tokens/admin.token` file.
 pub fn get_api_token() -> anyhow::Result<String> {
-    let path = kinetic_core::config::get_api_tokens_dir().join("admin.token");
+    let path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
     let token = std::fs::read_to_string(&path)
         .with_context(|| format!("Failed to read admin API token from {:?}", path))?;
     Ok(token.trim().to_string())

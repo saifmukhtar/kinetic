@@ -42,13 +42,9 @@ pub fn start_gossip_processor(
                             Err(_) => kinetic_core::types::Kyn::now_local().0,
                         };
                         let Ok(mut state) =
-                            kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                            kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
                         else {
-                            network_client.report_gossip(
-                                message_id,
-                                propagation_source,
-                                is_valid,
-                            );
+                            network_client.report_gossip(message_id, propagation_source, is_valid);
                             continue;
                         };
 
@@ -113,9 +109,16 @@ pub fn start_gossip_processor(
                                         _ => {}
                                     }
                                 }
-                                if let Err(e) = state.save_to_disk(&gossip_gov_path) {
+                                if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                                    &state,
+                                    &gossip_gov_path,
+                                ) {
                                     let err = kinetic_core::error::GovernanceError::StateSaveFailed;
-                                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                                    tracing::error!(
+                                        error_code = err.code(),
+                                        "Failed to save modified governance state to disk: {}",
+                                        e
+                                    );
                                 }
                             }
                             Ok(None) => {
@@ -123,9 +126,16 @@ pub fn start_gossip_processor(
                                 tracing::info!(
                                     "Governance state updated via gossip. No immediate effect."
                                 );
-                                if let Err(e) = state.save_to_disk(&gossip_gov_path) {
+                                if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                                    &state,
+                                    &gossip_gov_path,
+                                ) {
                                     let err = kinetic_core::error::GovernanceError::StateSaveFailed;
-                                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                                    tracing::error!(
+                                        error_code = err.code(),
+                                        "Failed to save modified governance state to disk: {}",
+                                        e
+                                    );
                                 }
                             }
                             Err(e) => {
@@ -136,11 +146,7 @@ pub fn start_gossip_processor(
                             }
                         }
                     }
-                    network_client.report_gossip(
-                        message_id,
-                        propagation_source,
-                        is_valid,
-                    );
+                    network_client.report_gossip(message_id, propagation_source, is_valid);
                 } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
                     let mut is_valid = false;
                     if let Ok(kyn) =
@@ -153,8 +159,12 @@ pub fn start_gossip_processor(
                         if is_valid {
                             let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
                                 Ok(latest) => {
-                                    if latest.is_unavailable { 0 } else { latest.kyn }
-                                },
+                                    if latest.is_unavailable {
+                                        0
+                                    } else {
+                                        latest.kyn
+                                    }
+                                }
                                 Err(e) => {
                                     if !matches!(e, kinetic_core::error::KynProviderError::NoCachedKyn) {
                                         tracing::error!(error_code = e.code(), "Failed to load cached kyn in gossip handler: {}", e);
@@ -171,11 +181,7 @@ pub fn start_gossip_processor(
                             }
                         }
                     }
-                    network_client.report_gossip(
-                        message_id,
-                        propagation_source,
-                        is_valid,
-                    );
+                    network_client.report_gossip(message_id, propagation_source, is_valid);
                 } else {
                     network_client.report_gossip(message_id, propagation_source, false);
                 }

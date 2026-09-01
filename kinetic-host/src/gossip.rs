@@ -36,7 +36,7 @@ pub async fn start_gossip_listener(
                 };
 
                 let (should_save, cloned_state) = {
-                    let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                    let Ok(mut state) = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
                     else {
                         tracing::error!(
                             error = ?kinetic_core::error::SystemError::MutexPoisoned("GLOBAL_GOVERNANCE_STATE".into()),
@@ -72,7 +72,10 @@ pub async fn start_gossip_listener(
                 if should_save {
                     let path_clone = gov_state_path.clone();
                     tokio::task::spawn_blocking(move || {
-                        if let Err(e) = cloned_state.save_to_disk(&path_clone) {
+                        if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                            &cloned_state,
+                            &path_clone,
+                        ) {
                             let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                             tracing::error!(
                                 error_code = err.code(),

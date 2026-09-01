@@ -53,26 +53,31 @@ impl GatewayError {
     pub fn severity(&self) -> Severity {
         match self {
             Self::ProxyingToGateway(_) => Severity::Info,
-            Self::GatewayFailedWithStatus(_, _) | Self::GatewayUnreachable(_, _) => Severity::Warning,
+            Self::GatewayFailedWithStatus(_, _) | Self::GatewayUnreachable(_, _) => {
+                Severity::Warning
+            }
             Self::AllGatewaysFailed(_) => Severity::Error,
         }
     }
 
     /// Whether the client should offer a retry action.
     pub fn is_retryable(&self) -> bool {
-        match self {
-            Self::AllGatewaysFailed(_) => false,
-            _ => true,
-        }
+        !matches!(self, Self::AllGatewaysFailed(_))
     }
 
     /// Returns the user-facing message.
     pub fn user_message(&self) -> String {
         match self {
             Self::ProxyingToGateway(_) => "Routing IPFS request to a storage gateway.".to_string(),
-            Self::GatewayFailedWithStatus(_, _) => "A storage gateway failed to return the file.".to_string(),
-            Self::GatewayUnreachable(_, _) => "A storage gateway is currently unreachable.".to_string(),
-            Self::AllGatewaysFailed(_) => "All available storage gateways failed to load the requested content.".to_string(),
+            Self::GatewayFailedWithStatus(_, _) => {
+                "A storage gateway failed to return the file.".to_string()
+            }
+            Self::GatewayUnreachable(_, _) => {
+                "A storage gateway is currently unreachable.".to_string()
+            }
+            Self::AllGatewaysFailed(_) => {
+                "All available storage gateways failed to load the requested content.".to_string()
+            }
         }
     }
 }

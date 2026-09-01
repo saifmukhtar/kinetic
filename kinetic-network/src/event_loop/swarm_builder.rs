@@ -8,6 +8,7 @@ use super::lightnode;
 
 impl super::core::NetworkEventLoop {
     /// Initializes a new P2P Swarm and returns the client handle and the event loop.
+    #[allow(clippy::type_complexity)]
     pub fn new(
         config: NetworkConfig,
         local_key: libp2p::identity::Keypair,
@@ -54,7 +55,10 @@ impl super::core::NetworkEventLoop {
                     .add_address(&peer_id, addr.clone());
             }
             if let Err(e) = swarm.dial(addr.clone()) {
-                let err = kinetic_core::error::P2pError::BootstrapDialFailed(addr.to_string(), format!("{:?}", e));
+                let err = kinetic_core::error::P2pError::BootstrapDialFailed(
+                    addr.to_string(),
+                    format!("{:?}", e),
+                );
                 tracing::warn!(error_code = err.code(), "{}", err);
             } else {
                 tracing::info!("Dialing bootstrap node: {}", addr);

@@ -5,8 +5,8 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use crate::error::{
-    KynProviderError, GovernanceError, IdentityError, NamesError, NetworkClientError, NrsError, P2pError,
-    PublishError, RegistrationError, ResolutionError, StorageError, VdfError, ConfigError,
+    ConfigError, GovernanceError, IdentityError, KynProviderError, NamesError, NetworkClientError,
+    NrsError, P2pError, PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
     vdf::RevealValidationError,
 };
 use serde::{Deserialize, Serialize};
@@ -84,10 +84,19 @@ impl From<PublishError> for ApiError {
             PublishError::AllFailed { .. } => (503, "Publish Failed"),
             PublishError::Rejected(_) => (422, "Publish Rejected"),
             PublishError::Internal { .. } => (500, "Internal Publish Error"),
-            PublishError::QuorumFailed(..) | PublishError::CommitmentQuorumFailed(..) => (503, "Quorum Failed"),
-            PublishError::QuorumCheckError(..) | PublishError::CommitmentQuorumCheckError(..) => (503, "Quorum Check Failed"),
-            PublishError::ZonePublishFailed(_) | PublishError::CommitmentPublishFailed(_) | PublishError::KidPublishFailed(_) | PublishError::ManifestPublishFailed(_) | PublishError::HostRoutingRecordPublishFailed(_) => (502, "DHT Publish Failed"),
-            PublishError::MissingLocalRevealForKid(_) | PublishError::MissingLocalRevealForManifest(_) => (404, "Missing Local Reveal"),
+            PublishError::QuorumFailed(..) | PublishError::CommitmentQuorumFailed(..) => {
+                (503, "Quorum Failed")
+            }
+            PublishError::QuorumCheckError(..) | PublishError::CommitmentQuorumCheckError(..) => {
+                (503, "Quorum Check Failed")
+            }
+            PublishError::ZonePublishFailed(_)
+            | PublishError::CommitmentPublishFailed(_)
+            | PublishError::KidPublishFailed(_)
+            | PublishError::ManifestPublishFailed(_)
+            | PublishError::HostRoutingRecordPublishFailed(_) => (502, "DHT Publish Failed"),
+            PublishError::MissingLocalRevealForKid(_)
+            | PublishError::MissingLocalRevealForManifest(_) => (404, "Missing Local Reveal"),
             PublishError::ZoneSerializationFailed(_) => (500, "Serialization Failed"),
         };
         ApiError {
@@ -133,9 +142,9 @@ impl From<RegistrationError> for ApiError {
 impl From<GovernanceError> for ApiError {
     fn from(e: GovernanceError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            GovernanceError::MissingRootKey | GovernanceError::MalformedRootKey | GovernanceError::StateCorrupted => {
-                (500, "Internal Server Error")
-            }
+            GovernanceError::MissingRootKey
+            | GovernanceError::MalformedRootKey
+            | GovernanceError::StateCorrupted => (500, "Internal Server Error"),
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
             GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
             GovernanceError::KeyLengthMismatch
@@ -146,8 +155,12 @@ impl From<GovernanceError> for ApiError {
             | GovernanceError::NotMapped
             | GovernanceError::UnnormalizedName
             | GovernanceError::InvalidSeedState => (400, "Bad Request"),
-            GovernanceError::StateSaveFailed | GovernanceError::StateReadFailed => (500, "Internal Server Error"),
-            GovernanceError::P2pPublishFailed | GovernanceError::BootstrapFetchFailed => (502, "Bad Gateway"),
+            GovernanceError::StateSaveFailed | GovernanceError::StateReadFailed => {
+                (500, "Internal Server Error")
+            }
+            GovernanceError::P2pPublishFailed | GovernanceError::BootstrapFetchFailed => {
+                (502, "Bad Gateway")
+            }
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -200,7 +213,9 @@ impl From<StorageError> for ApiError {
             | StorageError::DeleteFailed(_)
             | StorageError::ScanFailed(_)
             | StorageError::OpenFailed(_) => (500, "Storage Operation Failed"),
-            StorageError::InvalidRecordDiscarded | StorageError::OrphanedHeartbeatPurged => (500, "Storage Consistency Warning"),
+            StorageError::InvalidRecordDiscarded | StorageError::OrphanedHeartbeatPurged => {
+                (500, "Storage Consistency Warning")
+            }
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -254,7 +269,9 @@ impl From<KynProviderError> for ApiError {
             | KynProviderError::HttpClient(_)
             | KynProviderError::HttpError(_) => (502, "Bad Gateway"),
             KynProviderError::NoCachedKyn => (404, "Not Found"),
-            KynProviderError::Serde(_) | KynProviderError::Storage(_) => (500, "Internal Server Error"),
+            KynProviderError::Serde(_) | KynProviderError::Storage(_) => {
+                (500, "Internal Server Error")
+            }
             KynProviderError::InvalidSignature => (422, "Cryptographic Verification Failed"),
             KynProviderError::StaleKyn { .. } => (400, "Stale Network Kyn"),
             KynProviderError::UnavailableOnStartup(_) => (503, "Service Unavailable"),
@@ -389,7 +406,7 @@ impl From<NamesError> for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::{KynProviderError, IdentityError, PublishError, ResolutionError};
+    use crate::error::{IdentityError, KynProviderError, PublishError, ResolutionError};
 
     #[test]
     fn test_status_code_mappings() {
