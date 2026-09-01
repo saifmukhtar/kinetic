@@ -5,7 +5,7 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use crate::error::{
-    DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError, NrsError, P2pError,
+    KynProviderError, GovernanceError, IdentityError, NamesError, NetworkClientError, NrsError, P2pError,
     PublishError, RegistrationError, ResolutionError, StorageError, VdfError, ConfigError,
     vdf::RevealValidationError,
 };
@@ -245,23 +245,23 @@ impl From<VdfError> for ApiError {
     }
 }
 
-impl From<DrandError> for ApiError {
-    fn from(e: DrandError) -> Self {
+impl From<KynProviderError> for ApiError {
+    fn from(e: KynProviderError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            DrandError::AllEndpointsFailed
-            | DrandError::StreamReadFailed(_)
-            | DrandError::ResponseTooLarge(_)
-            | DrandError::HttpClient(_)
-            | DrandError::HttpError(_) => (502, "Bad Gateway"),
-            DrandError::NoCachedKyn => (404, "Not Found"),
-            DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
-            DrandError::InvalidSignature => (422, "Cryptographic Verification Failed"),
-            DrandError::StaleKyn { .. } => (400, "Stale Network Kyn"),
-            DrandError::UnavailableOnStartup(_) => (503, "Service Unavailable"),
-            DrandError::P2pFallbackTriggered { .. } => (503, "P2P Fallback Active"),
-            DrandError::DevModeMockKyn => (200, "Dev Mode Mock"),
-            DrandError::RegistrationDisabled => (503, "Registration Disabled"),
-            DrandError::LiveFetchFailedFallback => (502, "Live Fetch Failed"),
+            KynProviderError::AllEndpointsFailed
+            | KynProviderError::StreamReadFailed(_)
+            | KynProviderError::ResponseTooLarge(_)
+            | KynProviderError::HttpClient(_)
+            | KynProviderError::HttpError(_) => (502, "Bad Gateway"),
+            KynProviderError::NoCachedKyn => (404, "Not Found"),
+            KynProviderError::Serde(_) | KynProviderError::Storage(_) => (500, "Internal Server Error"),
+            KynProviderError::InvalidSignature => (422, "Cryptographic Verification Failed"),
+            KynProviderError::StaleKyn { .. } => (400, "Stale Network Kyn"),
+            KynProviderError::UnavailableOnStartup(_) => (503, "Service Unavailable"),
+            KynProviderError::P2pFallbackTriggered { .. } => (503, "P2P Fallback Active"),
+            KynProviderError::DevModeMockKyn => (200, "Dev Mode Mock"),
+            KynProviderError::RegistrationDisabled => (503, "Registration Disabled"),
+            KynProviderError::LiveFetchFailedFallback => (502, "Live Fetch Failed"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -389,7 +389,7 @@ impl From<NamesError> for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::{DrandError, IdentityError, PublishError, ResolutionError};
+    use crate::error::{KynProviderError, IdentityError, PublishError, ResolutionError};
 
     #[test]
     fn test_status_code_mappings() {
@@ -401,7 +401,7 @@ mod tests {
         assert_eq!(ApiError::from(err).status, 404);
 
         // Test proxy leak fix (Drand 404 shouldn't leak to client)
-        let drand_err = DrandError::HttpError(404);
+        let drand_err = KynProviderError::HttpError(404);
         assert_eq!(ApiError::from(drand_err).status, 502);
 
         // Test blame-shifting fix (Malformed docs shouldn't be 500)

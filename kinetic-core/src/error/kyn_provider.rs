@@ -1,30 +1,30 @@
-//! Drand Quicknet kyn acquisition and verification error types (`KIN-RND-NNN`).
+//! Beacon Quicknet kyn acquisition and verification error types (`KIN-RND-NNN`).
 //!
-//! [`DrandError`] is returned by [`DrandClient::fetch_latest`](crate::drand::DrandClient::fetch_latest)
+//! [`KynProviderError`] is returned by [`BeaconClient::fetch_latest`](crate::beacon::BeaconClient::fetch_latest)
 //! when the Quicknet randomness beacon cannot be reached, returns an invalid kyn, or the
 //! BLS threshold signature fails mathematical verification.
 //!
 //! ## Protocol Context
 //!
 //! Network kyns are the heartbeat of the Kinetic protocol. Every VDF commitment encodes
-//! the current kyn kyn as a salt, and every reveal must include the Drand randomness
+//! the current kyn kyn as a salt, and every reveal must include the Beacon randomness
 //! at the time of commitment. An invalid or stale kyn breaks the time-lock guarantee.
 //!
-//! The daemon falls back to cached kyns (`DrandError::NoCachedKyn`) and gossipsub
+//! The daemon falls back to cached kyns (`KynProviderError::NoCachedKyn`) and gossipsub
 //! P2P propagation if all HTTP endpoints fail.
 use super::Severity;
 use thiserror::Error;
 
-/// Error type for drand beacon fetches and cache operations.
+/// Error type for beacon beacon fetches and cache operations.
 #[derive(Error, Debug)]
-pub enum DrandError {
+pub enum KynProviderError {
     /// All configured endpoints returned errors or timed out.
-    /// The node could not fetch the latest drand beacon from any of the public HTTP endpoints.
-    /// Ensure your node has outbound internet access or provide custom drand endpoint URLs.
-    #[error("All Drand endpoints failed")]
+    /// The node could not fetch the latest beacon beacon from any of the public HTTP endpoints.
+    /// Ensure your node has outbound internet access or provide custom beacon endpoint URLs.
+    #[error("All Beacon endpoints failed")]
     AllEndpointsFailed,
     /// An endpoint returned a non-2xx HTTP status.
-    /// The public drand League of Entropy relays might be experiencing downtime or rate-limiting you.
+    /// The public beacon League of Entropy relays might be experiencing downtime or rate-limiting you.
     /// Try adding alternate endpoints to your daemon configuration.
     #[error("HTTP status error: {0}")]
     HttpError(u16),
@@ -34,7 +34,7 @@ pub enum DrandError {
     #[error("No cached kyn found")]
     NoCachedKyn,
     /// JSON (de)serialization failed.
-    /// An endpoint returned a malformed response that did not match the expected drand schema.
+    /// An endpoint returned a malformed response that did not match the expected beacon schema.
     /// This may indicate a Man-in-the-Middle attack or a broken API endpoint.
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
@@ -51,14 +51,14 @@ pub enum DrandError {
     /// The BLS threshold signature was mathematically invalid.
     /// A malicious endpoint attempted to feed the node a forged random beacon.
     /// The beacon was safely rejected.
-    #[error("Invalid Drand signature")]
+    #[error("Invalid Beacon signature")]
     InvalidSignature,
     /// The returned kyn is too old compared to the system clock.
-    /// An endpoint is serving outdated drand rounds, potentially as a replay attack.
+    /// An endpoint is serving outdated beacon rounds, potentially as a replay attack.
     /// The node expects the round to roughly match the current Unix time.
     #[error("Stale kyn: expected kyn ~{expected}, but got {got}")]
     StaleKyn {
-        /// The expected Drand kyn based on the local system clock.
+        /// The expected Beacon kyn based on the local system clock.
         expected: u64,
         /// The actual kyn returned by the endpoint.
         got: u64,
@@ -73,31 +73,31 @@ pub enum DrandError {
     /// The connection was terminated safely.
     #[error("Response too large: {0} bytes")]
     ResponseTooLarge(usize),
-    /// The drand beacon was unavailable when the node started up.
-    /// The node cannot initialize its internal clock without a valid drand round.
-    /// The node will fail to start until it can reach a drand endpoint.
-    #[error("Drand beacon unavailable on startup: {0}")]
+    /// The beacon beacon was unavailable when the node started up.
+    /// The node cannot initialize its internal clock without a valid beacon round.
+    /// The node will fail to start until it can reach a beacon endpoint.
+    #[error("Beacon beacon unavailable on startup: {0}")]
     UnavailableOnStartup(String),
-    /// The node fell too far behind and triggered the P2P drand fallback mechanism.
+    /// The node fell too far behind and triggered the P2P beacon fallback mechanism.
     /// The node's clock drifted too far from the network's clock.
     /// The node is now relying on P2P peers to catch up.
-    #[error("P2P Drand fallback triggered! We are behind by {behind} kyns.")]
+    #[error("P2P Beacon fallback triggered! We are behind by {behind} kyns.")]
     P2pFallbackTriggered {
         /// Number of kyns the node was behind.
         behind: u64,
     },
     /// Dev mode warning: returning a mock kyn because the cache was empty.
-    #[error("DEV MODE: Returning mock drand kyn because cache is empty.")]
+    #[error("DEV MODE: Returning mock beacon kyn because cache is empty.")]
     DevModeMockKyn,
     /// Registration is disabled because the beacon could not be reached.
     #[error("P2P swarm and proxy will start — registration disabled until beacon reachable")]
     RegistrationDisabled,
     /// Live fetch failed, gracefully falling back to local cached kyn.
-    #[error("Could not fetch live drand kyn, falling back to cached value for staleness check")]
+    #[error("Could not fetch live beacon kyn, falling back to cached value for staleness check")]
     LiveFetchFailedFallback,
 }
 
-impl PartialEq for DrandError {
+impl PartialEq for KynProviderError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::AllEndpointsFailed, Self::AllEndpointsFailed) => true,
@@ -128,9 +128,9 @@ impl PartialEq for DrandError {
         }
     }
 }
-impl Eq for DrandError {}
+impl Eq for KynProviderError {}
 
-impl DrandError {
+impl KynProviderError {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
@@ -207,11 +207,11 @@ impl DrandError {
             }
             Self::InvalidSignature => "Invalid network signature.".to_string(),
             Self::StaleKyn { .. } => "The fetched network kyn was too old.".to_string(),
-            Self::UnavailableOnStartup(e) => format!("Drand beacon unavailable on startup: {}", e),
-            Self::P2pFallbackTriggered { behind } => format!("P2P Drand fallback triggered! We are behind by {} kyns.", behind),
-            Self::DevModeMockKyn => "DEV MODE: Returning mock drand kyn because cache is empty.".to_string(),
+            Self::UnavailableOnStartup(e) => format!("Beacon beacon unavailable on startup: {}", e),
+            Self::P2pFallbackTriggered { behind } => format!("P2P Beacon fallback triggered! We are behind by {} kyns.", behind),
+            Self::DevModeMockKyn => "DEV MODE: Returning mock beacon kyn because cache is empty.".to_string(),
             Self::RegistrationDisabled => "P2P swarm and proxy will start — registration disabled until beacon reachable".to_string(),
-            Self::LiveFetchFailedFallback => "Could not fetch live drand kyn, falling back to cached value for staleness check".to_string(),
+            Self::LiveFetchFailedFallback => "Could not fetch live beacon kyn, falling back to cached value for staleness check".to_string(),
         }
     }
 }

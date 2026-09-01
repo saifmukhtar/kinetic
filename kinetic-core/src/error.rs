@@ -55,7 +55,7 @@ pub mod dht;
 /// Name validation error types.
 pub mod names;
 /// Drand random beacon error types.
-pub mod drand;
+pub mod kyn_provider;
 /// VDF engine error types.
 pub mod vdf;
 /// Governance and consensus logic error types.
@@ -81,7 +81,7 @@ pub mod gateway;
 
 pub use config::ConfigError;
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};
-pub use drand::DrandError;
+pub use kyn_provider::KynProviderError;
 pub use gateway::GatewayError;
 pub use governance::GovernanceError;
 pub use identity::IdentityError;
