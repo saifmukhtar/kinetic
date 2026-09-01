@@ -584,14 +584,22 @@ pub async fn handle_publish_governance(
     }
     tracing::info!("Received API publish request for Governance action");
 
-    // Process the message locally to ensure it is mathematically valid before gossiping.
-    // We lock the global state, process it, and optionally save it.
+    let current_kyn = {
+        let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
+        use kinetic_core::types::clock::KynNetworkExt;
+        match drand_client.load_cached_kyn() {
+            Ok(kyn) => kyn.kyn,
+            Err(_) => match drand_client.fetch_latest().await {
+                Ok(kyn) => kyn.kyn,
+                Err(_) => kinetic_core::types::Kyn::now_local().0,
+            }
+        }
+    };
+
     let is_valid = {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        use kinetic_core::types::clock::UTimeNetworkExt;
-        let current_kyn = kinetic_core::types::UTime::now_local().to_network_kyn().0;
         match kinetic_core::governance::process_governance_message(&mut gov, &msg, current_kyn) {
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");

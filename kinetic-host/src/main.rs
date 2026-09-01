@@ -262,6 +262,7 @@ async fn run_host() -> Result<()> {
     );
 
     tokio::spawn(gossip::start_gossip_listener(
+        drand_client.clone(),
         gossip_rx,
         gov_state_path.clone(),
     ));

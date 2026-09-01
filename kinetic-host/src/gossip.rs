@@ -8,6 +8,7 @@ use libp2p::gossipsub::MessageId;
 
 /// Starts an async loop to listen for governance gossip messages, update global state, and save to disk.
 pub async fn start_gossip_listener(
+    drand_client: Arc<kinetic_core::drand::DrandClient>,
     mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>, MessageId, PeerId)>,
     gov_state_path: Arc<PathBuf>,
 ) {
@@ -24,6 +25,15 @@ pub async fn start_gossip_listener(
                     kinetic_core::governance::SignedGovernanceMessage,
                 >(actual_payload)
             {
+                use kinetic_core::types::clock::KynNetworkExt;
+                let current_kyn = match drand_client.load_cached_kyn() {
+                    Ok(kyn) => kyn.kyn,
+                    Err(_) => match drand_client.fetch_latest().await {
+                        Ok(kyn) => kyn.kyn,
+                        Err(_) => kinetic_core::types::Kyn::now_local().0,
+                    },
+                };
+
                 let (should_save, cloned_state) = {
                     let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
                     else {
@@ -33,8 +43,6 @@ pub async fn start_gossip_listener(
                         );
                         continue;
                     };
-                    use kinetic_core::types::clock::UTimeNetworkExt;
-                    let current_kyn = kinetic_core::types::UTime::now_local().to_network_kyn().0;
 
                     match kinetic_core::governance::process_governance_message(
                         &mut state,
