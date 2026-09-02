@@ -1,14 +1,13 @@
 [package]
 name = "kinetic-forge"
+description = "CLI wizard for bootstrapping and scaffolding isolated private Kinetic networks"
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-clap.workspace = true
 dialoguer = "0.12.0"
-regex = "1.13.0"
-serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 toml_edit = "0.25.13"

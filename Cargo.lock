@@ -2720,10 +2720,7 @@ name = "kinetic-forge"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "clap",
  "dialoguer",
- "regex",
- "serde",
  "serde_json",
  "toml_edit",
 ]
