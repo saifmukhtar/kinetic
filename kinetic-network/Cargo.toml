@@ -24,7 +24,7 @@ kinetic-types = { path = "../kinetic-types" }
 kinetic-vdf = { path = "../kinetic-vdf" }
 kinetic-verify = { path = "../kinetic-verify" }
 libp2p = { workspace = true, features = ["kad", "gossipsub", "noise", "yamux", "macros", "identify", "relay", "dcutr", "ping", "request-response", "cbor", "autonat", "upnp", "quic", "dns"] }
-lru = "0.12.3"
+lru = "0.18.3"
 rand.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 rustc-hash = "2.1.3"
@@ -43,7 +43,7 @@ getrandom = { version = "0.2", features = ["js"] }
 getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
 gloo-timers = { version = "0.4.0", features = ["futures"] }
 libp2p = { workspace = true, features = ["websocket-websys", "webrtc-websys"] }
-wasm-bindgen-futures = "0.4"
+wasm-bindgen-futures = "0.4.77"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 futures-timer = "3.0.4"

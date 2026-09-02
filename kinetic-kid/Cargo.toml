@@ -21,7 +21,7 @@ kinetic-primitives = { path = "../kinetic-primitives" }
 # --- External Crates ---
 base64.workspace = true
 serde = { workspace = true, features = ["derive"] }
-serde_jcs = "0.1"
+serde_jcs = "0.2.0"
 serde_json.workspace = true
 thiserror.workspace = true
 
