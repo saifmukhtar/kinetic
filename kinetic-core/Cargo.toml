@@ -24,11 +24,11 @@ kinetic-verify = { path = "../kinetic-verify" }
 
 # --- Workspace Inherited ---
 anyhow.workspace = true
+async-trait.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
 # --- External Crates ---
-async-trait = "0.1"
 bytes.workspace = true
 drand-verify = "0.6.2"
 hex.workspace = true

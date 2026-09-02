@@ -17,8 +17,8 @@ base64.workspace = true
 bincode.workspace = true
 bip39.workspace = true
 clap = { workspace = true, features = ["derive"] }
-data-encoding = "2.11.0"
-directories = "6.0.0"
+data-encoding = "2.11.1"
+dialoguer = "0.12.0"
 dirs.workspace = true
 ed25519-dalek.workspace = true
 getrandom.workspace = true
