@@ -13,12 +13,12 @@ kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
 kinetic-local = { version = "0.2.0", path = "../kinetic-local" }
-kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
+kinetic-vdf = { path = "../kinetic-vdf" }
 tokio = { workspace = true, features = ["net"] }
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-libp2p = { version = "0.53", features = ["ed25519", "tokio", "macros"] }
+libp2p = { workspace = true, features = ["ed25519", "tokio", "macros"] }
 axum = "0.8.9"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"

@@ -134,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (incoming_tx, _) = tokio::sync::mpsc::channel(32);
     let (_, rx) = watch::channel(0);
 
-    let vdf_engine = std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+    let vdf_engine = std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let (client, loop_task) = NetworkEventLoop::new(
         config,
         key,

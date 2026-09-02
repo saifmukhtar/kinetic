@@ -134,7 +134,7 @@ pub async fn handle_name_renew(
         }
     });
 
-    let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
+    let vdf_engine = kinetic_vdf::RsaVdfEngine::new();
     let vdf_proof =
         tokio::task::spawn_blocking(move || vdf_engine.evaluate(&challenge, actual_iterations))
             .await??;

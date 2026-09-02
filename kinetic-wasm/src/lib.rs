@@ -21,21 +21,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 use wasm_bindgen::prelude::*;
 
-/// Configuration for a specific Kinetic network fork.
-#[wasm_bindgen(getter_with_clone)]
-#[derive(Clone, serde::Deserialize)]
-pub struct AtlasNetworkConfig {
-    /// The NSP (e.g. "kin")
-    pub id: String,
-    /// Display name
-    pub name: String,
-    /// Network ID used for signatures
-    pub network_id: String,
-    /// Hardcoded bootstrap nodes
-    pub bootstrap_nodes: Vec<String>,
-    /// Optional kintree DNS seed domain
-    pub seed_domain: Option<String>,
-}
+
 
 struct SwarmHandle {
     client: NetworkClient,
@@ -46,7 +32,6 @@ struct SwarmHandle {
 /// Dynamically spawns Libp2p swarms for multiple TLDs on-demand.
 #[wasm_bindgen]
 pub struct WasmNode {
-    registry: Rc<RefCell<HashMap<String, AtlasNetworkConfig>>>,
     swarms: Rc<RefCell<HashMap<String, SwarmHandle>>>,
     on_event: Function,
 }
@@ -58,7 +43,6 @@ impl WasmNode {
     pub fn new(on_event: Function) -> Result<WasmNode, JsValue> {
         console_error_panic_hook::set_once();
         Ok(WasmNode {
-            registry: Rc::new(RefCell::new(HashMap::new())),
             swarms: Rc::new(RefCell::new(HashMap::new())),
             on_event,
         })
@@ -103,62 +87,6 @@ impl WasmNode {
         Ok(())
     }
 
-    /// Fetches the global Atlas network registry from GitHub index.json.
-    #[wasm_bindgen]
-    pub async fn fetch_registry(&self) -> Result<(), JsValue> {
-        let client = reqwest::Client::new();
-        // Fetch the aggregated index.json instead of making multiple API calls
-        let url = "https://raw.githubusercontent.com/saifmukhtar/kinetic-atlas/main/index.json";
-        let res = client
-            .get(url)
-            .header("User-Agent", "Universal-Kinetic-Wasm")
-            .send()
-            .await
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
-
-        // Parse directly as an array of AtlasNetworkConfig
-        let networks: Vec<AtlasNetworkConfig> = res
-            .json()
-            .await
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
-
-        let mut registry = self.registry.borrow_mut();
-        for config in networks {
-            registry.insert(config.id.clone(), config);
-        }
-
-        // Fallback injection for .kin if GitHub fetch failed or it's not present
-        if !registry.contains_key("kin") {
-            registry.insert(
-                "kin".to_string(),
-                AtlasNetworkConfig {
-                    id: "kin".to_string(),
-                    name: "Kinetic Mainnet".to_string(),
-                    network_id: kinetic_core::constants::NETWORK_ID.to_string(),
-                    bootstrap_nodes: vec![],
-                    seed_domain: Some("bootstrap.kinetic.network".to_string()),
-                },
-            );
-        }
-
-        self.emit_event(
-            "status",
-            &format!("Registry synced. Supported TLDs: {}", registry.len()),
-        );
-        Ok(())
-    }
-
-    /// Returns the list of currently supported TLDs as a JavaScript Array of strings.
-    #[wasm_bindgen]
-    pub fn supported_tlds(&self) -> js_sys::Array {
-        let registry = self.registry.borrow();
-        let arr = js_sys::Array::new_with_length(registry.len() as u32);
-        for (i, nsp) in registry.keys().enumerate() {
-            arr.set(i as u32, JsValue::from_str(nsp));
-        }
-        arr
-    }
-
     async fn spawn_swarm(&self, nsp: &str) -> Result<NetworkClient, JsValue> {
         {
             let mut lock = self.swarms.borrow_mut();
@@ -168,27 +96,13 @@ impl WasmNode {
             }
         }
 
-        let config = {
-            let reg = self.registry.borrow();
-            reg.get(nsp)
-                .cloned()
-                .ok_or_else(|| JsValue::from_str(&format!("NSP not found in registry: {}", nsp)))?
-        };
-
         self.emit_event("status", &format!("Spawning new swarm for .{}", nsp));
 
         let mut bootstrap_nodes = vec![];
-        for addr in config.bootstrap_nodes.iter() {
-            if let Ok(m) = addr.parse() {
-                bootstrap_nodes.push(m);
-            }
-        }
-
-        if let Some(seed_domain) = &config.seed_domain {
-            let resolved = kinetic_network::dns_tree::resolve_dns_tree(seed_domain).await;
-            for addr in resolved {
-                bootstrap_nodes.push(addr);
-            }
+        let seed_domain = "bootstrap.kinetic.network";
+        let resolved = kinetic_network::dns_tree::resolve_dns_tree(seed_domain).await;
+        for addr in resolved {
+            bootstrap_nodes.push(addr);
         }
 
         let storage =
@@ -214,7 +128,7 @@ impl WasmNode {
         };
 
         let local_key = Keypair::generate_ed25519();
-        let vdf_engine = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        let vdf_engine = Arc::new(kinetic_vdf::RsaVdfEngine::new());
         let (client, event_loop) = NetworkEventLoop::new(
             net_config, local_key, storage, drand_rx, None, None, vdf_engine,
         )

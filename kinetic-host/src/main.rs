@@ -239,7 +239,7 @@ async fn run_host() -> Result<()> {
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-        Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config.clone(),

@@ -26,32 +26,36 @@ pub(crate) fn build_full_swarm(
         config
     };
 
-    let build_tcp = |port_reuse: bool| {
-        libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
-            .with_tokio()
-            .with_tcp(
-                libp2p::tcp::Config::default().port_reuse(port_reuse),
-                libp2p::noise::Config::new,
-                yamux_config,
-            )
-    };
-
-    let builder_tcp = match build_tcp(true) {
-        Ok(b) => b,
-        Err(e) => {
-            tracing::warn!(
-                error = ?kinetic_core::error::SystemError::PortInUse(e.to_string()),
-                "Failed to build TCP transport with port_reuse(true). Falling back to port_reuse(false)."
-            );
-            build_tcp(false)?
-        }
-    };
+    let builder_tcp = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
+        .with_tokio()
+        .with_tcp(
+            libp2p::tcp::Config::default(),
+            libp2p::noise::Config::new,
+            yamux_config,
+        )?;
 
     #[cfg(not(target_os = "android"))]
-    let builder = builder_tcp.with_quic().with_dns()?;
+    let builder = builder_tcp
+        .with_quic()
+        .with_other_transport(|key| {
+            libp2p_webrtc::tokio::Transport::new(
+                key.clone(),
+                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng()).expect("Failed to generate WebRTC cert"),
+            )
+        })
+        .expect("Failed to inject WebRTC")
+        .with_dns()?;
 
     #[cfg(target_os = "android")]
-    let builder = builder_tcp.with_quic();
+    let builder = builder_tcp
+        .with_quic()
+        .with_other_transport(|key| {
+            libp2p_webrtc::tokio::Transport::new(
+                key.clone(),
+                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng()).expect("Failed to generate WebRTC cert"),
+            )
+        })
+        .expect("Failed to inject WebRTC");
 
     let (control_tx, control_rx) = std::sync::mpsc::channel();
     let initial_kyn = config.initial_kyn;
@@ -75,15 +79,14 @@ pub(crate) fn build_full_swarm(
                 vdf_engine.clone(),
             );
 
-            let mut kad_config = kad::Config::default();
+            let mut kad_config = kad::Config::new(
+                libp2p::StreamProtocol::try_from_owned(format!(
+                    "/{}/kad/2.0.0",
+                    kinetic_core::constants::NETWORK_SALT_HEX
+                ))
+                .unwrap()
+            );
             kad_config
-                .set_protocol_names(vec![
-                    libp2p::StreamProtocol::try_from_owned(format!(
-                        "/{}/kad/2.0.0",
-                        kinetic_core::constants::NETWORK_SALT_HEX
-                    ))
-                    .unwrap(),
-                ])
                 .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
                 .set_provider_record_ttl(Some(std::time::Duration::from_secs(
                     kinetic_core::constants::KADEMLIA_PROVIDER_RECORD_TTL_SECS,

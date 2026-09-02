@@ -1,16 +1,17 @@
 [package]
-name = "kinetic-vdf-rsa"
+name = "kinetic-vdf"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+description = "A pure Rust implementation of an RSA-based Verifiable Delay Function with Wesolowski's proof of exponentiation, using Blockwise Checkpointing."
+readme = "README.md"
 homepage.workspace = true
 
 [dependencies]
 kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
-kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
+kinetic-primitives = { version = "0.2.0", path = "../kinetic-primitives" }
 num-bigint = "0.4"
 num-prime = "0.5.0"
 num-traits = "0.2.19"
-kinetic-primitives = { version = "0.2.0", path = "../kinetic-primitives" }

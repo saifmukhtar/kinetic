@@ -5,7 +5,7 @@ use libp2p::request_response::{Event, Message};
 
 pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnRequest, CdnResponse>) {
     match e {
-        Event::Message { message, peer } => match message {
+        Event::Message { message, peer, .. } => match message {
             Message::Request {
                 request, channel, ..
             } => {

@@ -38,7 +38,7 @@ use kinetic_core::traits::KynProvider;
 use kinetic_local::identity::load_keypair;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
-use kinetic_vdf_rsa::RsaVdfEngine;
+use kinetic_vdf::RsaVdfEngine;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::watch;

@@ -22,10 +22,10 @@ bip39 = "2.2.2"
 kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
 kinetic-local = { version = "0.2.0", path = "../kinetic-local" }
 kinetic-network = { version = "0.2.0", path = "../kinetic-network" }
-kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
+kinetic-vdf = { path = "../kinetic-vdf" }
 kinetic-kid = { version = "0.2.0", path = "../kinetic-kid" }
 kinetic-primitives = { path = "../kinetic-primitives" }
-libp2p = { version = "0.53", features = ["ed25519"] }
+libp2p = { workspace = true, features = ["ed25519"] }
 rand = "0.10.1"
 rand_core = { version = "0.6.4", features = ["std", "getrandom"] }
 base64 = "0.22"

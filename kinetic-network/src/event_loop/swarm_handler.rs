@@ -115,6 +115,8 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
+                // Update LRU recency immediately
+                self.peer_registry.mark_connected(&peer_id);
                 if let Some(&expire_time) = self.banned_peers.peek(&peer_id) {
                     if expire_time > self.current_kyn {
                         let err = kinetic_core::error::P2pError::BannedPeerConnectionAttempt(peer_id.to_string());
@@ -224,8 +226,12 @@ impl super::core::NetworkEventLoop {
                 tracing::debug!("RelayServer Event: {:?}", event);
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Identify(
-                libp2p::identify::Event::Received { peer_id, info },
+                libp2p::identify::Event::Received { peer_id, info, .. },
             )) => {
+                if self.peer_registry.add_verified_peer(peer_id, info.listen_addrs.clone()) {
+                    tracing::debug!("Added/updated public peer {} in PeerRegistry", peer_id);
+                }
+
                 tracing::info!(
                     "Received Identify from peer {:?} with addrs: {:?}",
                     peer_id,

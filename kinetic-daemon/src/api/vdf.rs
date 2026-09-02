@@ -175,7 +175,7 @@ pub async fn handle_vdf_register(
             kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
-        let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
+        let vdf_engine = kinetic_vdf::RsaVdfEngine::new();
         let challenge_clone = challenge.clone();
 
         let permit_res = state.vdf_semaphore.clone().acquire_owned().await;
@@ -527,7 +527,7 @@ pub async fn handle_vdf_renew(
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);
 
-        let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
+        let vdf_engine = kinetic_vdf::RsaVdfEngine::new();
         let challenge_clone = challenge.clone();
 
         let permit_res = state.vdf_semaphore.clone().acquire_owned().await;

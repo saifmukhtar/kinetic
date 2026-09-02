@@ -40,22 +40,36 @@ pub(crate) fn build_light_swarm(
     let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
         .with_tokio()
         .with_tcp(
-            libp2p::tcp::Config::default().port_reuse(false),
+            libp2p::tcp::Config::default(),
             libp2p::noise::Config::new,
             yamux_config,
         )?
         .with_quic()
+        .with_other_transport(|key| {
+            libp2p_webrtc::tokio::Transport::new(
+                key.clone(),
+                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng()).expect("Failed to generate WebRTC cert"),
+            )
+        })
+        .expect("Failed to inject WebRTC")
         .with_dns()?;
 
     #[cfg(all(target_os = "android", not(target_arch = "wasm32")))]
     let builder = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
         .with_tokio()
         .with_tcp(
-            libp2p::tcp::Config::default().port_reuse(false),
+            libp2p::tcp::Config::default(),
             libp2p::noise::Config::new,
             yamux_config,
         )?
-        .with_quic();
+        .with_quic()
+        .with_other_transport(|key| {
+            libp2p_webrtc::tokio::Transport::new(
+                key.clone(),
+                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng()).expect("Failed to generate WebRTC cert"),
+            )
+        })
+        .expect("Failed to inject WebRTC");
 
     #[cfg(not(target_arch = "wasm32"))]
     let (control_tx, control_rx) = std::sync::mpsc::channel();
@@ -78,15 +92,14 @@ pub(crate) fn build_light_swarm(
                 vdf_engine.clone(),
             );
 
-            let mut kad_config = kad::Config::default();
+            let mut kad_config = kad::Config::new(
+                libp2p::StreamProtocol::try_from_owned(format!(
+                    "/{}/kad/2.0.0",
+                    kinetic_core::constants::NETWORK_SALT_HEX
+                ))
+                .unwrap()
+            );
             kad_config
-                .set_protocol_names(vec![
-                    libp2p::StreamProtocol::try_from_owned(format!(
-                        "/{}/kad/2.0.0",
-                        kinetic_core::constants::NETWORK_SALT_HEX
-                    ))
-                    .unwrap(),
-                ])
                 .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)
                 .set_provider_record_ttl(Some(std::time::Duration::from_secs(
                     kinetic_core::constants::KADEMLIA_PROVIDER_RECORD_TTL_SECS,

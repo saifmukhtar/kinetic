@@ -605,7 +605,7 @@ mod tests {
         let peer_id = PeerId::from(keypair.public());
 
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
             db_storage,
@@ -630,7 +630,7 @@ mod tests {
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
         let mut store = KineticRecordStore::new(
             peer_id,
@@ -683,7 +683,7 @@ mod tests {
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
         let mut store = KineticRecordStore::new(
             peer_id,
@@ -741,7 +741,7 @@ mod tests {
 
         let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
         let store = KineticRecordStore::new(
             peer_id,
             storage.clone(),
@@ -768,7 +768,7 @@ mod tests {
             std::sync::Arc::new(KineticStorage::new(dir.path()).unwrap());
         let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
         let mut store = KineticRecordStore::new(
             peer_id,
@@ -804,7 +804,7 @@ mod tests {
             std::sync::Arc::new(KineticStorage::new(dir.path()).unwrap());
         let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
         let mut store = KineticRecordStore::new(
             peer_id,

@@ -50,3 +50,4 @@ pub mod store;
 pub use client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, ProxyResponse};
 pub use error::KineticStoreError;
 pub use event_loop::NetworkEventLoop;
+pub mod peer_registry;

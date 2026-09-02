@@ -7,7 +7,7 @@ members = [
     "kinetic-daemon", "kinetic-cli", "kinetic-test", "kinetic-kid", "kinetic-node",
     "kinetic-host", "kinetic-wasm", "kinetic-forge", "kinetic-pac",
     "kinetic-verify", "kinetic-types"
-, "kinetic-primitives", "kinetic-local", "kinetic-rpc"]
+, "kinetic-primitives", "kinetic-local", "kinetic-rpc", "kinetic-vdf", "scratch/test_libp2p"]
 exclude = [
     "kinetic-core/fuzz",
     "kinetic-daemon/fuzz",
@@ -30,6 +30,7 @@ thiserror = "1.0.61"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tokio = { version = "1.38.0", features = ["full"] }
+libp2p = { version = "0.56.0", default-features = false }
 
 [profile.release]
 strip = true

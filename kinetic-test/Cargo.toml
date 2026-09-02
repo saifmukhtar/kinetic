@@ -7,9 +7,9 @@ license.workspace = true
 [dependencies]
 kinetic-core = { path = "../kinetic-core" }
 kinetic-network = { path = "../kinetic-network" }
-kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
+kinetic-vdf = { path = "../kinetic-vdf" }
 kinetic-storage = { path = "../kinetic-storage" }
-libp2p = { version = "0.53", features = ["tokio", "tcp", "noise", "yamux", "dns", "kad", "request-response", "macros", "gossipsub"] }
+libp2p = { workspace = true, features = ["tokio", "tcp", "noise", "yamux", "dns", "kad", "request-response", "macros", "gossipsub"] }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }

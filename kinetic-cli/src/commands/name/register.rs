@@ -47,7 +47,7 @@ pub async fn handle_name_register(
 
     // 2. Generate the VDF Proof
     info!("Initializing Chia VDF Engine. Generating cryptographic proof...");
-    let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
+    let vdf_engine = kinetic_vdf::RsaVdfEngine::new();
 
     // Generate a random salt to prevent pre-computation attacks
     let mut salt = [0u8; 32];

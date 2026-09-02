@@ -12,5 +12,6 @@ When compiled for a native operating system, it leverages `redb`—a high-perfor
 - Includes robust lockfile management and recovery mechanisms to gracefully handle abrupt daemon crashes.
 
 ### WebAssembly (Browser/WASM)
-When compiled to `wasm32`, native filesystem I/O is unavailable. It seamlessly falls back to a fast, in-memory `RwLock<BTreeMap>`.
-- Implements strict key-quota limits (e.g., maximum 10,000 keys) to prevent malicious network actors from causing browser tab Out-Of-Memory (OOM) crashes.
+When compiled to `wasm32`, native filesystem I/O is unavailable. It seamlessly falls back to a fast, asynchronous Append-Only Log utilizing the browser's **Origin Private File System (OPFS)**.
+- Implements a synchronous `FileSystemSyncAccessHandle` within a dedicated Web Worker environment for zero-latency `StorageEngine` trait compliance.
+- Bypasses traditional IndexedDB bottlenecks by natively reading and writing raw binary bytes to the OPFS.

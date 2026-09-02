@@ -72,6 +72,7 @@ pub struct NetworkEventLoop {
         libp2p::request_response::OutboundRequestId,
         std::sync::Arc<str>, // The apex name being requested
     >,
+    pub(crate) peer_registry: crate::peer_registry::PeerRegistry,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(
             crate::client::ProxyRequest,

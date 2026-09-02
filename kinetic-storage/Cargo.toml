@@ -3,17 +3,18 @@ name = "kinetic-storage"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Concrete persistent storage implementations for the Kinetic Network, utilizing Redb natively and OPFS for WASM."
+readme = "README.md"
+repository.workspace = true
 
 [dependencies]
-kinetic-core = { path = "../kinetic-core" }
-thiserror.workspace = true
-anyhow.workspace = true
-tracing.workspace = true
 bytes = "1.6.0"
+kinetic-core = { path = "../kinetic-core" }
+tracing.workspace = true
 
 [dev-dependencies]
-tempfile = "3.27.0"
 proptest = "1.4.0"
+tempfile = "3.27.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 redb = "4.2.0"
@@ -21,17 +22,16 @@ redb = "4.2.0"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-js-sys = "0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 version = "0.3"
 features = [
-    "StorageManager",
     "FileSystemDirectoryHandle",
     "FileSystemFileHandle",
-    "FileSystemSyncAccessHandle",
     "FileSystemGetFileOptions",
     "FileSystemReadWriteOptions",
+    "FileSystemSyncAccessHandle",
     "Navigator",
+    "StorageManager",
     "Window"
 ]

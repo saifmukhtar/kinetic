@@ -101,6 +101,18 @@ pub enum P2pError {
     /// The connection is now being reaped. No action is required.
     #[error("Bootstrap peer {0} failed to provide valid PoW after 24 hours. Disconnecting.")]
     BootstrapPowTimeout(String),
+
+    /// The local PeerRegistry database cache is corrupted and could not be parsed.
+    /// This happens if the disk or embedded database suffers data corruption or format changes.
+    /// The cache will automatically wipe itself and start fresh.
+    #[error("PeerRegistry JSON corruption detected: {0}. Resetting cache.")]
+    PeerRegistryCorruption(String),
+
+    /// The node failed to serialize the PeerRegistry into JSON bytes for storage.
+    /// This may indicate memory pressure or a bug in the serialization library.
+    /// The cache will not be saved for this session.
+    #[error("Failed to serialize PeerRegistry to JSON: {0}")]
+    PeerRegistrySerialization(String),
 }
 
 impl P2pError {
@@ -122,6 +134,8 @@ impl P2pError {
             Self::BootstrapDialFailed(..) => "KIN-P2P-013",
             Self::BannedPeerConnectionAttempt(_) => "KIN-P2P-014",
             Self::BootstrapPowTimeout(_) => "KIN-P2P-015",
+            Self::PeerRegistryCorruption(_) => "KIN-P2P-016",
+            Self::PeerRegistrySerialization(_) => "KIN-P2P-017",
         }
     }
 
@@ -135,6 +149,7 @@ impl P2pError {
         match self {
             Self::ZeroPeersDetected
             | Self::OfflineVerifyQuorum
+            | Self::PeerRegistrySerialization(_)
             | Self::GossipSemaphoreSaturated(..) => Severity::Error,
             _ => Severity::Warning,
         }
@@ -187,6 +202,12 @@ impl P2pError {
             Self::BootstrapPowTimeout(_) => {
                 "Bootstrap peer failed to provide valid PoW after 24 hours. Disconnecting."
                     .to_string()
+            }
+            Self::PeerRegistryCorruption(_) => {
+                "Local peer cache corrupted. Starting fresh.".to_string()
+            }
+            Self::PeerRegistrySerialization(_) => {
+                "Failed to save local peer cache to disk.".to_string()
             }
         }
     }

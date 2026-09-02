@@ -284,7 +284,7 @@ async fn run_node() -> Result<()> {
 
     let (gossip_tx, mut gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-        Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config,
         local_key,

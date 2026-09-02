@@ -255,7 +255,7 @@ impl super::core::NetworkEventLoop {
 
                     use drand_verify::Pubkey;
                     use kinetic_core::traits::VdfEngine;
-                    use kinetic_vdf_rsa::RsaVdfEngine;
+                    use kinetic_vdf::RsaVdfEngine;
 
                     let drand_sig_bytes = match hex::decode(&reveal.drand_signature) {
                         Ok(b) => b,
