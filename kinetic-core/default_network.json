@@ -1,6 +1,5 @@
 {
   "network": {
-    "network_id": "kinetic",
     "nsp": "kin",
     "base_domain": "saifmukhtar.dev",
     "docs_url": "https://kinetic.saifmukhtar.dev",

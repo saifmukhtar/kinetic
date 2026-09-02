@@ -371,7 +371,7 @@ mod tests {
         std::fs::write(temp_dir.join("identity.key"), keypair.to_bytes()).unwrap();
         unsafe {
             env::set_var(
-                kinetic_core::constants::ENV_DATA_DIR,
+                kinetic_core::constants::ENV_DATA,
                 temp_dir.to_str().expect("valid utf-8 path"),
             );
         }

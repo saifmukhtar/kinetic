@@ -142,22 +142,18 @@ pub const GOSSIP_TOPIC_GLOBAL: &str = NETWORK_SALT_HEX;
 // 5. ENVIRONMENT VARIABLES
 // ============================================================================
 
-/// Environment variable string to override the data directory path (e.g. `KINETIC_MAINNET_DATA_DIR`).
-pub const ENV_DATA_DIR: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_DATA_DIR");
-/// Environment variable string to override the `config.toml` path (e.g. `KINETIC_MAINNET_CONFIG_PATH`).
-pub const ENV_CONFIG_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_CONFIG_PATH");
-/// Environment variable string to override the identity key file path (e.g. `KINETIC_MAINNET_KEY_PATH`).
-pub const ENV_KEY_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_KEY_PATH");
-/// Environment variable string to override the P2P host listen port (e.g. `KINETIC_MAINNET_HOST_P2P_PORT`).
-pub const ENV_HOST_P2P_PORT: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_P2P_PORT");
-/// Environment variable string to override the backend proxy port for the host (e.g. `KINETIC_MAINNET_HOST_BACKEND_PORT`).
-pub const ENV_HOST_BACKEND_PORT: &str =
-    concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_BACKEND_PORT");
-/// Environment variable string to override the backend proxy host IP (e.g. `KINETIC_MAINNET_HOST_BACKEND_HOST`).
-pub const ENV_HOST_BACKEND_HOST: &str =
-    concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_HOST_BACKEND_HOST");
-/// Environment variable string to override the governance state file path (e.g. `KINETIC_MAINNET_GOVERNANCE_PATH`).
-pub const ENV_GOVERNANCE_PATH: &str = concat!(env!("KINETIC_NETWORK_ID_UPPER"), "_GOVERNANCE_PATH");
+/// Environment variable string to override the data directory path (e.g. `KINETIC_MAINNET_DATA`).
+pub const ENV_DATA: &str = concat!(env!("KINETIC_NSP_UPPER"), "_DATA");
+/// Environment variable string to override the `config.toml` path (e.g. `KINETIC_MAINNET_CONFIG`).
+pub const ENV_CONFIG: &str = concat!(env!("KINETIC_NSP_UPPER"), "_CONFIG");
+/// Environment variable string to override the P2P host listen port (e.g. `KINETIC_MAINNET_P2P`).
+pub const ENV_P2P: &str = concat!(env!("KINETIC_NSP_UPPER"), "_P2P");
+/// Environment variable string to override the backend proxy port for the host (e.g. `KINETIC_MAINNET_BACKEND`).
+pub const ENV_BACKEND: &str = concat!(env!("KINETIC_NSP_UPPER"), "_BACKEND");
+/// Environment variable string to override the governance state file path (e.g. `KINETIC_MAINNET_GOV`).
+pub const ENV_GOV: &str = concat!(env!("KINETIC_NSP_UPPER"), "_GOV");
+/// Environment variable string to specify the instance name for host worker multiplexing (e.g. `KINETIC_MAINNET_INSTANCE`).
+pub const ENV_INSTANCE: &str = concat!(env!("KINETIC_NSP_UPPER"), "_INSTANCE");
 
 #[cfg(test)]
 mod tests {

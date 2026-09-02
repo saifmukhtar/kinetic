@@ -62,7 +62,7 @@ enum Commands {
 
 fn install_service() -> Result<()> {
     println!("Installing Kinetic Node service...");
-    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native service manager".into(),
@@ -88,7 +88,7 @@ fn install_service() -> Result<()> {
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native service manager".into(),
@@ -100,7 +100,7 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native service manager".into(),
@@ -112,7 +112,7 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native service manager".into(),
@@ -271,7 +271,7 @@ async fn run_node() -> Result<()> {
     let base_config_dir = kinetic_local::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| base_config_dir.join("governance.db"));
     let gov_state_path = std::sync::Arc::new(gov_state_path);

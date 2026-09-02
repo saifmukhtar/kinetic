@@ -42,26 +42,6 @@ fn main() -> Result<()> {
         .interact_text()?;
 
     println!("\nGenerating cryptographic network identity...");
-
-    let network_id_str: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("What is the unique Network ID? (e.g. uni-testnet)")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.is_empty() {
-                return Err("Network ID cannot be empty.");
-            }
-            if input
-                .chars()
-                .any(|c| !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-')
-            {
-                return Err(
-                    "Network ID must contain only lowercase letters, numbers, and hyphens.",
-                );
-            }
-            Ok(())
-        })
-        .interact_text()?;
-
-    println!("✅ Network ID generated: {}", network_id_str);
     println!();
 
     let docs_url: String = Input::with_theme(&ColorfulTheme::default())
@@ -137,7 +117,6 @@ fn main() -> Result<()> {
     patch_constants(
         &nsp,
         &base_domain,
-        &network_id_str,
         &drand_pubkey,
         drand_genesis,
         drand_period,
@@ -150,7 +129,7 @@ fn main() -> Result<()> {
     println!("✅ network.json updated successfully.");
 
     println!("Patching Cargo.toml files for binaries...");
-    patch_cargo_bin_names(&network_id_str)?;
+    patch_cargo_bin_names(&nsp)?;
 
     println!("Compiling the customized Kinetic network binaries (this may take a few minutes)...");
 
@@ -172,13 +151,13 @@ fn main() -> Result<()> {
         println!("⚠️ NEXT STEPS FOR BOOTSTRAPPING:");
         println!(
             "1. Run your first `{}-node` (this will act as your seed node).",
-            network_id_str
+            nsp
         );
         println!("2. Note its printed P2P Multiaddress (which includes its PeerId).");
         println!("3. For all subsequent nodes you deploy, you must manually add that first node's");
         println!(
-            "   multiaddress to their `~/.local/share/{}/config.toml` under `bootstrap_nodes`.",
-            network_id_str
+            "   multiaddress to their `~/.local/share/kinetic/networks/{}-.../config.toml` under `bootstrap_nodes`.",
+            nsp
         );
         println!("4. (Optional) Add the multiaddress to a DNS TXT record at your seed domain.");
         println!("========================================");
@@ -193,7 +172,6 @@ fn main() -> Result<()> {
 fn patch_constants(
     nsp: &str,
     base_domain: &str,
-    network_id: &str,
     drand_pubkey: &str,
     drand_genesis: u64,
     drand_period: u64,
@@ -217,7 +195,6 @@ fn patch_constants(
 
     config["network"]["nsp"] = serde_json::json!(nsp);
     config["network"]["base_domain"] = serde_json::json!(base_domain);
-    config["network"]["network_id"] = serde_json::json!(network_id);
     config["drand"]["drand_genesis_time"] = serde_json::json!(drand_genesis);
     config["drand"]["drand_period"] = serde_json::json!(drand_period);
     config["drand"]["kinetic_genesis_kyn"] = serde_json::json!(kinetic_genesis_kyn);
@@ -233,16 +210,16 @@ fn patch_constants(
     Ok(())
 }
 
-fn patch_cargo_bin_names(network_id: &str) -> Result<()> {
+fn patch_cargo_bin_names(nsp: &str) -> Result<()> {
     let crates = vec![
-        ("kinetic-daemon", format!("{}-daemon", network_id)),
-        ("kinetic-node", format!("{}-node", network_id)),
-        ("kinetic-keygen", format!("{}-keygen", network_id)),
-        ("kinetic-kid", format!("{}-kid", network_id)),
-        ("kinetic-host", format!("{}-host", network_id)),
-        ("kinetic-pac", format!("{}-pac", network_id)),
-        ("kinetic-dns", format!("{}-dns", network_id)),
-        ("kinetic-cli", network_id.to_string()),
+        ("kinetic-daemon", format!("{}-daemon", nsp)),
+        ("kinetic-node", format!("{}-node", nsp)),
+        ("kinetic-keygen", format!("{}-keygen", nsp)),
+        ("kinetic-kid", format!("{}-kid", nsp)),
+        ("kinetic-host", format!("{}-host", nsp)),
+        ("kinetic-pac", format!("{}-pac", nsp)),
+        ("kinetic-dns", format!("{}-dns", nsp)),
+        ("kinetic-cli", nsp.to_string()),
     ];
 
     for (crate_dir, new_bin_name) in crates {

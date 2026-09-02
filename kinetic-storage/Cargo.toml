@@ -8,13 +8,13 @@ readme = "README.md"
 repository.workspace = true
 
 [dependencies]
-bytes = "1.6.0"
+bytes.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 tracing.workspace = true
 
 [dev-dependencies]
-proptest = "1.4.0"
-tempfile = "3.27.0"
+proptest.workspace = true
+tempfile.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 redb = "4.2.0"

@@ -17,7 +17,7 @@ use std::env;
 /// executable path cannot be resolved, or the service installation fails.
 pub fn install_service() -> Result<()> {
     println!("Installing Kinetic Host service...");
-    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native OS service manager".into(),
@@ -65,7 +65,7 @@ pub fn install_service() -> Result<()> {
 /// Returns an error if the native service manager cannot be detected or if
 /// the uninstallation fails.
 pub fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native OS service manager".into(),
@@ -90,7 +90,7 @@ pub fn uninstall_service() -> Result<()> {
 /// Returns an error if the native service manager cannot be detected or if
 /// the service fails to start.
 pub fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native OS service manager".into(),
@@ -113,7 +113,7 @@ pub fn start_background_service() -> Result<()> {
 /// Returns an error if the native service manager cannot be detected or if
 /// the service fails to stop.
 pub fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native OS service manager".into(),

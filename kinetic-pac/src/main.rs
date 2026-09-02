@@ -288,7 +288,7 @@ enum Commands {
 
 fn install_service() -> anyhow::Result<()> {
     println!("Installing Kinetic PAC Server service...");
-    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     let current_exe = env::current_exe()?;
@@ -306,13 +306,13 @@ fn install_service() -> anyhow::Result<()> {
 
     println!(
         "Service installed successfully. Run '{}-pac start' to begin.",
-        kinetic_core::constants::NETWORK_ID
+        kinetic_core::constants::NSP
     );
     Ok(())
 }
 
 fn uninstall_service() -> anyhow::Result<()> {
-    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -330,7 +330,7 @@ fn uninstall_service() -> anyhow::Result<()> {
 }
 
 fn start_background_service() -> anyhow::Result<()> {
-    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.start(ServiceStartCtx { label })?;
@@ -339,7 +339,7 @@ fn start_background_service() -> anyhow::Result<()> {
 }
 
 fn stop_background_service() -> anyhow::Result<()> {
-    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.stop(ServiceStopCtx { label })?;

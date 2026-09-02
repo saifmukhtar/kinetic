@@ -68,23 +68,23 @@ async fn main() -> anyhow::Result<()> {
             commands::dns_tree::handle_dns_tree_command(cmd).await?;
         }
         Commands::Daemon { cmd } => {
-            let bin = format!("{}-daemon", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-daemon", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Host { cmd } => {
-            let bin = format!("{}-host", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-host", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Node { cmd } => {
-            let bin = format!("{}-node", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-node", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Dns { cmd } => {
-            let bin = format!("{}-dns", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-dns", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, true).await?;
         }
         Commands::Pac { cmd } => {
-            let bin = format!("{}-pac", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-pac", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Clock(args) => {

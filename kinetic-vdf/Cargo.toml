@@ -10,8 +10,8 @@ readme = "README.md"
 homepage.workspace = true
 
 [dependencies]
-kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
-kinetic-primitives = { version = "0.2.0", path = "../kinetic-primitives" }
+kinetic-core = { path = "../kinetic-core" }
+kinetic-primitives = { path = "../kinetic-primitives" }
 num-bigint = "0.4"
 num-prime = "0.5.0"
 num-traits = "0.2.19"

@@ -3,7 +3,7 @@
 use arbitrary::Arbitrary;
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::{Commitment, VdfProof};
-use kinetic_vdf_rsa::RsaVdfEngine;
+use kinetic_vdf::RsaVdfEngine;
 use libfuzzer_sys::fuzz_target;
 
 #[derive(Arbitrary, Debug)]

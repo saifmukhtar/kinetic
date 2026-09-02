@@ -11,8 +11,8 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-libp2p = { version = "0.53.2", features = ["kad"] }
-tempfile = "3.8"
+libp2p = { version = "0.56.0", features = ["kad"] }
+tempfile = "3.27.0"
 kinetic-storage = { path = "../../kinetic-storage" }
 kinetic-core = { path = "../../kinetic-core" }
 kinetic-vdf = { path = "../../kinetic-vdf" }

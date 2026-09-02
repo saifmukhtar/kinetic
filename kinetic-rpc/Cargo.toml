@@ -14,13 +14,13 @@ categories = ["network-programming", "web-programming"]
 
 [dependencies]
 # --- Workspace & Internal Crates ---
-kinetic-core = { version = "0.2.0", path = "../kinetic-core" }
+kinetic-core = { path = "../kinetic-core" }
 
 # --- Workspace Inherited ---
 tokio = { workspace = true, features = ["rt", "macros"] }
 tracing.workspace = true
 
 # --- External Crates ---
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 

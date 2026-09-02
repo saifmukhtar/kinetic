@@ -5,9 +5,9 @@ members = [
     "kinetic-storage",
     "kinetic-nrs",
     "kinetic-daemon", "kinetic-cli", "kinetic-test", "kinetic-kid", "kinetic-node",
-    "kinetic-host", "kinetic-wasm", "kinetic-forge", "kinetic-pac",
+    "kinetic-host", "kinetic-forge", "kinetic-pac",
     "kinetic-verify", "kinetic-types"
-, "kinetic-primitives", "kinetic-local", "kinetic-rpc", "kinetic-vdf", "scratch/test_libp2p"]
+, "kinetic-primitives", "kinetic-local", "kinetic-rpc", "kinetic-vdf"]
 exclude = [
     "kinetic-core/fuzz",
     "kinetic-daemon/fuzz",
@@ -24,15 +24,42 @@ repository = "https://github.com/saifmukhtar/kinetic"
 homepage = "https://github.com/saifmukhtar/kinetic"
 
 [workspace.dependencies]
-# Common Workspace Dependencies (Ensures all crates use the same versions)
-anyhow = "1.0.86"
+anyhow = "1.0.104"
+axum = "0.8.9"
+base64 = "0.22.1"
+bincode = "1.3.3"
+bip39 = "2.2.2"
+bytes = "1.12.1"
+clap = "4.6.1"
+dirs = "6.0.0"
+ed25519-dalek = "2.2.0"
+getrandom = "0.4.3"
+hex = "0.4.3"
+hickory-client = "0.24.4"
+hickory-proto = "0.24.4"
+hickory-resolver = "0.24.4"
+hickory-server = "0.24.4"
+http-body-util = "0.1.3"
+libp2p = { version = "0.56.0", default-features = false }
+percent-encoding = "2.3.2"
+proptest = "1.5.0"
+rand = "0.8.5"
+rand_core = "0.6.4"
+reqwest = "0.13.4"
+serde = "1.0.228"
+serde_json = "1.0.150"
+service-manager = "0.11.0"
+sha2 = "0.11.0"
+tempfile = "3.27.0"
 thiserror = "1.0.61"
+tokio = { version = "1.38.0", features = ["full"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-tokio = { version = "1.38.0", features = ["full"] }
-libp2p = { version = "0.56.0", default-features = false }
+uuid = "1.23.4"
 
 [profile.release]
 strip = true
-lto = "thin"
+lto = "fat"
 codegen-units = 1
+opt-level = "z"
+panic = "abort"

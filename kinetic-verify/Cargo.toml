@@ -14,18 +14,18 @@ categories = ["cryptography"]
 [dependencies]
 # --- Workspace & Internal Crates ---
 kinetic-primitives = { path = "../kinetic-primitives" }
-kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
+kinetic-types = { path = "../kinetic-types" }
 
 # --- Workspace Inherited ---
 thiserror.workspace = true
 
 # --- External Crates ---
-base64 = "0.22"
+base64.workspace = true
 
 [dev-dependencies]
 # --- Workspace & Internal Crates ---
 kinetic-kid = { path = "../kinetic-kid" }
 
 # --- External Crates ---
-proptest = "1.0"
-rand = "0.8"
+proptest.workspace = true
+rand.workspace = true

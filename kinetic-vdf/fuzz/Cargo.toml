@@ -9,8 +9,8 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-arbitrary = { version = "1.3", features = ["derive"] }
-kinetic-vdf-rsa = { path = ".." }
+arbitrary = { version = "1.4.2", features = ["derive"] }
+kinetic-vdf = { path = ".." }
 kinetic-core = { path = "../../kinetic-core" }
 
 [[bin]]

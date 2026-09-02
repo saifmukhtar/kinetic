@@ -612,7 +612,7 @@ mod tests {
 
             // Set data dir only (identity is passed explicitly now)
             unsafe {
-                std::env::set_var(kinetic_core::constants::ENV_DATA_DIR, dir.path());
+                std::env::set_var(kinetic_core::constants::ENV_DATA, dir.path());
             }
 
             Self {
@@ -626,7 +626,7 @@ mod tests {
     impl Drop for TestEnv {
         fn drop(&mut self) {
             unsafe {
-                std::env::remove_var(kinetic_core::constants::ENV_DATA_DIR);
+                std::env::remove_var(kinetic_core::constants::ENV_DATA);
             }
         }
     }
@@ -778,7 +778,7 @@ mod tests {
         let _guard = ENV_LOCK.lock().unwrap();
         let env = tempdir().unwrap();
         unsafe {
-            std::env::set_var(kinetic_core::constants::ENV_DATA_DIR, env.path());
+            std::env::set_var(kinetic_core::constants::ENV_DATA, env.path());
         }
         let missing_path = env.path().join("missing.key");
 
@@ -787,7 +787,7 @@ mod tests {
         assert!(matches!(err, IdentityError::IdentityNotFound(_)));
 
         unsafe {
-            std::env::remove_var(kinetic_core::constants::ENV_DATA_DIR);
+            std::env::remove_var(kinetic_core::constants::ENV_DATA);
         }
     }
 

@@ -3,25 +3,29 @@ name = "kinetic-pac"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "The local Proxy Auto-Config (PAC) HTTP server for the Kinetic Network."
+readme = "README.md"
 
 [[bin]]
 name = "kinetic-pac"
 path = "src/main.rs"
 
-[dev-dependencies]
-tempfile = "3.10.1"
+[features]
 
 [dependencies]
-kinetic-core = { path = "../kinetic-core" }
-tokio = { workspace = true, features = ["net", "rt", "rt-multi-thread", "macros"] }
 anyhow.workspace = true
+axum.workspace = true
+clap = { workspace = true, features = ["derive"] }
+dirs.workspace = true
+kinetic-core = { path = "../kinetic-core" }
+reqwest = { workspace = true, features = ["blocking"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+service-manager.workspace = true
 thiserror.workspace = true
+tokio = { workspace = true, features = ["net", "rt", "rt-multi-thread", "macros"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
-axum = { version = "0.8.9" }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-dirs = "6.0.0"
-clap = { version = "4.6.1", features = ["derive"] }
-service-manager = "0.11"
-reqwest = { version = "0.11", features = ["blocking"] }
+
+[dev-dependencies]
+tempfile.workspace = true

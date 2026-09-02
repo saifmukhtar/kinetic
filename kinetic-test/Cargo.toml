@@ -10,21 +10,21 @@ kinetic-network = { path = "../kinetic-network" }
 kinetic-vdf = { path = "../kinetic-vdf" }
 kinetic-storage = { path = "../kinetic-storage" }
 libp2p = { workspace = true, features = ["tokio", "tcp", "noise", "yamux", "dns", "kad", "request-response", "macros", "gossipsub"] }
-tokio = { workspace = true }
-anyhow = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 kinetic-nrs = { path = "../kinetic-nrs" }
-hickory-client = "0.24"
-hickory-server = "0.24"
-hickory-proto = "0.24"
-bytes = "1.12.1"
-reqwest = "0.13.4"
+hickory-client.workspace = true
+hickory-server.workspace = true
+hickory-proto.workspace = true
+bytes.workspace = true
+reqwest.workspace = true
 
 [dev-dependencies]
-serde_json = "1.0"
-tempfile = "3.2"
+serde_json.workspace = true
+tempfile.workspace = true
 kinetic-primitives = { path = "../kinetic-primitives" }
-axum = "0.8.9"
-ed25519-dalek = { version = "2.0", features = ["rand_core"] }
-rand_core = { version = "0.6", features = ["getrandom"] }
+axum.workspace = true
+ed25519-dalek = { workspace = true, features = ["rand_core"] }
+rand_core = { workspace = true, features = ["getrandom"] }

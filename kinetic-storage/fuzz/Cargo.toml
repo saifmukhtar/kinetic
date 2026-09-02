@@ -11,7 +11,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-tempfile = "3.8"
+tempfile = "3.27.0"
 kinetic-core = { path = "../../kinetic-core" }
 
 [dependencies.kinetic-storage]

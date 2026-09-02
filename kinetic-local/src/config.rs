@@ -9,7 +9,7 @@ pub fn load_config() -> KineticConfig {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
-    let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG_PATH)
+    let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG)
         .map(PathBuf::from)
         .unwrap_or_else(|_| get_base_dir().join("config.toml"));
 
@@ -89,7 +89,7 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_config(config: &KineticConfig) -> Result<(), kinetic_core::error::KineticError> {
-    let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG_PATH)
+    let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG)
         .map(PathBuf::from)
         .unwrap_or_else(|_| get_base_dir().join("config.toml"));
 
@@ -118,7 +118,7 @@ pub fn get_zones_dir() -> PathBuf {
 }
 
 pub fn get_base_dir() -> PathBuf {
-    if let Ok(path) = std::env::var(kinetic_core::constants::ENV_DATA_DIR) {
+    if let Ok(path) = std::env::var(kinetic_core::constants::ENV_DATA) {
         return PathBuf::from(path);
     }
 

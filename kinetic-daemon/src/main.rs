@@ -88,7 +88,7 @@ fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
             .arg(cert_path)
             .arg(format!(
                 "/usr/local/share/ca-certificates/{}.crt",
-                kinetic_core::constants::NETWORK_ID
+                kinetic_core::constants::NSP
             ))
             .status()?;
         if status.success() {
@@ -164,7 +164,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     }
 
     println!("Installing Kinetic Daemon service...");
-    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native service manager".into(),
@@ -192,7 +192,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native service manager".into(),
@@ -204,7 +204,7 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native service manager".into(),
@@ -216,7 +216,7 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
         anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
             "Failed to detect native service manager".into(),
@@ -405,7 +405,7 @@ async fn run_daemon() -> Result<()> {
         return Err(e.into());
     }
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| base_config_dir.join("governance.db"));
 
