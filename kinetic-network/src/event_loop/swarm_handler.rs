@@ -115,16 +115,8 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
-                let now = web_time::SystemTime::now()
-                    .duration_since(web_time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-
-                // TODO: BUG - mismatched current_kyn and unix_now
-                // banned_peers stores expiry as a `kyn` round, but we are comparing it to Unix seconds (`now`).
-                // This causes bans to expire immediately. We need to compare against `self.current_kyn` instead.
                 if let Some(&expire_time) = self.banned_peers.peek(&peer_id) {
-                    if expire_time > now {
+                    if expire_time > self.current_kyn {
                         let err = kinetic_core::error::P2pError::BannedPeerConnectionAttempt(peer_id.to_string());
                         tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
