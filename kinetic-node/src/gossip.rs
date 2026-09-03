@@ -107,7 +107,7 @@ pub fn handle_governance_gossip(
             Err(e) => {
                 let code = e.code();
                 let msg = e.user_message();
-                use kinetic_core::error::Severity;
+                use kinetic_types::error::Severity;
                 match e.severity() {
                     Severity::Info => tracing::info!(
                         error_code = code,

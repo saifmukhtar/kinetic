@@ -132,7 +132,7 @@ impl PeerRegistry {
     pub fn add_verified_peer(&mut self, peer: PeerId, addrs: Vec<Multiaddr>) -> bool {
         let public_addrs: Vec<Multiaddr> = addrs
             .into_iter()
-            .filter(|a| Self::is_public_addr(a))
+            .filter(Self::is_public_addr)
             .collect();
 
         if !public_addrs.is_empty() {

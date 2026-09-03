@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "kinetic-action",
     "kinetic-cli",
     "kinetic-core",
     "kinetic-daemon",

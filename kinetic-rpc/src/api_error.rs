@@ -142,8 +142,8 @@ impl From<RegistrationError> for ApiError {
 impl From<GovernanceError> for ApiError {
     fn from(e: GovernanceError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            GovernanceError::MissingRootKey
-            | GovernanceError::MalformedRootKey
+            GovernanceError::MissingSovereignKey
+            | GovernanceError::MalformedSovereignKey
             | GovernanceError::StateCorrupted => (500, "Internal Server Error"),
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
             GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
@@ -403,35 +403,6 @@ impl From<NamesError> for ApiError {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use kinetic_core::error::{IdentityError, KynProviderError, PublishError, ResolutionError};
-
-    #[test]
-    fn test_status_code_mappings() {
-        // Test 404 mapping
-        let err = ResolutionError::NotFound {
-            name: "test.kin".to_string(),
-            peers_queried: 5,
-        };
-        assert_eq!(ApiError::from(err).status, 404);
-
-        // Test proxy leak fix (Drand 404 shouldn't leak to client)
-        let drand_err = KynProviderError::HttpError(404);
-        assert_eq!(ApiError::from(drand_err).status, 502);
-
-        // Test blame-shifting fix (Malformed docs shouldn't be 500)
-        let id_err = IdentityError::MalformedManifest("bad".to_string());
-        assert_eq!(ApiError::from(id_err).status, 422);
-
-        // Test crypto consistency (Invalid Proof should be 422, not 400)
-        let pub_err =
-            PublishError::InvalidProof(kinetic_core::error::VdfRejectReason::MalformedProof);
-        assert_eq!(ApiError::from(pub_err).status, 422);
-    }
-}
-
 impl From<ConfigError> for ApiError {
     fn from(e: ConfigError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
@@ -492,5 +463,34 @@ impl From<kinetic_core::error::RestApiError> for ApiError {
             details: serde_json::Value::Null,
             request_id: current_request_id(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kinetic_core::error::{IdentityError, KynProviderError, PublishError, ResolutionError};
+
+    #[test]
+    fn test_status_code_mappings() {
+        // Test 404 mapping
+        let err = ResolutionError::NotFound {
+            name: "test.kin".to_string(),
+            peers_queried: 5,
+        };
+        assert_eq!(ApiError::from(err).status, 404);
+
+        // Test proxy leak fix (Drand 404 shouldn't leak to client)
+        let drand_err = KynProviderError::HttpError(404);
+        assert_eq!(ApiError::from(drand_err).status, 502);
+
+        // Test blame-shifting fix (Malformed docs shouldn't be 500)
+        let id_err = IdentityError::MalformedManifest("bad".to_string());
+        assert_eq!(ApiError::from(id_err).status, 422);
+
+        // Test crypto consistency (Invalid Proof should be 422, not 400)
+        let pub_err =
+            PublishError::InvalidProof(kinetic_core::error::VdfRejectReason::MalformedProof);
+        assert_eq!(ApiError::from(pub_err).status, 422);
     }
 }

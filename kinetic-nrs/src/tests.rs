@@ -66,7 +66,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
 
 async fn start_mock_daemon() -> String {
     let app = Router::new().route(
-        "/api/resolve/:name",
+        "/api/resolve/{name}",
         get(|Path(name): Path<String>| async move {
             match name.as_str() {
                 "test1.kin" => {

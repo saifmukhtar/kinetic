@@ -54,8 +54,6 @@ pub mod config;
 pub mod dht;
 /// Gateway routing and fallback telemetry events.
 pub mod gateway;
-/// Governance and consensus logic error types.
-pub mod governance;
 /// Node identity and key management error types.
 pub mod identity;
 /// Drand random beacon error types.
@@ -79,11 +77,11 @@ pub mod telemetry;
 /// VDF engine error types.
 pub mod vdf;
 
+pub use crate::governance::GovernanceError;
 pub use api::RestApiError;
 pub use config::ConfigError;
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};
 pub use gateway::GatewayError;
-pub use governance::GovernanceError;
 pub use identity::IdentityError;
 pub use kyn_provider::KynProviderError;
 pub use names::NamesError;

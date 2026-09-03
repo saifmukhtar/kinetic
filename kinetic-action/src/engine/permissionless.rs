@@ -4,8 +4,8 @@
 //! governance or update authorities. All privileged actions are universally rejected.
 
 use crate::error::GovernanceError;
-use crate::governance::types::{GovernanceEffect, GovernanceState, SignedGovernanceMessage};
 use crate::traits::GovernanceEngine;
+use crate::types::{GovernanceConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage};
 
 /// Development-only engine driver where all governance modifications are rejected.
 ///
@@ -23,6 +23,7 @@ impl GovernanceEngine for PermissionlessEngine {
         _state: &mut GovernanceState,
         _msg: &SignedGovernanceMessage,
         _current_kyn: kinetic_types::clock::Kyn,
+        _config: &GovernanceConfig,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
         // In Permissionless mode, the network is perfectly immutable.
         // No governance actions (updates, name revocations) are allowed.
@@ -34,6 +35,7 @@ impl GovernanceEngine for PermissionlessEngine {
         _state: &mut GovernanceState,
         _msg: &SignedGovernanceMessage,
         _current_kyn: kinetic_types::clock::Kyn,
+        _config: &GovernanceConfig,
     ) -> Option<GovernanceEffect> {
         unreachable!("Governance execution is permanently disabled in Permissionless mode")
     }

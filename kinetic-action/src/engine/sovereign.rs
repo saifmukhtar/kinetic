@@ -5,10 +5,11 @@
 //! for private deployments or the earliest stages of bootstrap.
 
 use crate::error::GovernanceError;
-use crate::governance::types::{
-    GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage, verify_signature,
-};
 use crate::traits::GovernanceEngine;
+use crate::types::{
+    GovernanceAction, GovernanceConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
+    verify_signature,
+};
 
 /// Single-signer governance engine driver controlled exclusively by the Founder Root key.
 pub struct SovereignEngine;
@@ -19,7 +20,7 @@ impl GovernanceEngine for SovereignEngine {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds [`crate::constants::MAX_AGE_KYNS`].
+    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds `config.max_age_kyns`.
     /// - Returns [`GovernanceError::InvalidPrimeLength`] if a prime name is not 1 character.
     /// - Returns [`GovernanceError::InvalidSignature`] if the Root key signature is missing or invalid.
     fn verify_action(
@@ -27,12 +28,13 @@ impl GovernanceEngine for SovereignEngine {
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
+        config: &GovernanceConfig,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        if current_kyn.0.abs_diff(msg.timestamp_kyn) > crate::constants::MAX_AGE_KYNS {
+        if current_kyn.0.abs_diff(msg.timestamp_kyn) > config.max_age_kyns {
             return Err(GovernanceError::StaleProposal);
         }
 
-        let root_key = state.get_root_key()?;
+        let root_key = state.get_sovereign_key(config)?;
         let action_bytes = msg.to_bytes();
 
         let root_signed = msg
@@ -85,7 +87,7 @@ impl GovernanceEngine for SovereignEngine {
                     name,
                     target_pubkey,
                 } => {
-                    if !crate::types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
+                    if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
                         return Err(GovernanceError::InvalidProtocolName);
                     }
                     if target_pubkey.len() != 1952 {
@@ -100,7 +102,7 @@ impl GovernanceEngine for SovereignEngine {
                     }
                 }
                 GovernanceAction::UnmapInfra { name } => {
-                    if !crate::types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
+                    if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
                         return Err(GovernanceError::InvalidProtocolName);
                     }
                     if !state.mapped_infra_names.contains_key(name) {
@@ -131,6 +133,7 @@ impl GovernanceEngine for SovereignEngine {
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
+        _config: &GovernanceConfig,
     ) -> Option<GovernanceEffect> {
         let action_hash = GovernanceState::hash_action(msg);
         state
@@ -171,7 +174,7 @@ impl GovernanceEngine for SovereignEngine {
                 Some(GovernanceEffect::InfraUnmapped { name: name.clone() })
             }
             GovernanceAction::RotateRootKey { new_key } => {
-                state.active_root_key = Some(new_key.clone());
+                state.active_sovereign_key = Some(new_key.clone());
                 Some(GovernanceEffect::RootKeyRotated {
                     new_key: new_key.clone(),
                 })

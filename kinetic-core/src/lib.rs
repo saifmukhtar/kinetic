@@ -34,9 +34,6 @@ pub mod constants;
 pub mod drand;
 /// Unified error taxonomy: [`KineticError`](error::KineticError), [`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), and [`RegistrationError`](error::RegistrationError).
 pub mod error;
-/// Protocol governance: sovereign actions, root keys, and parameter updates.
-pub mod governance;
-
 /// Network security utilities for SSRF prevention.
 pub mod net;
 /// Core trait definitions: [`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine).
@@ -56,3 +53,5 @@ pub use error::{
     KineticError, PublishError, RecordRejectReason, RegistrationError, ResolutionError, Severity,
     VdfRejectReason,
 };
+/// Protocol governance: sovereign actions, root keys, and parameter updates.
+pub mod governance;

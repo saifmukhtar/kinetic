@@ -10,7 +10,7 @@ async fn test_store_garbage_collection() {
     let dir = tempdir().unwrap();
     let storage = KineticStorage::new(dir.path()).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-        std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let store = KineticRecordStore::new(
         PeerId::random(),
         std::sync::Arc::new(storage),
@@ -32,7 +32,7 @@ async fn test_store_provider_records() {
     let dir = tempdir().unwrap();
     let storage = KineticStorage::new(dir.path()).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-        std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let mut store = KineticRecordStore::new(
         PeerId::random(),
         std::sync::Arc::new(storage),
@@ -61,7 +61,7 @@ async fn test_store_remove_provider() {
     let dir = tempdir().unwrap();
     let storage = KineticStorage::new(dir.path()).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-        std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let mut store = KineticRecordStore::new(
         PeerId::random(),
         std::sync::Arc::new(storage),
@@ -92,7 +92,7 @@ async fn test_store_provided_records() {
     let dir = tempdir().unwrap();
     let storage = KineticStorage::new(dir.path()).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-        std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let mut store = KineticRecordStore::new(
         PeerId::random(),
         std::sync::Arc::new(storage),

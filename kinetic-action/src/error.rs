@@ -12,23 +12,23 @@
 //!
 //! Key roles:
 //! - **Root key**: Ultimate authority; can ratify any action in Sovereign phase.
-use super::Severity;
+
 use thiserror::Error;
 
 /// Errors relating to Kinetic global governance actions.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum GovernanceError {
-    /// **What**: The daemon started in Sovereign mode but the `ROOT_PUBLIC_KEY_HEX` environment variable is missing.
+    /// **What**: The daemon started in Sovereign mode but the `SOVEREIGN_KEY_HEX` environment variable is missing.
     /// **Why**: The daemon requires the root public key at startup to verify incoming governance actions.
-    /// **Fix**: Ensure the `ROOT_PUBLIC_KEY_HEX` environment variable is set to a valid 64-character hex string.
-    #[error("Missing ROOT_PUBLIC_KEY_HEX environment variable")]
-    MissingRootKey,
+    /// **Fix**: Ensure the `SOVEREIGN_KEY_HEX` environment variable is set to a valid 64-character hex string.
+    #[error("Missing SOVEREIGN_KEY_HEX environment variable")]
+    MissingSovereignKey,
 
-    /// **What**: The `ROOT_PUBLIC_KEY_HEX` environment variable contains invalid characters or is incorrectly padded.
+    /// **What**: The `SOVEREIGN_KEY_HEX` environment variable contains invalid characters or is incorrectly padded.
     /// **Why**: The daemon failed to decode the hex string into raw ML-DSA-65 bytes.
     /// **Fix**: Verify the key is exactly 64 valid hexadecimal characters.
-    #[error("Malformed ROOT_PUBLIC_KEY_HEX environment variable")]
-    MalformedRootKey,
+    #[error("Malformed SOVEREIGN_KEY_HEX environment variable")]
+    MalformedSovereignKey,
 
     /// **What**: The decoded ML-DSA-65 root key is the wrong byte length.
     /// **Why**: The post-quantum signature algorithm strictly requires a specific byte length for public keys.
@@ -133,8 +133,8 @@ impl GovernanceError {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::MissingRootKey => "KIN-ACN-001",
-            Self::MalformedRootKey => "KIN-ACN-002",
+            Self::MissingSovereignKey => "KIN-ACN-001",
+            Self::MalformedSovereignKey => "KIN-ACN-002",
             Self::GovernanceDisabled => "KIN-ACN-003",
             Self::KeyLengthMismatch => "KIN-ACN-004",
             Self::StaleProposal => "KIN-ACN-005",
@@ -156,20 +156,20 @@ impl GovernanceError {
 
     /// RFC 7807 type URI for this error.
     pub fn error_type_uri(&self) -> String {
-        format!("{}/errors/{}", crate::constants::DOCS_URL, self.code())
+        format!("{}/errors/{}", "https://docs.kinetic.network", self.code())
     }
 
     /// Severity level for logging and monitoring.
-    pub fn severity(&self) -> Severity {
+    pub fn severity(&self) -> kinetic_types::error::Severity {
         match self {
-            Self::MissingRootKey | Self::MalformedRootKey | Self::StateCorrupted => {
-                Severity::Critical
+            Self::MissingSovereignKey | Self::MalformedSovereignKey | Self::StateCorrupted => {
+                kinetic_types::error::Severity::Critical
             }
-            Self::StaleProposal | Self::AlreadyExecuted => Severity::Info,
+            Self::StaleProposal | Self::AlreadyExecuted => kinetic_types::error::Severity::Info,
             Self::KeyLengthMismatch
             | Self::StateSaveFailed
             | Self::P2pPublishFailed
-            | Self::StateReadFailed => Severity::Error,
+            | Self::StateReadFailed => kinetic_types::error::Severity::Error,
             Self::GovernanceDisabled
             | Self::InvalidSignature
             | Self::InvalidPrimeLength
@@ -178,7 +178,7 @@ impl GovernanceError {
             | Self::NotMapped
             | Self::InvalidSeedState
             | Self::BootstrapFetchFailed
-            | Self::UnnormalizedName => Severity::Warning,
+            | Self::UnnormalizedName => kinetic_types::error::Severity::Warning,
         }
     }
 
@@ -193,8 +193,8 @@ impl GovernanceError {
     /// Clean user-facing message with no developer details.
     pub fn user_message(&self) -> String {
         match self {
-            Self::MissingRootKey => "The ROOT_PUBLIC_KEY_HEX environment variable is not set. This is a fatal configuration error.".to_string(),
-            Self::MalformedRootKey => "The ROOT_PUBLIC_KEY_HEX environment variable contains invalid characters and cannot be decoded.".to_string(),
+            Self::MissingSovereignKey => "The SOVEREIGN_KEY_HEX environment variable is not set. This is a fatal configuration error.".to_string(),
+            Self::MalformedSovereignKey => "The SOVEREIGN_KEY_HEX environment variable contains invalid characters and cannot be decoded.".to_string(),
 
             Self::KeyLengthMismatch => "The provided cryptographic key length is invalid.".to_string(),
             Self::StaleProposal => "The proposed governance action is too old and has been rejected to prevent replay attacks.".to_string(),

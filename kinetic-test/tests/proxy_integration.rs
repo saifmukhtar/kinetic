@@ -50,7 +50,7 @@ async fn setup_node_with_proxy(
     };
 
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-        Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
     let (client, event_loop) = NetworkEventLoop::new(
         config,

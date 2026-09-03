@@ -128,11 +128,10 @@ impl Document {
                     return Err(Error::StringLengthExceeded("manifest.location".to_string()));
                 }
             }
-            if let Some(hash) = &manifest.hash {
-                if hash.len() > 256 {
+            if let Some(hash) = &manifest.hash
+                && hash.len() > 256 {
                     return Err(Error::StringLengthExceeded("manifest.hash".to_string()));
                 }
-            }
         }
 
         let sig_b64 = self.signature.as_ref().ok_or(Error::MissingSignature)?;
@@ -155,28 +154,24 @@ impl Document {
         if self.deactivated {
             // Document is deactivated (revoked), the signature MUST be from a revocation key
             for rk_b64 in &self.revocation_keys {
-                if let Ok(pubkey_bytes) = b64_url.decode(rk_b64) {
-                    if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                if let Ok(pubkey_bytes) = b64_url.decode(rk_b64)
+                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
                         .is_ok()
                     {
                         return Ok(());
                     }
-                }
             }
         } else {
             // Document is active, the signature MUST be from a controller key
             for key in &self.controller_keys {
-                if key.key_type.eq_ignore_ascii_case("MlDsa65")
-                    || key.key_type.eq_ignore_ascii_case("ML-DSA-65")
-                {
-                    if let Ok(pubkey_bytes) = b64_url.decode(&key.public_key) {
-                        if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                if (key.key_type.eq_ignore_ascii_case("MlDsa65")
+                    || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
+                    && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
+                        && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
                             .is_ok()
                         {
                             return Ok(());
                         }
-                    }
-                }
             }
         }
 

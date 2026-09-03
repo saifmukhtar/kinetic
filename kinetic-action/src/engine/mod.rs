@@ -8,7 +8,7 @@ pub mod sovereign;
 
 use crate::traits::GovernanceEngine;
 
-/// Returns the active governance engine driver based on the compile-time configuration.
+/// Returns the active governance engine driver based on the configuration.
 ///
 /// # Returns
 ///
@@ -16,14 +16,11 @@ use crate::traits::GovernanceEngine;
 ///
 /// # Panics
 ///
-/// Panics at startup if `GOVERNANCE_MODEL` in `network.json` is set to an unknown value.
-pub fn get_active_engine() -> &'static dyn GovernanceEngine {
-    match crate::constants::GOVERNANCE_MODEL {
+/// Panics if an unknown model is specified.
+pub fn get_active_engine(model: &str) -> &'static dyn GovernanceEngine {
+    match model {
         "sovereign" => &sovereign::SovereignEngine,
         "permissionless" => &permissionless::PermissionlessEngine,
-        _ => panic!(
-            "Unknown governance model '{}' specified in network.json",
-            crate::constants::GOVERNANCE_MODEL
-        ),
+        _ => panic!("Unknown governance model '{}' specified", model),
     }
 }

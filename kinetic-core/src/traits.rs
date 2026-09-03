@@ -11,8 +11,7 @@
 //! respectively. The active `GovernanceEngine` is selected at compile time from `network.json`
 //! via the `GOVERNANCE_MODEL` constant.
 
-use crate::error::{GovernanceError, StorageError, VdfError};
-use crate::governance::types::{GovernanceEffect, GovernanceState, SignedGovernanceMessage};
+use crate::error::{StorageError, VdfError};
 use crate::types::{Commitment, VdfProof};
 
 /// Abstract interface for Verifiable Delay Function (VDF) computation engines.
@@ -108,56 +107,6 @@ pub trait StorageEngine: Send + Sync {
         prefix: &[u8],
         limit: Option<usize>,
     ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
-}
-
-/// Abstract interface for protocol governance state verification and action execution.
-///
-/// Two concrete engines are available (selected at compile time via `GOVERNANCE_MODEL`):
-/// `sovereign`, `permissionless`. See `kinetic-core/src/governance/engine/`.
-///
-/// The engine is always called in a two-step sequence:
-/// 1. [`verify_action`](Self::verify_action) — validates signatures, thresholds, and timelocks.
-/// 2. [`execute_action`](Self::execute_action) — mutates state and returns side effects.
-pub trait GovernanceEngine: Send + Sync {
-    /// Verifies whether a signed governance message meets threshold and timelock requirements.
-    ///
-    /// Does **not** mutate `state` on its own — state changes only happen in
-    /// [`execute_action`](Self::execute_action).
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(Some(effect))` if the message is valid and immediately executable (no timelock).
-    /// - `Ok(None)` if the message is valid but waiting in a timelock queue.
-    ///
-    /// # Errors
-    ///
-    /// - Returns [`GovernanceError::InvalidSignature`] (`KIN-ACN-007`) if required signatures or threshold are not met.
-    /// - Returns [`GovernanceError::StaleProposal`] (`KIN-ACN-005`) if the proposal timestamp is outside the replay window.
-    /// - Returns [`GovernanceError::GovernanceDisabled`] (`KIN-ACN-003`) if governance actions are disabled in this mode.
-    /// - Returns [`GovernanceError::KeyLengthMismatch`] (`KIN-ACN-004`) if a key length is invalid.
-    /// - Returns [`GovernanceError::MissingRootKey`] (`KIN-ACN-001`) if the root key is unconfigured.
-    fn verify_action(
-        &self,
-        state: &mut GovernanceState,
-        msg: &SignedGovernanceMessage,
-        current_kyn: kinetic_types::clock::Kyn,
-    ) -> Result<Option<GovernanceEffect>, GovernanceError>;
-
-    /// Executes a previously verified governance action, applying state changes.
-    ///
-    /// Must only be called after [`verify_action`](Self::verify_action) returns `Ok(_)`.
-    /// The `wait_time` parameter is the remaining timelock seconds to apply for deferred effects.
-    ///
-    /// # Returns
-    ///
-    /// `Some(effect)` if a state-changing side effect was produced (e.g. key rotation,
-    /// council change). `None` if the action was enqueued for a future timelock.
-    fn execute_action(
-        &self,
-        state: &mut GovernanceState,
-        msg: &SignedGovernanceMessage,
-        current_kyn: kinetic_types::clock::Kyn,
-    ) -> Option<GovernanceEffect>;
 }
 
 use crate::drand::RawKyn;

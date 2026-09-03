@@ -1,0 +1,29 @@
+[package]
+name = "kinetic-action"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Pure governance and protocol action evaluation for the Kinetic Network."
+keywords = ["kinetic", "governance", "consensus"]
+categories = ["cryptography", "network-programming"]
+
+[dependencies]
+# --- Workspace Crates ---
+kinetic-types = { path = "../kinetic-types" }
+kinetic-primitives = { path = "../kinetic-primitives" }
+
+# --- External Crates ---
+hex.workspace = true
+
+# --- Workspace Inherited ---
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
