@@ -426,7 +426,8 @@ mod tests {
         assert_eq!(ApiError::from(id_err).status, 422);
 
         // Test crypto consistency (Invalid Proof should be 422, not 400)
-        let pub_err = PublishError::InvalidProof(kinetic_core::error::VdfRejectReason::MalformedProof);
+        let pub_err =
+            PublishError::InvalidProof(kinetic_core::error::VdfRejectReason::MalformedProof);
         assert_eq!(ApiError::from(pub_err).status, 422);
     }
 }
@@ -473,11 +474,15 @@ impl From<kinetic_core::error::RestApiError> for ApiError {
             error_type: e.error_type_uri(),
             title: match e {
                 kinetic_core::error::RestApiError::InvalidToken => "Unauthorized".to_string(),
-                kinetic_core::error::RestApiError::InsufficientPrivileges => "Forbidden".to_string(),
+                kinetic_core::error::RestApiError::InsufficientPrivileges => {
+                    "Forbidden".to_string()
+                }
                 kinetic_core::error::RestApiError::NotFound => "Not Found".to_string(),
                 kinetic_core::error::RestApiError::BadRequest(_) => "Bad Request".to_string(),
                 kinetic_core::error::RestApiError::SseStreamLagged => "SSE Lagged".to_string(),
-                kinetic_core::error::RestApiError::ResponseTooLarge => "Payload Too Large".to_string(),
+                kinetic_core::error::RestApiError::ResponseTooLarge => {
+                    "Payload Too Large".to_string()
+                }
             },
             status: e.status(),
             detail: e.to_string(),

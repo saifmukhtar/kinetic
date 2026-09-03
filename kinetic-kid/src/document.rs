@@ -156,7 +156,9 @@ impl Document {
             // Document is deactivated (revoked), the signature MUST be from a revocation key
             for rk_b64 in &self.revocation_keys {
                 if let Ok(pubkey_bytes) = b64_url.decode(rk_b64) {
-                    if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok() {
+                    if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                        .is_ok()
+                    {
                         return Ok(());
                     }
                 }
@@ -168,7 +170,9 @@ impl Document {
                     || key.key_type.eq_ignore_ascii_case("ML-DSA-65")
                 {
                     if let Ok(pubkey_bytes) = b64_url.decode(&key.public_key) {
-                        if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok() {
+                        if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                            .is_ok()
+                        {
                             return Ok(());
                         }
                     }

@@ -69,8 +69,6 @@ impl Manifest {
             .map_err(|e| Error::CanonicalizationError(e.to_string()))
     }
 
-
-
     /// Verifies the signature of the manifest using the authorized controller keys in the provided KID Document
     /// against an explicit Unix timestamp.
     ///
@@ -150,7 +148,9 @@ impl Manifest {
                 || key.key_type.eq_ignore_ascii_case("ML-DSA-65")
             {
                 if let Ok(pubkey_bytes) = b64_url.decode(&key.public_key) {
-                    if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok() {
+                    if kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                        .is_ok()
+                    {
                         return Ok(());
                     }
                 }

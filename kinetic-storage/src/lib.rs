@@ -94,7 +94,9 @@ mod native {
                         ));
                         bak_path.set_file_name(new_name);
 
-                        let err = StorageError::Corruption("CRITICAL: Embedded database corruption detected".to_string());
+                        let err = StorageError::Corruption(
+                            "CRITICAL: Embedded database corruption detected".to_string(),
+                        );
                         tracing::error!(
                             error_code = err.code(),
                             "CRITICAL: Embedded database corruption detected at {:?}. Backing up to {:?}",
@@ -331,8 +333,8 @@ mod wasm {
                     if cursor + 4 > buffer.len() {
                         break;
                     }
-                    let key_len = u32::from_le_bytes(buffer[cursor..cursor + 4].try_into().unwrap())
-                        as usize;
+                    let key_len =
+                        u32::from_le_bytes(buffer[cursor..cursor + 4].try_into().unwrap()) as usize;
                     cursor += 4;
 
                     if cursor + key_len > buffer.len() {
@@ -344,8 +346,8 @@ mod wasm {
                     if cursor + 4 > buffer.len() {
                         break;
                     }
-                    let val_len = u32::from_le_bytes(buffer[cursor..cursor + 4].try_into().unwrap())
-                        as usize;
+                    let val_len =
+                        u32::from_le_bytes(buffer[cursor..cursor + 4].try_into().unwrap()) as usize;
                     cursor += 4;
 
                     if val_len == 0xFFFF_FFFF {
@@ -432,9 +434,13 @@ mod wasm {
                 .db
                 .write()
                 .map_err(|_| StorageError::WriteFailed("Lock poisoned".into()))?;
-            
+
             // Check quota only if this is an in-memory session (no OPFS handle)
-            let is_opfs_active = self.opfs_handle.read().map(|h| h.0.is_some()).unwrap_or(false);
+            let is_opfs_active = self
+                .opfs_handle
+                .read()
+                .map(|h| h.0.is_some())
+                .unwrap_or(false);
             if !is_opfs_active && db.len() >= 10_000 && !db.contains_key(key) {
                 return Err(StorageError::WriteFailed(
                     "WASM storage quota exceeded (10,000 keys). Cannot insert new keys.".into(),

@@ -353,11 +353,19 @@ async fn run_node() -> Result<()> {
                 {
                     let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
                         Ok(latest) => {
-                            if latest.is_unavailable { 0 } else { latest.kyn }
-                        },
+                            if latest.is_unavailable {
+                                0
+                            } else {
+                                latest.kyn
+                            }
+                        }
                         Err(e) => {
                             if !matches!(e, kinetic_core::error::KynProviderError::NoCachedKyn) {
-                                tracing::error!(error_code = e.code(), "Failed to load cached kyn in node gossip handler: {}", e);
+                                tracing::error!(
+                                    error_code = e.code(),
+                                    "Failed to load cached kyn in node gossip handler: {}",
+                                    e
+                                );
                             }
                             0
                         }
@@ -365,7 +373,11 @@ async fn run_node() -> Result<()> {
 
                     if kyn.kyn > latest_kyn {
                         if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
-                            tracing::error!(error_code = e.code(), "Failed to cache drand kyn in node gossip handler: {}", e);
+                            tracing::error!(
+                                error_code = e.code(),
+                                "Failed to cache drand kyn in node gossip handler: {}",
+                                e
+                            );
                         }
                         let _ = kyn_tx_gossip.send(kyn.kyn);
                     }

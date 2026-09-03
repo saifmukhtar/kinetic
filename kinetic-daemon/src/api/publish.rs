@@ -648,7 +648,11 @@ pub async fn handle_publish_governance(
                 true
             }
             Err(e) => {
-                tracing::warn!(error_code = e.code(), "Rejecting governance message via API: {}", e);
+                tracing::warn!(
+                    error_code = e.code(),
+                    "Rejecting governance message via API: {}",
+                    e
+                );
                 return Err((
                     StatusCode::BAD_REQUEST,
                     format!("Invalid governance message: {}", e),

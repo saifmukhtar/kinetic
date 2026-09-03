@@ -307,12 +307,16 @@ pub enum PublishError {
     /// The local reveal could not be found to verify the AuthorizedKid locally before broadcast.
     /// The local node doesn't have the active name reveal cached, meaning it cannot pre-validate the KID.
     /// The network will likely drop this payload. Ensure you own the name and it is fully synced locally.
-    #[error("Could not find local reveal for name {0} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.")]
+    #[error(
+        "Could not find local reveal for name {0} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network."
+    )]
     MissingLocalRevealForKid(String),
     /// The local reveal could not be found to verify the AuthorizedManifest locally before broadcast.
     /// The local node cannot verify the manifest signature locally because it doesn't have the parent reveal.
     /// The payload will be forwarded, but might be rejected by peers. Fully sync the node before publishing.
-    #[error("Could not find local reveal for name {0} to verify AuthorizedManifest. Forwarding to DHT anyway.")]
+    #[error(
+        "Could not find local reveal for name {0} to verify AuthorizedManifest. Forwarding to DHT anyway."
+    )]
     MissingLocalRevealForManifest(String),
     /// The zone payload failed to serialize into JSON.
     /// The zone struct contains invalid characters, cyclical references, or exceeds nesting limits.

@@ -1,5 +1,5 @@
-use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
 use kinetic_core::types::NameRecord;
+use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
 
 use kinetic_network::store::core::KineticRecordStore;
 use libp2p::identity;

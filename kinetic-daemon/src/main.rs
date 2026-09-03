@@ -293,7 +293,11 @@ async fn run_daemon() -> Result<()> {
     let daemon_keypair = match load_keypair(std::path::Path::new("identity.key")) {
         Ok(k) => k,
         Err(e) => {
-            tracing::error!(error_code = e.code(), "CRITICAL: Daemon failed to load identity: {}", e);
+            tracing::error!(
+                error_code = e.code(),
+                "CRITICAL: Daemon failed to load identity: {}",
+                e
+            );
             return Err(e.into());
         }
     };

@@ -40,7 +40,8 @@ pub(crate) fn build_full_swarm(
         .with_other_transport(|key| {
             libp2p_webrtc::tokio::Transport::new(
                 key.clone(),
-                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng()).expect("Failed to generate WebRTC cert"),
+                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng())
+                    .expect("Failed to generate WebRTC cert"),
             )
         })
         .expect("Failed to inject WebRTC")
@@ -52,7 +53,8 @@ pub(crate) fn build_full_swarm(
         .with_other_transport(|key| {
             libp2p_webrtc::tokio::Transport::new(
                 key.clone(),
-                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng()).expect("Failed to generate WebRTC cert"),
+                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng())
+                    .expect("Failed to generate WebRTC cert"),
             )
         })
         .expect("Failed to inject WebRTC");
@@ -84,7 +86,7 @@ pub(crate) fn build_full_swarm(
                     "/{}/kad/2.0.0",
                     kinetic_core::constants::NETWORK_SALT_HEX
                 ))
-                .unwrap()
+                .unwrap(),
             );
             kad_config
                 .set_max_packet_size(kinetic_core::constants::LIMITS_P2P_MAX_PACKET_SIZE)

@@ -50,9 +50,12 @@ mod tests {
             .signatures
             .push(sign_action(&msg_invalid_len, &root_sk));
 
-        let err =
-            process_governance_message(&mut state, &msg_invalid_len, Kyn(msg_invalid_len.timestamp_kyn))
-                .unwrap_err();
+        let err = process_governance_message(
+            &mut state,
+            &msg_invalid_len,
+            Kyn(msg_invalid_len.timestamp_kyn),
+        )
+        .unwrap_err();
         assert!(
             matches!(err, crate::error::GovernanceError::InvalidPrimeLength),
             "Got error: {:?}",
@@ -71,7 +74,8 @@ mod tests {
                 signatures: vec![],
             };
             msg.signatures.push(sign_action(&msg, &root_sk));
-            let effect = process_governance_message(&mut state, &msg, Kyn(msg.timestamp_kyn)).unwrap();
+            let effect =
+                process_governance_message(&mut state, &msg, Kyn(msg.timestamp_kyn)).unwrap();
 
             if let Some(GovernanceEffect::PrimeMapped {
                 name: mapped_name, ..
@@ -109,7 +113,8 @@ mod tests {
             .push(sign_action(&rotate_msg, &root_sk));
 
         let effect =
-            process_governance_message(&mut state, &rotate_msg, Kyn(rotate_msg.timestamp_kyn)).unwrap();
+            process_governance_message(&mut state, &rotate_msg, Kyn(rotate_msg.timestamp_kyn))
+                .unwrap();
         assert!(matches!(
             effect,
             Some(GovernanceEffect::RootKeyRotated { .. })
@@ -129,8 +134,8 @@ mod tests {
         };
         map_msg.signatures.push(sign_action(&map_msg, &root_sk)); // signed with old key
 
-        let err =
-            process_governance_message(&mut state, &map_msg, Kyn(map_msg.timestamp_kyn)).unwrap_err();
+        let err = process_governance_message(&mut state, &map_msg, Kyn(map_msg.timestamp_kyn))
+            .unwrap_err();
         assert!(matches!(
             err,
             crate::error::GovernanceError::InvalidSignature
@@ -216,7 +221,8 @@ mod tests {
             .push(sign_action(&resume_msg, &root_sk));
 
         let effect =
-            process_governance_message(&mut state, &resume_msg, Kyn(resume_msg.timestamp_kyn)).unwrap();
+            process_governance_message(&mut state, &resume_msg, Kyn(resume_msg.timestamp_kyn))
+                .unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::NetworkResumed)));
         assert!(!state.is_halted);
         assert_eq!(state.total_paused_kyns, 1000);
@@ -243,8 +249,8 @@ mod tests {
         };
         fail_msg.signatures.push(sign_action(&fail_msg, &root_sk));
 
-        let err =
-            process_governance_message(&mut state, &fail_msg, Kyn(fail_msg.timestamp_kyn)).unwrap_err();
+        let err = process_governance_message(&mut state, &fail_msg, Kyn(fail_msg.timestamp_kyn))
+            .unwrap_err();
         assert!(matches!(
             err,
             crate::error::GovernanceError::InvalidPrimeLength
@@ -260,7 +266,8 @@ mod tests {
             signatures: vec![],
         };
         map_msg.signatures.push(sign_action(&map_msg, &root_sk));
-        let _ = process_governance_message(&mut state, &map_msg, Kyn(map_msg.timestamp_kyn)).unwrap();
+        let _ =
+            process_governance_message(&mut state, &map_msg, Kyn(map_msg.timestamp_kyn)).unwrap();
 
         // Try to revoke a 1-character name (should succeed)
         let mut success_msg = SignedGovernanceMessage {
@@ -337,8 +344,9 @@ mod tests {
             .signatures
             .push(sign_action(&msg_invalid, &root_sk));
 
-        let err = process_governance_message(&mut state, &msg_invalid, Kyn(msg_invalid.timestamp_kyn))
-            .unwrap_err();
+        let err =
+            process_governance_message(&mut state, &msg_invalid, Kyn(msg_invalid.timestamp_kyn))
+                .unwrap_err();
         assert!(matches!(
             err,
             crate::error::GovernanceError::InvalidProtocolName
@@ -355,7 +363,8 @@ mod tests {
         };
         msg_valid.signatures.push(sign_action(&msg_valid, &root_sk));
         let effect =
-            process_governance_message(&mut state, &msg_valid, Kyn(msg_valid.timestamp_kyn)).unwrap();
+            process_governance_message(&mut state, &msg_valid, Kyn(msg_valid.timestamp_kyn))
+                .unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::InfraMapped { .. })));
     }
 

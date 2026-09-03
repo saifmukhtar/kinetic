@@ -20,7 +20,9 @@ impl PeerRegistry {
     /// Create a new PeerRegistry with a specified capacity limit.
     pub fn new(capacity: usize) -> Self {
         Self {
-            cache: LruCache::new(NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(500).unwrap())),
+            cache: LruCache::new(
+                NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(500).unwrap()),
+            ),
         }
     }
 
@@ -59,7 +61,8 @@ impl PeerRegistry {
             })
             .collect();
         let data = RegistryData { peers };
-        serde_json::to_vec(&data).map_err(|e| kinetic_core::error::P2pError::PeerRegistrySerialization(e.to_string()))
+        serde_json::to_vec(&data)
+            .map_err(|e| kinetic_core::error::P2pError::PeerRegistrySerialization(e.to_string()))
     }
 
     /// Checks if a Multiaddr contains a public IPv4/IPv6 address.

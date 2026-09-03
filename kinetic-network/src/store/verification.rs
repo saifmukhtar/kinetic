@@ -605,8 +605,12 @@ pub(crate) fn verify_authorized_manifest(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-        
-    if auth_manifest.manifest.verify_at_time(kid_doc, current_time).is_err() {
+
+    if auth_manifest
+        .manifest
+        .verify_at_time(kid_doc, current_time)
+        .is_err()
+    {
         let err = KineticStoreError::ManifestVerificationFailed;
         err.log_warning(
             &auth_manifest.name,

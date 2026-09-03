@@ -11,8 +11,8 @@ pub async fn start_health_api(
     host_peer_id: libp2p::PeerId,
     bind_ip: std::net::IpAddr,
 ) -> Result<()> {
-    let instance_name =
-        std::env::var(kinetic_core::constants::ENV_INSTANCE).unwrap_or_else(|_| "default".to_string());
+    let instance_name = std::env::var(kinetic_core::constants::ENV_INSTANCE)
+        .unwrap_or_else(|_| "default".to_string());
 
     // 1. The File-Drop (Worker State)
     let global_instances_dir = std::env::temp_dir().join("kinetic_host_instances");
