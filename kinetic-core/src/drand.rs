@@ -213,9 +213,9 @@ impl DrandClient {
                     if !kyn.verify() {
                         let err = DrandError::InvalidSignature;
                         warn!(
-                            "{}: Drand endpoint {} returned a cryptographically invalid kyn!",
-                            err.code(),
-                            endpoint
+                            error_code = err.code(),
+                            endpoint = %endpoint,
+                            "Drand endpoint returned a cryptographically invalid kyn!"
                         );
                         continue;
                     }
@@ -234,9 +234,11 @@ impl DrandClient {
                             got: kyn.kyn,
                         };
                         warn!(
-                            "{}: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
-                            err.code(),
-                            endpoint, kyn.kyn, estimated_kyn
+                            error_code = err.code(),
+                            endpoint = %endpoint,
+                            kyn = kyn.kyn,
+                            expected = estimated_kyn,
+                            "Drand endpoint returned an unacceptably stale kyn"
                         );
                         continue;
                     }
@@ -245,23 +247,23 @@ impl DrandClient {
                     kyn.is_unavailable = false;
                     // Cache on every successful fetch
                     if let Err(e) = self.cache_kyn(&kyn) {
-                        tracing::error!("{}: Failed to cache drand kyn after fetch: {}", e.code(), e);
+                        tracing::error!(error_code = e.code(), "Failed to cache drand kyn after fetch: {}", e);
                     }
                     return Ok(kyn);
                 }
                 Err(e) => {
-                    warn!("{}: Drand endpoint {} unreachable: {}", e.code(), endpoint, e);
+                    warn!(error_code = e.code(), endpoint = %endpoint, "Drand endpoint unreachable: {}", e);
                 }
             }
         }
 
         // All endpoints failed — try cache
         let err = DrandError::AllEndpointsFailed;
-        warn!("{}: All Drand endpoints unreachable — falling back to cached kyn", err.code());
+        warn!(error_code = err.code(), "All Drand endpoints unreachable — falling back to cached kyn");
         match self.load_cached_kyn() {
             Ok(kyn) => Ok(kyn),
             Err(e) => {
-                warn!("{}: Cache fallback failed: {}", e.code(), e);
+                warn!(error_code = e.code(), "Cache fallback failed: {}", e);
                 Err(DrandError::AllEndpointsFailed)
             }
         }

@@ -306,9 +306,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 let err = kinetic_core::error::SecurityError::NrsSsrfBlocked;
                                                 warn!(
                                                     error_code = err.code(),
-                                                    "Blocked SSRF attempt: A record points to forbidden IP {}. Rule: [{}] {}",
-                                                    ip,
-                                                    e.code(),
+                                                    rule_code = e.code(),
+                                                    ip = %ip,
+                                                    "Blocked SSRF attempt: A record points to forbidden IP: {}",
                                                     e
                                                 );
                                                 continue;
@@ -328,9 +328,9 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 let err = kinetic_core::error::SecurityError::NrsSsrfBlocked;
                                                 warn!(
                                                     error_code = err.code(),
-                                                    "Blocked SSRF attempt: AAAA record points to forbidden IP {}. Rule: [{}] {}",
-                                                    ip,
-                                                    e.code(),
+                                                    rule_code = e.code(),
+                                                    ip = %ip,
+                                                    "Blocked SSRF attempt: AAAA record points to forbidden IP: {}",
                                                     e
                                                 );
                                                 continue;

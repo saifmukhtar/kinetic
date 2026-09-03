@@ -225,8 +225,8 @@ fn stop_background_service() -> Result<()> {
 async fn run_daemon() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
         tracing::error!(
-            "{}: FATAL: Network cannot boot with a bricked governance plane. {}",
-            e.code(),
+            error_code = e.code(),
+            "FATAL: Network cannot boot with a bricked governance plane: {}",
             e
         );
         std::process::exit(1);
@@ -276,7 +276,7 @@ async fn run_daemon() -> Result<()> {
     let daemon_keypair = match load_keypair(std::path::Path::new("identity.key")) {
         Ok(k) => k,
         Err(e) => {
-            tracing::error!("{}: CRITICAL: Daemon failed to load identity: {}", e.code(), e);
+            tracing::error!(error_code = e.code(), "CRITICAL: Daemon failed to load identity: {}", e);
             return Err(e.into());
         }
     };

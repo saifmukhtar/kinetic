@@ -91,21 +91,18 @@ pub fn handle_governance_gossip(
                 match e.severity() {
                     Severity::Info => tracing::info!(
                         error_code = code,
-                        "Governance gossip message rejected: {} ({})",
-                        msg,
-                        code
+                        "Governance gossip message rejected: {}",
+                        msg
                     ),
                     Severity::Warning => tracing::warn!(
                         error_code = code,
-                        "Governance gossip message rejected: {} ({})",
-                        msg,
-                        code
+                        "Governance gossip message rejected: {}",
+                        msg
                     ),
                     Severity::Error | Severity::Critical => tracing::error!(
                         error_code = code,
-                        "Governance gossip message rejected: {} ({})",
-                        msg,
-                        code
+                        "Governance gossip message rejected: {}",
+                        msg
                     ),
                 }
             }

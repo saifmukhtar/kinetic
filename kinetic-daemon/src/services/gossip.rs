@@ -160,7 +160,7 @@ pub fn start_gossip_processor(
                                 },
                                 Err(e) => {
                                     if !matches!(e, kinetic_core::error::DrandError::NoCachedKyn) {
-                                        tracing::error!("{}: Failed to load cached kyn in gossip handler: {}", e.code(), e);
+                                        tracing::error!(error_code = e.code(), "Failed to load cached kyn in gossip handler: {}", e);
                                     }
                                     0
                                 }
@@ -168,7 +168,7 @@ pub fn start_gossip_processor(
 
                             if kyn.kyn > latest_kyn {
                                 if let Err(e) = drand_client_gossip.cache_kyn(&kyn) {
-                                    tracing::error!("{}: Failed to cache drand kyn in gossip handler: {}", e.code(), e);
+                                    tracing::error!(error_code = e.code(), "Failed to cache drand kyn in gossip handler: {}", e);
                                 }
                                 let _ = kyn_tx_gossip.send(kyn.kyn);
                             }

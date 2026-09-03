@@ -149,8 +149,8 @@ async fn main() -> Result<()> {
 async fn run_node() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
         tracing::error!(
-            "{}: FATAL: Network cannot boot with a bricked governance plane. {}",
-            e.code(),
+            error_code = e.code(),
+            "FATAL: Network cannot boot with a bricked governance plane: {}",
             e
         );
         std::process::exit(1);
@@ -355,7 +355,7 @@ async fn run_node() -> Result<()> {
 
                             if kyn.kyn > latest_kyn {
                                 if let Err(e) = drand_client_gossip.cache_kyn(&kyn) {
-                                    tracing::error!("{}: Failed to cache drand kyn in node gossip handler: {}", e.code(), e);
+                                    tracing::error!(error_code = e.code(), "Failed to cache drand kyn in node gossip handler: {}", e);
                                 }
                                 let _ = kyn_tx_gossip.send(kyn.kyn);
                             }

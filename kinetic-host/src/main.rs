@@ -107,8 +107,8 @@ async fn main() -> Result<()> {
 async fn run_host() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
         tracing::error!(
-            "{}: FATAL: Network cannot boot with a bricked governance plane. {}",
-            e.code(),
+            error_code = e.code(),
+            "FATAL: Network cannot boot with a bricked governance plane: {}",
             e
         );
         std::process::exit(1);
