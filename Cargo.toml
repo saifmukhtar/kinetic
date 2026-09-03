@@ -1,17 +1,33 @@
 [workspace]
 members = [
+    "kinetic-cli",
     "kinetic-core",
+    "kinetic-daemon",
+    "kinetic-forge",
+    "kinetic-host",
+    "kinetic-kid",
+    "kinetic-local",
     "kinetic-network",
-    "kinetic-storage",
+    "kinetic-node",
     "kinetic-nrs",
-    "kinetic-daemon", "kinetic-cli", "kinetic-test", "kinetic-kid", "kinetic-node",
-    "kinetic-host", "kinetic-forge", "kinetic-pac",
-    "kinetic-verify", "kinetic-types"
-, "kinetic-primitives", "kinetic-local", "kinetic-rpc", "kinetic-vdf"]
+    "kinetic-pac",
+    "kinetic-primitives",
+    "kinetic-rpc",
+    "kinetic-storage",
+    "kinetic-test",
+    "kinetic-types",
+    "kinetic-vdf",
+    "kinetic-verify",
+]
 exclude = [
+    "axum_test",
     "kinetic-core/fuzz",
     "kinetic-daemon/fuzz",
-    "axum_test",
+    "kinetic-kid/fuzz",
+    "kinetic-network/fuzz",
+    "kinetic-nrs/fuzz",
+    "kinetic-storage/fuzz",
+    "kinetic-vdf/fuzz",
 ]
 resolver = "2"
 
