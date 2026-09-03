@@ -94,10 +94,10 @@ mod native {
                         ));
                         bak_path.set_file_name(new_name);
 
-                        let err = StorageError::Corruption("CRITICAL: Redb database corruption detected".to_string());
+                        let err = StorageError::Corruption("CRITICAL: Embedded database corruption detected".to_string());
                         tracing::error!(
                             error_code = err.code(),
-                            "CRITICAL: Redb database corruption detected at {:?}. Backing up to {:?}",
+                            "CRITICAL: Embedded database corruption detected at {:?}. Backing up to {:?}",
                             base_path,
                             bak_path
                         );
