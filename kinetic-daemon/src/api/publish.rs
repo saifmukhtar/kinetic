@@ -68,10 +68,10 @@ pub async fn handle_publish_record(
                 // Graceful fallback: read the last known kyn from sled.
                 // If even that is unavailable, we allow the publish to proceed —
                 // the DHT store layer will still enforce its own staleness check.
+                let err = kinetic_core::error::DrandError::LiveFetchFailedFallback;
                 tracing::warn!(
-                    error_code = "KIN-API-001",
-                    "handle_publish_record: Could not fetch live drand kyn, \
-                     falling back to cached value for staleness check"
+                    error_code = err.code(),
+                    "{}", err
                 );
                 match drand_client.load_cached_kyn() {
                     Ok(kyn) => kyn.kyn,
@@ -184,12 +184,13 @@ pub async fn handle_publish_record(
                         );
                     }
                     Ok(quorum) => {
-                        tracing::warn!(
-                            "KIN-DMN-014: Quorum failed for {}: only {}/5 nodes confirmed storage.",
-                            fqdn_clone, quorum
-                        );
+                        let err = kinetic_core::error::PublishError::QuorumFailed(fqdn_clone.to_string(), quorum);
+                        tracing::warn!(error_code = err.code(), "{}", err);
                     }
-                    Err(e) => tracing::warn!("KIN-DMN-015: Quorum check failed for {}: {}", fqdn_clone, e),
+                    Err(e) => {
+                        let err = kinetic_core::error::PublishError::QuorumCheckError(fqdn_clone.to_string(), e.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
+                    }
                 }
             });
 
@@ -199,7 +200,8 @@ pub async fn handle_publish_record(
             }))
         }
         Err(e) => {
-            tracing::error!("KIN-DMN-016: Failed to publish to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::ZonePublishFailed(e.to_string());
+            tracing::error!(error_code = err.code(), "{}", err);
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -288,16 +290,14 @@ pub async fn handle_publish_commit(
                         fqdn_clone,
                         quorum
                     ),
-                    Ok(quorum) => tracing::warn!(
-                        "KIN-DMN-017: Quorum failed for commitment of {}: only {}/5 nodes confirmed storage.",
-                        fqdn_clone,
-                        quorum
-                    ),
-                    Err(e) => tracing::warn!(
-                        "KIN-DMN-018: Quorum check failed for commitment of {}: {}",
-                        fqdn_clone,
-                        e
-                    ),
+                    Ok(quorum) => {
+                        let err = kinetic_core::error::PublishError::CommitmentQuorumFailed(fqdn_clone.to_string(), quorum);
+                        tracing::warn!(error_code = err.code(), "{}", err);
+                    },
+                    Err(e) => {
+                        let err = kinetic_core::error::PublishError::CommitmentQuorumCheckError(fqdn_clone.to_string(), e.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
+                    }
                 }
             });
 
@@ -307,7 +307,8 @@ pub async fn handle_publish_commit(
             }))
         }
         Err(e) => {
-            tracing::error!("KIN-DMN-019: Failed to publish Commitment to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::CommitmentPublishFailed(e.to_string());
+            tracing::error!(error_code = err.code(), "{}", err);
             let api_err = kinetic_core::ApiError::from(e);
             Err((
                 StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -326,11 +327,11 @@ pub async fn handle_publish_kid(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            "Insufficient privileges: Requires Publish or Admin role".to_string(),
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
         ));
     }
     info!(
@@ -342,7 +343,7 @@ pub async fn handle_publish_kid(
     if let Err(e) = auth_kid.kid_doc.verify() {
         return Err((
             StatusCode::BAD_REQUEST,
-            format!("Invalid KID signature: {}", e),
+            Json(serde_json::json!({"error": format!("Invalid KID signature: {}", e)})),
         ));
     }
 
@@ -367,10 +368,8 @@ pub async fn handle_publish_kid(
             }
         }
         _ => {
-            tracing::warn!(
-                "KIN-DMN-020: Could not find local reveal for name {} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.",
-                auth_kid.name
-            );
+            let err = kinetic_core::error::PublishError::MissingLocalRevealForKid(auth_kid.name.clone());
+            tracing::warn!(error_code = err.code(), "{}", err);
             true // If we don't have it cached, we let the network decide.
         }
     };
@@ -378,7 +377,7 @@ pub async fn handle_publish_kid(
     if !is_authorized {
         return Err((
             StatusCode::UNAUTHORIZED,
-            "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner.".to_string(),
+            Json(serde_json::json!({"error": "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner."})),
         ));
     }
 
@@ -388,7 +387,7 @@ pub async fn handle_publish_kid(
         Err(e) => {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Serialization failed: {}", e),
+                Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
             ));
         }
     };
@@ -407,10 +406,12 @@ pub async fn handle_publish_kid(
             }))
         }
         Err(e) => {
-            error!("Failed to publish KID to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::KidPublishFailed(e.to_string());
+            error!(error_code = err.code(), "{}", err);
+            let api_err = kinetic_core::ApiError::from(e);
             Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to publish: {}", e),
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
             ))
         }
     }
@@ -426,11 +427,11 @@ pub async fn handle_publish_manifest(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
     if !role.can_publish() {
         return Err((
             StatusCode::FORBIDDEN,
-            "Insufficient privileges: Requires Publish or Admin role".to_string(),
+            Json(serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"})),
         ));
     }
     let did_str = auth_manifest.manifest.kid.as_str();
@@ -459,10 +460,8 @@ pub async fn handle_publish_manifest(
             }
         }
         _ => {
-            tracing::warn!(
-                "KIN-DMN-021: Could not find local reveal for name {} to verify AuthorizedManifest. Forwarding to DHT anyway.",
-                auth_manifest.name
-            );
+            let err = kinetic_core::error::PublishError::MissingLocalRevealForManifest(auth_manifest.name.clone());
+            tracing::warn!(error_code = err.code(), "{}", err);
             true
         }
     };
@@ -470,7 +469,7 @@ pub async fn handle_publish_manifest(
     if !is_authorized {
         return Err((
             StatusCode::UNAUTHORIZED,
-            "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner.".to_string(),
+            Json(serde_json::json!({"error": "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner."})),
         ));
     }
 
@@ -484,7 +483,7 @@ pub async fn handle_publish_manifest(
                 kinetic_core::error::ResolutionError::Offline => StatusCode::SERVICE_UNAVAILABLE,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             };
-            return Err((status, format!("DHT lookup failed: {}", e)));
+            return Err((status, Json(serde_json::json!({"error": format!("DHT lookup failed: {}", e)}))));
         }
     };
 
@@ -498,7 +497,7 @@ pub async fn handle_publish_manifest(
                     Err(_) => {
                         return Err((
                             StatusCode::INTERNAL_SERVER_ERROR,
-                            "Invalid KID payload on DHT".to_string(),
+                            Json(serde_json::json!({"error": "Invalid KID payload on DHT"})),
                         ));
                     }
                 }
@@ -523,7 +522,7 @@ pub async fn handle_publish_manifest(
     {
         return Err((
             StatusCode::BAD_REQUEST,
-            format!("Invalid Manifest signature: {}", e),
+            Json(serde_json::json!({"error": format!("Invalid Manifest signature: {}", e)})),
         ));
     }
 
@@ -535,7 +534,7 @@ pub async fn handle_publish_manifest(
         Err(e) => {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Serialization failed: {}", e),
+                Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
             ));
         }
     };
@@ -552,10 +551,12 @@ pub async fn handle_publish_manifest(
             }))
         }
         Err(e) => {
-            error!("Failed to publish Manifest to DHT: {}", e);
+            let err = kinetic_core::error::PublishError::ManifestPublishFailed(e.to_string());
+            error!(error_code = err.code(), "{}", err);
+            let api_err = kinetic_core::ApiError::from(e);
             Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to publish: {}", e),
+                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                Json(serde_json::to_value(api_err).unwrap_or_default()),
             ))
         }
     }
@@ -595,13 +596,14 @@ pub async fn handle_publish_governance(
             Ok(_) => {
                 let path = kinetic_core::config::get_base_dir().join("governance.bin");
                 if let Err(e) = gov.save_to_disk(&path) {
-                    tracing::error!("KIN-DMN-022: Failed to save modified governance state to disk: {}", e);
+                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
                 }
 
                 true
             }
             Err(e) => {
-                tracing::warn!("KIN-DMN-023: Rejecting governance message via API: {}", e);
+                tracing::warn!(error_code = e.code(), "Rejecting governance message via API: {}", e);
                 return Err((
                     StatusCode::BAD_REQUEST,
                     format!("Invalid governance message: {}", e),
@@ -644,7 +646,8 @@ pub async fn handle_publish_governance(
             }))
         }
         Err(e) => {
-            tracing::error!("KIN-DMN-024: Failed to publish Governance Message to P2P network: {}", e);
+            let err = kinetic_core::error::GovernanceError::P2pPublishFailed;
+            tracing::error!(error_code = err.code(), "Failed to publish Governance Message to P2P network: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to broadcast: {}", e),

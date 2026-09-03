@@ -142,7 +142,9 @@ impl KineticRecordStore {
                         tracing::info!("[KRS restore] NameRecord for {}", name);
                         reveals_by_name.put(name, record);
                     } else {
+                        let err = kinetic_core::error::storage::StorageError::InvalidRecordDiscarded;
                         tracing::warn!(
+                            error_code = err.code(),
                             "[KRS restore] Discarding invalid locally stored NameRecord for {}",
                             name
                         );
@@ -165,7 +167,8 @@ impl KineticRecordStore {
                         tracing::info!("[KRS restore] Heartbeat kyn {} for {}", kyn, name);
                         last_heartbeats_by_name.insert(name, kyn);
                     } else {
-                        tracing::warn!("[KRS restore] Purging orphaned heartbeat for {}", name);
+                        let err = kinetic_core::error::storage::StorageError::OrphanedHeartbeatPurged;
+                        tracing::warn!(error_code = err.code(), "[KRS restore] Purging orphaned heartbeat for {}", name);
                         let _ = storage.delete(&key_bytes);
                     }
                 }
@@ -368,7 +371,7 @@ impl KineticRecordStore {
     /// # Errors
     ///
     /// Returns a [`KineticStoreError`] if the record payload is malformed, cryptographic proofs fail,
-    /// the heartbeat is stale, or the payload size exceeds the 80 KB limit (`KIN-NET-001`).
+    /// the heartbeat is stale, or the payload size exceeds the 80 KB limit (`KIN-DHT-001`).
     pub fn put(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         self.put_record_internal(r, false)
     }
@@ -384,7 +387,7 @@ impl KineticRecordStore {
     ///
     /// # Errors
     ///
-    /// Returns a [`KineticStoreError`] if the payload size exceeds the maximum 80 KB limit (`KIN-NET-001`).
+    /// Returns a [`KineticStoreError`] if the payload size exceeds the maximum 80 KB limit (`KIN-DHT-001`).
     pub fn put_verified(&mut self, r: kad::Record) -> Result<(), KineticStoreError> {
         self.put_record_internal(r, true)
     }
@@ -403,7 +406,7 @@ impl KineticRecordStore {
         if r.value.len() > kinetic_core::constants::LIMITS_STORAGE_MAX_VALUE_BYTES {
             let err = KineticStoreError::PayloadTooLarge;
             tracing::warn!(
-                error_code = "KIN-KAD-016",
+                error_code = err.code(),
                 size = r.value.len(),
                 severity = ?err.severity(),
                 "Rejecting Kademlia record: {}", err
@@ -429,7 +432,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-KAD-051", severity = ?err.severity(), "Failed to parse Commitment schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse Commitment schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -444,7 +447,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-KAD-052", severity = ?err.severity(), "Failed to parse NameRecord schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse NameRecord schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -459,7 +462,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-KAD-053", severity = ?err.severity(), "Failed to parse Heartbeat schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse Heartbeat schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -476,7 +479,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-KAD-054", severity = ?err.severity(), "Failed to parse AuthorizedKid schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse AuthorizedKid schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -493,7 +496,7 @@ impl KineticRecordStore {
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-KAD-055", severity = ?err.severity(), "Failed to parse AuthorizedManifest schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse AuthorizedManifest schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -511,21 +514,21 @@ impl KineticRecordStore {
                                 );
                             }
                             Err(err) => {
-                                tracing::warn!(error_code = "KIN-KAD-021", host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);
+                                tracing::warn!(error_code = err.code(), host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);
                                 return Err(err);
                             }
                         }
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = "KIN-KAD-056", severity = ?err.severity(), "Failed to parse HostRoutingRecord schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse HostRoutingRecord schema: {}", e);
                         return Err(err);
                     }
                 }
             } else {
                 let err = KineticStoreError::UnknownRecordType;
                 tracing::warn!(
-                    error_code = "KIN-KAD-019",
+                    error_code = err.code(),
                     severity = ?err.severity(),
                     "Rejecting Kademlia record: {}", err
                 );
@@ -534,7 +537,7 @@ impl KineticRecordStore {
         } else {
             let err = KineticStoreError::MalformedJson;
             tracing::warn!(
-                error_code = "KIN-KAD-050",
+                error_code = err.code(),
                 severity = ?err.severity(),
                 "Rejecting Kademlia record due to malformed JSON: {}", err
             );

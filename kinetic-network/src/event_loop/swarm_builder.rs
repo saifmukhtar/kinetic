@@ -54,7 +54,8 @@ impl super::core::NetworkEventLoop {
                     .add_address(&peer_id, addr.clone());
             }
             if let Err(e) = swarm.dial(addr.clone()) {
-                tracing::warn!("Failed to dial bootstrap node {}: {:?}", addr, e);
+                let err = kinetic_core::error::P2pError::BootstrapDialFailed(addr.to_string(), format!("{:?}", e));
+                tracing::warn!(error_code = err.code(), "{}", err);
             } else {
                 tracing::info!("Dialing bootstrap node: {}", addr);
             }

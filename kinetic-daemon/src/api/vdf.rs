@@ -4,7 +4,6 @@ use super::*;
 use axum::{
     Json,
     extract::{Extension, Path, State},
-    http::StatusCode,
 };
 
 use serde::Deserialize;
@@ -39,27 +38,19 @@ pub async fn handle_vdf_register(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<VdfRegisterRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires VDF or Admin role"}),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
-    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
-        ));
-    }
+    kinetic_core::types::is_valid_apex_name(&fqdn)?;
+
     const MAX_USER_ITERATIONS: u64 = 10_000_000;
     if req.iterations.unwrap_or(0) > MAX_USER_ITERATIONS {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Iteration count exceeds maximum"})),
+        return Err(crate::api::error::AppError(
+            kinetic_core::error::VdfError::MaxIterationsExceeded.into(),
         ));
     }
     let task_id = uuid::Uuid::new_v4().to_string();
@@ -73,22 +64,17 @@ pub async fn handle_vdf_register(
             .filter(|t| t.progress < 100 && t.error.is_none())
             .count();
         if active_tasks >= 1 {
-            return Err((
-                StatusCode::CONFLICT,
-                Json(serde_json::json!({
-                    "error": "A VDF registration is already in progress. Please wait for it to complete."
-                })),
-            ));
+            return Err(kinetic_core::error::RegistrationError::AlreadyInProgress {
+                name: fqdn.clone(),
+            }
+            .into());
         }
 
         tasks.retain(|_, t| t.progress < 100 && t.error.is_none());
 
         if tasks.len() >= 50 {
-            return Err((
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(serde_json::json!({
-                    "error": "Too many concurrent VDF tasks. Please wait."
-                })),
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::VdfError::TooManyTasks.into(),
             ));
         }
 
@@ -273,9 +259,8 @@ pub async fn handle_vdf_register(
                     format!("Serialization failed in VDF task: {}", e),
                 );
                 tracing::error!(
-                    error_code = "KIN-DMN-026",
-                    "Serialization failed in VDF task: {}",
-                    e
+                    error = ?kinetic_core::error::NrsError::ParseError(e),
+                    "Serialization failed in VDF task"
                 );
                 return;
             }
@@ -312,9 +297,8 @@ pub async fn handle_vdf_register(
                     format!("Serialization failed in VDF task: {}", e),
                 );
                 tracing::error!(
-                    error_code = "KIN-DMN-026",
-                    "Serialization failed in VDF task: {}",
-                    e
+                    error = ?kinetic_core::error::NrsError::ParseError(e),
+                    "Serialization failed in VDF task"
                 );
                 return;
             }
@@ -360,9 +344,8 @@ pub async fn handle_vdf_register(
             && let Err(e) = std::fs::write(&path, s)
         {
             tracing::warn!(
-                error_code = "KIN-IMP-005",
-                "Failed to write zone file: {}",
-                e
+                error = ?kinetic_core::error::StorageError::WriteFailed(e.to_string()),
+                "Failed to write zone file"
             );
         }
 
@@ -384,38 +367,27 @@ pub async fn handle_vdf_renew(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<NameRenewRequest>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires VDF or Admin role"}),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&req.name);
-    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
-        ));
-    }
+    kinetic_core::types::is_valid_apex_name(&fqdn)?;
+
     const MAX_USER_ITERATIONS: u64 = 10_000_000;
     if req.iterations.unwrap_or(0) > MAX_USER_ITERATIONS {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Iteration count exceeds maximum"})),
+        return Err(crate::api::error::AppError(
+            kinetic_core::error::VdfError::MaxIterationsExceeded.into(),
         ));
     }
     let mut tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
 
     tasks.retain(|_, t| t.progress < 100 && t.error.is_none());
     if tasks.len() >= 50 {
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            Json(serde_json::json!({
-                "error": "Too many concurrent VDF tasks. Please wait."
-            })),
+        return Err(crate::api::error::AppError(
+            kinetic_core::error::VdfError::TooManyTasks.into(),
         ));
     }
 
@@ -454,6 +426,11 @@ pub async fn handle_vdf_renew(
             match serde_json::from_slice(&old_reveal_bytes) {
                 Ok(r) => r,
                 Err(e) => {
+                    tracing::error!(
+                        error = ?kinetic_core::error::StorageError::DeserializationFailed(e.to_string()),
+                        "{}",
+                        kinetic_core::error::StorageError::DeserializationFailed(e.to_string()).user_message()
+                    );
                     update_task_error(
                         &tasks_clone,
                         &task_id_clone,
@@ -713,9 +690,11 @@ pub async fn handle_vdf_status(
     Extension(role): Extension<Role>,
     Path(task_id): Path<String>,
     State(state): State<ApiState>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
-        return Err(StatusCode::FORBIDDEN);
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let task = {
         let tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
@@ -733,9 +712,11 @@ pub async fn handle_vdf_status_delete(
     Extension(role): Extension<Role>,
     Path(task_id): Path<String>,
     State(state): State<ApiState>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_vdf() {
-        return Err(StatusCode::FORBIDDEN);
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
     let removed = {
         let mut tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());

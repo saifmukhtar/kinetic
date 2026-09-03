@@ -15,14 +15,11 @@ pub async fn handle_atlas_sync(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
     Json(payload): Json<AtlasSyncPayload>,
-) -> axum::response::Response {
+) -> Result<String, crate::api::error::AppError> {
     if role != crate::api::Role::Atlas && !role.is_admin() {
-        return axum::response::Response::builder()
-            .status(axum::http::StatusCode::FORBIDDEN)
-            .body(axum::body::Body::from(
-                "Forbidden: Requires Atlas or Admin role",
-            ))
-            .unwrap();
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let mut clean_nsps = std::collections::HashSet::new();
@@ -49,17 +46,22 @@ pub async fn handle_atlas_sync(
             );
 
             // Return 200 OK
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::OK)
-                .body(axum::body::Body::from("Atlas NSPs synced successfully"))
-                .unwrap()
+            Ok("Atlas NSPs synced successfully".to_string())
         }
         Err(_) => {
-            tracing::error!("KIN-DMN-006: Failed to acquire write lock on atlas_nsps");
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-                .body(axum::body::Body::from("Internal Server Error"))
-                .unwrap()
+            let sys_err = kinetic_core::error::SystemError::MutexPoisoned("atlas_nsps".into());
+            tracing::error!(error = ?sys_err, "Failed to acquire write lock on atlas_nsps");
+            Err(crate::api::error::AppError(kinetic_core::ApiError {
+                error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+                title: "Internal Server Error".to_string(),
+                status: 500,
+                detail: sys_err.user_message(),
+                instance: None,
+                code: sys_err.code().to_string(),
+                retryable: sys_err.is_retryable(),
+                details: serde_json::Value::Null,
+                request_id: "".to_string(),
+            }))
         }
     }
 }

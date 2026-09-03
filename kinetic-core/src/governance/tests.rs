@@ -133,7 +133,7 @@ mod tests {
             process_governance_message(&mut state, &map_msg, map_msg.timestamp_kyn).unwrap_err();
         assert!(matches!(
             err,
-            crate::error::GovernanceError::InsufficientSignatures
+            crate::error::GovernanceError::InvalidSignature
         ));
 
         // Action 3: Map a name using the NEW root key (should succeed)

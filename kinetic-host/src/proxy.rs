@@ -2,6 +2,35 @@ use kinetic_network::{NetworkClient, ProxyRequest, ProxyResponse};
 
 use tracing::{info, warn};
 
+/// Errors related to the local host's proxying operations.
+#[derive(Debug)]
+pub enum HostProxyError {
+    /// Failed to forward a P2P request to the local backend web server.
+    /// The host's local web server is offline or rejecting connections.
+    LocalWebServerForwardingFailed(u16, String),
+}
+
+impl std::fmt::Display for HostProxyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LocalWebServerForwardingFailed(port, err) => {
+                write!(f, "Bad Gateway: Local web server not responding on port {}\nError: {}", port, err)
+            }
+        }
+    }
+}
+
+impl std::error::Error for HostProxyError {}
+
+impl HostProxyError {
+    /// Returns the stable protocol error code.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::LocalWebServerForwardingFailed(..) => "KIN-PRX-022",
+        }
+    }
+}
+
 /// Forwards a P2P proxy request to the local web server.
 ///
 /// Takes a `ProxyRequest` received from the DHT network and translates it into
@@ -56,9 +85,10 @@ pub async fn forward_request(
                 if let Ok(chunk) = chunk_res {
                     body.extend_from_slice(&chunk);
                     if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                        warn!("KIN-HST-007: Blocked oversized backend response from local web server");
+                        let err = kinetic_core::error::SecurityError::BackendResponseTooLarge;
+                        warn!(error_code = err.code(), "Blocked oversized backend response from local web server");
                         body.clear();
-                        body.extend_from_slice(b"Payload Too Large");
+                        body.extend_from_slice(format!("{}: {}", err.code(), err).as_bytes());
                         status = 502;
                         break;
                     }
@@ -72,16 +102,12 @@ pub async fn forward_request(
             }
         }
         Err(e) => {
-            warn!("KIN-HST-008: Failed to forward P2P request to local backend web server: {}", e);
+            let err = HostProxyError::LocalWebServerForwardingFailed(local_port, e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             ProxyResponse {
                 status: 502,
                 headers: Vec::new(),
-                body: format!(
-                    "Bad Gateway: Local web server not responding on port {}\nError: {}",
-                    local_port, e
-                )
-                .into_bytes()
-                .into(),
+                body: err.to_string().into_bytes().into(),
             }
         }
     }
@@ -125,14 +151,15 @@ pub async fn handle_incoming_proxy_requests(
                 .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
 
             if decoded_path.contains("..") || !decoded_path.starts_with('/') {
-                warn!("KIN-HST-009: Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
+                let err = kinetic_core::error::SecurityError::PathTraversalAttempt;
+                warn!(error_code = err.code(), "Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
                 let _ = client_clone
                     .send_proxy_response(
                         channel,
                         ProxyResponse {
                             status: 400,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"Bad Request: Invalid Path"),
+                            body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                         },
                     )
                     .await;
@@ -140,8 +167,10 @@ pub async fn handle_incoming_proxy_requests(
             }
 
             if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
+                let err = kinetic_core::error::SecurityError::PayloadTooLarge;
                 warn!(
-                    "KIN-HST-010: Blocked oversized incoming P2P proxy request payload ({} bytes)",
+                    error_code = err.code(),
+                    "Blocked oversized incoming P2P proxy request payload ({} bytes)",
                     req.body.len()
                 );
                 let _ = client_clone
@@ -150,7 +179,7 @@ pub async fn handle_incoming_proxy_requests(
                         ProxyResponse {
                             status: 413,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"Payload Too Large"),
+                            body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                         },
                     )
                     .await;

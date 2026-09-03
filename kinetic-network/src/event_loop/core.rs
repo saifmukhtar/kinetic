@@ -137,10 +137,8 @@ impl NetworkEventLoop {
         };
         self.bad_vdf_counts.put(source, new_val);
         if new_val.0 >= 3 {
-            tracing::warn!(
-                "Peer {} sent 3 invalid gossip messages within 60s — disconnecting and banning",
-                source
-            );
+            let err = kinetic_core::error::P2pError::GossipSpamBan(source.to_string());
+            tracing::warn!(error_code = err.code(), "{}", err);
             let expire_kyn = self.current_kyn + 28800;
             self.banned_peers.put(source, expire_kyn);
         }
@@ -163,10 +161,8 @@ impl NetworkEventLoop {
         for domain in &self.seed_domain {
             let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
             if addrs.is_empty() {
-                tracing::warn!(
-                    "Failed to resolve DNS TXT seed domain or found no multiaddrs: {}",
-                    domain
-                );
+                let err = kinetic_core::error::NrsError::SeedDomainResolutionFailed(domain.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
             }
             for multiaddr in addrs {
                 if self.swarm.dial(multiaddr.clone()).is_ok() {
@@ -221,7 +217,8 @@ impl NetworkEventLoop {
                     let info = self.swarm.network_info();
                     let num_peers = info.num_peers();
                     if num_peers == 0 {
-                        tracing::warn!("0 peers detected! Aggressively redialing bootstrap nodes to rejoin mesh...");
+                        let err = kinetic_core::error::P2pError::ZeroPeersDetected;
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         for addr in &self.bootstrap_nodes {
                             let _ = self.swarm.dial(addr.clone());
                         }
@@ -235,13 +232,15 @@ impl NetworkEventLoop {
                                 for domain in &domains {
                                     let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
                                     if addrs.is_empty() {
-                                        tracing::warn!("Failed to resolve DNS TXT seed domain or found no multiaddrs: {}", domain);
+                                        let err = kinetic_core::error::NrsError::SeedDomainResolutionFailed(domain.to_string());
+                                        tracing::warn!(error_code = err.code(), "{}", err);
                                     }
                                     for multiaddr in addrs {
                                         if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {
                                             let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
                                         } else {
-                                            tracing::warn!("Rejected unroutable DNS seed multiaddr: {}", multiaddr);
+                                            let err = kinetic_core::error::P2pError::UnroutableSeedMultiaddr(multiaddr.to_string());
+                                            tracing::warn!(error_code = err.code(), "{}", err);
                                         }
                                     }
                                 }
@@ -321,10 +320,8 @@ impl NetworkEventLoop {
                             self.bad_vdf_counts.put(source, new_val);
 
                             if new_val.0 >= 3 {
-                                tracing::warn!(
-                                    "Peer {} sent 3 invalid records within 60s — disconnecting and banning",
-                                    source
-                                );
+                                let err = kinetic_core::error::P2pError::RecordSpamBan(source.to_string());
+                                tracing::warn!(error_code = err.code(), "{}", err);
                                 let _ = self.swarm.disconnect_peer_id(source);
                                 let expire_kyn = self.current_kyn + 28800;
                                 self.banned_peers.put(source, expire_kyn);
@@ -406,19 +403,14 @@ impl NetworkEventLoop {
                     };
 
                     if self.light_nodes.len() >= 50 {
-                        tracing::warn!(
-                            "Light Node limit reached. Peer {} failed PoW, disconnecting them to prevent connection slot exhaustion",
-                            peer_id
-                        );
+                        let err = kinetic_core::error::P2pError::LightNodePowFailureLimit(peer_id.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
                     } else {
                         let count = self.light_node_ips.entry(identifier.clone()).or_insert(0);
                         if *count >= 3 {
-                            tracing::warn!(
-                                "Identifier {} exceeded limit of 3 light clients. Disconnecting peer {}.",
-                                identifier,
-                                peer_id
-                            );
+                            let err = kinetic_core::error::P2pError::LightNodeIdentityLimit(identifier.to_string(), peer_id.to_string());
+                            tracing::warn!(error_code = err.code(), "{}", err);
                             let _ = self.swarm.disconnect_peer_id(peer_id);
                         } else {
                             *count += 1;

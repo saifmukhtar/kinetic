@@ -116,15 +116,20 @@ pub fn start_gossip_processor(
                                         _ => {}
                                     }
                                 }
-
-                                let _ = state.save_to_disk(&gossip_gov_path);
+                                if let Err(e) = state.save_to_disk(&gossip_gov_path) {
+                                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                                }
                             }
                             Ok(None) => {
                                 is_valid = true;
                                 tracing::info!(
                                     "Governance state updated via gossip. No immediate effect."
                                 );
-                                let _ = state.save_to_disk(&gossip_gov_path);
+                                if let Err(e) = state.save_to_disk(&gossip_gov_path) {
+                                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                                    tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                                }
                             }
                             Err(e) => {
                                 tracing::debug!(
@@ -148,12 +153,25 @@ pub fn start_gossip_processor(
                         is_valid = tokio::task::spawn_blocking(move || kyn_clone.verify())
                             .await
                             .unwrap_or(false);
-                        if is_valid
-                            && let Ok(latest) = drand_client_gossip.load_cached_kyn()
-                            && (kyn.kyn > latest.kyn || latest.is_unavailable)
-                            && drand_client_gossip.cache_kyn(&kyn).is_ok()
-                        {
-                            let _ = kyn_tx_gossip.send(kyn.kyn);
+                        if is_valid {
+                            let latest_kyn = match drand_client_gossip.load_cached_kyn() {
+                                Ok(latest) => {
+                                    if latest.is_unavailable { 0 } else { latest.kyn }
+                                },
+                                Err(e) => {
+                                    if !matches!(e, kinetic_core::error::DrandError::NoCachedKyn) {
+                                        tracing::error!(error_code = e.code(), "Failed to load cached kyn in gossip handler: {}", e);
+                                    }
+                                    0
+                                }
+                            };
+
+                            if kyn.kyn > latest_kyn {
+                                if let Err(e) = drand_client_gossip.cache_kyn(&kyn) {
+                                    tracing::error!(error_code = e.code(), "Failed to cache drand kyn in gossip handler: {}", e);
+                                }
+                                let _ = kyn_tx_gossip.send(kyn.kyn);
+                            }
                         }
                     }
                     network_client.report_gossip(

@@ -63,11 +63,8 @@ impl KineticNrsHandler {
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_else(|e| {
-                tracing::warn!(
-                    error_code = "KIN-NRS-020",
-                    "Failed to build custom reqwest client ({}). Falling back to default",
-                    e
-                );
+                let err = kinetic_core::error::NrsError::DnsRequestFailed(e.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
                 reqwest::Client::new()
             });
 

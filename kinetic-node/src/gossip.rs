@@ -69,13 +69,19 @@ pub fn handle_governance_gossip(
                     }
                 }
                 tokio::task::spawn_blocking(move || {
-                    let _ = state_snapshot.save_to_disk(&gossip_gov_path);
+                    if let Err(e) = state_snapshot.save_to_disk(&gossip_gov_path) {
+                        let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                        tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                    }
                 });
             }
             Ok(None) => {
                 tracing::info!("Governance state updated via gossip. No immediate effect.");
                 tokio::task::spawn_blocking(move || {
-                    let _ = state_snapshot.save_to_disk(&gossip_gov_path);
+                    if let Err(e) = state_snapshot.save_to_disk(&gossip_gov_path) {
+                        let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                        tracing::error!(error_code = err.code(), "Failed to save modified governance state to disk: {}", e);
+                    }
                 });
             }
             Err(e) => {
@@ -85,21 +91,18 @@ pub fn handle_governance_gossip(
                 match e.severity() {
                     Severity::Info => tracing::info!(
                         error_code = code,
-                        "Governance gossip message rejected: {} ({})",
-                        msg,
-                        code
+                        "Governance gossip message rejected: {}",
+                        msg
                     ),
                     Severity::Warning => tracing::warn!(
                         error_code = code,
-                        "Governance gossip message rejected: {} ({})",
-                        msg,
-                        code
+                        "Governance gossip message rejected: {}",
+                        msg
                     ),
                     Severity::Error | Severity::Critical => tracing::error!(
                         error_code = code,
-                        "Governance gossip message rejected: {} ({})",
-                        msg,
-                        code
+                        "Governance gossip message rejected: {}",
+                        msg
                     ),
                 }
             }

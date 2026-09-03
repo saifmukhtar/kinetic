@@ -106,12 +106,9 @@ async fn main() -> Result<()> {
 
 async fn run_host() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
-        tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");
         tracing::error!(
-            "The network cannot boot in production mode with a bricked governance plane."
-        );
-        tracing::error!(
-            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
+            error_code = e.code(),
+            "FATAL: Network cannot boot with a bricked governance plane: {}",
             e
         );
         std::process::exit(1);
@@ -147,7 +144,8 @@ async fn run_host() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("Drand beacon unavailable on startup: {}", e);
+            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             RawKyn::unavailable()
         }
     };

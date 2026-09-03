@@ -24,57 +24,77 @@
 //! | `KIN-PUB-NNN` | [`PublishError`] | DHT record publishing |
 //! | `KIN-REG-NNN` | [`RegistrationError`] | Name registration flow |
 //! | `KIN-VDF-NNN` | `VdfError` | VDF engine operations |
-//! | `KIN-GOV-NNN` | `GovernanceError` | Council governance |
+//! | `KIN-ACN-NNN` | `GovernanceError` | Council governance |
 //! | `KIN-NRS-NNN` | `NrsError` | NRS zone parsing |
-//! | `KIN-DRA-NNN` | `DrandError` | Drand beacon |
+//! | `KIN-RND-NNN` | `DrandError` | Drand beacon |
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
 //! | `KIN-NAM-NNN` | `NamesError` | Name validation |
-//! | `KIN-DBE-NNN` | `StorageError` | Sled storage engine |
-//! | `KIN-NET-NNN` | `NetworkClientError` + `KineticStoreError` | P2P network client and store layer |
-//! | `KIN-SEC-NNN` | `SsrfError` | IP Server-Side Request Forgery filtering |
-//! | `KIN-SHU-NNN` | `ShutdownError` | Graceful daemon shutdown |
+//! | `KIN-DBE-NNN` | `StorageError` | Embedded storage engine |
+//! | `KIN-RPC-NNN` | `NetworkClientError` | P2P network client operations |
+//! | `KIN-P2P-NNN` | `P2pError` | Swarm, mesh, and peer management |
+//! | `KIN-PRX-NNN` | `ProxyError` (daemon/host) | Local HTTP proxy operations |
+//! | `KIN-DHT-NNN` | `KineticStoreError` | Distributed Hash Table store logic |
+//! | `KIN-SEC-NNN` | `SecurityError` | Proxy security exceptions and IP filtering |
+//! | `KIN-SYS-NNN` | `SystemError` | Operating System execution and shutdown |
 //! | `KIN-TEL-NNN` | `TelemetryError` | Tracing and correlation correlation IDs |
+//! | `KIN-GTW-NNN` | `GatewayError` | IPFS/Storage Gateway proxy errors |
+//! | `KIN-API-NNN` | `RestApiError` | REST API requests and HTTP framework |
+//! | `KIN-CFG-NNN` | `ConfigError` | Configuration parsing and persistence |
+//! | `KIN-KID-NNN` | `KidError` | KID document parsing and validation |
+//! | `KIN-VER-NNN` | `SignatureVerifyError`| Cryptographic signature verification |
+//! | `KIN-RVL-NNN` | `RevealValidationError`| Reveal payload parsing and verification |
 
 use thiserror::Error;
 
 /// Configuration parsing and persistence error types.
 pub mod config;
-/// DHT record rejection and resolution/publish/registration error types.
+/// REST API and HTTP framework error types.
+pub mod api;
+/// DHT name resolution error types.
 pub mod dht;
-/// Drand Quicknet kyn acquisition and verification error types.
-pub mod drand;
-/// Council governance and parameter-update error types.
-pub mod governance;
-/// Node identity and seed phrase error types.
-pub mod identity;
-/// Name validation error types (`KIN-NAM-NNN`).
+/// Name validation error types.
 pub mod names;
-/// libp2p network client error types.
+/// Drand random beacon error types.
+pub mod drand;
+/// VDF engine error types.
+pub mod vdf;
+/// Governance and consensus logic error types.
+pub mod governance;
+/// Node identity and key management error types.
+pub mod identity;
+/// P2P network client error types.
 pub mod network;
-/// NRS Zone parsing and validation error types.
+/// P2P Swarm and Mesh connection error types.
+pub mod p2p;
+/// NRS zone parsing and validation error types.
 pub mod nrs;
-/// Daemon shutdown signal error types.
-pub mod shutdown;
-/// SSRF security validation error types.
-pub mod ssrf;
-/// Sled storage engine error types.
+/// Operating System execution error types.
+pub mod system;
+/// Security validation error types.
+pub mod security;
+/// Embedded storage engine error types.
 pub mod storage;
 /// Telemetry and logging error types.
 pub mod telemetry;
-
-/// chiavdf Verifiable Delay Function error types.
-pub mod vdf;
+/// Gateway routing and fallback telemetry events.
+pub mod gateway;
 
 pub use config::ConfigError;
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};
 pub use drand::DrandError;
+pub use gateway::GatewayError;
 pub use governance::GovernanceError;
 pub use identity::IdentityError;
 pub use names::NamesError;
 pub use network::NetworkClientError;
 pub use nrs::NrsError;
+pub use p2p::P2pError;
+pub use security::SecurityError;
 pub use storage::StorageError;
+pub use system::SystemError;
+pub use telemetry::TelemetryError;
 pub use vdf::{VdfError, VdfRejectReason};
+pub use api::RestApiError;
 
 /// Top-level error type for core Kinetic protocol operations.
 ///
@@ -106,8 +126,8 @@ pub enum KineticError {
 
     /// An Ed25519 or ML-DSA-65 signature failed verification.
     ///
-    /// Ed25519 signatures are used for DHT record ownership (reveal records).
-    /// ML-DSA-65 signatures are used for the daemon identity and governance actions.
+    /// Ed25519 signatures are used for Libp2p transport identity and routing records.
+    /// ML-DSA-65 signatures are used for the daemon identity and payload authorization (NameRecord/Reveal).
     #[error("Signature verification failed")]
     InvalidSignature,
 
@@ -126,10 +146,10 @@ pub enum KineticError {
     #[error("Invalid Drand kyn: {0}")]
     InvalidDrandRound(String),
 
-    /// A storage operation in Sled failed.
+    /// A storage operation in the embedded database failed.
     ///
-    /// Wraps the underlying Sled error message as a string to avoid propagating
-    /// the sled crate type across the API boundary.
+    /// Wraps the underlying embedded database error message as a string to avoid propagating
+    /// the specific crate type across the API boundary.
     #[error("Storage layer error: {0}")]
     StorageError(String),
 

@@ -125,7 +125,11 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     } else {
         kinetic_core::config::get_base_dir()
     };
-    std::fs::create_dir_all(&base_config_dir)?;
+    if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
+        let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
+        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
+        return Err(e.into());
+    }
 
     println!("Generating root CA...");
     let _ = ca::load_or_create_root_ca(&base_config_dir)?;
@@ -157,7 +161,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     println!("Installing Kinetic Daemon service...");
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -182,7 +186,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
 fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
@@ -191,7 +195,7 @@ fn uninstall_service() -> Result<()> {
 fn start_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -200,7 +204,7 @@ fn start_background_service() -> Result<()> {
 fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -220,12 +224,9 @@ fn stop_background_service() -> Result<()> {
 /// Returns an `anyhow::Error` if any fundamental networking or storage components fail to bind/initialize.
 async fn run_daemon() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
-        tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");
         tracing::error!(
-            "The network cannot boot in production mode with a bricked governance plane."
-        );
-        tracing::error!(
-            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {:?}",
+            error_code = e.code(),
+            "FATAL: Network cannot boot with a bricked governance plane: {}",
             e
         );
         std::process::exit(1);
@@ -238,11 +239,15 @@ async fn run_daemon() -> Result<()> {
         || config.daemon.backend_port == config.daemon.nrs_port
         || config.daemon.backend_port == config.network.daemon_port
     {
+        let err = kinetic_core::error::ConfigError::BackendPortCollision;
         tracing::error!(
+            error_code = err.code(),
             "FATAL: config.daemon.backend_port ({}) conflicts with an internal daemon port!",
             config.daemon.backend_port
         );
+        let err2 = kinetic_core::error::ConfigError::BackendPortSsrfRisk;
         tracing::error!(
+            error_code = err2.code(),
             "This opens the node to infinite loops and SSRF proxy exploits. Please change backend_port in config.toml."
         );
         std::process::exit(1);
@@ -261,14 +266,20 @@ async fn run_daemon() -> Result<()> {
         .daemon
         .storage_dir
         .to_str()
-        .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 path in storage_dir"))?;
+        .ok_or_else(|| anyhow::Error::from(kinetic_core::error::SystemError::InvalidOsEnvironment("Invalid UTF-8 path in storage_dir".into())))?;
     let storage = Arc::new(KineticStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(RsaVdfEngine::new());
     info!("VDF Engine initialized");
 
-    let daemon_keypair = load_keypair(std::path::Path::new("identity.key"))?;
+    let daemon_keypair = match load_keypair(std::path::Path::new("identity.key")) {
+        Ok(k) => k,
+        Err(e) => {
+            tracing::error!(error_code = e.code(), "CRITICAL: Daemon failed to load identity: {}", e);
+            return Err(e.into());
+        }
+    };
     info!(
         "Daemon identity loaded: {:?}",
         hex::encode(daemon_keypair.pubkey_bytes())
@@ -281,8 +292,10 @@ async fn run_daemon() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("Drand beacon unavailable on startup: {}", e);
-            warn!("P2P swarm and proxy will start — registration disabled until beacon reachable");
+            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
+            let err2 = kinetic_core::error::DrandError::RegistrationDisabled;
+            warn!(error_code = err2.code(), "{}", err2);
             kinetic_core::drand::RawKyn::unavailable()
         }
     };
@@ -291,7 +304,10 @@ async fn run_daemon() -> Result<()> {
     // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately
     // without having to wait for the 30-40 second PoW mining loop to finish.
     if let Err(e) = kinetic_daemon::api::ensure_api_tokens() {
-        tracing::error!("Failed to generate or read API tokens: {}", e);
+        tracing::error!(
+            error = ?kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string()),
+            "Failed to generate or read API tokens"
+        );
         std::process::exit(1);
     }
 
@@ -359,7 +375,11 @@ async fn run_daemon() -> Result<()> {
     };
 
     let base_config_dir = kinetic_core::config::get_base_dir();
-    std::fs::create_dir_all(&base_config_dir)?;
+    if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
+        let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
+        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
+        return Err(e.into());
+    }
 
     let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
         .map(std::path::PathBuf::from)
@@ -417,7 +437,10 @@ async fn run_daemon() -> Result<()> {
                     }
 
                     if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
-                        tracing::warn!("Failed to save downloaded governance state to disk: {}", e);
+                        tracing::warn!(
+                            error = ?kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string()),
+                            "Failed to save downloaded governance state to disk"
+                        );
                     } else {
                         tracing::info!(
                             "Successfully bootstrapped governance state from seed node."
@@ -426,15 +449,15 @@ async fn run_daemon() -> Result<()> {
                         break;
                     }
                 } else {
-                    tracing::warn!("Seed node provided invalid governance state bytes.");
+                    let err = kinetic_core::error::GovernanceError::InvalidSeedState;
+                    tracing::warn!(error_code = err.code(), "{}", err);
                 }
             }
         }
 
         if !success {
-            tracing::warn!(
-                "Failed to fetch governance state from any bootstrap node. Initializing a default genesis state."
-            );
+            let err = kinetic_core::error::GovernanceError::BootstrapFetchFailed;
+            tracing::warn!(error_code = err.code(), "{}", err);
         }
     }
 
@@ -442,7 +465,7 @@ async fn run_daemon() -> Result<()> {
     {
         let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
-            .map_err(|e| anyhow::anyhow!("KIN-DMN-005: Governance state lock poisoned: {}", e))?;
+            .map_err(|e| anyhow::Error::from(kinetic_core::error::SystemError::MutexPoisoned(e.to_string())))?;
         *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
     }
 
@@ -503,12 +526,19 @@ async fn run_daemon() -> Result<()> {
     );
 
     let base_config_dir = kinetic_core::config::get_base_dir();
-    std::fs::create_dir_all(&base_config_dir)?;
+    if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
+        let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
+        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
+        return Err(e.into());
+    }
 
     let root_ca = match ca::load_or_create_root_ca(&base_config_dir) {
         Ok((root_ca, _is_new)) => std::sync::Arc::new(root_ca),
         Err(e) => {
-            tracing::error!("KIN-DMN-001: Failed to initialize Root CA: {}", e);
+            tracing::error!(
+                error = ?kinetic_core::error::SystemError::TrustInstallationFailed(e.to_string()),
+                "Failed to initialize Root CA"
+            );
             return Err(anyhow::anyhow!("CA Init Failed: {}", e));
         }
     };
@@ -530,7 +560,10 @@ async fn run_daemon() -> Result<()> {
         )
         .await
         {
-            tracing::error!("KIN-DMN-002: Proxy server crashed: {}", e);
+            tracing::error!(
+                error = ?kinetic_core::error::SystemError::ServerCrashed(e.to_string()),
+                "Proxy server crashed"
+            );
         }
     });
 
@@ -630,19 +663,29 @@ async fn run_daemon() -> Result<()> {
                         config.daemon.nrs_port
                     );
                     if let Err(e) = server.block_until_done().await {
-                        tracing::error!("KIN-DMN-003: DNS Server error: {}", e);
+                        tracing::error!(
+                            error = ?kinetic_core::error::SystemError::ServerCrashed(e.to_string()),
+                            "DNS Server error"
+                        );
                     }
                 });
             }
             (Err(e), _) | (_, Err(e)) => {
-                tracing::error!("KIN-DMN-006: Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}", config.daemon.nrs_port, e);
+                tracing::error!(
+                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", config.daemon.bind_ip, config.daemon.nrs_port)),
+                    "Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}",
+                    config.daemon.nrs_port, e
+                );
             }
         }
     }
 
     tokio::select! {
         res = api_future => {
-            tracing::error!("KIN-DMN-004: API Server exited unexpectedly: {:?}", res);
+            tracing::error!(
+                error = ?kinetic_core::error::SystemError::ServerCrashed(format!("{:?}", res)),
+                "API Server exited unexpectedly"
+            );
         },
         _ = kinetic_core::shutdown::shutdown_signal() => {
             info!("Shutdown signal received. Commencing graceful shutdown...");

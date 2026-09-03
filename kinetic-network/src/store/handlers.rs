@@ -32,7 +32,7 @@ impl KineticRecordStore {
 
             if effective_age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
                 let err = KineticStoreError::VdfExpired { age: effective_age };
-                err.log_warning("KIN-KAD-001", record.name(), "Rejecting Record:");
+                err.log_warning(record.name(), "Rejecting Record:");
                 return Err(err);
             }
         }
@@ -46,7 +46,7 @@ impl KineticRecordStore {
                 &self.vdf_engine,
             )
         {
-            e.log_warning("KIN-KAD-002", record.name(), "Rejecting Reveal:");
+            e.log_warning(record.name(), "Rejecting Reveal:");
             return Err(e);
         }
 
@@ -68,7 +68,7 @@ impl KineticRecordStore {
                     ) => (existing, new),
                     _ => {
                         let err = KineticStoreError::ImmutableName;
-                        err.log_warning("KIN-KAD-041", record.name(), "Rejecting Steal:");
+                        err.log_warning(record.name(), "Rejecting Steal:");
                         return Err(err);
                     }
                 };
@@ -109,7 +109,6 @@ impl KineticRecordStore {
                     if dist_new > dist_existing {
                         let err = KineticStoreError::TieBroken;
                         err.log_warning(
-                            "KIN-KAD-004",
                             &new_reveal.name,
                             "Rejecting Steal Reveal:",
                         );
@@ -122,7 +121,7 @@ impl KineticRecordStore {
                     }
                 } else if new_reveal.iterations < steal_threshold {
                     let err = KineticStoreError::InsufficientIterations;
-                    err.log_warning("KIN-KAD-005", &new_reveal.name, "Rejecting Steal Reveal:");
+                    err.log_warning(&new_reveal.name, "Rejecting Steal Reveal:");
                     return Err(err);
                 } else {
                     tracing::info!(
@@ -181,7 +180,7 @@ impl KineticRecordStore {
 
                 if new_pulse < existing_pulse {
                     let err = KineticStoreError::StaleReveal;
-                    err.log_warning("KIN-KAD-042", record.name(), "Rejecting Replayed Reveal:");
+                    err.log_warning(record.name(), "Rejecting Replayed Reveal:");
                     return Err(err);
                 } else if record.payload() == existing_record.payload()
                     && record.signature() == existing_record.signature()
@@ -205,7 +204,6 @@ impl KineticRecordStore {
                             _ => KineticStoreError::InvalidSignature,
                         };
                         err.log_warning(
-                            "KIN-KAD-015",
                             record.name(),
                             "Rejecting updated record due to invalid signature:",
                         );
@@ -230,7 +228,6 @@ impl KineticRecordStore {
                     _ => KineticStoreError::InvalidSignature,
                 };
                 err.log_warning(
-                    "KIN-KAD-015",
                     record.name(),
                     "Rejecting new record due to invalid signature:",
                 );
@@ -254,7 +251,7 @@ impl KineticRecordStore {
         }
         if deque.len() >= self.max_reveals_per_hour {
             let err = KineticStoreError::RateLimited;
-            err.log_warning("KIN-KAD-043", name, "Rejecting Reveal:");
+            err.log_warning(name, "Rejecting Reveal:");
             return Err(err);
         }
         deque.push_back(now);
@@ -314,7 +311,7 @@ impl KineticRecordStore {
 
         if heartbeat.latest_kyn < existing_pulse {
             let err = KineticStoreError::StaleHeartbeat;
-            err.log_warning("KIN-KAD-020", &heartbeat.name, "Rejecting Heartbeat:");
+            err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
             return Err(err);
         }
 
@@ -322,7 +319,7 @@ impl KineticRecordStore {
             Some(r) => r,
             None => {
                 let err = KineticStoreError::RevealNotFound;
-                err.log_warning("KIN-KAD-012", &heartbeat.name, "Rejecting Heartbeat:");
+                err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
                 return Err(err);
             }
         };
@@ -335,7 +332,7 @@ impl KineticRecordStore {
                 &auth.owner_signature,
             ).is_err() {
                 let err = KineticStoreError::DelegatedAuthorizationInvalid;
-                err.log_warning("KIN-KAD-045", &heartbeat.name, "Rejecting Heartbeat:");
+                err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
                 return Err(err);
             }
 
@@ -346,13 +343,13 @@ impl KineticRecordStore {
                 .any(|s| s.service_type == "kinetic.capability.heartbeat");
             if !has_cap {
                 let err = KineticStoreError::DelegatedCapabilityMissing;
-                err.log_warning("KIN-KAD-022", &heartbeat.name, "Rejecting Heartbeat:");
+                err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
                 return Err(err);
             }
 
             let kid_doc = auth.kid_doc.as_ref().ok_or_else(|| {
                 let err = KineticStoreError::MissingKidDocument;
-                err.log_warning("KIN-KAD-046", &heartbeat.name, "Rejecting Heartbeat:");
+                err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
                 err
             })?;
 
@@ -378,14 +375,13 @@ impl KineticRecordStore {
 
         if !is_valid_signature {
             let err = KineticStoreError::InvalidSignature;
-            err.log_warning("KIN-KAD-015", &heartbeat.name, "Rejecting Heartbeat:");
+            err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
             return Err(err);
         }
 
         if heartbeat.latest_kyn > self.current_kyn + 2 {
             let err = KineticStoreError::FutureHeartbeat;
             err.log_warning(
-                "KIN-KAD-047",
                 &heartbeat.name,
                 "Rejecting Heartbeat: future-dated:",
             );

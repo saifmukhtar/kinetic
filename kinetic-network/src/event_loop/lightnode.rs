@@ -171,10 +171,8 @@ pub(crate) fn build_light_swarm(
                         libp2p::swarm::behaviour::toggle::Toggle::from(Some(behaviour))
                     }
                     Err(e) => {
-                        tracing::warn!(
-                            "Failed to bind mDNS: {}. Local peer discovery disabled.",
-                            e
-                        );
+                        let err = kinetic_core::error::P2pError::MdnsBindFailed(e.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         libp2p::swarm::behaviour::toggle::Toggle::from(None)
                     }
                 }

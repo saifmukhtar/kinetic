@@ -63,7 +63,7 @@ fn install_service() -> Result<()> {
     println!("Installing Kinetic Node service...");
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -86,7 +86,7 @@ fn install_service() -> Result<()> {
 fn uninstall_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
@@ -95,7 +95,7 @@ fn uninstall_service() -> Result<()> {
 fn start_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -104,7 +104,7 @@ fn start_background_service() -> Result<()> {
 fn stop_background_service() -> Result<()> {
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
     let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::anyhow!("Failed to detect native service manager"))?;
+        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -148,15 +148,10 @@ async fn main() -> Result<()> {
 /// Returns an `anyhow::Error` if fundamental networking, storage, or key generation fails.
 async fn run_node() -> Result<()> {
     if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
-        tracing::error!("FATAL: Governance keys are not initialized (using placeholders).");
-        tracing::error!(
-            "The network cannot boot in production mode with a bricked governance plane."
-        );
         tracing::error!(
             error_code = e.code(),
-            "Please generate and configure production keys in kinetic-core/src/constants.rs. Error: {} ({})",
-            e.user_message(),
-            e.code()
+            "FATAL: Network cannot boot with a bricked governance plane: {}",
+            e
         );
         std::process::exit(1);
     }
@@ -192,7 +187,8 @@ async fn run_node() -> Result<()> {
             kyn
         }
         Err(e) => {
-            warn!("Drand beacon unavailable on startup: {}", e);
+            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             RawKyn::unavailable()
         }
     };
@@ -288,7 +284,10 @@ async fn run_node() -> Result<()> {
 
     tokio::spawn(async move {
         network_loop.run().await;
-        tracing::warn!("Network loop exited");
+        tracing::warn!(
+            error = ?kinetic_core::error::SystemError::ServerCrashed("Network loop exited".into()),
+            "Network loop exited"
+        );
     });
 
     // Subscribe to Global Gossip
@@ -339,14 +338,29 @@ async fn run_node() -> Result<()> {
                         Some(gossip_storage.clone()),
                         current_kyn,
                     );
-                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8
-                    && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
-                    && kyn.verify()
-                    && let Ok(latest) = drand_client_gossip.load_cached_kyn()
-                    && (kyn.kyn > latest.kyn || latest.is_unavailable)
-                    && drand_client_gossip.cache_kyn(&kyn).is_ok()
-                {
-                    let _ = kyn_tx_gossip.send(kyn.kyn);
+                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
+                    if let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload) {
+                        if kyn.verify() {
+                            let latest_kyn = match drand_client_gossip.load_cached_kyn() {
+                                Ok(latest) => {
+                                    if latest.is_unavailable { 0 } else { latest.kyn }
+                                },
+                                Err(e) => {
+                                    if !matches!(e, kinetic_core::error::DrandError::NoCachedKyn) {
+                                        tracing::error!(error_code = e.code(), "Failed to load cached kyn in node gossip handler: {}", e);
+                                    }
+                                    0
+                                }
+                            };
+
+                            if kyn.kyn > latest_kyn {
+                                if let Err(e) = drand_client_gossip.cache_kyn(&kyn) {
+                                    tracing::error!(error_code = e.code(), "Failed to cache drand kyn in node gossip handler: {}", e);
+                                }
+                                let _ = kyn_tx_gossip.send(kyn.kyn);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -375,10 +389,8 @@ async fn run_node() -> Result<()> {
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if estimated_kyn > latest.kyn + 5 {
-                        tracing::warn!(
-                            "P2P Drand fallback triggered! We are behind by {} kyns.",
-                            estimated_kyn.saturating_sub(latest.kyn)
-                        );
+                        let err = kinetic_core::error::DrandError::P2pFallbackTriggered { behind: estimated_kyn.saturating_sub(latest.kyn) };
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
                     }
                 } else {

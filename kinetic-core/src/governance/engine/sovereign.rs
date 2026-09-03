@@ -21,7 +21,7 @@ impl GovernanceEngine for SovereignEngine {
     ///
     /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds [`crate::constants::MAX_AGE_KYNS`].
     /// - Returns [`GovernanceError::InvalidPrimeLength`] if a prime name is not 1 character.
-    /// - Returns [`GovernanceError::InsufficientSignatures`] if the Root key signature is missing or invalid.
+    /// - Returns [`GovernanceError::InvalidSignature`] if the Root key signature is missing or invalid.
     fn verify_action(
         &self,
         state: &mut GovernanceState,
@@ -123,7 +123,7 @@ impl GovernanceEngine for SovereignEngine {
             return Ok(Some(effect));
         }
 
-        Err(GovernanceError::InsufficientSignatures)
+        Err(GovernanceError::InvalidSignature)
     }
 
     fn execute_action(

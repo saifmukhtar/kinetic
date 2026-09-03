@@ -5,8 +5,9 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use crate::error::{
-    DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError,
-    NrsError, PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
+    DrandError, GovernanceError, IdentityError, NamesError, NetworkClientError, NrsError, P2pError,
+    PublishError, RegistrationError, ResolutionError, StorageError, VdfError, ConfigError,
+    vdf::RevealValidationError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +44,7 @@ impl ApiError {
     }
 }
 
-fn current_request_id() -> String {
+pub(crate) fn current_request_id() -> String {
     crate::request_id::current().to_string()
 }
 
@@ -58,6 +59,7 @@ impl From<ResolutionError> for ApiError {
             ResolutionError::Expired { .. } => (410, "Registration Expired"),
             ResolutionError::Timeout { .. } => (504, "Resolution Timeout"),
             ResolutionError::Internal { .. } => (500, "Internal Resolution Error"),
+            ResolutionError::SignatureVerificationFailed(_) => (403, "Signature Spoofed"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -82,6 +84,11 @@ impl From<PublishError> for ApiError {
             PublishError::AllFailed { .. } => (503, "Publish Failed"),
             PublishError::Rejected(_) => (422, "Publish Rejected"),
             PublishError::Internal { .. } => (500, "Internal Publish Error"),
+            PublishError::QuorumFailed(..) | PublishError::CommitmentQuorumFailed(..) => (503, "Quorum Failed"),
+            PublishError::QuorumCheckError(..) | PublishError::CommitmentQuorumCheckError(..) => (503, "Quorum Check Failed"),
+            PublishError::ZonePublishFailed(_) | PublishError::CommitmentPublishFailed(_) | PublishError::KidPublishFailed(_) | PublishError::ManifestPublishFailed(_) | PublishError::HostRoutingRecordPublishFailed(_) => (502, "DHT Publish Failed"),
+            PublishError::MissingLocalRevealForKid(_) | PublishError::MissingLocalRevealForManifest(_) => (404, "Missing Local Reveal"),
+            PublishError::ZoneSerializationFailed(_) => (500, "Serialization Failed"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -107,6 +114,7 @@ impl From<RegistrationError> for ApiError {
             RegistrationError::AlreadyInProgress { .. } => (409, "Registration In Progress"),
             RegistrationError::NetworkRejected { .. } => (422, "Registration Rejected"),
             RegistrationError::Internal { .. } => (500, "Internal Registration Error"),
+            RegistrationError::NotRegisteredLocal { .. } => (404, "Not Found"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -125,18 +133,21 @@ impl From<RegistrationError> for ApiError {
 impl From<GovernanceError> for ApiError {
     fn from(e: GovernanceError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            GovernanceError::MissingRootKey | GovernanceError::MalformedRootKey => {
-                (500, "Configuration Error")
+            GovernanceError::MissingRootKey | GovernanceError::MalformedRootKey | GovernanceError::StateCorrupted => {
+                (500, "Internal Server Error")
             }
-            GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
-            GovernanceError::InsufficientSignatures => (401, "Unauthorized"),
             GovernanceError::GovernanceDisabled => (403, "Forbidden"),
+            GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
             GovernanceError::KeyLengthMismatch
+            | GovernanceError::InvalidSignature
             | GovernanceError::InvalidPrimeLength
             | GovernanceError::InvalidProtocolName
             | GovernanceError::AlreadyMapped
             | GovernanceError::NotMapped
-            | GovernanceError::UnnormalizedName => (400, "Bad Request"),
+            | GovernanceError::UnnormalizedName
+            | GovernanceError::InvalidSeedState => (400, "Bad Request"),
+            GovernanceError::StateSaveFailed | GovernanceError::StateReadFailed => (500, "Internal Server Error"),
+            GovernanceError::P2pPublishFailed | GovernanceError::BootstrapFetchFailed => (502, "Bad Gateway"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -155,16 +166,13 @@ impl From<GovernanceError> for ApiError {
 impl From<NetworkClientError> for ApiError {
     fn from(e: NetworkClientError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            NetworkClientError::Timeout | NetworkClientError::StreamDropped => {
-                (504, "Gateway Timeout")
-            }
+            NetworkClientError::Timeout => (504, "Gateway Timeout"),
             NetworkClientError::Offline | NetworkClientError::RoutingTableEmpty => {
                 (503, "Service Unavailable")
             }
-            NetworkClientError::ChannelClosed
-            | NetworkClientError::StoreError(_)
-            | NetworkClientError::Other(_) => (500, "Internal Server Error"),
-            NetworkClientError::UnsupportedProtocol => (501, "Not Implemented"),
+            NetworkClientError::ChannelClosed | NetworkClientError::Other(_) => {
+                (500, "Internal Server Error")
+            }
             NetworkClientError::GossipSubError(_) => (502, "Bad Gateway"),
         };
         ApiError {
@@ -186,11 +194,13 @@ impl From<StorageError> for ApiError {
         let (status, title): (u16, &'static str) = match &e {
             StorageError::DatabaseLocked => (423, "Locked"),
             StorageError::Corruption(_) => (500, "Storage Corruption"),
+            StorageError::DeserializationFailed(_) => (500, "Storage Deserialization Failed"),
             StorageError::ReadFailed(_)
             | StorageError::WriteFailed(_)
             | StorageError::DeleteFailed(_)
             | StorageError::ScanFailed(_)
             | StorageError::OpenFailed(_) => (500, "Storage Operation Failed"),
+            StorageError::InvalidRecordDiscarded | StorageError::OrphanedHeartbeatPurged => (500, "Storage Consistency Warning"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -218,6 +228,8 @@ impl From<VdfError> for ApiError {
             VdfError::UnsupportedPlatform => (501, "Not Implemented"),
             VdfError::InvalidProof => (400, "Bad Request"),
             VdfError::InvalidChallenge => (400, "Bad Request"),
+            VdfError::MaxIterationsExceeded => (400, "Bad Request"),
+            VdfError::TooManyTasks => (429, "Too Many Requests"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -239,12 +251,17 @@ impl From<DrandError> for ApiError {
             DrandError::AllEndpointsFailed
             | DrandError::StreamReadFailed(_)
             | DrandError::ResponseTooLarge(_)
-            | DrandError::Reqwest(_)
+            | DrandError::HttpClient(_)
             | DrandError::HttpError(_) => (502, "Bad Gateway"),
             DrandError::NoCachedKyn => (404, "Not Found"),
             DrandError::Serde(_) | DrandError::Storage(_) => (500, "Internal Server Error"),
             DrandError::InvalidSignature => (422, "Cryptographic Verification Failed"),
             DrandError::StaleKyn { .. } => (400, "Stale Network Kyn"),
+            DrandError::UnavailableOnStartup(_) => (503, "Service Unavailable"),
+            DrandError::P2pFallbackTriggered { .. } => (503, "P2P Fallback Active"),
+            DrandError::DevModeMockKyn => (200, "Dev Mode Mock"),
+            DrandError::RegistrationDisabled => (503, "Registration Disabled"),
+            DrandError::LiveFetchFailedFallback => (502, "Live Fetch Failed"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -260,12 +277,26 @@ impl From<DrandError> for ApiError {
     }
 }
 
+impl From<P2pError> for ApiError {
+    fn from(e: P2pError) -> Self {
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: "Service Unavailable".to_string(),
+            status: 503,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
 impl From<NrsError> for ApiError {
     fn from(e: NrsError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            NrsError::NestedTooDeeply
-            | NrsError::ParseError(_)
-            | NrsError::TooManyRecords
+            NrsError::TooManyRecords
             | NrsError::InvalidLabelLength(_)
             | NrsError::InvalidLabelCharacters(_)
             | NrsError::InvalidCnameConfiguration(_)
@@ -274,7 +305,16 @@ impl From<NrsError> for ApiError {
             | NrsError::InvalidPeerId(_)
             | NrsError::InvalidKid(_)
             | NrsError::InvalidIpfsCid(_)
+            | NrsError::ParseError(_)
             | NrsError::MultipleCnames(_) => (400, "Bad Request"),
+            NrsError::UpstreamResolveError(_)
+            | NrsError::DnsRequestFailed(_)
+            | NrsError::NrsServerExecutionError(_)
+            | NrsError::SeedDomainResolutionFailed(_)
+            | NrsError::DnsResolverInitFailed(_)
+            | NrsError::DnsLookupFailed { .. }
+            | NrsError::Web2BridgeResolveFailed { .. }
+            | NrsError::Web2BridgeNoIpsFound(_) => (502, "Bad Gateway"),
         };
         ApiError {
             error_type: e.error_type_uri(),
@@ -295,8 +335,7 @@ impl From<IdentityError> for ApiError {
         let (status, title): (u16, &'static str) = match &e {
             IdentityError::Io(_)
             | IdentityError::CorruptedIdentityFile(_)
-            | IdentityError::KidSigningFailed(_)
-            | IdentityError::Json(_) => (500, "Internal Server Error"),
+            | IdentityError::KidSigningFailed(_) => (500, "Internal Server Error"),
             IdentityError::IdentityNotFound(_) | IdentityError::KidNotFound(_) => {
                 (404, "Not Found")
             }
@@ -305,6 +344,7 @@ impl From<IdentityError> for ApiError {
             }
             IdentityError::DecryptionFailed(_) => (401, "Unauthorized"),
             IdentityError::KidAlreadyExists(_) => (409, "Conflict"),
+            IdentityError::PubkeyMismatch(_) => (409, "Conflict"),
             IdentityError::InvalidRotation(_) => (422, "Unprocessable Entity"),
             IdentityError::KidDeactivated(_) => (410, "Gone"),
             IdentityError::SerializationFailed(_) | IdentityError::ManifestSigningFailed(_) => {
@@ -371,5 +411,41 @@ mod tests {
         // Test crypto consistency (Invalid Proof should be 422, not 400)
         let pub_err = PublishError::InvalidProof(crate::error::VdfRejectReason::MalformedProof);
         assert_eq!(ApiError::from(pub_err).status, 422);
+    }
+}
+
+impl From<ConfigError> for ApiError {
+    fn from(e: ConfigError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            ConfigError::InvalidApiUpdate(_) => (400, "Bad Request"),
+            _ => (500, "Internal Configuration Error"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.to_string(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<RevealValidationError> for ApiError {
+    fn from(e: RevealValidationError) -> Self {
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: "Invalid Reveal".to_string(),
+            status: 400,
+            detail: e.to_string(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: false,
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
     }
 }

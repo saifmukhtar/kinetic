@@ -86,11 +86,15 @@ impl super::core::NetworkEventLoop {
                                     let _ = responder.send(Ok(payload.clone()));
                                 }
                             } else {
+                                let err = kinetic_core::error::ResolutionError::NotFound {
+                                    name: name_clean.clone(),
+                                    peers_queried: peers_q,
+                                };
                                 tracing::warn!(
-                                    error_code = "KIN-QRY-002",
+                                    error_code = err.code(),
                                     name = %name_clean,
                                     peers_queried = %peers_q,
-                                    "DHT resolution: name not found in network or local cache"
+                                    "{}", err
                                 );
                                 for responder in p.responders {
                                     let _ = responder.send(Err(ResolutionError::NotFound {
@@ -111,17 +115,10 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
-                let now = web_time::SystemTime::now()
-                    .duration_since(web_time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-
                 if let Some(&expire_time) = self.banned_peers.peek(&peer_id) {
-                    if expire_time > now {
-                        tracing::warn!(
-                            "Banned peer {} attempted to connect, disconnecting immediately.",
-                            peer_id
-                        );
+                    if expire_time > self.current_kyn {
+                        let err = kinetic_core::error::P2pError::BannedPeerConnectionAttempt(peer_id.to_string());
+                        tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
                         return;
                     } else {
@@ -242,10 +239,8 @@ impl super::core::NetworkEventLoop {
                     && let Some(conn_time) = self.bootstrap_connection_time.get(&peer_id)
                     && conn_time.elapsed() > web_time::Duration::from_secs(24 * 3600)
                 {
-                    tracing::warn!(
-                        "Bootstrap peer {} failed to provide valid PoW after 24 hours. Disconnecting.",
-                        peer_id
-                    );
+                    let err = kinetic_core::error::P2pError::BootstrapPowTimeout(peer_id.to_string());
+                    tracing::warn!(error_code = err.code(), "{}", err);
                     let _ = self.swarm.disconnect_peer_id(peer_id);
                     return;
                 }
@@ -291,11 +286,8 @@ impl super::core::NetworkEventLoop {
                 }
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                tracing::warn!(
-                    "Outgoing connection error to peer {:?}: {:?}",
-                    peer_id,
-                    error
-                );
+                let err = kinetic_core::error::P2pError::OutgoingConnectionError(format!("{:?}", peer_id), format!("{:?}", error));
+                tracing::warn!(error_code = err.code(), "{}", err);
                 if let Some(peer_id) = peer_id {
                     self.swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
                 }

@@ -17,11 +17,8 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
         let _permit = match semaphore.try_acquire_owned() {
             Ok(p) => p,
             Err(_) => {
-                tracing::warn!(
-                    "Gossip semaphore saturated — dropping message from {} on topic {}",
-                    propagation_source,
-                    topic
-                );
+                let err = kinetic_core::error::P2pError::GossipSemaphoreSaturated(propagation_source.to_string(), topic.to_string());
+                tracing::warn!(error_code = err.code(), "{}", err);
                 if let Some(tx) = &event_loop.loopback_tx {
                     let _ = tx.send(
                         crate::event_loop::core::LoopbackCommand::CommitGossipValidation {

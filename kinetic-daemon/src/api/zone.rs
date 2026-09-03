@@ -4,7 +4,6 @@ use super::*;
 use axum::{
     Json,
     extract::{Extension, Path, State},
-    http::StatusCode,
 };
 
 /// Represents the status of a reserved name in the local network configuration.
@@ -17,7 +16,7 @@ pub struct ReservedNameStatus {
 }
 
 /// Handles API requests to get the list of reserved names and their active local status.
-pub async fn handle_get_reserved_names() -> Result<Json<Vec<ReservedNameStatus>>, StatusCode> {
+pub async fn handle_get_reserved_names() -> Result<Json<Vec<ReservedNameStatus>>, crate::api::error::AppError> {
     let local_dir = kinetic_core::config::get_zones_dir().join("local");
 
     let mut statuses = Vec::new();
@@ -39,31 +38,23 @@ pub async fn handle_get_reserved_names() -> Result<Json<Vec<ReservedNameStatus>>
 /// Returns an error if the zone file does not exist or has an invalid format.
 pub async fn handle_get_zone(
     Path(name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     let fqdn = kinetic_core::types::normalize_name(&name);
-    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
-        ));
-    }
+    kinetic_core::types::is_valid_apex_name(&fqdn)?;
+    
     let path = kinetic_core::config::get_zones_dir().join(format!("{}.json", fqdn));
     if let Ok(content) = std::fs::read_to_string(path) {
         match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(zone) => return Ok(Json(zone)),
             Err(e) => {
-                return Err((
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    Json(
-                        serde_json::json!({ "error": format!("Invalid zone file format: {}", e) }),
-                    ),
+                return Err(crate::api::error::AppError(
+                    kinetic_core::error::NrsError::ParseError(e).into(),
                 ));
             }
         }
     }
-    Err((
-        StatusCode::NOT_FOUND,
-        Json(serde_json::json!({ "error": "Zone not found" })),
+    Err(crate::api::error::AppError::from(
+        kinetic_core::error::RestApiError::NotFound
     ))
 }
 
@@ -76,39 +67,39 @@ pub async fn handle_post_zone(
     Extension(role): Extension<Role>,
     Path(name): Path<String>,
     Json(zone): Json<kinetic_core::types::NrsZone>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&name);
-    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
-        ));
-    }
+    kinetic_core::types::is_valid_apex_name(&fqdn)?;
+    
     let path = kinetic_core::config::get_zones_dir().join(format!("{}.json", fqdn));
     let _ = std::fs::create_dir_all(kinetic_core::config::get_zones_dir());
 
     let content = match serde_json::to_string_pretty(&zone) {
         Ok(c) => c,
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": format!("Serialization failed: {}", e) })),
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::StorageError::WriteFailed(format!("Serialization failed: {}", e)).into(),
             ));
         }
     };
     if let Err(e) = std::fs::write(&path, content) {
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("File write failed: {}", e) })),
-        ));
+        let sys_err = kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string());
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            title: "Internal Server Error".to_string(),
+            status: 500,
+            detail: sys_err.user_message(),
+            instance: None,
+            code: sys_err.code().to_string(),
+            retryable: sys_err.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
 
     Ok(Json(serde_json::json!({ "success": true })))
@@ -124,42 +115,30 @@ pub async fn handle_publish_zone(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
         ));
     }
     let fqdn = kinetic_core::types::normalize_name(&name);
-    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Invalid name: {}", e) })),
-        ));
-    }
+    kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
     // 1. Read the current zone file
     let zone_path = kinetic_core::config::get_zones_dir().join(format!("{}.json", fqdn));
     let content = match std::fs::read_to_string(&zone_path) {
         Ok(c) => c,
         Err(_) => {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(
-                    serde_json::json!({ "error": "Zone file not found. Save your zone first via POST /zone/{name}." }),
-                ),
+            return Err(crate::api::error::AppError::from(
+                kinetic_core::error::RestApiError::NotFound
             ));
         }
     };
     let zone: kinetic_core::types::NrsZone = match serde_json::from_str(&content) {
         Ok(z) => z,
-        Err(_) => {
-            return Err((
-                StatusCode::UNPROCESSABLE_ENTITY,
-                Json(serde_json::json!({ "error": "Invalid zone file format" })),
+        Err(e) => {
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::NrsError::ParseError(e).into(),
             ));
         }
     };
@@ -169,20 +148,19 @@ pub async fn handle_publish_zone(
     let reveal_bytes = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(b)) => b,
         _ => {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(
-                    serde_json::json!({ "error": "No registration record found for this name. Register the name first." }),
-                ),
-            ));
+            return Err(crate::api::error::AppError(kinetic_core::ApiError::from(
+                kinetic_core::error::RegistrationError::NotRegisteredLocal { name: fqdn.to_string() }
+            )));
         }
     };
     let mut record: kinetic_core::types::NameRecord = match serde_json::from_slice(&reveal_bytes) {
         Ok(r) => r,
         Err(_) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": "Stored registration data is corrupted." })),
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::StorageError::DeserializationFailed(
+                    "Stored registration data is corrupted.".to_string(),
+                )
+                .into(),
             ));
         }
     };
@@ -191,30 +169,24 @@ pub async fn handle_publish_zone(
     let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
     let keypair = match kinetic_core::types::load_keypair(&identity_path) {
         Ok(k) => k,
-        Err(_) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": "Could not load identity keypair." })),
-            ));
-        }
+        Err(e) => return Err(crate::api::error::AppError(e.into())),
     };
 
     let pubkey_bytes = keypair.pubkey_bytes();
     if record.pubkey() != pubkey_bytes.as_slice() {
-        return Err((
-            StatusCode::CONFLICT,
-            Json(serde_json::json!({ "error": "Identity key mismatch with name registration" })),
+        return Err(crate::api::error::AppError(
+            kinetic_core::error::IdentityError::PubkeyMismatch(
+                "The daemon key does not match the owner key for this name registration.".to_string()
+            ).into()
         ));
     }
 
     let payload = match serde_json::to_vec(&zone) {
         Ok(v) => v,
         Err(e) => {
-            tracing::error!(error_code="KIN-DMN-025", error=?e, "Failed to serialize zone payload — cannot publish");
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": "[KIN-DMN-025] Failed to serialize zone data" })),
-            ));
+            let err = kinetic_core::error::PublishError::ZoneSerializationFailed(e.to_string());
+            tracing::error!(error_code = err.code(), "{}", err);
+            return Err(err.into());
         }
     };
 
@@ -247,10 +219,10 @@ pub async fn handle_publish_zone(
     let dht_payload = match serde_json::to_vec(&record) {
         Ok(b) => b,
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
-            ));
+            return Err(kinetic_core::error::PublishError::Internal {
+                message: format!("Serialization error: {}", e),
+                source: None,
+            }.into());
         }
     };
     match state
@@ -264,12 +236,7 @@ pub async fn handle_publish_zone(
                 serde_json::json!({ "success": true, "message": "Zone published to the Kinetic DHT network." }),
             ))
         }
-        Err(e) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(
-                serde_json::json!({ "error": format!("DHT publish failed: {}", e.user_message()) }),
-            ),
-        )),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -278,23 +245,17 @@ pub async fn handle_post_local_zone(
     Extension(role): Extension<Role>,
     Path(name): Path<String>,
     Json(zone): Json<kinetic_core::types::NrsZone>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
         ));
     }
 
     let fqdn = kinetic_core::types::normalize_name(&name);
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(
-                serde_json::json!({ "error": "This endpoint is strictly for reserved local names (e.g. example.kin)." }),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("This endpoint is strictly for reserved local names (e.g. example.kin).".to_string())
         ));
     }
 
@@ -308,18 +269,25 @@ pub async fn handle_post_local_zone(
     let content = match serde_json::to_string_pretty(&zone) {
         Ok(c) => c,
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": format!("Serialization failed: {}", e) })),
+            return Err(crate::api::error::AppError(
+                kinetic_core::error::StorageError::WriteFailed(format!("Serialization failed: {}", e)).into(),
             ));
         }
     };
 
     if let Err(e) = std::fs::write(&path, content) {
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("File write failed: {}", e) })),
-        ));
+        let sys_err = kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string());
+        return Err(crate::api::error::AppError(kinetic_core::ApiError {
+            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            title: "Internal Server Error".to_string(),
+            status: 500,
+            detail: sys_err.user_message(),
+            instance: None,
+            code: sys_err.code().to_string(),
+            retryable: sys_err.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        }));
     }
 
     Ok(Json(serde_json::json!({ "success": true })))
@@ -329,23 +297,17 @@ pub async fn handle_post_local_zone(
 pub async fn handle_delete_local_zone(
     Extension(role): Extension<Role>,
     Path(name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
         ));
     }
 
     let fqdn = kinetic_core::types::normalize_name(&name);
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(
-                serde_json::json!({ "error": "This endpoint is strictly for reserved local names (e.g. example.kin)." }),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("This endpoint is strictly for reserved local names (e.g. example.kin).".to_string())
         ));
     }
 
@@ -358,10 +320,18 @@ pub async fn handle_delete_local_zone(
 
     if path.exists() {
         if let Err(e) = std::fs::remove_file(&path) {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": format!("File delete failed: {}", e) })),
-            ));
+            let sys_err = kinetic_core::error::SystemError::DiskPersistenceFailed(format!("File delete failed: {}", e));
+            return Err(crate::api::error::AppError(kinetic_core::ApiError {
+                error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+                title: "Internal Server Error".to_string(),
+                status: 500,
+                detail: sys_err.user_message(),
+                instance: None,
+                code: sys_err.code().to_string(),
+                retryable: sys_err.is_retryable(),
+                details: serde_json::Value::Null,
+                request_id: "".to_string(),
+            }));
         }
     }
 
@@ -371,15 +341,12 @@ pub async fn handle_delete_local_zone(
 /// Handles API requests to retrieve a reserved local zone file.
 pub async fn handle_get_local_zone(
     Path(name): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     if !kinetic_core::types::names::is_reserved_name(&fqdn) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(
-                serde_json::json!({ "error": "This endpoint is strictly for reserved local names (e.g. example.kin)." }),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("This endpoint is strictly for reserved local names (e.g. example.kin).".to_string())
         ));
     }
 
@@ -396,8 +363,7 @@ pub async fn handle_get_local_zone(
         }
     }
 
-    Err((
-        StatusCode::NOT_FOUND,
-        Json(serde_json::json!({ "error": "Local zone override not found" })),
+    Err(crate::api::error::AppError::from(
+        kinetic_core::error::RestApiError::NotFound
     ))
 }

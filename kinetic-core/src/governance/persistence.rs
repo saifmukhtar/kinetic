@@ -75,7 +75,9 @@ impl GovernanceState {
                     new_name.push(format!(".corrupt.{}", now));
                     let corrupt_path = path.with_file_name(new_name);
                     let _ = std::fs::rename(path, &corrupt_path);
+                    let err = crate::error::GovernanceError::StateCorrupted;
                     tracing::error!(
+                        error_code = err.code(),
                         "CRITICAL: Governance state corrupted: {}. Refusing to start with a reset state.",
                         e
                     );
@@ -90,7 +92,8 @@ impl GovernanceState {
                 Self::new(crate::constants::KINETIC_GENESIS_KYN)
             }
             Err(e) => {
-                tracing::error!("CRITICAL: Failed to read Governance state file: {}.", e);
+                let err = crate::error::GovernanceError::StateReadFailed;
+                tracing::error!(error_code = err.code(), "CRITICAL: Failed to read Governance state file: {}.", e);
                 panic!(
                     "Governance state at {} is unreadable; manual recovery required.",
                     path.display()

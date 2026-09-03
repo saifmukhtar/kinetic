@@ -2,7 +2,6 @@ use axum::{
     Json,
     extract::{Path, State},
     response::{
-        IntoResponse,
         sse::{Event, Sse},
     },
 };
@@ -30,7 +29,8 @@ pub async fn handle_gossip_subscribe(
                         }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                    tracing::warn!("KIN-DMN-007: SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);
+                    let err = kinetic_core::error::api::RestApiError::SseStreamLagged;
+                    tracing::warn!(error_code = err.code(), "SSE subscriber lagged behind and skipped {} messages on topic {}", skipped, topic);
                     continue;
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => {
@@ -53,37 +53,30 @@ pub async fn handle_gossip_publish(
     Path(topic): Path<String>,
     State(state): State<ApiState>,
     Json(payload): Json<Value>,
-) -> impl IntoResponse {
+) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_publish() {
-        return Json(PublishResponse {
-            status: "error".to_string(),
-            message: "Insufficient privileges: Requires Publish or Admin role".to_string(),
-        })
-        .into_response();
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges
+        ));
     }
 
     let payload_bytes = match serde_json::to_vec(&payload) {
         Ok(b) => b,
         Err(e) => {
-            return Json(PublishResponse {
-                status: "error".to_string(),
-                message: format!("Failed to serialize payload: {}", e),
-            })
-            .into_response();
+            return Err(kinetic_core::error::PublishError::Internal {
+                message: format!("Serialization failed: {}", e),
+                source: None,
+            }
+            .into());
         }
     };
 
     if let Err(e) = state.network.broadcast_gossip(&topic, payload_bytes).await {
-        return Json(PublishResponse {
-            status: "error".to_string(),
-            message: format!("Failed to broadcast gossip: {:?}", e),
-        })
-        .into_response();
+        return Err(e.into());
     }
 
-    Json(PublishResponse {
+    Ok(Json(PublishResponse {
         status: "success".to_string(),
         message: format!("Payload successfully broadcasted to topic: {}", topic),
-    })
-    .into_response()
+    }))
 }

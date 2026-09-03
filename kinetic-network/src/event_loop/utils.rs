@@ -176,10 +176,10 @@ impl super::core::NetworkEventLoop {
 
                         // Reject future-dated documents (allowing 300s clock drift)
                         if doc.created_at > current_time + 300 {
-                            tracing::warn!(
-                                "Rejecting Document: created_at ({}) is in the future",
-                                doc.created_at
+                            let err = kinetic_core::error::IdentityError::MalformedDocument(
+                                format!("created_at ({}) is in the future", doc.created_at)
                             );
+                            tracing::warn!(error_code = err.code(), "Rejecting Document: {}", err);
                             return None;
                         }
 
@@ -248,7 +248,7 @@ impl super::core::NetworkEventLoop {
 
                     if !valid_sig {
                         tracing::warn!(
-                            error_code = "KIN-KAD-104",
+                            error = ?kinetic_verify::error::SignatureVerifyError::InvalidSignature,
                             name = %reveal.name,
                             "Skipping candidate: Invalid signature in tie-breaker"
                         );
@@ -264,7 +264,7 @@ impl super::core::NetworkEventLoop {
                         Ok(b) => b,
                         Err(e) => {
                             tracing::warn!(
-                                error_code = "KIN-KAD-103",
+                                error = ?kinetic_core::error::RecordRejectReason::InvalidDrandHex,
                                 "Skipping candidate: invalid drand_signature hex: {}",
                                 e
                             );
@@ -292,7 +292,7 @@ impl super::core::NetworkEventLoop {
                             .unwrap_or(false)
                         {
                             tracing::warn!(
-                                error_code = "KIN-KAD-111",
+                                error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
                                 "Skipping candidate: invalid drand BLS signature"
                             );
                             continue;
@@ -312,7 +312,7 @@ impl super::core::NetworkEventLoop {
                         > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
-                            error_code = "KIN-KAD-105",
+                            error = ?kinetic_core::error::RecordRejectReason::Expired,
                             name = %reveal.name,
                             "Skipping candidate: Reveal expired (older than RESQUARING_EPOCH_KYNS)"
                         );
@@ -330,7 +330,7 @@ impl super::core::NetworkEventLoop {
                             Ok(req) => req,
                             Err(e) => {
                                 tracing::warn!(
-                                    error_code = "KIN-KAD-106",
+                                    error = ?e,
                                     name = %reveal.name,
                                     "Skipping candidate: failed to compute required iterations: {:?}", e
                                 );
@@ -340,7 +340,7 @@ impl super::core::NetworkEventLoop {
 
                     if !dev_mode && reveal.iterations < required_iterations {
                         tracing::warn!(
-                            error_code = "KIN-KAD-107",
+                            error = ?kinetic_core::error::RecordRejectReason::InsufficientIterations,
                             name = %reveal.name,
                             "Skipping candidate: Insufficient VDF iterations. Provided {}, Required {}",
                             reveal.iterations, required_iterations
@@ -360,7 +360,7 @@ impl super::core::NetworkEventLoop {
                         Ok(true) => return Some(p),
                         Ok(false) => {
                             tracing::warn!(
-                                error_code = "KIN-KAD-108",
+                                error = ?kinetic_core::error::RecordRejectReason::InvalidVdf,
                                 name = %reveal.name,
                                 "Skipping candidate: VDF verification failed"
                             );
@@ -368,7 +368,7 @@ impl super::core::NetworkEventLoop {
                         }
                         Err(kinetic_core::error::VdfError::UnsupportedPlatform) => {
                             tracing::error!(
-                                error_code = "KIN-KAD-109",
+                                error = ?kinetic_core::error::VdfError::UnsupportedPlatform,
                                 name = %reveal.name,
                                 "VDF verification is unsupported on this platform. Resolution failed."
                             );
@@ -376,7 +376,7 @@ impl super::core::NetworkEventLoop {
                         }
                         Err(e) => {
                             tracing::warn!(
-                                error_code = "KIN-KAD-110",
+                                error = ?e,
                                 name = %reveal.name,
                                 "Skipping candidate: VDF verification error: {:?}", e
                             );

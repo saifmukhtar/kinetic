@@ -13,7 +13,8 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
     let resolver = match hickory_resolver::AsyncResolver::tokio_from_system_conf() {
         Ok(r) => r,
         Err(e) => {
-            tracing::warn!("Failed to initialize DNS resolver: {}", e);
+            let err = kinetic_core::error::NrsError::DnsResolverInitFailed(e.to_string());
+            tracing::warn!(error_code = err.code(), "{}", err);
             return addrs;
         }
     };
@@ -21,7 +22,8 @@ pub async fn resolve_dns_tree(domain: &str) -> Vec<Multiaddr> {
     let root_records = match resolver.txt_lookup(domain).await {
         Ok(res) => res,
         Err(e) => {
-            tracing::warn!("DNS lookup failed for {}: {}", domain, e);
+            let err = kinetic_core::error::NrsError::DnsLookupFailed(domain.to_string(), e.to_string());
+            tracing::warn!(error_code = err.code(), "{}", err);
             return addrs;
         }
     };

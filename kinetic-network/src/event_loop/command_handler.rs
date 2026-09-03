@@ -71,8 +71,9 @@ impl super::core::NetworkEventLoop {
                 },
             );
         } else {
-            tracing::warn!(error_code = "KIN-PUB-004", name = %name, total = %keys.len(), "Publish: all DHT puts failed immediately");
-            let _ = responder.send(Err(PublishError::AllFailed { count: keys.len() }));
+            let err = kinetic_core::error::PublishError::AllFailed { count: keys.len() };
+            tracing::warn!(error_code = err.code(), name = %name, total = %keys.len(), "{}", err);
+            let _ = responder.send(Err(err));
         }
     }
 
@@ -132,10 +133,11 @@ impl super::core::NetworkEventLoop {
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
                     let name_clean = name.trim_end_matches('.').to_string();
+                    let err = kinetic_core::error::ResolutionError::Offline;
                     tracing::warn!(
-                        error_code = "KIN-QRY-001",
+                        error_code = err.code(),
                         name = %name_clean,
-                        "Resolution failed: node is offline (0 peers)"
+                        "{}", err
                     );
 
                     // Fallback to local store as a last resort since we're offline
@@ -211,7 +213,8 @@ impl super::core::NetworkEventLoop {
 
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
-                    tracing::warn!("Offline mode: Failing fast for VerifyQuorum (0 peers)");
+                    let err = kinetic_core::error::P2pError::OfflineVerifyQuorum;
+                    tracing::warn!(error_code = err.code(), "{}", err);
                     let _ = responder.send(Ok(0));
                     return;
                 }

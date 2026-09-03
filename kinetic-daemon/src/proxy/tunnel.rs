@@ -39,10 +39,11 @@ pub async fn handle_connect_req(
             match forward_to_backend_direct(req, &d, &nc, config_clone, &peer_id_clone).await {
                 Ok(resp) => Ok::<_, std::convert::Infallible>(resp),
                 Err(e) => {
-                    warn!("Forwarding error: {}", e);
+                    let err = super::ProxyError::TunnelForwardingError(e.to_string());
+                    warn!(error_code = err.code(), "{}", err);
                     Ok(Response::builder()
                         .status(StatusCode::BAD_GATEWAY)
-                        .body(axum::body::Body::from(format!("Backend Error: {}", e)))
+                        .body(axum::body::Body::from(err.user_message()))
                         .unwrap_or_else(|_| {
                             Response::new(axum::body::Body::from("Internal Proxy Error"))
                         }))

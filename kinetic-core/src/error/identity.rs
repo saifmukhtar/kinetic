@@ -12,76 +12,94 @@ use thiserror::Error;
 /// Error type for node identity keys and mnemonic parsing.
 #[derive(Error, Debug)]
 pub enum IdentityError {
-    /// An I/O error occurred while reading or writing the identity file.
+    /// The node encountered an operating system I/O error when trying to read or write an identity file.
+    /// Check disk space and filesystem permissions for the target directory.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// The identity file is corrupted (e.g. wrong byte length).
+    /// The node identity file exists but is structurally corrupted (e.g., incorrect byte length).
+    /// The node may need to be re-provisioned or the file restored from a secure backup.
     #[error("Identity file is corrupted: {0}")]
     CorruptedIdentityFile(String),
 
-    /// The identity file could not be found.
+    /// The required node identity file could not be found on disk.
+    /// Ensure the daemon was initialized properly and the file path is correct.
     #[error("Identity not found: {0}")]
     IdentityNotFound(String),
 
-    /// The provided BIP-39 mnemonic seed phrase is invalid.
+    /// The provided mnemonic seed phrase failed BIP-39 validation.
+    /// Verify that the phrase contains 12 or 24 valid BIP-39 English words.
     #[error("Invalid seed phrase: {0}")]
     InvalidSeedPhrase(String),
-    /// Failed to decrypt the identity file.
+
+    /// The node could not decrypt the identity file.
+    /// This usually means the provided encryption password is incorrect, or the encrypted payload is corrupted.
     #[error("Failed to decrypt identity file: {0}")]
     DecryptionFailed(String),
 
-    /// A KID document or key already exists for the given name.
+    /// An attempt was made to register a KID (Kinetic ID) that already exists on the network.
+    /// To update an existing KID, use the cryptographic key rotation endpoint instead.
     #[error("KID already exists for name: {0}")]
     KidAlreadyExists(String),
 
-    /// A KID document or key was not found for the given name.
+    /// The requested KID document could not be found on the network.
+    /// Ensure the identity name is spelled correctly and has been officially registered.
     #[error("KID not found for name: {0}")]
     KidNotFound(String),
 
-    /// An error occurred during KID key rotation.
+    /// An attempt to rotate the keys of a KID document failed validation.
+    /// Ensure the rotation payload is signed by the currently active private key and the sequence number is strictly increasing.
     #[error("Invalid KID rotation: {0}")]
     InvalidRotation(String),
 
-    /// Cryptographic signing of a KID document failed.
+    /// The daemon failed to cryptographically sign the KID document.
+    /// This indicates an internal cryptographic failure or an invalid private key state.
     #[error("Failed to sign KID document: {0}")]
     KidSigningFailed(String),
 
-    /// A DID string was malformed or invalid.
+    /// The provided Decentralized Identifier (DID) string was malformed.
+    /// Kinetic DIDs must strictly follow the `did:kin:<network>:<name>` format.
     #[error("Invalid DID: {0}")]
     InvalidDid(String),
 
-    /// Attempted to operate on a deactivated KID.
+    /// An operation was attempted on a KID that has been permanently deactivated by its owner.
+    /// Deactivated KIDs cannot be updated, rotated, or used for signing.
     #[error("KID is deactivated: {0}")]
     KidDeactivated(String),
 
-    /// JSON serialization or deserialization failed.
-    #[error("JSON error: {0}")]
-    Json(String),
-
-    /// A KID document was malformed or missing fields.
+    /// The provided KID document was rejected because it is missing required fields or contains malformed data.
+    /// Ensure fields like the creation timestamp are strictly formatted and not in the future.
     #[error("Malformed KID document: {0}")]
     MalformedDocument(String),
 
-    /// An apex KID document was malformed or missing fields.
+    /// The provided apex KID document failed validation.
+    /// Apex documents have stricter formatting rules than standard KIDs and must be precisely structured.
     #[error("Malformed apex KID document: {0}")]
     MalformedApexDocument(String),
 
-    /// A capability manifest was malformed or missing fields.
+    /// The provided capability manifest was missing required fields or contained invalid endpoint formats.
     #[error("Malformed capability manifest: {0}")]
     MalformedManifest(String),
 
-    /// Failed to serialize the document into JSON.
+    /// The daemon could not serialize the identity document into valid JSON.
+    /// This indicates a structural failure in the document fields.
     #[error("Serialization failed: {0}")]
     SerializationFailed(String),
 
-    /// Cryptographic signing of a manifest failed.
+    /// The daemon failed to cryptographically sign the capability manifest.
+    /// Verify the node has access to the correct private signing key for this identity.
     #[error("Failed to sign manifest: {0}")]
     ManifestSigningFailed(String),
 
-    /// A private key file was not found.
+    /// The local daemon was asked to sign a payload for a specific KID, but the corresponding private key file could not be found.
+    /// Ensure the key file exists locally in the configured secrets directory.
     #[error("KID private key not found: {0}")]
     KidPrivateKeyNotFound(String),
+
+    /// The public key used to sign the transaction does not match the registered owner of the name.
+    /// You cannot modify or rotate an identity document that you do not cryptographically own.
+    #[error("Public key mismatch: {0}")]
+    PubkeyMismatch(String),
 }
 
 impl PartialEq for IdentityError {
@@ -98,13 +116,13 @@ impl PartialEq for IdentityError {
             (Self::KidSigningFailed(a), Self::KidSigningFailed(b)) => a == b,
             (Self::InvalidDid(a), Self::InvalidDid(b)) => a == b,
             (Self::KidDeactivated(a), Self::KidDeactivated(b)) => a == b,
-            (Self::Json(a), Self::Json(b)) => a == b,
             (Self::MalformedDocument(a), Self::MalformedDocument(b)) => a == b,
             (Self::MalformedApexDocument(a), Self::MalformedApexDocument(b)) => a == b,
             (Self::MalformedManifest(a), Self::MalformedManifest(b)) => a == b,
             (Self::SerializationFailed(a), Self::SerializationFailed(b)) => a == b,
             (Self::ManifestSigningFailed(a), Self::ManifestSigningFailed(b)) => a == b,
             (Self::KidPrivateKeyNotFound(a), Self::KidPrivateKeyNotFound(b)) => a == b,
+            (Self::PubkeyMismatch(a), Self::PubkeyMismatch(b)) => a == b,
             _ => false,
         }
     }
@@ -127,13 +145,13 @@ impl IdentityError {
             Self::KidSigningFailed(_) => "KIN-IDN-009",
             Self::InvalidDid(_) => "KIN-IDN-010",
             Self::KidDeactivated(_) => "KIN-IDN-011",
-            Self::Json(_) => "KIN-IDN-012",
-            Self::MalformedDocument(_) => "KIN-IDN-013",
-            Self::MalformedApexDocument(_) => "KIN-IDN-014",
-            Self::MalformedManifest(_) => "KIN-IDN-015",
-            Self::SerializationFailed(_) => "KIN-IDN-016",
-            Self::ManifestSigningFailed(_) => "KIN-IDN-017",
-            Self::KidPrivateKeyNotFound(_) => "KIN-IDN-018",
+            Self::MalformedDocument(_) => "KIN-IDN-012",
+            Self::MalformedApexDocument(_) => "KIN-IDN-013",
+            Self::MalformedManifest(_) => "KIN-IDN-014",
+            Self::SerializationFailed(_) => "KIN-IDN-015",
+            Self::ManifestSigningFailed(_) => "KIN-IDN-016",
+            Self::KidPrivateKeyNotFound(_) => "KIN-IDN-017",
+            Self::PubkeyMismatch(_) => "KIN-IDN-018",
         }
     }
 
@@ -152,7 +170,6 @@ impl IdentityError {
             | Self::InvalidRotation(_)
             | Self::KidSigningFailed(_)
             | Self::InvalidDid(_)
-            | Self::Json(_)
             | Self::MalformedDocument(_)
             | Self::MalformedApexDocument(_)
             | Self::MalformedManifest(_)
@@ -162,7 +179,8 @@ impl IdentityError {
             | Self::KidAlreadyExists(_)
             | Self::KidNotFound(_)
             | Self::KidDeactivated(_)
-            | Self::KidPrivateKeyNotFound(_) => Severity::Warning,
+            | Self::KidPrivateKeyNotFound(_)
+            | Self::PubkeyMismatch(_) => Severity::Warning,
         }
     }
 
@@ -204,9 +222,6 @@ impl IdentityError {
             Self::KidDeactivated(name) => {
                 format!("The KID document for {name} has been permanently deactivated.")
             }
-            Self::Json(msg) => {
-                format!("JSON processing error: {msg}")
-            }
             Self::MalformedDocument(msg) => {
                 format!("The KID document is malformed: {msg}")
             }
@@ -224,6 +239,9 @@ impl IdentityError {
             }
             Self::KidPrivateKeyNotFound(name) => {
                 format!("The private key file for {name} could not be found.")
+            }
+            Self::PubkeyMismatch(name) => {
+                format!("The presented public key does not match the registered owner key for '{name}'. You cannot update a name you do not own.")
             }
         }
     }

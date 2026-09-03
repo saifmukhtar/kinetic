@@ -88,10 +88,14 @@ pub fn start_pow_miner_loop(
                             Err(e) => {
                                 retries += 1;
                                 if retries > 10 {
-                                    tracing::error!("FATAL: Failed to hot-swap P2P backend: {}", e);
+                                    tracing::error!(
+                                        error = ?kinetic_core::error::SystemError::NetworkHotswapFailed(e.to_string()),
+                                        "FATAL: Failed to hot-swap P2P backend after 10 retries"
+                                    );
                                     return; // Abort miner task
                                 }
                                 tracing::warn!(
+                                    error = ?kinetic_core::error::SystemError::PortInUse(e.to_string()),
                                     "Port in use during hot-swap, retrying... ({}/10)",
                                     retries
                                 );

@@ -37,8 +37,9 @@ where
             if let Ok(data) = frame.into_data() {
                 body_bytes.extend_from_slice(data.as_ref());
                 if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                    tracing::warn!("KIN-PRX-018: Blocked oversized IPFS proxy request body");
-                    return Err(ProxyError::InvalidPayload);
+                    let err = kinetic_core::error::SecurityError::PayloadTooLarge;
+                    tracing::warn!(error_code = err.code(), "Blocked oversized IPFS proxy request body");
+                    return Err(ProxyError::InvalidPayload("Blocked oversized IPFS proxy request body".to_string()));
                 }
             }
         }
@@ -65,7 +66,8 @@ where
             format!("{}/{}/{}", gateway, cid, path)
         };
 
-        tracing::info!("KIN-PRX-017: Proxying IPFS request to gateway: {}", ipfs_url);
+        let err = kinetic_core::error::GatewayError::ProxyingToGateway(ipfs_url.to_string());
+        tracing::info!(error_code = err.code(), "{}", err);
 
         let client = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))
@@ -80,7 +82,8 @@ where
             Ok(backend_resp) => {
                 let status = backend_resp.status();
                 if status.is_server_error() || status == reqwest::StatusCode::NOT_FOUND {
-                    tracing::warn!("Gateway {} failed with {}. Trying next...", gateway, status);
+                    let err = kinetic_core::error::GatewayError::GatewayFailedWithStatus(gateway.to_string(), status.to_string());
+                    tracing::warn!(error_code = err.code(), "{}. Trying next...", err);
                     last_error = Some(format!("Gateway returned {}", status));
                     continue;
                 }
@@ -99,16 +102,18 @@ where
                 return Ok(resp_builder.body(body)?);
             }
             Err(e) => {
-                tracing::warn!("Gateway {} unreachable: {}. Trying next...", gateway, e);
+                let err = kinetic_core::error::GatewayError::GatewayUnreachable(gateway.to_string(), e.to_string());
+                tracing::warn!(error_code = err.code(), "{}. Trying next...", err);
                 last_error = Some(e.to_string());
                 continue;
             }
         }
     }
 
-    tracing::error!("All IPFS gateways failed to resolve CID: {}", cid);
+    let err = kinetic_core::error::GatewayError::AllGatewaysFailed(cid.to_string());
+    tracing::error!(error_code = err.code(), "{}", err);
     Err(ProxyError::PeerUnreachable(
-        last_error.unwrap_or_else(|| "All gateways failed".to_string())
+        format!("{}: {}. Last error: {}", err.code(), err, last_error.unwrap_or_else(|| "None".to_string()))
     ))
 }
 

@@ -57,10 +57,16 @@ fn setup_macos_alias(ip: &str) {
 
     if let Ok(s) = status {
         if !s.success() {
-            tracing::warn!("Failed to create macOS loopback alias for {}", ip);
+            tracing::warn!(
+                error = ?kinetic_core::error::SystemError::LoopbackSetupFailed(format!("Alias failed for {}", ip)),
+                "Failed to create macOS loopback alias for {}", ip
+            );
         }
     } else {
-        tracing::warn!("Failed to execute ifconfig for macOS alias setup");
+        tracing::warn!(
+            error = ?kinetic_core::error::SystemError::LoopbackSetupFailed("ifconfig execution failed".into()),
+            "Failed to execute ifconfig for macOS alias setup"
+        );
     }
 }
 
@@ -247,7 +253,10 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     .group("nogroup")
                     .apply()
                 {
-                    tracing::error!(error_code = "KIN-NRS-021", "Failed to drop privileges: {}", e);
+                    tracing::error!(
+                        error = ?kinetic_core::error::SystemError::PrivilegeDropFailed(e.to_string()),
+                        "Failed to drop privileges: {}", e
+                    );
                     std::process::exit(1);
                 } else {
                     tracing::info!(
@@ -259,7 +268,10 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
             tokio::select! {
                 res = server.block_until_done() => {
                     if let Err(e) = res {
-                        tracing::error!(error_code = "KIN-NRS-022", "DNS Server error: {:?}", e);
+                        tracing::error!(
+                            error = ?kinetic_core::error::SystemError::ServerCrashed(e.to_string()),
+                            "DNS Server error: {:?}", e
+                        );
                     }
                 }
                 _ = kinetic_core::shutdown::shutdown_signal() => {
@@ -271,11 +283,8 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
             teardown_macos_alias(bind_ip);
         }
         Err(e) => {
-            warn!(
-                error_code = "KIN-NRS-023",
-                "Failed to bind DNS proxy to {}:{}: {}",
-                bind_ip, nrs_port, e
-            );
+            let err = kinetic_core::error::NrsError::NrsServerExecutionError(e.to_string());
+            warn!(error_code = err.code(), "{}", err);
             warn!("Falling back to non-privileged port. Use sudo for native DNS interception.");
             let fallback_port = if nrs_port == 53 {
                 5353
@@ -305,7 +314,10 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                             .group("nogroup")
                             .apply()
                         {
-                            tracing::error!(error_code = "KIN-NRS-024", "Failed to drop privileges: {}", e);
+                            tracing::error!(
+                                error = ?kinetic_core::error::SystemError::PrivilegeDropFailed(e.to_string()),
+                                "Failed to drop privileges: {}", e
+                            );
                             std::process::exit(1);
                         } else {
                             tracing::info!(
@@ -317,7 +329,10 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     tokio::select! {
                         res = server.block_until_done() => {
                             if let Err(e) = res {
-                                tracing::error!(error_code = "KIN-NRS-025", "DNS Server fallback error: {:?}", e);
+                                tracing::error!(
+                                    error = ?kinetic_core::error::SystemError::ServerCrashed(format!("Fallback error: {:?}", e)),
+                                    "DNS Server fallback error"
+                                );
                             }
                         }
                         _ = kinetic_core::shutdown::shutdown_signal() => {
@@ -329,11 +344,8 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     teardown_macos_alias(bind_ip);
                 }
                 Err(e2) => {
-                    warn!(
-                        error_code = "KIN-NRS-026",
-                        "Failed to bind DNS proxy to fallback port {}: {}",
-                        fallback_port, e2
-                    );
+                    let err = kinetic_core::error::NrsError::NrsServerExecutionError(e2.to_string());
+                    warn!(error_code = err.code(), "{}", err);
                 }
             }
         }

@@ -12,6 +12,8 @@ use std::sync::{Arc, Mutex};
 pub mod atlas;
 /// API endpoints for configuration management.
 pub mod config;
+/// Error mappings and Newtype wrappers for HTTP response conversion.
+pub mod error;
 /// API endpoints for streaming Gossip.
 pub mod gossip;
 /// API endpoints for KID local management.
@@ -272,13 +274,13 @@ pub fn app(state: ApiState) -> Router {
 fn generate_and_write_token(token_path: &std::path::Path) -> anyhow::Result<String> {
     let mut token_bytes = [0u8; 32];
     getrandom::fill(&mut token_bytes).map_err(|e| {
+        let sys_err = kinetic_core::error::SystemError::InvalidOsEnvironment(format!("getrandom failed: {}", e));
         tracing::error!(
-            error_code = "KIN-IMP-001",
+            error = ?sys_err,
             severity = "Critical",
-            "FATAL: getrandom failed — cannot generate secure API token. Refusing to start with a predictable token. Error: {}",
-            e
+            "FATAL: getrandom failed — cannot generate secure API token. Refusing to start with a predictable token."
         );
-        anyhow::anyhow!("[KIN-IMP-001] getrandom failed: {}. Cannot generate a secure API token.", e)
+        anyhow::Error::from(sys_err)
     })?;
     let token = hex::encode(token_bytes);
 
@@ -372,7 +374,8 @@ pub async fn start_server(
             break;
         } else if let Ok(l) = tokio::net::TcpListener::bind(format!("[::1]:{}", port)).await {
             tracing::warn!(
-                "KIN-DMN-010: Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
+                error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", bind_ip, port)),
+                "Failed to bind API to {}, successfully bound to IPv6 loopback [::1]",
                 bind_ip
             );
             listener = Some(l);
@@ -412,13 +415,15 @@ async fn auth_middleware(
     let header = match auth_header {
         Some(h) => h,
         None => {
-            tracing::warn!("KIN-DMN-011: Rejecting API request: Missing Authorization header");
+            let err = kinetic_core::error::api::RestApiError::InvalidToken;
+            tracing::warn!(error_code = err.code(), "Rejecting API request: Missing Authorization header");
             return Err(StatusCode::UNAUTHORIZED);
         }
     };
 
     if !header.starts_with("Bearer ") {
-        tracing::warn!("KIN-DMN-012: Rejecting API request: Authorization header is not a Bearer token");
+        let err = kinetic_core::error::api::RestApiError::InvalidToken;
+        tracing::warn!(error_code = err.code(), "Rejecting API request: Authorization header is not a Bearer token");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -453,7 +458,8 @@ async fn auth_middleware(
             Ok(next.run(req).await)
         }
         None => {
-            tracing::warn!("KIN-DMN-013: Rejecting API request: Invalid API token");
+            let err = kinetic_core::error::api::RestApiError::InvalidToken;
+            tracing::warn!(error_code = err.code(), "Rejecting API request: Invalid API token");
             Err(StatusCode::UNAUTHORIZED)
         }
     }

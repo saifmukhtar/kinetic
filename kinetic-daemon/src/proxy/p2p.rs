@@ -30,14 +30,15 @@ pub async fn handle_incoming_proxy_requests(
                 .unwrap_or(std::borrow::Cow::Owned(req.path.to_string()));
 
             let safe_path = if decoded_path.contains("..") || !decoded_path.starts_with('/') {
-                tracing::warn!("Blocked malicious P2P proxy path: {}", req.path);
+                let err = kinetic_core::error::SecurityError::PathTraversalAttempt;
+                tracing::warn!(error_code = err.code(), "Blocked malicious P2P proxy path: {}", req.path);
                 let _ = client_clone
                     .send_proxy_response(
                         channel,
                         ProxyResponse {
                             status: 400,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"Bad Request: Invalid Path"),
+                            body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                         },
                     )
                     .await;
@@ -48,7 +49,9 @@ pub async fn handle_incoming_proxy_requests(
 
             // Limit body size to 5MB to prevent OOM
             if req.body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
+                let err = kinetic_core::error::SecurityError::PayloadTooLarge;
                 tracing::warn!(
+                    error_code = err.code(),
                     "Blocked oversized P2P proxy request ({} bytes)",
                     req.body.len()
                 );
@@ -58,7 +61,7 @@ pub async fn handle_incoming_proxy_requests(
                         ProxyResponse {
                             status: 413,
                             headers: Vec::new(),
-                            body: bytes::Bytes::from_static(b"Payload Too Large"),
+                            body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                         },
                     )
                     .await;
@@ -70,14 +73,15 @@ pub async fn handle_incoming_proxy_requests(
             let method = match req.method.parse::<reqwest::Method>() {
                 Ok(m) => m,
                 Err(_) => {
-                    tracing::warn!("Blocked invalid HTTP method: {}", req.method);
+                    let err = kinetic_core::error::SecurityError::InvalidMethod;
+                    tracing::warn!(error_code = err.code(), "Blocked invalid HTTP method: {}", req.method);
                     let _ = client_clone
                         .send_proxy_response(
                             channel,
                             ProxyResponse {
                                 status: 400,
                                 headers: Vec::new(),
-                                body: bytes::Bytes::from_static(b"Bad Request: Invalid Method"),
+                                body: bytes::Bytes::from(format!("{}: {}", err.code(), err)),
                             },
                         )
                         .await;
@@ -112,9 +116,10 @@ pub async fn handle_incoming_proxy_requests(
                         if let Ok(chunk) = chunk_res {
                             body.extend_from_slice(&chunk);
                             if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                                tracing::warn!("Blocked oversized P2P backend response (>5MB)");
+                                let err = kinetic_core::error::SecurityError::BackendResponseTooLarge;
+                                tracing::warn!(error_code = err.code(), "Blocked oversized P2P backend response (>5MB)");
                                 body.clear();
-                                body.extend_from_slice(b"Payload Too Large");
+                                body.extend_from_slice(format!("{}: {}", err.code(), err).as_bytes());
                                 status = 502; // Or 413
                                 break;
                             }
@@ -127,16 +132,12 @@ pub async fn handle_incoming_proxy_requests(
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to forward request to local web server: {}", e);
+                    let err = super::ProxyError::LocalWebServerForwardingFailed(local_port, e.to_string());
+                    warn!(error_code = err.code(), "{}", err);
                     ProxyResponse {
                         status: 502,
                         headers: Vec::new(),
-                        body: format!(
-                            "Bad Gateway: Local web server not responding on port {}\nError: {}",
-                            local_port, e
-                        )
-                        .into_bytes()
-                        .into(),
+                        body: err.user_message().into_bytes().into(),
                     }
                 }
             };

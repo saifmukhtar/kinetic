@@ -25,8 +25,9 @@ pub async fn forward_to_ip(
     } else if let Ok(sa) = ip_str.parse::<std::net::SocketAddr>() {
         sa.ip()
     } else {
-        tracing::warn!("KIN-PRX-028: Invalid IP format for name '{}': {}", name, ip_str);
-        return Err(ProxyError::NameNotFound(name.to_string()));
+        let err = super::ProxyError::InvalidIpFormat(name.to_string(), ip_str.to_string());
+        tracing::warn!(error_code = err.code(), "{}", err);
+        return Err(ProxyError::NameNotFound(format!("Invalid IP format for name '{}'", name)));
     };
 
     let original_port = req
@@ -49,7 +50,8 @@ pub async fn forward_to_ip(
             || original_port == config.network.daemon_port
             || original_port == config.daemon.pac_port)
     {
-        tracing::error!("KIN-PRX-029: Proxy loop blocked for port {}", original_port);
+        let err = kinetic_core::error::SecurityError::ProxyLoop;
+        tracing::error!(error_code = err.code(), "Proxy loop blocked for port {}", original_port);
         return Err(ProxyError::Other(
             "Proxy Loop Detected: Cannot proxy to daemon's internal ports.".to_string(),
         ));
@@ -57,29 +59,30 @@ pub async fn forward_to_ip(
 
     let ssrf_result = security::validate_ssrf_risk(ip_addr);
     let is_ssrf = ssrf_result.is_err() || ip_addr.is_unspecified();
+    let dev_mode = kinetic_core::config::is_dev_mode();
 
-    if is_ssrf && !kinetic_core::config::is_dev_mode() {
-        let reason = if ip_addr.is_unspecified() {
-            "Unspecified IP".to_string()
+    if is_ssrf {
+        let err_obj = if ip_addr.is_unspecified() {
+            kinetic_core::error::SecurityError::Unspecified
         } else {
-            ssrf_result.unwrap_err().to_string()
+            ssrf_result.unwrap_err()
         };
-        tracing::warn!("KIN-PRX-030: SSRF attempt blocked to {}", ip_addr);
-        return Err(ProxyError::SecurityViolation(format!(
-            "Cannot proxy to loopback or private IPs. Reason: {}. (Use Dev Mode to bypass)",
-            reason
-        )));
-    } else if is_ssrf {
-        let reason = if ip_addr.is_unspecified() {
-            "Unspecified IP".to_string()
+
+        if dev_mode {
+            let warn_err = kinetic_core::error::SecurityError::DevModePrivateIp;
+            tracing::warn!(
+                error_code = warn_err.code(),
+                "DEV MODE: Forwarding to private IP {}. Reason: [{}] {}. This would be blocked in production.",
+                ip_addr, err_obj.code(), err_obj
+            );
         } else {
-            ssrf_result.unwrap_err().to_string()
-        };
-        tracing::warn!(
-            "KIN-PRX-019: DEV MODE: Forwarding to private IP {}. Reason: {}. This would be blocked in production.",
-            ip_addr,
-            reason
-        );
+            let sec_err = kinetic_core::error::SecurityError::DangerousIpBlocked;
+            tracing::warn!(error_code = sec_err.code(), "SSRF attempt blocked to {}. Rule: {}", ip_addr, err_obj.code());
+            return Err(ProxyError::SecurityViolation(format!(
+                "Cannot proxy to loopback or private IPs. Reason: [{}] {}. (Use Dev Mode to bypass)",
+                err_obj.code(), err_obj
+            )));
+        }
     }
 
     let scheme = if is_ssrf { "http" } else { "https" };
@@ -140,8 +143,9 @@ pub async fn forward_to_ip(
             if let Ok(data) = frame.into_data() {
                 body_bytes.extend_from_slice(&data);
                 if body_bytes.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                    tracing::warn!("KIN-PRX-020: Blocked oversized IP proxy request body");
-                    return Err(ProxyError::InvalidPayload);
+                    let err = kinetic_core::error::SecurityError::PayloadTooLarge;
+                    tracing::warn!(error_code = err.code(), "Blocked oversized IP proxy request body");
+                    return Err(ProxyError::InvalidPayload("Blocked oversized IP proxy request body".to_string()));
                 }
             }
         }
@@ -149,7 +153,8 @@ pub async fn forward_to_ip(
     backend_req = backend_req.body(body_bytes);
 
     let backend_resp = backend_req.send().await.map_err(|e| {
-        tracing::error!("KIN-PRX-027: Failed to reach IP gateway: {}", e);
+        let err = super::ProxyError::IpGatewayUnreachable(e.to_string());
+        tracing::error!(error_code = err.code(), "{}", err);
         ProxyError::PeerUnreachable(format!("Failed to reach Web2 server: {}", e))
     })?;
 
