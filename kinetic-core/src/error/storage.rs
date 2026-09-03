@@ -15,49 +15,61 @@ pub enum StorageError {
 
     /// The daemon attempted to open the embedded database file, but it is exclusively locked.
     /// This typically means a second instance of the Kinetic daemon is already running on this machine.
+    /// Stop the conflicting process and restart the daemon.
     #[error("Another instance of Kinetic daemon is already running (Database is locked).")]
     DatabaseLocked,
 
     /// The database engine detected structural corruption in the B-tree on disk.
-    /// This can happen after a hard power loss. The node may need to wipe its state and re-sync.
+    /// This can happen after a hard power loss or disk failure.
+    /// The node may need to wipe its state directory and re-sync from the network.
     #[error("Storage corruption detected: {0}")]
     Corruption(String),
 
     /// The local node failed to read a value from the database engine.
     /// This could indicate underlying disk issues or unreadable sectors.
+    /// Check system disk health and restart the daemon.
     #[error("Storage read failed: {0}")]
     ReadFailed(String),
 
     /// The local node failed to write a value to the database engine.
-    /// Ensure the disk is not completely full and the daemon has write permissions.
+    /// The disk may be completely full or the daemon lacks write permissions.
+    /// Free up disk space and ensure the directory is writable.
     #[error("Storage write failed: {0}")]
     WriteFailed(String),
 
     /// The local node failed to delete a record from the database.
+    /// The database file might be locked by another process or experiencing permission issues.
+    /// Verify file permissions and check for disk errors.
     #[error("Storage delete failed: {0}")]
     DeleteFailed(String),
 
     /// The local node failed to iterate over a range of keys in the database.
+    /// A B-tree node could be corrupted or the cursor became invalidated.
+    /// Restart the daemon to reset the storage cursors.
     #[error("Storage scan failed: {0}")]
     ScanFailed(String),
 
     /// The daemon failed to initialize or create the database engine at startup.
-    /// Check the filesystem permissions and ensure the target directory exists.
+    /// The filesystem permissions are incorrect or the target directory does not exist.
+    /// Ensure the app directory is properly created and writable by the user.
     #[error("Storage initialization failed: {0}")]
     OpenFailed(String),
 
     /// The bytes were successfully read from disk, but failed to deserialize into a valid Kinetic structure.
     /// This can happen after a daemon upgrade if the data schema changed without a migration.
+    /// Delete the local database file to force a clean re-sync.
     #[error("Storage deserialization failed: {0}")]
     DeserializationFailed(String),
 
-    /// During node startup, the Kinetic Record Store (KRS) detected an invalid or expired NameRecord on disk.
-    /// The daemon safely discarded it automatically. No action is required.
+    /// The Kinetic Record Store (KRS) detected an invalid or expired NameRecord on disk.
+    /// The record's TTL expired or its signature became invalid over time.
+    /// The daemon safely discarded it automatically. No manual action is required.
     #[error("Discarding invalid locally stored NameRecord")]
     InvalidRecordDiscarded,
 
-    /// During node startup, the Kinetic Record Store (KRS) detected a heartbeat for a name that no longer exists.
-    /// The daemon safely purged the orphan automatically. No action is required.
+    /// The Kinetic Record Store (KRS) detected a heartbeat for a name that no longer exists.
+    /// The parent record was purged or transferred, leaving the heartbeat orphaned.
+    /// The daemon safely purged the orphan automatically. No manual action is required.
     #[error("Purging orphaned heartbeat")]
     OrphanedHeartbeatPurged,
 }
