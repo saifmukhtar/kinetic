@@ -1,7 +1,7 @@
 # Kinetic Error Taxonomy Dictionary
 
 ## Introduction
-This document outlines the standard error codes (`KIN-XXX-NNN`) used across the Kinetic network. It provides deep context on what went wrong, why it happened, and how to mitigate it.
+This document outlines the standard error codes used across the Kinetic network. It provides deep context on what went wrong, why it happened, and how to mitigate it.
 
 **Total Documented Error Codes:** 278
 
