@@ -96,13 +96,13 @@ pub async fn handle_set_config(
                 })))
             }
             Err(e) => {
-            let err = kinetic_core::error::ConfigError::InvalidApiUpdate(format!("Invalid config payload format: {}", e));
-            Err(crate::api::error::AppError(kinetic_core::ApiError::from(err)))
+                let err = kinetic_core::error::ConfigError::InvalidApiUpdate(format!("Invalid config payload format: {}", e));
+                Err(crate::api::error::AppError(kinetic_core::ApiError::from(err)))
+            }
         }
-    }
-} else {
-    let err = kinetic_core::error::ConfigError::InvalidApiUpdate("Missing 'config' object in payload.".to_string());
-    Err(crate::api::error::AppError(kinetic_core::ApiError::from(err)))
+    } else {
+        let err = kinetic_core::error::ConfigError::InvalidApiUpdate("Missing 'config' object in payload.".to_string());
+        Err(crate::api::error::AppError(kinetic_core::ApiError::from(err)))
     }
 }
 
