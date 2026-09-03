@@ -216,7 +216,14 @@ impl ProxyError {
             Self::LocalWebServerForwardingFailed(..) => "KIN-PRX-022",
             Self::NameNotFound(_) => "KIN-PRX-023",
             Self::InvalidPayload(_) => "KIN-PRX-024",
-            _ => "KIN-PRX-000",
+            Self::Hyper(_) => "KIN-PRX-025",
+            Self::Reqwest(_) => "KIN-PRX-026",
+            Self::Io(_) => "KIN-PRX-027",
+            Self::Ca(_) => "KIN-PRX-028",
+            Self::Http(_) => "KIN-PRX-029",
+            Self::PeerUnreachable(_) => "KIN-PRX-030",
+            Self::SecurityViolation(_) => "KIN-PRX-031",
+            Self::Other(_) => "KIN-PRX-032",
         }
     }
 

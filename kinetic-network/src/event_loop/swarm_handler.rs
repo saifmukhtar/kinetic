@@ -120,6 +120,9 @@ impl super::core::NetworkEventLoop {
                     .unwrap_or_default()
                     .as_secs();
 
+                // TODO: BUG - mismatched current_kyn and unix_now
+                // banned_peers stores expiry as a `kyn` round, but we are comparing it to Unix seconds (`now`).
+                // This causes bans to expire immediately. We need to compare against `self.current_kyn` instead.
                 if let Some(&expire_time) = self.banned_peers.peek(&peer_id) {
                     if expire_time > now {
                         let err = kinetic_core::error::P2pError::BannedPeerConnectionAttempt(peer_id.to_string());
