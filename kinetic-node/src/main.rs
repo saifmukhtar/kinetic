@@ -347,48 +347,17 @@ async fn run_node() -> Result<()> {
                         Some(gossip_storage.clone()),
                         current_kyn,
                     );
-<<<<<<< HEAD
-                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
-                    if let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload) {
-                        if kyn.verify() {
-                            let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
-                                Ok(latest) => {
-                                    if latest.is_unavailable { 0 } else { latest.kyn }
-                                },
-                                Err(e) => {
-                                    if !matches!(e, kinetic_core::error::KynProviderError::NoCachedKyn) {
-                                        tracing::error!(error_code = e.code(), "Failed to load cached kyn in node gossip handler: {}", e);
-                                    }
-                                    0
-                                }
-                            };
-
-                            if kyn.kyn > latest_kyn {
-                                if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
-                                    tracing::error!(error_code = e.code(), "Failed to cache drand kyn in node gossip handler: {}", e);
-                                }
-                                let _ = kyn_tx_gossip.send(kyn.kyn);
-=======
                 } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
                     && kyn.verify()
                 {
                     let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
                         Ok(latest) => {
-                            if latest.is_unavailable {
-                                0
-                            } else {
-                                latest.kyn
->>>>>>> d3a44f9 (refactor: extract local OS/Disk abstractions to kinetic-local crate)
-                            }
-                        }
+                            if latest.is_unavailable { 0 } else { latest.kyn }
+                        },
                         Err(e) => {
                             if !matches!(e, kinetic_core::error::KynProviderError::NoCachedKyn) {
-                                tracing::error!(
-                                    "{}: Failed to load cached kyn in node gossip handler: {}",
-                                    e.code(),
-                                    e
-                                );
+                                tracing::error!(error_code = e.code(), "Failed to load cached kyn in node gossip handler: {}", e);
                             }
                             0
                         }
@@ -396,11 +365,7 @@ async fn run_node() -> Result<()> {
 
                     if kyn.kyn > latest_kyn {
                         if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
-                            tracing::error!(
-                                "{}: Failed to cache drand kyn in node gossip handler: {}",
-                                e.code(),
-                                e
-                            );
+                            tracing::error!(error_code = e.code(), "Failed to cache drand kyn in node gossip handler: {}", e);
                         }
                         let _ = kyn_tx_gossip.send(kyn.kyn);
                     }
