@@ -272,31 +272,48 @@ pub enum PublishError {
     #[error("Failed to publish zone record: {0}")]
     ZonePublishFailed(String),
     /// The network did not reach the required replication quorum for the commitment.
+    /// At least 5 peers must acknowledge storing the commitment to ensure it isn't lost during the reveal window.
+    /// Wait a few seconds and try publishing the commitment again.
     #[error("Quorum failed for commitment of {0}: only {1}/5 nodes confirmed storage")]
     CommitmentQuorumFailed(String, usize),
     /// The quorum verification check failed for the commitment due to a network error.
+    /// The node lost its connection to the DHT swarm while waiting for peer acknowledgements.
+    /// Check your internet connection and retry the commitment.
     #[error("Quorum check failed for commitment of {0}: {1}")]
     CommitmentQuorumCheckError(String, String),
     /// Failed to publish the commitment to the DHT.
+    /// An underlying libp2p Kademlia error occurred while attempting to put the record.
+    /// Check node connectivity and retry.
     #[error("Failed to publish Commitment to DHT: {0}")]
     CommitmentPublishFailed(String),
-    /// Local reveal could not be found to verify the AuthorizedKid locally.
-    /// It will be forwarded, but the network might reject it.
+    /// The local reveal could not be found to verify the AuthorizedKid locally before broadcast.
+    /// The local node doesn't have the active name reveal cached, meaning it cannot pre-validate the KID.
+    /// The network will likely drop this payload. Ensure you own the name and it is fully synced locally.
     #[error("Could not find local reveal for name {0} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.")]
     MissingLocalRevealForKid(String),
-    /// Local reveal could not be found to verify the AuthorizedManifest locally.
+    /// The local reveal could not be found to verify the AuthorizedManifest locally before broadcast.
+    /// The local node cannot verify the manifest signature locally because it doesn't have the parent reveal.
+    /// The payload will be forwarded, but might be rejected by peers. Fully sync the node before publishing.
     #[error("Could not find local reveal for name {0} to verify AuthorizedManifest. Forwarding to DHT anyway.")]
     MissingLocalRevealForManifest(String),
     /// The zone payload failed to serialize into JSON.
+    /// The zone struct contains invalid characters, cyclical references, or exceeds nesting limits.
+    /// Verify your NrsZone struct data and ensure all fields are standard strings/numbers.
     #[error("Failed to serialize zone data: {0}")]
     ZoneSerializationFailed(String),
     /// Failed to broadcast the dynamic HostRoutingRecord to the DHT.
+    /// A libp2p timeout or swarm error occurred while propagating the host IP/PeerID.
+    /// The host may not be fully reachable on the network. Check port forwarding.
     #[error("Failed to broadcast dynamic HostRoutingRecord to DHT: {0}")]
     HostRoutingRecordPublishFailed(String),
-    /// Failed to publish the KID document to the DHT.
+    /// Failed to publish the cryptographic KID document to the DHT.
+    /// A lower-level network error or DHT timeout blocked the put request.
+    /// Retry the publish operation.
     #[error("Failed to publish KID to DHT: {0}")]
     KidPublishFailed(String),
-    /// Failed to publish the Manifest to the DHT.
+    /// Failed to publish the delegated Manifest to the DHT.
+    /// The network timed out or rejected the payload during the put attempt.
+    /// Retry the publish operation.
     #[error("Failed to publish Manifest to DHT: {0}")]
     ManifestPublishFailed(String),
 }
