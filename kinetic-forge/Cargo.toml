@@ -8,6 +8,6 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-dialoguer = "0.12.0"
+dialoguer.workspace = true
 serde_json.workspace = true
-toml_edit = "0.25.13"
+toml_edit.workspace = true

@@ -13,6 +13,6 @@ homepage.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 kinetic-primitives = { path = "../kinetic-primitives" }
 # num-prime 0.5.0 is hard-locked to num-bigint ^0.4.6. Do not upgrade to 0.5.x.
-num-bigint = "0.4.8"
-num-prime = "0.5.0"
-num-traits = "0.2.19"
+num-bigint.workspace = true
+num-prime.workspace = true
+num-traits.workspace = true

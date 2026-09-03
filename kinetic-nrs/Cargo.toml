@@ -20,7 +20,7 @@ hickory-server.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 kinetic-local = { path = "../kinetic-local" }
 kinetic-verify = { path = "../kinetic-verify" }
-moka = { version = "0.12", features = ["future"] }
+moka = { workspace = true, features = ["future"] }
 reqwest = { workspace = true, features = ["json"] }
 serde_json.workspace = true
 service-manager.workspace = true
@@ -29,7 +29,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [target.'cfg(unix)'.dependencies]
-privdrop = "0.5.6"
+privdrop.workspace = true
 
 [dev-dependencies]
 axum.workspace = true

@@ -16,5 +16,5 @@ categories = ["cryptography"]
 thiserror.workspace = true
 
 # --- External Crates ---
-ml-dsa = "0.1.1"
+ml-dsa.workspace = true
 sha2.workspace = true

@@ -12,7 +12,7 @@ axum.workspace = true
 bytes.workspace = true
 clap = { workspace = true, features = ["derive"] }
 ed25519-dalek.workspace = true
-futures-util = "0.3.34"
+futures-util.workspace = true
 http-body-util.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 kinetic-local = { path = "../kinetic-local" }

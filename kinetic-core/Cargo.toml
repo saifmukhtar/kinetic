@@ -30,9 +30,9 @@ tracing.workspace = true
 
 # --- External Crates ---
 bytes.workspace = true
-drand-verify = "0.6.2"
+drand-verify.workspace = true
 hex.workspace = true
-libp2p-identity = { version = "0.2.14", features = ["peerid"] }
+libp2p-identity = { workspace = true, features = ["peerid"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 
@@ -42,7 +42,7 @@ getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] 
 
 [dev-dependencies]
 # --- External Crates ---
-criterion = "0.8.2"
+criterion.workspace = true
 ed25519-dalek = { workspace = true, features = ["serde"] }
 getrandom.workspace = true
 proptest.workspace = true

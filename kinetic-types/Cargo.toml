@@ -20,7 +20,7 @@ thiserror.workspace = true
 # --- External Crates ---
 bytes.workspace = true
 serde = { workspace = true, features = ["derive", "rc"] }
-serde_bytes = "0.11.19"
+serde_bytes.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
