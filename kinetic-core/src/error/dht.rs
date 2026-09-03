@@ -410,36 +410,50 @@ impl PublishError {
 #[derive(Error, Debug)]
 pub enum RegistrationError {
     /// The requested name contains characters not allowed by the Kinetic naming rules.
+    /// Apex names must be alphanumeric, lowercase, and cannot contain special characters.
+    /// Correct the name string and try your registration again.
     #[error("Name '{name}' contains invalid characters")]
     InvalidName {
         /// The invalid name that was submitted.
         name: String,
     },
-    /// The VDF computation step failed (e.g. chiavdf returned an error).
+    /// The VDF computation step failed (e.g., chiavdf returned an error or crashed).
+    /// The CPU could not complete the required time-delay proof for the registration.
+    /// Check system logs, ensure the VDF binary is executable, and try again.
     #[error("VDF computation failed: {0}")]
     VdfFailed(#[from] VdfRejectReason),
     /// The revealed data's hash did not match the previously published commitment.
+    /// This happens if the registration parameters were modified between the commit and reveal phases.
+    /// Restart the registration process from the beginning without altering parameters.
     #[error("Commitment mismatch — reveal data does not match commitment")]
     CommitmentMismatch,
     /// The name was claimed by a different key before this registration completed.
+    /// Another user successfully completed their PoW and revealed before your node finished.
+    /// You must choose a different, unregistered name or compute a longer PoW to steal it.
     #[error("'{name}' is already owned by a different key")]
     AlreadyOwned {
         /// The `.kin` name that is already registered.
         name: String,
     },
     /// A VDF task for this name is already running; only one at a time is permitted.
+    /// The daemon prevents concurrent PoW computations for the same name to save CPU cycles.
+    /// Wait for the current registration process to finish or fail.
     #[error("A VDF registration is already in progress for '{name}'")]
     AlreadyInProgress {
         /// The `.kin` name whose registration is already running.
         name: String,
     },
-    /// The network rejected the registration record for the stated reason.
+    /// The network rejected the registration record during the broadcast phase.
+    /// The peers validated the payload and found it cryptographically or temporally invalid.
+    /// Ensure your local clock is synced and you are using the latest network kyn.
     #[error("Registration rejected by the network: {reason}")]
     NetworkRejected {
         /// The specific reason the record was rejected.
         reason: RecordRejectReason,
     },
     /// An unexpected internal error occurred during the registration flow.
+    /// A localized crash, database lock, or thread panic occurred inside the daemon.
+    /// Check the daemon logs for stack traces and restart if necessary.
     #[error("Internal error: {message}")]
     Internal {
         /// Developer-facing description of what went wrong.
@@ -449,6 +463,8 @@ pub enum RegistrationError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
     /// The name has not been registered on this node, so local operations cannot proceed.
+    /// The daemon cannot perform actions (like publishing KIDs) on a name it does not control.
+    /// Register the name on this node first, or import its private keys.
     #[error("No registration record found for {name}. Register the name first.")]
     NotRegisteredLocal {
         /// The `.kin` name.
