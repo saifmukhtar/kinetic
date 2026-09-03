@@ -347,7 +347,7 @@ async fn run_node() -> Result<()> {
                                 },
                                 Err(e) => {
                                     if !matches!(e, kinetic_core::error::DrandError::NoCachedKyn) {
-                                        tracing::error!("{}: Failed to load cached kyn in node gossip handler: {}", e.code(), e);
+                                        tracing::error!(error_code = e.code(), "Failed to load cached kyn in node gossip handler: {}", e);
                                     }
                                     0
                                 }
