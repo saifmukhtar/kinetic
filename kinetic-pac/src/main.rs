@@ -150,11 +150,12 @@ impl PacManager {
     /// # Errors
     /// Returns a [`PacError`] if IO fails on the lockfile or the OS rejects the configuration.
     pub fn install(&self, pac_url: &str) -> Result<(), PacError> {
-        if self.lock_path.exists()
-            && let Ok(Ok(saved)) =
+        if self.lock_path.exists() {
+            if let Ok(Ok(saved)) =
                 File::open(&self.lock_path).map(serde_json::from_reader::<_, SavedState>)
-        {
-            let _ = self.configurator.restore_state(&saved);
+            {
+                let _ = self.configurator.restore_state(&saved);
+            }
         }
         let previous = self.configurator.save_state()?;
         let tmp_path = self.lock_path.with_extension("tmp");
@@ -290,7 +291,7 @@ enum Commands {
 
 fn install_service() -> anyhow::Result<()> {
     println!("Installing Kinetic PAC Server service...");
-    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     let current_exe = env::current_exe()?;
@@ -308,13 +309,13 @@ fn install_service() -> anyhow::Result<()> {
 
     println!(
         "Service installed successfully. Run '{}-pac start' to begin.",
-        kinetic_core::constants::NETWORK_ID
+        kinetic_core::constants::NSP
     );
     Ok(())
 }
 
 fn uninstall_service() -> anyhow::Result<()> {
-    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -332,7 +333,7 @@ fn uninstall_service() -> anyhow::Result<()> {
 }
 
 fn start_background_service() -> anyhow::Result<()> {
-    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.start(ServiceStartCtx { label })?;
@@ -341,7 +342,7 @@ fn start_background_service() -> anyhow::Result<()> {
 }
 
 fn stop_background_service() -> anyhow::Result<()> {
-    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -358,34 +359,37 @@ pub fn build_pac_script(proxies_dir: &std::path::Path) -> String {
     > = std::collections::HashMap::new();
 
     // Scan proxies dir for JSON files
-    if let Ok(entries) = std::fs::read_dir(&proxies_dir) {
+    if let Ok(entries) = std::fs::read_dir(proxies_dir) {
         for entry in entries.flatten() {
-            if let Some(ext) = entry.path().extension()
-                && ext == "json"
-                && let Ok(contents) = std::fs::read_to_string(entry.path())
-                && let Ok(proxy_info) = serde_json::from_str::<RegisteredProxy>(&contents)
-            {
-                if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
-                    tracing::warn!(
-                        "Invalid IP address in proxy config: {}",
-                        proxy_info.proxy_ip
-                    );
-                    continue;
-                }
+            if let Some(ext) = entry.path().extension() {
+                if ext == "json" {
+                    if let Ok(contents) = std::fs::read_to_string(entry.path()) {
+                        if let Ok(proxy_info) = serde_json::from_str::<RegisteredProxy>(&contents) {
+                            if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
+                                tracing::warn!(
+                                    "Invalid IP address in proxy config: {}",
+                                    proxy_info.proxy_ip
+                                );
+                                continue;
+                            }
 
-                let nsp = if proxy_info.nsp.starts_with('.') {
-                    proxy_info.nsp.clone()
-                } else {
-                    format!(".{}", proxy_info.nsp)
-                };
+                            let nsp = if proxy_info.nsp.starts_with('.') {
+                                proxy_info.nsp.clone()
+                            } else {
+                                format!(".{}", proxy_info.nsp)
+                            };
 
-                let is_atlas = entry.file_name().to_string_lossy().starts_with("atlas_");
-                let entry = proxy_map.entry(nsp).or_insert((None, None));
+                            let is_atlas =
+                                entry.file_name().to_string_lossy().starts_with("atlas_");
+                            let entry = proxy_map.entry(nsp).or_insert((None, None));
 
-                if is_atlas {
-                    entry.1 = Some(proxy_info);
-                } else {
-                    entry.0 = Some(proxy_info);
+                            if is_atlas {
+                                entry.1 = Some(proxy_info);
+                            } else {
+                                entry.0 = Some(proxy_info);
+                            }
+                        }
+                    }
                 }
             }
         }

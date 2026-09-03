@@ -197,7 +197,9 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                     event_loop.bad_vdf_counts.put(source, new_val);
 
                     if new_val.0 >= 3 {
-                        let err = kinetic_core::error::P2pError::KademliaRecordSpamBan(source.to_string());
+                        let err = kinetic_core::error::P2pError::KademliaRecordSpamBan(
+                            source.to_string(),
+                        );
                         tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = event_loop.swarm.disconnect_peer_id(source);
                         let expire_kyn = event_loop.current_kyn + 28800;

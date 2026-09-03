@@ -33,8 +33,9 @@ use tokio::sync::watch;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_core::config::KineticConfig;
-use kinetic_core::drand::{DrandClient, RawKyn};
+use kinetic_core::drand::RawKyn;
+use kinetic_core::traits::KynProvider;
+use kinetic_network::client::drand::DrandProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -61,9 +62,12 @@ enum Commands {
 
 fn install_service() -> Result<()> {
     println!("Installing Kinetic Node service...");
-    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
-    let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
+    let manager = <dyn ServiceManager>::native().map_err(|_| {
+        anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
+            "Failed to detect native service manager".into(),
+        ))
+    })?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -84,27 +88,36 @@ fn install_service() -> Result<()> {
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
-    let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
+    let manager = <dyn ServiceManager>::native().map_err(|_| {
+        anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
+            "Failed to detect native service manager".into(),
+        ))
+    })?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
-    let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
+    let manager = <dyn ServiceManager>::native().map_err(|_| {
+        anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
+            "Failed to detect native service manager".into(),
+        ))
+    })?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NETWORK_ID).parse()?;
-    let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
+    let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
+    let manager = <dyn ServiceManager>::native().map_err(|_| {
+        anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
+            "Failed to detect native service manager".into(),
+        ))
+    })?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -156,7 +169,7 @@ async fn run_node() -> Result<()> {
         std::process::exit(1);
     }
 
-    let config = KineticConfig::load_ctx(kinetic_core::config::ConfigContext::Node);
+    let config = kinetic_local::config::load_config_ctx(kinetic_core::config::ConfigContext::Node);
 
     // 1. Initialize structured tracing
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
@@ -169,7 +182,7 @@ async fn run_node() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let default_storage = kinetic_core::config::get_base_dir().join("node_db");
+    let default_storage = kinetic_local::config::get_base_dir().join("node_db");
     let storage_path = config
         .daemon
         .storage_dir
@@ -179,15 +192,15 @@ async fn run_node() -> Result<()> {
     info!("Storage engine initialized at {}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
-    let drand_client = Arc::new(DrandClient::new(Some(storage.clone())));
+    let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
 
-    let initial_kyn = match drand_client.fetch_latest().await {
+    let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
             info!("Drand beacon connected — kyn #{}", kyn.kyn);
             kyn
         }
         Err(e) => {
-            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            let err = kinetic_core::error::KynProviderError::UnavailableOnStartup(e.to_string());
             warn!(error_code = err.code(), "{}", err);
             RawKyn::unavailable()
         }
@@ -197,7 +210,7 @@ async fn run_node() -> Result<()> {
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity
-    let key_path = kinetic_core::config::get_base_dir().join("node.key");
+    let key_path = kinetic_local::config::get_base_dir().join("node.key");
     let local_key = node_key::load_or_generate_key(&key_path);
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
@@ -255,23 +268,23 @@ async fn run_node() -> Result<()> {
         disable_storage_sync: false,
     };
 
-    let base_config_dir = kinetic_core::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| base_config_dir.join("governance.db"));
     let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
-        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
+        *gov = kinetic_local::governance::load_governance_from_disk(&gov_state_path);
     }
 
     let (gossip_tx, mut gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-        Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config,
         local_key,
@@ -297,13 +310,13 @@ async fn run_node() -> Result<()> {
     info!("P2P Network architecture wired");
 
     let gossip_gov_path = gov_state_path.clone();
-    let drand_client_gossip = drand_client.clone();
+    let kyn_provider_gossip = kyn_provider.clone();
     let kyn_tx_gossip = kyn_tx.clone();
     let gossip_storage = storage.clone();
 
     kinetic_network::client::telemetry::start_telemetry_service(
         network_client.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         config.clone(),
         kinetic_types::network::NodeType::Node,
     );
@@ -323,14 +336,10 @@ async fn run_node() -> Result<()> {
                 let actual_payload = &payload[1..];
 
                 if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
-                    let current_kyn = match drand_client_gossip.fetch_latest().await {
+                    use kinetic_core::types::clock::KynNetworkExt;
+                    let current_kyn = match kyn_provider_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-                            std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs(),
-                        ),
+                        Err(_) => kinetic_core::types::Kyn::now_local().0,
                     };
                     gossip::handle_governance_gossip(
                         actual_payload,
@@ -338,28 +347,39 @@ async fn run_node() -> Result<()> {
                         Some(gossip_storage.clone()),
                         current_kyn,
                     );
-                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
-                    if let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload) {
-                        if kyn.verify() {
-                            let latest_kyn = match drand_client_gossip.load_cached_kyn() {
-                                Ok(latest) => {
-                                    if latest.is_unavailable { 0 } else { latest.kyn }
-                                },
-                                Err(e) => {
-                                    if !matches!(e, kinetic_core::error::DrandError::NoCachedKyn) {
-                                        tracing::error!(error_code = e.code(), "Failed to load cached kyn in node gossip handler: {}", e);
-                                    }
-                                    0
-                                }
-                            };
-
-                            if kyn.kyn > latest_kyn {
-                                if let Err(e) = drand_client_gossip.cache_kyn(&kyn) {
-                                    tracing::error!(error_code = e.code(), "Failed to cache drand kyn in node gossip handler: {}", e);
-                                }
-                                let _ = kyn_tx_gossip.send(kyn.kyn);
+                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8
+                    && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
+                    && kyn.verify()
+                {
+                    let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
+                        Ok(latest) => {
+                            if latest.is_unavailable {
+                                0
+                            } else {
+                                latest.kyn
                             }
                         }
+                        Err(e) => {
+                            if !matches!(e, kinetic_core::error::KynProviderError::NoCachedKyn) {
+                                tracing::error!(
+                                    error_code = e.code(),
+                                    "Failed to load cached kyn in node gossip handler: {}",
+                                    e
+                                );
+                            }
+                            0
+                        }
+                    };
+
+                    if kyn.kyn > latest_kyn {
+                        if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
+                            tracing::error!(
+                                error_code = e.code(),
+                                "Failed to cache drand kyn in node gossip handler: {}",
+                                e
+                            );
+                        }
+                        let _ = kyn_tx_gossip.send(kyn.kyn);
                     }
                 }
             }
@@ -367,7 +387,7 @@ async fn run_node() -> Result<()> {
     });
 
     // 6. Start Drand Heartbeat
-    let hb_drand = drand_client.clone();
+    let hb_kyn_provider = kyn_provider.clone();
     let hb_network = network_client.clone();
     let p2p_only = config.drand.p2p_only;
     tokio::spawn(async move {
@@ -379,7 +399,7 @@ async fn run_node() -> Result<()> {
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_drand.load_cached_kyn() {
+                if let Ok(latest) = hb_kyn_provider.load_cached_kyn() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
@@ -389,7 +409,9 @@ async fn run_node() -> Result<()> {
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if estimated_kyn > latest.kyn + 5 {
-                        let err = kinetic_core::error::DrandError::P2pFallbackTriggered { behind: estimated_kyn.saturating_sub(latest.kyn) };
+                        let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
+                            behind: estimated_kyn.saturating_sub(latest.kyn),
+                        };
                         tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
                     }
@@ -399,7 +421,7 @@ async fn run_node() -> Result<()> {
             }
 
             if should_fetch_http
-                && let Ok(kyn) = hb_drand.fetch_latest().await
+                && let Ok(kyn) = hb_kyn_provider.fetch_latest().await
                 && !kyn.is_unavailable
                 && !kyn.is_from_cache
             {
@@ -431,7 +453,7 @@ async fn run_node() -> Result<()> {
     );
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app)
-        .with_graceful_shutdown(kinetic_core::shutdown::shutdown_signal())
+        .with_graceful_shutdown(kinetic_local::shutdown::shutdown_signal())
         .await?;
 
     Ok(())

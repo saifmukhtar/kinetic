@@ -1,6 +1,6 @@
 //! Dynamic DHT routing record publisher and Drand epoch PoW hot-swapping heartbeat.
 
-use kinetic_core::drand::DrandClient;
+use kinetic_core::traits::KynProvider;
 use kinetic_network::{NetworkClient, NetworkConfig, NetworkEventLoop};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
@@ -42,7 +42,7 @@ pub async fn start_routing_publisher(
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            kyn: kyn,
+            kyn,
             signature: vec![],
         };
 
@@ -52,7 +52,8 @@ pub async fn start_routing_publisher(
         record.signature = signature.to_bytes().to_vec();
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {
-            let err = kinetic_core::error::PublishError::HostRoutingRecordPublishFailed(e.to_string());
+            let err =
+                kinetic_core::error::PublishError::HostRoutingRecordPublishFailed(e.to_string());
             tracing::warn!(error_code = err.code(), "{}", err);
         } else {
             tracing::info!("Published dynamic HostRoutingRecord to DHT");
@@ -67,7 +68,7 @@ pub async fn start_routing_publisher(
 /// network loop, mines a new identity, and restarts the P2P swarm asynchronously to ensure seamless connectivity.
 #[allow(clippy::too_many_arguments)]
 pub async fn start_drand_heartbeat(
-    hb_drand: Arc<DrandClient>,
+    hb_kyn_provider: Arc<dyn KynProvider>,
     kyn_tx: watch::Sender<u64>,
     mut hb_local_peer_id: libp2p::PeerId,
     shared_peer_id: Arc<RwLock<String>>,
@@ -92,14 +93,16 @@ pub async fn start_drand_heartbeat(
     let mut last_verified_epoch: Option<u64> = None;
     loop {
         interval.tick().await;
-        if let Ok(kyn) = hb_drand.fetch_latest().await
+        if let Ok(kyn) = hb_kyn_provider.fetch_latest().await
             && !kyn.is_unavailable
             && !kyn.is_from_cache
         {
             let _ = kyn_tx.send(kyn.kyn);
 
-            let current_epoch =
-                kinetic_network::pow::get_staggered_epoch(&hb_local_peer_id.to_bytes(), kyn.kyn);
+            let current_epoch = kinetic_network::pow::get_staggered_epoch(
+                &hb_local_peer_id.to_bytes(),
+                kinetic_types::clock::Kyn(kyn.kyn),
+            );
 
             let needs_validation = match last_verified_epoch {
                 Some(epoch) => epoch != current_epoch,
@@ -112,7 +115,7 @@ pub async fn start_drand_heartbeat(
                 let pow_valid = tokio::task::spawn_blocking(move || {
                     kinetic_network::pow::is_valid_sybil_pow(
                         &peer_id_clone,
-                        kyn_round,
+                        kinetic_types::clock::Kyn(kyn_round),
                         kinetic_core::constants::POW_DIFFICULTY_BITS,
                     )
                 })
@@ -125,7 +128,7 @@ pub async fn start_drand_heartbeat(
                     );
                     let current_local_key = tokio::task::spawn_blocking(move || {
                         kinetic_network::pow::mine_sybil_keypair(
-                            kyn_round,
+                            kinetic_types::clock::Kyn(kyn_round),
                             kinetic_core::constants::POW_DIFFICULTY_BITS,
                         )
                     })
@@ -177,7 +180,10 @@ pub async fn start_drand_heartbeat(
 
                     match new_network {
                         Some((new_client, new_loop)) => {
-                            hc_client.update_backend(new_client.get_sender(), new_client.stream_control());
+                            hc_client.update_backend(
+                                new_client.get_sender(),
+                                new_client.stream_control(),
+                            );
                             *handle = tokio::spawn(async move {
                                 new_loop.run().await;
                             });

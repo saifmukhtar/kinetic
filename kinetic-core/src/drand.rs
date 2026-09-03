@@ -8,23 +8,15 @@
 //! 1. Try each HTTP endpoint (from `config.toml` and DNS TXT records) with up to 3 attempts and 500ms/1s/2s backoff.
 //! 2. For each successful response: verify BLS signature + SHA-256 binding + staleness (≤200 rounds / 10 minutes).
 //! 3. If all endpoints fail: fall back to local storage cache (may be stale but still usable for heartbeats).
-//! 4. If no cache exists: return `DrandError::NoCachedKyn` (`KIN-RND-004`).
+//! 4. If no cache exists: return `KynProviderError::NoCachedKyn` (`KIN-RND-004`).
 //!
 //! ## Dev Mode Behavior
 //!
 //! In dev mode ([`is_dev_mode()`](crate::config::is_dev_mode)), all signature verification is bypassed
 //! and a synthetic mock kyn with `kyn: 5,000,000` is returned if no cache exists.
 
-use crate::error::DrandError;
-use crate::traits::StorageEngine;
 use drand_verify::{G2PubkeyRfc, Pubkey};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tracing::warn;
-use web_time::Duration;
-
-#[cfg(not(target_arch = "wasm32"))]
-use hickory_resolver::config::*;
 
 // Heartbeat staleness threshold — 10 minutes in Drand Quicknet rounds (3s each)
 const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200; // 10min * 20 rounds/min
@@ -69,14 +61,14 @@ impl RawKyn {
     ///
     /// Accepts cached kyns if their kyn age relative to `current_live_kyn` does not
     /// exceed `MAX_STALE_ROUNDS_FOR_HEARTBEAT` (200 kyns / 10 minutes).
-    pub fn can_heartbeat(&self, current_live_kyn: u64) -> bool {
+    pub fn can_heartbeat(&self, current_live_kyn: kinetic_types::clock::Kyn) -> bool {
         if self.is_unavailable {
             return false;
         }
         if !self.is_from_cache {
             return true;
         }
-        let staleness = current_live_kyn.saturating_sub(self.kyn);
+        let staleness = current_live_kyn.0.saturating_sub(self.kyn);
         staleness <= MAX_STALE_ROUNDS_FOR_HEARTBEAT
     }
 
@@ -123,270 +115,6 @@ impl RawKyn {
             Ok(r) => r.as_slice() == expected.as_slice(),
             Err(_) => false,
         }
-    }
-}
-
-/// HTTP and DNS-backed client for fetching and caching Drand Quicknet randomness kyns.
-pub struct DrandClient {
-    http: reqwest::Client,
-    storage: Option<Arc<dyn StorageEngine>>,
-    endpoints: Vec<String>,
-    drand_domain: Vec<String>,
-    #[cfg(not(target_arch = "wasm32"))]
-    resolver: hickory_resolver::TokioAsyncResolver,
-}
-
-impl DrandClient {
-    /// Creates a new [`DrandClient`].
-    ///
-    /// Accepts an optional [`StorageEngine`] handle to cache successfully fetched kyns on disk.
-    pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
-        let config = crate::config::KineticConfig::load();
-        Self {
-            #[cfg(not(target_arch = "wasm32"))]
-            http: reqwest::Client::builder()
-                .redirect(reqwest::redirect::Policy::none())
-                .build()
-                .unwrap_or_default(),
-            #[cfg(target_arch = "wasm32")]
-            http: reqwest::Client::new(),
-            storage,
-            endpoints: config.drand.endpoints,
-            drand_domain: config.drand.drand_domain,
-            #[cfg(not(target_arch = "wasm32"))]
-            resolver: hickory_resolver::TokioAsyncResolver::tokio(
-                ResolverConfig::default(),
-                ResolverOpts::default(),
-            ),
-        }
-    }
-
-    /// Fetches the latest verified Drand kyn across configured endpoints and DNS seeds.
-    ///
-    /// Performs exponential backoff, verifies BLS signatures, enforces a 10-minute staleness
-    /// limit, and falls back to local storage cache if network endpoints are unreachable.
-    ///
-    /// # Errors
-    ///
-    /// - Returns [`DrandError::InvalidSignature`](crate::error::DrandError::InvalidSignature) if an endpoint returns a bad BLS signature.
-    /// - Returns [`DrandError::StaleKyn`](crate::error::DrandError::StaleKyn) if a kyn is older than 200 kyns (10 minutes).
-    /// - Returns [`DrandError::HttpError`](crate::error::DrandError::HttpError) on non-200 HTTP responses.
-    /// - Returns [`DrandError::StreamReadFailed`](crate::error::DrandError::StreamReadFailed) on connection timeouts or stream errors.
-    /// - Returns [`DrandError::ResponseTooLarge`](crate::error::DrandError::ResponseTooLarge) on body size limit violations (> 64 KB).
-    /// - Returns [`DrandError::NoCachedKyn`](crate::error::DrandError::NoCachedKyn) if all endpoints fail and no cache exists.
-    /// - Returns [`DrandError::AllEndpointsFailed`](crate::error::DrandError::AllEndpointsFailed) if network and fallback attempts fail.
-    pub async fn fetch_latest(&self) -> Result<RawKyn, DrandError> {
-        if crate::config::is_dev_mode() {
-            return self.load_cached_kyn();
-        }
-
-        let mut endpoints = self.endpoints.clone();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let mut injected_count = 0;
-            for domain in &self.drand_domain {
-                if injected_count >= 5 {
-                    break;
-                }
-                if let Ok(txt_lookup) = self.resolver.txt_lookup(domain.as_str()).await {
-                    for txt in txt_lookup.iter() {
-                        if injected_count >= 5 {
-                            break;
-                        }
-                        let url_str = txt.to_string();
-                        let url_str = url_str.trim_matches('"').to_string();
-                        if url_str.starts_with("https://") {
-                            endpoints.push(url_str);
-                            injected_count += 1;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Try each endpoint with exponential backoff
-
-        for endpoint in &endpoints {
-            match self.fetch_with_backoff(endpoint).await {
-                Ok(mut kyn) => {
-                    if !kyn.verify() {
-                        let err = DrandError::InvalidSignature;
-                        warn!(
-                            error_code = err.code(),
-                            endpoint = %endpoint,
-                            "Drand endpoint returned a cryptographically invalid kyn!"
-                        );
-                        continue;
-                    }
-
-                    let now = web_time::SystemTime::now()
-                        .duration_since(web_time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
-                    let estimated_kyn = (now.saturating_sub(crate::constants::DRAND_GENESIS_TIME))
-                        / crate::constants::DRAND_PERIOD;
-                    let age = estimated_kyn.saturating_sub(kyn.kyn);
-
-                    if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
-                        let err = DrandError::StaleKyn {
-                            expected: estimated_kyn,
-                            got: kyn.kyn,
-                        };
-                        warn!(
-                            error_code = err.code(),
-                            endpoint = %endpoint,
-                            kyn = kyn.kyn,
-                            expected = estimated_kyn,
-                            "Drand endpoint returned an unacceptably stale kyn"
-                        );
-                        continue;
-                    }
-
-                    kyn.is_from_cache = false;
-                    kyn.is_unavailable = false;
-                    // Cache on every successful fetch
-                    if let Err(e) = self.cache_kyn(&kyn) {
-                        tracing::error!(error_code = e.code(), "Failed to cache drand kyn after fetch: {}", e);
-                    }
-                    return Ok(kyn);
-                }
-                Err(e) => {
-                    warn!(error_code = e.code(), endpoint = %endpoint, "Drand endpoint unreachable: {}", e);
-                }
-            }
-        }
-
-        // All endpoints failed — try cache
-        let err = DrandError::AllEndpointsFailed;
-        warn!(error_code = err.code(), "All Drand endpoints unreachable — falling back to cached kyn");
-        match self.load_cached_kyn() {
-            Ok(kyn) => Ok(kyn),
-            Err(e) => {
-                warn!(error_code = e.code(), "Cache fallback failed: {}", e);
-                Err(DrandError::AllEndpointsFailed)
-            }
-        }
-    }
-
-    /// Attempts to fetch a single Drand kyn from a URL with up to 3 attempts and exponential backoff.
-    ///
-    /// Attempt delays: 500ms → 1s → 2s. Per-request HTTP timeout: 5 seconds.
-    /// Response body size is capped at 64 KB to prevent memory exhaustion from malicious endpoints.
-    ///
-    /// This is a `pub(crate)` helper called by [`fetch_latest`](Self::fetch_latest).
-    ///
-    /// # Errors
-    ///
-    /// - Returns [`DrandError::HttpError`] (`KIN-RND-003`) if the final attempt returns a non-2xx HTTP status.
-    /// - Returns [`DrandError::StreamReadFailed`] (`KIN-RND-010`) on connection/stream failure.
-    /// - Returns [`DrandError::ResponseTooLarge`] (`KIN-RND-011`) if response body exceeds 64 KB.
-    /// - Returns [`DrandError::Serde`] (`KIN-RND-005`) if the response body fails JSON deserialization.
-    /// - Returns [`DrandError::AllEndpointsFailed`] (`KIN-RND-001`) if all 3 attempts are exhausted without success.
-    async fn fetch_with_backoff(&self, url: &str) -> Result<RawKyn, DrandError> {
-        let mut delay = Duration::from_millis(500);
-        let max_attempts = 3;
-
-        for attempt in 0..max_attempts {
-            match self
-                .http
-                .get(url)
-                .timeout(Duration::from_secs(5))
-                .send()
-                .await
-            {
-                Ok(mut resp) if resp.status().is_success() => {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        let bytes = resp.bytes().await.map_err(|e| DrandError::HttpClient(e.to_string()))?;
-                        if bytes.len() > crate::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
-                            return Err(DrandError::ResponseTooLarge(bytes.len()));
-                        }
-                        return Ok(serde_json::from_slice::<RawKyn>(&bytes)?);
-                    }
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        let mut body = bytes::BytesMut::new();
-                        while let Some(chunk) = resp
-                            .chunk()
-                            .await
-                            .map_err(|e| DrandError::StreamReadFailed(e.to_string()))?
-                        {
-                            body.extend_from_slice(&chunk);
-                            if body.len() > crate::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
-                                return Err(DrandError::ResponseTooLarge(body.len()));
-                            }
-                        }
-                        return Ok(serde_json::from_slice::<RawKyn>(&body)?);
-                    }
-                }
-                Ok(_resp) if attempt < max_attempts - 1 => {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    tokio::time::sleep(delay).await;
-                    #[cfg(target_arch = "wasm32")]
-                    gloo_timers::future::sleep(delay).await;
-                    delay *= 2;
-                }
-                Ok(resp) => {
-                    return Err(DrandError::HttpError(resp.status().as_u16()));
-                }
-                Err(_) if attempt < max_attempts - 1 => {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    tokio::time::sleep(delay).await;
-                    #[cfg(target_arch = "wasm32")]
-                    gloo_timers::future::sleep(delay).await;
-                    delay *= 2; // exponential backoff
-                }
-                Err(e) => return Err(DrandError::HttpClient(e.to_string())),
-            }
-        }
-        Err(DrandError::AllEndpointsFailed)
-    }
-
-    /// Caches a verified kyn to the local storage engine.
-    ///
-    /// # Errors
-    ///
-    /// - Returns `JsonError` if JSON serialization fails.
-    /// - Returns [`crate::error::DrandError::Storage`] if writing to disk fails.
-    pub fn cache_kyn(&self, kyn: &RawKyn) -> Result<(), DrandError> {
-        if let Some(storage) = &self.storage {
-            let bytes = serde_json::to_vec(kyn)?;
-            storage.put(crate::constants::DB_PREFIX_LAST_DRAND, &bytes)?;
-        }
-        Ok(())
-    }
-
-    /// Retrieves the most recent successfully cached kyn from local storage.
-    ///
-    /// In dev mode (`is_dev_mode()`), if the cache is empty, returns a synthetic mock kyn (`kyn: 5,000,000`).
-    ///
-    /// # Errors
-    ///
-    /// - Returns [`DrandError::NoCachedKyn`](crate::error::DrandError::NoCachedKyn) if storage is empty or missing (outside dev mode).
-    /// - Returns [`DrandError::Storage`](crate::error::DrandError::Storage) if database reading fails.
-    pub fn load_cached_kyn(&self) -> Result<RawKyn, DrandError> {
-        if let Some(storage) = &self.storage {
-            if let Some(bytes) = storage.get(crate::constants::DB_PREFIX_LAST_DRAND)? {
-                let mut kyn = serde_json::from_slice::<RawKyn>(&bytes)?;
-                kyn.is_from_cache = true;
-                return Ok(kyn);
-            }
-        }
-
-        if crate::config::is_dev_mode() {
-            let err = crate::error::DrandError::DevModeMockKyn;
-            tracing::warn!(error_code = err.code(), "{}", err);
-            return Ok(RawKyn {
-                kyn: 5000000,
-                randomness: "mock_randomness".to_string(),
-                signature: String::new(),
-                is_from_cache: true,
-                is_unavailable: false,
-            });
-        }
-
-        Err(DrandError::NoCachedKyn)
     }
 }
 
@@ -462,26 +190,26 @@ mod tests {
             is_from_cache: false,
             is_unavailable: false,
         };
-        assert!(kyn.can_heartbeat(1000));
-        assert!(kyn.can_heartbeat(5000)); // live kyns don't check staleness locally here
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(1000)));
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(5000))); // live kyns don't check staleness locally here
 
         // A cached kyn checks staleness against the provided current_live_kyn
         kyn.is_from_cache = true;
 
         // Exact same kyn (0 staleness)
-        assert!(kyn.can_heartbeat(1000));
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(1000)));
 
         // Max allowed staleness (200 rounds)
-        assert!(kyn.can_heartbeat(1200));
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(1200)));
 
         // Exceeds max staleness (201 rounds)
-        assert!(!kyn.can_heartbeat(1201));
+        assert!(!kyn.can_heartbeat(kinetic_types::clock::Kyn(1201)));
 
         // Edge case: current_live_kyn is somehow behind the cached kyn
-        assert!(kyn.can_heartbeat(999));
+        assert!(kyn.can_heartbeat(kinetic_types::clock::Kyn(999)));
 
         // An unavailable sentinel is never usable
         let sentinel = RawKyn::unavailable();
-        assert!(!sentinel.can_heartbeat(1000));
+        assert!(!sentinel.can_heartbeat(kinetic_types::clock::Kyn(1000)));
     }
 }

@@ -27,11 +27,14 @@ pub async fn forward_to_web2_backend(
     // Strip any existing port if present before appending :443 to prevent parsing crash
     let target_domain_clean = clean_target_domain(target_domain);
     let lookup_string = format!("{}:443", target_domain_clean);
-    
+
     let mut addrs = match lookup_host(&lookup_string).await {
         Ok(a) => a,
         Err(e) => {
-            let err = kinetic_core::error::NrsError::Web2BridgeResolveFailed(target_domain_clean.to_string(), e.to_string());
+            let err = kinetic_core::error::NrsError::Web2BridgeResolveFailed(
+                target_domain_clean.to_string(),
+                e.to_string(),
+            );
             warn!(error_code = err.code(), "{}", err);
             return Err(ProxyError::NameNotFound(target_domain_clean.to_string()));
         }
@@ -41,7 +44,9 @@ pub async fn forward_to_web2_backend(
     let socket_addr = match addrs.next() {
         Some(addr) => addr,
         None => {
-            let err = kinetic_core::error::NrsError::Web2BridgeNoIpsFound(target_domain_clean.to_string());
+            let err = kinetic_core::error::NrsError::Web2BridgeNoIpsFound(
+                target_domain_clean.to_string(),
+            );
             warn!(error_code = err.code(), "{}", err);
             return Err(ProxyError::NameNotFound(target_domain_clean.to_string()));
         }
@@ -61,11 +66,14 @@ pub async fn forward_to_web2_backend(
         warn!(
             error_code = sec_err.code(),
             "Web2 Bridge SSRF Blocked: {} resolved to a dangerous IP ({}). Rule: {}",
-            target_domain_clean, ip_addr, err_obj.code()
+            target_domain_clean,
+            ip_addr,
+            err_obj.code()
         );
         return Err(ProxyError::SecurityViolation(format!(
             "Web2 Bridge target resolved to a dangerous IP. Reason: [{}] {}",
-            err_obj.code(), err_obj
+            err_obj.code(),
+            err_obj
         )));
     }
 
@@ -108,24 +116,23 @@ pub async fn forward_to_web2_backend(
 
     for (name, value) in backend_resp.headers() {
         let header_name = name.as_str().to_lowercase();
-        
+
         // Strip HSTS to prevent the browser from caching TLS directives for the .kin name
         if header_name == "strict-transport-security" {
             continue;
         }
 
         // Prevent the UX Redirect Leak: Rewrite Location headers back to the .kin name
-        if header_name == "location" {
-            if let Ok(loc_str) = value.to_str() {
-                if let Some(new_loc) = rewrite_location_header(loc_str, target_domain_clean, &original_host) {
-                    if let Ok(new_val) = hyper::header::HeaderValue::from_str(&new_loc) {
-                        resp_builder = resp_builder.header(name, new_val);
-                        continue;
-                    }
-                }
-            }
+        if header_name == "location"
+            && let Ok(loc_str) = value.to_str()
+            && let Some(new_loc) =
+                rewrite_location_header(loc_str, target_domain_clean, &original_host)
+            && let Ok(new_val) = hyper::header::HeaderValue::from_str(&new_loc)
+        {
+            resp_builder = resp_builder.header(name, new_val);
+            continue;
         }
-        
+
         resp_builder = resp_builder.header(name, value);
     }
 
@@ -171,13 +178,19 @@ mod tests {
     fn test_rewrite_location_header() {
         // Standard Web2 to Web3 rewrite
         assert_eq!(
-            rewrite_location_header("https://saif.github.io/about", "saif.github.io", "saif.kin").unwrap(),
+            rewrite_location_header("https://saif.github.io/about", "saif.github.io", "saif.kin")
+                .unwrap(),
             "https://saif.kin/about"
         );
-        
+
         // Subpath and Query params
         assert_eq!(
-            rewrite_location_header("https://saif.github.io/path?q=1", "saif.github.io", "saif.kin").unwrap(),
+            rewrite_location_header(
+                "https://saif.github.io/path?q=1",
+                "saif.github.io",
+                "saif.kin"
+            )
+            .unwrap(),
             "https://saif.kin/path?q=1"
         );
 
@@ -186,7 +199,7 @@ mod tests {
             rewrite_location_header("https://twitter.com/saif", "saif.github.io", "saif.kin"),
             None
         );
-        
+
         // Relative redirects shouldn't match (handled cleanly by browser)
         assert_eq!(
             rewrite_location_header("/about", "saif.github.io", "saif.kin"),

@@ -2,6 +2,7 @@
 
 use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
+use kinetic_core::traits::KynProvider;
 use reqwest::Client;
 use tracing::{info, warn};
 
@@ -76,21 +77,19 @@ pub async fn handle_identity_command(
 
             let kid_did = kinetic_kid::did::Did::new(&did_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse DID: {:?}", e))?;
-            let drand_client = kinetic_core::drand::DrandClient::new(None);
-            let current_kyn = match drand_client.fetch_latest().await {
+            let kyn_provider = kinetic_network::client::drand::DrandProvider::new(None);
+            use kinetic_core::types::Kyn;
+            use kinetic_core::types::clock::KynNetworkExt;
+
+            let current_kyn = match kyn_provider.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,
-                Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs(),
-                ),
+                Err(_) => Kyn::now_local().0,
             };
 
             let doc = kinetic_kid::document::Document {
                 doc_type: "kinetic.kid.v1".to_string(),
                 kid: kid_did,
-                created_at: kinetic_core::types::clock::network_kyn_to_unix_time(current_kyn),
+                created_at: kinetic_core::types::Kyn(current_kyn).to_network_utime().0,
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: format!("{}#primary", did_str),
                     key_type: "MlDsa65".to_string(),
@@ -129,8 +128,8 @@ pub async fn handle_identity_command(
             name,
         } => {
             // Load identity keypair to sign the AuthorizedKid
-            let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-            let keypair = kinetic_core::types::load_keypair(&identity_path)?;
+            let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+            let keypair = kinetic_local::identity::load_keypair(&identity_path)?;
 
             let mut kid_doc_opt = None;
 
@@ -258,7 +257,7 @@ pub async fn handle_identity_command(
             info!("Generating new ML-DSA-65 keypair for rotated identity...");
             let new_keypair = kinetic_primitives::keys::KineticKeypair::generate();
             use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-            let new_pub_b64 = b64_url.encode(&new_keypair.pubkey_bytes());
+            let new_pub_b64 = b64_url.encode(new_keypair.pubkey_bytes());
 
             // Replace primary controller key
             let primary_id = format!("{}#primary", doc.kid);
@@ -372,7 +371,7 @@ mod tests {
         std::fs::write(temp_dir.join("identity.key"), keypair.to_bytes()).unwrap();
         unsafe {
             env::set_var(
-                kinetic_core::constants::ENV_DATA_DIR,
+                kinetic_core::constants::ENV_DATA,
                 temp_dir.to_str().expect("valid utf-8 path"),
             );
         }

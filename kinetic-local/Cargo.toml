@@ -1,0 +1,39 @@
+[package]
+name = "kinetic-local"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+readme = "README.md"
+description = "Local node management, OS integration, and secure credential storage for the Kinetic Network."
+keywords = ["kinetic", "node", "storage", "os"]
+categories = ["os", "filesystem"]
+
+[dependencies]
+# --- Workspace & Internal Crates ---
+kinetic-core = { path = "../kinetic-core" }
+kinetic-kid = { path = "../kinetic-kid" }
+kinetic-primitives = { path = "../kinetic-primitives" }
+kinetic-types = { path = "../kinetic-types" }
+
+# --- Workspace Inherited ---
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros", "signal"] }
+tracing.workspace = true
+
+# --- External Crates ---
+base64.workspace = true
+bincode.workspace = true
+bip39.workspace = true
+dirs.workspace = true
+hex.workspace = true
+lazy_static.workspace = true
+pbkdf2.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+toml.workspace = true
+zeroize = { workspace = true, features = ["zeroize_derive"] }

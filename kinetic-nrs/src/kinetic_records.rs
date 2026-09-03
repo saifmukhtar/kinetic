@@ -31,51 +31,49 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
     let parts: Vec<&str> = apex_name.split('.').collect();
     let is_reserved = !parts.is_empty() && kinetic_core::types::RESERVED_NAMES.contains(&parts[0]);
 
-    if is_reserved {
-        if parts[0] == "localhost" {
-            let mut response_records = Vec::new();
-            let name = Name::from_str(query_name).unwrap_or_else(|_| Name::root());
+    if is_reserved && parts[0] == "localhost" {
+        let mut response_records = Vec::new();
+        let name = Name::from_str(query_name).unwrap_or_else(|_| Name::root());
 
-            if query.query_type() == hickory_proto::rr::RecordType::A {
-                response_records.push(Record::from_rdata(
-                    name.clone(),
-                    3600,
-                    RData::A(std::net::Ipv4Addr::new(127, 0, 0, 1).into()),
-                ));
-            } else if query.query_type() == hickory_proto::rr::RecordType::AAAA {
-                response_records.push(Record::from_rdata(
-                    name.clone(),
-                    3600,
-                    RData::AAAA(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1).into()),
-                ));
-            }
-
-            if !response_records.is_empty() {
-                let response = builder.build(
-                    header,
-                    response_records.iter(),
-                    std::iter::empty(),
-                    std::iter::empty(),
-                    std::iter::empty(),
-                );
-                let _ = response_handle.send_response(response).await;
-                return header.into();
-            } else {
-                // Empty NOERROR response for unsupported query types on localhost
-                let response = builder.build(
-                    header,
-                    std::iter::empty(),
-                    std::iter::empty(),
-                    std::iter::empty(),
-                    std::iter::empty(),
-                );
-                let _ = response_handle.send_response(response).await;
-                return header.into();
-            }
+        if query.query_type() == hickory_proto::rr::RecordType::A {
+            response_records.push(Record::from_rdata(
+                name.clone(),
+                3600,
+                RData::A(std::net::Ipv4Addr::new(127, 0, 0, 1).into()),
+            ));
+        } else if query.query_type() == hickory_proto::rr::RecordType::AAAA {
+            response_records.push(Record::from_rdata(
+                name.clone(),
+                3600,
+                RData::AAAA(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1).into()),
+            ));
         }
-        // For other reserved names (like internal.kin), DO NOT return NXDOMAIN!
-        // Fall through to query the Daemon API for local overrides.
+
+        if !response_records.is_empty() {
+            let response = builder.build(
+                header,
+                response_records.iter(),
+                std::iter::empty(),
+                std::iter::empty(),
+                std::iter::empty(),
+            );
+            let _ = response_handle.send_response(response).await;
+            return header.into();
+        } else {
+            // Empty NOERROR response for unsupported query types on localhost
+            let response = builder.build(
+                header,
+                std::iter::empty(),
+                std::iter::empty(),
+                std::iter::empty(),
+                std::iter::empty(),
+            );
+            let _ = response_handle.send_response(response).await;
+            return header.into();
+        }
     }
+    // For other reserved names (like internal.kin), DO NOT return NXDOMAIN!
+    // Fall through to query the Daemon API for local overrides.
 
     let api_url_clone = api_url.to_string();
     let http_client_clone = http_client.clone();
@@ -255,10 +253,8 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 if sub.is_empty() { "@".to_string() } else { sub }
                             };
 
-                            if let Some(records) = zone
-                                .records
-                                .get(&subname)
-                                .or_else(|| zone.records.get("*"))
+                            if let Some(records) =
+                                zone.records.get(&subname).or_else(|| zone.records.get("*"))
                             {
                                 let name = match Name::from_str(query_name) {
                                     Ok(n) => n,
@@ -459,35 +455,44 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     return header.into();
                                 }
                             } else {
-                                let err = kinetic_core::error::ResolutionError::NotFound { name: subname.clone(), peers_queried: 0 };
-                                warn!(
-                                    error_code = err.code(),
-                                    "{}", err
-                                );
+                                let err = kinetic_core::error::ResolutionError::NotFound {
+                                    name: subname.clone(),
+                                    peers_queried: 0,
+                                };
+                                warn!(error_code = err.code(), "{}", err);
                             }
                         }
                         Err(e) => {
-                            let err = kinetic_core::error::ResolutionError::Internal { message: format!("Payload was not a valid NrsZone: {}", e), source: None };
+                            let err = kinetic_core::error::ResolutionError::Internal {
+                                message: format!("Payload was not a valid NrsZone: {}", e),
+                                source: None,
+                            };
                             warn!(error_code = err.code(), "{}", err);
                         }
                     }
                 }
                 Err(e) => {
-                    let err = kinetic_core::error::ResolutionError::Internal { message: format!("Payload was not a valid NameRecord: {}", e), source: None };
+                    let err = kinetic_core::error::ResolutionError::Internal {
+                        message: format!("Payload was not a valid NameRecord: {}", e),
+                        source: None,
+                    };
                     warn!(error_code = err.code(), "{}", err);
                 }
             }
         }
         Ok(None) => {
-            let err = kinetic_core::error::ResolutionError::NotFound { name: query_name.to_string(), peers_queried: 0 };
+            let err = kinetic_core::error::ResolutionError::NotFound {
+                name: query_name.to_string(),
+                peers_queried: 0,
+            };
             warn!(error_code = err.code(), "{}", err);
         }
         Err(e) => {
-            let err = kinetic_core::error::ResolutionError::Internal { message: format!("Error resolving .kin query via DHT/Cache: {:?}", e), source: None };
-            error!(
-                error_code = err.code(),
-                "{}", err
-            );
+            let err = kinetic_core::error::ResolutionError::Internal {
+                message: format!("Error resolving .kin query via DHT/Cache: {:?}", e),
+                source: None,
+            };
+            error!(error_code = err.code(), "{}", err);
             let response =
                 builder.error_msg(request.header(), hickory_proto::op::ResponseCode::ServFail);
             let _ = response_handle.send_response(response).await;

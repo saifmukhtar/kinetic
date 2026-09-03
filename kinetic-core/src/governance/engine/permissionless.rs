@@ -22,7 +22,7 @@ impl GovernanceEngine for PermissionlessEngine {
         &self,
         _state: &mut GovernanceState,
         _msg: &SignedGovernanceMessage,
-        _current_kyn: u64,
+        _current_kyn: kinetic_types::clock::Kyn,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
         // In Permissionless mode, the network is perfectly immutable.
         // No governance actions (updates, name revocations) are allowed.
@@ -33,7 +33,7 @@ impl GovernanceEngine for PermissionlessEngine {
         &self,
         _state: &mut GovernanceState,
         _msg: &SignedGovernanceMessage,
-        _current_kyn: u64,
+        _current_kyn: kinetic_types::clock::Kyn,
     ) -> Option<GovernanceEffect> {
         unreachable!("Governance execution is permanently disabled in Permissionless mode")
     }

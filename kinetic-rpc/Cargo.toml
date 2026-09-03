@@ -1,0 +1,26 @@
+[package]
+name = "kinetic-rpc"
+version.workspace = true
+edition.workspace = true
+
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Public REST API error mapping and distributed tracing for the Kinetic Network."
+keywords = ["kinetic", "rpc", "api", "tracing"]
+categories = ["network-programming", "web-programming"]
+
+[dependencies]
+# --- Workspace & Internal Crates ---
+kinetic-core = { path = "../kinetic-core" }
+
+# --- Workspace Inherited ---
+tokio = { workspace = true, features = ["rt", "macros"] }
+tracing.workspace = true
+
+# --- External Crates ---
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+

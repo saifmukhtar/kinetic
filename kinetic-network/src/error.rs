@@ -171,11 +171,10 @@ pub enum KineticStoreError {
     /// You must choose a standard kinetic apex name for registration.
     #[error("Prime and Infra names are immutable and cannot be stolen")]
     ImmutableName,
-    
+
     // ==========================================
     // KIN-QRY Error Codes
     // ==========================================
-    
     /// No existing reveal record was found for the requested name.
     /// The name may have expired, or the node has not yet synced this portion of the DHT.
     /// Check the spelling of the name and ensure the node is fully bootstrapped.

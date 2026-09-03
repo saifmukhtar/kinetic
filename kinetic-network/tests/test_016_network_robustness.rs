@@ -168,7 +168,7 @@ async fn test_banned_peers_loaded() {
     .unwrap();
     assert!(
         event_loop.is_banned(&peer_id),
-        "Banned peer should be loaded from Sled"
+        "Banned peer should be loaded from storage"
     );
 }
 

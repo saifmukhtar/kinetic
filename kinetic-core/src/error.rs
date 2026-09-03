@@ -46,45 +46,46 @@
 
 use thiserror::Error;
 
-/// Configuration parsing and persistence error types.
-pub mod config;
 /// REST API and HTTP framework error types.
 pub mod api;
+/// Configuration parsing and persistence error types.
+pub mod config;
 /// DHT name resolution error types.
 pub mod dht;
-/// Name validation error types.
-pub mod names;
-/// Drand random beacon error types.
-pub mod drand;
-/// VDF engine error types.
-pub mod vdf;
+/// Gateway routing and fallback telemetry events.
+pub mod gateway;
 /// Governance and consensus logic error types.
 pub mod governance;
 /// Node identity and key management error types.
 pub mod identity;
+/// Drand random beacon error types.
+pub mod kyn_provider;
+/// Name validation error types.
+pub mod names;
 /// P2P network client error types.
 pub mod network;
-/// P2P Swarm and Mesh connection error types.
-pub mod p2p;
 /// NRS zone parsing and validation error types.
 pub mod nrs;
-/// Operating System execution error types.
-pub mod system;
+/// P2P Swarm and Mesh connection error types.
+pub mod p2p;
 /// Security validation error types.
 pub mod security;
 /// Embedded storage engine error types.
 pub mod storage;
+/// Operating System execution error types.
+pub mod system;
 /// Telemetry and logging error types.
 pub mod telemetry;
-/// Gateway routing and fallback telemetry events.
-pub mod gateway;
+/// VDF engine error types.
+pub mod vdf;
 
+pub use api::RestApiError;
 pub use config::ConfigError;
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};
-pub use drand::DrandError;
 pub use gateway::GatewayError;
 pub use governance::GovernanceError;
 pub use identity::IdentityError;
+pub use kyn_provider::KynProviderError;
 pub use names::NamesError;
 pub use network::NetworkClientError;
 pub use nrs::NrsError;
@@ -94,7 +95,6 @@ pub use storage::StorageError;
 pub use system::SystemError;
 pub use telemetry::TelemetryError;
 pub use vdf::{VdfError, VdfRejectReason};
-pub use api::RestApiError;
 
 /// Top-level error type for core Kinetic protocol operations.
 ///

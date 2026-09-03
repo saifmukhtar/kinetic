@@ -36,7 +36,7 @@ mod native {
         /// - Returns [`StorageError::OpenFailed`](kinetic_core::error::StorageError::OpenFailed) (`KIN-DBE-007`) if IO errors occur.
         pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
             let base_path = path.as_ref();
-            // Sled used directories, Redb uses a single file. For backward compatibility
+            // Older storage engines used directories, Redb uses a single file. For backward compatibility
             // with the rest of the workspace, we treat the input as a directory and append a filename.
             let db_path = base_path.join("state.redb");
 
@@ -94,7 +94,9 @@ mod native {
                         ));
                         bak_path.set_file_name(new_name);
 
-                        let err = StorageError::Corruption("CRITICAL: Embedded database corruption detected".to_string());
+                        let err = StorageError::Corruption(
+                            "CRITICAL: Embedded database corruption detected".to_string(),
+                        );
                         tracing::error!(
                             error_code = err.code(),
                             "CRITICAL: Embedded database corruption detected at {:?}. Backing up to {:?}",
@@ -166,10 +168,10 @@ mod native {
                 if !k_val.starts_with(prefix) {
                     break;
                 }
-                if let Some(l) = limit {
-                    if results.len() >= l {
-                        break;
-                    }
+                if let Some(l) = limit
+                    && results.len() >= l
+                {
+                    break;
                 }
                 results.push((k_val.to_vec(), v.value().to_vec()));
             }
@@ -251,31 +253,153 @@ mod wasm {
     use super::*;
     use std::collections::BTreeMap;
     use std::sync::RwLock;
+    use wasm_bindgen_futures::JsFuture;
+    use web_sys::FileSystemSyncAccessHandle;
 
-    /// An in-memory Key-Value store for Wasm.
+    /// A wrapper for the OPFS handle to allow Send + Sync
+    /// since WASM is single-threaded (without atomics) and we need to satisfy traits.
+    struct OpfsHandleWrapper(Option<FileSystemSyncAccessHandle>);
+
+    unsafe impl Send for OpfsHandleWrapper {}
+    unsafe impl Sync for OpfsHandleWrapper {}
+
+    /// An OPFS-backed Append-Only Log Key-Value store for Wasm.
     pub struct KineticStorage {
         db: RwLock<BTreeMap<Vec<u8>, Vec<u8>>>,
+        opfs_handle: RwLock<OpfsHandleWrapper>,
     }
 
     impl KineticStorage {
-        /// Mock new for Wasm
-        ///
-        /// # Errors
-        /// Returns a `StorageError` if initialization fails (currently always succeeds).
+        /// Fallback in-memory init if OPFS is not used.
         pub fn new<P: AsRef<Path>>(_path: P) -> Result<Self, StorageError> {
             Ok(Self {
                 db: RwLock::new(BTreeMap::new()),
+                opfs_handle: RwLock::new(OpfsHandleWrapper(None)),
             })
         }
 
-        /// Mock new_temp for Wasm
-        ///
-        /// # Errors
-        /// Returns a `StorageError` if initialization fails (currently always succeeds).
+        /// Fallback in-memory init for temporary storage.
         pub fn new_temp() -> Result<Self, StorageError> {
             Ok(Self {
                 db: RwLock::new(BTreeMap::new()),
+                opfs_handle: RwLock::new(OpfsHandleWrapper(None)),
             })
+        }
+
+        /// Asynchronously initializes the OPFS storage, reading the append-only log into memory.
+        pub async fn init_opfs(db_name: &str) -> Result<Self, StorageError> {
+            let window = web_sys::window()
+                .ok_or_else(|| StorageError::OpenFailed("No window/worker context".into()))?;
+            let navigator = window.navigator();
+            let storage = navigator.storage();
+
+            let root_dir_promise = storage.get_directory();
+            let root_dir_val = JsFuture::from(root_dir_promise)
+                .await
+                .map_err(|e| StorageError::OpenFailed(format!("{:?}", e)))?;
+            let root_dir: web_sys::FileSystemDirectoryHandle = root_dir_val.into();
+
+            let opts = web_sys::FileSystemGetFileOptions::new();
+            opts.set_create(true);
+            let get_file_promise = root_dir.get_file_handle_with_options(db_name, &opts);
+            let file_handle_val = JsFuture::from(get_file_promise)
+                .await
+                .map_err(|e| StorageError::OpenFailed(format!("{:?}", e)))?;
+            let file_handle: web_sys::FileSystemFileHandle = file_handle_val.into();
+
+            let access_promise = file_handle.create_sync_access_handle();
+            let access_val = JsFuture::from(access_promise)
+                .await
+                .map_err(|e| StorageError::OpenFailed(format!("{:?}", e)))?;
+            let handle: web_sys::FileSystemSyncAccessHandle = access_val.into();
+
+            let file_size = handle
+                .get_size()
+                .map_err(|e| StorageError::OpenFailed(format!("{:?}", e)))?
+                as usize;
+
+            let mut db = BTreeMap::new();
+
+            if file_size > 0 {
+                let mut buffer = vec![0u8; file_size];
+                let opts = web_sys::FileSystemReadWriteOptions::new();
+                opts.set_at(0.0);
+                handle
+                    .read_with_u8_array_and_options(&mut buffer, &opts)
+                    .map_err(|e| StorageError::OpenFailed(format!("{:?}", e)))?;
+
+                let mut cursor = 0;
+                while cursor < buffer.len() {
+                    if cursor + 4 > buffer.len() {
+                        break;
+                    }
+                    let key_len =
+                        u32::from_le_bytes(buffer[cursor..cursor + 4].try_into().unwrap()) as usize;
+                    cursor += 4;
+
+                    if cursor + key_len > buffer.len() {
+                        break;
+                    }
+                    let key = buffer[cursor..cursor + key_len].to_vec();
+                    cursor += key_len;
+
+                    if cursor + 4 > buffer.len() {
+                        break;
+                    }
+                    let val_len =
+                        u32::from_le_bytes(buffer[cursor..cursor + 4].try_into().unwrap()) as usize;
+                    cursor += 4;
+
+                    if val_len == 0xFFFF_FFFF {
+                        // Tombstone
+                        db.remove(&key);
+                    } else {
+                        if cursor + val_len > buffer.len() {
+                            break;
+                        }
+                        let val = buffer[cursor..cursor + val_len].to_vec();
+                        cursor += val_len;
+                        db.insert(key, val);
+                    }
+                }
+            }
+
+            Ok(Self {
+                db: RwLock::new(db),
+                opfs_handle: RwLock::new(OpfsHandleWrapper(Some(handle))),
+            })
+        }
+
+        fn append_to_log(&self, key: &[u8], value: Option<&[u8]>) -> Result<(), StorageError> {
+            let opfs = self
+                .opfs_handle
+                .read()
+                .map_err(|_| StorageError::WriteFailed("Lock poisoned".into()))?;
+            if let Some(handle) = &opfs.0 {
+                let mut payload = Vec::new();
+                payload.extend_from_slice(&(key.len() as u32).to_le_bytes());
+                payload.extend_from_slice(key);
+
+                if let Some(v) = value {
+                    payload.extend_from_slice(&(v.len() as u32).to_le_bytes());
+                    payload.extend_from_slice(v);
+                } else {
+                    payload.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+                }
+
+                let size = handle
+                    .get_size()
+                    .map_err(|e| StorageError::WriteFailed(format!("{:?}", e)))?;
+                let opts = web_sys::FileSystemReadWriteOptions::new();
+                opts.set_at(size as f64);
+                handle
+                    .write_with_u8_array_and_options(&mut payload, &opts)
+                    .map_err(|e| StorageError::WriteFailed(format!("{:?}", e)))?;
+                handle
+                    .flush()
+                    .map_err(|e| StorageError::WriteFailed(format!("{:?}", e)))?;
+            }
+            Ok(())
         }
     }
 
@@ -311,13 +435,23 @@ mod wasm {
                 .write()
                 .map_err(|_| StorageError::WriteFailed("Lock poisoned".into()))?;
 
-            if db.len() >= 10_000 && !db.contains_key(key) {
+            // Check quota only if this is an in-memory session (no OPFS handle)
+            let is_opfs_active = self
+                .opfs_handle
+                .read()
+                .map(|h| h.0.is_some())
+                .unwrap_or(false);
+            if !is_opfs_active && db.len() >= 10_000 && !db.contains_key(key) {
                 return Err(StorageError::WriteFailed(
                     "WASM storage quota exceeded (10,000 keys). Cannot insert new keys.".into(),
                 ));
             }
 
             db.insert(key.to_vec(), value.to_vec());
+
+            // Sync to OPFS
+            self.append_to_log(key, Some(value))?;
+
             Ok(())
         }
 
@@ -335,6 +469,10 @@ mod wasm {
                 .write()
                 .map_err(|_| StorageError::DeleteFailed("Lock poisoned".into()))?;
             db.remove(key);
+
+            // Sync tombstone to OPFS
+            self.append_to_log(key, None)?;
+
             Ok(())
         }
     }

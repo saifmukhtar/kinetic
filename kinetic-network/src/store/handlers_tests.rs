@@ -39,7 +39,7 @@ mod tests {
             Arc::new(KineticStorage::new(dir.path()).unwrap());
         let peer_id = PeerId::from(Keypair::generate_ed25519().public());
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-            Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            Arc::new(kinetic_vdf::RsaVdfEngine::new());
         let store = KineticRecordStore::new(
             peer_id,
             storage.clone(),
@@ -136,8 +136,7 @@ mod tests {
         };
 
         // Sign the stale heartbeat
-        hb.signature = ml_kp
-            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+        hb.signature = ml_kp.sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
         let result = store.handle_process_heartbeat(&hb);
         assert!(matches!(
@@ -193,8 +192,7 @@ mod tests {
             authorization: None,
         };
 
-        hb.signature = ml_kp
-            .sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+        hb.signature = ml_kp.sign(&hb.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
         let result = store.handle_process_heartbeat(&hb);
         assert!(matches!(

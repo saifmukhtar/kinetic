@@ -34,11 +34,11 @@ use service_manager::{
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_core::config::KineticConfig;
-use kinetic_core::types::load_keypair;
+use kinetic_core::traits::KynProvider;
+use kinetic_local::identity::load_keypair;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
-use kinetic_vdf_rsa::RsaVdfEngine;
+use kinetic_vdf::RsaVdfEngine;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -88,7 +88,7 @@ fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
             .arg(cert_path)
             .arg(format!(
                 "/usr/local/share/ca-certificates/{}.crt",
-                kinetic_core::constants::NETWORK_ID
+                kinetic_core::constants::NSP
             ))
             .status()?;
         if status.success() {
@@ -123,11 +123,16 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     let base_config_dir = if let Some(dir) = config_dir_opt {
         std::path::PathBuf::from(dir)
     } else {
-        kinetic_core::config::get_base_dir()
+        kinetic_local::config::get_base_dir()
     };
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
-        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
+        tracing::error!(
+            error_code = err.code(),
+            "Failed to create config directory {:?}: {}",
+            base_config_dir,
+            e
+        );
         return Err(e.into());
     }
 
@@ -159,9 +164,12 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     }
 
     println!("Installing Kinetic Daemon service...");
-    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
-    let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse()?;
+    let manager = <dyn ServiceManager>::native().map_err(|_| {
+        anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
+            "Failed to detect native service manager".into(),
+        ))
+    })?;
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -184,27 +192,36 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
-    let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse()?;
+    let manager = <dyn ServiceManager>::native().map_err(|_| {
+        anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
+            "Failed to detect native service manager".into(),
+        ))
+    })?;
     manager.uninstall(ServiceUninstallCtx { label })?;
     println!("Service uninstalled.");
     Ok(())
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
-    let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse()?;
+    let manager = <dyn ServiceManager>::native().map_err(|_| {
+        anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
+            "Failed to detect native service manager".into(),
+        ))
+    })?;
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NETWORK_ID).parse()?;
-    let manager = <dyn ServiceManager>::native()
-        .map_err(|_| anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError("Failed to detect native service manager".into())))?;
+    let label: ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse()?;
+    let manager = <dyn ServiceManager>::native().map_err(|_| {
+        anyhow::Error::from(kinetic_core::error::SystemError::ServiceManagerError(
+            "Failed to detect native service manager".into(),
+        ))
+    })?;
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
@@ -214,7 +231,7 @@ fn stop_background_service() -> Result<()> {
 ///
 /// This function is responsible for:
 /// - Validating the governance key state.
-/// - Initializing Sled storage and the VDF engine.
+/// - Initializing database storage and the VDF engine.
 /// - Starting the Drand heartbeat and PoW sybil mining loop.
 /// - Establishing the Kademlia P2P Swarm.
 /// - Starting the API server, PAC server, DNS proxy, and HTTP proxy.
@@ -232,7 +249,7 @@ async fn run_daemon() -> Result<()> {
         std::process::exit(1);
     }
 
-    let config = KineticConfig::load();
+    let config = kinetic_local::config::load_config();
 
     if config.daemon.backend_port == config.daemon.api_port
         || config.daemon.backend_port == config.daemon.proxy_port
@@ -262,11 +279,11 @@ async fn run_daemon() -> Result<()> {
 
     info!("Starting Kinetic Daemon (PID: {})...", std::process::id());
 
-    let storage_path = config
-        .daemon
-        .storage_dir
-        .to_str()
-        .ok_or_else(|| anyhow::Error::from(kinetic_core::error::SystemError::InvalidOsEnvironment("Invalid UTF-8 path in storage_dir".into())))?;
+    let storage_path = config.daemon.storage_dir.to_str().ok_or_else(|| {
+        anyhow::Error::from(kinetic_core::error::SystemError::InvalidOsEnvironment(
+            "Invalid UTF-8 path in storage_dir".into(),
+        ))
+    })?;
     let storage = Arc::new(KineticStorage::new(storage_path)?);
     info!("Storage engine initialized at {}", storage_path);
 
@@ -276,7 +293,11 @@ async fn run_daemon() -> Result<()> {
     let daemon_keypair = match load_keypair(std::path::Path::new("identity.key")) {
         Ok(k) => k,
         Err(e) => {
-            tracing::error!(error_code = e.code(), "CRITICAL: Daemon failed to load identity: {}", e);
+            tracing::error!(
+                error_code = e.code(),
+                "CRITICAL: Daemon failed to load identity: {}",
+                e
+            );
             return Err(e.into());
         }
     };
@@ -285,16 +306,18 @@ async fn run_daemon() -> Result<()> {
         hex::encode(daemon_keypair.pubkey_bytes())
     );
 
-    let drand_client = Arc::new(kinetic_core::drand::DrandClient::new(Some(storage.clone())));
-    let initial_kyn = match drand_client.fetch_latest().await {
+    let kyn_provider: Arc<dyn KynProvider> = Arc::new(
+        kinetic_network::client::drand::DrandProvider::new(Some(storage.clone())),
+    );
+    let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
             info!("Drand beacon connected — kyn #{}", kyn.kyn);
             kyn
         }
         Err(e) => {
-            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            let err = kinetic_core::error::KynProviderError::UnavailableOnStartup(e.to_string());
             warn!(error_code = err.code(), "{}", err);
-            let err2 = kinetic_core::error::DrandError::RegistrationDisabled;
+            let err2 = kinetic_core::error::KynProviderError::RegistrationDisabled;
             warn!(error_code = err2.code(), "{}", err2);
             kinetic_core::drand::RawKyn::unavailable()
         }
@@ -313,7 +336,7 @@ async fn run_daemon() -> Result<()> {
 
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
     let local_key = kinetic_network::pow::mine_sybil_keypair(
-        initial_kyn,
+        kinetic_types::clock::Kyn(initial_kyn),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
@@ -360,7 +383,7 @@ async fn run_daemon() -> Result<()> {
         enable_mdns: config.network.enable_mdns,
         enable_upnp: config.network.enable_upnp,
         enable_relay_server: config.network.enable_relay_server,
-        initial_kyn: initial_kyn,
+        initial_kyn,
         external_address: config
             .network
             .external_address
@@ -374,14 +397,19 @@ async fn run_daemon() -> Result<()> {
         disable_storage_sync: false,
     };
 
-    let base_config_dir = kinetic_core::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::get_base_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
-        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
+        tracing::error!(
+            error_code = err.code(),
+            "Failed to create config directory {:?}: {}",
+            base_config_dir,
+            e
+        );
         return Err(e.into());
     }
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| base_config_dir.join("governance.db"));
 
@@ -428,7 +456,7 @@ async fn run_daemon() -> Result<()> {
                 {
                     // Enforce strict content validation to prevent MITM attacks over HTTP
                     if downloaded_state.genesis_kyn
-                        != kinetic_core::constants::KINETIC_GENESIS_KYN
+                        != kinetic_types::clock::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN)
                     {
                         tracing::warn!(
                             "Seed node provided governance state for wrong network genesis."
@@ -436,7 +464,10 @@ async fn run_daemon() -> Result<()> {
                         continue;
                     }
 
-                    if let Err(e) = downloaded_state.save_to_disk(&gov_state_path) {
+                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                        &downloaded_state,
+                        &gov_state_path,
+                    ) {
                         tracing::warn!(
                             error = ?kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string()),
                             "Failed to save downloaded governance state to disk"
@@ -463,10 +494,14 @@ async fn run_daemon() -> Result<()> {
 
     let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
-        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
-            .map_err(|e| anyhow::Error::from(kinetic_core::error::SystemError::MutexPoisoned(e.to_string())))?;
-        *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
+            .map_err(|e| {
+                anyhow::Error::from(kinetic_core::error::SystemError::MutexPoisoned(
+                    e.to_string(),
+                ))
+            })?;
+        *gov = kinetic_local::governance::load_governance_from_disk(&gov_state_path);
     }
 
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
@@ -513,22 +548,27 @@ async fn run_daemon() -> Result<()> {
         network_client.clone(),
         gossip_rx,
         gov_state_path.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         kyn_tx.clone(),
         Some(storage.clone()),
     );
 
     kinetic_network::client::telemetry::start_telemetry_service(
         network_client.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         config.clone(),
         kinetic_types::network::NodeType::Daemon,
     );
 
-    let base_config_dir = kinetic_core::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::get_base_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
-        tracing::error!(error_code = err.code(), "Failed to create config directory {:?}: {}", base_config_dir, e);
+        tracing::error!(
+            error_code = err.code(),
+            "Failed to create config directory {:?}: {}",
+            base_config_dir,
+            e
+        );
         return Err(e.into());
     }
 
@@ -597,7 +637,7 @@ async fn run_daemon() -> Result<()> {
     kinetic_daemon::services::heartbeat::start_heartbeat_loop(
         storage.clone(),
         network_client.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         config.drand.p2p_only,
         initial_kyn,
         daemon_keypair.clone(),
@@ -645,7 +685,7 @@ async fn run_daemon() -> Result<()> {
             config.daemon.bind_ip, config.daemon.nrs_port
         ))
         .await;
-        
+
         let tcp_bind = tokio::net::TcpListener::bind(format!(
             "{}:{}",
             config.daemon.bind_ip, config.daemon.nrs_port
@@ -687,7 +727,7 @@ async fn run_daemon() -> Result<()> {
                 "API Server exited unexpectedly"
             );
         },
-        _ = kinetic_core::shutdown::shutdown_signal() => {
+        _ = kinetic_local::shutdown::shutdown_signal() => {
             info!("Shutdown signal received. Commencing graceful shutdown...");
         }
     }

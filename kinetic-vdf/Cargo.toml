@@ -1,0 +1,18 @@
+[package]
+name = "kinetic-vdf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "A pure Rust implementation of an RSA-based Verifiable Delay Function with Wesolowski's proof of exponentiation, using Blockwise Checkpointing."
+readme = "README.md"
+homepage.workspace = true
+
+[dependencies]
+kinetic-core = { path = "../kinetic-core" }
+kinetic-primitives = { path = "../kinetic-primitives" }
+# num-prime 0.5.0 is hard-locked to num-bigint ^0.4.6. Do not upgrade to 0.5.x.
+num-bigint.workspace = true
+num-prime.workspace = true
+num-traits.workspace = true

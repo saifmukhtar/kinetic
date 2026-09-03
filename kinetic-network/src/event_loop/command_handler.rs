@@ -16,7 +16,7 @@ impl super::core::NetworkEventLoop {
     ) {
         if self.pending_puts.contains_key(&name) {
             let _ = responder.send(Err(kinetic_core::error::PublishError::Rejected(
-                "A publish operation for this domain is already in progress".to_string(),
+                "A publish operation for this apex name is already in progress".to_string(),
             )));
             return;
         }
@@ -206,7 +206,8 @@ impl super::core::NetworkEventLoop {
             } => {
                 if self.pending_quorums.contains_key(&name) {
                     let _ = responder.send(Err(kinetic_core::error::NetworkClientError::Other(
-                        "A quorum verification for this domain is already in progress".to_string(),
+                        "A quorum verification for this apex name is already in progress"
+                            .to_string(),
                     )));
                     return;
                 }
@@ -244,20 +245,12 @@ impl super::core::NetworkEventLoop {
                 req,
                 responder,
             } => {
-                let req_id = self
-                    .swarm
-                    .behaviour_mut()
-                    .proxy
-                    .send_request(&peer, *req);
+                let req_id = self.swarm.behaviour_mut().proxy.send_request(&peer, *req);
                 self.pending_proxy_requests.insert(req_id, responder);
             }
             Command::SendProxyResponse { channel, res } => {
                 let res = *res;
-                let _ = self
-                    .swarm
-                    .behaviour_mut()
-                    .proxy
-                    .send_response(channel, res);
+                let _ = self.swarm.behaviour_mut().proxy.send_response(channel, res);
             }
             Command::GetNetworkStatus { responder } => {
                 let info = self.swarm.network_info();

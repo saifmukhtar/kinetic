@@ -17,7 +17,10 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
         let _permit = match semaphore.try_acquire_owned() {
             Ok(p) => p,
             Err(_) => {
-                let err = kinetic_core::error::P2pError::GossipSemaphoreSaturated(propagation_source.to_string(), topic.to_string());
+                let err = kinetic_core::error::P2pError::GossipSemaphoreSaturated(
+                    propagation_source.to_string(),
+                    topic.to_string(),
+                );
                 tracing::warn!(error_code = err.code(), "{}", err);
                 if let Some(tx) = &event_loop.loopback_tx {
                     let _ = tx.send(
@@ -59,7 +62,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                             kinetic_core::governance::SignedGovernanceMessage,
                         >(actual_payload)
                         {
-                            let gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+                            let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
                                 .lock()
                                 .unwrap_or_else(|e| e.into_inner());
                             if let Ok(root_key) = gov.get_root_key() {

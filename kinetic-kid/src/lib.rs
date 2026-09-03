@@ -173,7 +173,7 @@ mod tests {
 
         let signed_manifest = manifest.clone().sign(&keypair).unwrap();
 
-        assert!(signed_manifest.verify_local(&doc).is_ok());
+        assert!(signed_manifest.verify_at_time(&doc, 2000).is_ok());
 
         // A manifest signed by a different key must be rejected
         let bad_keypair = generate_keypair();
@@ -193,7 +193,7 @@ mod tests {
         };
 
         assert!(matches!(
-            signed_manifest.verify_local(&bad_doc),
+            signed_manifest.verify_at_time(&bad_doc, 2000),
             Err(Error::UnauthorizedManifestSignature)
         ));
 

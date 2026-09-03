@@ -23,6 +23,7 @@
 //!   restarts the loop without any downtime.
 //! - **Health API**: Exposed on port 16004.
 
+use kinetic_core::traits::KynProvider;
 /// Health-check REST API.
 pub mod api;
 /// Configuration for the host proxy backend.
@@ -48,8 +49,8 @@ use tokio::sync::watch;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_core::config::KineticConfig;
-use kinetic_core::drand::{DrandClient, RawKyn};
+use kinetic_core::drand::RawKyn;
+use kinetic_network::client::drand::DrandProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -89,7 +90,7 @@ async fn main() -> Result<()> {
         Some(Commands::Stop) => service::stop_background_service()?,
         Some(Commands::Port { port }) => configure_port(*port).await?,
         Some(Commands::Id) => {
-            let key_path = kinetic_core::config::get_base_dir().join("host.key");
+            let key_path = kinetic_local::config::get_base_dir().join("host.key");
             let host_key = host_key::load_or_generate_host_key(&key_path);
             let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
             println!("============================================================");
@@ -114,7 +115,7 @@ async fn run_host() -> Result<()> {
         std::process::exit(1);
     }
 
-    let config = KineticConfig::load();
+    let config = kinetic_local::config::load_config();
 
     // 1. Initialize structured tracing
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
@@ -127,7 +128,7 @@ async fn run_host() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let storage_path = kinetic_core::config::get_base_dir().join("host_db");
+    let storage_path = kinetic_local::config::get_base_dir().join("host_db");
     let storage = Arc::new(KineticStorage::new(
         storage_path
             .to_str()
@@ -136,15 +137,16 @@ async fn run_host() -> Result<()> {
     info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
-    let drand_client = Arc::new(DrandClient::new(Some(storage.clone())));
+    let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
 
-    let initial_kyn = match drand_client.fetch_latest().await {
+    // 6. Enforce Drand beacon availability on boot (unless in dev mode, which loads a mock cache)
+    let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
             info!("Drand beacon connected — kyn #{}", kyn.kyn);
             kyn
         }
         Err(e) => {
-            let err = kinetic_core::error::DrandError::UnavailableOnStartup(e.to_string());
+            let err = kinetic_core::error::KynProviderError::UnavailableOnStartup(e.to_string());
             warn!(error_code = err.code(), "{}", err);
             RawKyn::unavailable()
         }
@@ -154,7 +156,7 @@ async fn run_host() -> Result<()> {
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity (The Permanent Host Key)
-    let key_path = kinetic_core::config::get_base_dir().join("host.key");
+    let key_path = kinetic_local::config::get_base_dir().join("host.key");
     let host_key = host_key::load_or_generate_host_key(&key_path);
     let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
     info!("Infrastructure Node static Host Identity: {}", host_peer_id);
@@ -163,7 +165,7 @@ async fn run_host() -> Result<()> {
     info!("Mining PoW S/Kademlia identity for current epoch...");
     let local_key = tokio::task::spawn_blocking(move || {
         kinetic_network::pow::mine_sybil_keypair(
-            initial_kyn,
+            kinetic_types::clock::Kyn(initial_kyn),
             kinetic_core::constants::POW_DIFFICULTY_BITS,
         )
     })
@@ -175,7 +177,7 @@ async fn run_host() -> Result<()> {
         local_peer_id
     );
 
-    let p2p_port = std::env::var(kinetic_core::constants::ENV_HOST_P2P_PORT)
+    let p2p_port = std::env::var(kinetic_core::constants::ENV_P2P)
         .unwrap_or_else(|_| config.network.host_port.to_string())
         .parse::<u16>()
         .unwrap_or(config.network.host_port);
@@ -221,23 +223,23 @@ async fn run_host() -> Result<()> {
         test_mode: false,
         disable_storage_sync: false,
     };
-    let base_config_dir = kinetic_core::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::get_base_dir();
     std::fs::create_dir_all(&base_config_dir)?;
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOVERNANCE_PATH)
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| base_config_dir.join("governance.db"));
     let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
-        let mut gov = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE
+        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
             .lock()
             .map_err(|e| anyhow::anyhow!("Poison error: {}", e))?;
-        *gov = kinetic_core::governance::GovernanceState::load_from_disk(&gov_state_path);
+        *gov = kinetic_local::governance::load_governance_from_disk(&gov_state_path);
     }
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-        Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
     let (network_client, network_loop) = NetworkEventLoop::new(
         network_config.clone(),
@@ -256,17 +258,18 @@ async fn run_host() -> Result<()> {
 
     kinetic_network::client::telemetry::start_telemetry_service(
         network_client.clone(),
-        drand_client.clone(),
+        kyn_provider.clone(),
         config.clone(),
         kinetic_types::network::NodeType::Host,
     );
 
     tokio::spawn(gossip::start_gossip_listener(
+        kyn_provider.clone(),
         gossip_rx,
         gov_state_path.clone(),
     ));
 
-    let backend_port = std::env::var(kinetic_core::constants::ENV_HOST_BACKEND_PORT)
+    let backend_port = std::env::var(kinetic_core::constants::ENV_BACKEND)
         .ok()
         .and_then(|p| p.parse::<u16>().ok())
         .unwrap_or(80);
@@ -291,7 +294,7 @@ async fn run_host() -> Result<()> {
     ));
 
     tokio::spawn(epoch::start_drand_heartbeat(
-        drand_client.clone(),
+        kyn_provider.clone(),
         kyn_tx,
         local_peer_id,
         local_peer_id_str.clone(),
@@ -358,7 +361,7 @@ async fn configure_port(arg_port: Option<u16>) -> Result<()> {
         }
     }
 
-    let config_path = kinetic_core::config::get_base_dir().join("host_config.json");
+    let config_path = kinetic_local::config::get_base_dir().join("host_config.json");
     let config = crate::config::HostConfig {
         backend_port: port,
         backend_host: "127.0.0.1".to_string(),

@@ -3,6 +3,7 @@ use axum::{
     Json,
     extract::{Extension, Path, State},
 };
+use kinetic_core::traits::KynProvider;
 use serde::Deserialize;
 
 /// Request payload to generate or resolve a KID
@@ -26,7 +27,7 @@ fn default_inherit() -> bool {
 
 /// Handles API requests to list all local KID documents stored on the filesystem.
 pub async fn handle_list_kids() -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    let summaries = kinetic_core::types::list_local_kids()?;
+    let summaries = kinetic_local::kid_manager::list_local_kids()?;
     Ok(Json(serde_json::json!({ "kids": summaries })))
 }
 
@@ -34,7 +35,7 @@ pub async fn handle_list_kids() -> Result<Json<serde_json::Value>, crate::api::e
 pub async fn handle_fetch_kid(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    let (doc, path) = kinetic_core::types::load_local_kid(&name)?;
+    let (doc, path) = kinetic_local::kid_manager::load_local_kid(&name)?;
     Ok(Json(serde_json::json!({
         "name": kinetic_core::types::normalize_name(&name),
         "kid_doc": doc,
@@ -50,7 +51,7 @@ pub async fn handle_generate_kid(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
@@ -61,19 +62,18 @@ pub async fn handle_generate_kid(
         base_fqdn
     };
 
-    let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
-    let current_kyn = match drand_client.fetch_latest().await {
-        Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        ),
+    let kyn_provider =
+        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+    use kinetic_core::types::Kyn;
+    use kinetic_core::types::clock::KynNetworkExt;
+
+    let current_kyn = match kyn_provider.fetch_latest().await {
+        Ok(kyn) => Kyn(kyn.kyn),
+        Err(_) => Kyn::now_local(),
     };
 
-    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let res = kinetic_core::types::get_or_create_kid_for_name(
+    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let res = kinetic_local::kid_manager::get_or_create_kid_for_name(
         &final_name,
         req.inherit_subname,
         req.force,
@@ -106,12 +106,12 @@ pub async fn handle_rotate_kid(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
-    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let rotated = kinetic_core::types::rotate_name_kid(&name, &identity_path)?;
+    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let rotated = kinetic_local::kid_manager::rotate_name_kid(&name, &identity_path)?;
 
     // Publish rotated document to DHT
     if let Ok(payload_bytes) = serde_json::to_vec(&rotated.auth_kid) {
@@ -137,14 +137,15 @@ pub async fn handle_revoke_kid(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
-    let revoked_doc = kinetic_core::types::revoke_local_kid(&name)?;
+    let revoked_doc = kinetic_local::kid_manager::revoke_local_kid(&name)?;
 
-    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let auth_kid = kinetic_core::types::authorize_kid_document(&name, &revoked_doc, &identity_path)?;
+    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let auth_kid =
+        kinetic_local::kid_manager::authorize_kid_document(&name, &revoked_doc, &identity_path)?;
 
     // Publish revoked document to DHT
     if let Ok(payload_bytes) = serde_json::to_vec(&auth_kid) {
@@ -167,7 +168,7 @@ pub async fn handle_revoke_kid(
 pub async fn handle_get_kid_manifest(
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    let manifest = kinetic_core::types::load_local_manifest(&name)?;
+    let manifest = kinetic_local::kid_manager::load_local_manifest(&name)?;
     Ok(Json(serde_json::json!({
         "name": kinetic_core::types::normalize_name(&name),
         "manifest": manifest,
@@ -190,23 +191,22 @@ pub async fn handle_update_kid_manifest(
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_publish() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
-    let drand_client = kinetic_core::drand::DrandClient::new(Some(state.storage.clone()));
-    let current_kyn = match drand_client.fetch_latest().await {
-        Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        ),
+    let kyn_provider =
+        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+    use kinetic_core::types::Kyn;
+    use kinetic_core::types::clock::KynNetworkExt;
+
+    let current_kyn = match kyn_provider.fetch_latest().await {
+        Ok(kyn) => Kyn(kyn.kyn),
+        Err(_) => Kyn::now_local(),
     };
 
-    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
-    let (manifest, auth_manifest) = kinetic_core::types::save_and_sign_local_manifest(
+    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let (manifest, auth_manifest) = kinetic_local::kid_manager::save_and_sign_local_manifest(
         &name,
         req.services,
         current_kyn,
@@ -214,7 +214,9 @@ pub async fn handle_update_kid_manifest(
     )?;
 
     // Publish to DHT under hex(sha256(did#manifest))
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(format!("{}#manifest", manifest.kid).as_bytes()));
+    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+        format!("{}#manifest", manifest.kid).as_bytes(),
+    ));
 
     if let Ok(payload_bytes) = serde_json::to_vec(&auth_manifest) {
         let _ = state

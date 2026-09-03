@@ -1,6 +1,8 @@
 //! SSRF risk evaluation utilities and IP address safety verification.
 
-pub(crate) fn validate_ssrf_risk(ip: std::net::IpAddr) -> Result<(), kinetic_core::net::SecurityError> {
+pub(crate) fn validate_ssrf_risk(
+    ip: std::net::IpAddr,
+) -> Result<(), kinetic_core::net::SecurityError> {
     kinetic_core::net::validate_ssrf_safe(ip)
 }
 

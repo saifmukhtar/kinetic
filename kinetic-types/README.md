@@ -1,22 +1,15 @@
-# kinetic-types
+# Kinetic Types
 
-Core governance data structures and canonical serialization for the Kinetic network.
+Core governance primitives, time constants, and post-quantum (ML-DSA-65) serialization logic for the Kinetic Network.
 
-This crate is explicitly designed as a lightweight, zero-dependency `no_std`-compatible library (dependent only on `serde` and `ml-dsa`). It is used by both the main `kinetic-core` consensus engine and the air-gapped `kinetic-OS` offline key generator.
+## Architecture
 
-## Features
-- **Post-Quantum Cryptography:** Fully integrated with `ml-dsa` (Dilithium3).
-- **Canonical Serialization:** Provides `to_bytes()` for perfectly deterministic byte arrays used in signature verification.
-- **Strict Parsing:** Includes robust validation and custom error types (`GovernanceTypeError`) for safe deserialization from raw byte slices.
+This crate acts as a foundational data-structure layer across the workspace. It enforces the following architectural principles:
 
-## Usage
+- **Mathematical Purity:** It does not interact with disk I/O, networking, or system clocks. 
+- **Strict Typing:** Concepts like network time are strictly typed (`Kyn`) to prevent accidental raw integer mutations.
+- **Cryptographic Isolation:** All cryptographic hashing (`SHA-256`) and signing (`ML-DSA-65`) logic is delegated down to the isolated `kinetic-primitives` crate.
 
-```rust
-use kinetic_types::governance::GovernanceAction;
+## Dependencies
 
-// Construct a governance proposal
-let action = GovernanceAction::EmergencyHalt;
-
-// Get the exact bytes required for an ML-DSA-65 signature
-let payload = action.to_bytes();
-```
+This crate uses `serde` and `serde_bytes` for highly optimized binary parsing.

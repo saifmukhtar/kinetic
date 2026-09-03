@@ -4,7 +4,6 @@ use kinetic_core::types::Reveal;
 use kinetic_network::event_loop::NetworkEventLoop;
 use kinetic_vdf_rsa::RsaVdfEngine;
 
-
 #[test]
 #[ignore = "Slow cryptographic test: takes >60s to compute VDF proof"]
 fn test_xor_eclipse_routing() {
@@ -65,11 +64,8 @@ fn test_xor_eclipse_routing() {
     let real_bytes = serde_json::to_vec(&real_reveal).unwrap();
     let fake_bytes = serde_json::to_vec(&fake_reveal).unwrap();
 
-    let winner = NetworkEventLoop::xor_tie_breaker(
-        name,
-        vec![real_bytes.clone(), fake_bytes.clone()],
-        kyn,
-    );
+    let winner =
+        NetworkEventLoop::xor_tie_breaker(name, vec![real_bytes.clone(), fake_bytes.clone()], kyn);
 
     // The tie breaker should pick the REAL bytes, because the fake bytes fail VDF verification.
     assert_eq!(

@@ -1,5 +1,6 @@
 //! Governance gossip message handler and disk persistence listener for Kinetic host nodes.
 
+use kinetic_core::traits::KynProvider;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -8,6 +9,7 @@ use libp2p::gossipsub::MessageId;
 
 /// Starts an async loop to listen for governance gossip messages, update global state, and save to disk.
 pub async fn start_gossip_listener(
+    kyn_provider: Arc<dyn KynProvider>,
     mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>, MessageId, PeerId)>,
     gov_state_path: Arc<PathBuf>,
 ) {
@@ -24,8 +26,17 @@ pub async fn start_gossip_listener(
                     kinetic_core::governance::SignedGovernanceMessage,
                 >(actual_payload)
             {
+                use kinetic_core::types::clock::KynNetworkExt;
+                let current_kyn = match kyn_provider.load_cached_kyn() {
+                    Ok(kyn) => kyn.kyn,
+                    Err(_) => match kyn_provider.fetch_latest().await {
+                        Ok(kyn) => kyn.kyn,
+                        Err(_) => kinetic_core::types::Kyn::now_local().0,
+                    },
+                };
+
                 let (should_save, cloned_state) = {
-                    let Ok(mut state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                    let Ok(mut state) = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
                     else {
                         tracing::error!(
                             error = ?kinetic_core::error::SystemError::MutexPoisoned("GLOBAL_GOVERNANCE_STATE".into()),
@@ -33,17 +44,11 @@ pub async fn start_gossip_listener(
                         );
                         continue;
                     };
-                    let current_time = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
-                    let current_kyn =
-                        kinetic_core::types::clock::unix_time_to_network_kyn(current_time);
 
                     match kinetic_core::governance::process_governance_message(
                         &mut state,
                         &signed_msg,
-                        current_kyn,
+                        kinetic_types::clock::Kyn(current_kyn),
                     ) {
                         Ok(Some(effect)) => {
                             tracing::info!(
@@ -67,7 +72,10 @@ pub async fn start_gossip_listener(
                 if should_save {
                     let path_clone = gov_state_path.clone();
                     tokio::task::spawn_blocking(move || {
-                        if let Err(e) = cloned_state.save_to_disk(&path_clone) {
+                        if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                            &cloned_state,
+                            &path_clone,
+                        ) {
                             let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                             tracing::error!(
                                 error_code = err.code(),

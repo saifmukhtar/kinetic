@@ -14,7 +14,7 @@ use crate::client::Command;
 
 use crate::event_loop::utils::*;
 
-/// Internal identifier mapping a Kademlia query ID back to the requested domain name and intent.
+/// Internal identifier mapping a Kademlia query ID back to the requested apex name and intent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum QueryType {
     Get(std::sync::Arc<str>),
@@ -53,6 +53,7 @@ pub(crate) enum LoopbackCommand {
 /// This struct holds the state of all ongoing network operations, handles inbound RPCs,
 /// processes DHT records, maintains connection limits, and enforces Proof-of-Work checks
 /// against connecting peers to thwart Sybil attacks.
+#[allow(clippy::type_complexity)]
 pub struct NetworkEventLoop {
     pub(crate) swarm: Swarm<KineticBehavior>,
     pub(crate) command_receiver: mpsc::Receiver<Command>,
@@ -69,8 +70,9 @@ pub struct NetworkEventLoop {
     >,
     pub(crate) pending_cdn_requests: FxHashMap<
         libp2p::request_response::OutboundRequestId,
-        std::sync::Arc<str>, // The domain name being requested
+        std::sync::Arc<str>, // The apex name being requested
     >,
+    pub(crate) peer_registry: crate::peer_registry::PeerRegistry,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(
             crate::client::ProxyRequest,
@@ -147,7 +149,7 @@ impl NetworkEventLoop {
     /// Starts the event loop. Blocks indefinitely until the command channel is closed.
     ///
     /// The event loop continuously multiplexes between:
-    /// - Periodic background tasks (e.g., pruning Sled storage, redialing bootstraps).
+    /// - Periodic background tasks (e.g., pruning database storage, redialing bootstraps).
     /// - External commands coming from the `NetworkClient` (e.g., publish, resolve).
     /// - Loopback results from CPU-intensive cryptographic validations (e.g., VDF, PoW).
     /// - Raw network events surfaced by `libp2p::Swarm`.
@@ -161,7 +163,8 @@ impl NetworkEventLoop {
         for domain in &self.seed_domain {
             let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
             if addrs.is_empty() {
-                let err = kinetic_core::error::NrsError::SeedDomainResolutionFailed(domain.to_string());
+                let err =
+                    kinetic_core::error::NrsError::SeedDomainResolutionFailed(domain.to_string());
                 tracing::warn!(error_code = err.code(), "{}", err);
             }
             for multiaddr in addrs {
@@ -192,7 +195,7 @@ impl NetworkEventLoop {
                 _ = &mut prune_delay => {
                     let jitter = (web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default().as_millis() % 60) as u64;
                     prune_delay = futures_timer::Delay::new(web_time::Duration::from_secs(kinetic_core::constants::TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS + jitter));
-                    tracing::info!("Running periodic Sled pruning...");
+                    tracing::info!("Running periodic Storage pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                     let storage = self.swarm.behaviour_mut().kademlia.store_mut().storage.clone();
                     let current_kyn = self.current_kyn;
@@ -300,7 +303,6 @@ impl NetworkEventLoop {
                         let key = libp2p::kad::RecordKey::new(&commit_key);
                         let query_id = self.swarm.behaviour_mut().kademlia.get_record(key);
                         self.pending_reveals.insert(query_id, (source, record));
-                        return;
                     }
                     Err(e) => {
                         if e.severity() == kinetic_core::error::Severity::Error {
@@ -320,7 +322,9 @@ impl NetworkEventLoop {
                             self.bad_vdf_counts.put(source, new_val);
 
                             if new_val.0 >= 3 {
-                                let err = kinetic_core::error::P2pError::RecordSpamBan(source.to_string());
+                                let err = kinetic_core::error::P2pError::RecordSpamBan(
+                                    source.to_string(),
+                                );
                                 tracing::warn!(error_code = err.code(), "{}", err);
                                 let _ = self.swarm.disconnect_peer_id(source);
                                 let expire_kyn = self.current_kyn + 28800;
@@ -403,13 +407,18 @@ impl NetworkEventLoop {
                     };
 
                     if self.light_nodes.len() >= 50 {
-                        let err = kinetic_core::error::P2pError::LightNodePowFailureLimit(peer_id.to_string());
+                        let err = kinetic_core::error::P2pError::LightNodePowFailureLimit(
+                            peer_id.to_string(),
+                        );
                         tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
                     } else {
                         let count = self.light_node_ips.entry(identifier.clone()).or_insert(0);
                         if *count >= 3 {
-                            let err = kinetic_core::error::P2pError::LightNodeIdentityLimit(identifier.to_string(), peer_id.to_string());
+                            let err = kinetic_core::error::P2pError::LightNodeIdentityLimit(
+                                identifier.to_string(),
+                                peer_id.to_string(),
+                            );
                             tracing::warn!(error_code = err.code(), "{}", err);
                             let _ = self.swarm.disconnect_peer_id(peer_id);
                         } else {
@@ -442,24 +451,18 @@ impl NetworkEventLoop {
             } => {
                 if let Ok(record) =
                     serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes)
-                {
-                    if self
+                    && self
                         .swarm
                         .behaviour_mut()
                         .kademlia
                         .store_mut()
                         .handle_put_record(&record, true)
                         .is_ok()
-                    {
-                        tracing::info!(
-                            "CDN Hit! Accelerated resolution of {} via {}",
-                            domain,
-                            peer
-                        );
-                        if let Some(mut pending) = self.pending_gets.remove(&domain) {
-                            for tx in pending.responders.drain(..) {
-                                let _ = tx.send(Ok(record_bytes.clone()));
-                            }
+                {
+                    tracing::info!("CDN Hit! Accelerated resolution of {} via {}", domain, peer);
+                    if let Some(mut pending) = self.pending_gets.remove(&domain) {
+                        for tx in pending.responders.drain(..) {
+                            let _ = tx.send(Ok(record_bytes.clone()));
                         }
                     }
                 }

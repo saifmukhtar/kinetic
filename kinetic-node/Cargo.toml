@@ -3,30 +3,32 @@ name = "kinetic-node"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "The background full-node and bootstrap seed daemon for the Kinetic Network."
+readme = "README.md"
 
 [features]
 simulation = ["kinetic-core/simulation"]
 
 [dependencies]
+anyhow.workspace = true
+axum.workspace = true
+clap = { workspace = true, features = ["derive"] }
 kinetic-core = { path = "../kinetic-core" }
+kinetic-local = { path = "../kinetic-local" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
-kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
-kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
+kinetic-types = { path = "../kinetic-types" }
+kinetic-vdf = { path = "../kinetic-vdf" }
+libp2p = { workspace = true, features = ["ed25519", "tokio", "macros"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+service-manager.workspace = true
 tokio = { workspace = true, features = ["net"] }
-anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-libp2p = { version = "0.53", features = ["ed25519", "tokio", "macros"] }
-axum = "0.8.9"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-hex = "0.4.3"
-dirs = "6.0.0"
-clap = { version = "4.6.1", features = ["derive"] }
-service-manager = "0.11.0"
+
 [dev-dependencies]
-http-body-util = "0.1.3"
-tempfile = "3.27.0"
-tower = { version = "0.5.3", features = ["util"] }
-proptest = "1.4"
+http-body-util.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+tower = { workspace = true, features = ["util"] }

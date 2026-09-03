@@ -32,10 +32,16 @@ impl HostConfig {
 
     /// Save the current configuration to disk.
     pub fn save(&self, path: &PathBuf) -> anyhow::Result<()> {
-        let bytes = serde_json::to_vec_pretty(self)
-            .map_err(|e| anyhow::Error::from(kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string())))?;
-        std::fs::write(path, bytes)
-            .map_err(|e| anyhow::Error::from(kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string())))?;
+        let bytes = serde_json::to_vec_pretty(self).map_err(|e| {
+            anyhow::Error::from(kinetic_core::error::SystemError::DiskPersistenceFailed(
+                e.to_string(),
+            ))
+        })?;
+        std::fs::write(path, bytes).map_err(|e| {
+            anyhow::Error::from(kinetic_core::error::SystemError::DiskPersistenceFailed(
+                e.to_string(),
+            ))
+        })?;
         Ok(())
     }
 }

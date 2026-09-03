@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::tempdir;
 
 #[test]
-fn test_redb_corruption_recovery() {
+fn test_db_corruption_recovery() {
     let dir = tempdir().unwrap();
     let db_dir = dir.path().join("storage_db");
 
@@ -11,14 +11,16 @@ fn test_redb_corruption_recovery() {
     let corrupt_file = db_dir.join("state.redb");
     fs::write(
         &corrupt_file,
-        b"this is completely invalid garbage data for redb that definitely isn't a valid redb file header whatsoever it should be at least a few bytes long",
+        b"this is completely invalid garbage data for the database that definitely isn't a valid database file header whatsoever it should be at least a few bytes long",
     )
     .unwrap();
 
     let storage_result = KineticStorage::new(&db_dir);
 
     let err_msg = match storage_result {
-        Ok(_) => panic!("SECURITY FLAW: Redb corruption should fail closed, not silently recover!"),
+        Ok(_) => {
+            panic!("SECURITY FLAW: Database corruption should fail closed, not silently recover!")
+        }
         Err(e) => e.to_string(),
     };
 

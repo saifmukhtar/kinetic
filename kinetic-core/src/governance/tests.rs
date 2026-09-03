@@ -7,7 +7,7 @@ mod tests {
         SignedGovernanceMessage,
     };
     use kinetic_primitives::keys::KineticKeypair;
-
+    use kinetic_types::clock::Kyn;
     fn get_root_sk() -> KineticKeypair {
         let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
             .unwrap();
@@ -29,11 +29,11 @@ mod tests {
     #[test]
     fn test_prime_mappings() {
         let root_sk = get_root_sk();
-        let current_kyn = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
+        let current_kyn = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(current_kyn);
+        let mut state = GovernanceState::new(Kyn(current_kyn));
 
         let (_, target_pubkey) = generate_key(99);
 
@@ -50,9 +50,12 @@ mod tests {
             .signatures
             .push(sign_action(&msg_invalid_len, &root_sk));
 
-        let err =
-            process_governance_message(&mut state, &msg_invalid_len, msg_invalid_len.timestamp_kyn)
-                .unwrap_err();
+        let err = process_governance_message(
+            &mut state,
+            &msg_invalid_len,
+            Kyn(msg_invalid_len.timestamp_kyn),
+        )
+        .unwrap_err();
         assert!(
             matches!(err, crate::error::GovernanceError::InvalidPrimeLength),
             "Got error: {:?}",
@@ -71,7 +74,8 @@ mod tests {
                 signatures: vec![],
             };
             msg.signatures.push(sign_action(&msg, &root_sk));
-            let effect = process_governance_message(&mut state, &msg, msg.timestamp_kyn).unwrap();
+            let effect =
+                process_governance_message(&mut state, &msg, Kyn(msg.timestamp_kyn)).unwrap();
 
             if let Some(GovernanceEffect::PrimeMapped {
                 name: mapped_name, ..
@@ -87,11 +91,11 @@ mod tests {
     #[test]
     fn test_rotate_root_key() {
         let root_sk = get_root_sk();
-        let current_kyn = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
+        let current_kyn = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(current_kyn);
+        let mut state = GovernanceState::new(Kyn(current_kyn));
 
         // Generate a new Root Key
         let (new_root_sk, new_root_pubkey) = generate_key(123);
@@ -109,7 +113,8 @@ mod tests {
             .push(sign_action(&rotate_msg, &root_sk));
 
         let effect =
-            process_governance_message(&mut state, &rotate_msg, rotate_msg.timestamp_kyn).unwrap();
+            process_governance_message(&mut state, &rotate_msg, Kyn(rotate_msg.timestamp_kyn))
+                .unwrap();
         assert!(matches!(
             effect,
             Some(GovernanceEffect::RootKeyRotated { .. })
@@ -129,8 +134,8 @@ mod tests {
         };
         map_msg.signatures.push(sign_action(&map_msg, &root_sk)); // signed with old key
 
-        let err =
-            process_governance_message(&mut state, &map_msg, map_msg.timestamp_kyn).unwrap_err();
+        let err = process_governance_message(&mut state, &map_msg, Kyn(map_msg.timestamp_kyn))
+            .unwrap_err();
         assert!(matches!(
             err,
             crate::error::GovernanceError::InvalidSignature
@@ -141,7 +146,7 @@ mod tests {
         map_msg.signatures.push(sign_action(&map_msg, &new_root_sk)); // signed with NEW key
 
         let effect =
-            process_governance_message(&mut state, &map_msg, map_msg.timestamp_kyn).unwrap();
+            process_governance_message(&mut state, &map_msg, Kyn(map_msg.timestamp_kyn)).unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::PrimeMapped { .. })));
     }
 
@@ -188,7 +193,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(current_kyn);
+        let mut state = GovernanceState::new(Kyn(current_kyn));
         state.active_root_key = Some(root_pubkey);
 
         assert!(!state.is_halted);
@@ -202,7 +207,7 @@ mod tests {
         halt_msg.signatures.push(sign_action(&halt_msg, &root_sk));
 
         let effect =
-            process_governance_message(&mut state, &halt_msg, halt_msg.timestamp_kyn).unwrap();
+            process_governance_message(&mut state, &halt_msg, Kyn(halt_msg.timestamp_kyn)).unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
         assert!(state.is_halted);
 
@@ -216,7 +221,8 @@ mod tests {
             .push(sign_action(&resume_msg, &root_sk));
 
         let effect =
-            process_governance_message(&mut state, &resume_msg, resume_msg.timestamp_kyn).unwrap();
+            process_governance_message(&mut state, &resume_msg, Kyn(resume_msg.timestamp_kyn))
+                .unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::NetworkResumed)));
         assert!(!state.is_halted);
         assert_eq!(state.total_paused_kyns, 1000);
@@ -230,7 +236,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(current_kyn);
+        let mut state = GovernanceState::new(Kyn(current_kyn));
         state.active_root_key = Some(root_pubkey);
 
         // Try to UnmapPrime (should fail)
@@ -243,8 +249,8 @@ mod tests {
         };
         fail_msg.signatures.push(sign_action(&fail_msg, &root_sk));
 
-        let err =
-            process_governance_message(&mut state, &fail_msg, fail_msg.timestamp_kyn).unwrap_err();
+        let err = process_governance_message(&mut state, &fail_msg, Kyn(fail_msg.timestamp_kyn))
+            .unwrap_err();
         assert!(matches!(
             err,
             crate::error::GovernanceError::InvalidPrimeLength
@@ -260,7 +266,8 @@ mod tests {
             signatures: vec![],
         };
         map_msg.signatures.push(sign_action(&map_msg, &root_sk));
-        let _ = process_governance_message(&mut state, &map_msg, map_msg.timestamp_kyn).unwrap();
+        let _ =
+            process_governance_message(&mut state, &map_msg, Kyn(map_msg.timestamp_kyn)).unwrap();
 
         // Try to revoke a 1-character name (should succeed)
         let mut success_msg = SignedGovernanceMessage {
@@ -275,7 +282,7 @@ mod tests {
             .push(sign_action(&success_msg, &root_sk));
 
         let effect =
-            process_governance_message(&mut state, &success_msg, success_msg.timestamp_kyn)
+            process_governance_message(&mut state, &success_msg, Kyn(success_msg.timestamp_kyn))
                 .unwrap();
         assert!(matches!(
             effect,
@@ -291,7 +298,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(current_kyn);
+        let mut state = GovernanceState::new(Kyn(current_kyn));
         state.active_root_key = Some(root_pubkey);
 
         let mut msg = SignedGovernanceMessage {
@@ -302,11 +309,11 @@ mod tests {
         msg.signatures.push(sign_action(&msg, &root_sk));
 
         // First submission succeeds
-        let effect = process_governance_message(&mut state, &msg, msg.timestamp_kyn).unwrap();
+        let effect = process_governance_message(&mut state, &msg, Kyn(msg.timestamp_kyn)).unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
 
         // Resubmitting the exact same message triggers the new AlreadyExecuted taxonomy error
-        let err = process_governance_message(&mut state, &msg, msg.timestamp_kyn).unwrap_err();
+        let err = process_governance_message(&mut state, &msg, Kyn(msg.timestamp_kyn)).unwrap_err();
         assert!(
             matches!(err, crate::error::GovernanceError::AlreadyExecuted),
             "Expected AlreadyExecuted error on replay attack, got: {:?}",
@@ -317,11 +324,11 @@ mod tests {
     #[test]
     fn test_infra_mappings() {
         let root_sk = get_root_sk();
-        let current_kyn = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
+        let current_kyn = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(current_kyn);
+        let mut state = GovernanceState::new(Kyn(current_kyn));
         let (_, target_pubkey) = generate_key(99);
 
         // Test invalid infra name
@@ -337,8 +344,9 @@ mod tests {
             .signatures
             .push(sign_action(&msg_invalid, &root_sk));
 
-        let err = process_governance_message(&mut state, &msg_invalid, msg_invalid.timestamp_kyn)
-            .unwrap_err();
+        let err =
+            process_governance_message(&mut state, &msg_invalid, Kyn(msg_invalid.timestamp_kyn))
+                .unwrap_err();
         assert!(matches!(
             err,
             crate::error::GovernanceError::InvalidProtocolName
@@ -355,18 +363,19 @@ mod tests {
         };
         msg_valid.signatures.push(sign_action(&msg_valid, &root_sk));
         let effect =
-            process_governance_message(&mut state, &msg_valid, msg_valid.timestamp_kyn).unwrap();
+            process_governance_message(&mut state, &msg_valid, Kyn(msg_valid.timestamp_kyn))
+                .unwrap();
         assert!(matches!(effect, Some(GovernanceEffect::InfraMapped { .. })));
     }
 
     #[test]
     fn test_stale_proposal() {
         let root_sk = get_root_sk();
-        let current_kyn = web_time::SystemTime::now()
-            .duration_since(web_time::UNIX_EPOCH)
+        let current_kyn = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(current_kyn);
+        let mut state = GovernanceState::new(Kyn(current_kyn));
 
         // Create a message that is exactly MAX_AGE_KYNS + 1 old
         let stale_kyn = current_kyn - crate::constants::MAX_AGE_KYNS - 1;
@@ -378,7 +387,7 @@ mod tests {
         };
         msg.signatures.push(sign_action(&msg, &root_sk));
 
-        let err = process_governance_message(&mut state, &msg, current_kyn).unwrap_err();
+        let err = process_governance_message(&mut state, &msg, Kyn(current_kyn)).unwrap_err();
         assert!(matches!(err, crate::error::GovernanceError::StaleProposal));
     }
 }

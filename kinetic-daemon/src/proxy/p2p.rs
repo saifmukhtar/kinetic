@@ -31,7 +31,11 @@ pub async fn handle_incoming_proxy_requests(
 
             let safe_path = if decoded_path.contains("..") || !decoded_path.starts_with('/') {
                 let err = kinetic_core::error::SecurityError::PathTraversalAttempt;
-                tracing::warn!(error_code = err.code(), "Blocked malicious P2P proxy path: {}", req.path);
+                tracing::warn!(
+                    error_code = err.code(),
+                    "Blocked malicious P2P proxy path: {}",
+                    req.path
+                );
                 let _ = client_clone
                     .send_proxy_response(
                         channel,
@@ -74,7 +78,11 @@ pub async fn handle_incoming_proxy_requests(
                 Ok(m) => m,
                 Err(_) => {
                     let err = kinetic_core::error::SecurityError::InvalidMethod;
-                    tracing::warn!(error_code = err.code(), "Blocked invalid HTTP method: {}", req.method);
+                    tracing::warn!(
+                        error_code = err.code(),
+                        "Blocked invalid HTTP method: {}",
+                        req.method
+                    );
                     let _ = client_clone
                         .send_proxy_response(
                             channel,
@@ -116,10 +124,16 @@ pub async fn handle_incoming_proxy_requests(
                         if let Ok(chunk) = chunk_res {
                             body.extend_from_slice(&chunk);
                             if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
-                                let err = kinetic_core::error::SecurityError::BackendResponseTooLarge;
-                                tracing::warn!(error_code = err.code(), "Blocked oversized P2P backend response (>5MB)");
+                                let err =
+                                    kinetic_core::error::SecurityError::BackendResponseTooLarge;
+                                tracing::warn!(
+                                    error_code = err.code(),
+                                    "Blocked oversized P2P backend response (>5MB)"
+                                );
                                 body.clear();
-                                body.extend_from_slice(format!("{}: {}", err.code(), err).as_bytes());
+                                body.extend_from_slice(
+                                    format!("{}: {}", err.code(), err).as_bytes(),
+                                );
                                 status = 502; // Or 413
                                 break;
                             }
@@ -132,7 +146,10 @@ pub async fn handle_incoming_proxy_requests(
                     }
                 }
                 Err(e) => {
-                    let err = super::ProxyError::LocalWebServerForwardingFailed(local_port, e.to_string());
+                    let err = super::ProxyError::LocalWebServerForwardingFailed(
+                        local_port,
+                        e.to_string(),
+                    );
                     warn!(error_code = err.code(), "{}", err);
                     ProxyResponse {
                         status: 502,

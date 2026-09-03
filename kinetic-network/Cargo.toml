@@ -3,60 +3,63 @@ name = "kinetic-network"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "The libp2p network mesh, swarm routing, and Drand entropy client for the Kinetic Network."
+readme = "README.md"
 
 [dependencies]
+anyhow.workspace = true
+argon2.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+bytes = { workspace = true, features = ["serde"] }
+drand-verify.workspace = true
+ed25519-dalek.workspace = true
+hex.workspace = true
 kinetic-core = { path = "../kinetic-core" }
+kinetic-kid = { path = "../kinetic-kid" }
+kinetic-local = { path = "../kinetic-local" }
 kinetic-primitives = { path = "../kinetic-primitives" }
 kinetic-storage = { path = "../kinetic-storage" }
-kinetic-kid = { path = "../kinetic-kid" }
-kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
-kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
-libp2p = { version = "0.53", features = ["kad", "gossipsub", "noise", "yamux", "macros", "identify", "relay", "dcutr", "ping", "request-response", "cbor", "autonat", "upnp", "quic"] }
-tokio = { version = "1.38.0", features = ["sync", "macros"] }
-sha2 = "0.10"
+kinetic-types = { path = "../kinetic-types" }
+kinetic-vdf = { path = "../kinetic-vdf" }
+kinetic-verify = { path = "../kinetic-verify" }
+libp2p = { workspace = true, features = ["kad", "gossipsub", "noise", "yamux", "macros", "identify", "relay", "dcutr", "ping", "request-response", "cbor", "autonat", "upnp", "quic", "dns"] }
+lru.workspace = true
+rand.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+rustc-hash.workspace = true
+serde = { workspace = true, features = ["derive", "rc"] }
+serde_json.workspace = true
 thiserror.workspace = true
-anyhow.workspace = true
+tokio = { workspace = true, features = ["sync", "macros"] }
 tracing.workspace = true
-ed25519-dalek = "2.2.0"
-serde_json = "1.0.150"
-
-kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
-hex = "0.4.3"
-serde = { version = "1.0.228", features = ["derive", "rc"] }
-uuid = { version = "1.2.3", features = ["v4"] }
-lru = "0.12.3"
-argon2 = "0.5"
-web-time = "1.1.0"
-arc-swap = "1.9.2"
-bytes = { version = "1.12.1", features = ["serde"] }
-serde_bytes = "0.11.19"
-rustc-hash = "2.1.3"
-base64 = "0.22"
-drand-verify = "0.6.2"
+uuid = { workspace = true, features = ["v4"] }
+web-time.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+futures.workspace = true
+futures-timer = { workspace = true, features = ["wasm-bindgen"] }
 getrandom = { version = "0.2", features = ["js"] }
 getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
-libp2p = { version = "0.53", features = ["wasm-bindgen", "websocket-websys"] }
-wasm-bindgen-futures = "0.4"
-futures = "0.3"
-futures-timer = { version = "3.0.3", features = ["wasm-bindgen"] }
+gloo-timers = { workspace = true, features = ["futures"] }
+libp2p = { workspace = true, features = ["websocket-websys", "webrtc-websys"] }
+wasm-bindgen-futures.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+futures-timer.workspace = true
+hickory-resolver.workspace = true
+libp2p = { workspace = true, features = ["tokio", "tcp", "mdns"] }
+libp2p-stream.workspace = true
+libp2p-webrtc = { workspace = true, features = ["tokio", "pem"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros"] }
-libp2p = { version = "0.53", features = ["tokio", "tcp", "dns", "mdns"] }
-libp2p-stream = "0.1.0-alpha"
-futures-timer = "3.0.3"
-hickory-resolver = "0.24.4"
 
 [dev-dependencies]
-tempfile = "3.27.0"
-rand_core = { version = "0.6.4", features = ["std"] }
-proptest = "1.4.0"
-tracing-subscriber = "0.3.18"
-
+base64.workspace = true
 kinetic-core = { path = "../kinetic-core", features = ["simulation"] }
-base64 = "0.22"
+proptest.workspace = true
+rand_core = { workspace = true, features = ["std"] }
+tempfile.workspace = true
+tracing-subscriber.workspace = true
 
 [[bench]]
 name = "pow_benchmark"

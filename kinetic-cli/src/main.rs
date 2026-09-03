@@ -23,7 +23,6 @@ mod utils;
 
 use clap::Parser;
 use commands::{Commands, handle_service_command};
-use kinetic_core::config::KineticConfig;
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser)]
@@ -44,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 
     let cli = Cli::parse();
-    let config = KineticConfig::load();
+    let config = kinetic_local::config::load_config();
 
     match cli.command {
         Commands::Setup(cmd) => {
@@ -69,23 +68,23 @@ async fn main() -> anyhow::Result<()> {
             commands::dns_tree::handle_dns_tree_command(cmd).await?;
         }
         Commands::Daemon { cmd } => {
-            let bin = format!("{}-daemon", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-daemon", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Host { cmd } => {
-            let bin = format!("{}-host", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-host", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Node { cmd } => {
-            let bin = format!("{}-node", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-node", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Dns { cmd } => {
-            let bin = format!("{}-dns", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-dns", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, true).await?;
         }
         Commands::Pac { cmd } => {
-            let bin = format!("{}-pac", kinetic_core::constants::NETWORK_ID);
+            let bin = format!("{}-pac", kinetic_core::constants::NSP);
             handle_service_command(&bin, cmd, false).await?;
         }
         Commands::Clock(args) => {

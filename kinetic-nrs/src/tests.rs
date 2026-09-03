@@ -60,8 +60,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
     };
     let keypair = kinetic_primitives::keys::KineticKeypair::generate();
     reveal.pubkey = keypair.pubkey_bytes();
-    reveal.signature = keypair
-        .sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+    reveal.signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
     reveal
 }
 
@@ -93,7 +92,7 @@ async fn start_mock_daemon() -> String {
                 }
                 "invalid-payload.kin" => (StatusCode::OK, vec![0, 1, 2, 3]).into_response(),
                 "invalid-zone.kin" => {
-                    let reveal = mock_reveal("invalid-zone.kin", vec![1, 2, 3, 4]); // Invalid JSON for DnsZone
+                    let reveal = mock_reveal("invalid-zone.kin", vec![1, 2, 3, 4]); // Invalid JSON for NrsZone
                     (
                         StatusCode::OK,
                         serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
@@ -252,7 +251,7 @@ async fn test_resolve_kin_invalid_payload() {
     );
 }
 
-// 6. Test invalid DnsZone payload mapping falls back to NXDomain
+// 6. Test invalid NrsZone payload mapping falls back to NXDomain
 #[tokio::test]
 async fn test_resolve_kin_invalid_zone() {
     let api_url = start_mock_daemon().await;

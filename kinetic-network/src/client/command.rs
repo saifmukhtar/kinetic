@@ -27,25 +27,25 @@ pub enum Command {
         /// Channel to return the result.
         responder: oneshot::Sender<std::result::Result<(), NetworkClientError>>,
     },
-    /// Publish a heartbeat to maintain domain ownership.
+    /// Publish a heartbeat to maintain apex ownership.
     PublishHeartbeat {
-        /// The domain name.
+        /// The apex name.
         name: Arc<str>,
         /// The heartbeat payload.
         payload: Vec<u8>,
         /// Channel to return the result.
         responder: oneshot::Sender<std::result::Result<(), PublishError>>,
     },
-    /// Resolve a domain name from the DHT redundantly.
+    /// Resolve an apex name from the DHT redundantly.
     ResolveRedundant {
-        /// The domain name.
+        /// The apex name.
         name: Arc<str>,
         /// Channel to return the resolved payload.
         responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
     },
     /// Verify that a record has been replicated to a quorum of nodes.
     VerifyQuorum {
-        /// The domain name.
+        /// The apex name.
         name: Arc<str>,
         /// The expected payload to verify.
         payload: Vec<u8>,

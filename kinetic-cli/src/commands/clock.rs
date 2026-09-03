@@ -68,8 +68,8 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
             };
 
             KineticTime::from_kyn(
-                current_kyn,
-                kinetic_core::constants::KINETIC_GENESIS_KYN,
+                kinetic_core::types::Kyn(current_kyn),
+                kinetic_core::types::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
             )
         }
     };

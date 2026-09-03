@@ -97,10 +97,7 @@ impl KineticNrsHandler {
     pub async fn invalidate(&self, apex_name: &str) {
         let name_normalized = kinetic_core::types::extract_apex_name(apex_name);
         self.cache.invalidate(&name_normalized).await;
-        tracing::info!(
-            "Invalidated DNS cache for apex name: {}",
-            name_normalized
-        );
+        tracing::info!("Invalidated DNS cache for apex name: {}", name_normalized);
     }
 }
 

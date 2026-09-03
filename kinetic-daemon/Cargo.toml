@@ -3,6 +3,8 @@ name = "kinetic-daemon"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "The background service and REST API gateway for local node administration and routing."
+readme = "README.md"
 
 [lib]
 name = "kinetic_daemon"
@@ -16,67 +18,62 @@ path = "src/main.rs"
 simulation = ["kinetic-core/simulation", "kinetic-kid/simulation"]
 
 [dependencies]
-kinetic-core = { path = "../kinetic-core" }
-kinetic-vdf-rsa = { path = "../kinetic-vdf-rsa" }
-kinetic-network = { path = "../kinetic-network" }
-kinetic-storage = { path = "../kinetic-storage" }
-kinetic-nrs = { path = "../kinetic-nrs" }
-kinetic-kid = { path = "../kinetic-kid" }
-kinetic-types = { version = "0.2.0", path = "../kinetic-types" }
-kinetic-verify = { version = "0.2.0", path = "../kinetic-verify" }
-kinetic-primitives = { path = "../kinetic-primitives" }
-sha2 = "0.10"
-hex = "0.4.3"
-tokio = { workspace = true, features = ["net"] }
 anyhow.workspace = true
+async-stream.workspace = true
+async-trait.workspace = true
+axum = { workspace = true, features = ["ws"] }
+bincode.workspace = true
+bytes.workspace = true
+clap = { workspace = true, features = ["derive"] }
+dirs.workspace = true
+ed25519-dalek.workspace = true
+futures-util.workspace = true
+getrandom.workspace = true
+hex.workspace = true
+hickory-server.workspace = true
+http-body-util.workspace = true
+hyper = { workspace = true, features = ["full"] }
+hyper-util = { workspace = true, features = ["full"] }
+keyring.workspace = true
+kinetic-core = { path = "../kinetic-core" }
+kinetic-kid = { path = "../kinetic-kid" }
+kinetic-local = { path = "../kinetic-local" }
+kinetic-network = { path = "../kinetic-network" }
+kinetic-nrs = { path = "../kinetic-nrs" }
+kinetic-primitives = { path = "../kinetic-primitives" }
+kinetic-rpc = { path = "../kinetic-rpc" }
+kinetic-storage = { path = "../kinetic-storage" }
+kinetic-types = { path = "../kinetic-types" }
+kinetic-vdf = { path = "../kinetic-vdf" }
+kinetic-verify = { path = "../kinetic-verify" }
+libp2p = { workspace = true, features = ["ed25519"] }
+percent-encoding.workspace = true
+rand.workspace = true
+# rcgen 0.14+ has major API breaking changes to Issuer/CertificateParams.
+# We lock to 0.13.2 to avoid complex CA generation refactoring in the proxy.
+rcgen = { workspace = true, features = ["x509-parser"] }
+reqwest = { workspace = true, features = ["json", "stream"] }
+rustls = { workspace = true, features = ["ring"] }
+rustls-pemfile.workspace = true
+rustls-pki-types.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+service-manager.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tokio = { workspace = true, features = ["net"] }
+tokio-rustls.workspace = true
+tokio-stream = { workspace = true, features = ["sync"] }
+tower-http = { workspace = true, features = ["fs", "cors"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
-libp2p = { version = "0.53", features = ["ed25519"] }
-hickory-server = "0.24.4"
-axum = { version = "0.8.9", features = ["ws"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-ed25519-dalek = "2.2.0"
-rand = "0.10.1"
-reqwest = { version = "0.13.4", features = ["json", "stream"] }
-hyper = { version = "1.10.1", features = ["full"] }
-hyper-util = { version = "0.1.20", features = ["full"] }
-http-body-util = "0.1.3"
-thiserror.workspace = true
-dirs = "6.0.0"
-rcgen = { version = "0.13.2", features = ["x509-parser"] }
-rustls = { version = "0.23.41", features = ["ring"] }
-tokio-rustls = "0.26.4"
-rustls-pemfile = "2.2.0"
-rustls-pki-types = "1.14.1"
-time = "0.3.51"
-bytes = "1.12.0"
-interprocess = "2.4.2"
-getrandom = "0.4.3"
-tower-http = { version = "0.7.0", features = ["fs", "cors"] }
-uuid = { version = "1.23.4", features = ["v4"] }
-tokio-stream = { version = "0.1", features = ["sync"] }
-futures-util = "0.3"
-async-stream = "0.3"
-
-libp2p-stream = "0.4.0-alpha"
-clap = { version = "4.6.1", features = ["derive"] }
-service-manager = "0.11.0"
-mime_guess = "2.0.5"
-subtle = "2.6.1"
-rand_chacha = "0.10.0"
-rand_core = "0.10.1"
-
-bincode = "1.3.3"
-hickory-resolver = "0.24.4"
-keyring = "3.6.2"
-base64 = "0.23.1"
-percent-encoding = "2.3.2"
+uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
-http = "1.4.2"
-httptest = "0.16.4"
-tempfile = "3.27.0"
-tower = { version = "0.5.3", features = ["util"] }
-proptest = "1.4.0"
-turmoil = "0.7.2"
+http.workspace = true
+httptest.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+tower = { workspace = true, features = ["util"] }
+turmoil.workspace = true

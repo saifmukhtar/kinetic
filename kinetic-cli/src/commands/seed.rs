@@ -3,8 +3,8 @@
 use bip39::{Language, Mnemonic};
 use clap::Subcommand;
 use getrandom::fill;
-use kinetic_core::config::get_base_dir;
-use kinetic_core::types::save_keypair_from_mnemonic;
+use kinetic_local::config::get_base_dir;
+use kinetic_local::identity::save_keypair_from_mnemonic;
 use tracing::{info, warn};
 
 /// Available subcommands for managing node seed phrases.

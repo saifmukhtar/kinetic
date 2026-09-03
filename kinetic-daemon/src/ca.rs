@@ -95,9 +95,9 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
 
             let key_pair = KeyPair::from_pem(&key_pem)?;
             let params = CertificateParams::from_ca_cert_pem(&cert_pem)?;
-            
+
             let thirty_days_from_now = OffsetDateTime::now_utc() + Duration::days(30);
-            
+
             if thirty_days_from_now > params.not_after {
                 tracing::warn!(
                     error = ?kinetic_core::error::SystemError::CaRotationFailed(params.not_after.to_string()),
@@ -120,14 +120,8 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         // Generate new CA
         let mut params = CertificateParams::new(vec![])?;
         let mut dn = DistinguishedName::new();
-        dn.push(
-            DnType::CommonName,
-            format!("{} Local Root CA", ca_prefix),
-        );
-        dn.push(
-            DnType::OrganizationName,
-            format!("{} Protocol", ca_prefix),
-        );
+        dn.push(DnType::CommonName, format!("{} Local Root CA", ca_prefix));
+        dn.push(DnType::OrganizationName, format!("{} Protocol", ca_prefix));
         params.distinguished_name = dn;
         params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
         params.name_constraints = Some(NameConstraints {
@@ -299,11 +293,11 @@ fn trust_root_ca(_cert_path: &Path) {}
 pub fn generate_leaf_cert(domain: &str, root_ca: &RootCa) -> Result<ServerConfig, CaError> {
     let mut params = CertificateParams::new(vec![domain.to_string()])?;
     let mut dn = DistinguishedName::new();
-    
+
     let nsp = kinetic_core::constants::NSP_SUFFIX;
     let salt_prefix = &kinetic_core::constants::NETWORK_SALT_HEX[0..4];
     let ca_prefix = format!("{}-{}", nsp, salt_prefix);
-    
+
     dn.push(DnType::CommonName, domain);
     dn.push(
         DnType::OrganizationName,

@@ -15,7 +15,6 @@
 pub mod clock;
 pub mod identity;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod kid_manager;
 pub mod name_record;
 pub mod names;
 pub mod nrs;
@@ -25,7 +24,6 @@ pub mod vdf;
 pub use clock::*;
 pub use identity::*;
 #[cfg(not(target_arch = "wasm32"))]
-pub use kid_manager::*;
 pub use name_record::*;
 pub use names::*;
 pub use nrs::*;

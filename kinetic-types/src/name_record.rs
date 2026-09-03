@@ -147,21 +147,17 @@ pub fn normalize_name(name: &str) -> String {
 /// Produces exactly 32 distinct 32-byte keys via:
 /// `SHA-256(network_salt || "storage" || normalized_name || [i])` for `i in 0..32`.
 pub fn derive_storage_keys(name: &str, network_salt: &[u8; 32]) -> Vec<[u8; 32]> {
-    use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);
     let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
 
     for i in 0..M_REDUNDANCY {
-        let mut hasher = Sha256::new();
-        hasher.update(network_salt);
-        hasher.update(b"storage");
-        hasher.update(normalized.as_bytes());
-        hasher.update([i]);
+        let mut data = Vec::with_capacity(32 + 7 + normalized.len() + 1);
+        data.extend_from_slice(network_salt);
+        data.extend_from_slice(b"storage");
+        data.extend_from_slice(normalized.as_bytes());
+        data.push(i);
 
-        let result = hasher.finalize();
-        let mut key = [0u8; 32];
-        key.copy_from_slice(&result);
-        keys.push(key);
+        keys.push(kinetic_primitives::sha256_hash(&data));
     }
     keys
 }
@@ -171,21 +167,17 @@ pub fn derive_storage_keys(name: &str, network_salt: &[u8; 32]) -> Vec<[u8; 32]>
 /// Produces exactly 32 distinct 32-byte keys via:
 /// `SHA-256(network_salt || "heartbeat" || normalized_name || [i])` for `i in 0..32`.
 pub fn derive_heartbeat_keys(name: &str, network_salt: &[u8; 32]) -> Vec<[u8; 32]> {
-    use sha2::{Digest, Sha256};
     let normalized = normalize_name(name);
     let mut keys = Vec::with_capacity(M_REDUNDANCY as usize);
 
     for i in 0..M_REDUNDANCY {
-        let mut hasher = Sha256::new();
-        hasher.update(network_salt);
-        hasher.update(b"heartbeat");
-        hasher.update(normalized.as_bytes());
-        hasher.update([i]);
+        let mut data = Vec::with_capacity(32 + 9 + normalized.len() + 1);
+        data.extend_from_slice(network_salt);
+        data.extend_from_slice(b"heartbeat");
+        data.extend_from_slice(normalized.as_bytes());
+        data.push(i);
 
-        let result = hasher.finalize();
-        let mut key = [0u8; 32];
-        key.copy_from_slice(&result);
-        keys.push(key);
+        keys.push(kinetic_primitives::sha256_hash(&data));
     }
     keys
 }

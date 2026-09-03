@@ -70,7 +70,7 @@ pub enum GovernanceEffect {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GovernanceState {
     /// Genesis Kyn when governance tracking started.
-    pub genesis_kyn: u64,
+    pub genesis_kyn: kinetic_types::clock::Kyn,
     /// Active ML-DSA-65 root public key controlling the network.
     pub active_root_key: Option<PublicKeyBytes>,
     /// Master boolean flag if the network is currently paused.
@@ -78,16 +78,16 @@ pub struct GovernanceState {
     pub is_halted: bool,
     /// The exact Kyn when the network was halted (if currently halted).
     #[serde(default)]
-    pub halt_start_kyn: Option<u64>,
+    pub halt_start_kyn: Option<kinetic_types::clock::Kyn>,
     /// Total number of drand kyns the network has been paused for since genesis.
     #[serde(default)]
     pub total_paused_kyns: u64,
     /// Historical timeline of all network pauses (start_kyn, end_kyn).
     #[serde(default)]
-    pub pause_history: Vec<(u64, u64)>,
+    pub pause_history: Vec<(kinetic_types::clock::Kyn, kinetic_types::clock::Kyn)>,
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
-    pub executed_hashes: HashMap<Hash256, u64>,
+    pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
     /// Active 1-character prime names and their associated ML-DSA-65 public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
@@ -98,7 +98,7 @@ pub struct GovernanceState {
 
 impl GovernanceState {
     /// Calculates the exact number of paused kyns that occurred *after* a specific target kyn.
-    pub fn paused_kyns_since(&self, target_kyn: u64) -> u64 {
+    pub fn paused_kyns_since(&self, target_kyn: kinetic_types::clock::Kyn) -> u64 {
         let mut total = 0;
         for &(start, end) in &self.pause_history {
             if end <= target_kyn {
@@ -107,10 +107,10 @@ impl GovernanceState {
             }
             if start >= target_kyn {
                 // Pause happened entirely after the target kyn, add full duration.
-                total += end.saturating_sub(start);
+                total += end.0.saturating_sub(start.0);
             } else {
-                // Pause overlapped the target kyn, add only the portion after.
-                total += end.saturating_sub(target_kyn);
+                // Pause started before target kyn, but ended after. Only add the overlapping part.
+                total += end.0.saturating_sub(target_kyn.0);
             }
         }
         total
@@ -120,11 +120,12 @@ impl GovernanceState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kinetic_types::clock::Kyn;
     use std::collections::HashMap;
 
     fn mock_state() -> GovernanceState {
         GovernanceState {
-            genesis_kyn: 0,
+            genesis_kyn: Kyn(0),
             active_root_key: None,
             is_halted: false,
             halt_start_kyn: None,
@@ -140,56 +141,56 @@ mod tests {
     fn test_pause_history_double_mapping_flaw() {
         let mut state = mock_state();
         // Pause happens between kyns 1000 and 1100 (100 kyns)
-        state.pause_history.push((1000, 1100));
+        state.pause_history.push((Kyn(1000), Kyn(1100)));
 
         // Name is registered AFTER the pause, at kyn 2000
         let target_kyn = 2000;
 
         // It should get 0 paused kyns back (fixing the double-mapping flaw)
-        assert_eq!(state.paused_kyns_since(target_kyn), 0);
+        assert_eq!(state.paused_kyns_since(Kyn(target_kyn)), 0);
     }
 
     #[test]
     fn test_pause_history_renewal_in_the_middle() {
         let mut state = mock_state();
         // Pause 1: kyns 1000 to 1100 (100 kyns)
-        state.pause_history.push((1000, 1100));
+        state.pause_history.push((Kyn(1000), Kyn(1100)));
         // Pause 2: kyns 3000 to 3100 (100 kyns)
-        state.pause_history.push((3000, 3100));
+        state.pause_history.push((Kyn(3000), Kyn(3100)));
 
         // User renewed the name at kyn 2000
         // (After pause 1, but before pause 2)
         let target_pulse = 2000;
 
         // They should only get Pause 2 (100 kyns) credited
-        assert_eq!(state.paused_kyns_since(target_pulse), 100);
+        assert_eq!(state.paused_kyns_since(Kyn(target_pulse)), 100);
     }
 
     #[test]
     fn test_pause_history_back_to_back_pauses() {
         let mut state = mock_state();
         // Pause 1: kyns 1000 to 1100 (100 kyns)
-        state.pause_history.push((1000, 1100));
+        state.pause_history.push((Kyn(1000), Kyn(1100)));
         // Pause 2: kyns 3000 to 3100 (100 kyns)
-        state.pause_history.push((3000, 3100));
+        state.pause_history.push((Kyn(3000), Kyn(3100)));
 
         // Name was registered before BOTH pauses, at kyn 500
         let target_pulse = 500;
 
         // They should get BOTH pauses credited (200 kyns)
-        assert_eq!(state.paused_kyns_since(target_pulse), 200);
+        assert_eq!(state.paused_kyns_since(Kyn(target_pulse)), 200);
     }
 
     #[test]
     fn test_pause_history_overlapping_pause() {
         let mut state = mock_state();
         // Pause: kyns 1000 to 1100 (100 kyns)
-        state.pause_history.push((1000, 1100));
+        state.pause_history.push((Kyn(1000), Kyn(1100)));
 
         // Name was registered *during* the pause, at kyn 1050
         let target_pulse = 1050;
 
         // They should only get the portion of the pause that happened AFTER they registered (50 kyns)
-        assert_eq!(state.paused_kyns_since(target_pulse), 50);
+        assert_eq!(state.paused_kyns_since(Kyn(target_pulse)), 50);
     }
 }

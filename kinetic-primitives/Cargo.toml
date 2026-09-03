@@ -1,15 +1,20 @@
 [package]
 name = "kinetic-primitives"
-version = "0.2.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../README.md"
 description = "Raw cryptographic mathematical operations (SHA-256, ML-DSA-65) for the Kinetic Network."
-repository = "https://github.com/saifmukhtar/kinetic"
 keywords = ["kinetic", "crypto", "ml-dsa", "sha2"]
 categories = ["cryptography"]
 
 [dependencies]
-sha2 = "0.11.0"
-ml-dsa = "0.1.1"
+# --- Workspace Inherited ---
 thiserror.workspace = true
+
+# --- External Crates ---
+ml-dsa.workspace = true
+sha2.workspace = true

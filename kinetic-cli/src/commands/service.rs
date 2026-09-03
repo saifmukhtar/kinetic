@@ -144,7 +144,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         } else if binary.ends_with("-node") {
             format!(
                 "run a full DHT node and contribute to the {} network",
-                kinetic_core::constants::NETWORK_ID
+                kinetic_core::constants::NSP
             )
         } else if binary.ends_with("-dns") {
             format!(

@@ -43,7 +43,7 @@ pub async fn handle_governance_command(
     // Publish to the daemon
     let port = config.daemon.api_port;
     let token =
-        std::fs::read_to_string(kinetic_core::config::get_api_tokens_dir().join("admin.token"))?;
+        std::fs::read_to_string(kinetic_local::config::get_api_tokens_dir().join("admin.token"))?;
 
     let publish_url = format!(
         "http://{}:{}/publish-governance",

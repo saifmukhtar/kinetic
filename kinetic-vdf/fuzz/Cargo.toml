@@ -1,0 +1,22 @@
+[package]
+name = "kinetic-vdf-rsa-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1.4.2", features = ["derive"] }
+kinetic-vdf = { path = ".." }
+kinetic-core = { path = "../../kinetic-core" }
+
+[[bin]]
+name = "vdf_ops"
+path = "fuzz_targets/vdf_ops.rs"
+test = false
+doc = false
+
+[workspace]

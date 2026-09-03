@@ -144,27 +144,35 @@ pub async fn forward_to_backend_direct(
             .resolve_redundant_payload(&apex_name)
             .await
             .map_err(|e| {
-                let err = super::ProxyError::DhtResolutionFailed(apex_name.to_string(), e.to_string());
+                let err =
+                    super::ProxyError::DhtResolutionFailed(apex_name.to_string(), e.to_string());
                 tracing::warn!(error_code = err.code(), "{}", err);
                 ProxyError::NameNotFound(apex_name.clone())
             })?;
 
         // The DHT stores the full Reveal JSON (set by api.rs via serde_json::to_vec(&reveal)).
         // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
-        let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
-            .map_err(|e| {
-                let err = super::ProxyError::NameRecordDeserializationFailed(apex_name.to_string(), e.to_string());
+        let record =
+            serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload).map_err(|e| {
+                let err = super::ProxyError::NameRecordDeserializationFailed(
+                    apex_name.to_string(),
+                    e.to_string(),
+                );
                 tracing::warn!(error_code = err.code(), "{}", err);
-                ProxyError::InvalidPayload("Failed to deserialize NameRecord JSON from DHT".to_string())
+                ProxyError::InvalidPayload(
+                    "Failed to deserialize NameRecord JSON from DHT".to_string(),
+                )
             })?;
 
         use kinetic_verify::signatures::VerifySignature;
-        if !kinetic_core::config::is_dev_mode() {
-            if let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT) {
-                let err = super::ProxyError::SignatureVerificationFailed(format!("{:?}", e));
-                tracing::warn!(error_code = err.code(), "{}", err);
-                return Err(ProxyError::SecurityViolation("NameRecord signature verification failed (Spoofed DHT response)".to_string()));
-            }
+        if !kinetic_core::config::is_dev_mode()
+            && let Err(e) = record.verify_signature(kinetic_core::constants::NETWORK_SALT)
+        {
+            let err = super::ProxyError::SignatureVerificationFailed(format!("{:?}", e));
+            tracing::warn!(error_code = err.code(), "{}", err);
+            return Err(ProxyError::SecurityViolation(
+                "NameRecord signature verification failed (Spoofed DHT response)".to_string(),
+            ));
         }
 
         let zone = match kinetic_core::types::NrsZone::parse_payload(record.payload()) {
@@ -172,7 +180,9 @@ pub async fn forward_to_backend_direct(
             Err(e) => {
                 let err = super::ProxyError::InvalidNrsZonePayload(e.to_string());
                 tracing::warn!(error_code = err.code(), "{}", err);
-                return Err(ProxyError::InvalidPayload("Invalid NrsZone payload".to_string()));
+                return Err(ProxyError::InvalidPayload(
+                    "Invalid NrsZone payload".to_string(),
+                ));
             }
         };
 
@@ -197,7 +207,10 @@ pub async fn forward_to_backend_direct(
             None => {
                 let err = super::ProxyError::SubnameNotFound(subname.to_string());
                 tracing::warn!(error_code = err.code(), "{}", err);
-                return Err(ProxyError::NameNotFound(format!("Subname '{}' not found in zone", subname)));
+                return Err(ProxyError::NameNotFound(format!(
+                    "Subname '{}' not found in zone",
+                    subname
+                )));
             }
         };
 
@@ -256,7 +269,10 @@ pub async fn forward_to_backend_direct(
     if target_str.is_empty() {
         let err = super::ProxyError::NoRoutableTargets(name.to_string());
         tracing::warn!(error_code = err.code(), "{}", err);
-        return Err(ProxyError::NameNotFound(format!("No routable targets found in NrsZone for name '{}'", name)));
+        return Err(ProxyError::NameNotFound(format!(
+            "No routable targets found in NrsZone for name '{}'",
+            name
+        )));
     }
 
     let ip_str = target_str;
@@ -271,12 +287,22 @@ pub async fn forward_to_backend_direct(
         || ip_str.parse::<std::net::SocketAddr>().is_ok();
 
     if is_ip_or_socket {
-        return crate::proxy::route_ip::forward_to_ip(req, name, &ip_str, node_peer_id, Arc::clone(&config)).await;
+        return crate::proxy::route_ip::forward_to_ip(
+            req,
+            name,
+            &ip_str,
+            node_peer_id,
+            Arc::clone(&config),
+        )
+        .await;
     } else if let Ok(peer_id) = ip_str.parse::<libp2p::PeerId>() {
         return crate::proxy::route_p2p::forward_to_p2p(req, name, peer_id, network_client).await;
     } else {
         let err = super::ProxyError::UnrecognizedTargetFormat(name.to_string(), ip_str.clone());
         tracing::warn!(error_code = err.code(), "{}", err);
-        Err(ProxyError::InvalidPayload(format!("Unrecognized target format in DHT payload for '{}'", name)))
+        Err(ProxyError::InvalidPayload(format!(
+            "Unrecognized target format in DHT payload for '{}'",
+            name
+        )))
     }
 }

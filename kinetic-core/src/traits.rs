@@ -2,8 +2,8 @@
 //!
 //! Defines the abstract contracts for Kinetic's three primary pluggable backends:
 //!
-//! - `VdfEngine`: CPU-bound Wesolowski VDF proof evaluation and verification (chiavdf).
-//! - `StorageEngine`: Key-value persistence and prefix scanning (Sled B-tree).
+//! - `VdfEngine`: CPU-bound Wesolowski VDF proof evaluation and verification.
+//! - `StorageEngine`: Key-value persistence and prefix scanning (B-tree storage engine).
 //! - `GovernanceEngine`: Protocol proposal verification and state transitions.
 //!
 //! These traits enable `kinetic-core` to be network-agnostic. The concrete implementations
@@ -17,7 +17,7 @@ use crate::types::{Commitment, VdfProof};
 
 /// Abstract interface for Verifiable Delay Function (VDF) computation engines.
 ///
-/// The canonical implementation in `kinetic-vdf` wraps the `chiavdf` Wesolowski
+/// The canonical implementation wraps a Wesolowski
 /// VDF library. The challenge is always a 32-byte SHA-256 hash derived from
 /// `NETWORK_SALT || name || salt || drand_signature_hex`.
 pub trait VdfEngine: Send + Sync {
@@ -32,7 +32,7 @@ pub trait VdfEngine: Send + Sync {
     /// - Returns [`VdfError::LockFileError`] (`KIN-VDF-001`) if the serialization lock file cannot be created.
     /// - Returns [`VdfError::LockAcquireError`] (`KIN-VDF-002`) if the lock cannot be acquired (retryable).
     /// - Returns [`VdfError::DiscriminantError`] (`KIN-VDF-003`) if discriminant generation fails.
-    /// - Returns [`VdfError::ProofGenerationError`] (`KIN-VDF-004`) if chiavdf prover panics or fails.
+    /// - Returns [`VdfError::ProofGenerationError`] (`KIN-VDF-004`) if the underlying prover panics or fails.
     /// - Returns [`VdfError::UnsupportedPlatform`] (`KIN-VDF-005`) if the platform is not supported.
     fn evaluate(&self, challenge: &Commitment, iterations: u64) -> Result<VdfProof, VdfError>;
 
@@ -59,7 +59,7 @@ pub trait VdfEngine: Send + Sync {
 
 /// Abstract interface for local embedded database storage engines.
 ///
-/// The canonical implementation in `kinetic-storage` wraps a Sled B-tree database.
+/// The canonical implementation in `kinetic-storage` wraps a B-tree storage engine database.
 /// All keys in Kinetic are namespaced with a `{NETWORK_ID}_` prefix so that multiple
 /// NSP networks can share a physical database file without key collisions.
 pub trait StorageEngine: Send + Sync {
@@ -140,7 +140,7 @@ pub trait GovernanceEngine: Send + Sync {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_kyn: u64,
+        current_kyn: kinetic_types::clock::Kyn,
     ) -> Result<Option<GovernanceEffect>, GovernanceError>;
 
     /// Executes a previously verified governance action, applying state changes.
@@ -156,6 +156,26 @@ pub trait GovernanceEngine: Send + Sync {
         &self,
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
-        current_kyn: u64,
+        current_kyn: kinetic_types::clock::Kyn,
     ) -> Option<GovernanceEffect>;
+}
+
+use crate::drand::RawKyn;
+use crate::error::kyn_provider::KynProviderError;
+use async_trait::async_trait;
+
+/// Abstract interface for fetching and validating the network's consensus clock (Kyn).
+///
+/// The canonical implementation is `kinetic_network::client::drand::DrandProvider` which fetches cryptographic
+/// randomness beacons from the League of Entropy's Quicknet.
+#[async_trait]
+pub trait KynProvider: Send + Sync {
+    /// Fetches the latest cryptographically verifiable kyn from the network.
+    async fn fetch_latest(&self) -> Result<RawKyn, KynProviderError>;
+
+    /// Loads the most recently cached kyn from local memory or disk.
+    fn load_cached_kyn(&self) -> Result<RawKyn, KynProviderError>;
+
+    /// Caches a newly verified kyn to memory and disk.
+    fn cache_kyn(&self, kyn: &RawKyn) -> Result<(), KynProviderError>;
 }

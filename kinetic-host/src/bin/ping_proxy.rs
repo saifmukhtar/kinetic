@@ -48,13 +48,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Mining PoW to satisfy kinetic-host anti-spam...");
     let key = kinetic_network::pow::mine_sybil_keypair(
-        current_kyn,
+        kinetic_types::clock::Kyn(current_kyn),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     println!("Mined PeerId: {}", key.public().to_peer_id());
 
     let db_path = args.db_path.unwrap_or_else(|| {
-        kinetic_core::config::get_base_dir().join(kinetic_core::constants::DB_NAME_PING)
+        kinetic_local::config::get_base_dir().join(kinetic_core::constants::DB_NAME_PING)
     });
 
     let storage = Arc::new(KineticStorage::new(db_path)?);
@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (incoming_tx, _) = tokio::sync::mpsc::channel(32);
     let (_, rx) = watch::channel(0);
 
-    let vdf_engine = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+    let vdf_engine = Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let (client, loop_task) = NetworkEventLoop::new(
         config,
         key,

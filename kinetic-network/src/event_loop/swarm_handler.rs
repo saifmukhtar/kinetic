@@ -15,7 +15,7 @@ impl super::core::NetworkEventLoop {
         self.current_kyn > 0
             && crate::pow::is_valid_sybil_pow(
                 peer_id,
-                self.current_kyn,
+                kinetic_types::clock::Kyn(self.current_kyn),
                 kinetic_core::constants::POW_DIFFICULTY_BITS,
             )
     }
@@ -115,9 +115,13 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
+                // Update LRU recency immediately
+                self.peer_registry.mark_connected(&peer_id);
                 if let Some(&expire_time) = self.banned_peers.peek(&peer_id) {
                     if expire_time > self.current_kyn {
-                        let err = kinetic_core::error::P2pError::BannedPeerConnectionAttempt(peer_id.to_string());
+                        let err = kinetic_core::error::P2pError::BannedPeerConnectionAttempt(
+                            peer_id.to_string(),
+                        );
                         tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = self.swarm.disconnect_peer_id(peer_id);
                         return;
@@ -158,7 +162,7 @@ impl super::core::NetworkEventLoop {
                         let valid = crate::event_loop::utils::spawn_blocking(move || {
                             crate::pow::is_valid_sybil_pow(
                                 &peer_id_clone,
-                                current_kyn,
+                                kinetic_types::clock::Kyn(current_kyn),
                                 kinetic_core::constants::POW_DIFFICULTY_BITS,
                             )
                         })
@@ -224,8 +228,15 @@ impl super::core::NetworkEventLoop {
                 tracing::debug!("RelayServer Event: {:?}", event);
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Identify(
-                libp2p::identify::Event::Received { peer_id, info },
+                libp2p::identify::Event::Received { peer_id, info, .. },
             )) => {
+                if self
+                    .peer_registry
+                    .add_verified_peer(peer_id, info.listen_addrs.clone())
+                {
+                    tracing::debug!("Added/updated public peer {} in PeerRegistry", peer_id);
+                }
+
                 tracing::info!(
                     "Received Identify from peer {:?} with addrs: {:?}",
                     peer_id,
@@ -239,7 +250,8 @@ impl super::core::NetworkEventLoop {
                     && let Some(conn_time) = self.bootstrap_connection_time.get(&peer_id)
                     && conn_time.elapsed() > web_time::Duration::from_secs(24 * 3600)
                 {
-                    let err = kinetic_core::error::P2pError::BootstrapPowTimeout(peer_id.to_string());
+                    let err =
+                        kinetic_core::error::P2pError::BootstrapPowTimeout(peer_id.to_string());
                     tracing::warn!(error_code = err.code(), "{}", err);
                     let _ = self.swarm.disconnect_peer_id(peer_id);
                     return;
@@ -286,7 +298,10 @@ impl super::core::NetworkEventLoop {
                 }
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                let err = kinetic_core::error::P2pError::OutgoingConnectionError(format!("{:?}", peer_id), format!("{:?}", error));
+                let err = kinetic_core::error::P2pError::OutgoingConnectionError(
+                    format!("{:?}", peer_id),
+                    format!("{:?}", error),
+                );
                 tracing::warn!(error_code = err.code(), "{}", err);
                 if let Some(peer_id) = peer_id {
                     self.swarm.behaviour_mut().kademlia.remove_peer(&peer_id);

@@ -25,7 +25,7 @@ pub enum RecordRejectReason {
     InvalidSignature,
     /// The embedded VDF proof failed cryptographic verification.
     /// A peer attempted to submit a forged or malformed proof of time.
-    /// Ensure your local RSA VDF engine is generating valid proofs.
+    /// Ensure your local VDF engine is generating valid proofs.
     #[error("VDF proof invalid")]
     InvalidVdf,
     /// The registration epoch has passed and the record is no longer valid.
@@ -179,13 +179,31 @@ impl ResolutionError {
     /// Clean user-facing message with no developer details.
     pub fn user_message(&self) -> String {
         match self {
-            Self::Offline => "You appear to be offline. Check your internet connection.".to_string(),
-            Self::NotFound { name, .. } => format!("'{}' is not registered on the Kinetic network.", name),
-            Self::VdfVerificationFailed { name, .. } => format!("'{}' has an invalid cryptographic proof. This record may have been tampered with.", name),
-            Self::Expired { name, .. } => format!("'{}' registration has expired. The owner needs to renew it.", name),
-            Self::Timeout { name, .. } => format!("The network took too long to respond for '{}'. Please try again.", name),
-            Self::Internal { .. } => "An internal network error occurred. Please try again.".to_string(),
-            Self::SignatureVerificationFailed(_) => "The network returned a spoofed or tampered record. Query rejected for your safety.".to_string(),
+            Self::Offline => {
+                "You appear to be offline. Check your internet connection.".to_string()
+            }
+            Self::NotFound { name, .. } => {
+                format!("'{}' is not registered on the Kinetic network.", name)
+            }
+            Self::VdfVerificationFailed { name, .. } => format!(
+                "'{}' has an invalid cryptographic proof. This record may have been tampered with.",
+                name
+            ),
+            Self::Expired { name, .. } => format!(
+                "'{}' registration has expired. The owner needs to renew it.",
+                name
+            ),
+            Self::Timeout { name, .. } => format!(
+                "The network took too long to respond for '{}'. Please try again.",
+                name
+            ),
+            Self::Internal { .. } => {
+                "An internal network error occurred. Please try again.".to_string()
+            }
+            Self::SignatureVerificationFailed(_) => {
+                "The network returned a spoofed or tampered record. Query rejected for your safety."
+                    .to_string()
+            }
         }
     }
 
@@ -289,12 +307,16 @@ pub enum PublishError {
     /// The local reveal could not be found to verify the AuthorizedKid locally before broadcast.
     /// The local node doesn't have the active name reveal cached, meaning it cannot pre-validate the KID.
     /// The network will likely drop this payload. Ensure you own the name and it is fully synced locally.
-    #[error("Could not find local reveal for name {0} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network.")]
+    #[error(
+        "Could not find local reveal for name {0} to verify AuthorizedKid. Forwarding to DHT anyway, but it may be rejected by the network."
+    )]
     MissingLocalRevealForKid(String),
     /// The local reveal could not be found to verify the AuthorizedManifest locally before broadcast.
     /// The local node cannot verify the manifest signature locally because it doesn't have the parent reveal.
     /// The payload will be forwarded, but might be rejected by peers. Fully sync the node before publishing.
-    #[error("Could not find local reveal for name {0} to verify AuthorizedManifest. Forwarding to DHT anyway.")]
+    #[error(
+        "Could not find local reveal for name {0} to verify AuthorizedManifest. Forwarding to DHT anyway."
+    )]
     MissingLocalRevealForManifest(String),
     /// The zone payload failed to serialize into JSON.
     /// The zone struct contains invalid characters, cyclical references, or exceeds nesting limits.
@@ -417,7 +439,7 @@ pub enum RegistrationError {
         /// The invalid name that was submitted.
         name: String,
     },
-    /// The VDF computation step failed (e.g., chiavdf returned an error or crashed).
+    /// The VDF computation step failed (e.g., the underlying engine returned an error or crashed).
     /// The CPU could not complete the required time-delay proof for the registration.
     /// Check system logs, ensure the VDF binary is executable, and try again.
     #[error("VDF computation failed: {0}")]
@@ -531,7 +553,10 @@ impl RegistrationError {
             }
             Self::NetworkRejected { reason } => format!("Registration was rejected: {}", reason),
             Self::Internal { .. } => "An internal error occurred during registration.".to_string(),
-            Self::NotRegisteredLocal { name } => format!("No registration record found for '{}'. Register the name first.", name),
+            Self::NotRegisteredLocal { name } => format!(
+                "No registration record found for '{}'. Register the name first.",
+                name
+            ),
         }
     }
 

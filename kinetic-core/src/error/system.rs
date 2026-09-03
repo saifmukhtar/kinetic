@@ -167,20 +167,38 @@ impl SystemError {
     pub fn user_message(&self) -> String {
         match self {
             Self::PortInUse(_) => "A required network port is already in use.".to_string(),
-            Self::NetworkHotswapFailed(_) => "Failed to hot-swap the networking backend.".to_string(),
+            Self::NetworkHotswapFailed(_) => {
+                "Failed to hot-swap the networking backend.".to_string()
+            }
             Self::ServerCrashed(_) => "A critical background service crashed.".to_string(),
-            Self::IdentityCorrupted(_) => "The cryptographic node identity is corrupted.".to_string(),
-            Self::KeychainStorageFailed(_) => "Failed to access the OS Keychain/Keyring.".to_string(),
+            Self::IdentityCorrupted(_) => {
+                "The cryptographic node identity is corrupted.".to_string()
+            }
+            Self::KeychainStorageFailed(_) => {
+                "Failed to access the OS Keychain/Keyring.".to_string()
+            }
             Self::DiskPersistenceFailed(_) => "Failed to write configuration to disk.".to_string(),
-            Self::ServiceManagerError(_) => "Failed to interact with the OS service manager.".to_string(),
-            Self::InvalidOsEnvironment(_) => "The operating system environment is invalid.".to_string(),
+            Self::ServiceManagerError(_) => {
+                "Failed to interact with the OS service manager.".to_string()
+            }
+            Self::InvalidOsEnvironment(_) => {
+                "The operating system environment is invalid.".to_string()
+            }
             Self::PrivilegeDropFailed(_) => "Failed to securely drop root privileges.".to_string(),
-            Self::LoopbackSetupFailed(_) => "Failed to configure the OS loopback network interface.".to_string(),
+            Self::LoopbackSetupFailed(_) => {
+                "Failed to configure the OS loopback network interface.".to_string()
+            }
             Self::MutexPoisoned(_) => "A system deadlock occurred (mutex poisoned).".to_string(),
-            Self::TrustInstallationFailed(_) => "Failed to install OS certificate trust.".to_string(),
+            Self::TrustInstallationFailed(_) => {
+                "Failed to install OS certificate trust.".to_string()
+            }
             Self::CaRotationFailed(_) => "Local Certificate Authority rotation failed.".to_string(),
-            Self::SigIntBindingFailed(_) => "Graceful keyboard shutdown is disabled (Ctrl+C listener failed).".to_string(),
-            Self::SigTermBindingFailed(_) => "Graceful system shutdown is disabled (SIGTERM listener failed).".to_string(),
+            Self::SigIntBindingFailed(_) => {
+                "Graceful keyboard shutdown is disabled (Ctrl+C listener failed).".to_string()
+            }
+            Self::SigTermBindingFailed(_) => {
+                "Graceful system shutdown is disabled (SIGTERM listener failed).".to_string()
+            }
         }
     }
 }

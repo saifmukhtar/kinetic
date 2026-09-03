@@ -95,10 +95,8 @@ pub(crate) fn is_routable_multiaddr(
             Protocol::Memory(_) => {
                 return true;
             }
-            Protocol::Dns(_) | Protocol::Dns4(_) | Protocol::Dns6(_) => {
-                if !allow_dns {
-                    return false;
-                }
+            Protocol::Dns(_) | Protocol::Dns4(_) | Protocol::Dns6(_) if !allow_dns => {
+                return false;
             }
             _ => {}
         }
@@ -177,7 +175,7 @@ impl super::core::NetworkEventLoop {
                         // Reject future-dated documents (allowing 300s clock drift)
                         if doc.created_at > current_time + 300 {
                             let err = kinetic_core::error::IdentityError::MalformedDocument(
-                                format!("created_at ({}) is in the future", doc.created_at)
+                                format!("created_at ({}) is in the future", doc.created_at),
                             );
                             tracing::warn!(error_code = err.code(), "Rejecting Document: {}", err);
                             return None;
@@ -257,8 +255,7 @@ impl super::core::NetworkEventLoop {
 
                     use drand_verify::Pubkey;
                     use kinetic_core::traits::VdfEngine;
-                    use kinetic_vdf_rsa::RsaVdfEngine;
-
+                    use kinetic_vdf::RsaVdfEngine;
 
                     let drand_sig_bytes = match hex::decode(&reveal.drand_signature) {
                         Ok(b) => b,

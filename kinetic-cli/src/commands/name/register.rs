@@ -1,9 +1,11 @@
 //! New .kin name registration engine featuring Drand entropy, two-phase commitment, and VDF proof generation.
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
-use kinetic_core::config::{KineticConfig, get_zones_dir};
-use kinetic_core::traits::VdfEngine;
-use kinetic_core::types::{Reveal, load_keypair};
+use kinetic_core::config::KineticConfig;
+use kinetic_core::traits::{KynProvider, VdfEngine};
+use kinetic_core::types::Reveal;
+use kinetic_local::config::get_zones_dir;
+use kinetic_local::identity::load_keypair;
 
 use reqwest::Client;
 use serde_json::json;
@@ -36,8 +38,8 @@ pub async fn handle_name_register(
 
     // 1. Fetch latest Drand beacon
     info!("Fetching latest Drand entropy beacon...");
-    let drand_client = kinetic_core::drand::DrandClient::new(None);
-    let drand_data = drand_client.fetch_latest().await?;
+    let kyn_provider = kinetic_network::client::drand::DrandProvider::new(None);
+    let drand_data = kyn_provider.fetch_latest().await?;
     info!(
         "Successfully fetched Drand kyn {}. Randomness: {}",
         drand_data.kyn, drand_data.randomness
@@ -45,14 +47,14 @@ pub async fn handle_name_register(
 
     // 2. Generate the VDF Proof
     info!("Initializing Chia VDF Engine. Generating cryptographic proof...");
-    let vdf_engine = kinetic_vdf_rsa::RsaVdfEngine::new();
+    let vdf_engine = kinetic_vdf::RsaVdfEngine::new();
 
     // Generate a random salt to prevent pre-computation attacks
     let mut salt = [0u8; 32];
     getrandom::fill(&mut salt).expect("Failed to generate random salt");
 
     // Construct commitment: H(name || salt || drand_signature || pubkey)
-    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
     let pubkey = keypair.pubkey_bytes();
 
@@ -176,18 +178,16 @@ pub async fn handle_name_register(
     // 3. Construct the NrsZone and auto-generate/inherit KID
     let mut records = std::collections::HashMap::new();
 
-    let drand_client = kinetic_core::drand::DrandClient::new(None);
-    let current_kyn = match drand_client.fetch_latest().await {
-        Ok(kyn) => kyn.kyn,
-        Err(_) => kinetic_core::types::clock::unix_time_to_network_kyn(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        ),
+    let kyn_provider = kinetic_network::client::drand::DrandProvider::new(None);
+    use kinetic_core::types::Kyn;
+    use kinetic_core::types::clock::KynNetworkExt;
+
+    let current_kyn = match kyn_provider.fetch_latest().await {
+        Ok(kyn) => Kyn(kyn.kyn),
+        Err(_) => Kyn::now_local(),
     };
 
-    let kid_res = kinetic_core::types::get_or_create_kid_for_name(
+    let kid_res = kinetic_local::kid_manager::get_or_create_kid_for_name(
         &fqdn,
         true,
         false,

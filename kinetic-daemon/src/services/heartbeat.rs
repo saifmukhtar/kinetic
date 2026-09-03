@@ -1,5 +1,6 @@
 //! Periodic name heartbeat generator and Drand kyn synchronization worker loop.
 
+use kinetic_core::traits::KynProvider;
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::types::Heartbeat;
 
@@ -11,7 +12,7 @@ use std::time::Duration;
 pub fn start_heartbeat_loop(
     hb_storage: Arc<dyn StorageEngine>,
     hb_network: kinetic_network::NetworkClient,
-    hb_drand: Arc<kinetic_core::drand::DrandClient>,
+    hb_kyn_provider: Arc<dyn KynProvider>,
     p2p_only: bool,
     initial_kyn: u64,
     daemon_keypair_hb: kinetic_primitives::keys::KineticKeypair,
@@ -28,7 +29,7 @@ pub fn start_heartbeat_loop(
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_drand.load_cached_kyn() {
+                if let Ok(latest) = hb_kyn_provider.load_cached_kyn() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
@@ -37,7 +38,9 @@ pub fn start_heartbeat_loop(
                         / kinetic_core::constants::DRAND_PERIOD;
 
                     if expected_kyn > latest.kyn + 5 {
-                        let err = kinetic_core::error::DrandError::P2pFallbackTriggered { behind: expected_kyn.saturating_sub(latest.kyn) };
+                        let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
+                            behind: expected_kyn.saturating_sub(latest.kyn),
+                        };
                         tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
                     }
@@ -47,7 +50,7 @@ pub fn start_heartbeat_loop(
             }
 
             let kyn = if should_fetch_http {
-                match hb_drand.fetch_latest().await {
+                match hb_kyn_provider.fetch_latest().await {
                     Ok(p) => {
                         if !p.is_unavailable && !p.is_from_cache {
                             let _ = kyn_tx_hb.send(p.kyn);
@@ -65,12 +68,12 @@ pub fn start_heartbeat_loop(
                         }
                         p
                     }
-                    Err(_) => hb_drand
+                    Err(_) => hb_kyn_provider
                         .load_cached_kyn()
                         .unwrap_or(kinetic_core::drand::RawKyn::unavailable()),
                 }
             } else {
-                hb_drand
+                hb_kyn_provider
                     .load_cached_kyn()
                     .unwrap_or(kinetic_core::drand::RawKyn::unavailable())
             };
@@ -84,7 +87,7 @@ pub fn start_heartbeat_loop(
             }
 
             let current_live = lklr.load(Ordering::Relaxed);
-            if !kyn.can_heartbeat(current_live) {
+            if !kyn.can_heartbeat(kinetic_types::clock::Kyn(current_live)) {
                 continue;
             }
 
@@ -108,9 +111,10 @@ pub fn start_heartbeat_loop(
                     let signable_bytes =
                         heartbeat.signable_bytes(kinetic_core::constants::NETWORK_SALT);
                     let keypair = daemon_keypair_hb.clone();
-                    let sig_bytes = tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
-                        .await
-                        .unwrap();
+                    let sig_bytes =
+                        tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
+                            .await
+                            .unwrap();
 
                     heartbeat.signature = sig_bytes;
 

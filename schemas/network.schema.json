@@ -14,12 +14,8 @@
   "properties": {
     "network": {
       "type": "object",
-      "required": ["network_id", "nsp", "base_domain", "local_bind_ip", "bootstrap_nodes"],
+      "required": ["nsp", "base_domain", "local_bind_ip", "bootstrap_nodes"],
       "properties": {
-        "network_id": {
-          "type": "string",
-          "description": "Unique identifier for this network cell used in cryptographic salt derivation."
-        },
         "nsp": {
           "type": "string",
           "pattern": "^[a-z0-9]+$",

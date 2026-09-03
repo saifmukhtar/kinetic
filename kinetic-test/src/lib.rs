@@ -42,7 +42,7 @@ mod tests {
             Arc::new(KineticStorage::new(dir.path()).unwrap());
         let (_kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-            Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
         let (client, event_loop) =
             NetworkEventLoop::new(config, keypair, storage, kyn_rx, None, None, vdf_engine)
@@ -186,7 +186,7 @@ mod tests {
             Arc::new(KineticStorage::new(dir.path()).unwrap());
         let (_kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-            Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
         let (client, event_loop) =
             NetworkEventLoop::new(config, key_a, storage, kyn_rx, None, None, vdf_engine).unwrap();
@@ -225,7 +225,7 @@ mod tests {
             Arc::new(KineticStorage::new(dir.path()).unwrap());
         let (kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
-            Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+            Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
         let config = NetworkConfig {
             listen_addrs: vec!["/ip4/127.0.0.1/tcp/10021".parse().unwrap()],

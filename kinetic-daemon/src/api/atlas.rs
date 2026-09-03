@@ -18,7 +18,7 @@ pub async fn handle_atlas_sync(
 ) -> Result<String, crate::api::error::AppError> {
     if role != crate::api::Role::Atlas && !role.is_admin() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
@@ -51,8 +51,12 @@ pub async fn handle_atlas_sync(
         Err(_) => {
             let sys_err = kinetic_core::error::SystemError::MutexPoisoned("atlas_nsps".into());
             tracing::error!(error = ?sys_err, "Failed to acquire write lock on atlas_nsps");
-            Err(crate::api::error::AppError(kinetic_core::ApiError {
-                error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            Err(crate::api::error::AppError(kinetic_rpc::ApiError {
+                error_type: format!(
+                    "{}/errors/{}",
+                    kinetic_core::constants::DOCS_URL,
+                    sys_err.code()
+                ),
                 title: "Internal Server Error".to_string(),
                 status: 500,
                 detail: sys_err.user_message(),

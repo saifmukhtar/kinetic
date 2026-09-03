@@ -1,8 +1,9 @@
 //! Name zone routing updates and commit-reveal network publishing logic.
 
 use crate::utils::{parse_and_format_api_error, save_zone_file};
-use kinetic_core::config::{KineticConfig, get_zones_dir};
-use kinetic_core::types::load_keypair;
+use kinetic_core::config::KineticConfig;
+use kinetic_local::config::get_zones_dir;
+use kinetic_local::identity::load_keypair;
 
 use reqwest::Client;
 use serde_json::json;
@@ -27,7 +28,7 @@ pub async fn update_zone_logic(
         tracing::error!("Invalid name '{}': {}", fqdn, e);
         return Ok(());
     }
-    let identity_path = kinetic_core::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
 
     // Check for local reveal file first for massive UX improvement
@@ -74,13 +75,13 @@ pub async fn update_zone_logic(
             signature,
             ..
         } => {
-            *payload = new_payload;
+            payload.clone_from(&new_payload);
             // The signature for NameRecord uses the NameRecord method verify_signature which signs (name || payload || network_salt)
             let mut signable = Vec::new();
             signable.extend_from_slice(name.as_bytes());
             signable.extend_from_slice(payload);
             signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
-            *signature = keypair.sign(&signable);
+            signature.clone_from(&keypair.sign(&signable));
         }
     }
 
@@ -116,7 +117,11 @@ pub async fn update_zone_logic(
 /// # Errors
 /// Returns an `anyhow::Error` if the zone file does not exist, cannot be read
 /// or parsed, or if the update process fails.
-pub async fn handle_name_publish(name: String, config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
+pub async fn handle_name_publish(
+    name: String,
+    config: &KineticConfig,
+    client: &Client,
+) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
     let mut zone_file = get_zones_dir();
     zone_file.push(format!("{}.json", fqdn));

@@ -36,7 +36,13 @@ fn bench_mldsa65(c: &mut Criterion) {
     let signature = signing_key.sign(message);
 
     group.bench_function("verify", |b| {
-        b.iter(|| kinetic_primitives::verify_mldsa(black_box(&verifying_key_bytes), black_box(message), black_box(&signature)))
+        b.iter(|| {
+            kinetic_primitives::verify_mldsa(
+                black_box(&verifying_key_bytes),
+                black_box(message),
+                black_box(&signature),
+            )
+        })
     });
 
     group.finish();

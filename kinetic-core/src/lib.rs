@@ -10,7 +10,7 @@
 //! ## Architecture & Module Map
 //!
 //! - **[`config`]** — Daemon configuration structures ([`KineticConfig`](config::KineticConfig)) and network port defaults.
-//! - **[`types`]** — Shared wire-format types ([`DnsZone`](types::DnsZone), [`DnsRecord`](types::DnsRecord), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
+//! - **[`types`]** — Shared wire-format types ([`NrsZone`](types::NrsZone), [`NrsRecord`](types::NrsRecord), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
 //! - **[`error`]** — Unified error logbook ([`KineticError`](error::KineticError)), domain errors ([`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), [`RegistrationError`](error::RegistrationError)), and stable error codes.
 //! - **[`traits`]** — Core abstraction traits ([`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine)).
 //! - **[`governance`]** — Sovereign state machine and parameter rulebooks governing privileged protocol actions.
@@ -24,9 +24,6 @@
 
 #![deny(missing_docs)]
 
-/// HTTP API error types compatible with axum and tower response extractors.
-#[cfg(not(target_arch = "wasm32"))]
-pub mod api_error;
 /// Config file loading, default values, and port constants for all Kinetic binaries.
 pub mod config;
 /// Mathematical helpers for consensus: VDF difficulty scaling and name-length fees.
@@ -42,21 +39,10 @@ pub mod governance;
 
 /// Network security utilities for SSRF prevention.
 pub mod net;
-/// Idempotency key helpers for deduplicating daemon API requests.
-#[cfg(not(target_arch = "wasm32"))]
-pub mod request_id;
-/// Secure filesystem utilities for atomic, permissions-enforced secret storage.
-pub mod secure_fs;
-/// Cross-platform graceful shutdown signal listener.
-pub mod shutdown;
 /// Core trait definitions: [`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine).
 pub mod traits;
 /// Shared wire-format types for P2P messages, DNS zones, and name records.
 pub mod types;
-#[cfg(not(target_arch = "wasm32"))]
-/// HTTP API error response wrapper ([`ApiError`](api_error::ApiError)) for Axum web handlers.
-#[cfg(not(target_arch = "wasm32"))]
-pub use api_error::ApiError;
 
 /// Primary protocol error taxonomy re-exported at crate root:
 /// - [`KineticError`]: Top-level unified error enum.

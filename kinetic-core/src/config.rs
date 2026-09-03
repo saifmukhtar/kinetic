@@ -15,8 +15,6 @@
 //! zero collisions between `kinetic-daemon`, `kinetic-node`, and `kinetic-host`.
 
 use serde::{Deserialize, Serialize};
-#[cfg(not(target_arch = "wasm32"))]
-use std::fs;
 use std::path::PathBuf;
 /// Maximum age in seconds (10 minutes) for cached host routing records in proxy forwarding.
 /// Well-known default network port assignments for Kinetic binaries.
@@ -84,8 +82,6 @@ fn default_drand_endpoints() -> Vec<String> {
         .collect()
 }
 
-
-
 fn default_drand_seed_domain() -> Vec<String> {
     vec![format!("drand.{}", crate::constants::BASE_DOMAIN)]
 }
@@ -151,13 +147,9 @@ fn default_pac_bind_ip() -> String {
     crate::constants::LOCAL_BIND_IP.to_string()
 }
 
-
-
 fn default_true() -> bool {
     true
 }
-
-
 
 fn default_network_mode() -> String {
     "FullNode".to_string()
@@ -182,8 +174,6 @@ fn default_backend_port() -> u16 {
 fn default_pac_port() -> u16 {
     ports::PAC
 }
-
-
 
 fn default_atlas_port() -> u16 {
     34291
@@ -261,12 +251,10 @@ fn default_p2p_host_quic() -> u16 {
     ports::P2P_HOST
 }
 
-
-
 impl Default for KineticConfig {
     fn default() -> Self {
         #[cfg(not(target_arch = "wasm32"))]
-        let storage_dir = crate::config::get_base_dir().join("db");
+        let storage_dir = PathBuf::from("db");
 
         #[cfg(target_arch = "wasm32")]
         let storage_dir = PathBuf::from("/kinetic-db");
@@ -309,7 +297,6 @@ impl Default for KineticConfig {
     }
 }
 
-
 /// Defines the operational context loading the configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigContext {
@@ -319,178 +306,14 @@ pub enum ConfigContext {
     Node,
 }
 
+/// Returns `true` if compile-time simulation mode is enabled (`cfg!(feature = "simulation")`).
+///
+/// Mathematically guarantees that dev-mode mocks cannot be activated in release builds.
+pub fn is_dev_mode() -> bool {
+    cfg!(feature = "simulation")
+}
+
 impl KineticConfig {
-    /// Loads runtime configuration from disk (`config.toml`) or environment variables.
-    ///
-    /// Resolution Order:
-    /// 1. Checks `KINETIC_CONFIG_PATH` environment variable.
-    /// 2. Defaults to `get_base_dir().join("config.toml")`.
-    /// 3. If missing, writes default configuration to disk and returns default settings.
-    ///
-    /// # Security & Fail-Closed Behavior
-    ///
-    /// If `config.toml` exists but contains invalid TOML syntax or corrupted fields, this method
-    /// logs a critical error and aborts execution via `std::process::exit(1)`. This prevents
-    /// "fail-open" security vulnerabilities where invalid configs silently degrade to insecure defaults.
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn load() -> Self {
-        Self::load_ctx(ConfigContext::Daemon)
-    }
-
-    /// Loads the configuration based on the binary context.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn load_ctx(ctx: ConfigContext) -> Self {
-        let config_path = std::env::var(crate::constants::ENV_CONFIG_PATH)
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
-
-        let config = match fs::read_to_string(&config_path) {
-            Ok(config_str) => match toml::from_str(&config_str) {
-                Ok(config) => config,
-                Err(e) => {
-                    let err = crate::error::ConfigError::ParseFailed(e.to_string());
-                    tracing::error!(
-                        error_code = err.code(),
-                        "Failed to parse config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
-                        e
-                    );
-                    std::process::exit(1);
-                }
-            },
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                let mut default_cfg = Self::default();
-                if ctx == ConfigContext::Daemon {
-                    default_cfg.drand.p2p_only = true;
-                } else {
-                    default_cfg.drand.p2p_only = false;
-                }
-                if let Some(parent) = config_path.parent() {
-                    if let Err(e) = fs::create_dir_all(parent) {
-                        let err = crate::error::ConfigError::DirectoryCreationFailed(e.to_string());
-                        tracing::error!(
-                            error_code = err.code(),
-                            "Failed to create config directory {:?}: {}. Refusing to start.",
-                            parent,
-                            e
-                        );
-                        std::process::exit(1);
-                    }
-
-                    let toml_str = match toml::to_string_pretty(&default_cfg) {
-                        Ok(s) => s,
-                        Err(e) => {
-                            let err = crate::error::ConfigError::SerializationFailed(e.to_string());
-                            tracing::error!(error_code = err.code(), "Failed to serialize default config: {}. Refusing to start.", e);
-                            std::process::exit(1);
-                        }
-                    };
-
-                    match std::fs::OpenOptions::new()
-                        .write(true)
-                        .create_new(true)
-                        .open(&config_path)
-                    {
-                        Ok(mut file) => {
-                            use std::io::Write;
-                            if let Err(e) = file.write_all(toml_str.as_bytes()) {
-                                let err = crate::error::ConfigError::WriteFailed(e.to_string());
-                                tracing::error!(
-                                    error_code = err.code(),
-                                    "Failed to write default config to {:?}: {}. Refusing to start.",
-                                    config_path,
-                                    e
-                                );
-                                std::process::exit(1);
-                            }
-                        }
-                        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                            // Another kinetic binary beat us to it in a TOCTOU race condition.
-                            // We can safely proceed with the default config.
-                        }
-                        Err(e) => {
-                            let err = crate::error::ConfigError::WriteFailed(e.to_string());
-                            tracing::error!(
-                                error_code = err.code(),
-                                "Failed to create default config at {:?}: {}. Refusing to start.",
-                                config_path,
-                                e
-                            );
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                default_cfg
-            }
-            Err(e) => {
-                let err = crate::error::ConfigError::ReadFailed(e.to_string());
-                tracing::error!(
-                    error_code = err.code(),
-                    "Failed to read config.toml: {}. Refusing to start to avoid fail-open vulnerability.",
-                    e
-                );
-                std::process::exit(1);
-            }
-        };
-
-        config.validate();
-        config
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    /// Stub implementation for loading configuration in Wasm environments.
-    pub fn load() -> Self {
-        Self::load_ctx(ConfigContext::Daemon)
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub fn load_ctx(ctx: ConfigContext) -> Self {
-        let mut default_cfg = Self::default();
-        if ctx == ConfigContext::Daemon {
-            default_cfg.drand.p2p_only = true;
-        } else {
-            default_cfg.drand.p2p_only = false;
-        }
-        default_cfg
-    }
-
-    /// Serializes and writes the current configuration back to `config.toml`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::error::KineticError`] if file creation, TOML serialization, or writing fails.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn save(&self) -> Result<(), crate::error::KineticError> {
-        let config_path = std::env::var(crate::constants::ENV_CONFIG_PATH)
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| crate::config::get_base_dir().join("config.toml"));
-
-        if let Some(parent) = config_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| {
-                crate::error::KineticError::Config(
-                    crate::error::ConfigError::DirectoryCreationFailed(e.to_string()),
-                )
-            })?;
-        }
-
-        let toml_str = toml::to_string_pretty(self).map_err(|e| {
-            crate::error::KineticError::Config(crate::error::ConfigError::SerializationFailed(
-                e.to_string(),
-            ))
-        })?;
-        fs::write(&config_path, toml_str).map_err(|e| {
-            crate::error::KineticError::Config(crate::error::ConfigError::WriteFailed(
-                e.to_string(),
-            ))
-        })
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    /// Stub implementation for saving configuration in Wasm environments.
-    pub fn save(&self) -> Result<(), crate::error::KineticError> {
-        Ok(())
-    }
-
     /// Validates the configuration for internal consistency.
     pub fn validate(&self) {
         let mut tcp_ports = vec![
@@ -508,10 +331,7 @@ impl KineticConfig {
 
         if tcp_ports.len() != tcp_len {
             let err = crate::error::ConfigError::TcpPortCollision;
-            tracing::error!(
-                error_code = err.code(),
-                "{}", err
-            );
+            tracing::error!(error_code = err.code(), "{}", err);
             std::process::exit(1);
         }
 
@@ -528,89 +348,8 @@ impl KineticConfig {
 
         if udp_ports.len() != udp_len {
             let err = crate::error::ConfigError::UdpPortCollision;
-            tracing::error!(
-                error_code = err.code(),
-                "{}", err
-            );
+            tracing::error!(error_code = err.code(), "{}", err);
             std::process::exit(1);
-        }
-    }
-}
-
-/// Returns `true` if compile-time simulation mode is enabled (`cfg!(feature = "simulation")`).
-///
-/// Mathematically guarantees that dev-mode mocks cannot be activated in release builds.
-pub fn is_dev_mode() -> bool {
-    cfg!(feature = "simulation")
-}
-
-/// Returns the path to the directory where local zone JSON files are stored (`{base_dir}/zones`).
-pub fn get_zones_dir() -> PathBuf {
-    get_base_dir().join("zones")
-}
-
-/// Returns the platform-appropriate base directory for Kinetic data files.
-///
-/// Automatically namespaced by `{NSP}-{NETWORK_ID}` (e.g. `~/.local/share/kinetic/`)
-/// to ensure multiple network instances or forks coexist without disk collisions.
-/// Overrideable with the `KINETIC_DATA_DIR` environment variable.
-pub fn get_base_dir() -> PathBuf {
-    if let Ok(path) = std::env::var(crate::constants::ENV_DATA_DIR) {
-        return PathBuf::from(path);
-    }
-
-    // Take first 4 chars of the HEX salt for deterministic multi-network isolation
-    let salt_prefix = &crate::constants::NETWORK_SALT_HEX[0..4];
-    let network_dir = format!("{}-{}", crate::constants::NSP, salt_prefix);
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        dirs::data_local_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("kinetic")
-            .join("networks")
-            .join(network_dir)
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        PathBuf::from(format!("/kinetic/networks/{}", network_dir))
-    }
-}
-
-/// Returns the path to the directory where the scoped CLI API token files are stored (`{base_dir}/tokens/`).
-pub fn get_api_tokens_dir() -> PathBuf {
-    get_base_dir().join("tokens")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_config() {
-        let config = KineticConfig::default();
-        assert_eq!(config.daemon.api_port, ports::API_DAEMON);
-        assert_eq!(config.network.daemon_port, ports::P2P_DAEMON);
-        assert!(config.network.enable_mdns);
-        assert!(config.daemon.enable_nrs);
-    }
-
-    #[test]
-    fn test_bundled_network_json_sync() {
-        let root_json_path = PathBuf::from("../network.json");
-        let bundled_json_path = PathBuf::from("default_network.json");
-
-        if root_json_path.exists() && bundled_json_path.exists() {
-            let root_content =
-                fs::read_to_string(&root_json_path).expect("Failed to read root network.json");
-            let bundled_content = fs::read_to_string(&bundled_json_path)
-                .expect("Failed to read bundled default_network.json");
-
-            assert_eq!(
-                root_content, bundled_content,
-                "The bundled default_network.json in kinetic-core must perfectly match the root network.json!"
-            );
         }
     }
 }

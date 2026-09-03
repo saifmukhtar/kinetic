@@ -12,3 +12,5 @@ pub mod types;
 pub use self::command::*;
 pub use self::core::*;
 pub use self::types::*;
+/// Drand entropy beacon client.
+pub mod drand;

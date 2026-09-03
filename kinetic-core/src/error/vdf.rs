@@ -9,7 +9,7 @@
 //!
 //! ## Protocol Context
 //!
-//! Kinetic uses a Wesolowski RSA VDF (pure Rust, no C++ dependencies) where
+//! Kinetic uses a Wesolowski VDF where
 //! the challenge is derived from Drand randomness at commitment time:
 //! `challenge = SHA-256(NETWORK_SALT || name || salt || drand_signature_hex)`.
 //!
@@ -26,7 +26,7 @@ pub enum RevealValidationError {
     /// The protocol version is unsupported.
     #[error("Invalid protocol version {0}. Only protocol version 1 is supported.")]
     InvalidProtocolVersion(u8),
-    /// The domain name fails apex validation rules.
+    /// The name fails apex validation rules.
     #[error("Invalid name: {0}")]
     InvalidName(#[from] crate::error::NamesError),
     /// The payload size exceeds the protocol maximum.
@@ -253,9 +253,9 @@ impl VdfError {
                 Severity::Error
             }
             Self::UnsupportedPlatform => Severity::Critical,
-            Self::InvalidChallenge
-            | Self::MaxIterationsExceeded
-            | Self::TooManyTasks => Severity::Warning,
+            Self::InvalidChallenge | Self::MaxIterationsExceeded | Self::TooManyTasks => {
+                Severity::Warning
+            }
         }
     }
 
@@ -279,10 +279,12 @@ impl VdfError {
                 "The VDF challenge is degenerate and cannot be safely evaluated.".to_string()
             }
             Self::MaxIterationsExceeded => {
-                "The requested iteration count exceeds the maximum allowed for a user VDF task.".to_string()
+                "The requested iteration count exceeds the maximum allowed for a user VDF task."
+                    .to_string()
             }
             Self::TooManyTasks => {
-                "Too many concurrent VDF tasks are currently processing. Please wait and retry.".to_string()
+                "Too many concurrent VDF tasks are currently processing. Please wait and retry."
+                    .to_string()
             }
         }
     }

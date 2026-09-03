@@ -1,6 +1,7 @@
 //! CLI query handlers for listing, inspecting, and resolving .kin names.
 
-use kinetic_core::config::{KineticConfig, get_zones_dir};
+use kinetic_core::config::KineticConfig;
+use kinetic_local::config::get_zones_dir;
 
 use reqwest::Client;
 use tracing::{info, warn};

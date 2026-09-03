@@ -23,10 +23,10 @@ pub struct Commitment {
 
 impl Commitment {
     /// Canonically derives the VDF challenge hash.
-    /// 
+    ///
     /// This is the SINGLE source of truth for generating VDF challenges across
-    /// the Kinetic network. It cryptographically binds the network salt, the target 
-    /// name, the user's random salt, the compressed Drand randomness, and the 
+    /// the Kinetic network. It cryptographically binds the network salt, the target
+    /// name, the user's random salt, the compressed Drand randomness, and the
     /// user's public key.
     pub fn derive(
         network_salt: &[u8; 32],
@@ -35,25 +35,22 @@ impl Commitment {
         drand_signature_bytes: &[u8],
         pubkey: &[u8],
     ) -> Self {
-        use sha2::Digest;
-        
         // Compress the 96-byte BLS12-381 G2 Drand signature into a 32-byte hash
-        let mut drand_hasher = sha2::Sha256::new();
-        drand_hasher.update(drand_signature_bytes);
-        let mut drand_rand = [0u8; 32];
-        drand_rand.copy_from_slice(&drand_hasher.finalize());
+        let drand_rand = kinetic_primitives::sha256_hash(drand_signature_bytes);
 
         // Construct the unified VDF challenge
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(network_salt);
-        hasher.update(name.as_bytes());
-        hasher.update(user_salt);
-        hasher.update(drand_rand);
-        hasher.update(pubkey);
+        let mut data = Vec::with_capacity(
+            network_salt.len() + name.len() + user_salt.len() + drand_rand.len() + pubkey.len(),
+        );
+        data.extend_from_slice(network_salt);
+        data.extend_from_slice(name.as_bytes());
+        data.extend_from_slice(user_salt);
+        data.extend_from_slice(&drand_rand);
+        data.extend_from_slice(pubkey);
 
-        let mut hash = [0u8; 32];
-        hash.copy_from_slice(&hasher.finalize());
-        Self { hash }
+        Self {
+            hash: kinetic_primitives::sha256_hash(&data),
+        }
     }
 }
 

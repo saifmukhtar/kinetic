@@ -63,32 +63,9 @@ impl RestApiError {
             Self::SseStreamLagged | Self::ResponseTooLarge => 500,
         }
     }
-    
+
     /// Returns the RFC 7807 type URI pointing to documentation.
     pub fn error_type_uri(&self) -> String {
         format!("{}/errors/{}", crate::constants::DOCS_URL, self.code())
-    }
-}
-
-impl From<RestApiError> for crate::ApiError {
-    fn from(e: RestApiError) -> Self {
-        crate::ApiError {
-            error_type: e.error_type_uri(),
-            title: match e {
-                RestApiError::InvalidToken => "Unauthorized".to_string(),
-                RestApiError::InsufficientPrivileges => "Forbidden".to_string(),
-                RestApiError::NotFound => "Not Found".to_string(),
-                RestApiError::BadRequest(_) => "Bad Request".to_string(),
-                RestApiError::SseStreamLagged => "SSE Lagged".to_string(),
-                RestApiError::ResponseTooLarge => "Payload Too Large".to_string(),
-            },
-            status: e.status(),
-            detail: e.to_string(),
-            instance: None,
-            code: e.code().to_string(),
-            retryable: false,
-            details: serde_json::Value::Null,
-            request_id: crate::api_error::current_request_id(),
-        }
     }
 }

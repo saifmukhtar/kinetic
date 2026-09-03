@@ -1,4 +1,4 @@
-//! Handler logic for processing domain reveals and liveness heartbeats.
+//! Handler logic for processing apex name reveals and liveness heartbeats.
 
 use crate::error::KineticStoreError;
 use crate::store::constants::*;
@@ -19,8 +19,8 @@ impl KineticRecordStore {
 
         if let Some(reveal) = reveal_ref {
             let paused_kyns =
-                if let Ok(state) = kinetic_core::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                    state.paused_kyns_since(reveal.kyn)
+                if let Ok(state) = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock() {
+                    state.paused_kyns_since(kinetic_core::types::Kyn(reveal.kyn))
                 } else {
                     0
                 };
@@ -108,10 +108,7 @@ impl KineticRecordStore {
 
                     if dist_new > dist_existing {
                         let err = KineticStoreError::TieBroken;
-                        err.log_warning(
-                            &new_reveal.name,
-                            "Rejecting Steal Reveal:",
-                        );
+                        err.log_warning(&new_reveal.name, "Rejecting Steal Reveal:");
                         return Err(err);
                     } else {
                         tracing::info!(
@@ -138,10 +135,10 @@ impl KineticRecordStore {
                 );
                 for key_bytes in keys {
                     let k = libp2p::kad::RecordKey::new(&key_bytes);
-                    let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
-                    sled_key.extend_from_slice(b"kad_record:");
-                    sled_key.extend_from_slice(k.as_ref());
-                    let _ = self.storage.delete(&sled_key);
+                    let mut db_key = Vec::with_capacity(11 + k.as_ref().len());
+                    db_key.extend_from_slice(b"kad_record:");
+                    db_key.extend_from_slice(k.as_ref());
+                    let _ = self.storage.delete(&db_key);
                 }
                 let hb_keys = kinetic_core::types::derive_heartbeat_keys(
                     &new_reveal.name,
@@ -149,31 +146,25 @@ impl KineticRecordStore {
                 );
                 for key_bytes in hb_keys {
                     let k = libp2p::kad::RecordKey::new(&key_bytes);
-                    let mut sled_key = Vec::with_capacity(11 + k.as_ref().len());
-                    sled_key.extend_from_slice(b"kad_record:");
-                    sled_key.extend_from_slice(k.as_ref());
-                    let _ = self.storage.delete(&sled_key);
+                    let mut db_key = Vec::with_capacity(11 + k.as_ref().len());
+                    db_key.extend_from_slice(b"kad_record:");
+                    db_key.extend_from_slice(k.as_ref());
+                    let _ = self.storage.delete(&db_key);
                 }
             } else {
                 let existing_pulse = match &existing_record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
                     kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                        kinetic_core::types::clock::unix_time_to_kyn(
-                            *granted_at,
-                            kinetic_core::constants::DRAND_GENESIS_TIME,
-                            kinetic_core::constants::DRAND_PERIOD,
-                        )
+                        use kinetic_core::types::clock::UTimeNetworkExt;
+                        kinetic_types::clock::UTime(*granted_at).to_network_kyn().0
                     }
                     kinetic_core::types::NameRecord::Infra { .. } => 0,
                 };
                 let new_pulse = match &record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
                     kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                        kinetic_core::types::clock::unix_time_to_kyn(
-                            *granted_at,
-                            kinetic_core::constants::DRAND_GENESIS_TIME,
-                            kinetic_core::constants::DRAND_PERIOD,
-                        )
+                        use kinetic_core::types::clock::UTimeNetworkExt;
+                        kinetic_types::clock::UTime(*granted_at).to_network_kyn().0
                     }
                     kinetic_core::types::NameRecord::Infra { .. } => 0,
                 };
@@ -187,7 +178,7 @@ impl KineticRecordStore {
                 {
                     return Ok(());
                 } else {
-                    // Updating payload of existing domain. Verify the updated payload signature!
+                    // Updating payload of existing apex name. Verify the updated payload signature!
                     let dev_mode = kinetic_core::config::is_dev_mode();
                     if !skip_verify
                         && !dev_mode
@@ -269,10 +260,7 @@ impl KineticRecordStore {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        let current_kyn = std::cmp::max(
-            self.current_kyn,
-            reveal_ref.map_or(0, |r| r.kyn),
-        );
+        let current_kyn = std::cmp::max(self.current_kyn, reveal_ref.map_or(0, |r| r.kyn));
         self.last_heartbeats_by_name
             .insert(name.to_string(), current_kyn);
         let hb_key = [KRS_HB_PREFIX, name.as_bytes()].concat();
@@ -330,7 +318,9 @@ impl KineticRecordStore {
                 existing_record.pubkey(),
                 &auth.signable_bytes(kinetic_core::constants::NETWORK_SALT),
                 &auth.owner_signature,
-            ).is_err() {
+            )
+            .is_err()
+            {
                 let err = KineticStoreError::DelegatedAuthorizationInvalid;
                 err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
                 return Err(err);
@@ -358,7 +348,12 @@ impl KineticRecordStore {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                 if ck.key_type == "ML-DSA-65"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, &heartbeat.signature).is_ok()
+                    && kinetic_primitives::verify_mldsa(
+                        &pubkey_bytes,
+                        &signable,
+                        &heartbeat.signature,
+                    )
+                    .is_ok()
                 {
                     verified = true;
                     break;
@@ -370,7 +365,8 @@ impl KineticRecordStore {
                 existing_record.pubkey(),
                 &signable,
                 &heartbeat.signature,
-            ).is_ok()
+            )
+            .is_ok()
         };
 
         if !is_valid_signature {
@@ -381,10 +377,7 @@ impl KineticRecordStore {
 
         if heartbeat.latest_kyn > self.current_kyn + 2 {
             let err = KineticStoreError::FutureHeartbeat;
-            err.log_warning(
-                &heartbeat.name,
-                "Rejecting Heartbeat: future-dated:",
-            );
+            err.log_warning(&heartbeat.name, "Rejecting Heartbeat: future-dated:");
             return Err(err);
         }
 

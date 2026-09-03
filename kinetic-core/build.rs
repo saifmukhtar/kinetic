@@ -55,7 +55,6 @@ struct TimeoutsConfig {
 struct NetworkSection {
     nsp: String,
     base_domain: String,
-    network_id: String,
     docs_url: String,
     ipfs_gateway: Option<String>,
     local_bind_ip: String,
@@ -120,18 +119,6 @@ fn main() {
     let config: NetworkConfig =
         serde_json::from_str(&json_content).expect("Failed to parse network.json");
 
-    // Sanitize network_id to prevent Sled/OS Path Traversal injection
-    let network_id = &config.network.network_id;
-    if !network_id
-        .chars()
-        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
-    {
-        panic!(
-            "network.json: network_id '{}' contains illegal characters. Only lowercase alphanumeric and underscores are allowed to prevent Sled DB/OS Path injection.",
-            network_id
-        );
-    }
-
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = PathBuf::from(out_dir).join("network_constants.rs");
 
@@ -155,11 +142,6 @@ fn main() {
     out.push_str(&format!(
         "/// The base domain for network infrastructure (e.g. seeds, drand).\npub const BASE_DOMAIN: &str = \"{}\";\n\n",
         config.network.base_domain
-    ));
-
-    out.push_str(&format!(
-        "/// The unique Network ID used to isolate P2P protocols.\npub const NETWORK_ID: &str = \"{}\";\n\n",
-        config.network.network_id
     ));
 
     out.push_str(&format!(
@@ -244,19 +226,12 @@ fn main() {
         config.drand.drand_genesis_time + (config.drand.kinetic_genesis_kyn * config.drand.drand_period)
     ));
 
-    // Expose NETWORK_ID as a compile-time env var so constants.rs can use env!() for
+    // Expose NSP as compile-time env vars so constants.rs can use env!() for
     // fork-isolated gossip topics and DB key prefixes without requiring a generated file.
+    println!("cargo:rustc-env=KINETIC_NSP={}", config.network.nsp);
     println!(
-        "cargo:rustc-env=KINETIC_NETWORK_ID={}",
-        config.network.network_id
-    );
-    println!(
-        "cargo:rustc-env=KINETIC_NETWORK_ID_UPPER={}",
-        config.network.network_id.to_uppercase()
-    );
-    println!(
-        "cargo:rustc-env=KINETIC_NSP={}",
-        config.network.nsp
+        "cargo:rustc-env=KINETIC_NSP_UPPER={}",
+        config.network.nsp.to_uppercase()
     );
 
     out.push_str(&format!(
@@ -418,7 +393,7 @@ fn main() {
     ));
 
     // Export the first 4 hex chars of the prod salt as a compile-time env var.
-    // Used in constants.rs to namespace DB keys as \"<nsp>-<salt_prefix>:...\" 
+    // Used in constants.rs to namespace DB keys as \"<nsp>-<salt_prefix>:...\"
     // (e.g. \"kin-83cf:...\") — consistent with the data directory naming.
     println!(
         "cargo:rustc-env=KINETIC_SALT_PREFIX={}",

@@ -14,7 +14,11 @@ impl std::fmt::Display for HostProxyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::LocalWebServerForwardingFailed(port, err) => {
-                write!(f, "Bad Gateway: Local web server not responding on port {}\nError: {}", port, err)
+                write!(
+                    f,
+                    "Bad Gateway: Local web server not responding on port {}\nError: {}",
+                    port, err
+                )
             }
         }
     }
@@ -72,7 +76,7 @@ pub async fn forward_request(
                 {
                     continue;
                 }
-                
+
                 if let Ok(v_str) = v.to_str() {
                     res_headers.push((k.as_str().into(), v_str.into()));
                 }
@@ -86,7 +90,10 @@ pub async fn forward_request(
                     body.extend_from_slice(&chunk);
                     if body.len() > kinetic_core::constants::LIMITS_PROXY_MAX_BODY_BYTES {
                         let err = kinetic_core::error::SecurityError::BackendResponseTooLarge;
-                        warn!(error_code = err.code(), "Blocked oversized backend response from local web server");
+                        warn!(
+                            error_code = err.code(),
+                            "Blocked oversized backend response from local web server"
+                        );
                         body.clear();
                         body.extend_from_slice(format!("{}: {}", err.code(), err).as_bytes());
                         status = 502;
@@ -137,7 +144,7 @@ pub async fn handle_incoming_proxy_requests(
         let reqwest_client = reqwest_client.clone();
         let client_clone = client.clone();
 
-        let config_path = kinetic_core::config::get_base_dir().join("host_config.json");
+        let config_path = kinetic_local::config::get_base_dir().join("host_config.json");
         let host_config = crate::config::HostConfig::load_or_default(&config_path);
         let backend_host_clone = host_config.backend_host;
         let local_port = host_config.backend_port;
@@ -152,7 +159,11 @@ pub async fn handle_incoming_proxy_requests(
 
             if decoded_path.contains("..") || !decoded_path.starts_with('/') {
                 let err = kinetic_core::error::SecurityError::PathTraversalAttempt;
-                warn!(error_code = err.code(), "Security exception: Blocked malicious P2P proxy path traversal attempt: {}", req.path);
+                warn!(
+                    error_code = err.code(),
+                    "Security exception: Blocked malicious P2P proxy path traversal attempt: {}",
+                    req.path
+                );
                 let _ = client_clone
                     .send_proxy_response(
                         channel,

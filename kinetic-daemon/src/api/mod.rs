@@ -315,7 +315,7 @@ fn rotate_token_on_boot(token_path: &std::path::Path) -> anyhow::Result<String> 
 
 /// Ensures all API tokens are generated and returns them.
 pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
-    let tokens_dir = kinetic_core::config::get_api_tokens_dir();
+    let tokens_dir = kinetic_local::config::get_api_tokens_dir();
 
     let admin = rotate_token_on_boot(&tokens_dir.join("admin.token"))?;
     let publish = rotate_token_on_boot(&tokens_dir.join("publish.token"))?;
@@ -416,14 +416,20 @@ async fn auth_middleware(
         Some(h) => h,
         None => {
             let err = kinetic_core::error::api::RestApiError::InvalidToken;
-            tracing::warn!(error_code = err.code(), "Rejecting API request: Missing Authorization header");
+            tracing::warn!(
+                error_code = err.code(),
+                "Rejecting API request: Missing Authorization header"
+            );
             return Err(StatusCode::UNAUTHORIZED);
         }
     };
 
     if !header.starts_with("Bearer ") {
         let err = kinetic_core::error::api::RestApiError::InvalidToken;
-        tracing::warn!(error_code = err.code(), "Rejecting API request: Authorization header is not a Bearer token");
+        tracing::warn!(
+            error_code = err.code(),
+            "Rejecting API request: Authorization header is not a Bearer token"
+        );
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -459,7 +465,10 @@ async fn auth_middleware(
         }
         None => {
             let err = kinetic_core::error::api::RestApiError::InvalidToken;
-            tracing::warn!(error_code = err.code(), "Rejecting API request: Invalid API token");
+            tracing::warn!(
+                error_code = err.code(),
+                "Rejecting API request: Invalid API token"
+            );
             Err(StatusCode::UNAUTHORIZED)
         }
     }

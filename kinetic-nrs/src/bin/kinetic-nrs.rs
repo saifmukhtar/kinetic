@@ -126,7 +126,6 @@ fn remove_os_dns() {
     let os = std::env::consts::OS;
     let nsp = kinetic_core::constants::NSP;
 
-
     if os == "linux" {
         let conf_path = format!("/etc/systemd/resolved.conf.d/{}.conf", nsp);
         std::fs::remove_file(&conf_path).ok();
@@ -151,7 +150,7 @@ fn remove_os_dns() {
 
 fn install_service() -> Result<()> {
     println!("Installing Kinetic DNS Server service...");
-    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     let current_exe = env::current_exe()?;
@@ -161,7 +160,7 @@ fn install_service() -> Result<()> {
         args: vec![
             "run".into(),
             "--dns-port".into(),
-            kinetic_core::config::KineticConfig::load()
+            kinetic_local::config::load_config()
                 .daemon
                 .nrs_port
                 .to_string()
@@ -175,7 +174,7 @@ fn install_service() -> Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    if let Err(e) = configure_os_dns(kinetic_core::config::KineticConfig::load().daemon.nrs_port) {
+    if let Err(e) = configure_os_dns(kinetic_local::config::load_config().daemon.nrs_port) {
         println!("Warning: Failed to configure OS DNS: {}", e);
     }
 
@@ -184,7 +183,7 @@ fn install_service() -> Result<()> {
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -196,7 +195,7 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.start(ServiceStartCtx { label })?;
@@ -205,7 +204,7 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NETWORK_ID).parse()?;
+    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -274,7 +273,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                         );
                     }
                 }
-                _ = kinetic_core::shutdown::shutdown_signal() => {
+                _ = kinetic_local::shutdown::shutdown_signal() => {
                     info!("Shutdown signal received. Commencing graceful shutdown...");
                 }
             }
@@ -335,7 +334,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                                 );
                             }
                         }
-                        _ = kinetic_core::shutdown::shutdown_signal() => {
+                        _ = kinetic_local::shutdown::shutdown_signal() => {
                             info!("Shutdown signal received. Commencing graceful shutdown...");
                         }
                     }
@@ -344,7 +343,8 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
                     teardown_macos_alias(bind_ip);
                 }
                 Err(e2) => {
-                    let err = kinetic_core::error::NrsError::NrsServerExecutionError(e2.to_string());
+                    let err =
+                        kinetic_core::error::NrsError::NrsServerExecutionError(e2.to_string());
                     warn!(error_code = err.code(), "{}", err);
                 }
             }

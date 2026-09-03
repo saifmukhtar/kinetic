@@ -104,7 +104,7 @@ fn test_scan_order() {
     storage.put(b"p:2", b"2").unwrap();
 
     let res = storage.scan_prefix(b"p:", None).unwrap();
-    // redb scan_prefix returns items in lexicographic order
+    // The database scan_prefix returns items in lexicographic order
     assert_eq!(res.len(), 3);
     assert_eq!(res[0].0, b"p:1");
     assert_eq!(res[1].0, b"p:2");
@@ -231,7 +231,7 @@ fn test_concurrent_scan_and_write() {
     });
 
     // Thread 2 (Main): Run a scan simultaneously
-    // Redb guarantees isolated read transactions, so the scan should succeed
+    // The storage engine guarantees isolated read transactions, so the scan should succeed
     // and not crash or deadlock, even though another thread is holding write transactions.
     let mut successful_scans = 0;
     for _ in 0..50 {

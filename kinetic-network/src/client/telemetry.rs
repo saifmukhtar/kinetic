@@ -1,18 +1,18 @@
 //! Periodic network telemetry heartbeat broadcast service.
 
 use kinetic_core::config::KineticConfig;
+use kinetic_core::traits::KynProvider;
 use kinetic_types::network::{
     NetworkMode, NetworkOpcode, NodeType, OsType, Reachability, TelemetryHeartbeat,
 };
 use std::env;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// Starts the background telemetry loop that occasionally broadcasts
 /// opt-in, anonymous network metrics over `GOSSIP_TOPIC_GLOBAL`.
 pub fn start_telemetry_service(
     network_client: crate::client::core::NetworkClient,
-    drand_client: Arc<kinetic_core::drand::DrandClient>,
+    kyn_provider: Arc<dyn KynProvider>,
     config: KineticConfig,
     node_type: NodeType,
 ) -> tokio::task::JoinHandle<()> {
@@ -20,16 +20,16 @@ pub fn start_telemetry_service(
         // Generate a random temporary ID for this boot session in RAM.
         let mut session_id = uuid::Uuid::new_v4().to_string();
         let mut session_generated_at_kyn =
-            drand_client.load_cached_kyn().map(|k| k.kyn).unwrap_or(0);
+            kyn_provider.load_cached_kyn().map(|k| k.kyn).unwrap_or(0);
         let process_start_time = tokio::time::Instant::now();
 
         // 10 minute interval
-        let mut interval = tokio::time::interval(Duration::from_secs(600));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600));
 
         loop {
             interval.tick().await;
 
-            let latest_kyn = drand_client.load_cached_kyn().map(|k| k.kyn).unwrap_or(0);
+            let latest_kyn = kyn_provider.load_cached_kyn().map(|k| k.kyn).unwrap_or(0);
 
             // 24-Hour TTL Auto-Expire
             // If the process has seen 28,800 Kyns (24 hours) since the last rotation,

@@ -1,4 +1,4 @@
-//! Custom Kademlia record store for Kinetic domain state, reveals, commitments, and verification rules.
+//! Custom Kademlia record store for Kinetic apex state, reveals, commitments, and verification rules.
 
 /// Store constants.
 pub(crate) mod constants;

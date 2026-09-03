@@ -1,9 +1,9 @@
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
-use kinetic_core::ApiError;
+use kinetic_rpc::ApiError;
 
 /// A web-layer wrapper around the core `ApiError`.
 /// This implements the "Newtype" pattern, allowing us to define how
@@ -58,8 +58,8 @@ impl From<kinetic_core::error::StorageError> for AppError {
     }
 }
 
-impl From<kinetic_core::error::DrandError> for AppError {
-    fn from(err: kinetic_core::error::DrandError) -> Self {
+impl From<kinetic_core::error::KynProviderError> for AppError {
+    fn from(err: kinetic_core::error::KynProviderError) -> Self {
         AppError(ApiError::from(err))
     }
 }

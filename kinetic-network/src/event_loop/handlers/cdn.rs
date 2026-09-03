@@ -5,7 +5,7 @@ use libp2p::request_response::{Event, Message};
 
 pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnRequest, CdnResponse>) {
     match e {
-        Event::Message { message, peer } => match message {
+        Event::Message { message, peer, .. } => match message {
             Message::Request {
                 request, channel, ..
             } => {
@@ -57,7 +57,6 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnReques
                         let storage = store_ref.storage.clone();
                         let engine = store_ref.vdf_engine.clone();
                         let current_kyn = store_ref.current_kyn;
-                        let peer = peer.clone();
 
                         crate::event_loop::utils::spawn(async move {
                             let is_valid = if skip_verify {
