@@ -20,7 +20,7 @@ proptest! {
         let identity = libp2p::identity::PublicKey::from(public);
         let peer_id = PeerId::from(identity);
 
-        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
             db_storage,
@@ -74,7 +74,7 @@ proptest! {
         let identity = libp2p::identity::PublicKey::from(public);
         let peer_id = PeerId::from(identity);
 
-        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(kinetic_vdf::RsaVdfEngine::new());
         let mut store = KineticRecordStore::new(
             peer_id,
             db_storage,

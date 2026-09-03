@@ -65,7 +65,9 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                             let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
                                 .lock()
                                 .unwrap_or_else(|e| e.into_inner());
-                            if let Ok(root_key) = gov.get_root_key() {
+                            if let Ok(root_key) =
+                                gov.get_sovereign_key(&kinetic_core::governance::get_governance_config())
+                            {
                                 drop(gov);
                                 let action_bytes = signed_msg.to_bytes();
                                 return signed_msg.signatures.iter().any(|sig| {

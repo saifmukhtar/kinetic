@@ -2,7 +2,7 @@ use ed25519_dalek::{Signer, SigningKey};
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::Reveal;
 use kinetic_network::event_loop::NetworkEventLoop;
-use kinetic_vdf_rsa::RsaVdfEngine;
+use kinetic_vdf::RsaVdfEngine;
 
 #[test]
 #[ignore = "Slow cryptographic test: takes >60s to compute VDF proof"]
@@ -23,7 +23,7 @@ fn test_xor_eclipse_routing() {
     // Generate REAL VDF Proof
     let challenge = kinetic_core::types::Commitment::derive(
         kinetic_core::constants::NETWORK_SALT,
-        &name,
+        name,
         &[0u8; 32],
         &kyn_bytes,
         pubkey.as_bytes(),

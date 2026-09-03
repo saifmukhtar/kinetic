@@ -26,5 +26,6 @@ pub mod identity;
 pub mod name_record;
 pub mod network;
 pub mod nrs;
+pub mod protocol;
 pub mod proxy;
 pub mod vdf;

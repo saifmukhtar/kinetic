@@ -13,7 +13,7 @@ fn test_memory_store_bloat() {
     let peer_id = PeerId::from(Keypair::generate_ed25519().public());
 
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-        std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+        std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let mut store = KineticRecordStore::new(
         peer_id,
         storage,

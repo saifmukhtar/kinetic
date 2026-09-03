@@ -184,7 +184,7 @@ mod tests {
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#bad", "b".repeat(64)),
                 key_type: "MlDsa65".to_string(),
-                public_key: b64_url.encode(&bad_keypair.pubkey_bytes()),
+                public_key: b64_url.encode(bad_keypair.pubkey_bytes()),
             }],
             manifest: None,
             revocation_keys: vec![],

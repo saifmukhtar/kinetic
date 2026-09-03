@@ -416,9 +416,9 @@ pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("json") {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(doc) = serde_json::from_str::<Document>(&content) {
+        if path.extension().and_then(|s| s.to_str()) == Some("json")
+            && let Ok(content) = fs::read_to_string(&path)
+                && let Ok(doc) = serde_json::from_str::<Document>(&content) {
                     let stem = path
                         .file_stem()
                         .and_then(|s| s.to_str())
@@ -434,8 +434,6 @@ pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
                         deactivated: doc.deactivated,
                     });
                 }
-            }
-        }
     }
 
     summaries.sort_by(|a, b| a.name.cmp(&b.name));

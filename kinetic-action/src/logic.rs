@@ -5,34 +5,41 @@
 //! - [`GovernanceState::new`] — genesis state initialization
 //! - [`GovernanceState::hash_action`] — deterministic SHA-256 action hash derivation
 //! - [`GovernanceState::prune`] — stale proposal garbage collection
-//! - [`GovernanceState::get_root_key`] — root verification key retrieval
+//! - [`GovernanceState::get_sovereign_key`] — root verification key retrieval
 //! - [`GovernanceState::verify_action`] — engine action verification
 //! - [`GovernanceState::execute_action`] — engine action execution
 
 use std::collections::HashMap;
 
-use crate::constants::ROOT_PUBLIC_KEY_HEX;
 use crate::error::GovernanceError;
-use crate::governance::types::{
-    GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes, SignedGovernanceMessage,
+use crate::types::{
+    GovernanceConfig, GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
+    SignedGovernanceMessage,
 };
 
 /// Validates that the static cryptographic keys required for governance have been correctly initialized.
 ///
 /// # Errors
 ///
-/// - Returns [`GovernanceError::MissingRootKey`] if the root key hex string is unconfigured or invalid.
+/// - Returns [`GovernanceError::MissingSovereignKey`] if the root key hex string is unconfigured or invalid.
 /// - Returns [`GovernanceError::KeyLengthMismatch`] if a public key is not exactly 1,952 bytes.
-pub fn validate_keys_initialized() -> Result<(), GovernanceError> {
-    if crate::config::is_dev_mode() {
+pub fn validate_keys_initialized(
+    sovereign_key_hex: &str,
+    is_dev_mode: bool,
+) -> Result<(), GovernanceError> {
+    if is_dev_mode {
         return Ok(());
     }
-    if ROOT_PUBLIC_KEY_HEX.contains("REPLACE_ME") {
-        return Err(GovernanceError::MissingRootKey);
+    if sovereign_key_hex.contains("REPLACE_ME") {
+        return Err(GovernanceError::MissingSovereignKey);
     }
 
-    let dummy_state = GovernanceState::new(kinetic_types::clock::Kyn(0));
-    let _ = dummy_state.get_root_key()?;
+    // Attempt to decode the hex just to validate its format.
+    let bytes = hex::decode(sovereign_key_hex).map_err(|_| GovernanceError::MalformedSovereignKey)?;
+
+    if bytes.len() != 1952 {
+        return Err(GovernanceError::KeyLengthMismatch);
+    }
 
     Ok(())
 }
@@ -49,7 +56,7 @@ impl GovernanceState {
     pub fn new(genesis_kyn: kinetic_types::clock::Kyn) -> Self {
         Self {
             genesis_kyn,
-            active_root_key: None,
+            active_sovereign_key: None,
             is_halted: false,
             halt_start_kyn: None,
             total_paused_kyns: 0,
@@ -76,9 +83,9 @@ impl GovernanceState {
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.
-    pub fn prune(&mut self, current_kyn: kinetic_types::clock::Kyn) {
+    pub fn prune(&mut self, current_kyn: kinetic_types::clock::Kyn, config: &GovernanceConfig) {
         // Remove executed hashes older than the max age
-        let max_age_kyns = crate::constants::MAX_AGE_KYNS;
+        let max_age_kyns = config.max_age_kyns;
         self.executed_hashes
             .retain(|_, exec_kyn| current_kyn.0 <= exec_kyn.0 + max_age_kyns);
     }
@@ -88,13 +95,16 @@ impl GovernanceState {
     /// # Errors
     ///
     /// Returns a `GovernanceError` if the key is missing, invalid, or has the wrong length.
-    pub fn get_root_key(&self) -> Result<PublicKeyBytes, GovernanceError> {
-        if let Some(key) = &self.active_root_key {
+    pub fn get_sovereign_key(
+        &self,
+        config: &GovernanceConfig,
+    ) -> Result<PublicKeyBytes, GovernanceError> {
+        if let Some(key) = &self.active_sovereign_key {
             return Ok(key.clone());
         }
 
-        let bytes =
-            hex::decode(ROOT_PUBLIC_KEY_HEX).map_err(|_| GovernanceError::MalformedRootKey)?;
+        let bytes = hex::decode(&config.sovereign_key_hex)
+            .map_err(|_| GovernanceError::MalformedSovereignKey)?;
         if bytes.len() != 1952 {
             return Err(GovernanceError::KeyLengthMismatch);
         }
@@ -110,8 +120,14 @@ impl GovernanceState {
         &mut self,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
+        config: &GovernanceConfig,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        crate::governance::engine::get_active_engine().verify_action(self, msg, current_kyn)
+        crate::engine::get_active_engine(&config.governance_model).verify_action(
+            self,
+            msg,
+            current_kyn,
+            config,
+        )
     }
 
     /// Executes a verified governance action, applying its state changes and returning any resulting effects.
@@ -119,8 +135,14 @@ impl GovernanceState {
         &mut self,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
+        config: &GovernanceConfig,
     ) -> Option<GovernanceEffect> {
-        crate::governance::engine::get_active_engine().execute_action(self, msg, current_kyn)
+        crate::engine::get_active_engine(&config.governance_model).execute_action(
+            self,
+            msg,
+            current_kyn,
+            config,
+        )
     }
 }
 
@@ -133,16 +155,17 @@ pub fn process_governance_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
     current_kyn: kinetic_types::clock::Kyn,
+    config: &GovernanceConfig,
 ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-    let effect = state.verify_action(msg, current_kyn)?;
+    let effect = state.verify_action(msg, current_kyn, config)?;
 
-    state.prune(current_kyn);
+    state.prune(current_kyn, config);
 
     let action_hash = GovernanceState::hash_action(msg);
     if state.executed_hashes.contains_key(&action_hash) {
         return Err(GovernanceError::AlreadyExecuted);
     }
 
-    state.execute_action(msg, current_kyn);
+    state.execute_action(msg, current_kyn, config);
     Ok(effect)
 }

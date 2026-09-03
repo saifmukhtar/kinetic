@@ -13,23 +13,7 @@
 
 /// Category 2: Kinetic Protocol Names.
 ///
-/// These names represent critical network protocol functionality (docs, bootstrap nodes, explorer).
-/// To prevent malicious actors from claiming critical network protocol names, these names CANNOT be
-/// mined by users. They are permanently locked and can only be allocated or reassigned by
-/// the Kinetic Council via governance proposals.
-/// Because they are critical to the network's operation, they are exempt
-/// from heartbeat and thermodynamic pruning rules so they never accidentally expire.
-pub const PROTOCOL_NAMES: &[&str] = &[
-    "seed",
-    "node",
-    "docs",
-    "status",
-    "api",
-    "blog",
-    "rpc",
-    "foundation",
-    "metrics",
-];
+pub use kinetic_types::protocol::PROTOCOL_NAMES;
 
 /// Checks if a given name is classified as a Category 2 network protocol name.
 ///

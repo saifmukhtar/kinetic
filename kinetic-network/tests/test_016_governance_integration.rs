@@ -4,7 +4,7 @@ use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
 use kinetic_network::store::core::KineticRecordStore;
 use libp2p::identity;
 use libp2p::kad::Record;
-use libp2p::kad::store::RecordStore;
+
 use tempfile::tempdir;
 
 #[tokio::test]
@@ -18,7 +18,7 @@ async fn test_governance_integration_halt() {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
-    let vdf_engine = std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+    let vdf_engine = std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
     let mut store = KineticRecordStore::new(
         local_peer_id,
@@ -79,7 +79,7 @@ async fn test_governance_integration_premium() {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
-    let vdf_engine = std::sync::Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+    let vdf_engine = std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
     // Set current drand kyn to 10 years in the future
     let future_round = 10_000_000;

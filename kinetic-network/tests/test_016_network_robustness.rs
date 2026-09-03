@@ -34,7 +34,7 @@ fn create_base_config() -> NetworkConfig {
 fn create_engine_and_store() -> (Arc<KineticStorage>, Arc<dyn VdfEngine>) {
     let dir = tempdir().unwrap();
     let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
-    let vdf_engine = Arc::new(kinetic_vdf_rsa::RsaVdfEngine::new());
+    let vdf_engine = Arc::new(kinetic_vdf::RsaVdfEngine::new());
     (storage, vdf_engine)
 }
 

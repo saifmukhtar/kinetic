@@ -72,7 +72,7 @@ pub struct GovernanceState {
     /// Genesis Kyn when governance tracking started.
     pub genesis_kyn: kinetic_types::clock::Kyn,
     /// Active ML-DSA-65 root public key controlling the network.
-    pub active_root_key: Option<PublicKeyBytes>,
+    pub active_sovereign_key: Option<PublicKeyBytes>,
     /// Master boolean flag if the network is currently paused.
     #[serde(default)]
     pub is_halted: bool,
@@ -126,7 +126,7 @@ mod tests {
     fn mock_state() -> GovernanceState {
         GovernanceState {
             genesis_kyn: Kyn(0),
-            active_root_key: None,
+            active_sovereign_key: None,
             is_halted: false,
             halt_start_kyn: None,
             total_paused_kyns: 0,
@@ -193,4 +193,17 @@ mod tests {
         // They should only get the portion of the pause that happened AFTER they registered (50 kyns)
         assert_eq!(state.paused_kyns_since(Kyn(target_pulse)), 50);
     }
+}
+
+/// Configuration constants required for governance evaluation.
+#[derive(Debug, Clone)]
+pub struct GovernanceConfig {
+    /// The root public key hex string used to verify actions.
+    pub sovereign_key_hex: String,
+    /// Maximum age of a proposal in kyns before it is considered stale.
+    pub max_age_kyns: u64,
+    /// Whether the network is running in dev mode (bypasses root key validation).
+    pub is_dev_mode: bool,
+    /// The governance model to use ("sovereign" or "permissionless").
+    pub governance_model: String,
 }

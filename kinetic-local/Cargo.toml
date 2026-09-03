@@ -14,6 +14,7 @@ categories = ["os", "filesystem"]
 
 [dependencies]
 # --- Workspace & Internal Crates ---
+kinetic-action = { path = "../kinetic-action" }
 kinetic-core = { path = "../kinetic-core" }
 kinetic-kid = { path = "../kinetic-kid" }
 kinetic-primitives = { path = "../kinetic-primitives" }
