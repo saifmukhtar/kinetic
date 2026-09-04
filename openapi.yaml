@@ -26,6 +26,42 @@ components:
       type: http
       scheme: bearer
   schemas:
+    CreateSessionRequest:
+      type: object
+      properties:
+        app_name:
+          type: string
+        role:
+          type: string
+          enum: [admin, publish, vdf, governance, atlas]
+      required:
+        - app_name
+        - role
+    AppSession:
+      type: object
+      properties:
+        token:
+          type: string
+        app_name:
+          type: string
+        role:
+          type: string
+        created_at:
+          type: integer
+      required:
+        - token
+        - app_name
+        - role
+        - created_at
+    ListSessionsResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppSession'
+      required:
+        - sessions
     PublishResponse:
       type: object
       properties:
@@ -843,6 +879,200 @@ paths:
       responses:
         '200':
           description: Sync triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+  /kid:
+    get:
+      operationId: listKids
+      summary: List all public identifiers for local identities
+      tags: [Public]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+    post:
+      operationId: generateKid
+      summary: Generate a new local identity
+      description: Requires Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Identity generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+  /kid/{name}:
+    get:
+      operationId: fetchKid
+      summary: Fetch details of a specific local identity
+      tags: [Public]
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizedKid'
+  /kid/{name}/rotate:
+    post:
+      operationId: rotateKid
+      summary: Rotate the keys for a given local identity
+      description: Requires Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Keys rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+  /kid/{name}/revoke:
+    post:
+      operationId: revokeKid
+      summary: Revoke a given local identity
+      description: Requires Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Identity revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+  /kid/{name}/manifest:
+    get:
+      operationId: fetchKidManifest
+      summary: Fetch the local manifest for a specific identity
+      tags: [Public]
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizedManifest'
+    post:
+      operationId: generateKidManifest
+      summary: Generate and sign a capability manifest for an identity
+      description: Requires Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Manifest generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+  /auth/session:
+    post:
+      operationId: createSession
+      summary: Create a new persistent session token for an application
+      description: Requires Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  token:
+                    type: string
+  /auth/sessions:
+    get:
+      operationId: listSessions
+      summary: List all active application session tokens
+      description: Requires Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Active sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSessionsResponse'
+  /auth/session/{token}:
+    delete:
+      operationId: revokeSession
+      summary: Revoke an application session token
+      description: Requires Admin role.
+      tags: [Private]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session revoked
           content:
             application/json:
               schema:

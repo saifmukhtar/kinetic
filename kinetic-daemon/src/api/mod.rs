@@ -10,6 +10,8 @@ use std::sync::{Arc, Mutex};
 
 /// API endpoints for Atlas NSP sync.
 pub mod atlas;
+/// API endpoints for authentication.
+pub mod auth;
 /// API endpoints for configuration management.
 pub mod config;
 /// Error mappings and Newtype wrappers for HTTP response conversion.
@@ -182,6 +184,10 @@ pub fn app(state: ApiState) -> Router {
 
     // Auth-guarded routes (CLI uses these bare paths with a bearer token)
     let auth_routes = Router::new()
+        .route("/config", post(config::handle_set_config))
+        .route("/auth/session", post(auth::handle_create_session))
+        .route("/auth/sessions", axum::routing::get(auth::handle_list_sessions))
+        .route("/auth/session/:token", axum::routing::delete(auth::handle_revoke_session))
         .route("/commit", post(handle_publish_commit))
         .route("/publish", post(handle_publish_record))
         .route("/publish-kid", post(handle_publish_kid))
@@ -458,7 +464,19 @@ async fn auth_middleware(
         matched_role
     };
 
-    match role {
+    let mut final_role = role;
+    if final_role.is_none() {
+        let db_key = format!("session:{}", provided_token);
+        if let Ok(Some(bytes)) = state.storage.get(db_key.as_bytes()) {
+            if let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes) {
+                if let Some(r) = crate::api::auth::parse_role(&session.role) {
+                    final_role = Some(r);
+                }
+            }
+        }
+    }
+
+    match final_role {
         Some(r) => {
             req.extensions_mut().insert(r);
             Ok(next.run(req).await)
