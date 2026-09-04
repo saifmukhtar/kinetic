@@ -1178,3 +1178,97 @@ paths:
                     type: string
                   quorum_count:
                     type: integer
+  /consensus/difficulty/{name}:
+    get:
+      operationId: getConsensusDifficulty
+      summary: Pre-flight calculation of VDF time for new names
+      tags: [Consensus]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Difficulty parameters for the name
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  iterations:
+                    type: integer
+                  label_length:
+                    type: integer
+                  dev_mode:
+                    type: boolean
+  /consensus/steal-difficulty/{name}:
+    get:
+      operationId: getStealDifficulty
+      summary: Calculates decay multiplier for taking over idle names
+      tags: [Consensus]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: kyns_idle
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Steal difficulty parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  base_iterations:
+                    type: integer
+                  kyns_idle:
+                    type: integer
+                  current_iterations:
+                    type: integer
+                  decay_multiplier:
+                    type: number
+  /names/validate:
+    post:
+      operationId: validateName
+      summary: Validates domain syntax, LDH rules, and reserved categories
+      tags: [Consensus]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Validation results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  original:
+                    type: string
+                  normalized:
+                    type: string
+                  is_valid:
+                    type: boolean
+                  is_reserved:
+                    type: boolean
+                  error:
+                    type: string
+                    nullable: true

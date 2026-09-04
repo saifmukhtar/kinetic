@@ -14,6 +14,7 @@ pub mod atlas;
 pub mod auth;
 /// API endpoints for configuration management.
 pub mod config;
+pub mod consensus;
 /// Error mappings and Newtype wrappers for HTTP response conversion.
 pub mod error;
 /// API endpoints for streaming Gossip.
@@ -245,6 +246,9 @@ pub fn app(state: ApiState) -> Router {
 
     let public_api_routes = Router::new()
         .route("/health", axum::routing::get(handle_get_health))
+        .route("/consensus/difficulty/{name}", axum::routing::get(consensus::handle_get_difficulty))
+        .route("/consensus/steal-difficulty/{name}", axum::routing::get(consensus::handle_steal_difficulty))
+        .route("/names/validate", axum::routing::post(consensus::handle_validate_name))
         .route("/peer_id", axum::routing::get(handle_get_peer_id))
         .route("/network-status", axum::routing::get(handle_network_status))
         .route("/network/peers", axum::routing::get(handle_network_peers))
