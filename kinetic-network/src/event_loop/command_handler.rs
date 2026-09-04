@@ -289,6 +289,12 @@ impl super::core::NetworkEventLoop {
                 let topics: Vec<String> = self.swarm.behaviour().gossipsub.topics().map(|t| t.as_str().to_string()).collect();
                 let _ = responder.send(Ok(topics));
             }
+            Command::GetBannedPeers { responder } => {
+                let banned = self.banned_peers.iter()
+                    .map(|(p, k)| (p.to_string(), *k))
+                    .collect();
+                let _ = responder.send(Ok(banned));
+            }
             Command::SubscribeGossip { topic, responder } => {
                 let ident_topic = libp2p::gossipsub::IdentTopic::new(topic.to_string());
                 let res = self

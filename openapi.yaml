@@ -1347,3 +1347,40 @@ paths:
                 type: object
                 additionalProperties:
                   type: string
+  /network/nat:
+    get:
+      operationId: getNetworkNat
+      summary: Check if the node's port is reachable or behind a strict NAT
+      tags: [Network]
+      responses:
+        '200':
+          description: AutoNAT status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nat_status:
+                    type: string
+  /network/peers/banned:
+    get:
+      operationId: getBannedPeers
+      summary: List banned peers and strike counts
+      tags: [Network]
+      responses:
+        '200':
+          description: List of banned peers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  banned_peers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        peer_id:
+                          type: string
+                        expires_at_kyn:
+                          type: integer

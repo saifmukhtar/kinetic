@@ -248,7 +248,9 @@ pub fn app(state: ApiState) -> Router {
         .route("/names/validate", axum::routing::post(consensus::handle_validate_name))
         .route("/peer_id", axum::routing::get(handle_get_peer_id))
         .route("/network-status", axum::routing::get(handle_network_status))
+        .route("/network/nat", axum::routing::get(config::handle_network_nat))
         .route("/network/peers", axum::routing::get(handle_network_peers))
+        .route("/network/peers/banned", axum::routing::get(config::handle_network_banned))
         .route("/network/bootstrap", axum::routing::post(config::handle_network_bootstrap))
         .route("/gossip/topics", axum::routing::get(handle_get_gossip_topics))
         .route(

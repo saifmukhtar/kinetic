@@ -108,4 +108,9 @@ pub enum Command {
         /// Channel to return the list of topics.
         responder: oneshot::Sender<std::result::Result<Vec<String>, NetworkClientError>>,
     },
+    /// Retrieve a list of all currently banned Peer IDs.
+    GetBannedPeers {
+        /// Channel to return a list of (PeerId, ExpirationKyn).
+        responder: oneshot::Sender<std::result::Result<Vec<(String, u64)>, NetworkClientError>>,
+    },
 }

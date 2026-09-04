@@ -495,6 +495,17 @@ impl NetworkClient {
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
     }
+
+    /// Retrieves a list of currently banned peers.
+    pub async fn get_banned_peers(&self) -> std::result::Result<Vec<(String, u64)>, NetworkClientError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self.get_sender();
+        sender_clone
+            .send(Command::GetBannedPeers { responder: tx })
+            .await
+            .map_err(|_| NetworkClientError::ChannelClosed)?;
+        rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
+    }
 }
 
 #[cfg(test)]

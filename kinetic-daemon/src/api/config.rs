@@ -75,6 +75,27 @@ pub async fn handle_network_bootstrap(State(state): State<ApiState>) -> Result<J
     }
 }
 
+/// Handles requests to retrieve the current Libp2p AutoNAT status (e.g. Public, Private, Unknown).
+pub async fn handle_network_nat(State(state): State<ApiState>) -> Json<serde_json::Value> {
+    match state.network.get_network_status().await {
+        Ok(status) => Json(serde_json::json!({ "nat_status": status.get("nat_status").unwrap_or(&serde_json::json!("Unknown")) })),
+        Err(e) => Json(serde_json::json!({ "nat_status": format!("Error: {}", e) })),
+    }
+}
+
+/// Handles requests to retrieve the list of currently banned spam peers and their expiration kyn.
+pub async fn handle_network_banned(State(state): State<ApiState>) -> Json<serde_json::Value> {
+    match state.network.get_banned_peers().await {
+        Ok(peers) => {
+            let json_peers: Vec<serde_json::Value> = peers.into_iter().map(|(id, exp)| {
+                serde_json::json!({ "peer_id": id, "expires_at_kyn": exp })
+            }).collect();
+            Json(serde_json::json!({ "banned_peers": json_peers }))
+        },
+        Err(e) => Json(serde_json::json!({ "error": format!("{}", e) })),
+    }
+}
+
 /// Handles requests to retrieve the list of connected Peer IDs.
 pub async fn handle_network_peers(State(state): State<ApiState>) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
     match state.network.get_connected_peers().await {
