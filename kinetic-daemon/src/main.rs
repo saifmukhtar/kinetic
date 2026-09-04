@@ -290,6 +290,18 @@ async fn run_daemon() -> Result<()> {
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(RsaVdfEngine::new());
     info!("VDF Engine initialized");
 
+    info!("Running CPU micro-benchmark for VDF ETA calibration...");
+    let dummy_challenge = kinetic_types::vdf::Commitment { hash: [0u8; 32] };
+    let start = std::time::Instant::now();
+    let _ = tokio::task::spawn_blocking({
+        let engine = vdf_engine.clone();
+        move || engine.evaluate(&dummy_challenge, 5000)
+    }).await;
+    let elapsed = start.elapsed().as_secs_f64();
+    let burst_ips = 5000.0 / elapsed;
+    let host_speed_ips = (burst_ips * 0.85) as u64;
+    info!("VDF Calibration Complete: Burst {:.0} IPS | Sustained Estimate: {} IPS", burst_ips, host_speed_ips);
+
     let daemon_keypair = match load_keypair(std::path::Path::new("identity.key")) {
         Ok(k) => k,
         Err(e) => {
@@ -628,6 +640,7 @@ async fn run_daemon() -> Result<()> {
         config.daemon.bind_ip.clone(),
         config.daemon.api_port,
         atlas_nsps.clone(),
+        host_speed_ips,
     );
 
     info!("Kinetic Daemon architecture successfully bootstrapped. Spawning loops...");

@@ -1199,12 +1199,34 @@ paths:
                 properties:
                   name:
                     type: string
-                  iterations:
-                    type: integer
+                  label:
+                    type: string
                   label_length:
                     type: integer
-                  dev_mode:
-                    type: boolean
+                  protocol:
+                    type: object
+                    properties:
+                      iterations:
+                        type: integer
+                      ndc_tier:
+                        type: string
+                      network_reference_target_minutes:
+                        type: integer
+                      is_dev_mode:
+                        type: boolean
+                  local_prediction:
+                    type: object
+                    properties:
+                      calibrated:
+                        type: boolean
+                      host_speed_ips:
+                        type: integer
+                      estimated_seconds:
+                        type: integer
+                      estimated_formatted:
+                        type: string
+                      hardware_rating:
+                        type: string
   /consensus/steal-difficulty/{name}:
     get:
       operationId: getStealDifficulty

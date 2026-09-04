@@ -117,6 +117,8 @@ pub struct ApiState {
     pub network: NetworkClient,
     /// Local storage engine interface.
     pub storage: Arc<dyn StorageEngine>,
+    /// Pre-calibrated host CPU speed for VDF time estimation (Iterations Per Second).
+    pub host_speed_ips: u64,
     /// Map of background VDF tasks.
     pub vdf_tasks: Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
 
@@ -364,12 +366,14 @@ pub async fn start_server(
     bind_ip: String,
     port: u16,
     atlas_nsps: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
+    host_speed_ips: u64,
 ) -> anyhow::Result<()> {
     let tokens = ensure_api_tokens()?;
 
     let state = ApiState {
         network,
         storage,
+        host_speed_ips,
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
         tokens: Arc::new(tokens),
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
