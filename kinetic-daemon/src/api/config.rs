@@ -83,15 +83,6 @@ pub async fn handle_network_peers(State(state): State<ApiState>) -> Result<Json<
     }
 }
 
-/// Handles requests to retrieve the active governance state file.
-pub async fn handle_get_governance() -> Result<Vec<u8>, crate::api::error::AppError> {
-    let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
-        .lock()
-        .unwrap();
-    let data = bincode::serialize(&*gov).unwrap_or_default();
-    Ok(data)
-}
-
 /// Handles requests to update the daemon configuration.
 pub async fn handle_set_config(
     Extension(role): Extension<Role>,

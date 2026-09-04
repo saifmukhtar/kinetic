@@ -1272,3 +1272,56 @@ paths:
                   error:
                     type: string
                     nullable: true
+  /governance/status:
+    get:
+      operationId: getGovernanceStatus
+      summary: Retrieves human-readable JSON of network health, halts, and rules
+      tags: [Governance]
+      responses:
+        '200':
+          description: Governance status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  genesis_kyn:
+                    type: integer
+                  active_sovereign_key_hex:
+                    type: string
+                    nullable: true
+                  is_halted:
+                    type: boolean
+                  halt_start_kyn:
+                    type: integer
+                    nullable: true
+                  total_paused_kyns:
+                    type: integer
+  /governance/names/prime:
+    get:
+      operationId: getPrimeNames
+      summary: JSON list of 1-character prime names and controllers
+      tags: [Governance]
+      responses:
+        '200':
+          description: Map of prime names to controller hex pubkeys
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /governance/names/infra:
+    get:
+      operationId: getInfraNames
+      summary: JSON list of infrastructure names
+      tags: [Governance]
+      responses:
+        '200':
+          description: Map of infra names to controller hex pubkeys
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string

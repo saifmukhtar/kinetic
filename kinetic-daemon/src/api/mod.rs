@@ -15,6 +15,8 @@ pub mod auth;
 /// API endpoints for configuration management.
 pub mod config;
 pub mod consensus;
+/// API endpoints for governance management.
+pub mod governance;
 /// Error mappings and Newtype wrappers for HTTP response conversion.
 pub mod error;
 /// API endpoints for streaming Gossip.
@@ -251,7 +253,9 @@ pub fn app(state: ApiState) -> Router {
             "/names/reserved",
             axum::routing::get(handle_get_reserved_names),
         )
-        .route("/governance", axum::routing::get(handle_get_governance))
+        .route("/governance/status", axum::routing::get(governance::handle_get_governance))
+        .route("/governance/names/prime", axum::routing::get(governance::handle_get_prime_names))
+        .route("/governance/names/infra", axum::routing::get(governance::handle_get_infra_names))
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route(
             "/zone/local/{name}",
