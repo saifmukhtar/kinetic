@@ -43,6 +43,13 @@ pub enum Command {
         /// Channel to return the resolved payload.
         responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
     },
+    /// Resolve a heartbeat payload from the DHT redundantly.
+    ResolveHeartbeat {
+        /// The apex name.
+        name: Arc<str>,
+        /// Channel to return the resolved heartbeat payload.
+        responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
+    },
     /// Verify that a record has been replicated to a quorum of nodes.
     VerifyQuorum {
         /// The apex name.

@@ -30,6 +30,8 @@ mod tests {
             network,
             gossip_tx,
             storage: storage.clone(),
+            host_speed_ips: 100_000,
+            daemon_keypair: kinetic_primitives::keys::KineticKeypair::generate(),
             tokens: Arc::new(crate::api::ApiTokens {
                 admin: "test-token-123".to_string(),
                 publish: "publish-token".to_string(),

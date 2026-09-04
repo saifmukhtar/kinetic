@@ -641,6 +641,7 @@ async fn run_daemon() -> Result<()> {
         config.daemon.api_port,
         atlas_nsps.clone(),
         host_speed_ips,
+        daemon_keypair.clone(),
     );
 
     info!("Kinetic Daemon architecture successfully bootstrapped. Spawning loops...");

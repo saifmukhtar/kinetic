@@ -1384,3 +1384,56 @@ paths:
                           type: string
                         expires_at_kyn:
                           type: integer
+  /heartbeats:
+    get:
+      operationId: getHeartbeats
+      summary: Get the DHT heartbeat status of all locally owned names
+      tags: [Heartbeat]
+      responses:
+        '200':
+          description: List of names with heartbeat status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current_kyn:
+                    type: integer
+                  names:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        status:
+                          type: string
+                        latest_kyn:
+                          type: integer
+                        kyns_idle:
+                          type: integer
+  /names/{name}/heartbeat:
+    post:
+      operationId: postHeartbeat
+      summary: Manually broadcast a heartbeat to keep a name active
+      tags: [Heartbeat]
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Heartbeat successfully broadcasted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  kyn:
+                    type: integer

@@ -270,6 +270,61 @@ impl NetworkClient {
         }
     }
 
+    /// Resolves a heartbeat payload from the DHT.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `ResolutionError` if the item is not found.
+    pub async fn resolve_heartbeat(
+        &self,
+        name: &str,
+    ) -> std::result::Result<Vec<u8>, ResolutionError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        sender_clone
+            .send(Command::ResolveHeartbeat {
+                name: name.to_string().into(),
+                responder: tx,
+            })
+            .await
+            .map_err(|_| ResolutionError::Internal {
+                message: "Network channel closed unexpectedly".to_string(),
+                source: None,
+            })?;
+        #[cfg(not(target_arch = "wasm32"))]
+        match tokio::time::timeout(std::time::Duration::from_secs(10), rx).await {
+            Ok(Ok(res)) => res,
+            Ok(Err(_)) => Err(ResolutionError::Internal {
+                message: "Network channel closed unexpectedly".to_string(),
+                source: None,
+            }),
+            Err(_) => Err(ResolutionError::Internal {
+                message: "Resolution timed out".to_string(),
+                source: None,
+            }),
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use futures::future::{Either, select};
+            use futures_timer::Delay;
+            match select(Box::pin(rx), Delay::new(std::time::Duration::from_secs(10))).await {
+                Either::Left((Ok(res), _)) => res,
+                Either::Left((Err(_), _)) => Err(ResolutionError::Internal {
+                    message: "Network channel closed unexpectedly".to_string(),
+                    source: None,
+                }),
+                Either::Right(_) => Err(ResolutionError::Internal {
+                    message: "Resolution timed out".to_string(),
+                    source: None,
+                }),
+            }
+        }
+    }
+
     /// Verifies that a published record has reached a quorum of nodes.
     ///
     /// # Errors

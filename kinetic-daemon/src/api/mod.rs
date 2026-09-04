@@ -14,6 +14,7 @@ pub mod atlas;
 pub mod auth;
 /// API endpoints for configuration management.
 pub mod config;
+pub mod heartbeat;
 pub mod consensus;
 /// API endpoints for governance management.
 pub mod governance;
@@ -38,6 +39,7 @@ pub mod zone;
 
 use atlas::*;
 use config::*;
+use heartbeat::*;
 use gossip::*;
 use kid::*;
 use publish::*;
@@ -117,6 +119,8 @@ pub struct ApiState {
     pub network: NetworkClient,
     /// Local storage engine interface.
     pub storage: Arc<dyn StorageEngine>,
+    /// The daemon's identity keypair (used for signing manual heartbeats).
+    pub daemon_keypair: kinetic_primitives::keys::KineticKeypair,
     /// Pre-calibrated host CPU speed for VDF time estimation (Iterations Per Second).
     pub host_speed_ips: u64,
     /// Map of background VDF tasks.
@@ -250,6 +254,8 @@ pub fn app(state: ApiState) -> Router {
         .route("/network-status", axum::routing::get(handle_network_status))
         .route("/network/nat", axum::routing::get(config::handle_network_nat))
         .route("/network/peers", axum::routing::get(handle_network_peers))
+        .route("/heartbeats", axum::routing::get(handle_get_heartbeats))
+        .route("/names/:name/heartbeat", axum::routing::post(handle_post_heartbeat))
         .route("/network/peers/banned", axum::routing::get(config::handle_network_banned))
         .route("/network/bootstrap", axum::routing::post(config::handle_network_bootstrap))
         .route("/gossip/topics", axum::routing::get(handle_get_gossip_topics))
@@ -369,12 +375,14 @@ pub async fn start_server(
     port: u16,
     atlas_nsps: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
     host_speed_ips: u64,
+    daemon_keypair: kinetic_primitives::keys::KineticKeypair,
 ) -> anyhow::Result<()> {
     let tokens = ensure_api_tokens()?;
 
     let state = ApiState {
         network,
         storage,
+        daemon_keypair,
         host_speed_ips,
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
         tokens: Arc::new(tokens),

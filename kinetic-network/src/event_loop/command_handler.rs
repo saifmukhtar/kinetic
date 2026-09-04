@@ -129,6 +129,39 @@ impl super::core::NetworkEventLoop {
                 );
                 self.enqueue_dht_puts(name, keys, payload, responder);
             }
+            Command::ResolveHeartbeat { name, responder } => {
+                let info = self.swarm.network_info();
+                if info.num_peers() == 0 {
+                    let _ = responder.send(Err(ResolutionError::Offline));
+                    return;
+                }
+                
+                let hb_name: std::sync::Arc<str> = format!("hb:{}", name).into();
+                if let Some(pending) = self.pending_gets.get_mut(&hb_name) {
+                    pending.responders.push(responder);
+                    return;
+                }
+
+                let keys = kinetic_core::types::derive_heartbeat_keys(
+                    &name,
+                    kinetic_core::constants::NETWORK_SALT,
+                );
+                let expected = self.dispatch_dht_queries(
+                    hb_name.clone(),
+                    keys,
+                    crate::event_loop::core::QueryType::Get,
+                );
+
+                self.pending_gets.insert(
+                    hb_name.clone(),
+                    crate::event_loop::utils::PendingGet {
+                        responders: vec![responder],
+                        expected_responses: expected,
+                        received_payloads: Vec::new(),
+                        peers_queried: expected,
+                    },
+                );
+            }
             Command::ResolveRedundant { name, responder } => {
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
