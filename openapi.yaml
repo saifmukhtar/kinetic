@@ -1077,3 +1077,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
+  /system/shutdown:
+    post:
+      operationId: systemShutdown
+      summary: Gracefully shut down the Kinetic daemon
+      description: Requires Admin role. Safely flushes the database and stops the node.
+      tags: [System]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Shutdown initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+  /system/restart:
+    post:
+      operationId: systemRestart
+      summary: Restart the Kinetic daemon
+      description: Requires Admin role. Attempts to restart via native service manager.
+      tags: [System]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Restart initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'

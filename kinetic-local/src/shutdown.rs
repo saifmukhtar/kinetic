@@ -3,6 +3,13 @@
 //! Listens for `SIGINT` (Ctrl+C) and `SIGTERM` signals to trigger graceful task termination.
 
 use tracing::info;
+use lazy_static::lazy_static;
+use tokio::sync::Notify;
+
+lazy_static! {
+    /// Global notification channel for triggering a shutdown via the REST API.
+    pub static ref API_SHUTDOWN: Notify = Notify::new();
+}
 
 /// A cross-platform future that resolves when a shutdown signal (`SIGINT` or `SIGTERM`) is received.
 #[cfg(not(target_arch = "wasm32"))]
@@ -47,6 +54,9 @@ pub async fn shutdown_signal() {
         },
         _ = terminate => {
             info!("SIGTERM received, starting graceful shutdown");
+        },
+        _ = API_SHUTDOWN.notified() => {
+            info!("API Shutdown request received, starting graceful shutdown");
         },
     }
 }

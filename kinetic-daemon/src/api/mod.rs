@@ -24,6 +24,8 @@ pub mod kid;
 pub mod publish;
 /// API endpoints for resolving names to payloads.
 pub mod resolve;
+/// API endpoints for system management.
+pub mod system;
 /// API endpoints for streaming Kinetic time.
 pub mod time;
 /// API endpoints for Verifiable Delay Function tasks.
@@ -184,6 +186,8 @@ pub fn app(state: ApiState) -> Router {
 
     // Auth-guarded routes (CLI uses these bare paths with a bearer token)
     let auth_routes = Router::new()
+        .route("/system/shutdown", post(system::handle_shutdown))
+        .route("/system/restart", post(system::handle_restart))
         .route("/config", post(config::handle_set_config))
         .route("/auth/session", post(auth::handle_create_session))
         .route("/auth/sessions", axum::routing::get(auth::handle_list_sessions))
