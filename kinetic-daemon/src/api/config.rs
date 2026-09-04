@@ -64,6 +64,17 @@ pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_
     }
 }
 
+/// Handles requests to manually trigger a Kademlia network bootstrap.
+pub async fn handle_network_bootstrap(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    match state.network.rebootstrap_network().await {
+        Ok(_) => Ok(Json(serde_json::json!({
+            "status": "success",
+            "message": "Network bootstrap initiated."
+        }))),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
+    }
+}
+
 /// Handles requests to retrieve the list of connected Peer IDs.
 pub async fn handle_network_peers(State(state): State<ApiState>) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
     match state.network.get_connected_peers().await {

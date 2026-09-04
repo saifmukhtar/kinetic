@@ -1135,3 +1135,46 @@ paths:
                 type: array
                 items:
                   type: string
+  /network/bootstrap:
+    post:
+      operationId: triggerNetworkBootstrap
+      summary: Manually trigger a Kademlia network bootstrap
+      tags: [System]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bootstrap initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+  /resolve/{name}/quorum:
+    post:
+      operationId: verifyQuorum
+      summary: Verify how many nodes in the DHT have replicated a specific payload
+      tags: [Public]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NameRecord'
+      responses:
+        '200':
+          description: Quorum check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  quorum_count:
+                    type: integer

@@ -248,6 +248,7 @@ pub fn app(state: ApiState) -> Router {
         .route("/peer_id", axum::routing::get(handle_get_peer_id))
         .route("/network-status", axum::routing::get(handle_network_status))
         .route("/network/peers", axum::routing::get(handle_network_peers))
+        .route("/network/bootstrap", axum::routing::post(config::handle_network_bootstrap))
         .route("/gossip/topics", axum::routing::get(handle_get_gossip_topics))
         .route(
             "/names/reserved",
@@ -260,6 +261,7 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(handle_get_local_zone),
         )
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
+        .route("/resolve/{name}/quorum", axum::routing::post(handle_verify_quorum))
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
         .route("/kid", axum::routing::get(handle_list_kids))
         .route("/kid/{name}", axum::routing::get(handle_fetch_kid))

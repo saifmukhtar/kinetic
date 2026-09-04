@@ -165,3 +165,27 @@ pub async fn handle_resolve_kid(
 
     Ok(Json(res))
 }
+
+/// Handles requests to verify DHT quorum for a specific name record payload.
+pub async fn handle_verify_quorum(
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+    Json(record): Json<kinetic_core::types::NameRecord>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    let fqdn = kinetic_core::types::normalize_name(&name);
+    
+    let payload = match serde_json::to_vec(&record) {
+        Ok(b) => b,
+        Err(_) => return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("Invalid NameRecord payload".to_string())
+        )),
+    };
+
+    match state.network.verify_quorum(&fqdn, payload).await {
+        Ok(count) => Ok(Json(serde_json::json!({
+            "name": fqdn,
+            "quorum_count": count
+        }))),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
+    }
+}
