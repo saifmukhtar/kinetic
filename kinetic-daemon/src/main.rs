@@ -749,6 +749,7 @@ fn main() -> anyhow::Result<()> {
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
+        .shutdown_timeout(std::time::Duration::from_millis(500))
         .build()
         .expect("Failed to build tokio runtime")
         .block_on(async_main())
