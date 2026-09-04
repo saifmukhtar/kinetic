@@ -14,6 +14,7 @@ pub async fn handle_connect_req(
     upgraded: hyper::upgrade::Upgraded,
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
+    dns_cache: Arc<Mutex<crate::proxy::dns_cache::DnsCache>>,
     network_client: Arc<NetworkClient>,
     config: Arc<kinetic_core::config::KineticConfig>,
     node_peer_id: String,
@@ -30,14 +31,16 @@ pub async fn handle_connect_req(
 
     // 3. Run a second HTTP service over the decrypted stream
     let network_client = Arc::clone(&network_client);
+    let dns_cache = Arc::clone(&dns_cache);
 
     let service = service_fn(move |req: Request<Incoming>| {
         let nc = Arc::clone(&network_client);
+        let dc = Arc::clone(&dns_cache);
         let d = apex_domain.clone();
         let config_clone = Arc::clone(&config);
         let peer_id_clone = node_peer_id.clone();
         async move {
-            match forward_to_backend_direct(req, &d, &nc, config_clone, &peer_id_clone).await {
+            match forward_to_backend_direct(req, &d, &nc, dc, config_clone, &peer_id_clone).await {
                 Ok(resp) => Ok::<_, std::convert::Infallible>(resp),
                 Err(e) => {
                     let err = super::ProxyError::TunnelForwardingError(e.to_string());

@@ -194,3 +194,51 @@ pub async fn handle_get_peer_id(
         ))),
     }
 }
+
+use axum::response::IntoResponse;
+use axum::http::header;
+
+/// Exports the local Proxy Root CA certificate for browser installation.
+pub async fn handle_get_ca_cert(
+) -> Result<impl IntoResponse, crate::api::error::AppError> {
+    let base_config_dir = kinetic_local::config::get_base_dir();
+    let ca_path = base_config_dir.join("root_ca.crt");
+    
+    match tokio::fs::read_to_string(&ca_path).await {
+        Ok(cert) => {
+            let headers = [
+                (header::CONTENT_TYPE, "application/x-x509-ca-cert"),
+                (header::CONTENT_DISPOSITION, "attachment; filename=\"kinetic_root_ca.crt\""),
+            ];
+            Ok((headers, cert))
+        }
+        Err(e) => {
+            tracing::error!("Failed to read CA cert from {:?}: {}", ca_path, e);
+            Err(crate::api::error::AppError::from(
+                kinetic_core::error::RestApiError::NotFound,
+            ))
+        }
+    }
+}
+
+/// Flushes the local DNS resolution memory cache.
+pub async fn handle_dns_flush(
+    Extension(role): Extension<Role>,
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    if !role.is_admin() {
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
+        ));
+    }
+    
+    {
+        let mut cache = state.dns_cache.lock().await;
+        cache.flush();
+    }
+    
+    Ok(Json(serde_json::json!({
+        "status": "success",
+        "message": "Local DNS resolution cache flushed"
+    })))
+}

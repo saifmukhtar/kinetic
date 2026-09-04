@@ -8,6 +8,7 @@ pub async fn handle_proxy_request(
     client: NetworkClient,
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
+    dns_cache: Arc<Mutex<crate::proxy::dns_cache::DnsCache>>,
     config: Arc<kinetic_core::config::KineticConfig>,
     node_peer_id: String,
 ) -> Result<Response<axum::body::Body>, std::convert::Infallible> {
@@ -49,6 +50,7 @@ pub async fn handle_proxy_request(
                         upgraded,
                         root_ca,
                         leaf_cache,
+                        dns_cache.clone(),
                         Arc::new(client),
                         Arc::clone(&config),
                         node_peer_id.clone(),
@@ -102,7 +104,7 @@ pub async fn handle_proxy_request(
     info!("Proxying plain HTTP request for {} -> {}", host_name, path);
 
     // Resolve PeerId/IP from DHT
-    match forward_to_backend_direct(req, &host_name, &client, Arc::clone(&config), &node_peer_id)
+    match forward_to_backend_direct(req, &host_name, &client, dns_cache, Arc::clone(&config), &node_peer_id)
         .await
     {
         Ok(resp) => Ok(resp),
@@ -128,6 +130,7 @@ pub async fn forward_to_backend_direct(
     req: Request<Incoming>,
     name: &str,
     network_client: &NetworkClient,
+    dns_cache: Arc<Mutex<crate::proxy::dns_cache::DnsCache>>,
     config: Arc<kinetic_core::config::KineticConfig>,
     node_peer_id: &str,
 ) -> Result<Response<axum::body::Body>, ProxyError> {
@@ -139,16 +142,30 @@ pub async fn forward_to_backend_direct(
         recursion_count += 1;
         let apex_name = kinetic_core::types::extract_apex_name(&current_name);
 
-        // Resolve via DHT directly — NOT via system DNS
-        let payload = network_client
-            .resolve_redundant_payload(&apex_name)
-            .await
-            .map_err(|e| {
-                let err =
-                    super::ProxyError::DhtResolutionFailed(apex_name.to_string(), e.to_string());
-                tracing::warn!(error_code = err.code(), "{}", err);
-                ProxyError::NameNotFound(apex_name.clone())
-            })?;
+        let payload_result = {
+            let mut cache = dns_cache.lock().await;
+            cache.get(&apex_name)
+        };
+
+        let payload = match payload_result {
+            Some(cached) => cached,
+            None => {
+                let bytes = network_client
+                    .resolve_redundant_payload(&apex_name)
+                    .await
+                    .map_err(|e| {
+                        let err = super::ProxyError::DhtResolutionFailed(
+                            apex_name.to_string(),
+                            e.to_string(),
+                        );
+                        tracing::warn!(error_code = err.code(), "{}", err);
+                        ProxyError::NameNotFound(apex_name.clone())
+                    })?;
+                let mut cache = dns_cache.lock().await;
+                cache.insert(apex_name.to_string(), bytes.clone());
+                bytes
+            }
+        };
 
         // The DHT stores the full Reveal JSON (set by api.rs via serde_json::to_vec(&reveal)).
         // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.

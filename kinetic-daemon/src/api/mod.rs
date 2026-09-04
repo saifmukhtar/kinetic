@@ -128,6 +128,8 @@ pub struct ApiState {
 
     /// API authentication tokens to restrict access by role.
     pub tokens: Arc<ApiTokens>,
+    /// The proxy DNS cache.
+    pub dns_cache: Arc<tokio::sync::Mutex<crate::proxy::dns_cache::DnsCache>>,
     /// Semaphore to restrict concurrent VDF computations.
     pub vdf_semaphore: Arc<tokio::sync::Semaphore>,
     /// The IP address this daemon is bound to.
@@ -376,6 +378,7 @@ pub async fn start_server(
     atlas_nsps: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
     host_speed_ips: u64,
     daemon_keypair: kinetic_primitives::keys::KineticKeypair,
+    dns_cache: Arc<tokio::sync::Mutex<crate::proxy::dns_cache::DnsCache>>,
 ) -> anyhow::Result<()> {
     let tokens = ensure_api_tokens()?;
 
@@ -386,6 +389,7 @@ pub async fn start_server(
         host_speed_ips,
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
         tokens: Arc::new(tokens),
+        dns_cache,
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
         bind_ip: bind_ip.clone(),
         gossip_tx,

@@ -595,10 +595,12 @@ async fn run_daemon() -> Result<()> {
         }
     };
 
+    let dns_cache = std::sync::Arc::new(tokio::sync::Mutex::new(kinetic_daemon::proxy::dns_cache::DnsCache::new(500, 300)));
     let leaf_cache = std::sync::Arc::new(tokio::sync::Mutex::new(ca::LeafCertCache::new()));
     let proxy_client = network_client.clone();
     let ca_clone = std::sync::Arc::clone(&root_ca);
     let cache_clone = std::sync::Arc::clone(&leaf_cache);
+    let dns_cache_proxy_clone = dns_cache.clone();
     let config_arc = std::sync::Arc::new(config.clone());
     let proxy_peer_id = local_peer_id.to_string();
     tokio::spawn(async move {
@@ -607,6 +609,7 @@ async fn run_daemon() -> Result<()> {
             config.daemon.proxy_port,
             ca_clone,
             cache_clone,
+            dns_cache_proxy_clone,
             config_arc,
             proxy_peer_id,
         )
@@ -642,6 +645,7 @@ async fn run_daemon() -> Result<()> {
         atlas_nsps.clone(),
         host_speed_ips,
         daemon_keypair.clone(),
+        dns_cache.clone(),
     );
 
     info!("Kinetic Daemon architecture successfully bootstrapped. Spawning loops...");

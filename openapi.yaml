@@ -1437,3 +1437,32 @@ paths:
                     type: string
                   kyn:
                     type: integer
+  /ca/cert:
+    get:
+      operationId: getCaCert
+      summary: Download the root CA certificate for local MITM proxy interception
+      tags: [System]
+      responses:
+        '200':
+          description: Raw CA certificate file (.crt / .pem format)
+          content:
+            application/x-x509-ca-cert:
+              schema:
+                type: string
+  /dns/flush:
+    post:
+      operationId: postDnsFlush
+      summary: Flushes the in-memory DNS resolution cache
+      tags: [System]
+      responses:
+        '200':
+          description: DNS cache successfully cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string

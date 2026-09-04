@@ -1,5 +1,7 @@
 //! Local HTTP/HTTPS MITM proxy server and P2P routing engine for `.kin` domain resolution.
 
+pub mod dns_cache;
+
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
@@ -244,6 +246,7 @@ pub async fn start_proxy_server(
     port: u16,
     root_ca: Arc<RootCa>,
     leaf_cache: Arc<Mutex<LeafCertCache>>,
+    dns_cache: Arc<Mutex<crate::proxy::dns_cache::DnsCache>>,
     config: Arc<kinetic_core::config::KineticConfig>,
     node_peer_id: String,
 ) -> anyhow::Result<()> {
@@ -281,6 +284,7 @@ pub async fn start_proxy_server(
         let client_clone = client.clone();
         let ca_clone = Arc::clone(&root_ca);
         let cache_clone = Arc::clone(&leaf_cache);
+        let dns_cache_clone = Arc::clone(&dns_cache);
         let config_clone = Arc::clone(&config);
         let peer_id_for_task = node_peer_id.clone();
 
@@ -290,11 +294,13 @@ pub async fn start_proxy_server(
                     io,
                     service_fn(move |req| {
                         let peer_id_clone = peer_id_for_task.clone();
+                        let inner_dns = Arc::clone(&dns_cache_clone);
                         handle_proxy_request(
                             req,
                             client_clone.clone(),
                             Arc::clone(&ca_clone),
                             Arc::clone(&cache_clone),
+                            inner_dns,
                             Arc::clone(&config_clone),
                             peer_id_clone,
                         )

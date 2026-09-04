@@ -32,6 +32,7 @@ mod tests {
             storage: storage.clone(),
             host_speed_ips: 100_000,
             daemon_keypair: kinetic_primitives::keys::KineticKeypair::generate(),
+            dns_cache: std::sync::Arc::new(std::sync::Mutex::new(crate::proxy::dns_cache::DnsCache::new(100, 300))),
             tokens: Arc::new(crate::api::ApiTokens {
                 admin: "test-token-123".to_string(),
                 publish: "publish-token".to_string(),
