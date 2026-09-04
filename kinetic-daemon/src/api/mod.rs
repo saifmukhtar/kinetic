@@ -210,6 +210,7 @@ pub fn app(state: ApiState) -> Router {
         .route("/publish-governance", post(handle_publish_governance))
         .route("/config", axum::routing::get(handle_get_config))
         .route("/config", axum::routing::post(handle_set_config))
+        .route("/vdf/tasks", axum::routing::get(handle_vdf_tasks))
         .route("/vdf/status/{task_id}", axum::routing::get(handle_vdf_status))
         .route("/owned-names", axum::routing::get(handle_owned_names))
         .route("/zone/{name}", axum::routing::post(handle_post_zone))

@@ -1466,3 +1466,26 @@ paths:
                     type: string
                   message:
                     type: string
+  /vdf/tasks:
+    get:
+      operationId: getVdfTasks
+      summary: Retrieve all active and completed background VDF tasks
+      tags: [VDF]
+      responses:
+        '200':
+          description: A map of task IDs to their status payloads
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                    percent:
+                      type: number
+                    eta_seconds:
+                      type: integer
+                    error:
+                      type: string

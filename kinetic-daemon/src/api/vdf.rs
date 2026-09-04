@@ -691,6 +691,23 @@ pub(crate) fn update_task_error(
     }
 }
 
+/// Retrieves all running or recently completed VDF tasks.
+pub async fn handle_vdf_tasks(
+    Extension(role): Extension<Role>,
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    if !role.can_vdf() {
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
+        ));
+    }
+    let tasks = {
+        let map = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
+        map.clone()
+    };
+    Ok(Json(serde_json::to_value(tasks).unwrap_or_default()))
+}
+
 /// Retrieves the current progress and status of a VDF task by ID.
 pub async fn handle_vdf_status(
     Extension(role): Extension<Role>,
