@@ -713,20 +713,4 @@ pub async fn handle_vdf_status(
     }
 }
 
-/// Deletes a VDF task's status record from memory. Useful to clear completed or failed tasks.
-pub async fn handle_vdf_status_delete(
-    Extension(role): Extension<Role>,
-    Path(task_id): Path<String>,
-    State(state): State<ApiState>,
-) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_vdf() {
-        return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges,
-        ));
-    }
-    let removed = {
-        let mut tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
-        tasks.remove(&task_id).is_some()
-    };
-    Ok(Json(serde_json::json!({ "success": removed })))
-}
+

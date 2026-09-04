@@ -747,12 +747,14 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
-    tokio::runtime::Builder::new_multi_thread()
+    let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .shutdown_timeout(std::time::Duration::from_millis(500))
         .build()
-        .expect("Failed to build tokio runtime")
-        .block_on(async_main())
+        .expect("Failed to build tokio runtime");
+
+    let res = rt.block_on(async_main());
+    rt.shutdown_timeout(std::time::Duration::from_millis(500));
+    res
 }
 
 async fn async_main() -> anyhow::Result<()> {
