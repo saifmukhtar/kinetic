@@ -78,3 +78,13 @@ pub async fn handle_gossip_publish(
         message: format!("Payload successfully broadcasted to topic: {}", topic),
     }))
 }
+
+/// Retrieves a list of active Gossipsub topics the node is currently listening to.
+pub async fn handle_get_gossip_topics(
+    State(state): State<ApiState>,
+) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
+    match state.network.get_gossip_topics().await {
+        Ok(topics) => Ok(Json(topics)),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
+    }
+}

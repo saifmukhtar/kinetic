@@ -64,6 +64,14 @@ pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_
     }
 }
 
+/// Handles requests to retrieve the list of connected Peer IDs.
+pub async fn handle_network_peers(State(state): State<ApiState>) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
+    match state.network.get_connected_peers().await {
+        Ok(peers) => Ok(Json(peers)),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
+    }
+}
+
 /// Handles requests to retrieve the active governance state file.
 pub async fn handle_get_governance() -> Result<Vec<u8>, crate::api::error::AppError> {
     let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE

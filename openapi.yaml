@@ -1107,3 +1107,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
+  /network/peers:
+    get:
+      operationId: getNetworkPeers
+      summary: Retrieve the list of connected Peer IDs
+      tags: [Public]
+      responses:
+        '200':
+          description: List of connected Peer IDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /gossip/topics:
+    get:
+      operationId: getGossipTopics
+      summary: Retrieve a list of active Gossipsub topics
+      tags: [Public]
+      responses:
+        '200':
+          description: List of active Gossipsub topics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string

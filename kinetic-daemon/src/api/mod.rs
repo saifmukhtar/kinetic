@@ -247,6 +247,8 @@ pub fn app(state: ApiState) -> Router {
         .route("/health", axum::routing::get(handle_get_health))
         .route("/peer_id", axum::routing::get(handle_get_peer_id))
         .route("/network-status", axum::routing::get(handle_network_status))
+        .route("/network/peers", axum::routing::get(handle_network_peers))
+        .route("/gossip/topics", axum::routing::get(handle_get_gossip_topics))
         .route(
             "/names/reserved",
             axum::routing::get(handle_get_reserved_names),

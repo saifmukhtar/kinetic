@@ -473,6 +473,28 @@ impl NetworkClient {
             });
         }
     }
+
+    /// Retrieves the list of currently connected Peer IDs.
+    pub async fn get_connected_peers(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self.get_sender();
+        sender_clone
+            .send(Command::GetConnectedPeers { responder: tx })
+            .await
+            .map_err(|_| NetworkClientError::ChannelClosed)?;
+        rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
+    }
+
+    /// Retrieves the list of active Gossipsub topics.
+    pub async fn get_gossip_topics(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self.get_sender();
+        sender_clone
+            .send(Command::GetGossipTopics { responder: tx })
+            .await
+            .map_err(|_| NetworkClientError::ChannelClosed)?;
+        rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
+    }
 }
 
 #[cfg(test)]

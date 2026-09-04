@@ -98,4 +98,14 @@ pub enum Command {
         /// Whether the message should be accepted or rejected.
         acceptance: libp2p::gossipsub::MessageAcceptance,
     },
+    /// Retrieve a list of all currently connected Peer IDs.
+    GetConnectedPeers {
+        /// Channel to return the list of Peer IDs.
+        responder: oneshot::Sender<std::result::Result<Vec<String>, NetworkClientError>>,
+    },
+    /// Retrieve a list of active Gossipsub topics.
+    GetGossipTopics {
+        /// Channel to return the list of topics.
+        responder: oneshot::Sender<std::result::Result<Vec<String>, NetworkClientError>>,
+    },
 }

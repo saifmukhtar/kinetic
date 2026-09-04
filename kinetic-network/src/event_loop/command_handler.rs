@@ -281,6 +281,14 @@ impl super::core::NetworkEventLoop {
                     "bytes_received": 0,
                 })));
             }
+            Command::GetConnectedPeers { responder } => {
+                let peers: Vec<String> = self.swarm.connected_peers().map(|p| p.to_string()).collect();
+                let _ = responder.send(Ok(peers));
+            }
+            Command::GetGossipTopics { responder } => {
+                let topics: Vec<String> = self.swarm.behaviour().gossipsub.topics().map(|t| t.as_str().to_string()).collect();
+                let _ = responder.send(Ok(topics));
+            }
             Command::SubscribeGossip { topic, responder } => {
                 let ident_topic = libp2p::gossipsub::IdentTopic::new(topic.to_string());
                 let res = self
