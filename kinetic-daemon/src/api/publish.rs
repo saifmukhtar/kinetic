@@ -341,11 +341,11 @@ pub async fn handle_publish_kid(
     State(state): State<ApiState>,
     Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
 ) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
-    if !role.can_identity() {
+    if !role.can_kid() {
         return Err((
             StatusCode::FORBIDDEN,
             Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Identity or Admin role"}),
+                serde_json::json!({"error": "Insufficient privileges: Requires Kid or Admin role"}),
             ),
         ));
     }
@@ -446,11 +446,11 @@ pub async fn handle_publish_manifest(
     State(state): State<ApiState>,
     Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
-    if !role.can_identity() {
+    if !role.can_kid() {
         return Err((
             StatusCode::FORBIDDEN,
             Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Identity or Admin role"}),
+                serde_json::json!({"error": "Insufficient privileges: Requires Kid or Admin role"}),
             ),
         ));
     }

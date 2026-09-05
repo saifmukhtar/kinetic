@@ -65,8 +65,8 @@ pub struct VdfTaskStatus {
 pub struct Role {
     /// True if the token grants full admin privileges.
     pub is_admin: bool,
-    /// True if the token grants identity management privileges.
-    pub identity: bool,
+    /// True if the token grants KID (Kinetic Identity Document) management privileges.
+    pub kid: bool,
     /// True if the token grants Name Resolution System (NRS) routing privileges.
     pub nrs: bool,
     /// True if the token grants VDF registration/renewal privileges.
@@ -84,8 +84,8 @@ pub struct Role {
 }
 
 impl Role {
-    /// Returns whether this role can manage identity records.
-    pub fn can_identity(&self) -> bool { self.is_admin || self.identity }
+    /// Returns whether this role can manage KID records.
+    pub fn can_kid(&self) -> bool { self.is_admin || self.kid }
     /// Returns whether this role can manage NRS records.
     pub fn can_nrs(&self) -> bool { self.is_admin || self.nrs }
     /// Returns whether this role can perform VDF operations.
@@ -109,8 +109,8 @@ impl Role {
 pub struct ApiTokens {
     /// The admin token.
     pub admin: String,
-    /// The identity token.
-    pub identity: String,
+    /// The KID token.
+    pub kid: String,
     /// The NRS token.
     pub nrs: String,
     /// The VDF token.
@@ -366,7 +366,7 @@ pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
 
     Ok(ApiTokens {
         admin: rotate_token_on_boot(&tokens_dir.join("admin.token"))?,
-        identity: rotate_token_on_boot(&tokens_dir.join("identity.token"))?,
+        kid: rotate_token_on_boot(&tokens_dir.join("kid.token"))?,
         nrs: rotate_token_on_boot(&tokens_dir.join("nrs.token"))?,
         vdf: rotate_token_on_boot(&tokens_dir.join("vdf.token"))?,
         governance: rotate_token_on_boot(&tokens_dir.join("governance.token"))?,
@@ -502,15 +502,15 @@ async fn auth_middleware(
             }
         };
 
-        check_token(&state.tokens.admin, Role { is_admin: true, identity: true, nrs: true, vdf: true, governance: true, gossip: true, metric: true, system: true, atlas: true });
-        check_token(&state.tokens.identity, Role { is_admin: false, identity: true, nrs: false, vdf: false, governance: false, gossip: false, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.nrs, Role { is_admin: false, identity: false, nrs: true, vdf: false, governance: false, gossip: false, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.vdf, Role { is_admin: false, identity: false, nrs: false, vdf: true, governance: false, gossip: false, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.governance, Role { is_admin: false, identity: false, nrs: false, vdf: false, governance: true, gossip: false, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.gossip, Role { is_admin: false, identity: false, nrs: false, vdf: false, governance: false, gossip: true, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.metric, Role { is_admin: false, identity: false, nrs: false, vdf: false, governance: false, gossip: false, metric: true, system: false, atlas: false });
-        check_token(&state.tokens.system, Role { is_admin: false, identity: false, nrs: false, vdf: false, governance: false, gossip: false, metric: false, system: true, atlas: false });
-        check_token(&state.tokens.atlas, Role { is_admin: false, identity: false, nrs: false, vdf: false, governance: false, gossip: false, metric: false, system: false, atlas: true });
+        check_token(&state.tokens.admin, Role { is_admin: true, kid: true, nrs: true, vdf: true, governance: true, gossip: true, metric: true, system: true, atlas: true });
+        check_token(&state.tokens.kid, Role { is_admin: false, kid: true, nrs: false, vdf: false, governance: false, gossip: false, metric: false, system: false, atlas: false });
+        check_token(&state.tokens.nrs, Role { is_admin: false, kid: false, nrs: true, vdf: false, governance: false, gossip: false, metric: false, system: false, atlas: false });
+        check_token(&state.tokens.vdf, Role { is_admin: false, kid: false, nrs: false, vdf: true, governance: false, gossip: false, metric: false, system: false, atlas: false });
+        check_token(&state.tokens.governance, Role { is_admin: false, kid: false, nrs: false, vdf: false, governance: true, gossip: false, metric: false, system: false, atlas: false });
+        check_token(&state.tokens.gossip, Role { is_admin: false, kid: false, nrs: false, vdf: false, governance: false, gossip: true, metric: false, system: false, atlas: false });
+        check_token(&state.tokens.metric, Role { is_admin: false, kid: false, nrs: false, vdf: false, governance: false, gossip: false, metric: true, system: false, atlas: false });
+        check_token(&state.tokens.system, Role { is_admin: false, kid: false, nrs: false, vdf: false, governance: false, gossip: false, metric: false, system: true, atlas: false });
+        check_token(&state.tokens.atlas, Role { is_admin: false, kid: false, nrs: false, vdf: false, governance: false, gossip: false, metric: false, system: false, atlas: true });
 
         matched_role
     };
@@ -532,10 +532,10 @@ async fn auth_middleware(
                             return Err(StatusCode::UNAUTHORIZED);
                         }
                         
-                        let mut session_role = Role { is_admin: false, identity: false, nrs: false, vdf: false, governance: false, gossip: false, metric: false, system: false, atlas: false };
+                        let mut session_role = Role { is_admin: false, kid: false, nrs: false, vdf: false, governance: false, gossip: false, metric: false, system: false, atlas: false };
                         for scope in session.scopes {
                             match scope.to_lowercase().as_str() {
-                                "identity" => session_role.identity = true,
+                                "kid" => session_role.kid = true,
                                 "nrs" => session_role.nrs = true,
                                 "vdf" => session_role.vdf = true,
                                 "governance" => session_role.governance = true,

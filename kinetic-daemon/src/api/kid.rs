@@ -49,7 +49,7 @@ pub async fn handle_generate_kid(
     State(state): State<ApiState>,
     Json(req): Json<GenerateKidRequest>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_identity() {
+    if !role.can_kid() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -104,7 +104,7 @@ pub async fn handle_rotate_kid(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_identity() {
+    if !role.can_kid() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -135,7 +135,7 @@ pub async fn handle_revoke_kid(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_identity() {
+    if !role.can_kid() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -189,7 +189,7 @@ pub async fn handle_update_kid_manifest(
     Path(name): Path<String>,
     Json(req): Json<UpdateManifestRequest>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_identity() {
+    if !role.can_kid() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
