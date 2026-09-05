@@ -50,7 +50,7 @@ pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: kinetic_types::clock::Kyn) ->
 }
 
 /// Validates if a PeerId has sufficient proof-of-work for the current or previous epoch.
-pub fn is_valid_sybil_pow(
+pub fn verify_p2p_pow(
     peer_id: &PeerId,
     current_kyn: kinetic_types::clock::Kyn,
     difficulty: u32,
@@ -91,7 +91,7 @@ pub fn is_valid_sybil_pow(
 /// Grinds an Ed25519 keypair whose PeerId satisfies the PoW for the current epoch.
 /// WARNING: This is a blocking, CPU-bound operation. If calling from an async context,
 /// ensure it is wrapped in `tokio::task::spawn_blocking` to prevent executor starvation.
-pub fn mine_sybil_keypair(current_kyn: kinetic_types::clock::Kyn, difficulty: u32) -> Keypair {
+pub fn mine_p2p_keypair(current_kyn: kinetic_types::clock::Kyn, difficulty: u32) -> Keypair {
     if current_kyn.0 == 0 && !kinetic_core::config::is_dev_mode() {
         panic!("Cannot generate PoW against kyn 0 (drand uninitialized)");
     }
@@ -144,11 +144,11 @@ mod tests {
     fn test_pow_mining_and_validation() {
         let kyn = 10_000_000;
         let difficulty = 8; // Low difficulty for fast test
-        let kp = mine_sybil_keypair(kinetic_types::clock::Kyn(kyn), difficulty);
+        let kp = mine_p2p_keypair(kinetic_types::clock::Kyn(kyn), difficulty);
         let peer_id = PeerId::from(kp.public());
 
         // Should be valid for current kyn
-        assert!(is_valid_sybil_pow(
+        assert!(verify_p2p_pow(
             &peer_id,
             kinetic_types::clock::Kyn(kyn),
             difficulty
@@ -156,7 +156,7 @@ mod tests {
 
         // Should be valid for kyn at the very end of the current epoch
         let end_of_epoch_kyn = (kyn / EPOCH_KYNS) * EPOCH_KYNS + EPOCH_KYNS - 1;
-        assert!(is_valid_sybil_pow(
+        assert!(verify_p2p_pow(
             &peer_id,
             kinetic_types::clock::Kyn(end_of_epoch_kyn),
             difficulty
@@ -164,7 +164,7 @@ mod tests {
 
         // Should be valid for the NEXT epoch's kyn (because we are the "previous epoch" from its perspective)
         let next_epoch_kyn = kyn + EPOCH_KYNS;
-        assert!(is_valid_sybil_pow(
+        assert!(verify_p2p_pow(
             &peer_id,
             kinetic_types::clock::Kyn(next_epoch_kyn),
             difficulty
@@ -172,14 +172,14 @@ mod tests {
 
         // Should NOT be valid for kyn 2 epochs away (unless we get a 1/256 lucky collision)
         let two_epochs_away = kyn + (2 * EPOCH_KYNS);
-        if is_valid_sybil_pow(
+        if verify_p2p_pow(
             &peer_id,
             kinetic_types::clock::Kyn(two_epochs_away),
             difficulty,
         ) {
             println!("Random collision for two_epochs_away - skipping assert");
         } else {
-            assert!(!is_valid_sybil_pow(
+            assert!(!verify_p2p_pow(
                 &peer_id,
                 kinetic_types::clock::Kyn(two_epochs_away),
                 difficulty
@@ -189,14 +189,14 @@ mod tests {
         // Should NOT be valid for kyn 1 epoch ago
         if kyn > EPOCH_KYNS {
             let prev_epoch_kyn = kyn - EPOCH_KYNS;
-            if is_valid_sybil_pow(
+            if verify_p2p_pow(
                 &peer_id,
                 kinetic_types::clock::Kyn(prev_epoch_kyn),
                 difficulty,
             ) {
                 println!("Random collision for prev_epoch_kyn - skipping assert");
             } else {
-                assert!(!is_valid_sybil_pow(
+                assert!(!verify_p2p_pow(
                     &peer_id,
                     kinetic_types::clock::Kyn(prev_epoch_kyn),
                     difficulty

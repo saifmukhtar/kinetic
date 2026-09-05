@@ -164,7 +164,7 @@ async fn run_host() -> Result<()> {
     // 4.5. Mine the Epoch-Bound Ephemeral PoW Key
     info!("Mining PoW S/Kademlia identity for current epoch...");
     let local_key = tokio::task::spawn_blocking(move || {
-        kinetic_network::pow::mine_sybil_keypair(
+        kinetic_network::pow::mine_p2p_keypair(
             kinetic_types::clock::Kyn(initial_kyn),
             kinetic_core::constants::POW_DIFFICULTY_BITS,
         )

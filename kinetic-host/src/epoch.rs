@@ -113,7 +113,7 @@ pub async fn start_drand_heartbeat(
                 let peer_id_clone = hb_local_peer_id;
                 let kyn_round = kyn.kyn;
                 let pow_valid = tokio::task::spawn_blocking(move || {
-                    kinetic_network::pow::is_valid_sybil_pow(
+                    kinetic_network::pow::verify_p2p_pow(
                         &peer_id_clone,
                         kinetic_types::clock::Kyn(kyn_round),
                         kinetic_core::constants::POW_DIFFICULTY_BITS,
@@ -127,7 +127,7 @@ pub async fn start_drand_heartbeat(
                         "PoW epoch expired for ephemeral identity. Hot-swapping network loop..."
                     );
                     let current_local_key = tokio::task::spawn_blocking(move || {
-                        kinetic_network::pow::mine_sybil_keypair(
+                        kinetic_network::pow::mine_p2p_keypair(
                             kinetic_types::clock::Kyn(kyn_round),
                             kinetic_core::constants::POW_DIFFICULTY_BITS,
                         )

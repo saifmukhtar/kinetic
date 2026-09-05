@@ -347,7 +347,7 @@ async fn run_daemon() -> Result<()> {
     }
 
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
-    let local_key = kinetic_network::pow::mine_sybil_keypair(
+    let local_key = kinetic_network::pow::mine_p2p_keypair(
         kinetic_types::clock::Kyn(initial_kyn),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
