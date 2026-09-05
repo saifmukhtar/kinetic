@@ -16,7 +16,7 @@ pub async fn handle_atlas_sync(
     State(state): State<ApiState>,
     Json(payload): Json<AtlasSyncPayload>,
 ) -> Result<String, crate::api::error::AppError> {
-    if role != crate::api::Role::Atlas && !role.is_admin() {
+    if !role.atlas && !role.is_admin() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));

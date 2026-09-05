@@ -31,12 +31,18 @@ components:
       properties:
         app_name:
           type: string
-        role:
-          type: string
-          enum: [admin, publish, vdf, governance, atlas]
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [publish, vdf, governance, atlas]
+        expiry_kyn:
+          type: integer
+          format: uint64
       required:
         - app_name
-        - role
+        - scopes
+        - expiry_kyn
     AppSession:
       type: object
       properties:
@@ -44,15 +50,21 @@ components:
           type: string
         app_name:
           type: string
-        role:
-          type: string
+        scopes:
+          type: array
+          items:
+            type: string
         created_at:
           type: integer
+        expiry_kyn:
+          type: integer
+          format: uint64
       required:
         - token
         - app_name
-        - role
+        - scopes
         - created_at
+        - expiry_kyn
     ListSessionsResponse:
       type: object
       properties:

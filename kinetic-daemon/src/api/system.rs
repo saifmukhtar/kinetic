@@ -5,7 +5,7 @@ use crate::api::Role;
 pub async fn handle_shutdown(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    if !matches!(role, Role::Admin) {
+    if !role.is_admin() {
         return Err((
             StatusCode::FORBIDDEN,
             Json(serde_json::json!({"error": "Requires Admin role"})),
@@ -26,7 +26,7 @@ pub async fn handle_shutdown(
 pub async fn handle_restart(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    if !matches!(role, Role::Admin) {
+    if !role.is_admin() {
         return Err((
             StatusCode::FORBIDDEN,
             Json(serde_json::json!({"error": "Requires Admin role"})),

@@ -1,7 +1,7 @@
 //! HTTP REST API router, authentication middleware, state management, and server bootstrap.
 
 use axum::{Router, extract::State, http::StatusCode, routing::post};
-use kinetic_core::traits::StorageEngine;
+use kinetic_core::traits::{StorageEngine, KynProvider};
 
 use kinetic_network::NetworkClient;
 use serde::{Deserialize, Serialize};
@@ -62,35 +62,35 @@ pub struct VdfTaskStatus {
 
 /// The access role granted by the provided token.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Role {
-    /// Full administrator access.
-    Admin,
-    /// Permission to publish zones.
-    Publish,
-    /// Permission to register/renew VDF proofs.
-    Vdf,
-    /// Permission to participate in governance.
-    Governance,
-    /// Permission for the Atlas bridge.
-    Atlas,
+pub struct Role {
+    /// True if the token grants full admin privileges.
+    pub is_admin: bool,
+    /// True if the token grants publishing privileges.
+    pub publish: bool,
+    /// True if the token grants VDF registration/renewal privileges.
+    pub vdf: bool,
+    /// True if the token grants governance voting privileges.
+    pub governance: bool,
+    /// True if the token grants atlas bridge privileges.
+    pub atlas: bool,
 }
 
 impl Role {
     /// Returns whether this role can publish records.
     pub fn can_publish(&self) -> bool {
-        matches!(self, Role::Admin | Role::Publish)
+        self.is_admin || self.publish
     }
     /// Returns whether this role can perform VDF operations.
     pub fn can_vdf(&self) -> bool {
-        matches!(self, Role::Admin | Role::Vdf)
+        self.is_admin || self.vdf
     }
     /// Returns whether this role can trigger governance updates.
     pub fn can_govern(&self) -> bool {
-        matches!(self, Role::Admin | Role::Governance)
+        self.is_admin || self.governance
     }
     /// Returns whether this role is a full administrator.
     pub fn is_admin(&self) -> bool {
-        matches!(self, Role::Admin)
+        self.is_admin
     }
 }
 
@@ -484,11 +484,11 @@ async fn auth_middleware(
             }
         };
 
-        check_token(&state.tokens.admin, Role::Admin);
-        check_token(&state.tokens.publish, Role::Publish);
-        check_token(&state.tokens.vdf, Role::Vdf);
-        check_token(&state.tokens.governance, Role::Governance);
-        check_token(&state.tokens.atlas, Role::Atlas);
+        check_token(&state.tokens.admin, Role { is_admin: true, publish: true, vdf: true, governance: true, atlas: true });
+        check_token(&state.tokens.publish, Role { is_admin: false, publish: true, vdf: false, governance: false, atlas: false });
+        check_token(&state.tokens.vdf, Role { is_admin: false, publish: false, vdf: true, governance: false, atlas: false });
+        check_token(&state.tokens.governance, Role { is_admin: false, publish: false, vdf: false, governance: true, atlas: false });
+        check_token(&state.tokens.atlas, Role { is_admin: false, publish: false, vdf: false, governance: false, atlas: true });
 
         matched_role
     };
@@ -498,9 +498,26 @@ async fn auth_middleware(
         let db_key = format!("session:{}", provided_token);
         if let Ok(Some(bytes)) = state.storage.get(db_key.as_bytes()) {
             if let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes) {
-                if let Some(r) = crate::api::auth::parse_role(&session.role) {
-                    final_role = Some(r);
+                // Verify expiration using cached Kyn
+                let kyn_provider = kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+                let current_kyn = kyn_provider.load_cached_kyn().map(|d| d.kyn).unwrap_or(0);
+                
+                if current_kyn > 0 && current_kyn > session.expiry_kyn {
+                    tracing::warn!("Rejecting API request: Session token expired");
+                    return Err(StatusCode::UNAUTHORIZED);
                 }
+                
+                let mut session_role = Role { is_admin: false, publish: false, vdf: false, governance: false, atlas: false };
+                for scope in session.scopes {
+                    match scope.to_lowercase().as_str() {
+                        "publish" => session_role.publish = true,
+                        "vdf" => session_role.vdf = true,
+                        "governance" => session_role.governance = true,
+                        "atlas" => session_role.atlas = true,
+                        _ => {}
+                    }
+                }
+                final_role = Some(session_role);
             }
         }
     }
