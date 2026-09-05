@@ -69,7 +69,7 @@ pub async fn handle_post_zone(
     Path(name): Path<String>,
     Json(zone): Json<kinetic_core::types::NrsZone>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_publish() {
+    if !role.can_nrs() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -125,7 +125,7 @@ pub async fn handle_publish_zone(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_publish() {
+    if !role.can_nrs() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -270,7 +270,7 @@ pub async fn handle_post_local_zone(
     Path(name): Path<String>,
     Json(zone): Json<kinetic_core::types::NrsZone>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_publish() {
+    if !role.can_nrs() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -333,7 +333,7 @@ pub async fn handle_delete_local_zone(
     Extension(role): Extension<Role>,
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_publish() {
+    if !role.can_nrs() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));

@@ -28,7 +28,7 @@ pub async fn handle_owned_names(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
 ) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
-    if !role.can_publish() {
+    if !role.can_nrs() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));

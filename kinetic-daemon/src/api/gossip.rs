@@ -52,7 +52,7 @@ pub async fn handle_gossip_publish(
     State(state): State<ApiState>,
     Json(payload): Json<Value>,
 ) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
-    if !role.can_publish() {
+    if !role.can_gossip() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));

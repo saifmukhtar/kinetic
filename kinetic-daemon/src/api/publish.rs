@@ -18,11 +18,11 @@ pub async fn handle_publish_record(
     State(state): State<ApiState>,
     Json(req): Json<PublishRequest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
-    if !role.can_publish() {
+    if !role.can_nrs() {
         return Err((
             StatusCode::FORBIDDEN,
             Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+                serde_json::json!({"error": "Insufficient privileges: Requires Nrs or Admin role"}),
             ),
         ));
     }
@@ -229,11 +229,11 @@ pub async fn handle_publish_commit(
     State(state): State<ApiState>,
     Json(req): Json<kinetic_core::types::CommitRequest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
-    if !role.can_publish() {
+    if !role.can_nrs() {
         return Err((
             StatusCode::FORBIDDEN,
             Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+                serde_json::json!({"error": "Insufficient privileges: Requires Nrs or Admin role"}),
             ),
         ));
     }
@@ -341,11 +341,11 @@ pub async fn handle_publish_kid(
     State(state): State<ApiState>,
     Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
 ) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
-    if !role.can_publish() {
+    if !role.can_identity() {
         return Err((
             StatusCode::FORBIDDEN,
             Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+                serde_json::json!({"error": "Insufficient privileges: Requires Identity or Admin role"}),
             ),
         ));
     }
@@ -446,11 +446,11 @@ pub async fn handle_publish_manifest(
     State(state): State<ApiState>,
     Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,
 ) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
-    if !role.can_publish() {
+    if !role.can_identity() {
         return Err((
             StatusCode::FORBIDDEN,
             Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Publish or Admin role"}),
+                serde_json::json!({"error": "Insufficient privileges: Requires Identity or Admin role"}),
             ),
         ));
     }
