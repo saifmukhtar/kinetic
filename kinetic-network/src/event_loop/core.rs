@@ -36,7 +36,8 @@ pub(crate) enum LoopbackCommand {
     },
     ConnectionPoWVerified {
         peer_id: libp2p::PeerId,
-        valid: bool,
+        valid_client: bool,
+        valid_server: bool,
         is_bootstrap: bool,
         remote_addr: libp2p::Multiaddr,
     },
@@ -103,8 +104,7 @@ pub struct NetworkEventLoop {
     pub(crate) pow_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
     /// Caps concurrent in-flight gossip verifications to prevent thread pool exhaustion from flood attacks.
     pub gossip_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
-    pub(crate) light_nodes: FxHashSet<libp2p::PeerId>,
-    pub(crate) light_node_ips: rustc_hash::FxHashMap<String, usize>,
+
     pub(crate) bootstrapped: bool,
     pub(crate) proxy_cdn_usage: (usize, web_time::Instant),
 }
@@ -380,57 +380,15 @@ impl NetworkEventLoop {
             }
             LoopbackCommand::ConnectionPoWVerified {
                 peer_id,
-                valid,
+                valid_client,
+                valid_server: _,
                 is_bootstrap,
-                remote_addr,
+                remote_addr: _,
             } => {
-                if !valid && !is_bootstrap {
-                    let mut ip = None;
-                    for protocol in remote_addr.iter() {
-                        if let libp2p::multiaddr::Protocol::Ip4(ipv4) = protocol {
-                            ip = Some(std::net::IpAddr::V4(ipv4));
-                            break;
-                        } else if let libp2p::multiaddr::Protocol::Ip6(ipv6) = protocol {
-                            ip = Some(std::net::IpAddr::V6(ipv6));
-                            break;
-                        }
-                    }
-
-                    let identifier = if let Some(ip_addr) = ip {
-                        ip_addr.to_string()
-                    } else {
-                        let mut stripped = remote_addr.clone();
-                        if let Some(libp2p::multiaddr::Protocol::P2p(_)) = stripped.iter().last() {
-                            stripped.pop();
-                        }
-                        stripped.to_string()
-                    };
-
-                    if self.light_nodes.len() >= 50 {
-                        let err = kinetic_core::error::P2pError::LightNodePowFailureLimit(
-                            peer_id.to_string(),
-                        );
-                        tracing::warn!(error_code = err.code(), "{}", err);
-                        let _ = self.swarm.disconnect_peer_id(peer_id);
-                    } else {
-                        let count = self.light_node_ips.entry(identifier.clone()).or_insert(0);
-                        if *count >= 3 {
-                            let err = kinetic_core::error::P2pError::LightNodeIdentityLimit(
-                                identifier.to_string(),
-                                peer_id.to_string(),
-                            );
-                            tracing::warn!(error_code = err.code(), "{}", err);
-                            let _ = self.swarm.disconnect_peer_id(peer_id);
-                        } else {
-                            *count += 1;
-                            tracing::debug!(
-                                "Peer {} failed PoW, classifying as Light Node.",
-                                peer_id
-                            );
-                            self.light_nodes.insert(peer_id);
-                        }
-                    }
-                } else if !valid && is_bootstrap {
+                if !valid_client && !is_bootstrap {
+                    tracing::warn!("Peer {} failed Tier 2 Client PoW — disconnecting immediately", peer_id);
+                    let _ = self.swarm.disconnect_peer_id(peer_id);
+                } else if !valid_client && is_bootstrap {
                     tracing::debug!(
                         "Bootstrap peer {} failed PoW — permitted initially",
                         peer_id

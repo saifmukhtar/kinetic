@@ -120,8 +120,7 @@ impl super::core::NetworkEventLoop {
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
             gossip_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(8)),
-            light_nodes: rustc_hash::FxHashSet::default(),
-            light_node_ips: rustc_hash::FxHashMap::default(),
+
             bootstrapped: false,
             proxy_cdn_usage: (0, web_time::Instant::now()),
         };

@@ -43,6 +43,8 @@ pub const NETWORK_SALT_HEX: &str = NETWORK_SALT_HEX_TEST;
 
 /// The target number of leading zero bits required for PoW mining.
 pub const POW_DIFFICULTY_BITS: u32 = 15;
+/// The target number of leading zero bits required for Light Client PoW mining.
+pub const POW_DIFFICULTY_BITS_CLIENT: u32 = 8;
 
 /// PBKDF2 iterations for wallet derived keys
 pub const WALLET_PBKDF2_ITERATIONS: u32 = 600000;

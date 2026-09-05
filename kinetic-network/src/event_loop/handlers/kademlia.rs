@@ -129,14 +129,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                     ..
                 },
         } => {
-            if event_loop.light_nodes.contains(&source) {
-                let err = kinetic_core::error::P2pError::LightNodeWriteRejected(source.to_string());
-                tracing::warn!(error_code = err.code(), "{}", err);
-                let _ = event_loop.swarm.disconnect_peer_id(source);
-                let expire_kyn = event_loop.current_kyn + 28800;
-                event_loop.banned_peers.put(source, expire_kyn);
-                return;
-            }
+
 
             if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&record.value)
                 && parsed.get("vdf_proof").is_some()
