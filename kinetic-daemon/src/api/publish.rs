@@ -604,10 +604,10 @@ pub async fn handle_publish_governance(
     State(state): State<ApiState>,
     Json(msg): Json<kinetic_core::governance::SignedGovernanceMessage>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
-    if !role.can_govern() {
+    if !role.can_action() {
         return Err((
             StatusCode::FORBIDDEN,
-            "Insufficient privileges: Requires Governance or Admin role".to_string(),
+            "Insufficient privileges: Requires Action or Admin role".to_string(),
         ));
     }
     tracing::info!("Received API publish request for Governance action");
