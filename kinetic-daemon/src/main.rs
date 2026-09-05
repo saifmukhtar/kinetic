@@ -738,16 +738,13 @@ async fn run_daemon() -> Result<()> {
         }
     }
 
-    tokio::select! {
-        res = api_future => {
-            tracing::error!(
-                error = ?kinetic_core::error::SystemError::ServerCrashed(format!("{:?}", res)),
-                "API Server exited unexpectedly"
-            );
-        },
-        _ = kinetic_local::shutdown::shutdown_signal() => {
-            info!("Shutdown signal received. Commencing graceful shutdown...");
-        }
+    if let Err(e) = api_future.await {
+        tracing::error!(
+            error = ?kinetic_core::error::SystemError::ServerCrashed(format!("{:?}", e)),
+            "API Server exited unexpectedly"
+        );
+    } else {
+        info!("API Server gracefully shut down.");
     }
 
     // Guaranteed OS PAC Proxy cleanup on exit (Fixes Orphaned Proxy Blackhole)

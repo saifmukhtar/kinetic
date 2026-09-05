@@ -433,7 +433,9 @@ pub async fn start_server(
         local_addr
     );
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(kinetic_local::shutdown::shutdown_signal())
+        .await?;
     Ok(())
 }
 

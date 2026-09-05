@@ -38,9 +38,6 @@ pub async fn handle_restart(
     // Try to restart via the native service manager.
     // If it fails (e.g. running via cargo run), just shut down gracefully.
     tokio::spawn(async move {
-        // Delay slightly so the HTTP response has time to return
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        
         let label: service_manager::ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse().unwrap();
         match <dyn service_manager::ServiceManager>::native() {
             Ok(manager) => {
