@@ -2705,6 +2705,7 @@ dependencies = [
  "kinetic-vdf",
  "kinetic-verify",
  "libp2p",
+ "lru 0.18.3",
  "percent-encoding",
  "proptest",
  "rand 0.8.7",

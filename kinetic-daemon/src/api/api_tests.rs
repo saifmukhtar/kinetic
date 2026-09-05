@@ -37,7 +37,7 @@ mod tests {
                 admin: "test-token-123".to_string(),
                 publish: "publish-token".to_string(),
                 vdf: "vdf-token".to_string(),
-                governance: "gov-token".to_string(),
+                action: "gov-token".to_string(),
                 atlas: "atlas-token".to_string(),
             }),
             vdf_tasks: Arc::new(Mutex::new(std::collections::HashMap::new())),

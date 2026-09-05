@@ -11,7 +11,7 @@ pub async fn handle_get_config(
     Extension(role): Extension<Role>,
     State(_state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.is_admin() {
+    if !role.can_system() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -64,7 +64,7 @@ pub async fn handle_network_bootstrap(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.is_admin() {
+    if !role.can_system() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -114,7 +114,7 @@ pub async fn handle_set_config(
     State(_state): State<ApiState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.is_admin() {
+    if !role.can_system() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -233,7 +233,7 @@ pub async fn handle_dns_flush(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.is_admin() {
+    if !role.can_system() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));

@@ -599,7 +599,7 @@ pub async fn handle_publish_manifest(
 ///
 /// Returns an error if the governance message is invalid, quorum checks fail prematurely,
 /// or publishing to the Gossipsub network fails.
-pub async fn handle_publish_governance(
+pub async fn handle_publish_action(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(msg): Json<kinetic_core::governance::SignedGovernanceMessage>,

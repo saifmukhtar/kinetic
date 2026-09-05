@@ -17,7 +17,7 @@ pub mod config;
 pub mod heartbeat;
 pub mod consensus;
 /// API endpoints for governance management.
-pub mod governance;
+pub mod action;
 /// Error mappings and Newtype wrappers for HTTP response conversion.
 pub mod error;
 /// API endpoints for streaming Gossip.
@@ -225,7 +225,7 @@ pub fn app(state: ApiState) -> Router {
         .route("/publish", post(handle_publish_record))
         .route("/publish-kid", post(handle_publish_kid))
         .route("/publish-manifest", post(handle_publish_manifest))
-        .route("/publish-governance", post(handle_publish_governance))
+        .route("/publish-action", post(publish::handle_publish_action))
         .route("/config", axum::routing::get(handle_get_config))
         .route("/config", axum::routing::post(handle_set_config))
         .route("/dns/flush", axum::routing::post(config::handle_dns_flush))
@@ -285,9 +285,9 @@ pub fn app(state: ApiState) -> Router {
             "/names/reserved",
             axum::routing::get(handle_get_reserved_names),
         )
-        .route("/governance/status", axum::routing::get(governance::handle_get_governance))
-        .route("/governance/names/prime", axum::routing::get(governance::handle_get_prime_names))
-        .route("/governance/names/infra", axum::routing::get(governance::handle_get_infra_names))
+        .route("/action/status", axum::routing::get(action::handle_get_action_status))
+        .route("/action/names/prime", axum::routing::get(action::handle_get_prime_names))
+        .route("/action/names/infra", axum::routing::get(action::handle_get_infra_names))
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route(
             "/zone/local/{name}",

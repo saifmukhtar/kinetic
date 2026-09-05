@@ -420,10 +420,10 @@ fn extract_root_key(src: &str, module_name: &str) -> String {
         .find(&format!("pub mod {}", module_name))
         .unwrap_or_else(|| panic!("Could not find {} module in constants.rs", module_name));
 
-    let key_marker = "pub const ROOT_PUBLIC_KEY_HEX: &str = \"";
+    let key_marker = "pub const SOVEREIGN_KEY_HEX: &str = \"";
     let key_start = src[mod_start..]
         .find(key_marker)
-        .unwrap_or_else(|| panic!("Could not find ROOT_PUBLIC_KEY_HEX in {}", module_name))
+        .unwrap_or_else(|| panic!("Could not find SOVEREIGN_KEY_HEX in {}", module_name))
         + mod_start
         + key_marker.len();
 

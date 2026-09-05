@@ -21,7 +21,7 @@ pub struct GovernanceStatusResponse {
 }
 
 /// Handles requests to retrieve the human-readable active governance state.
-pub async fn handle_get_governance() -> Result<Json<GovernanceStatusResponse>, crate::api::error::AppError> {
+pub async fn handle_get_action_status() -> Result<Json<GovernanceStatusResponse>, crate::api::error::AppError> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
     
     let active_key_hex = gov.active_sovereign_key.as_ref().map(hex::encode);

@@ -102,9 +102,15 @@ pub async fn handle_get_heartbeats(
 
 /// Manually constructs and broadcasts a heartbeat for a specific name to the DHT.
 pub async fn handle_post_heartbeat(
+    axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    if !role.can_nrs() {
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
+        ));
+    }
     let current_kyn = state.network.get_current_kyn().await.unwrap_or(0);
     
     let mut heartbeat = Heartbeat {
