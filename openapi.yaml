@@ -46,6 +46,8 @@ components:
     AppSession:
       type: object
       properties:
+        id:
+          type: string
         token:
           type: string
         app_name:
@@ -60,6 +62,7 @@ components:
           type: integer
           format: uint64
       required:
+        - id
         - token
         - app_name
         - scopes
@@ -1051,6 +1054,8 @@ paths:
                 properties:
                   status:
                     type: string
+                  id:
+                    type: string
                   token:
                     type: string
   /auth/sessions:
@@ -1068,17 +1073,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListSessionsResponse'
-  /auth/session/{token}:
+  /auth/session/{id}:
     delete:
       operationId: revokeSession
-      summary: Revoke an application session token
+      summary: Revoke an application session token using its ID
       description: Requires Admin role.
       tags: [Private]
       security:
         - bearerAuth: []
       parameters:
         - in: path
-          name: token
+          name: id
           required: true
           schema:
             type: string

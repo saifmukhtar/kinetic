@@ -16,6 +16,8 @@ pub struct CreateSessionRequest {
 /// Represents a persistent session token for an application.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AppSession {
+    /// The unique public ID for this session (used for revocation).
+    pub id: String,
     /// The secure 32-byte token.
     pub token: String,
     /// The name of the authorized application.
@@ -68,7 +70,10 @@ pub async fn handle_create_session(
     rand::thread_rng().fill_bytes(&mut rand_bytes);
     let token = hex::encode(rand_bytes);
 
+    let id = uuid::Uuid::new_v4().to_string();
+
     let session = AppSession {
+        id: id.clone(),
         token: token.clone(),
         app_name: req.app_name,
         scopes: req.scopes,
@@ -77,17 +82,26 @@ pub async fn handle_create_session(
     };
 
     let session_bytes = serde_json::to_vec(&session).unwrap();
-    let db_key = format!("session:{}", token);
+    let db_key_session = format!("session:{}", id);
+    let db_key_token = format!("session_token:{}", token);
     
-    if let Err(e) = state.storage.put(db_key.as_bytes(), &session_bytes) {
+    if let Err(e) = state.storage.put(db_key_session.as_bytes(), &session_bytes) {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": format!("Failed to save session: {}", e)})),
         ));
     }
+    
+    if let Err(e) = state.storage.put(db_key_token.as_bytes(), id.as_bytes()) {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("Failed to save session token lookup: {}", e)})),
+        ));
+    }
 
     Ok(Json(serde_json::json!({
         "status": "success",
+        "id": id,
         "token": token
     })))
 }
@@ -106,9 +120,12 @@ pub async fn handle_list_sessions(
 
     let mut sessions = Vec::new();
     if let Ok(entries) = state.storage.scan_prefix(b"session:", None) {
-        for (_k, v) in entries {
-            if let Ok(session) = serde_json::from_slice::<AppSession>(&v) {
-                sessions.push(session);
+        for (k, v) in entries {
+            if !k.starts_with(b"session_token:") {
+                if let Ok(mut session) = serde_json::from_slice::<AppSession>(&v) {
+                    session.token = "hidden".to_string();
+                    sessions.push(session);
+                }
             }
         }
     }
@@ -120,7 +137,7 @@ pub async fn handle_list_sessions(
 pub async fn handle_revoke_session(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
-    Path(token): Path<String>,
+    Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     if !role.is_admin() {
         return Err((
@@ -129,8 +146,22 @@ pub async fn handle_revoke_session(
         ));
     }
 
-    let db_key = format!("session:{}", token);
-    if let Err(e) = state.storage.delete(db_key.as_bytes()) {
+    let db_key_session = format!("session:{}", id);
+    
+    // First read the session to get the raw token so we can delete the lookup
+    if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes()) {
+        if let Ok(session) = serde_json::from_slice::<AppSession>(&bytes) {
+            let db_key_token = format!("session_token:{}", session.token);
+            let _ = state.storage.delete(db_key_token.as_bytes());
+        }
+    } else {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Session not found"})),
+        ));
+    }
+
+    if let Err(e) = state.storage.delete(db_key_session.as_bytes()) {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": format!("Failed to revoke session: {}", e)})),

@@ -495,29 +495,34 @@ async fn auth_middleware(
 
     let mut final_role = role;
     if final_role.is_none() {
-        let db_key = format!("session:{}", provided_token);
-        if let Ok(Some(bytes)) = state.storage.get(db_key.as_bytes()) {
-            if let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes) {
-                // Verify expiration using cached Kyn
-                let kyn_provider = kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
-                let current_kyn = kyn_provider.load_cached_kyn().map(|d| d.kyn).unwrap_or(0);
-                
-                if current_kyn > 0 && current_kyn > session.expiry_kyn {
-                    tracing::warn!("Rejecting API request: Session token expired");
-                    return Err(StatusCode::UNAUTHORIZED);
-                }
-                
-                let mut session_role = Role { is_admin: false, publish: false, vdf: false, governance: false, atlas: false };
-                for scope in session.scopes {
-                    match scope.to_lowercase().as_str() {
-                        "publish" => session_role.publish = true,
-                        "vdf" => session_role.vdf = true,
-                        "governance" => session_role.governance = true,
-                        "atlas" => session_role.atlas = true,
-                        _ => {}
+        let db_key_token = format!("session_token:{}", provided_token);
+        if let Ok(Some(id_bytes)) = state.storage.get(db_key_token.as_bytes()) {
+            if let Ok(id_str) = String::from_utf8(id_bytes.to_vec()) {
+                let db_key_session = format!("session:{}", id_str);
+                if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes()) {
+                    if let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes) {
+                        // Verify expiration using cached Kyn
+                        let kyn_provider = kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+                        let current_kyn = kyn_provider.load_cached_kyn().map(|d| d.kyn).unwrap_or(0);
+                        
+                        if current_kyn > 0 && current_kyn > session.expiry_kyn {
+                            tracing::warn!("Rejecting API request: Session token expired");
+                            return Err(StatusCode::UNAUTHORIZED);
+                        }
+                        
+                        let mut session_role = Role { is_admin: false, publish: false, vdf: false, governance: false, atlas: false };
+                        for scope in session.scopes {
+                            match scope.to_lowercase().as_str() {
+                                "publish" => session_role.publish = true,
+                                "vdf" => session_role.vdf = true,
+                                "governance" => session_role.governance = true,
+                                "atlas" => session_role.atlas = true,
+                                _ => {}
+                            }
+                        }
+                        final_role = Some(session_role);
                     }
                 }
-                final_role = Some(session_role);
             }
         }
     }
