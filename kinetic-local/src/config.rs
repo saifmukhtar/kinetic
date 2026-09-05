@@ -81,7 +81,14 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
         }
     };
 
-    config.validate();
+    if let Err(e) = config.validate() {
+        tracing::error!(
+            error_code = e.code(),
+            "FATAL: {}",
+            e
+        );
+        std::process::exit(1);
+    }
     config
 }
 

@@ -52,15 +52,10 @@ pub async fn handle_owned_names(
 }
 
 /// Handles requests to retrieve the current network status (peer count, DHT size, uptime).
-pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_json::Value> {
+pub async fn handle_network_status(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_network_status().await {
-        Ok(status) => Json(status),
-        Err(e) => Json(serde_json::json!({
-            "status": format!("Error: {}", e),
-            "peers": 0,
-            "dht_size": 0,
-            "uptime": "Unknown"
-        })),
+        Ok(status) => Ok(Json(status)),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
 
@@ -85,23 +80,23 @@ pub async fn handle_network_bootstrap(
 }
 
 /// Handles requests to retrieve the current Libp2p AutoNAT status (e.g. Public, Private, Unknown).
-pub async fn handle_network_nat(State(state): State<ApiState>) -> Json<serde_json::Value> {
+pub async fn handle_network_nat(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_network_status().await {
-        Ok(status) => Json(serde_json::json!({ "nat_status": status.get("nat_status").unwrap_or(&serde_json::json!("Unknown")) })),
-        Err(e) => Json(serde_json::json!({ "nat_status": format!("Error: {}", e) })),
+        Ok(status) => Ok(Json(serde_json::json!({ "nat_status": status.get("nat_status").unwrap_or(&serde_json::json!("Unknown")) }))),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
 
 /// Handles requests to retrieve the list of currently banned spam peers and their expiration kyn.
-pub async fn handle_network_banned(State(state): State<ApiState>) -> Json<serde_json::Value> {
+pub async fn handle_network_banned(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_banned_peers().await {
         Ok(peers) => {
             let json_peers: Vec<serde_json::Value> = peers.into_iter().map(|(id, exp)| {
                 serde_json::json!({ "peer_id": id, "expires_at_kyn": exp })
             }).collect();
-            Json(serde_json::json!({ "banned_peers": json_peers }))
+            Ok(Json(serde_json::json!({ "banned_peers": json_peers })))
         },
-        Err(e) => Json(serde_json::json!({ "error": format!("{}", e) })),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
 
@@ -129,7 +124,10 @@ pub async fn handle_set_config(
         match serde_json::from_value::<kinetic_core::config::KineticConfig>(config_payload.clone())
         {
             Ok(new_config) => {
-                new_config.validate(); // Ensure no port collisions before saving
+                if let Err(e) = new_config.validate() {
+                    return Err(crate::api::error::AppError(e.into()));
+                }
+                
                 let _ = kinetic_local::config::save_config(&new_config);
                 Ok(Json(serde_json::json!({
                     "status": "ok",
