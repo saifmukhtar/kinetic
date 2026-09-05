@@ -33,29 +33,11 @@ pub async fn handle_restart(
         ));
     }
 
-    tracing::info!("Restart requested via API. Attempting native service restart...");
+    tracing::info!("Restart requested via API. Notifying graceful shutdown signal...");
 
-    // Try to restart via the native service manager.
-    // If it fails (e.g. running via cargo run), just shut down gracefully.
-    tokio::spawn(async move {
-        let label: service_manager::ServiceLabel = format!("{}-daemon", kinetic_core::constants::NSP).parse().unwrap();
-        match <dyn service_manager::ServiceManager>::native() {
-            Ok(manager) => {
-                if let Err(e) = manager.stop(service_manager::ServiceStopCtx { label: label.clone() }) {
-                    tracing::warn!("Failed to stop native service: {}. Falling back to graceful shutdown.", e);
-                    kinetic_local::shutdown::API_SHUTDOWN.notify_waiters();
-                } else {
-                    // Systemd/launchd will restart it if configured (Restart=always)
-                    // If we explicitly restart:
-                    let _ = manager.start(service_manager::ServiceStartCtx { label });
-                }
-            },
-            Err(_) => {
-                tracing::warn!("No native service manager detected. Falling back to graceful shutdown.");
-                kinetic_local::shutdown::API_SHUTDOWN.notify_waiters();
-            }
-        }
-    });
+    // Set the flag so main.rs exits with code 1 after graceful shutdown
+    kinetic_local::shutdown::RESTART_REQUESTED.store(true, std::sync::atomic::Ordering::SeqCst);
+    kinetic_local::shutdown::API_RESTART.notify_waiters();
 
     Ok(Json(serde_json::json!({
         "status": "success",

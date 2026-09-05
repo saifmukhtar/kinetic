@@ -769,6 +769,12 @@ fn main() -> anyhow::Result<()> {
 
     let res = rt.block_on(async_main());
     rt.shutdown_timeout(std::time::Duration::from_millis(500));
+    
+    if kinetic_local::shutdown::RESTART_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
+        println!("Restart requested. Exiting with code 1 to trigger service manager OnFailure policy.");
+        std::process::exit(1);
+    }
+    
     res
 }
 
