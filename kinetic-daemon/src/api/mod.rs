@@ -199,6 +199,7 @@ pub fn app(state: ApiState) -> Router {
     let auth_routes = Router::new()
         .route("/system/shutdown", post(system::handle_shutdown))
         .route("/system/restart", post(system::handle_restart))
+        .route("/network/bootstrap", post(config::handle_network_bootstrap))
         .route("/auth/session", post(auth::handle_create_session))
         .route("/auth/sessions", axum::routing::get(auth::handle_list_sessions))
         .route("/auth/session/:token", axum::routing::delete(auth::handle_revoke_session))
@@ -261,7 +262,6 @@ pub fn app(state: ApiState) -> Router {
         .route("/heartbeats", axum::routing::get(handle_get_heartbeats))
         .route("/names/:name/heartbeat", axum::routing::post(handle_post_heartbeat))
         .route("/network/peers/banned", axum::routing::get(config::handle_network_banned))
-        .route("/network/bootstrap", axum::routing::post(config::handle_network_bootstrap))
         .route("/gossip/topics", axum::routing::get(handle_get_gossip_topics))
         .route(
             "/names/reserved",

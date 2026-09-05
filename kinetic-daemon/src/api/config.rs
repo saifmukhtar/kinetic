@@ -65,7 +65,16 @@ pub async fn handle_network_status(State(state): State<ApiState>) -> Json<serde_
 }
 
 /// Handles requests to manually trigger a Kademlia network bootstrap.
-pub async fn handle_network_bootstrap(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+pub async fn handle_network_bootstrap(
+    axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    if !role.is_admin() {
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
+        ));
+    }
+
     match state.network.rebootstrap_network().await {
         Ok(_) => Ok(Json(serde_json::json!({
             "status": "success",
