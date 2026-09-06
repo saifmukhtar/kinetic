@@ -253,7 +253,7 @@ pub fn app(state: ApiState) -> Router {
         .route("/publish", post(handle_publish_record))
         .route("/publish-kid", post(handle_publish_kid))
         .route("/publish-manifest", post(handle_publish_manifest))
-        .route("/publish-action", post(action::handle_publish_action))
+        .route("/v1/micro/action/publish", post(action::handle_publish_action))
         .route("/config", axum::routing::get(handle_get_config))
         .route("/config", axum::routing::post(handle_set_config))
         .route("/dns/flush", axum::routing::post(config::handle_dns_flush))
@@ -293,7 +293,7 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::post(handle_gossip_publish),
         )
         .route(
-            "/internal/atlas/sync",
+            "/v1/micro/atlas/sync",
             axum::routing::post(handle_atlas_sync),
         )
         .layer(axum::middleware::from_fn_with_state(
@@ -341,11 +341,11 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(handle_get_reserved_names),
         )
         .route(
-            "/action/status",
+            "/v1/micro/action/status",
             axum::routing::get(action::handle_get_action_status),
         )
         .route(
-            "/action/names",
+            "/v1/micro/action/names",
             axum::routing::get(action::handle_get_action_names),
         )
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
