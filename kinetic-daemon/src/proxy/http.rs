@@ -104,8 +104,15 @@ pub async fn handle_proxy_request(
     info!("Proxying plain HTTP request for {} -> {}", host_name, path);
 
     // Resolve PeerId/IP from DHT
-    match forward_to_backend_direct(req, &host_name, &client, dns_cache, Arc::clone(&config), &node_peer_id)
-        .await
+    match forward_to_backend_direct(
+        req,
+        &host_name,
+        &client,
+        dns_cache,
+        Arc::clone(&config),
+        &node_peer_id,
+    )
+    .await
     {
         Ok(resp) => Ok(resp),
         Err(e) => {

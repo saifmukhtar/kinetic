@@ -1,52 +1,56 @@
 //! HTTP REST API router, authentication middleware, state management, and server bootstrap.
 
 use axum::{Router, extract::State, http::StatusCode, routing::post};
-use kinetic_core::traits::{StorageEngine, KynProvider};
+use kinetic_core::traits::{KynProvider, StorageEngine};
 
 use kinetic_network::NetworkClient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+/// API endpoints for governance management.
+pub mod action;
 /// API endpoints for Atlas NSP sync.
 pub mod atlas;
 /// API endpoints for authentication.
 pub mod auth;
 /// API endpoints for configuration management.
 pub mod config;
-pub mod heartbeat;
 pub mod consensus;
-/// API endpoints for governance management.
-pub mod action;
 /// Error mappings and Newtype wrappers for HTTP response conversion.
 pub mod error;
 /// API endpoints for streaming Gossip.
 pub mod gossip;
+pub mod heartbeat;
 /// API endpoints for KID local management.
 pub mod kid;
-/// API endpoints for publishing names and content.
-pub mod publish;
-/// API endpoints for resolving names to payloads.
-pub mod resolve;
+/// Complex multi-step orchestrator endpoints (Macro API).
+pub mod macro_api;
+/// API endpoints for Node Metrics and Telemetry
+pub mod metric;
+/// API endpoints for Name Resolution System
+pub mod nrs;
 /// API endpoints for system management.
 pub mod system;
 /// API endpoints for streaming Kinetic time.
 pub mod time;
-/// API endpoints for Verifiable Delay Function tasks.
-pub mod vdf;
-/// API endpoints for DNS zone management.
-pub mod zone;
 
 use atlas::*;
 use config::*;
-use heartbeat::*;
 use gossip::*;
-use kid::*;
-use publish::*;
-use resolve::*;
+use heartbeat::*;
+use kid::{
+    handle_fetch_kid, handle_generate_kid, handle_get_kid_manifest, handle_list_kids,
+    handle_publish_kid, handle_publish_manifest, handle_resolve_kid, handle_revoke_kid,
+    handle_rotate_kid, handle_update_kid_manifest,
+};
+use macro_api::*;
+use nrs::{
+    handle_delete_local_zone, handle_get_local_zone, handle_get_reserved_names, handle_get_zone,
+    handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_record,
+    handle_publish_zone, handle_resolve_name, handle_verify_quorum,
+};
 use time::*;
-use vdf::*;
-use zone::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
@@ -85,23 +89,41 @@ pub struct Role {
 
 impl Role {
     /// Returns whether this role can manage KID records.
-    pub fn can_kid(&self) -> bool { self.is_admin || self.kid }
+    pub fn can_kid(&self) -> bool {
+        self.is_admin || self.kid
+    }
     /// Returns whether this role can manage NRS records.
-    pub fn can_nrs(&self) -> bool { self.is_admin || self.nrs }
+    pub fn can_nrs(&self) -> bool {
+        self.is_admin || self.nrs
+    }
     /// Returns whether this role can perform VDF operations.
-    pub fn can_vdf(&self) -> bool { self.is_admin || self.vdf }
+    pub fn can_vdf(&self) -> bool {
+        self.is_admin || self.vdf
+    }
     /// Returns whether this role can trigger network actions.
-    pub fn can_action(&self) -> bool { self.is_admin || self.action }
+    pub fn can_action(&self) -> bool {
+        self.is_admin || self.action
+    }
     /// Returns whether this role can broadcast raw P2P gossip.
-    pub fn can_gossip(&self) -> bool { self.is_admin || self.gossip }
+    pub fn can_gossip(&self) -> bool {
+        self.is_admin || self.gossip
+    }
     /// Returns whether this role can read metrics and telemetry.
-    pub fn can_metric(&self) -> bool { self.is_admin || self.metric }
+    pub fn can_metric(&self) -> bool {
+        self.is_admin || self.metric
+    }
     /// Returns whether this role can trigger system lifecycle events.
-    pub fn can_system(&self) -> bool { self.is_admin || self.system }
+    pub fn can_system(&self) -> bool {
+        self.is_admin || self.system
+    }
     /// Returns whether this role can interact with the atlas bridge.
-    pub fn can_atlas(&self) -> bool { self.is_admin || self.atlas }
+    pub fn can_atlas(&self) -> bool {
+        self.is_admin || self.atlas
+    }
     /// Returns whether this role is a full administrator.
-    pub fn is_admin(&self) -> bool { self.is_admin }
+    pub fn is_admin(&self) -> bool {
+        self.is_admin
+    }
 }
 
 /// The set of generated scoped API tokens for this daemon.
@@ -219,18 +241,27 @@ pub fn app(state: ApiState) -> Router {
         .route("/system/restart", post(system::handle_restart))
         .route("/network/bootstrap", post(config::handle_network_bootstrap))
         .route("/auth/session", post(auth::handle_create_session))
-        .route("/auth/sessions", axum::routing::get(auth::handle_list_sessions))
-        .route("/auth/session/:token", axum::routing::delete(auth::handle_revoke_session))
+        .route(
+            "/auth/sessions",
+            axum::routing::get(auth::handle_list_sessions),
+        )
+        .route(
+            "/auth/session/:token",
+            axum::routing::delete(auth::handle_revoke_session),
+        )
         .route("/commit", post(handle_publish_commit))
         .route("/publish", post(handle_publish_record))
         .route("/publish-kid", post(handle_publish_kid))
         .route("/publish-manifest", post(handle_publish_manifest))
-        .route("/publish-action", post(publish::handle_publish_action))
+        .route("/publish-action", post(action::handle_publish_action))
         .route("/config", axum::routing::get(handle_get_config))
         .route("/config", axum::routing::post(handle_set_config))
         .route("/dns/flush", axum::routing::post(config::handle_dns_flush))
-        .route("/vdf/tasks", axum::routing::get(handle_vdf_tasks))
-        .route("/vdf/status/{task_id}", axum::routing::get(handle_vdf_status))
+        .route("/macro/tasks", axum::routing::get(handle_macro_tasks))
+        .route(
+            "/macro/status/{task_id}",
+            axum::routing::get(handle_macro_status),
+        )
         .route("/owned-names", axum::routing::get(handle_owned_names))
         .route("/zone/{name}", axum::routing::post(handle_post_zone))
         .route(
@@ -252,8 +283,11 @@ pub fn app(state: ApiState) -> Router {
             "/kid/{name}/manifest",
             axum::routing::post(handle_update_kid_manifest),
         )
-        .route("/vdf/register", axum::routing::post(handle_vdf_register))
-        .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
+        .route(
+            "/macro/register",
+            axum::routing::post(handle_macro_register_name),
+        )
+        .route("/macro/renew", axum::routing::post(handle_macro_renew_name))
         .route(
             "/gossip/publish/{topic}",
             axum::routing::post(handle_gossip_publish),
@@ -269,32 +303,65 @@ pub fn app(state: ApiState) -> Router {
 
     let public_api_routes = Router::new()
         .route("/health", axum::routing::get(handle_get_health))
-        .route("/consensus/difficulty/{name}", axum::routing::get(consensus::handle_get_difficulty))
-        .route("/consensus/steal-difficulty/{name}", axum::routing::get(consensus::handle_steal_difficulty))
-        .route("/names/validate", axum::routing::post(consensus::handle_validate_name))
+        .route(
+            "/consensus/difficulty/{name}",
+            axum::routing::get(consensus::handle_get_difficulty),
+        )
+        .route(
+            "/consensus/steal-difficulty/{name}",
+            axum::routing::get(consensus::handle_steal_difficulty),
+        )
+        .route(
+            "/names/validate",
+            axum::routing::post(consensus::handle_validate_name),
+        )
         .route("/peer_id", axum::routing::get(handle_get_peer_id))
         .route("/network-status", axum::routing::get(handle_network_status))
-        .route("/network/nat", axum::routing::get(config::handle_network_nat))
+        .route(
+            "/network/nat",
+            axum::routing::get(config::handle_network_nat),
+        )
         .route("/ca/cert", axum::routing::get(config::handle_get_ca_cert))
         .route("/network/peers", axum::routing::get(handle_network_peers))
         .route("/heartbeats", axum::routing::get(handle_get_heartbeats))
-        .route("/names/:name/heartbeat", axum::routing::post(handle_post_heartbeat))
-        .route("/network/peers/banned", axum::routing::get(config::handle_network_banned))
-        .route("/gossip/topics", axum::routing::get(handle_get_gossip_topics))
+        .route(
+            "/names/:name/heartbeat",
+            axum::routing::post(handle_post_heartbeat),
+        )
+        .route(
+            "/network/peers/banned",
+            axum::routing::get(config::handle_network_banned),
+        )
+        .route(
+            "/gossip/topics",
+            axum::routing::get(handle_get_gossip_topics),
+        )
         .route(
             "/names/reserved",
             axum::routing::get(handle_get_reserved_names),
         )
-        .route("/action/status", axum::routing::get(action::handle_get_action_status))
-        .route("/action/names/prime", axum::routing::get(action::handle_get_prime_names))
-        .route("/action/names/infra", axum::routing::get(action::handle_get_infra_names))
+        .route(
+            "/action/status",
+            axum::routing::get(action::handle_get_action_status),
+        )
+        .route(
+            "/action/names/prime",
+            axum::routing::get(action::handle_get_prime_names),
+        )
+        .route(
+            "/action/names/infra",
+            axum::routing::get(action::handle_get_infra_names),
+        )
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route(
             "/zone/local/{name}",
             axum::routing::get(handle_get_local_zone),
         )
         .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
-        .route("/resolve/{name}/quorum", axum::routing::post(handle_verify_quorum))
+        .route(
+            "/resolve/{name}/quorum",
+            axum::routing::post(handle_verify_quorum),
+        )
         .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
         .route("/kid", axum::routing::get(handle_list_kids))
         .route("/kid/{name}", axum::routing::get(handle_fetch_kid))
@@ -502,15 +569,132 @@ async fn auth_middleware(
             }
         };
 
-        check_token(&state.tokens.admin, Role { is_admin: true, kid: true, nrs: true, vdf: true, action: true, gossip: true, metric: true, system: true, atlas: true });
-        check_token(&state.tokens.kid, Role { is_admin: false, kid: true, nrs: false, vdf: false, action: false, gossip: false, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.nrs, Role { is_admin: false, kid: false, nrs: true, vdf: false, action: false, gossip: false, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.vdf, Role { is_admin: false, kid: false, nrs: false, vdf: true, action: false, gossip: false, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.action, Role { is_admin: false, kid: false, nrs: false, vdf: false, action: true, gossip: false, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.gossip, Role { is_admin: false, kid: false, nrs: false, vdf: false, action: false, gossip: true, metric: false, system: false, atlas: false });
-        check_token(&state.tokens.metric, Role { is_admin: false, kid: false, nrs: false, vdf: false, action: false, gossip: false, metric: true, system: false, atlas: false });
-        check_token(&state.tokens.system, Role { is_admin: false, kid: false, nrs: false, vdf: false, action: false, gossip: false, metric: false, system: true, atlas: false });
-        check_token(&state.tokens.atlas, Role { is_admin: false, kid: false, nrs: false, vdf: false, action: false, gossip: false, metric: false, system: false, atlas: true });
+        check_token(
+            &state.tokens.admin,
+            Role {
+                is_admin: true,
+                kid: true,
+                nrs: true,
+                vdf: true,
+                action: true,
+                gossip: true,
+                metric: true,
+                system: true,
+                atlas: true,
+            },
+        );
+        check_token(
+            &state.tokens.kid,
+            Role {
+                is_admin: false,
+                kid: true,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+            },
+        );
+        check_token(
+            &state.tokens.nrs,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: true,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+            },
+        );
+        check_token(
+            &state.tokens.vdf,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: true,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+            },
+        );
+        check_token(
+            &state.tokens.action,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: true,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+            },
+        );
+        check_token(
+            &state.tokens.gossip,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: true,
+                metric: false,
+                system: false,
+                atlas: false,
+            },
+        );
+        check_token(
+            &state.tokens.metric,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: true,
+                system: false,
+                atlas: false,
+            },
+        );
+        check_token(
+            &state.tokens.system,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: true,
+                atlas: false,
+            },
+        );
+        check_token(
+            &state.tokens.atlas,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: true,
+            },
+        );
 
         matched_role
     };
@@ -522,17 +706,32 @@ async fn auth_middleware(
             if let Ok(id_str) = String::from_utf8(id_bytes.to_vec()) {
                 let db_key_session = format!("session:{}", id_str);
                 if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes()) {
-                    if let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes) {
+                    if let Ok(session) =
+                        serde_json::from_slice::<crate::api::auth::AppSession>(&bytes)
+                    {
                         // Verify expiration using cached Kyn
-                        let kyn_provider = kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
-                        let current_kyn = kyn_provider.load_cached_kyn().map(|d| d.kyn).unwrap_or(0);
-                        
+                        let kyn_provider = kinetic_network::client::drand::DrandProvider::new(
+                            Some(state.storage.clone()),
+                        );
+                        let current_kyn =
+                            kyn_provider.load_cached_kyn().map(|d| d.kyn).unwrap_or(0);
+
                         if current_kyn > 0 && current_kyn > session.expiry_kyn {
                             tracing::warn!("Rejecting API request: Session token expired");
                             return Err(StatusCode::UNAUTHORIZED);
                         }
-                        
-                        let mut session_role = Role { is_admin: false, kid: false, nrs: false, vdf: false, action: false, gossip: false, metric: false, system: false, atlas: false };
+
+                        let mut session_role = Role {
+                            is_admin: false,
+                            kid: false,
+                            nrs: false,
+                            vdf: false,
+                            action: false,
+                            gossip: false,
+                            metric: false,
+                            system: false,
+                            atlas: false,
+                        };
                         for scope in session.scopes {
                             match scope.to_lowercase().as_str() {
                                 "kid" => session_role.kid = true,

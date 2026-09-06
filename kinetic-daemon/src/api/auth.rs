@@ -1,6 +1,10 @@
-use axum::{extract::{Path, State}, http::StatusCode, Json};
-use serde::{Deserialize, Serialize};
 use crate::api::{ApiState, Role};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+};
+use serde::{Deserialize, Serialize};
 
 /// Request payload for creating a new session token.
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,14 +53,14 @@ pub async fn handle_create_session(
             Json(serde_json::json!({"error": "Requires Admin role"})),
         ));
     }
-    
+
     if req.scopes.iter().any(|s| s.to_lowercase() == "admin") {
         return Err((
             StatusCode::FORBIDDEN,
             Json(serde_json::json!({"error": "Cannot generate secondary Admin tokens"})),
         ));
     }
-    
+
     if req.scopes.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -77,25 +81,30 @@ pub async fn handle_create_session(
         token: token.clone(),
         app_name: req.app_name,
         scopes: req.scopes,
-        created_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+        created_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
         expiry_kyn: req.expiry_kyn,
     };
 
     let session_bytes = serde_json::to_vec(&session).unwrap();
     let db_key_session = format!("session:{}", id);
     let db_key_token = format!("session_token:{}", token);
-    
+
     if let Err(e) = state.storage.put(db_key_session.as_bytes(), &session_bytes) {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": format!("Failed to save session: {}", e)})),
         ));
     }
-    
+
     if let Err(e) = state.storage.put(db_key_token.as_bytes(), id.as_bytes()) {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": format!("Failed to save session token lookup: {}", e)})),
+            Json(
+                serde_json::json!({"error": format!("Failed to save session token lookup: {}", e)}),
+            ),
         ));
     }
 
@@ -147,7 +156,7 @@ pub async fn handle_revoke_session(
     }
 
     let db_key_session = format!("session:{}", id);
-    
+
     // First read the session to get the raw token so we can delete the lookup
     if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes()) {
         if let Ok(session) = serde_json::from_slice::<AppSession>(&bytes) {

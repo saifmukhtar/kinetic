@@ -1,13 +1,13 @@
 //! API endpoints for manually broadcasting heartbeats and checking real-time DHT heartbeat status.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
-use serde::Serialize;
 use crate::api::ApiState;
-use kinetic_core::types::Heartbeat;
+use axum::{
+    Json,
+    extract::{Path, State},
+};
 use kinetic_core::constants;
+use kinetic_core::types::Heartbeat;
+use serde::Serialize;
 
 /// Represents the DHT heartbeat status of a locally owned name.
 #[derive(Serialize)]
@@ -112,7 +112,7 @@ pub async fn handle_post_heartbeat(
         ));
     }
     let current_kyn = state.network.get_current_kyn().await.unwrap_or(0);
-    
+
     let mut heartbeat = Heartbeat {
         name: name.clone(),
         latest_kyn: current_kyn,
@@ -122,20 +122,20 @@ pub async fn handle_post_heartbeat(
 
     let signable_bytes = heartbeat.signable_bytes(constants::NETWORK_SALT);
     let keypair = state.daemon_keypair.clone();
-    
+
     let sig_bytes = tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
         .await
         .unwrap();
     heartbeat.signature = sig_bytes;
 
     let payload = serde_json::to_vec(&heartbeat).unwrap();
-    
+
     match state.network.publish_heartbeat(&name, payload).await {
         Ok(_) => Ok(Json(serde_json::json!({
             "status": "success",
             "message": format!("Manually broadcasted heartbeat for {}", name),
             "kyn": current_kyn
         }))),
-        Err(e) => Err(crate::api::error::AppError::from(e))
+        Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }

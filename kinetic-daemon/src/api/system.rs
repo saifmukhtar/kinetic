@@ -1,5 +1,5 @@
-use axum::{http::StatusCode, Json};
 use crate::api::Role;
+use axum::{Json, http::StatusCode};
 
 /// Initiates a graceful shutdown of the Kinetic daemon.
 pub async fn handle_shutdown(

@@ -1,8 +1,8 @@
 //! DNS caching layer for the Kinetic Proxy.
 
-use std::time::{Instant, Duration};
 use lru::LruCache;
 use std::num::NonZeroUsize;
+use std::time::{Duration, Instant};
 
 /// An LRU cache for DNS resolution to speed up web proxy requests.
 pub struct DnsCache {
@@ -14,7 +14,9 @@ impl DnsCache {
     /// Creates a new DNS Cache.
     pub fn new(capacity: usize, ttl_seconds: u64) -> Self {
         Self {
-            cache: LruCache::new(NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(100).unwrap())),
+            cache: LruCache::new(
+                NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(100).unwrap()),
+            ),
             ttl: Duration::from_secs(ttl_seconds),
         }
     }

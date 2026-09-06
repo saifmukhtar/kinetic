@@ -2632,7 +2632,6 @@ dependencies = [
  "kinetic-network",
  "kinetic-primitives",
  "kinetic-rpc",
- "kinetic-vdf",
  "mockito",
  "reqwest",
  "rpassword",

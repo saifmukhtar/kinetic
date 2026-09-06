@@ -1,9 +1,12 @@
 //! API endpoints for consensus math, Name Difficulty Curve (NDC), and name validation.
 
-use axum::{extract::{Path, Query, State}, Json};
-use serde::{Deserialize, Serialize};
-use kinetic_core::consensus_math::ConsensusParams;
 use crate::api::ApiState;
+use axum::{
+    Json,
+    extract::{Path, Query, State},
+};
+use kinetic_core::consensus_math::ConsensusParams;
+use serde::{Deserialize, Serialize};
 
 /// Protocol-level consensus requirements for a name.
 #[derive(Serialize)]
@@ -115,18 +118,21 @@ pub async fn handle_get_difficulty(
     let params = ConsensusParams::default();
     let iterations = params.iterations(&normalized);
     let apex = kinetic_core::types::names::extract_apex_name(&normalized).to_string();
-    let label = apex.strip_suffix(kinetic_core::constants::NSP_SUFFIX).unwrap_or(&apex).to_string();
+    let label = apex
+        .strip_suffix(kinetic_core::constants::NSP_SUFFIX)
+        .unwrap_or(&apex)
+        .to_string();
     let label_length = label.len();
-    
+
     let ndc_tier = format!("{}_chars", label_length);
     // Baseline network expectation (assume ~100k IPS baseline for rough target minutes)
     // 3 char: 300,000,000 / 100k = 3000s (50m)
     // 4 char: 75,000,000 / 100k = 750s (12.5m)
     let network_reference_target_minutes = (iterations / 100_000) / 60;
-    
+
     let host_speed_ips = state.host_speed_ips;
     let estimated_seconds = iterations / std::cmp::max(host_speed_ips, 1);
-    
+
     let rating = if host_speed_ips > 140_000 {
         "Fast"
     } else if host_speed_ips > 70_000 {
@@ -135,7 +141,11 @@ pub async fn handle_get_difficulty(
         "Slow"
     };
 
-    let rating_str = format!("{} (x{:.1} relative to network baseline)", rating, host_speed_ips as f64 / 100_000.0);
+    let rating_str = format!(
+        "{} (x{:.1} relative to network baseline)",
+        rating,
+        host_speed_ips as f64 / 100_000.0
+    );
 
     Json(DifficultyResponse {
         name: normalized,
@@ -153,7 +163,7 @@ pub async fn handle_get_difficulty(
             estimated_seconds,
             estimated_formatted: format_duration(estimated_seconds),
             hardware_rating: rating_str,
-        }
+        },
     })
 }
 
@@ -167,14 +177,14 @@ pub async fn handle_steal_difficulty(
     let normalized = kinetic_core::types::names::normalize_name(&name);
     let params = ConsensusParams::default();
     let base_iterations = params.iterations(&normalized);
-    
+
     let kyns_idle = match query.kyns_idle {
         Some(idle) => idle,
         None => {
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(
                     "Missing required query parameter: kyns_idle".to_string(),
-                )
+                ),
             ));
         }
     };
@@ -192,12 +202,10 @@ pub async fn handle_steal_difficulty(
 }
 
 /// Validates a potential name string according to Kinetic's core naming rules.
-pub async fn handle_validate_name(
-    Json(req): Json<ValidateRequest>,
-) -> Json<ValidateResponse> {
+pub async fn handle_validate_name(Json(req): Json<ValidateRequest>) -> Json<ValidateResponse> {
     let normalized = kinetic_core::types::names::normalize_name(&req.name);
     let is_reserved = kinetic_core::types::names::is_reserved_name(&normalized);
-    
+
     match kinetic_core::types::names::is_valid_apex_name(&normalized) {
         Ok(_) => Json(ValidateResponse {
             original: req.name.clone(),
@@ -212,6 +220,6 @@ pub async fn handle_validate_name(
             is_valid: false,
             is_reserved,
             error: Some(e.to_string()),
-        })
+        }),
     }
 }

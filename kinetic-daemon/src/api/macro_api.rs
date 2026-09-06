@@ -35,7 +35,7 @@ pub struct VdfRegisterRequest {
 /// # Errors
 ///
 /// Returns an error if a VDF task is already running.
-pub async fn handle_vdf_register(
+pub async fn handle_macro_register_name(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<VdfRegisterRequest>,
@@ -249,8 +249,26 @@ pub async fn handle_vdf_register(
 
         update_task_status(&tasks_clone, &task_id_clone, "Publishing Registration", 90);
 
-        // Construct Reveal
-        let records = HashMap::new();
+        // Generate or fetch KID for the user to attach to the new zone
+        update_task_status(&tasks_clone, &task_id_clone, "Injecting Identity (KID)", 92);
+        let kid_id = match kinetic_local::kid_manager::get_or_create_kid_for_name(&fqdn, true) {
+            Ok(doc) => doc.kid_doc.kid,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Failed to generate identity: {}", e),
+                );
+                return;
+            }
+        };
+
+        // Construct Reveal and Zone with KID injected
+        let mut records = HashMap::new();
+        records.insert(
+            "@".to_string(),
+            vec![kinetic_core::types::NrsRecord::KID(kid_id)],
+        );
         let zone = kinetic_core::types::NrsZone { records };
         let payload = match serde_json::to_vec(&zone) {
             Ok(b) => b,
@@ -367,7 +385,7 @@ pub async fn handle_vdf_register(
 /// # Errors
 ///
 /// Returns an error if there are issues finding the previous reveal or scheduling the VDF task.
-pub async fn handle_vdf_renew(
+pub async fn handle_macro_renew_name(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<NameRenewRequest>,
@@ -692,7 +710,7 @@ pub(crate) fn update_task_error(
 }
 
 /// Retrieves all running or recently completed VDF tasks.
-pub async fn handle_vdf_tasks(
+pub async fn handle_macro_tasks(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
@@ -709,7 +727,7 @@ pub async fn handle_vdf_tasks(
 }
 
 /// Retrieves the current progress and status of a VDF task by ID.
-pub async fn handle_vdf_status(
+pub async fn handle_macro_status(
     Extension(role): Extension<Role>,
     Path(task_id): Path<String>,
     State(state): State<ApiState>,
@@ -729,5 +747,3 @@ pub async fn handle_vdf_status(
         None => Ok(Json(serde_json::json!({"error": "Task not found"}))),
     }
 }
-
-

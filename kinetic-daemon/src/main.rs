@@ -296,11 +296,15 @@ async fn run_daemon() -> Result<()> {
     let _ = tokio::task::spawn_blocking({
         let engine = vdf_engine.clone();
         move || engine.evaluate(&dummy_challenge, 5000)
-    }).await;
+    })
+    .await;
     let elapsed = start.elapsed().as_secs_f64();
     let burst_ips = 5000.0 / elapsed;
     let host_speed_ips = (burst_ips * 0.85) as u64;
-    info!("VDF Calibration Complete: Burst {:.0} IPS | Sustained Estimate: {} IPS", burst_ips, host_speed_ips);
+    info!(
+        "VDF Calibration Complete: Burst {:.0} IPS | Sustained Estimate: {} IPS",
+        burst_ips, host_speed_ips
+    );
 
     let daemon_keypair = match load_keypair(std::path::Path::new("identity.key")) {
         Ok(k) => k,
@@ -595,7 +599,9 @@ async fn run_daemon() -> Result<()> {
         }
     };
 
-    let dns_cache = std::sync::Arc::new(tokio::sync::Mutex::new(kinetic_daemon::proxy::dns_cache::DnsCache::new(500, 300)));
+    let dns_cache = std::sync::Arc::new(tokio::sync::Mutex::new(
+        kinetic_daemon::proxy::dns_cache::DnsCache::new(500, 300),
+    ));
     let leaf_cache = std::sync::Arc::new(tokio::sync::Mutex::new(ca::LeafCertCache::new()));
     let proxy_client = network_client.clone();
     let ca_clone = std::sync::Arc::clone(&root_ca);
@@ -769,12 +775,14 @@ fn main() -> anyhow::Result<()> {
 
     let res = rt.block_on(async_main());
     rt.shutdown_timeout(std::time::Duration::from_millis(500));
-    
+
     if kinetic_local::shutdown::RESTART_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
-        println!("Restart requested. Exiting with code 1 to trigger service manager OnFailure policy.");
+        println!(
+            "Restart requested. Exiting with code 1 to trigger service manager OnFailure policy."
+        );
         std::process::exit(1);
     }
-    
+
     res
 }
 

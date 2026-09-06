@@ -28,7 +28,6 @@ kinetic-local = { path = "../kinetic-local" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-primitives = { path = "../kinetic-primitives" }
 kinetic-rpc = { path = "../kinetic-rpc" }
-kinetic-vdf = { path = "../kinetic-vdf" }
 reqwest = { workspace = true, features = ["json"] }
 rpassword.workspace = true
 serde_json.workspace = true

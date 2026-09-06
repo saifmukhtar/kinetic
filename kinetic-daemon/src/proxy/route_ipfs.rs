@@ -180,9 +180,10 @@ mod tests {
         let mut body_stream = resp.into_body();
         while let Some(chunk_res) = body_stream.frame().await {
             if let Ok(frame) = chunk_res
-                && let Ok(data) = frame.into_data() {
-                    body_bytes.extend_from_slice(&data);
-                }
+                && let Ok(data) = frame.into_data()
+            {
+                body_bytes.extend_from_slice(&data);
+            }
         }
 
         assert_eq!(body_bytes, b"success_image_bytes");

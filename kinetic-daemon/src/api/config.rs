@@ -52,7 +52,9 @@ pub async fn handle_owned_names(
 }
 
 /// Handles requests to retrieve the current network status (peer count, DHT size, uptime).
-pub async fn handle_network_status(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+pub async fn handle_network_status(
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_network_status().await {
         Ok(status) => Ok(Json(status)),
         Err(e) => Err(crate::api::error::AppError::from(e)),
@@ -80,28 +82,37 @@ pub async fn handle_network_bootstrap(
 }
 
 /// Handles requests to retrieve the current Libp2p AutoNAT status (e.g. Public, Private, Unknown).
-pub async fn handle_network_nat(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+pub async fn handle_network_nat(
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_network_status().await {
-        Ok(status) => Ok(Json(serde_json::json!({ "nat_status": status.get("nat_status").unwrap_or(&serde_json::json!("Unknown")) }))),
+        Ok(status) => Ok(Json(
+            serde_json::json!({ "nat_status": status.get("nat_status").unwrap_or(&serde_json::json!("Unknown")) }),
+        )),
         Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
 
 /// Handles requests to retrieve the list of currently banned spam peers and their expiration kyn.
-pub async fn handle_network_banned(State(state): State<ApiState>) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+pub async fn handle_network_banned(
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_banned_peers().await {
         Ok(peers) => {
-            let json_peers: Vec<serde_json::Value> = peers.into_iter().map(|(id, exp)| {
-                serde_json::json!({ "peer_id": id, "expires_at_kyn": exp })
-            }).collect();
+            let json_peers: Vec<serde_json::Value> = peers
+                .into_iter()
+                .map(|(id, exp)| serde_json::json!({ "peer_id": id, "expires_at_kyn": exp }))
+                .collect();
             Ok(Json(serde_json::json!({ "banned_peers": json_peers })))
-        },
+        }
         Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
 
 /// Handles requests to retrieve the list of connected Peer IDs.
-pub async fn handle_network_peers(State(state): State<ApiState>) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
+pub async fn handle_network_peers(
+    State(state): State<ApiState>,
+) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
     match state.network.get_connected_peers().await {
         Ok(peers) => Ok(Json(peers)),
         Err(e) => Err(crate::api::error::AppError::from(e)),
@@ -127,7 +138,7 @@ pub async fn handle_set_config(
                 if let Err(e) = new_config.validate() {
                     return Err(crate::api::error::AppError(e.into()));
                 }
-                
+
                 let _ = kinetic_local::config::save_config(&new_config);
                 Ok(Json(serde_json::json!({
                     "status": "ok",
@@ -202,20 +213,22 @@ pub async fn handle_get_peer_id(
     }
 }
 
-use axum::response::IntoResponse;
 use axum::http::header;
+use axum::response::IntoResponse;
 
 /// Exports the local Proxy Root CA certificate for browser installation.
-pub async fn handle_get_ca_cert(
-) -> Result<impl IntoResponse, crate::api::error::AppError> {
+pub async fn handle_get_ca_cert() -> Result<impl IntoResponse, crate::api::error::AppError> {
     let base_config_dir = kinetic_local::config::get_base_dir();
     let ca_path = base_config_dir.join("root_ca.crt");
-    
+
     match tokio::fs::read_to_string(&ca_path).await {
         Ok(cert) => {
             let headers = [
                 (header::CONTENT_TYPE, "application/x-x509-ca-cert"),
-                (header::CONTENT_DISPOSITION, "attachment; filename=\"kinetic_root_ca.crt\""),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"kinetic_root_ca.crt\"",
+                ),
             ];
             Ok((headers, cert))
         }
@@ -238,12 +251,12 @@ pub async fn handle_dns_flush(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
-    
+
     {
         let mut cache = state.dns_cache.lock().await;
         cache.flush();
     }
-    
+
     Ok(Json(serde_json::json!({
         "status": "success",
         "message": "Local DNS resolution cache flushed"

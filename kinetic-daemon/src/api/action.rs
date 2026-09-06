@@ -1,9 +1,9 @@
 //! HTTP REST API handlers for querying the Governance transparency layer.
 
 use axum::Json;
-use std::collections::HashMap;
-use serde::Serialize;
 use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
+use serde::Serialize;
+use std::collections::HashMap;
 
 /// A frontend-friendly representation of the Governance State.
 #[derive(Serialize)]
@@ -21,9 +21,10 @@ pub struct GovernanceStatusResponse {
 }
 
 /// Handles requests to retrieve the human-readable active governance state.
-pub async fn handle_get_action_status() -> Result<Json<GovernanceStatusResponse>, crate::api::error::AppError> {
+pub async fn handle_get_action_status()
+-> Result<Json<GovernanceStatusResponse>, crate::api::error::AppError> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
-    
+
     let active_key_hex = gov.active_sovereign_key.as_ref().map(hex::encode);
 
     Ok(Json(GovernanceStatusResponse {
@@ -36,9 +37,10 @@ pub async fn handle_get_action_status() -> Result<Json<GovernanceStatusResponse>
 }
 
 /// Handles requests to retrieve the list of mapped prime names.
-pub async fn handle_get_prime_names() -> Result<Json<HashMap<String, String>>, crate::api::error::AppError> {
+pub async fn handle_get_prime_names()
+-> Result<Json<HashMap<String, String>>, crate::api::error::AppError> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
-    
+
     let mut primes_hex = HashMap::new();
     for (name, pubkey_bytes) in &gov.mapped_prime_names {
         primes_hex.insert(name.clone(), hex::encode(pubkey_bytes));
@@ -48,13 +50,135 @@ pub async fn handle_get_prime_names() -> Result<Json<HashMap<String, String>>, c
 }
 
 /// Handles requests to retrieve the list of mapped infrastructure names.
-pub async fn handle_get_infra_names() -> Result<Json<HashMap<String, String>>, crate::api::error::AppError> {
+pub async fn handle_get_infra_names()
+-> Result<Json<HashMap<String, String>>, crate::api::error::AppError> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
-    
+
     let mut infra_hex = HashMap::new();
     for (name, pubkey_bytes) in &gov.mapped_infra_names {
         infra_hex.insert(name.clone(), hex::encode(pubkey_bytes));
     }
 
     Ok(Json(infra_hex))
+}
+
+use crate::api::PublishResponse;
+use crate::api::{ApiState, Role};
+use axum::{extract::State, http::StatusCode};
+use kinetic_core::traits::KynProvider;
+
+/// Handles API requests to publish a `SignedGovernanceMessage` to the DHT/Gossip network.
+///
+/// # Errors
+///
+/// Returns an error if the governance message is invalid, quorum checks fail prematurely,
+/// or publishing to the Gossipsub network fails.
+pub async fn handle_publish_action(
+    axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
+    State(state): State<ApiState>,
+    Json(msg): Json<kinetic_core::governance::SignedGovernanceMessage>,
+) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    if !role.can_action() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Insufficient privileges: Requires Action or Admin role".to_string(),
+        ));
+    }
+    tracing::info!("Received API publish request for Governance action");
+
+    let current_kyn = {
+        let kyn_provider =
+            kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+        use kinetic_core::types::clock::KynNetworkExt;
+        match kyn_provider.load_cached_kyn() {
+            Ok(kyn) => kyn.kyn,
+            Err(_) => match kyn_provider.fetch_latest().await {
+                Ok(kyn) => kyn.kyn,
+                Err(_) => kinetic_core::types::Kyn::now_local().0,
+            },
+        }
+    };
+
+    let is_valid = {
+        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        match kinetic_core::governance::process_governance_message(
+            &mut gov,
+            &msg,
+            kinetic_types::clock::Kyn(current_kyn),
+        ) {
+            Ok(_) => {
+                let path = kinetic_local::config::get_base_dir().join("governance.bin");
+                if let Err(e) = kinetic_local::governance::save_governance_to_disk(&gov, &path) {
+                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                    tracing::error!(
+                        error_code = err.code(),
+                        "Failed to save modified governance state to disk: {}",
+                        e
+                    );
+                }
+
+                true
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error_code = e.code(),
+                    "Rejecting governance message via API: {}",
+                    e
+                );
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    format!("Invalid governance message: {}", e),
+                ));
+            }
+        }
+    };
+
+    if !is_valid {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Governance message validation failed".to_string(),
+        ));
+    }
+
+    // Serialize and gossip
+    let payload_bytes = match serde_json::to_vec(&msg) {
+        Ok(b) => b,
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Serialization failed: {}", e),
+            ));
+        }
+    };
+
+    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Governance as u8];
+    envelope.extend(payload_bytes);
+
+    match state
+        .network
+        .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL, envelope)
+        .await
+    {
+        Ok(_) => {
+            tracing::info!("Successfully published Governance Message to the Gossip network");
+            Ok(Json(PublishResponse {
+                status: "success".to_string(),
+                message: "Governance action accepted and routed to P2P network".to_string(),
+            }))
+        }
+        Err(e) => {
+            let err = kinetic_core::error::GovernanceError::P2pPublishFailed;
+            tracing::error!(
+                error_code = err.code(),
+                "Failed to publish Governance Message to P2P network: {}",
+                e
+            );
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to broadcast: {}", e),
+            ))
+        }
+    }
 }
