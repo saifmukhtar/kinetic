@@ -52,12 +52,20 @@ pub struct ActionStatusResponse {
 /// Handles requests to retrieve the human-readable active action state.
 pub async fn handle_get_action_status(
     axum::extract::State(state): axum::extract::State<crate::api::ApiState>,
-) -> Result<Json<ActionStatusResponse>, (axum::http::StatusCode, String)> {
+) -> Result<Json<ActionStatusResponse>, crate::api::error::AppError> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Action state lock poisoned: {}", e),
-        )
+        let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
+        crate::api::error::AppError(kinetic_rpc::ApiError {
+            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            title: "Internal Server Error".to_string(),
+            status: 500,
+            detail: sys_err.user_message(),
+            instance: None,
+            code: sys_err.code().to_string(),
+            retryable: sys_err.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        })
     })?;
 
     let active_key_hex = gov.active_sovereign_key.as_ref().map(hex::encode);
@@ -111,13 +119,20 @@ pub struct ActionNamesResponse {
 }
 
 /// Handles requests to retrieve all mapped Action names (primes and infras) in a single call.
-pub async fn handle_get_action_names()
--> Result<Json<ActionNamesResponse>, (axum::http::StatusCode, String)> {
+pub async fn handle_get_action_names() -> Result<Json<ActionNamesResponse>, crate::api::error::AppError> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Action state lock poisoned: {}", e),
-        )
+        let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
+        crate::api::error::AppError(kinetic_rpc::ApiError {
+            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            title: "Internal Server Error".to_string(),
+            status: 500,
+            detail: sys_err.user_message(),
+            instance: None,
+            code: sys_err.code().to_string(),
+            retryable: sys_err.is_retryable(),
+            details: serde_json::Value::Null,
+            request_id: "".to_string(),
+        })
     })?;
 
     let primes = gov

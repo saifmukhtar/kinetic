@@ -15,7 +15,7 @@ pub async fn handle_atlas_sync(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
     Json(payload): Json<AtlasSyncPayload>,
-) -> Result<String, crate::api::error::AppError> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_atlas() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
@@ -27,26 +27,30 @@ pub async fn handle_atlas_sync(
     // Normalize and add each NSP
     for nsp in payload.nsps {
         let mut t = nsp.trim().to_lowercase();
-        // Remove leading dot if present
-        if t.starts_with('.') {
-            t.remove(0);
+        if !t.starts_with('.') {
+            t.insert(0, '.');
         }
-        if !t.is_empty() {
-            clean_nsps.insert(format!(".{}", t));
+        // Must be longer than just "."
+        if t.len() > 1 {
+            clean_nsps.insert(t);
         }
     }
 
     match state.atlas_nsps.write() {
         Ok(mut lock) => {
-            *lock = clean_nsps.clone();
+            let count = clean_nsps.len();
             tracing::info!(
                 "Atlas Bridge synced {} NSPs successfully: {:?}",
-                clean_nsps.len(),
+                count,
                 clean_nsps
             );
+            
+            *lock = clean_nsps;
 
-            // Return 200 OK
-            Ok("Atlas NSPs synced successfully".to_string())
+            Ok(Json(serde_json::json!({
+                "status": "success",
+                "synced_count": count
+            })))
         }
         Err(_) => {
             let sys_err = kinetic_core::error::SystemError::MutexPoisoned("atlas_nsps".into());
