@@ -34,7 +34,6 @@ pub enum P2pError {
     #[error("Peer {0} sent 3 invalid records within 60s — disconnecting and banning")]
     RecordSpamBan(String),
 
-
     /// A quorum verification was attempted while the node had no peers.
     /// The node cannot verify network state or resolve conflicts if it is completely isolated from the mesh.
     /// Wait for the node to discover peers and sync the network state before attempting quorum operations.

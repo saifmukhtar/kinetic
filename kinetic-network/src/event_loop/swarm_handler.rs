@@ -159,21 +159,23 @@ impl super::core::NetworkEventLoop {
                     let remote_addr = endpoint.get_remote_address().clone();
                     crate::event_loop::utils::spawn(async move {
                         let _permit = pow_semaphore.acquire().await;
-                        let (valid_server, valid_client) = crate::event_loop::utils::spawn_blocking(move || {
-                            let kyn = kinetic_types::clock::Kyn(current_kyn);
-                            let server = crate::pow::verify_p2p_pow(
-                                &peer_id_clone,
-                                kyn,
-                                kinetic_core::constants::POW_DIFFICULTY_BITS,
-                            );
-                            let client = server || crate::pow::verify_p2p_pow(
-                                &peer_id_clone,
-                                kyn,
-                                kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT,
-                            );
-                            (server, client)
-                        })
-                        .await;
+                        let (valid_server, valid_client) =
+                            crate::event_loop::utils::spawn_blocking(move || {
+                                let kyn = kinetic_types::clock::Kyn(current_kyn);
+                                let server = crate::pow::verify_p2p_pow(
+                                    &peer_id_clone,
+                                    kyn,
+                                    kinetic_core::constants::POW_DIFFICULTY_BITS,
+                                );
+                                let client = server
+                                    || crate::pow::verify_p2p_pow(
+                                        &peer_id_clone,
+                                        kyn,
+                                        kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT,
+                                    );
+                                (server, client)
+                            })
+                            .await;
                         let _ = loopback_clone.send(
                             crate::event_loop::core::LoopbackCommand::ConnectionPoWVerified {
                                 peer_id: peer_id_clone,
@@ -261,7 +263,12 @@ impl super::core::NetworkEventLoop {
                 let pow_valid = self.is_valid_pow(&peer_id, expected_diff);
 
                 if !pow_valid && !is_bootstrap {
-                    tracing::warn!("Peer {} advertised as Kademlia Server={} but failed {}-bit PoW. Disconnecting.", peer_id, is_server, expected_diff);
+                    tracing::warn!(
+                        "Peer {} advertised as Kademlia Server={} but failed {}-bit PoW. Disconnecting.",
+                        peer_id,
+                        is_server,
+                        expected_diff
+                    );
                     let _ = self.swarm.disconnect_peer_id(peer_id);
                     return;
                 }
@@ -308,7 +315,10 @@ impl super::core::NetworkEventLoop {
             ))) => {
                 for (peer_id, multiaddr) in list {
                     let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                    let pow_valid = self.is_valid_pow(&peer_id, kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT);
+                    let pow_valid = self.is_valid_pow(
+                        &peer_id,
+                        kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT,
+                    );
 
                     if pow_valid || is_bootstrap {
                         self.swarm

@@ -351,7 +351,7 @@ impl KineticConfig {
             tracing::error!(error_code = err.code(), "{}", err);
             return Err(err);
         }
-        
+
         Ok(())
     }
 }

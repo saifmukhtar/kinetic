@@ -1,15 +1,40 @@
 //! HTTP REST API handlers for querying the Governance transparency layer.
 
 use axum::Json;
+use kinetic_core::types::KynNetworkExt;
 use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
 use serde::Serialize;
 use std::collections::HashMap;
 
-/// A frontend-friendly representation of the Governance State.
+/// A period of time when the network was halted.
 #[derive(Serialize)]
-pub struct GovernanceStatusResponse {
+pub struct PausePeriod {
+    /// The exact Kyn when the network was halted.
+    pub start_kyn: u64,
+    /// The exact Kyn when the network was resumed.
+    pub end_kyn: u64,
+}
+
+/// High-level metrics summarizing the action state.
+#[derive(Serialize)]
+pub struct ActionMetrics {
+    /// Count of mapped prime names (e.g., .kin).
+    pub total_prime_names: usize,
+    /// Count of mapped infrastructure root names.
+    pub total_infra_names: usize,
+    /// Total number of governance/action commands executed since genesis.
+    pub total_executed_actions: usize,
+}
+
+/// A frontend-friendly representation of the Action/Governance State.
+#[derive(Serialize)]
+pub struct ActionStatusResponse {
     /// Genesis Kyn when governance tracking started.
     pub genesis_kyn: u64,
+    /// The current exact network Kyn.
+    pub current_kyn: u64,
+    /// The mathematically verified uptime age of the network in kyns.
+    pub active_kyn_age: u64,
     /// Active ML-DSA-65 root public key controlling the network (hex encoded).
     pub active_sovereign_key_hex: Option<String>,
     /// Master boolean flag if the network is currently paused.
@@ -18,21 +43,47 @@ pub struct GovernanceStatusResponse {
     pub halt_start_kyn: Option<u64>,
     /// Total number of drand kyns the network has been paused for since genesis.
     pub total_paused_kyns: u64,
+    /// The last time the network was paused (if ever).
+    pub last_pause: Option<PausePeriod>,
+    /// Summary metrics for the dashboard.
+    pub metrics: ActionMetrics,
 }
 
-/// Handles requests to retrieve the human-readable active governance state.
+/// Handles requests to retrieve the human-readable active action state.
 pub async fn handle_get_action_status()
--> Result<Json<GovernanceStatusResponse>, crate::api::error::AppError> {
+-> Result<Json<ActionStatusResponse>, crate::api::error::AppError> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
 
     let active_key_hex = gov.active_sovereign_key.as_ref().map(hex::encode);
 
-    Ok(Json(GovernanceStatusResponse {
+    // Fetch current Kyn using local clock
+    let current_kyn = kinetic_core::types::Kyn::now_local().0;
+
+    let active_kyn_age = current_kyn
+        .saturating_sub(gov.genesis_kyn.0)
+        .saturating_sub(gov.total_paused_kyns);
+
+    let last_pause = gov.pause_history.last().map(|(start, end)| PausePeriod {
+        start_kyn: start.0,
+        end_kyn: end.0,
+    });
+
+    let metrics = ActionMetrics {
+        total_prime_names: gov.mapped_prime_names.len(),
+        total_infra_names: gov.mapped_infra_names.len(),
+        total_executed_actions: gov.executed_hashes.len(),
+    };
+
+    Ok(Json(ActionStatusResponse {
         genesis_kyn: gov.genesis_kyn.0,
+        current_kyn,
+        active_kyn_age,
         active_sovereign_key_hex: active_key_hex,
         is_halted: gov.is_halted,
         halt_start_kyn: gov.halt_start_kyn.map(|k| k.0),
         total_paused_kyns: gov.total_paused_kyns,
+        last_pause,
+        metrics,
     }))
 }
 
@@ -62,8 +113,8 @@ pub async fn handle_get_infra_names()
     Ok(Json(infra_hex))
 }
 
+use crate::api::ApiState;
 use crate::api::PublishResponse;
-use crate::api::{ApiState, Role};
 use axum::{extract::State, http::StatusCode};
 use kinetic_core::traits::KynProvider;
 

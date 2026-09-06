@@ -386,7 +386,10 @@ impl NetworkEventLoop {
                 remote_addr: _,
             } => {
                 if !valid_client && !is_bootstrap {
-                    tracing::warn!("Peer {} failed Tier 2 Client PoW — disconnecting immediately", peer_id);
+                    tracing::warn!(
+                        "Peer {} failed Tier 2 Client PoW — disconnecting immediately",
+                        peer_id
+                    );
                     let _ = self.swarm.disconnect_peer_id(peer_id);
                 } else if !valid_client && is_bootstrap {
                     tracing::debug!(

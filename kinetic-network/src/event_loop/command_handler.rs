@@ -135,7 +135,7 @@ impl super::core::NetworkEventLoop {
                     let _ = responder.send(Err(ResolutionError::Offline));
                     return;
                 }
-                
+
                 let hb_name: std::sync::Arc<str> = format!("hb:{}", name).into();
                 if let Some(pending) = self.pending_gets.get_mut(&hb_name) {
                     pending.responders.push(responder);
@@ -315,15 +315,27 @@ impl super::core::NetworkEventLoop {
                 })));
             }
             Command::GetConnectedPeers { responder } => {
-                let peers: Vec<String> = self.swarm.connected_peers().map(|p| p.to_string()).collect();
+                let peers: Vec<String> = self
+                    .swarm
+                    .connected_peers()
+                    .map(|p| p.to_string())
+                    .collect();
                 let _ = responder.send(Ok(peers));
             }
             Command::GetGossipTopics { responder } => {
-                let topics: Vec<String> = self.swarm.behaviour().gossipsub.topics().map(|t| t.as_str().to_string()).collect();
+                let topics: Vec<String> = self
+                    .swarm
+                    .behaviour()
+                    .gossipsub
+                    .topics()
+                    .map(|t| t.as_str().to_string())
+                    .collect();
                 let _ = responder.send(Ok(topics));
             }
             Command::GetBannedPeers { responder } => {
-                let banned = self.banned_peers.iter()
+                let banned = self
+                    .banned_peers
+                    .iter()
                     .map(|(p, k)| (p.to_string(), *k))
                     .collect();
                 let _ = responder.send(Ok(banned));

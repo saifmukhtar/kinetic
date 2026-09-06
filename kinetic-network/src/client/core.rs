@@ -271,9 +271,9 @@ impl NetworkClient {
     }
 
     /// Resolves a heartbeat payload from the DHT.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns a `ResolutionError` if the item is not found.
     pub async fn resolve_heartbeat(
         &self,
@@ -530,7 +530,9 @@ impl NetworkClient {
     }
 
     /// Retrieves the list of currently connected Peer IDs.
-    pub async fn get_connected_peers(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
+    pub async fn get_connected_peers(
+        &self,
+    ) -> std::result::Result<Vec<String>, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self.get_sender();
         sender_clone
@@ -552,7 +554,9 @@ impl NetworkClient {
     }
 
     /// Retrieves a list of currently banned peers.
-    pub async fn get_banned_peers(&self) -> std::result::Result<Vec<(String, u64)>, NetworkClientError> {
+    pub async fn get_banned_peers(
+        &self,
+    ) -> std::result::Result<Vec<(String, u64)>, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self.get_sender();
         sender_clone

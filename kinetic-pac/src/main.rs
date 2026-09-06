@@ -153,9 +153,9 @@ impl PacManager {
         if self.lock_path.exists()
             && let Ok(Ok(saved)) =
                 File::open(&self.lock_path).map(serde_json::from_reader::<_, SavedState>)
-            {
-                let _ = self.configurator.restore_state(&saved);
-            }
+        {
+            let _ = self.configurator.restore_state(&saved);
+        }
         let previous = self.configurator.save_state()?;
         let tmp_path = self.lock_path.with_extension("tmp");
         if let Ok(file) = File::create(&tmp_path) {
@@ -170,20 +170,21 @@ impl PacManager {
             if let Some(ref old_url) = previous.previous_pac_url {
                 if old_url.starts_with("http") {
                     if let Ok(resp) = reqwest::blocking::get(old_url)
-                        && let Ok(text) = resp.text() {
-                            let _ = std::fs::write(&original_js, text);
-                            tracing::info!(
-                                "Successfully downloaded original PAC script for passthrough merging."
-                            );
-                        }
-                } else if old_url.starts_with("file://")
-                    && let Ok(text) = std::fs::read_to_string(old_url.trim_start_matches("file://"))
+                        && let Ok(text) = resp.text()
                     {
                         let _ = std::fs::write(&original_js, text);
                         tracing::info!(
-                            "Successfully read local original PAC script for passthrough merging."
+                            "Successfully downloaded original PAC script for passthrough merging."
                         );
                     }
+                } else if old_url.starts_with("file://")
+                    && let Ok(text) = std::fs::read_to_string(old_url.trim_start_matches("file://"))
+                {
+                    let _ = std::fs::write(&original_js, text);
+                    tracing::info!(
+                        "Successfully read local original PAC script for passthrough merging."
+                    );
+                }
             }
         }
 
@@ -360,32 +361,32 @@ pub fn build_pac_script(proxies_dir: &std::path::Path) -> String {
         for entry in entries.flatten() {
             if let Some(ext) = entry.path().extension()
                 && ext == "json"
-                    && let Ok(contents) = std::fs::read_to_string(entry.path())
-                        && let Ok(proxy_info) = serde_json::from_str::<RegisteredProxy>(&contents) {
-                            if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
-                                tracing::warn!(
-                                    "Invalid IP address in proxy config: {}",
-                                    proxy_info.proxy_ip
-                                );
-                                continue;
-                            }
+                && let Ok(contents) = std::fs::read_to_string(entry.path())
+                && let Ok(proxy_info) = serde_json::from_str::<RegisteredProxy>(&contents)
+            {
+                if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
+                    tracing::warn!(
+                        "Invalid IP address in proxy config: {}",
+                        proxy_info.proxy_ip
+                    );
+                    continue;
+                }
 
-                            let nsp = if proxy_info.nsp.starts_with('.') {
-                                proxy_info.nsp.clone()
-                            } else {
-                                format!(".{}", proxy_info.nsp)
-                            };
+                let nsp = if proxy_info.nsp.starts_with('.') {
+                    proxy_info.nsp.clone()
+                } else {
+                    format!(".{}", proxy_info.nsp)
+                };
 
-                            let is_atlas =
-                                entry.file_name().to_string_lossy().starts_with("atlas_");
-                            let entry = proxy_map.entry(nsp).or_insert((None, None));
+                let is_atlas = entry.file_name().to_string_lossy().starts_with("atlas_");
+                let entry = proxy_map.entry(nsp).or_insert((None, None));
 
-                            if is_atlas {
-                                entry.1 = Some(proxy_info);
-                            } else {
-                                entry.0 = Some(proxy_info);
-                            }
-                        }
+                if is_atlas {
+                    entry.1 = Some(proxy_info);
+                } else {
+                    entry.0 = Some(proxy_info);
+                }
+            }
         }
     }
 

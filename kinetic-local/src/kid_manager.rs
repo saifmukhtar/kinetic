@@ -418,22 +418,23 @@ pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
         let path = entry.path();
         if path.extension().and_then(|s| s.to_str()) == Some("json")
             && let Ok(content) = fs::read_to_string(&path)
-                && let Ok(doc) = serde_json::from_str::<Document>(&content) {
-                    let stem = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or_default()
-                        .to_string();
-                    let key_path = path.with_extension("key");
-                    summaries.push(LocalKidSummary {
-                        name: stem,
-                        did: doc.kid.as_str().to_string(),
-                        created_at: doc.created_at,
-                        doc_path: path,
-                        has_key: key_path.exists(),
-                        deactivated: doc.deactivated,
-                    });
-                }
+            && let Ok(doc) = serde_json::from_str::<Document>(&content)
+        {
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default()
+                .to_string();
+            let key_path = path.with_extension("key");
+            summaries.push(LocalKidSummary {
+                name: stem,
+                did: doc.kid.as_str().to_string(),
+                created_at: doc.created_at,
+                doc_path: path,
+                has_key: key_path.exists(),
+                deactivated: doc.deactivated,
+            });
+        }
     }
 
     summaries.sort_by(|a, b| a.name.cmp(&b.name));

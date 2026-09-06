@@ -35,7 +35,8 @@ pub fn validate_keys_initialized(
     }
 
     // Attempt to decode the hex just to validate its format.
-    let bytes = hex::decode(sovereign_key_hex).map_err(|_| GovernanceError::MalformedSovereignKey)?;
+    let bytes =
+        hex::decode(sovereign_key_hex).map_err(|_| GovernanceError::MalformedSovereignKey)?;
 
     if bytes.len() != 1952 {
         return Err(GovernanceError::KeyLengthMismatch);

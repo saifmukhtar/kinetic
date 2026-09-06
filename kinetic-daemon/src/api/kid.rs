@@ -232,8 +232,6 @@ pub async fn handle_update_kid_manifest(
     })))
 }
 
-use tracing::info;
-
 /// Handles API requests to resolve a Kinetic Identifier (KID) and its associated manifest.
 ///
 /// # Errors
@@ -289,6 +287,7 @@ pub async fn handle_resolve_kid(
 }
 
 use axum::http::StatusCode;
+/// Handles requests to publish an AuthorizedKID to the DHT/Gossip network.
 pub async fn handle_publish_kid(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,

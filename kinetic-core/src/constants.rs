@@ -187,8 +187,8 @@ mod tests {
     #[test]
     fn test_testnet_root_key_fingerprint() {
         // Ensures the testnet key is not accidentally replaced or mutated.
-        let pub_bytes = hex::decode(test_keys::SOVEREIGN_KEY_HEX)
-            .expect("Testnet root key must be valid hex");
+        let pub_bytes =
+            hex::decode(test_keys::SOVEREIGN_KEY_HEX).expect("Testnet root key must be valid hex");
 
         let mut hasher = Sha256::new();
         hasher.update(&pub_bytes);

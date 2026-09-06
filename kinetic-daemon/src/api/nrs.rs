@@ -9,7 +9,7 @@ use axum::{
 use kinetic_core::traits::KynProvider;
 use kinetic_core::types::RevealExt;
 
-use tracing::{error, info};
+use kinetic_verify::signatures::VerifySignature;
 
 /// Handles API requests to publish a `Reveal` to the DHT.
 ///

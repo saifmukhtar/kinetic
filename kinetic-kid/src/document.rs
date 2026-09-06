@@ -129,9 +129,10 @@ impl Document {
                 }
             }
             if let Some(hash) = &manifest.hash
-                && hash.len() > 256 {
-                    return Err(Error::StringLengthExceeded("manifest.hash".to_string()));
-                }
+                && hash.len() > 256
+            {
+                return Err(Error::StringLengthExceeded("manifest.hash".to_string()));
+            }
         }
 
         let sig_b64 = self.signature.as_ref().ok_or(Error::MissingSignature)?;
@@ -157,9 +158,9 @@ impl Document {
                 if let Ok(pubkey_bytes) = b64_url.decode(rk_b64)
                     && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
                         .is_ok()
-                    {
-                        return Ok(());
-                    }
+                {
+                    return Ok(());
+                }
             }
         } else {
             // Document is active, the signature MUST be from a controller key
@@ -167,11 +168,11 @@ impl Document {
                 if (key.key_type.eq_ignore_ascii_case("MlDsa65")
                     || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
                     && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                        && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
-                            .is_ok()
-                        {
-                            return Ok(());
-                        }
+                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                        .is_ok()
+                {
+                    return Ok(());
+                }
             }
         }
 

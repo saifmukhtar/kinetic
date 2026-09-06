@@ -42,16 +42,12 @@ impl VerifySignature for Reveal {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                 if ck.key_type == "ML-DSA-65"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                        && kinetic_primitives::verify_mldsa(
-                            &pubkey_bytes,
-                            &signable,
-                            &self.signature,
-                        )
+                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, &self.signature)
                         .is_ok()
-                        {
-                            verified = true;
-                            break;
-                        }
+                {
+                    verified = true;
+                    break;
+                }
             }
 
             if !verified {
@@ -120,16 +116,12 @@ impl VerifySignature for NameRecord {
                         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                         if ck.key_type == "ML-DSA-65"
                             && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                                && kinetic_primitives::verify_mldsa(
-                                    &pubkey_bytes,
-                                    &signable,
-                                    signature,
-                                )
+                            && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, signature)
                                 .is_ok()
-                                {
-                                    verified = true;
-                                    break;
-                                }
+                        {
+                            verified = true;
+                            break;
+                        }
                     }
 
                     if verified {

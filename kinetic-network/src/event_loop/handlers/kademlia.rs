@@ -129,8 +129,6 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                     ..
                 },
         } => {
-
-
             if let Ok(parsed) = serde_json::from_slice::<serde_json::Value>(&record.value)
                 && parsed.get("vdf_proof").is_some()
                 && let Ok(reveal) = serde_json::from_value::<kinetic_core::types::Reveal>(parsed)

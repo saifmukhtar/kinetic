@@ -251,8 +251,27 @@ pub async fn handle_macro_register_name(
 
         // Generate or fetch KID for the user to attach to the new zone
         update_task_status(&tasks_clone, &task_id_clone, "Injecting Identity (KID)", 92);
-        let kid_id = match kinetic_local::kid_manager::get_or_create_kid_for_name(&fqdn, true) {
-            Ok(doc) => doc.kid_doc.kid,
+        let current_kyn = {
+            let kyn_provider =
+                kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
+            use kinetic_core::traits::KynProvider;
+            use kinetic_core::types::clock::KynNetworkExt;
+            match kyn_provider.load_cached_kyn() {
+                Ok(kyn) => kyn.kyn,
+                Err(_) => kinetic_core::types::Kyn::now_local().0,
+            }
+        };
+        let current_kyn = kinetic_core::types::Kyn(current_kyn);
+        let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+
+        let kid_id = match kinetic_local::kid_manager::get_or_create_kid_for_name(
+            &fqdn,
+            true,
+            false,
+            current_kyn,
+            &identity_path,
+        ) {
+            Ok(res) => res.did,
             Err(e) => {
                 update_task_error(
                     &tasks_clone,

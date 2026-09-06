@@ -2,9 +2,9 @@
 //!
 //! Listens for `SIGINT` (Ctrl+C) and `SIGTERM` signals to trigger graceful task termination.
 
-use tracing::info;
 use lazy_static::lazy_static;
 use tokio::sync::Notify;
+use tracing::info;
 
 lazy_static! {
     /// Global notification channel for triggering a shutdown via the REST API.
@@ -12,7 +12,8 @@ lazy_static! {
     /// Global notification channel for triggering a restart via the REST API.
     pub static ref API_RESTART: Notify = Notify::new();
 }
-pub static RESTART_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub static RESTART_REQUESTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 /// A cross-platform future that resolves when a shutdown signal (`SIGINT` or `SIGTERM`) is received.
 #[cfg(not(target_arch = "wasm32"))]
