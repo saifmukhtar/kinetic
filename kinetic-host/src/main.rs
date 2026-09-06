@@ -228,7 +228,7 @@ async fn run_host() -> Result<()> {
 
     let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| base_config_dir.join("governance.db"));
+        .unwrap_or_else(|_| base_config_dir.join("action.db"));
     let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
         let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE

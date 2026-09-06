@@ -109,7 +109,7 @@ pub async fn handle_publish_action(
             kinetic_types::clock::Kyn(current_kyn),
         ) {
             Ok(_) => {
-                let path = kinetic_local::config::get_base_dir().join("governance.bin");
+                let path = kinetic_local::config::get_base_dir().join("action.db");
                 if let Err(e) = kinetic_local::governance::save_governance_to_disk(&gov, &path) {
                     let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                     tracing::error!(
