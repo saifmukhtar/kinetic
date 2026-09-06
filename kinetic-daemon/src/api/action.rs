@@ -50,14 +50,23 @@ pub struct ActionStatusResponse {
 }
 
 /// Handles requests to retrieve the human-readable active action state.
-pub async fn handle_get_action_status()
--> Result<Json<ActionStatusResponse>, crate::api::error::AppError> {
+pub async fn handle_get_action_status(
+    axum::extract::State(state): axum::extract::State<crate::api::ApiState>,
+) -> Result<Json<ActionStatusResponse>, crate::api::error::AppError> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
 
     let active_key_hex = gov.active_sovereign_key.as_ref().map(hex::encode);
 
-    // Fetch current Kyn using local clock
-    let current_kyn = kinetic_core::types::Kyn::now_local().0;
+    // Fetch verified Kyn from the node's constantly updating local cache
+    let current_kyn = {
+        let kyn_provider =
+            kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+        use kinetic_core::traits::KynProvider;
+        match kyn_provider.load_cached_kyn() {
+            Ok(kyn) => kyn.kyn,
+            Err(_) => kinetic_core::types::Kyn::now_local().0, // Fallback to OS clock if DB is completely empty (genesis)
+        }
+    };
 
     let active_kyn_age = current_kyn
         .saturating_sub(gov.genesis_kyn.0)

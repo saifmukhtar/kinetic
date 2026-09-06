@@ -301,7 +301,7 @@ pub fn app(state: ApiState) -> Router {
             auth_middleware,
         ));
 
-    let public_api_routes = Router::new()
+    let public_api_routes: Router<ApiState> = Router::new()
         .route("/health", axum::routing::get(handle_get_health))
         .route(
             "/consensus/difficulty/{name}",
