@@ -104,9 +104,9 @@ pub async fn handle_get_action_status(
 /// Aggregated response containing both prime and infrastructure name mappings.
 #[derive(Serialize)]
 pub struct ActionNamesResponse {
-    /// Mapped prime names (e.g., .kin).
+    /// Mapped 1-character prime names (e.g., 'a', '7').
     pub primes: HashMap<String, String>,
-    /// Mapped infrastructure root names (e.g., _dns.kin).
+    /// Mapped protocol infrastructure names (e.g., 'seed', 'node', 'api').
     pub infras: HashMap<String, String>,
 }
 
