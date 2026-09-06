@@ -52,8 +52,13 @@ pub struct ActionStatusResponse {
 /// Handles requests to retrieve the human-readable active action state.
 pub async fn handle_get_action_status(
     axum::extract::State(state): axum::extract::State<crate::api::ApiState>,
-) -> Result<Json<ActionStatusResponse>, crate::api::error::AppError> {
-    let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+) -> Result<Json<ActionStatusResponse>, (axum::http::StatusCode, String)> {
+    let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Action state lock poisoned: {}", e),
+        )
+    })?;
 
     let active_key_hex = gov.active_sovereign_key.as_ref().map(hex::encode);
 
@@ -98,26 +103,38 @@ pub async fn handle_get_action_status(
 
 /// Handles requests to retrieve the list of mapped prime names.
 pub async fn handle_get_prime_names()
--> Result<Json<HashMap<String, String>>, crate::api::error::AppError> {
-    let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+-> Result<Json<HashMap<String, String>>, (axum::http::StatusCode, String)> {
+    let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Action state lock poisoned: {}", e),
+        )
+    })?;
 
-    let mut primes_hex = HashMap::new();
-    for (name, pubkey_bytes) in &gov.mapped_prime_names {
-        primes_hex.insert(name.clone(), hex::encode(pubkey_bytes));
-    }
+    let primes_hex = gov
+        .mapped_prime_names
+        .iter()
+        .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
+        .collect::<HashMap<String, String>>();
 
     Ok(Json(primes_hex))
 }
 
 /// Handles requests to retrieve the list of mapped infrastructure names.
 pub async fn handle_get_infra_names()
--> Result<Json<HashMap<String, String>>, crate::api::error::AppError> {
-    let gov = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+-> Result<Json<HashMap<String, String>>, (axum::http::StatusCode, String)> {
+    let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Action state lock poisoned: {}", e),
+        )
+    })?;
 
-    let mut infra_hex = HashMap::new();
-    for (name, pubkey_bytes) in &gov.mapped_infra_names {
-        infra_hex.insert(name.clone(), hex::encode(pubkey_bytes));
-    }
+    let infra_hex = gov
+        .mapped_infra_names
+        .iter()
+        .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
+        .collect::<HashMap<String, String>>();
 
     Ok(Json(infra_hex))
 }
