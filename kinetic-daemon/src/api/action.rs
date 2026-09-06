@@ -101,9 +101,18 @@ pub async fn handle_get_action_status(
     }))
 }
 
-/// Handles requests to retrieve the list of mapped prime names.
-pub async fn handle_get_prime_names()
--> Result<Json<HashMap<String, String>>, (axum::http::StatusCode, String)> {
+/// Aggregated response containing both prime and infrastructure name mappings.
+#[derive(Serialize)]
+pub struct ActionNamesResponse {
+    /// Mapped prime names (e.g., .kin).
+    pub primes: HashMap<String, String>,
+    /// Mapped infrastructure root names (e.g., _dns.kin).
+    pub infras: HashMap<String, String>,
+}
+
+/// Handles requests to retrieve all mapped Action names (primes and infras) in a single call.
+pub async fn handle_get_action_names()
+-> Result<Json<ActionNamesResponse>, (axum::http::StatusCode, String)> {
     let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
         (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -111,32 +120,19 @@ pub async fn handle_get_prime_names()
         )
     })?;
 
-    let primes_hex = gov
+    let primes = gov
         .mapped_prime_names
         .iter()
         .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
         .collect::<HashMap<String, String>>();
 
-    Ok(Json(primes_hex))
-}
-
-/// Handles requests to retrieve the list of mapped infrastructure names.
-pub async fn handle_get_infra_names()
--> Result<Json<HashMap<String, String>>, (axum::http::StatusCode, String)> {
-    let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Action state lock poisoned: {}", e),
-        )
-    })?;
-
-    let infra_hex = gov
+    let infras = gov
         .mapped_infra_names
         .iter()
         .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
         .collect::<HashMap<String, String>>();
 
-    Ok(Json(infra_hex))
+    Ok(Json(ActionNamesResponse { primes, infras }))
 }
 
 use crate::api::ApiState;

@@ -345,12 +345,8 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(action::handle_get_action_status),
         )
         .route(
-            "/action/names/prime",
-            axum::routing::get(action::handle_get_prime_names),
-        )
-        .route(
-            "/action/names/infra",
-            axum::routing::get(action::handle_get_infra_names),
+            "/action/names",
+            axum::routing::get(action::handle_get_action_names),
         )
         .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route(
