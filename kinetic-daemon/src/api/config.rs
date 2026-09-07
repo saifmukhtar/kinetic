@@ -99,9 +99,13 @@ pub async fn handle_network_nat(
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_network_status().await {
-        Ok(status) => Ok(Json(
-            serde_json::json!({ "nat_status": status.get("nat_status").unwrap_or(&serde_json::json!("Unknown")) }),
-        )),
+        Ok(mut status) => {
+            let nat_status = status
+                .as_object_mut()
+                .and_then(|obj| obj.remove("nat_status"))
+                .unwrap_or_else(|| serde_json::Value::String("Unknown".to_string()));
+            Ok(Json(serde_json::json!({ "nat_status": nat_status })))
+        }
         Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
@@ -136,7 +140,7 @@ pub async fn handle_network_peers(
 pub async fn handle_set_config(
     Extension(role): Extension<Role>,
     State(_state): State<ApiState>,
-    Json(payload): Json<serde_json::Value>,
+    Json(mut payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_system() {
         return Err(crate::api::error::AppError::from(
@@ -144,54 +148,54 @@ pub async fn handle_set_config(
         ));
     }
 
-    if let Some(config_payload) = payload.get("config") {
-        match serde_json::from_value::<kinetic_core::config::KineticConfig>(config_payload.clone())
-        {
-            Ok(new_config) => {
-                if let Err(e) = new_config.validate() {
-                    return Err(crate::api::error::AppError(e.into()));
-                }
-
-                tokio::task::spawn_blocking(move || kinetic_local::config::save_config(&new_config))
-                    .await
-                    .map_err(|e| {
-                        let sys_err = kinetic_core::error::SystemError::ServerCrashed(e.to_string());
-                        crate::api::error::AppError(kinetic_rpc::ApiError {
-                            error_type: sys_err.error_type_uri(),
-                            title: "Internal Server Error".to_string(),
-                            status: 500,
-                            detail: sys_err.user_message(),
-                            instance: None,
-                            code: sys_err.code().to_string(),
-                            retryable: sys_err.is_retryable(),
-                            details: serde_json::Value::Null,
-                            request_id: "".to_string(),
-                        })
-                    })?
-                    .map_err(|e| crate::api::error::AppError(kinetic_rpc::ApiError::from(e)))?;
-
-                Ok(Json(serde_json::json!({
-                    "status": "ok",
-                    "message": "Configuration saved. Restart daemon to apply."
-                })))
-            }
-            Err(e) => {
-                let err = kinetic_core::error::ConfigError::InvalidApiUpdate(format!(
-                    "Invalid config payload format: {}",
-                    e
-                ));
-                Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
-                    err,
-                )))
-            }
+    let config_payload = match payload.as_object_mut().and_then(|m| m.remove("config")) {
+        Some(cp) => cp,
+        None => {
+            let err = kinetic_core::error::ConfigError::InvalidApiUpdate(
+                "Missing 'config' object in payload.".to_string(),
+            );
+            return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(err)));
         }
-    } else {
-        let err = kinetic_core::error::ConfigError::InvalidApiUpdate(
-            "Missing 'config' object in payload.".to_string(),
-        );
-        Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
-            err,
-        )))
+    };
+
+    match serde_json::from_value::<kinetic_core::config::KineticConfig>(config_payload) {
+        Ok(new_config) => {
+            if let Err(e) = new_config.validate() {
+                return Err(crate::api::error::AppError(e.into()));
+            }
+
+            tokio::task::spawn_blocking(move || kinetic_local::config::save_config(&new_config))
+                .await
+                .map_err(|e| {
+                    let sys_err = kinetic_core::error::SystemError::ServerCrashed(e.to_string());
+                    crate::api::error::AppError(kinetic_rpc::ApiError {
+                        error_type: sys_err.error_type_uri(),
+                        title: "Internal Server Error".to_string(),
+                        status: 500,
+                        detail: sys_err.user_message(),
+                        instance: None,
+                        code: sys_err.code().to_string(),
+                        retryable: sys_err.is_retryable(),
+                        details: serde_json::Value::Null,
+                        request_id: "".to_string(),
+                    })
+                })?
+                .map_err(|e| crate::api::error::AppError(kinetic_rpc::ApiError::from(e)))?;
+
+            Ok(Json(serde_json::json!({
+                "status": "ok",
+                "message": "Configuration saved. Restart daemon to apply."
+            })))
+        }
+        Err(e) => {
+            let err = kinetic_core::error::ConfigError::InvalidApiUpdate(format!(
+                "Invalid config payload format: {}",
+                e
+            ));
+            Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
+                err,
+            )))
+        }
     }
 }
 
