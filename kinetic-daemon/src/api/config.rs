@@ -16,7 +16,22 @@ pub async fn handle_get_config(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
-    let config = kinetic_local::config::load_config();
+    let config = tokio::task::spawn_blocking(kinetic_local::config::load_config)
+        .await
+        .map_err(|e| {
+            let sys_err = kinetic_core::error::SystemError::ServerCrashed(e.to_string());
+            crate::api::error::AppError(kinetic_rpc::ApiError {
+                error_type: sys_err.error_type_uri(),
+                title: "Internal Server Error".to_string(),
+                status: 500,
+                detail: sys_err.user_message(),
+                instance: None,
+                code: sys_err.code().to_string(),
+                retryable: sys_err.is_retryable(),
+                details: serde_json::Value::Null,
+                request_id: "".to_string(),
+            })
+        })?;
     Ok(Json(serde_json::json!({
         "status": "ok",
         "config": config
@@ -38,15 +53,13 @@ pub async fn handle_owned_names(
         Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
             Ok(v) => v,
             Err(e) => {
-                tracing::error!(
-                    error = ?kinetic_core::error::StorageError::DeserializationFailed(e.to_string()),
-                    "{}",
-                    kinetic_core::error::StorageError::DeserializationFailed(e.to_string()).user_message()
-                );
-                Vec::new()
+                let err = kinetic_core::error::StorageError::DeserializationFailed(e.to_string());
+                tracing::error!(error = ?err, "{}", err.user_message());
+                return Err(crate::api::error::AppError::from(err));
             }
         },
-        _ => Vec::new(),
+        Ok(None) => Vec::new(),
+        Err(e) => return Err(crate::api::error::AppError::from(e)),
     };
     Ok(Json(owned_names))
 }
@@ -139,7 +152,24 @@ pub async fn handle_set_config(
                     return Err(crate::api::error::AppError(e.into()));
                 }
 
-                let _ = kinetic_local::config::save_config(&new_config);
+                tokio::task::spawn_blocking(move || kinetic_local::config::save_config(&new_config))
+                    .await
+                    .map_err(|e| {
+                        let sys_err = kinetic_core::error::SystemError::ServerCrashed(e.to_string());
+                        crate::api::error::AppError(kinetic_rpc::ApiError {
+                            error_type: sys_err.error_type_uri(),
+                            title: "Internal Server Error".to_string(),
+                            status: 500,
+                            detail: sys_err.user_message(),
+                            instance: None,
+                            code: sys_err.code().to_string(),
+                            retryable: sys_err.is_retryable(),
+                            details: serde_json::Value::Null,
+                            request_id: "".to_string(),
+                        })
+                    })?
+                    .map_err(|e| crate::api::error::AppError(kinetic_rpc::ApiError::from(e)))?;
+
                 Ok(Json(serde_json::json!({
                     "status": "ok",
                     "message": "Configuration saved. Restart daemon to apply."
