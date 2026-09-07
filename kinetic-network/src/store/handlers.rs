@@ -200,6 +200,48 @@ impl KineticRecordStore {
                         );
                         return Err(err);
                     }
+
+                    // Cryptographic Hierarchy Conflict Resolution
+                    // Both records share the same pulse (kyn/granted_at), but payloads differ.
+                    // We must resolve the conflict strictly by prioritization: Master Key > Delegated Key
+                    let exist_auth = existing_record.authorization();
+                    let new_auth = record.authorization();
+
+                    match (exist_auth, new_auth) {
+                        (Some(_), None) => {
+                            // Existing is a Delegated Key, new is the Master Key.
+                            // The Master Key strictly overrides the Hot Key.
+                            tracing::info!(
+                                name = record.name(),
+                                "Master Key override detected. Prioritizing direct signature over existing delegated signature."
+                            );
+                        }
+                        (None, Some(_)) => {
+                            // Existing is the Master Key, new is a Delegated Key.
+                            // The Hot Key CANNOT override a Master Key update in the same epoch.
+                            let err = KineticStoreError::StaleReveal;
+                            err.log_warning(
+                                record.name(),
+                                "Rejecting delegated update: Master Key update takes strict precedence in this epoch.",
+                            );
+                            return Err(err);
+                        }
+                        (Some(exist_manifest), Some(new_manifest)) => {
+                            // Both are Delegated Keys. The one with the newer manifest (valid_from) wins.
+                            if new_manifest.manifest.valid_from < exist_manifest.manifest.valid_from {
+                                let err = KineticStoreError::StaleReveal;
+                                err.log_warning(
+                                    record.name(),
+                                    "Rejecting delegated update: Existing delegated manifest is newer.",
+                                );
+                                return Err(err);
+                            }
+                        }
+                        (None, None) => {
+                            // Both are Master Key. No strict cryptographic way to determine which was created "last"
+                            // (other than network arrival time). We accept the new one (latest arrival wins).
+                        }
+                    }
                 }
             }
         } else {
