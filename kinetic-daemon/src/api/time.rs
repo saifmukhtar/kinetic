@@ -24,7 +24,7 @@ pub async fn handle_get_time(
         Err(e) => {
             tracing::error!(
                 error_code = e.code(),
-                "Failed to read cached Drand kyn for /api/time: {}",
+                "Failed to read cached Drand kyn for /api/v1/micro/time/current: {}",
                 e
             );
             // If offline, we could fallback mathematically here as well,

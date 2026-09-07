@@ -401,7 +401,7 @@ paths:
               schema:
                 type: string
                 format: binary
-  /time:
+  /v1/micro/time/current:
     get:
       operationId: getTime
       summary: Get verified Kinetic network time [Public]
@@ -413,7 +413,7 @@ paths:
             application/json:
               schema:
                 type: object
-  /resolve/{name}:
+  /v1/micro/nrs/resolve/{name}:
     get:
       operationId: resolveName
       summary: Resolve a Kinetic name [Public]
@@ -454,7 +454,7 @@ paths:
                     $ref: '#/components/schemas/KidDocument'
                   manifest_document:
                     $ref: '#/components/schemas/CapabilityManifest'
-  /names/reserved:
+  /v1/micro/nrs/names/reserved:
     get:
       operationId: getReservedNames
       summary: Get the list of all reserved names for the current network [Public]
@@ -473,7 +473,7 @@ paths:
                       type: string
                     active:
                       type: boolean
-  /zone/local/{name}:
+  /v1/micro/nrs/zone/local/{name}:
     get:
       operationId: getLocalReservedZone
       summary: Get local NRS override for a reserved name [Public]
@@ -529,7 +529,7 @@ paths:
       responses:
         '200':
           description: Deleted
-  /zone/{name}:
+  /v1/micro/nrs/zone/{name}:
     get:
       operationId: getZone
       summary: Get local NRS zone file [Public]
@@ -569,7 +569,7 @@ paths:
       responses:
         '200':
           description: Saved
-  /zone/{name}/publish:
+  /v1/micro/nrs/zone/{name}/publish:
     post:
       operationId: publishZone
       summary: Cryptographically sign and publish local zone to DHT [Private]
@@ -586,7 +586,7 @@ paths:
       responses:
         '200':
           description: Published
-  /commit:
+  /v1/micro/nrs/record/commit:
     post:
       operationId: commitName
       summary: Commit a name hash to DHT [Private]
@@ -607,7 +607,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /publish:
+  /v1/micro/nrs/record/publish:
     post:
       operationId: publishName
       summary: Publish a name reveal to DHT [Private]
@@ -1031,7 +1031,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /auth/session:
+  /v1/micro/auth/session:
     post:
       operationId: createSession
       summary: Create a new persistent session token for an application [Private]
@@ -1059,7 +1059,7 @@ paths:
                     type: string
                   token:
                     type: string
-  /auth/sessions:
+  /v1/micro/auth/sessions:
     get:
       operationId: listSessions
       summary: List all active application session tokens [Private]
@@ -1074,7 +1074,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListSessionsResponse'
-  /auth/session/{id}:
+  /v1/micro/auth/session/{id}:
     delete:
       operationId: revokeSession
       summary: Revoke an application session token using its ID [Private]
@@ -1095,7 +1095,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /system/shutdown:
+  /v1/micro/system/shutdown:
     post:
       operationId: systemShutdown
       summary: Gracefully shut down the Kinetic daemon [Private]
@@ -1110,7 +1110,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /system/restart:
+  /v1/micro/system/restart:
     post:
       operationId: systemRestart
       summary: Restart the Kinetic daemon [Private]
@@ -1168,7 +1168,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /resolve/{name}/quorum:
+  /v1/micro/nrs/resolve/{name}/quorum:
     post:
       operationId: verifyQuorum
       summary: Verify how many nodes in the DHT have replicated a specific payload [Public]

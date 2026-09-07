@@ -93,3 +93,9 @@ impl From<ApiError> for AppError {
         AppError(err)
     }
 }
+
+impl From<kinetic_core::error::SystemError> for AppError {
+    fn from(err: kinetic_core::error::SystemError) -> Self {
+        AppError(ApiError::from(err))
+    }
+}

@@ -38,11 +38,11 @@ pub async fn update_zone_logic(
         serde_json::from_str(&content)
             .map_err(|e| anyhow::anyhow!("Local reveal file corrupted: {}", e))?
     } else {
-        let resolve_url = format!(
-            "http://{}:{}/resolve/{}",
+        let daemon_url = format!(
+            "http://{}:{}/v1/micro/nrs/resolve/{}",
             config.daemon.bind_ip, config.daemon.api_port, fqdn
         );
-        let resolve_res = client.get(&resolve_url).send().await?;
+        let resolve_res = client.get(&daemon_url).send().await?;
         if !resolve_res.status().is_success() {
             let status = resolve_res.status();
             let text = resolve_res.text().await.unwrap_or_default();
@@ -85,11 +85,12 @@ pub async fn update_zone_logic(
         }
     }
 
+    let publish_url = format!(
+        "http://{}:{}/v1/micro/nrs/record/publish",
+        config.daemon.bind_ip, config.daemon.api_port
+    );
     let response = client
-        .post(format!(
-            "http://{}:{}/publish",
-            config.daemon.bind_ip, config.daemon.api_port
-        ))
+        .post(publish_url)
         .json(&json!({"record": existing_record}))
         .send()
         .await?;

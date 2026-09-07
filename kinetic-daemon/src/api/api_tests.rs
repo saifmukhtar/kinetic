@@ -63,7 +63,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req = Request::builder()
-            .uri("/commit")
+            .uri("/v1/micro/nrs/record/commit")
             .method("POST")
             .body(Body::empty())
             .unwrap();
@@ -84,7 +84,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/commit")
+            .uri("/v1/micro/nrs/record/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -110,7 +110,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/commit")
+            .uri("/v1/micro/nrs/record/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -147,7 +147,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/publish")
+            .uri("/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -185,7 +185,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/publish")
+            .uri("/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -240,7 +240,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/publish")
+            .uri("/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -309,7 +309,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/resolve/validname.kin")
+            .uri("/v1/micro/nrs/resolve/validname.kin")
             .method("GET")
             .body(Body::empty())
             .unwrap();
@@ -326,7 +326,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req = Request::builder()
-            .uri("/zone/validname.kin/publish")
+            .uri("/v1/micro/nrs/zone/validname.kin/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .body(Body::empty())

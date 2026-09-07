@@ -41,7 +41,7 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
 
     // 1. Try to fetch from the local daemon API first
     let api_url = format!(
-        "http://{}:{}/api/time",
+        "http://{}:{}/api/v1/micro/time/current",
         config.daemon.bind_ip, config.daemon.api_port
     );
     if let Ok(resp) = client.get(&api_url).send().await

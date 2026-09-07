@@ -1,14 +1,13 @@
 use crate::api::Role;
-use axum::{Json, http::StatusCode};
+use axum::Json;
 
 /// Initiates a graceful shutdown of the Kinetic daemon.
 pub async fn handle_shutdown(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_system() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Requires System or Admin role"})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
@@ -25,11 +24,10 @@ pub async fn handle_shutdown(
 /// If the daemon is not running as a system service, it will gracefully shut down instead.
 pub async fn handle_restart(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_system() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Requires System or Admin role"})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 

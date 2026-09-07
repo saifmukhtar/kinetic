@@ -1,4 +1,4 @@
-use kinetic_network::pow::is_valid_sybil_pow;
+use kinetic_network::pow::verify_p2p_pow;
 use kinetic_types::clock::Kyn;
 use libp2p::PeerId;
 use proptest::prelude::*;
@@ -22,6 +22,6 @@ proptest! {
         // PeerId generation isn't natively fuzzed via proptest simply,
         // but we can generate a random one or use a dummy buffer for hashing.
         let peer_id = generate_random_peer_id();
-        let _ = is_valid_sybil_pow(&peer_id, Kyn(kyn), difficulty);
+        let _ = verify_p2p_pow(&peer_id, Kyn(kyn), difficulty);
     }
 }

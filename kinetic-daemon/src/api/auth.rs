@@ -2,7 +2,6 @@ use crate::api::{ApiState, Role};
 use axum::{
     Json,
     extract::{Path, State},
-    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 
@@ -46,25 +45,22 @@ pub async fn handle_create_session(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<CreateSessionRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Requires Admin role"})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
     if req.scopes.iter().any(|s| s.to_lowercase() == "admin") {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Cannot generate secondary Admin tokens"})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("Cannot generate secondary Admin tokens".to_string()),
         ));
     }
 
     if req.scopes.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "At least one scope must be requested"})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("At least one scope must be requested".to_string()),
         ));
     }
 
@@ -92,21 +88,19 @@ pub async fn handle_create_session(
     let db_key_session = format!("session:{}", id);
     let db_key_token = format!("session_token:{}", token);
 
-    if let Err(e) = state.storage.put(db_key_session.as_bytes(), &session_bytes) {
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": format!("Failed to save session: {}", e)})),
-        ));
-    }
-
-    if let Err(e) = state.storage.put(db_key_token.as_bytes(), id.as_bytes()) {
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(
-                serde_json::json!({"error": format!("Failed to save session token lookup: {}", e)}),
-            ),
-        ));
-    }
+    let storage_clone = state.storage.clone();
+    let id_for_storage = id.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), crate::api::error::AppError> {
+        if let Err(e) = storage_clone.put(db_key_session.as_bytes(), &session_bytes) {
+            return Err(e.into());
+        }
+        if let Err(e) = storage_clone.put(db_key_token.as_bytes(), id_for_storage.as_bytes()) {
+            return Err(e.into());
+        }
+        Ok(())
+    })
+    .await
+    .expect("Spawn blocking failed")?;
 
     Ok(Json(serde_json::json!({
         "status": "success",
@@ -119,25 +113,30 @@ pub async fn handle_create_session(
 pub async fn handle_list_sessions(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
-) -> Result<Json<ListSessionsResponse>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<ListSessionsResponse>, crate::api::error::AppError> {
     if !role.is_admin() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Requires Admin role"})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
-    let mut sessions = Vec::new();
-    if let Ok(entries) = state.storage.scan_prefix(b"session:", None) {
-        for (k, v) in entries {
-            if !k.starts_with(b"session_token:") {
-                if let Ok(mut session) = serde_json::from_slice::<AppSession>(&v) {
-                    session.token = "hidden".to_string();
-                    sessions.push(session);
+    let storage_clone = state.storage.clone();
+    let sessions = tokio::task::spawn_blocking(move || {
+        let mut sessions = Vec::new();
+        if let Ok(entries) = storage_clone.scan_prefix(b"session:", None) {
+            for (k, v) in entries {
+                if !k.starts_with(b"session_token:") {
+                    if let Ok(mut session) = serde_json::from_slice::<AppSession>(&v) {
+                        session.token = "hidden".to_string();
+                        sessions.push(session);
+                    }
                 }
             }
         }
-    }
+        sessions
+    })
+    .await
+    .expect("Spawn blocking failed");
 
     Ok(Json(ListSessionsResponse { sessions }))
 }
@@ -147,35 +146,35 @@ pub async fn handle_revoke_session(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.is_admin() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Requires Admin role"})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
 
-    let db_key_session = format!("session:{}", id);
+    let storage_clone = state.storage.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), crate::api::error::AppError> {
+        let db_key_session = format!("session:{}", id);
 
-    // First read the session to get the raw token so we can delete the lookup
-    if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes()) {
-        if let Ok(session) = serde_json::from_slice::<AppSession>(&bytes) {
-            let db_key_token = format!("session_token:{}", session.token);
-            let _ = state.storage.delete(db_key_token.as_bytes());
+        // First read the session to get the raw token so we can delete the lookup
+        if let Ok(Some(bytes)) = storage_clone.get(db_key_session.as_bytes()) {
+            if let Ok(session) = serde_json::from_slice::<AppSession>(&bytes) {
+                let db_key_token = format!("session_token:{}", session.token);
+                let _ = storage_clone.delete(db_key_token.as_bytes());
+            }
+        } else {
+            return Err(kinetic_core::error::RestApiError::NotFound.into());
         }
-    } else {
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "Session not found"})),
-        ));
-    }
 
-    if let Err(e) = state.storage.delete(db_key_session.as_bytes()) {
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": format!("Failed to revoke session: {}", e)})),
-        ));
-    }
+        if let Err(e) = storage_clone.delete(db_key_session.as_bytes()) {
+            return Err(e.into());
+        }
+
+        Ok(())
+    })
+    .await
+    .expect("Spawn blocking failed")?;
 
     Ok(Json(serde_json::json!({
         "status": "success",

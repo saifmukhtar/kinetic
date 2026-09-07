@@ -87,7 +87,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                 apex_name_clone
             );
 
-            let url = format!("{}/api/resolve/{}", api_url_clone, apex_name_clone);
+            let url = format!("{}/api/v1/micro/nrs/resolve/{}", api_url_clone, apex_name_clone);
             match http_client_clone.get(&url).send().await {
                 Ok(mut resp) => {
                     if resp.status().is_success() {

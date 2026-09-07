@@ -6,8 +6,8 @@
 
 use kinetic_core::error::{
     ConfigError, GovernanceError, IdentityError, KynProviderError, NamesError, NetworkClientError,
-    NrsError, P2pError, PublishError, RegistrationError, ResolutionError, StorageError, VdfError,
-    vdf::RevealValidationError,
+    NrsError, P2pError, PublishError, RegistrationError, ResolutionError, StorageError, SystemError,
+    VdfError, vdf::RevealValidationError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -460,6 +460,26 @@ impl From<kinetic_core::error::RestApiError> for ApiError {
             instance: None,
             code: e.code().to_string(),
             retryable: false,
+            details: serde_json::Value::Null,
+            request_id: current_request_id(),
+        }
+    }
+}
+
+impl From<SystemError> for ApiError {
+    fn from(e: SystemError) -> Self {
+        let (status, title): (u16, &'static str) = match &e {
+            SystemError::PortInUse(_) => (503, "Service Unavailable"),
+            _ => (500, "Internal Server Error"),
+        };
+        ApiError {
+            error_type: e.error_type_uri(),
+            title: title.to_string(),
+            status,
+            detail: e.user_message(),
+            instance: None,
+            code: e.code().to_string(),
+            retryable: e.is_retryable(),
             details: serde_json::Value::Null,
             request_id: current_request_id(),
         }

@@ -63,7 +63,7 @@ pub async fn handle_name_info(
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     let daemon_url = format!(
-        "http://{}:{}/resolve/{}",
+        "http://{}:{}/v1/micro/nrs/resolve/{}",
         config.daemon.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
@@ -123,7 +123,7 @@ pub async fn handle_name_resolve(
     let fqdn = kinetic_core::types::normalize_name(&name);
     info!("Resolving {} via local daemon...", fqdn);
     let daemon_url = format!(
-        "http://{}:{}/resolve/{}",
+            "http://{}:{}/v1/micro/nrs/resolve/{}",
         config.daemon.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;

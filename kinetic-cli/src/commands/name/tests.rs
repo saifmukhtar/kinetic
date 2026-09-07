@@ -10,7 +10,7 @@ async fn test_name_resolve_mock_api() {
     // Removed unused channel
 
     let app = Router::new().route(
-        "/resolve/{name}",
+        "/v1/micro/nrs/resolve/{name}",
         get(
             |axum::extract::Path(name): axum::extract::Path<String>| async move {
                 if name == format!("test{}", kinetic_core::constants::NSP_SUFFIX) {
