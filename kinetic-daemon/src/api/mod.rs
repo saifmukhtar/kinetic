@@ -289,7 +289,7 @@ pub fn app(state: ApiState) -> Router {
         )
         .route("/macro/renew", axum::routing::post(handle_macro_renew_name))
         .route(
-            "/gossip/publish/{topic}",
+            "/v1/micro/gossip/publish/{topic}",
             axum::routing::post(handle_gossip_publish),
         )
         .route(
@@ -333,7 +333,7 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(config::handle_network_banned),
         )
         .route(
-            "/gossip/topics",
+            "/v1/micro/gossip/topics",
             axum::routing::get(handle_get_gossip_topics),
         )
         .route(
@@ -367,7 +367,7 @@ pub fn app(state: ApiState) -> Router {
         )
         .route("/time", axum::routing::get(handle_get_time))
         .route(
-            "/gossip/subscribe/{topic}",
+            "/v1/micro/gossip/subscribe/{topic}",
             axum::routing::get(handle_gossip_subscribe),
         );
 

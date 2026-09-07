@@ -21,10 +21,17 @@ pub async fn handle_gossip_subscribe(
         loop {
             match rx.recv().await {
                 Ok((msg_topic, payload, _, _)) => {
-                    if msg_topic == topic
-                        && let Ok(payload_str) = String::from_utf8(payload) {
-                            yield Ok(Event::default().data(payload_str));
+                    if msg_topic == topic {
+                        match String::from_utf8(payload) {
+                            Ok(payload_str) => {
+                                yield Ok(Event::default().data(payload_str));
+                            }
+                            Err(e) => {
+                                let hex_str = hex::encode(e.into_bytes());
+                                yield Ok(Event::default().event("binary").data(hex_str));
+                            }
                         }
+                    }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
                     let err = kinetic_core::error::api::RestApiError::SseStreamLagged;
@@ -45,7 +52,7 @@ pub async fn handle_gossip_subscribe(
     )
 }
 
-/// Broadcasts a JSON payload to a Gossipsub topic over the Kademlia network.
+/// Broadcasts a JSON payload to a Gossipsub topic across the P2P mesh network.
 pub async fn handle_gossip_publish(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     Path(topic): Path<String>,
@@ -61,11 +68,12 @@ pub async fn handle_gossip_publish(
     let payload_bytes = match serde_json::to_vec(&payload) {
         Ok(b) => b,
         Err(e) => {
-            return Err(kinetic_core::error::PublishError::Internal {
-                message: format!("Serialization failed: {}", e),
-                source: None,
-            }
-            .into());
+            return Err(crate::api::error::AppError::from(
+                kinetic_core::error::RestApiError::BadRequest(format!(
+                    "Failed to serialize gossip payload: {}",
+                    e
+                )),
+            ));
         }
     };
 
@@ -82,9 +90,9 @@ pub async fn handle_gossip_publish(
 /// Retrieves a list of active Gossipsub topics the node is currently listening to.
 pub async fn handle_get_gossip_topics(
     State(state): State<ApiState>,
-) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_gossip_topics().await {
-        Ok(topics) => Ok(Json(topics)),
+        Ok(topics) => Ok(Json(serde_json::json!({ "topics": topics }))),
         Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
