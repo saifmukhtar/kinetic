@@ -246,13 +246,32 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(auth::handle_list_sessions),
         )
         .route(
-            "/auth/session/:token",
+            "/auth/session/{token}",
             axum::routing::delete(auth::handle_revoke_session),
         )
         .route("/commit", post(handle_publish_commit))
         .route("/publish", post(handle_publish_record))
-        .route("/publish-kid", post(handle_publish_kid))
-        .route("/publish-manifest", post(handle_publish_manifest))
+        .route("/v1/micro/kid/publish", post(handle_publish_kid))
+        .route(
+            "/v1/micro/kid/manifest/publish",
+            post(handle_publish_manifest),
+        )
+        .route(
+            "/v1/micro/kid/generate",
+            axum::routing::post(handle_generate_kid),
+        )
+        .route(
+            "/v1/micro/kid/{name}/rotate",
+            axum::routing::post(handle_rotate_kid),
+        )
+        .route(
+            "/v1/micro/kid/{name}/revoke",
+            axum::routing::post(handle_revoke_kid),
+        )
+        .route(
+            "/v1/micro/kid/{name}/manifest",
+            axum::routing::post(handle_update_kid_manifest),
+        )
         .route("/v1/micro/action/publish", post(action::handle_publish_action))
         .route("/v1/micro/config", axum::routing::get(handle_get_config))
         .route("/v1/micro/config", axum::routing::post(handle_set_config))
@@ -275,13 +294,6 @@ pub fn app(state: ApiState) -> Router {
         .route(
             "/zone/{name}/publish",
             axum::routing::post(handle_publish_zone),
-        )
-        .route("/kid", axum::routing::post(handle_generate_kid))
-        .route("/kid/{name}/rotate", axum::routing::post(handle_rotate_kid))
-        .route("/kid/{name}/revoke", axum::routing::post(handle_revoke_kid))
-        .route(
-            "/kid/{name}/manifest",
-            axum::routing::post(handle_update_kid_manifest),
         )
         .route(
             "/macro/register",
@@ -361,11 +373,14 @@ pub fn app(state: ApiState) -> Router {
             "/resolve/{name}/quorum",
             axum::routing::post(handle_verify_quorum),
         )
-        .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
-        .route("/kid", axum::routing::get(handle_list_kids))
-        .route("/kid/{name}", axum::routing::get(handle_fetch_kid))
         .route(
-            "/kid/{name}/manifest",
+            "/v1/micro/kid/resolve/{did}",
+            axum::routing::get(handle_resolve_kid),
+        )
+        .route("/v1/micro/kid/list", axum::routing::get(handle_list_kids))
+        .route("/v1/micro/kid/{name}", axum::routing::get(handle_fetch_kid))
+        .route(
+            "/v1/micro/kid/{name}/manifest",
             axum::routing::get(handle_get_kid_manifest),
         )
         .route("/time", axum::routing::get(handle_get_time))

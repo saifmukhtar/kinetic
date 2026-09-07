@@ -4,7 +4,25 @@ use axum::{
     extract::{Extension, Path, State},
 };
 use kinetic_core::traits::KynProvider;
+use kinetic_core::types::Kyn;
+use kinetic_core::types::clock::KynNetworkExt;
 use serde::Deserialize;
+
+/// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
+async fn get_safe_current_kyn(state: &ApiState) -> Kyn {
+    if let Ok(kyn) = state.network.get_current_kyn().await
+        && kyn > 0
+    {
+        return Kyn(kyn);
+    }
+
+    let kyn_provider =
+        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+    match kyn_provider.load_cached_kyn() {
+        Ok(kyn) if kyn.kyn > 0 => Kyn(kyn.kyn),
+        _ => Kyn::now_local(),
+    }
+}
 
 /// Request payload to generate or resolve a KID
 #[derive(Deserialize)]
@@ -62,15 +80,7 @@ pub async fn handle_generate_kid(
         base_fqdn
     };
 
-    let kyn_provider =
-        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
-    use kinetic_core::types::Kyn;
-    use kinetic_core::types::clock::KynNetworkExt;
-
-    let current_kyn = match kyn_provider.fetch_latest().await {
-        Ok(kyn) => Kyn(kyn.kyn),
-        Err(_) => Kyn::now_local(),
-    };
+    let current_kyn = get_safe_current_kyn(&state).await;
 
     let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
     let res = kinetic_local::kid_manager::get_or_create_kid_for_name(
@@ -82,11 +92,19 @@ pub async fn handle_generate_kid(
     )?;
 
     // Publish AuthorizedKid wrapper to DHT
-    if let Ok(payload_bytes) = serde_json::to_vec(&res.auth_kid) {
-        let _ = state
-            .network
-            .publish_redundant_payload(&res.did, payload_bytes)
-            .await;
+    match serde_json::to_vec(&res.auth_kid) {
+        Ok(payload_bytes) => {
+            if let Err(e) = state
+                .network
+                .publish_redundant_payload(&res.did, payload_bytes)
+                .await
+            {
+                tracing::warn!(did = %res.did, error = %e, "Failed to publish generated KID to DHT");
+            }
+        }
+        Err(e) => {
+            tracing::warn!(did = %res.did, error = %e, "Failed to serialize generated KID for DHT");
+        }
     }
 
     Ok(Json(serde_json::json!({
@@ -114,11 +132,19 @@ pub async fn handle_rotate_kid(
     let rotated = kinetic_local::kid_manager::rotate_name_kid(&name, &identity_path)?;
 
     // Publish rotated document to DHT
-    if let Ok(payload_bytes) = serde_json::to_vec(&rotated.auth_kid) {
-        let _ = state
-            .network
-            .publish_redundant_payload(&rotated.did, payload_bytes)
-            .await;
+    match serde_json::to_vec(&rotated.auth_kid) {
+        Ok(payload_bytes) => {
+            if let Err(e) = state
+                .network
+                .publish_redundant_payload(&rotated.did, payload_bytes)
+                .await
+            {
+                tracing::warn!(did = %rotated.did, error = %e, "Failed to publish rotated KID to DHT");
+            }
+        }
+        Err(e) => {
+            tracing::warn!(did = %rotated.did, error = %e, "Failed to serialize rotated KID for DHT");
+        }
     }
 
     Ok(Json(serde_json::json!({
@@ -148,11 +174,19 @@ pub async fn handle_revoke_kid(
         kinetic_local::kid_manager::authorize_kid_document(&name, &revoked_doc, &identity_path)?;
 
     // Publish revoked document to DHT
-    if let Ok(payload_bytes) = serde_json::to_vec(&auth_kid) {
-        let _ = state
-            .network
-            .publish_redundant_payload(revoked_doc.kid.as_str(), payload_bytes)
-            .await;
+    match serde_json::to_vec(&auth_kid) {
+        Ok(payload_bytes) => {
+            if let Err(e) = state
+                .network
+                .publish_redundant_payload(revoked_doc.kid.as_str(), payload_bytes)
+                .await
+            {
+                tracing::warn!(did = %revoked_doc.kid, error = %e, "Failed to publish revoked KID to DHT");
+            }
+        }
+        Err(e) => {
+            tracing::warn!(did = %revoked_doc.kid, error = %e, "Failed to serialize revoked KID for DHT");
+        }
     }
 
     Ok(Json(serde_json::json!({
@@ -195,15 +229,7 @@ pub async fn handle_update_kid_manifest(
         ));
     }
 
-    let kyn_provider =
-        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
-    use kinetic_core::types::Kyn;
-    use kinetic_core::types::clock::KynNetworkExt;
-
-    let current_kyn = match kyn_provider.fetch_latest().await {
-        Ok(kyn) => Kyn(kyn.kyn),
-        Err(_) => Kyn::now_local(),
-    };
+    let current_kyn = get_safe_current_kyn(&state).await;
 
     let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
     let (manifest, auth_manifest) = kinetic_local::kid_manager::save_and_sign_local_manifest(
@@ -218,11 +244,19 @@ pub async fn handle_update_kid_manifest(
         format!("{}#manifest", manifest.kid).as_bytes(),
     ));
 
-    if let Ok(payload_bytes) = serde_json::to_vec(&auth_manifest) {
-        let _ = state
-            .network
-            .publish_redundant_payload(&manifest_key, payload_bytes)
-            .await;
+    match serde_json::to_vec(&auth_manifest) {
+        Ok(payload_bytes) => {
+            if let Err(e) = state
+                .network
+                .publish_redundant_payload(&manifest_key, payload_bytes)
+                .await
+            {
+                tracing::warn!(manifest_key = %manifest_key, error = %e, "Failed to publish manifest to DHT");
+            }
+        }
+        Err(e) => {
+            tracing::warn!(manifest_key = %manifest_key, error = %e, "Failed to serialize manifest for DHT");
+        }
     }
 
     Ok(Json(serde_json::json!({
@@ -286,19 +320,15 @@ pub async fn handle_resolve_kid(
     Ok(Json(res))
 }
 
-use axum::http::StatusCode;
 /// Handles requests to publish an AuthorizedKID to the DHT/Gossip network.
 pub async fn handle_publish_kid(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(auth_kid): Json<kinetic_core::types::AuthorizedKid>,
-) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_kid() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Kid or Admin role"}),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
     tracing::info!(
@@ -308,9 +338,8 @@ pub async fn handle_publish_kid(
 
     // 1. Verify the underlying KID document mathematically
     if let Err(e) = auth_kid.kid_doc.verify() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": format!("Invalid KID signature: {}", e)})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest(format!("Invalid KID signature: {}", e)),
         ));
     }
 
@@ -343,48 +372,32 @@ pub async fn handle_publish_kid(
     };
 
     if !is_authorized {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(
-                serde_json::json!({"error": "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner."}),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest(
+                "Invalid authorization signature. The AuthorizedKid must be signed by the name's owner.".to_string(),
             ),
         ));
     }
 
     // 2. Serialize and Publish to DHT
-    let payload_bytes = match serde_json::to_vec(&auth_kid) {
-        Ok(b) => b,
-        Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
-            ));
+    let payload_bytes = serde_json::to_vec(&auth_kid).map_err(|e| {
+        kinetic_core::error::PublishError::Internal {
+            message: format!("Serialization failed: {}", e),
+            source: None,
         }
-    };
+    })?;
     let fqdn = auth_kid.kid_doc.kid.as_str().to_string(); // Use DID as the DHT key
 
-    match state
+    state
         .network
         .publish_redundant_payload(&fqdn, payload_bytes)
-        .await
-    {
-        Ok(_) => {
-            tracing::info!("Successfully published KID {} to the DHT", fqdn);
-            Ok(Json(PublishResponse {
-                status: "success".to_string(),
-                message: "AuthorizedKID accepted and routed to DHT".to_string(),
-            }))
-        }
-        Err(e) => {
-            let err = kinetic_core::error::PublishError::KidPublishFailed(e.to_string());
-            tracing::error!(error_code = err.code(), "{}", err);
-            let api_err = kinetic_rpc::ApiError::from(e);
-            Err((
-                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap_or_default()),
-            ))
-        }
-    }
+        .await?;
+
+    tracing::info!("Successfully published KID {} to the DHT", fqdn);
+    Ok(Json(PublishResponse {
+        status: "success".to_string(),
+        message: "AuthorizedKID accepted and routed to DHT".to_string(),
+    }))
 }
 
 /// Handles API requests to publish an `AuthorizedManifest` to the DHT.
@@ -397,13 +410,10 @@ pub async fn handle_publish_manifest(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
     Json(auth_manifest): Json<kinetic_core::types::AuthorizedManifest>,
-) -> Result<Json<PublishResponse>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_kid() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(
-                serde_json::json!({"error": "Insufficient privileges: Requires Kid or Admin role"}),
-            ),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
     let did_str = auth_manifest.manifest.kid.as_str();
@@ -441,69 +451,39 @@ pub async fn handle_publish_manifest(
     };
 
     if !is_authorized {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(
-                serde_json::json!({"error": "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner."}),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest(
+                "Invalid authorization signature. The AuthorizedManifest must be signed by the name's owner.".to_string(),
             ),
         ));
     }
 
     // 1. Resolve the KID Document from DHT to verify against
     // (Note: The DHT payload for a KID will now be an AuthorizedKid wrapper!)
-    let kid_payload = match state.network.resolve_redundant_payload(did_str).await {
-        Ok(p) => p,
-        Err(e) => {
-            let status = match e {
-                kinetic_core::error::ResolutionError::NotFound { .. } => StatusCode::NOT_FOUND,
-                kinetic_core::error::ResolutionError::Offline => StatusCode::SERVICE_UNAVAILABLE,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            };
-            return Err((
-                status,
-                Json(serde_json::json!({"error": format!("DHT lookup failed: {}", e)})),
-            ));
-        }
-    };
+    let kid_payload = state.network.resolve_redundant_payload(did_str).await?;
 
     let kid_doc: kinetic_kid::Document =
         match serde_json::from_slice::<kinetic_core::types::AuthorizedKid>(&kid_payload) {
             Ok(auth_kid) => auth_kid.kid_doc,
             Err(_) => {
                 // Fallback for older raw Documents if any exist
-                match serde_json::from_slice::<kinetic_kid::Document>(&kid_payload) {
-                    Ok(doc) => doc,
-                    Err(_) => {
-                        return Err((
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            Json(serde_json::json!({"error": "Invalid KID payload on DHT"})),
-                        ));
+                serde_json::from_slice::<kinetic_kid::Document>(&kid_payload).map_err(|_| {
+                    kinetic_core::error::ResolutionError::Internal {
+                        message: "Invalid KID payload on DHT".to_string(),
+                        source: None,
                     }
-                }
+                })?
             }
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time =
-        match kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()))
-            .load_cached_kyn()
-        {
-            Ok(raw_kyn) => {
-                use kinetic_core::types::clock::KynNetworkExt;
-                kinetic_core::types::Kyn(raw_kyn.kyn).to_network_utime().0
-            }
-            Err(_) => std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        };
+    let current_network_time = get_safe_current_kyn(&state).await.to_network_utime().0;
     if let Err(e) = auth_manifest
         .manifest
         .verify_at_time(&kid_doc, current_network_time)
     {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": format!("Invalid Manifest signature: {}", e)})),
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest(format!("Invalid Manifest signature: {}", e)),
         ));
     }
 
@@ -512,35 +492,21 @@ pub async fn handle_publish_manifest(
         format!("{}#manifest", did_str).as_bytes(),
     ));
 
-    let payload_bytes = match serde_json::to_vec(&auth_manifest) {
-        Ok(b) => b,
-        Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("Serialization failed: {}", e)})),
-            ));
+    let payload_bytes = serde_json::to_vec(&auth_manifest).map_err(|e| {
+        kinetic_core::error::PublishError::Internal {
+            message: format!("Serialization failed: {}", e),
+            source: None,
         }
-    };
-    match state
+    })?;
+
+    state
         .network
         .publish_redundant_payload(&manifest_key, payload_bytes)
-        .await
-    {
-        Ok(_) => {
-            tracing::info!("Successfully published Manifest for {} to the DHT", did_str);
-            Ok(Json(PublishResponse {
-                status: "success".to_string(),
-                message: "Manifest accepted and routed to DHT".to_string(),
-            }))
-        }
-        Err(e) => {
-            let err = kinetic_core::error::PublishError::ManifestPublishFailed(e.to_string());
-            tracing::error!(error_code = err.code(), "{}", err);
-            let api_err = kinetic_rpc::ApiError::from(e);
-            Err((
-                StatusCode::from_u16(api_err.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                Json(serde_json::to_value(api_err).unwrap_or_default()),
-            ))
-        }
-    }
+        .await?;
+
+    tracing::info!("Successfully published Manifest for {} to the DHT", did_str);
+    Ok(Json(PublishResponse {
+        status: "success".to_string(),
+        message: "Manifest accepted and routed to DHT".to_string(),
+    }))
 }

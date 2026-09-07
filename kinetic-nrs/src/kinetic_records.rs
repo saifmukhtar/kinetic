@@ -160,7 +160,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             did
                                         );
                                         let kid_url =
-                                            format!("{}/api/resolve-kid/{}", api_url, did);
+                                            format!("{}/api/v1/micro/kid/resolve/{}", api_url, did);
                                         match http_client.get(&kid_url).send().await {
                                             Ok(kid_resp) if kid_resp.status().is_success() => {
                                                 if let Ok(kid_json) =

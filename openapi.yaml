@@ -431,7 +431,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Reveal'
-  /resolve-kid/{did}:
+  /v1/micro/kid/resolve/{did}:
     get:
       operationId: resolveKid
       summary: Resolve a KID [Public]
@@ -628,7 +628,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /publish-kid:
+  /v1/micro/kid/publish:
     post:
       operationId: publishKid
       summary: Publish a KID to DHT [Private]
@@ -649,7 +649,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /publish-manifest:
+  /v1/micro/kid/manifest/publish:
     post:
       operationId: publishManifest
       summary: Publish a Capability Manifest to DHT [Private]
@@ -898,7 +898,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /kid:
+  /v1/micro/kid/list:
     get:
       operationId: listKids
       summary: List all public identifiers for KIDs [Public]
@@ -912,6 +912,7 @@ paths:
                 type: array
                 items:
                   type: string
+  /v1/micro/kid/generate:
     post:
       operationId: generateKid
       summary: Generate a new KID [Private]
@@ -926,7 +927,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /kid/{name}:
+  /v1/micro/kid/{name}:
     get:
       operationId: fetchKid
       summary: Fetch details of a specific KID [Public]
@@ -944,7 +945,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthorizedKid'
-  /kid/{name}/rotate:
+  /v1/micro/kid/{name}/rotate:
     post:
       operationId: rotateKid
       summary: Rotate the keys for a given KID [Private]
@@ -965,7 +966,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /kid/{name}/revoke:
+  /v1/micro/kid/{name}/revoke:
     post:
       operationId: revokeKid
       summary: Revoke a given KID [Private]
@@ -986,7 +987,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /kid/{name}/manifest:
+  /v1/micro/kid/{name}/manifest:
     get:
       operationId: fetchKidManifest
       summary: Fetch the local manifest for a specific KID [Public]

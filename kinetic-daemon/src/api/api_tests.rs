@@ -32,14 +32,18 @@ mod tests {
             storage: storage.clone(),
             host_speed_ips: 100_000,
             daemon_keypair: kinetic_primitives::keys::KineticKeypair::generate(),
-            dns_cache: std::sync::Arc::new(std::sync::Mutex::new(
+            dns_cache: std::sync::Arc::new(tokio::sync::Mutex::new(
                 crate::proxy::dns_cache::DnsCache::new(100, 300),
             )),
             tokens: Arc::new(crate::api::ApiTokens {
                 admin: "test-token-123".to_string(),
-                publish: "publish-token".to_string(),
+                kid: "kid-token".to_string(),
+                nrs: "nrs-token".to_string(),
                 vdf: "vdf-token".to_string(),
                 action: "gov-token".to_string(),
+                gossip: "gossip-token".to_string(),
+                metric: "metric-token".to_string(),
+                system: "system-token".to_string(),
                 atlas: "atlas-token".to_string(),
             }),
             vdf_tasks: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -344,7 +348,7 @@ mod tests {
         let req_body_str = req_body.to_string();
 
         let req1 = Request::builder()
-            .uri("/vdf/register")
+            .uri("/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -352,7 +356,7 @@ mod tests {
             .unwrap();
 
         let req2 = Request::builder()
-            .uri("/vdf/register")
+            .uri("/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -383,7 +387,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/publish-kid")
+            .uri("/v1/micro/kid/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
