@@ -263,7 +263,6 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(handle_macro_status),
         )
         .route("/v1/micro/nrs/owned", axum::routing::get(handle_owned_names))
-        .route("/owned-names", axum::routing::get(handle_owned_names))
         .route("/zone/{name}", axum::routing::post(handle_post_zone))
         .route(
             "/zone/local/{name}",
@@ -304,7 +303,6 @@ pub fn app(state: ApiState) -> Router {
 
     let public_api_routes: Router<ApiState> = Router::new()
         .route("/v1/micro/health", axum::routing::get(handle_get_health))
-        .route("/health", axum::routing::get(handle_get_health))
         .route(
             "/v1/micro/consensus/difficulty/{name}",
             axum::routing::get(consensus::handle_get_difficulty),
