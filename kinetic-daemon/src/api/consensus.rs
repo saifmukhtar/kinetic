@@ -113,8 +113,12 @@ fn format_duration(secs: u64) -> String {
 pub async fn handle_get_difficulty(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Json<DifficultyResponse> {
+) -> Result<Json<DifficultyResponse>, crate::api::error::AppError> {
     let normalized = kinetic_core::types::names::normalize_name(&name);
+    if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&normalized) {
+        return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(e)));
+    }
+
     let params = ConsensusParams::default();
     let iterations = params.iterations(&normalized);
     let apex = kinetic_core::types::names::extract_apex_name(&normalized).to_string();
@@ -125,17 +129,29 @@ pub async fn handle_get_difficulty(
     let label_length = label.len();
 
     let ndc_tier = format!("{}_chars", label_length);
-    // Baseline network expectation (assume ~100k IPS baseline for rough target minutes)
-    // 3 char: 300,000,000 / 100k = 3000s (50m)
-    // 4 char: 75,000,000 / 100k = 750s (12.5m)
-    let network_reference_target_minutes = (iterations / 100_000) / 60;
+    let network_reference_target_minutes = match label_length {
+        0 | 1 => kinetic_core::constants::CONSENSUS_NDC_LEN_0_TO_1,
+        2 => kinetic_core::constants::CONSENSUS_NDC_LEN_2,
+        3 => kinetic_core::constants::CONSENSUS_NDC_LEN_3,
+        4 => kinetic_core::constants::CONSENSUS_NDC_LEN_4,
+        5 => kinetic_core::constants::CONSENSUS_NDC_LEN_5,
+        6 => kinetic_core::constants::CONSENSUS_NDC_LEN_6,
+        7 => kinetic_core::constants::CONSENSUS_NDC_LEN_7,
+        8..=10 => kinetic_core::constants::CONSENSUS_NDC_LEN_8_TO_10,
+        11..=17 => kinetic_core::constants::CONSENSUS_NDC_LEN_11_TO_17,
+        18..=20 => kinetic_core::constants::CONSENSUS_NDC_LEN_18_TO_20,
+        _ => kinetic_core::constants::TARGET_MINUTES as u64,
+    };
 
     let host_speed_ips = state.host_speed_ips;
     let estimated_seconds = iterations / std::cmp::max(host_speed_ips, 1);
 
-    let rating = if host_speed_ips > 140_000 {
+    let reference_ips = (kinetic_core::constants::BASE_ITERATIONS as f64)
+        / (kinetic_core::constants::TARGET_MINUTES * 60.0);
+
+    let rating = if host_speed_ips as f64 > reference_ips * 1.4 {
         "Fast"
-    } else if host_speed_ips > 70_000 {
+    } else if host_speed_ips as f64 > reference_ips * 0.7 {
         "Average"
     } else {
         "Slow"
@@ -144,10 +160,14 @@ pub async fn handle_get_difficulty(
     let rating_str = format!(
         "{} (x{:.1} relative to network baseline)",
         rating,
-        host_speed_ips as f64 / 100_000.0
+        if reference_ips > 0.0 {
+            host_speed_ips as f64 / reference_ips
+        } else {
+            1.0
+        }
     );
 
-    Json(DifficultyResponse {
+    Ok(Json(DifficultyResponse {
         name: normalized,
         label,
         label_length,
@@ -164,7 +184,7 @@ pub async fn handle_get_difficulty(
             estimated_formatted: format_duration(estimated_seconds),
             hardware_rating: rating_str,
         },
-    })
+    }))
 }
 
 /// Calculates the decayed steal difficulty for an idle name.
@@ -190,7 +210,11 @@ pub async fn handle_steal_difficulty(
     };
 
     let current_iterations = params.steal_diff(base_iterations, kyns_idle);
-    let decay_multiplier = current_iterations as f64 / base_iterations as f64;
+    let decay_multiplier = if base_iterations > 0 {
+        current_iterations as f64 / base_iterations as f64
+    } else {
+        1.0
+    };
 
     Ok(Json(StealDifficultyResponse {
         name: normalized,
@@ -204,18 +228,19 @@ pub async fn handle_steal_difficulty(
 /// Validates a potential name string according to Kinetic's core naming rules.
 pub async fn handle_validate_name(Json(req): Json<ValidateRequest>) -> Json<ValidateResponse> {
     let normalized = kinetic_core::types::names::normalize_name(&req.name);
-    let is_reserved = kinetic_core::types::names::is_reserved_name(&normalized);
+    let is_reserved = kinetic_core::types::names::is_reserved_name(&normalized)
+        || kinetic_core::types::protocol::is_protocol_name(&normalized);
 
     match kinetic_core::types::names::is_valid_apex_name(&normalized) {
         Ok(_) => Json(ValidateResponse {
-            original: req.name.clone(),
+            original: req.name,
             normalized,
             is_valid: true,
             is_reserved,
             error: None,
         }),
         Err(e) => Json(ValidateResponse {
-            original: req.name.clone(),
+            original: req.name,
             normalized,
             is_valid: false,
             is_reserved,
