@@ -15,7 +15,7 @@ use tracing::{info, warn};
 /// Returns an `anyhow::Error` if network or file system operations fail unexpectedly.
 pub async fn handle_name_list(config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
     let daemon_url = format!(
-        "http://{}:{}/owned-names",
+        "http://{}:{}/v1/micro/nrs/owned",
         config.daemon.bind_ip, config.daemon.api_port
     );
     let response = client.get(&daemon_url).send().await;

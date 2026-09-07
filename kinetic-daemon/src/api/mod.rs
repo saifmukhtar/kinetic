@@ -239,7 +239,7 @@ pub fn app(state: ApiState) -> Router {
     let auth_routes = Router::new()
         .route("/system/shutdown", post(system::handle_shutdown))
         .route("/system/restart", post(system::handle_restart))
-        .route("/network/bootstrap", post(config::handle_network_bootstrap))
+        .route("/v1/micro/network/bootstrap", post(config::handle_network_bootstrap))
         .route("/auth/session", post(auth::handle_create_session))
         .route(
             "/auth/sessions",
@@ -254,14 +254,15 @@ pub fn app(state: ApiState) -> Router {
         .route("/publish-kid", post(handle_publish_kid))
         .route("/publish-manifest", post(handle_publish_manifest))
         .route("/v1/micro/action/publish", post(action::handle_publish_action))
-        .route("/config", axum::routing::get(handle_get_config))
-        .route("/config", axum::routing::post(handle_set_config))
-        .route("/dns/flush", axum::routing::post(config::handle_dns_flush))
+        .route("/v1/micro/config", axum::routing::get(handle_get_config))
+        .route("/v1/micro/config", axum::routing::post(handle_set_config))
+        .route("/v1/micro/config/dns/flush", axum::routing::post(config::handle_dns_flush))
         .route("/macro/tasks", axum::routing::get(handle_macro_tasks))
         .route(
             "/macro/status/{task_id}",
             axum::routing::get(handle_macro_status),
         )
+        .route("/v1/micro/nrs/owned", axum::routing::get(handle_owned_names))
         .route("/owned-names", axum::routing::get(handle_owned_names))
         .route("/zone/{name}", axum::routing::post(handle_post_zone))
         .route(
@@ -302,34 +303,35 @@ pub fn app(state: ApiState) -> Router {
         ));
 
     let public_api_routes: Router<ApiState> = Router::new()
+        .route("/v1/micro/health", axum::routing::get(handle_get_health))
         .route("/health", axum::routing::get(handle_get_health))
         .route(
-            "/consensus/difficulty/{name}",
+            "/v1/micro/consensus/difficulty/{name}",
             axum::routing::get(consensus::handle_get_difficulty),
         )
         .route(
-            "/consensus/steal-difficulty/{name}",
+            "/v1/micro/consensus/steal-difficulty/{name}",
             axum::routing::get(consensus::handle_steal_difficulty),
         )
         .route(
-            "/names/validate",
+            "/v1/micro/consensus/validate",
             axum::routing::post(consensus::handle_validate_name),
         )
-        .route("/peer_id", axum::routing::get(handle_get_peer_id))
-        .route("/network-status", axum::routing::get(handle_network_status))
+        .route("/v1/micro/network/peer-id", axum::routing::get(handle_get_peer_id))
+        .route("/v1/micro/network/status", axum::routing::get(handle_network_status))
         .route(
-            "/network/nat",
+            "/v1/micro/network/nat",
             axum::routing::get(config::handle_network_nat),
         )
-        .route("/ca/cert", axum::routing::get(config::handle_get_ca_cert))
-        .route("/network/peers", axum::routing::get(handle_network_peers))
+        .route("/v1/micro/config/ca-cert", axum::routing::get(config::handle_get_ca_cert))
+        .route("/v1/micro/network/peers", axum::routing::get(handle_network_peers))
         .route("/heartbeats", axum::routing::get(handle_get_heartbeats))
         .route(
             "/names/:name/heartbeat",
             axum::routing::post(handle_post_heartbeat),
         )
         .route(
-            "/network/peers/banned",
+            "/v1/micro/network/peers/banned",
             axum::routing::get(config::handle_network_banned),
         )
         .route(
