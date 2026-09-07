@@ -200,7 +200,9 @@ pub async fn handle_set_config(
 }
 
 /// Handles requests to check the daemon health.
-pub async fn handle_get_health(State(state): State<ApiState>) -> Json<serde_json::Value> {
+pub async fn handle_get_health(
+    State(state): State<ApiState>,
+) -> (axum::http::StatusCode, Json<serde_json::Value>) {
     // Check if network channel is responsive
     let network_ok = state.network.get_network_status().await.is_ok();
     // Check if storage is accessible by reading a known key
@@ -210,40 +212,41 @@ pub async fn handle_get_health(State(state): State<ApiState>) -> Json<serde_json
         .is_ok();
 
     if network_ok && storage_ok {
-        Json(serde_json::json!({
-            "status": "OK",
-            "network": "healthy",
-            "storage": "healthy"
-        }))
+        (
+            axum::http::StatusCode::OK,
+            Json(serde_json::json!({
+                "status": "OK",
+                "network": "healthy",
+                "storage": "healthy"
+            })),
+        )
     } else {
-        Json(serde_json::json!({
-            "status": "ERROR",
-            "network": if network_ok { "healthy" } else { "unresponsive" },
-            "storage": if storage_ok { "healthy" } else { "unresponsive" }
-        }))
+        (
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({
+                "status": "ERROR",
+                "network": if network_ok { "healthy" } else { "unresponsive" },
+                "storage": if storage_ok { "healthy" } else { "unresponsive" }
+            })),
+        )
     }
 }
 
 /// Handles requests to retrieve the local peer ID.
 pub async fn handle_get_peer_id(
     State(state): State<ApiState>,
-) -> Result<String, crate::api::error::AppError> {
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     match state.network.get_network_status().await {
         Ok(status) => {
             if let Some(peer_id) = status.get("peer_id").and_then(|p| p.as_str()) {
-                Ok(peer_id.to_string())
+                Ok(Json(serde_json::json!({ "peer_id": peer_id })))
             } else {
-                Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
-                    kinetic_core::error::ResolutionError::Offline,
-                )))
+                Err(crate::api::error::AppError::from(
+                    kinetic_core::error::NetworkClientError::Offline,
+                ))
             }
         }
-        Err(_) => Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
-            kinetic_core::error::ResolutionError::Internal {
-                message: "Network channel closed".to_string(),
-                source: None,
-            },
-        ))),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
 
