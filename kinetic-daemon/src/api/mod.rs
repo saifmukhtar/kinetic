@@ -48,7 +48,7 @@ use macro_api::*;
 use nrs::{
     handle_delete_local_zone, handle_get_local_zone, handle_get_reserved_names, handle_get_zone,
     handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_record,
-    handle_publish_zone, handle_resolve_name, handle_verify_quorum,
+    handle_publish_zone, handle_publish_fat_zone, handle_resolve_name, handle_verify_quorum,
 };
 use time::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
@@ -85,6 +85,8 @@ pub struct Role {
     pub system: bool,
     /// True if the token grants atlas bridge privileges.
     pub atlas: bool,
+    /// True if the token grants heartbeat liveness privileges.
+    pub heartbeat: bool,
 }
 
 impl Role {
@@ -120,6 +122,10 @@ impl Role {
     pub fn can_atlas(&self) -> bool {
         self.is_admin || self.atlas
     }
+    /// Returns whether this role can broadcast heartbeats.
+    pub fn can_heartbeat(&self) -> bool {
+        self.is_admin || self.heartbeat
+    }
     /// Returns whether this role is a full administrator.
     pub fn is_admin(&self) -> bool {
         self.is_admin
@@ -147,6 +153,8 @@ pub struct ApiTokens {
     pub system: String,
     /// The atlas token.
     pub atlas: String,
+    /// The heartbeat token.
+    pub heartbeat: String,
 }
 
 /// Global lock to synchronize writes to the owned names storage list.
@@ -237,20 +245,20 @@ pub fn app(state: ApiState) -> Router {
 
     // Auth-guarded routes (CLI uses these bare paths with a bearer token)
     let auth_routes = Router::new()
-        .route("/system/shutdown", post(system::handle_shutdown))
-        .route("/system/restart", post(system::handle_restart))
+        .route("/v1/micro/system/shutdown", post(system::handle_shutdown))
+        .route("/v1/micro/system/restart", post(system::handle_restart))
         .route("/v1/micro/network/bootstrap", post(config::handle_network_bootstrap))
-        .route("/auth/session", post(auth::handle_create_session))
+        .route("/v1/micro/auth/session", post(auth::handle_create_session))
         .route(
-            "/auth/sessions",
+            "/v1/micro/auth/sessions",
             axum::routing::get(auth::handle_list_sessions),
         )
         .route(
-            "/auth/session/{token}",
+            "/v1/micro/auth/session/{id}",
             axum::routing::delete(auth::handle_revoke_session),
         )
-        .route("/commit", post(handle_publish_commit))
-        .route("/publish", post(handle_publish_record))
+        .route("/v1/micro/nrs/record/commit", post(handle_publish_commit))
+        .route("/v1/micro/nrs/record/publish", post(handle_publish_record))
         .route("/v1/micro/kid/publish", post(handle_publish_kid))
         .route(
             "/v1/micro/kid/manifest/publish",
@@ -282,18 +290,22 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(handle_macro_status),
         )
         .route("/v1/micro/nrs/owned", axum::routing::get(handle_owned_names))
-        .route("/zone/{name}", axum::routing::post(handle_post_zone))
+        .route("/v1/micro/nrs/zone/{name}", axum::routing::post(handle_post_zone))
         .route(
-            "/zone/local/{name}",
+            "/v1/micro/nrs/zone/local/{name}",
             axum::routing::post(handle_post_local_zone),
         )
         .route(
-            "/zone/local/{name}",
+            "/v1/micro/nrs/zone/local/{name}",
             axum::routing::delete(handle_delete_local_zone),
         )
         .route(
-            "/zone/{name}/publish",
+            "/v1/micro/nrs/zone/{name}/publish",
             axum::routing::post(handle_publish_zone),
+        )
+        .route(
+            "/v1/micro/nrs/fat-zone/{name}",
+            axum::routing::post(handle_publish_fat_zone),
         )
         .route(
             "/macro/register",
@@ -311,6 +323,10 @@ pub fn app(state: ApiState) -> Router {
         .route(
             "/v1/micro/nrs/heartbeat/{name}",
             axum::routing::post(handle_post_heartbeat),
+        )
+        .route(
+            "/v1/micro/nrs/fat-heartbeat/{name}",
+            axum::routing::post(handle_post_fat_heartbeat),
         )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -352,7 +368,7 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(handle_get_gossip_topics),
         )
         .route(
-            "/names/reserved",
+            "/v1/micro/nrs/names/reserved",
             axum::routing::get(handle_get_reserved_names),
         )
         .route(
@@ -363,14 +379,14 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/action/names",
             axum::routing::get(action::handle_get_action_names),
         )
-        .route("/zone/{name}", axum::routing::get(handle_get_zone))
+        .route("/v1/micro/nrs/zone/{name}", axum::routing::get(handle_get_zone))
         .route(
-            "/zone/local/{name}",
+            "/v1/micro/nrs/zone/local/{name}",
             axum::routing::get(handle_get_local_zone),
         )
-        .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
+        .route("/v1/micro/nrs/resolve/{name}", axum::routing::get(handle_resolve_name))
         .route(
-            "/resolve/{name}/quorum",
+            "/v1/micro/nrs/resolve/{name}/quorum",
             axum::routing::post(handle_verify_quorum),
         )
         .route(
@@ -383,7 +399,7 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/kid/{name}/manifest",
             axum::routing::get(handle_get_kid_manifest),
         )
-        .route("/time", axum::routing::get(handle_get_time))
+        .route("/v1/micro/time/current", axum::routing::get(handle_get_time))
         .route(
             "/v1/micro/gossip/subscribe/{topic}",
             axum::routing::get(handle_gossip_subscribe),
@@ -455,6 +471,7 @@ pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
         metric: rotate_token_on_boot(&tokens_dir.join("metric.token"))?,
         system: rotate_token_on_boot(&tokens_dir.join("system.token"))?,
         atlas: rotate_token_on_boot(&tokens_dir.join("atlas.token"))?,
+        heartbeat: rotate_token_on_boot(&tokens_dir.join("heartbeat.token"))?,
     })
 }
 
@@ -595,6 +612,7 @@ async fn auth_middleware(
                 metric: true,
                 system: true,
                 atlas: true,
+                heartbeat: true,
             },
         );
         check_token(
@@ -609,6 +627,7 @@ async fn auth_middleware(
                 metric: false,
                 system: false,
                 atlas: false,
+                heartbeat: false,
             },
         );
         check_token(
@@ -623,6 +642,7 @@ async fn auth_middleware(
                 metric: false,
                 system: false,
                 atlas: false,
+                heartbeat: false,
             },
         );
         check_token(
@@ -637,6 +657,7 @@ async fn auth_middleware(
                 metric: false,
                 system: false,
                 atlas: false,
+                heartbeat: false,
             },
         );
         check_token(
@@ -651,6 +672,7 @@ async fn auth_middleware(
                 metric: false,
                 system: false,
                 atlas: false,
+                heartbeat: false,
             },
         );
         check_token(
@@ -665,6 +687,7 @@ async fn auth_middleware(
                 metric: false,
                 system: false,
                 atlas: false,
+                heartbeat: false,
             },
         );
         check_token(
@@ -679,6 +702,7 @@ async fn auth_middleware(
                 metric: true,
                 system: false,
                 atlas: false,
+                heartbeat: false,
             },
         );
         check_token(
@@ -693,6 +717,7 @@ async fn auth_middleware(
                 metric: false,
                 system: true,
                 atlas: false,
+                heartbeat: false,
             },
         );
         check_token(
@@ -707,6 +732,22 @@ async fn auth_middleware(
                 metric: false,
                 system: false,
                 atlas: true,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.heartbeat,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+                heartbeat: true,
             },
         );
 
@@ -745,9 +786,11 @@ async fn auth_middleware(
                             metric: false,
                             system: false,
                             atlas: false,
+                            heartbeat: false,
                         };
                         for scope in session.scopes {
                             match scope.to_lowercase().as_str() {
+                                "admin" => session_role.is_admin = true,
                                 "kid" => session_role.kid = true,
                                 "nrs" => session_role.nrs = true,
                                 "vdf" => session_role.vdf = true,
@@ -756,6 +799,7 @@ async fn auth_middleware(
                                 "metric" => session_role.metric = true,
                                 "system" => session_role.system = true,
                                 "atlas" => session_role.atlas = true,
+                                "heartbeat" => session_role.heartbeat = true,
                                 _ => {}
                             }
                         }

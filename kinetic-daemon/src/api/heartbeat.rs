@@ -135,7 +135,7 @@ pub async fn handle_post_heartbeat(
     State(state): State<ApiState>,
     Path(name): Path<String>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_nrs() {
+    if !role.can_heartbeat() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
@@ -189,6 +189,101 @@ pub async fn handle_post_heartbeat(
         Ok(_) => Ok(Json(serde_json::json!({
             "status": "success",
             "message": format!("Manually broadcasted heartbeat for {}", normalized),
+            "kyn": current_kyn
+        }))),
+        Err(e) => Err(crate::api::error::AppError::from(e)),
+    }
+}
+
+use serde::Deserialize;
+
+/// Request payload for manually broadcasting a Fat Heartbeat.
+#[derive(Deserialize)]
+pub struct FatHeartbeatRequest {
+    /// The private key of the hot key, hex encoded, to sign the heartbeat.
+    pub hot_key_hex: String,
+    /// The master-key authorized delegation proof.
+    pub authorized_manifest: kinetic_core::types::identity::AuthorizedManifest,
+}
+
+/// Manually constructs and broadcasts a Fat Heartbeat for a specific name to the DHT,
+/// using a delegated hot key and an authorized manifest instead of the daemon master key.
+pub async fn handle_post_fat_heartbeat(
+    axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
+    State(state): State<ApiState>,
+    Path(name): Path<String>,
+    Json(req): Json<FatHeartbeatRequest>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    if !role.can_heartbeat() {
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
+        ));
+    }
+
+    let normalized = kinetic_core::types::names::normalize_name(&name);
+    if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&normalized) {
+        return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(e)));
+    }
+
+    // Verify the capability is present in the manifest
+    let has_cap = req.authorized_manifest.manifest.services.iter()
+        .any(|s| s.service_type == "kinetic.capability.heartbeat");
+    if !has_cap {
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest("Provided AuthorizedManifest does not contain kinetic.capability.heartbeat capability.".to_string()),
+        ));
+    }
+
+    // Load the hot key
+    let hot_key_bytes = hex::decode(&req.hot_key_hex).map_err(|e| {
+        crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!("Invalid hot_key_hex: {}", e)))
+    })?;
+    let keypair = kinetic_primitives::keys::KineticKeypair::from_slice(&hot_key_bytes).map_err(|e| {
+         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!("Invalid ML-DSA keypair: {}", e)))
+    })?;
+
+    let current_kyn = get_safe_current_kyn(&state).await;
+
+    let mut heartbeat = Heartbeat {
+        name: normalized.clone(),
+        latest_kyn: current_kyn,
+        signature: vec![],
+        authorization: Some(Box::new(req.authorized_manifest)),
+    };
+
+    let signable_bytes = heartbeat.signable_bytes(constants::NETWORK_SALT);
+    
+    let sig_bytes = tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
+        .await
+        .map_err(|e| {
+            let sys_err = kinetic_core::error::SystemError::ServerCrashed(e.to_string());
+            crate::api::error::AppError(kinetic_rpc::ApiError {
+                error_type: sys_err.error_type_uri(),
+                title: "Internal Server Error".to_string(),
+                status: 500,
+                detail: sys_err.user_message(),
+                instance: None,
+                code: sys_err.code().to_string(),
+                retryable: sys_err.is_retryable(),
+                details: serde_json::Value::Null,
+                request_id: "".to_string(),
+            })
+        })?;
+    heartbeat.signature = sig_bytes;
+
+    let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
+        crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest(format!(
+                "Failed to serialize fat heartbeat: {}",
+                e
+            )),
+        )
+    })?;
+
+    match state.network.publish_heartbeat(&normalized, payload).await {
+        Ok(_) => Ok(Json(serde_json::json!({
+            "status": "success",
+            "message": format!("Manually broadcasted Fat Heartbeat for {}", normalized),
             "kyn": current_kyn
         }))),
         Err(e) => Err(crate::api::error::AppError::from(e)),
