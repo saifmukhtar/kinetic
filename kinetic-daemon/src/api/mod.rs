@@ -296,6 +296,10 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/atlas/sync",
             axum::routing::post(handle_atlas_sync),
         )
+        .route(
+            "/v1/micro/nrs/heartbeat/{name}",
+            axum::routing::post(handle_post_heartbeat),
+        )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
@@ -323,10 +327,9 @@ pub fn app(state: ApiState) -> Router {
         )
         .route("/v1/micro/config/ca-cert", axum::routing::get(config::handle_get_ca_cert))
         .route("/v1/micro/network/peers", axum::routing::get(handle_network_peers))
-        .route("/heartbeats", axum::routing::get(handle_get_heartbeats))
         .route(
-            "/names/:name/heartbeat",
-            axum::routing::post(handle_post_heartbeat),
+            "/v1/micro/nrs/heartbeats",
+            axum::routing::get(handle_get_heartbeats),
         )
         .route(
             "/v1/micro/network/peers/banned",

@@ -6,7 +6,7 @@ use axum::{
     extract::{Path, State},
 };
 use kinetic_core::constants;
-use kinetic_core::types::Heartbeat;
+use kinetic_core::types::{Heartbeat, KynNetworkExt};
 use serde::Serialize;
 
 /// Represents the DHT heartbeat status of a locally owned name.
@@ -31,17 +31,46 @@ pub struct HeartbeatsResponse {
     pub names: Vec<HeartbeatStatusResponse>,
 }
 
+/// Active heartbeat freshness window (200 Kyns ~ 10 minutes at 3s/kyn).
+const ACTIVE_HEARTBEAT_MAX_KYNS: u64 = 200;
+/// Expiration window (28,800 Kyns = 1 Prism / 24 hours at 3s/kyn).
+const STALE_HEARTBEAT_MAX_KYNS: u64 = 28_800;
+
+/// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
+async fn get_safe_current_kyn(state: &ApiState) -> u64 {
+    if let Ok(kyn) = state.network.get_current_kyn().await
+        && kyn > 0 {
+            return kyn;
+        }
+
+    let kyn_provider =
+        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+    use kinetic_core::traits::KynProvider;
+    match kyn_provider.load_cached_kyn() {
+        Ok(kyn) if kyn.kyn > 0 => kyn.kyn,
+        _ => kinetic_core::types::Kyn::now_local().0,
+    }
+}
+
 /// Fetches the real-time DHT heartbeat status of all locally owned names.
 pub async fn handle_get_heartbeats(
     State(state): State<ApiState>,
 ) -> Result<Json<HeartbeatsResponse>, crate::api::error::AppError> {
     let owned_key = constants::DB_PREFIX_OWNED_NAMES;
     let owned_names: Vec<String> = match state.storage.get(owned_key) {
-        Ok(Some(bytes)) => serde_json::from_slice(&bytes).unwrap_or_default(),
-        _ => Vec::new(),
+        Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
+            Ok(v) => v,
+            Err(e) => {
+                let err = kinetic_core::error::StorageError::DeserializationFailed(e.to_string());
+                tracing::error!(error = ?err, "{}", err.user_message());
+                return Err(crate::api::error::AppError::from(err));
+            }
+        },
+        Ok(None) => Vec::new(),
+        Err(e) => return Err(crate::api::error::AppError::from(e)),
     };
 
-    let current_kyn = state.network.get_current_kyn().await.unwrap_or(0);
+    let current_kyn = get_safe_current_kyn(&state).await;
 
     let mut handles = Vec::new();
     for name in owned_names {
@@ -60,9 +89,9 @@ pub async fn handle_get_heartbeats(
                 Ok(bytes) => {
                     if let Ok(hb) = serde_json::from_slice::<Heartbeat>(&bytes) {
                         let age = current_kyn.saturating_sub(hb.latest_kyn);
-                        let status = if age <= 200 {
+                        let status = if age <= ACTIVE_HEARTBEAT_MAX_KYNS {
                             "Active"
-                        } else if age <= 28800 {
+                        } else if age <= STALE_HEARTBEAT_MAX_KYNS {
                             "Stale"
                         } else {
                             "Idle"
@@ -111,10 +140,16 @@ pub async fn handle_post_heartbeat(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
-    let current_kyn = state.network.get_current_kyn().await.unwrap_or(0);
+
+    let normalized = kinetic_core::types::names::normalize_name(&name);
+    if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&normalized) {
+        return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(e)));
+    }
+
+    let current_kyn = get_safe_current_kyn(&state).await;
 
     let mut heartbeat = Heartbeat {
-        name: name.clone(),
+        name: normalized.clone(),
         latest_kyn: current_kyn,
         signature: vec![],
         authorization: None,
@@ -125,15 +160,35 @@ pub async fn handle_post_heartbeat(
 
     let sig_bytes = tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
         .await
-        .unwrap();
+        .map_err(|e| {
+            let sys_err = kinetic_core::error::SystemError::ServerCrashed(e.to_string());
+            crate::api::error::AppError(kinetic_rpc::ApiError {
+                error_type: sys_err.error_type_uri(),
+                title: "Internal Server Error".to_string(),
+                status: 500,
+                detail: sys_err.user_message(),
+                instance: None,
+                code: sys_err.code().to_string(),
+                retryable: sys_err.is_retryable(),
+                details: serde_json::Value::Null,
+                request_id: "".to_string(),
+            })
+        })?;
     heartbeat.signature = sig_bytes;
 
-    let payload = serde_json::to_vec(&heartbeat).unwrap();
+    let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
+        crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest(format!(
+                "Failed to serialize heartbeat: {}",
+                e
+            )),
+        )
+    })?;
 
-    match state.network.publish_heartbeat(&name, payload).await {
+    match state.network.publish_heartbeat(&normalized, payload).await {
         Ok(_) => Ok(Json(serde_json::json!({
             "status": "success",
-            "message": format!("Manually broadcasted heartbeat for {}", name),
+            "message": format!("Manually broadcasted heartbeat for {}", normalized),
             "kyn": current_kyn
         }))),
         Err(e) => Err(crate::api::error::AppError::from(e)),
