@@ -20,7 +20,7 @@ mod tests {
 
     async fn setup_test_app() -> (axum::Router, mpsc::Receiver<Command>, Arc<KineticStorage>) {
         let dir = tempdir().unwrap();
-        let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let storage = Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
 
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let network = NetworkClient::new_mock(cmd_tx);
@@ -43,6 +43,7 @@ mod tests {
                 action: "gov-token".to_string(),
                 gossip: "gossip-token".to_string(),
                 metric: "metric-token".to_string(),
+                heartbeat: "heartbeat-token".to_string(),
                 system: "system-token".to_string(),
                 atlas: "atlas-token".to_string(),
             }),
@@ -63,7 +64,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req = Request::builder()
-            .uri("/v1/micro/nrs/record/commit")
+            .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
             .body(Body::empty())
             .unwrap();
@@ -84,7 +85,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/v1/micro/nrs/record/commit")
+            .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -95,6 +96,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
         let body = res.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("BODY: {}", body_str);
         assert!(body_str.contains("Commitment hash must not be all-zeros"));
     }
 
@@ -110,7 +112,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/v1/micro/nrs/record/commit")
+            .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -147,7 +149,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/v1/micro/nrs/record/publish")
+            .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -185,7 +187,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/v1/micro/nrs/record/publish")
+            .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -240,7 +242,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/v1/micro/nrs/record/publish")
+            .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -309,7 +311,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/v1/micro/nrs/resolve/validname.kin")
+            .uri("/api/v1/micro/nrs/resolve/validname.kin")
             .method("GET")
             .body(Body::empty())
             .unwrap();
@@ -326,7 +328,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req = Request::builder()
-            .uri("/v1/micro/nrs/zone/validname.kin/publish")
+            .uri("/api/v1/micro/nrs/zone/validname.kin/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .body(Body::empty())
@@ -348,7 +350,7 @@ mod tests {
         let req_body_str = req_body.to_string();
 
         let req1 = Request::builder()
-            .uri("/macro/register")
+            .uri("/api/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -356,7 +358,7 @@ mod tests {
             .unwrap();
 
         let req2 = Request::builder()
-            .uri("/macro/register")
+            .uri("/api/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -387,7 +389,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/v1/micro/kid/publish")
+            .uri("/api/v1/micro/kid/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")

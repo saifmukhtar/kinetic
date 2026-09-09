@@ -344,7 +344,7 @@ pub async fn handle_resolve_name(
         }
         Err(kinetic_core::error::ResolutionError::NotFound { .. }) => {
             // Fallback to local storage if DHT lookup fails or returns nothing
-            // This rescues users who lost their local reveal.json and the DHT dropped their record
+            // This rescues users who lost their local record cache (.record.json) and the DHT dropped their record
             let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
             let storage = state.storage.clone();
             let record_bytes = tokio::task::spawn_blocking(move || storage.get(reveal_key.as_bytes()))
@@ -471,7 +471,7 @@ pub async fn handle_get_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
-    let path = kinetic_local::config::get_zones_dir().join(format!("{}.json", fqdn));
+    let path = kinetic_local::config::get_zones_dir().join("config").join(format!("{}.json", fqdn));
     match tokio::fs::read_to_string(&path).await {
         Ok(content) => match serde_json::from_str::<kinetic_core::types::NrsZone>(&content) {
             Ok(zone) => Ok(Json(zone)),
@@ -508,7 +508,7 @@ pub async fn handle_post_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
-    let zones_dir = kinetic_local::config::get_zones_dir();
+    let zones_dir = kinetic_local::config::get_zones_dir().join("config");
     let path = zones_dir.join(format!("{}.json", fqdn));
 
     let content = serde_json::to_string_pretty(&zone).map_err(|e| {
@@ -553,7 +553,7 @@ pub async fn handle_publish_zone(
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
     // 1. Read the current zone file asynchronously
-    let zone_path = kinetic_local::config::get_zones_dir().join(format!("{}.json", fqdn));
+    let zone_path = kinetic_local::config::get_zones_dir().join("config").join(format!("{}.json", fqdn));
     let content = match tokio::fs::read_to_string(&zone_path).await {
         Ok(c) => c,
         Err(_) => {

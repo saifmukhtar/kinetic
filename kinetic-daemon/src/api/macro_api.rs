@@ -378,7 +378,7 @@ pub async fn handle_macro_register_name(
         drop(_lock);
 
         // Save default zone file
-        let zones_dir = kinetic_local::config::get_zones_dir();
+        let zones_dir = kinetic_local::config::get_zones_dir().join("config");
         let _ = std::fs::create_dir_all(&zones_dir);
         let path = zones_dir.join(format!("{}.json", fqdn));
         if let Ok(s) = serde_json::to_string_pretty(&zone)

@@ -197,7 +197,14 @@ pub async fn handle_publish_action(
             kinetic_types::clock::Kyn(current_kyn),
         ) {
             Ok(_) => {
-                let path = kinetic_local::config::get_base_dir().join("action.db");
+                let path = std::env::var(kinetic_core::constants::ENV_GOV)
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|_| {
+                        let config = kinetic_local::config::load_config();
+                        kinetic_local::config::get_base_dir()
+                            .join(config.daemon.storage_dir)
+                            .join("action.db")
+                    });
                 if let Err(e) = kinetic_local::governance::save_governance_to_disk(&gov, &path) {
                     let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                     tracing::error!(
@@ -270,3 +277,4 @@ pub async fn handle_publish_action(
         }
     }
 }
+

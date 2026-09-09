@@ -352,43 +352,43 @@ components:
         - owner_signature
 
 paths:
-  /health:
+  /api/v1/micro/health:
     get:
       operationId: getHealth
-      summary: Get daemon health status [Public]
+      summary: Health check endpoint [Public]
       tags: [System]
       responses:
         '200':
-          description: Health status object
-          content:
-            application/json:
-              schema:
-                type: object
-  /peer_id:
-    get:
-      operationId: getPeerId
-      summary: Get local peer ID [Public]
-      tags: [Network]
-      responses:
-        '200':
-          description: Peer ID string
+          description: OK
           content:
             text/plain:
               schema:
                 type: string
-  /network-status:
+  /api/v1/micro/network/peer-id:
     get:
-      operationId: getNetworkStatus
-      summary: Get network status [Public]
+      operationId: getPeerId
+      summary: Get the local node's Peer ID [Public]
       tags: [Network]
       responses:
         '200':
-          description: Network status object
+          description: Peer ID
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/v1/micro/network/status:
+    get:
+      operationId: getNetworkStatus
+      summary: Get Swarm/DHT networking status [Public]
+      tags: [Network]
+      responses:
+        '200':
+          description: Network status info
           content:
             application/json:
               schema:
                 type: object
-  /action:
+  /api/v1/micro/action/status:
     get:
       operationId: getGovernance
       summary: Get current network action state [Public]
@@ -401,7 +401,7 @@ paths:
               schema:
                 type: string
                 format: binary
-  /v1/micro/time/current:
+  /api/v1/micro/time/current:
     get:
       operationId: getTime
       summary: Get verified Kinetic network time [Public]
@@ -413,7 +413,7 @@ paths:
             application/json:
               schema:
                 type: object
-  /v1/micro/nrs/resolve/{name}:
+  /api/v1/micro/nrs/resolve/{name}:
     get:
       operationId: resolveName
       summary: Resolve a Kinetic name [Public]
@@ -431,7 +431,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Reveal'
-  /v1/micro/kid/resolve/{did}:
+  /api/v1/micro/kid/resolve/{did}:
     get:
       operationId: resolveKid
       summary: Resolve a KID [Public]
@@ -454,7 +454,7 @@ paths:
                     $ref: '#/components/schemas/KidDocument'
                   manifest_document:
                     $ref: '#/components/schemas/CapabilityManifest'
-  /v1/micro/nrs/names/reserved:
+  /api/v1/micro/nrs/names/reserved:
     get:
       operationId: getReservedNames
       summary: Get the list of all reserved names for the current network [Public]
@@ -473,7 +473,7 @@ paths:
                       type: string
                     active:
                       type: boolean
-  /v1/micro/nrs/zone/local/{name}:
+  /api/v1/micro/nrs/zone/local/{name}:
     get:
       operationId: getLocalReservedZone
       summary: Get local NRS override for a reserved name [Public]
@@ -529,7 +529,7 @@ paths:
       responses:
         '200':
           description: Deleted
-  /v1/micro/nrs/zone/{name}:
+  /api/v1/micro/nrs/zone/{name}:
     get:
       operationId: getZone
       summary: Get local NRS zone file [Public]
@@ -569,7 +569,7 @@ paths:
       responses:
         '200':
           description: Saved
-  /v1/micro/nrs/zone/{name}/publish:
+  /api/v1/micro/nrs/zone/{name}/publish:
     post:
       operationId: publishZone
       summary: Cryptographically sign and publish local zone to DHT [Private]
@@ -586,7 +586,7 @@ paths:
       responses:
         '200':
           description: Published
-  /v1/micro/nrs/record/commit:
+  /api/v1/micro/nrs/record/commit:
     post:
       operationId: commitName
       summary: Commit a name hash to DHT [Private]
@@ -607,7 +607,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/nrs/record/publish:
+  /api/v1/micro/nrs/record/publish:
     post:
       operationId: publishName
       summary: Publish a name reveal to DHT [Private]
@@ -628,7 +628,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/kid/publish:
+  /api/v1/micro/kid/publish:
     post:
       operationId: publishKid
       summary: Publish a KID to DHT [Private]
@@ -649,7 +649,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/kid/manifest/publish:
+  /api/v1/micro/kid/manifest/publish:
     post:
       operationId: publishManifest
       summary: Publish a Capability Manifest to DHT [Private]
@@ -670,14 +670,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /publish-action:
+  /api/v1/micro/action/publish:
     post:
       operationId: publishGovernance
-      summary: Publish a network Action to DHT [Private]
-      description: Requires Action or Admin role.
+      summary: Broadcast a signed network action (governance proposal) [Public]
       tags: [Action]
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -686,26 +683,26 @@ paths:
               type: object
       responses:
         '200':
-          description: Published
+          description: Action broadcast successfully
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/PublishResponse'
-  /config:
+                type: string
+  /api/v1/micro/config:
     get:
       operationId: getConfig
-      summary: Get config [Private]
-      description: Requires System or Admin role.
+      summary: Retrieve the active node configuration [Private]
+      description: Requires Nrs or Admin role.
       tags: [System]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Config Object
+          description: Configuration object
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigResponse'
+                type: object
     post:
       operationId: updateConfig
       summary: Update config [Private]
@@ -725,7 +722,7 @@ paths:
       responses:
         '200':
           description: Config Updated
-  /owned-names:
+  /api/v1/micro/nrs/owned:
     get:
       operationId: getOwnedNames
       summary: Get list of locally owned names [Private]
@@ -742,7 +739,7 @@ paths:
                 type: array
                 items:
                   type: string
-  /vdf/register:
+  /api/macro/register:
     post:
       operationId: vdfRegister
       summary: Start VDF name registration task [Private]
@@ -768,7 +765,7 @@ paths:
                     type: string
                   message:
                     type: string
-  /vdf/renew:
+  /api/macro/renew:
     post:
       operationId: vdfRenew
       summary: Start VDF name renewal task [Private]
@@ -794,7 +791,7 @@ paths:
                     type: string
                   message:
                     type: string
-  /vdf/status/{task_id}:
+  /api/macro/status/{task_id}:
     get:
       operationId: getVdfStatus
       summary: Get status of a VDF task [Private]
@@ -838,7 +835,7 @@ paths:
                 properties:
                   success:
                     type: boolean
-  /gossip/subscribe/{topic}:
+  /api/v1/micro/gossip/subscribe/{topic}:
     get:
       operationId: gossipSubscribe
       summary: Subscribe to a Gossipsub topic via Server-Sent Events (SSE) [Public]
@@ -856,7 +853,7 @@ paths:
             text/event-stream:
               schema:
                 type: string
-  /gossip/publish/{topic}:
+  /api/v1/micro/gossip/publish/{topic}:
     post:
       operationId: gossipPublish
       summary: Broadcast a payload to a Gossipsub topic [Private]
@@ -883,7 +880,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /internal/atlas/sync:
+  /api/v1/micro/atlas/sync:
     post:
       operationId: syncAtlas
       summary: Trigger a synchronization of the foreign NSP bridge [Private]
@@ -898,7 +895,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/kid/list:
+  /api/v1/micro/kid/list:
     get:
       operationId: listKids
       summary: List all public identifiers for KIDs [Public]
@@ -912,7 +909,7 @@ paths:
                 type: array
                 items:
                   type: string
-  /v1/micro/kid/generate:
+  /api/v1/micro/kid/generate:
     post:
       operationId: generateKid
       summary: Generate a new KID [Private]
@@ -927,7 +924,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/kid/{name}:
+  /api/v1/micro/kid/{name}:
     get:
       operationId: fetchKid
       summary: Fetch details of a specific KID [Public]
@@ -945,7 +942,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthorizedKid'
-  /v1/micro/kid/{name}/rotate:
+  /api/v1/micro/kid/{name}/rotate:
     post:
       operationId: rotateKid
       summary: Rotate the keys for a given KID [Private]
@@ -966,7 +963,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/kid/{name}/revoke:
+  /api/v1/micro/kid/{name}/revoke:
     post:
       operationId: revokeKid
       summary: Revoke a given KID [Private]
@@ -987,7 +984,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/kid/{name}/manifest:
+  /api/v1/micro/kid/{name}/manifest:
     get:
       operationId: fetchKidManifest
       summary: Fetch the local manifest for a specific KID [Public]
@@ -1031,7 +1028,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/auth/session:
+  /api/v1/micro/auth/session:
     post:
       operationId: createSession
       summary: Create a new persistent session token for an application [Private]
@@ -1059,7 +1056,7 @@ paths:
                     type: string
                   token:
                     type: string
-  /v1/micro/auth/sessions:
+  /api/v1/micro/auth/sessions:
     get:
       operationId: listSessions
       summary: List all active application session tokens [Private]
@@ -1074,7 +1071,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListSessionsResponse'
-  /v1/micro/auth/session/{id}:
+  /api/v1/micro/auth/session/{id}:
     delete:
       operationId: revokeSession
       summary: Revoke an application session token using its ID [Private]
@@ -1095,7 +1092,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/system/shutdown:
+  /api/v1/micro/system/shutdown:
     post:
       operationId: systemShutdown
       summary: Gracefully shut down the Kinetic daemon [Private]
@@ -1110,7 +1107,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/system/restart:
+  /api/v1/micro/system/restart:
     post:
       operationId: systemRestart
       summary: Restart the Kinetic daemon [Private]
@@ -1125,7 +1122,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /network/peers:
+  /api/v1/micro/network/peers:
     get:
       operationId: getNetworkPeers
       summary: Retrieve the list of connected Peer IDs [Public]
@@ -1139,7 +1136,7 @@ paths:
                 type: array
                 items:
                   type: string
-  /gossip/topics:
+  /api/v1/micro/gossip/topics:
     get:
       operationId: getGossipTopics
       summary: Retrieve a list of active Gossipsub topics [Public]
@@ -1153,7 +1150,7 @@ paths:
                 type: array
                 items:
                   type: string
-  /network/bootstrap:
+  /api/v1/micro/network/bootstrap:
     post:
       operationId: triggerNetworkBootstrap
       summary: Manually trigger a Kademlia network bootstrap [Private]
@@ -1168,7 +1165,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /v1/micro/nrs/resolve/{name}/quorum:
+  /api/v1/micro/nrs/resolve/{name}/quorum:
     post:
       operationId: verifyQuorum
       summary: Verify how many nodes in the DHT have replicated a specific payload [Public]
@@ -1197,7 +1194,7 @@ paths:
                     type: string
                   quorum_count:
                     type: integer
-  /consensus/difficulty/{name}:
+  /api/v1/micro/consensus/difficulty/{name}:
     get:
       operationId: getConsensusDifficulty
       summary: Pre-flight calculation of VDF time for new names [Public]
@@ -1246,7 +1243,7 @@ paths:
                         type: string
                       hardware_rating:
                         type: string
-  /consensus/steal-difficulty/{name}:
+  /api/v1/micro/consensus/steal-difficulty/{name}:
     get:
       operationId: getStealDifficulty
       summary: Calculates decay multiplier for taking over idle names [Public]
@@ -1280,7 +1277,7 @@ paths:
                     type: integer
                   decay_multiplier:
                     type: number
-  /names/validate:
+  /api/v1/micro/consensus/validate:
     post:
       operationId: validateName
       summary: Validates domain syntax, LDH rules, and reserved categories [Public]
@@ -1313,7 +1310,7 @@ paths:
                   error:
                     type: string
                     nullable: true
-  /action/status:
+  /api/v1/micro/action/status:
     get:
       operationId: getGovernanceStatus
       summary: Retrieves human-readable JSON of network action state, halts, and rules [Public]
@@ -1338,7 +1335,7 @@ paths:
                     nullable: true
                   total_paused_kyns:
                     type: integer
-  /action/names/prime:
+  /api/v1/micro/action/names:
     get:
       operationId: getPrimeNames
       summary: JSON list of 1-character prime names and controllers [Public]
@@ -1352,21 +1349,7 @@ paths:
                 type: object
                 additionalProperties:
                   type: string
-  /action/names/infra:
-    get:
-      operationId: getInfraNames
-      summary: JSON list of infrastructure names [Public]
-      tags: [Action]
-      responses:
-        '200':
-          description: Map of infra names to controller hex pubkeys
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  type: string
-  /network/nat:
+  /api/v1/micro/network/nat:
     get:
       operationId: getNetworkNat
       summary: Check if the node's port is reachable or behind a strict NAT [Public]
@@ -1381,7 +1364,7 @@ paths:
                 properties:
                   nat_status:
                     type: string
-  /network/peers/banned:
+  /api/v1/micro/network/peers/banned:
     get:
       operationId: getBannedPeers
       summary: List banned peers and strike counts [Public]
@@ -1403,7 +1386,7 @@ paths:
                           type: string
                         expires_at_kyn:
                           type: integer
-  /heartbeats:
+  /api/v1/micro/nrs/heartbeats:
     get:
       operationId: getHeartbeats
       summary: Get the DHT heartbeat status of all locally owned names [Public]
@@ -1431,7 +1414,7 @@ paths:
                           type: integer
                         kyns_idle:
                           type: integer
-  /names/{name}/heartbeat:
+  /api/v1/micro/nrs/heartbeat/{name}:
     post:
       operationId: postHeartbeat
       summary: Manually broadcast a heartbeat to keep a name active [Private]
@@ -1459,7 +1442,7 @@ paths:
                     type: string
                   kyn:
                     type: integer
-  /ca/cert:
+  /api/v1/micro/system/ca-cert:
     get:
       operationId: getCaCert
       summary: Download the root CA certificate for local MITM proxy interception [Public]
@@ -1471,7 +1454,7 @@ paths:
             application/x-x509-ca-cert:
               schema:
                 type: string
-  /dns/flush:
+  /api/v1/micro/config/dns/flush:
     post:
       operationId: postDnsFlush
       summary: Flushes the in-memory DNS resolution cache [Private]
@@ -1491,7 +1474,7 @@ paths:
                     type: string
                   message:
                     type: string
-  /vdf/tasks:
+  /api/macro/tasks:
     get:
       operationId: getVdfTasks
       summary: Retrieve all active and completed background VDF tasks [Private]
@@ -1516,3 +1499,119 @@ paths:
                       type: integer
                     error:
                       type: string
+  /api/v1/micro/nrs/fat-zone/{name}:
+    post:
+      operationId: postFatZone
+      summary: Publish a Fat NRS Zone Update using a delegated hot key [Private]
+      tags: [NRS]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hot_key_hex:
+                  type: string
+                authorized_manifest:
+                  type: object
+                zone:
+                  $ref: '#/components/schemas/NrsZone'
+      responses:
+        '200':
+          description: Fat Zone successfully published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+  /api/v1/micro/nrs/fat-heartbeat/{name}:
+    post:
+      operationId: postFatHeartbeat
+      summary: Broadcast a Fat Heartbeat using a delegated hot key [Private]
+      tags: [Heartbeat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hot_key_hex:
+                  type: string
+                authorized_manifest:
+                  type: object
+      responses:
+        '200':
+          description: Fat Heartbeat successfully broadcasted
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/v1/micro/auth/sessions:
+    get:
+      operationId: getAuthSessions
+      summary: List all active application sessions [Private]
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of active sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        app_name:
+                          type: string
+                        scopes:
+                          type: array
+                          items:
+                            type: string
+                        created_at:
+                          type: integer
+                        expiry_kyn:
+                          type: integer
+  /api/v1/micro/auth/session/{id}:
+    delete:
+      operationId: revokeAuthSession
+      summary: Revoke an active application session [Private]
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session successfully revoked
+          content:
+            application/json:
+              schema:
+                type: object

@@ -247,6 +247,7 @@ pub fn app(state: ApiState) -> Router {
     let auth_routes = Router::new()
         .route("/v1/micro/system/shutdown", post(system::handle_shutdown))
         .route("/v1/micro/system/restart", post(system::handle_restart))
+        .route("/v1/micro/system/ca-cert", axum::routing::get(system::handle_get_ca_cert))
         .route("/v1/micro/network/bootstrap", post(config::handle_network_bootstrap))
         .route("/v1/micro/auth/session", post(auth::handle_create_session))
         .route(
@@ -353,7 +354,6 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/network/nat",
             axum::routing::get(config::handle_network_nat),
         )
-        .route("/v1/micro/config/ca-cert", axum::routing::get(config::handle_get_ca_cert))
         .route("/v1/micro/network/peers", axum::routing::get(handle_network_peers))
         .route(
             "/v1/micro/nrs/heartbeats",
@@ -405,12 +405,9 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(handle_gossip_subscribe),
         );
 
-    // Expose all routes under /api (for the UI) and at bare paths (for the CLI).
-    // auth_routes is defined with .layer() so the middleware is preserved in both cases.
+    // Expose all routes exclusively under /api.
     Router::new()
-        .nest("/api", public_api_routes.clone().merge(auth_routes.clone()))
-        .merge(public_api_routes)
-        .merge(auth_routes)
+        .nest("/api", public_api_routes.merge(auth_routes))
         .layer(cors)
         .with_state(state)
 }

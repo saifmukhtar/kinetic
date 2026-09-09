@@ -250,33 +250,8 @@ pub async fn handle_get_peer_id(
     }
 }
 
-use axum::http::header;
-use axum::response::IntoResponse;
 
-/// Exports the local Proxy Root CA certificate for browser installation.
-pub async fn handle_get_ca_cert() -> Result<impl IntoResponse, crate::api::error::AppError> {
-    let base_config_dir = kinetic_local::config::get_base_dir();
-    let ca_path = base_config_dir.join("root_ca.crt");
 
-    match tokio::fs::read_to_string(&ca_path).await {
-        Ok(cert) => {
-            let headers = [
-                (header::CONTENT_TYPE, "application/x-x509-ca-cert"),
-                (
-                    header::CONTENT_DISPOSITION,
-                    "attachment; filename=\"kinetic_root_ca.crt\"",
-                ),
-            ];
-            Ok((headers, cert))
-        }
-        Err(e) => {
-            tracing::error!("Failed to read CA cert from {:?}: {}", ca_path, e);
-            Err(crate::api::error::AppError::from(
-                kinetic_core::error::RestApiError::NotFound,
-            ))
-        }
-    }
-}
 
 /// Flushes the local DNS resolution memory cache.
 pub async fn handle_dns_flush(
