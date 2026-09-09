@@ -32,6 +32,7 @@
 
 #![deny(missing_docs)]
 
+
 /// The aggregate network behavior combining Kademlia, Gossipsub, and Proxy layers.
 pub mod behavior;
 /// The high-level asynchronous client for interacting with the network event loop.

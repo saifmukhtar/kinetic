@@ -88,6 +88,9 @@ pub struct GovernanceState {
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
+    #[serde(default)]
+    /// Append-only log of all executed signed governance messages (used for P2P state syncing).
+    pub action_log: Vec<kinetic_types::governance::SignedGovernanceMessage>,
     /// Active 1-character prime names and their associated ML-DSA-65 public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
@@ -132,6 +135,7 @@ mod tests {
             total_paused_kyns: 0,
             pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
+            action_log: Vec::new(),
             mapped_prime_names: HashMap::new(),
             mapped_infra_names: HashMap::new(),
         }

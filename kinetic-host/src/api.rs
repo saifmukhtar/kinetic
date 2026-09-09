@@ -10,17 +10,19 @@ use tracing::info;
 pub async fn start_health_api(
     host_peer_id: libp2p::PeerId,
     bind_ip: std::net::IpAddr,
+    network_dir: std::path::PathBuf,
 ) -> Result<()> {
     let instance_name = std::env::var(kinetic_core::constants::ENV_INSTANCE)
         .unwrap_or_else(|_| "default".to_string());
 
     // 1. The File-Drop (Worker State)
-    let global_instances_dir = std::env::temp_dir().join("kinetic_host_instances");
+    let global_instances_dir = network_dir.join("hosts");
     let _ = std::fs::create_dir_all(&global_instances_dir);
     let instance_file = global_instances_dir.join(format!("{}.txt", instance_name));
     let _ = std::fs::write(&instance_file, host_peer_id.to_string());
 
     // 2. The Master API
+    let route_dir = network_dir.clone();
     let app = Router::new()
         .route("/health", get(|| async { "OK" }))
         .route(
@@ -33,8 +35,8 @@ pub async fn start_health_api(
         .route(
             "/:name/peer_id",
             get(move |Path(name): Path<String>| async move {
-                let file_path = std::env::temp_dir()
-                    .join("kinetic_host_instances")
+                let file_path = route_dir
+                    .join("hosts")
                     .join(format!("{}.txt", name));
                 match std::fs::read_to_string(file_path) {
                     Ok(peer_id) => (StatusCode::OK, peer_id),

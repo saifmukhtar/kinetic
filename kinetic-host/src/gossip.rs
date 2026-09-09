@@ -10,6 +10,7 @@ use libp2p::gossipsub::MessageId;
 /// Starts an async loop to listen for governance gossip messages, update global state, and save to disk.
 pub async fn start_gossip_listener(
     kyn_provider: Arc<dyn KynProvider>,
+    network_client: kinetic_network::NetworkClient,
     mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>, MessageId, PeerId)>,
     gov_state_path: Arc<PathBuf>,
 ) {
@@ -71,7 +72,12 @@ pub async fn start_gossip_listener(
                 };
                 if should_save {
                     let path_clone = gov_state_path.clone();
+                    let client_clone = network_client.clone();
+                    let action_log = cloned_state.action_log.clone();
                     tokio::task::spawn_blocking(move || {
+                        let _ = tokio::spawn(async move {
+                            let _ = client_clone.update_gov_action_log(action_log).await;
+                        });
                         if let Err(e) = kinetic_local::governance::save_governance_to_disk(
                             &cloned_state,
                             &path_clone,

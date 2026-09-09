@@ -8,7 +8,7 @@ use tempfile::tempdir;
 #[tokio::test]
 async fn test_store_garbage_collection() {
     let dir = tempdir().unwrap();
-    let storage = KineticStorage::new(dir.path()).unwrap();
+    let storage = KineticStorage::new(dir.path().join("state.db")).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
         std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let store = KineticRecordStore::new(
@@ -30,7 +30,7 @@ async fn test_store_garbage_collection() {
 #[tokio::test]
 async fn test_store_provider_records() {
     let dir = tempdir().unwrap();
-    let storage = KineticStorage::new(dir.path()).unwrap();
+    let storage = KineticStorage::new(dir.path().join("state.db")).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
         std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let mut store = KineticRecordStore::new(
@@ -59,7 +59,7 @@ async fn test_store_provider_records() {
 #[tokio::test]
 async fn test_store_remove_provider() {
     let dir = tempdir().unwrap();
-    let storage = KineticStorage::new(dir.path()).unwrap();
+    let storage = KineticStorage::new(dir.path().join("state.db")).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
         std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let mut store = KineticRecordStore::new(
@@ -90,7 +90,7 @@ async fn test_store_remove_provider() {
 #[tokio::test]
 async fn test_store_provided_records() {
     let dir = tempdir().unwrap();
-    let storage = KineticStorage::new(dir.path()).unwrap();
+    let storage = KineticStorage::new(dir.path().join("state.db")).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
         std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
     let mut store = KineticRecordStore::new(

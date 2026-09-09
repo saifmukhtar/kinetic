@@ -14,7 +14,7 @@ proptest! {
         garbage in any::<Vec<u8>>()
     ) {
         let temp_dir = tempfile::tempdir().unwrap();
-        let db_storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(temp_dir.path().join("state.db")).unwrap());
         let keypair = libp2p::identity::ed25519::Keypair::generate();
         let public = keypair.public();
         let identity = libp2p::identity::PublicKey::from(public);
@@ -68,7 +68,7 @@ proptest! {
         };
 
         let temp_dir = tempfile::tempdir().unwrap();
-        let db_storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(temp_dir.path().join("state.db")).unwrap());
         let keypair = libp2p::identity::ed25519::Keypair::generate();
         let public = keypair.public();
         let identity = libp2p::identity::PublicKey::from(public);

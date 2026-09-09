@@ -197,6 +197,9 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::Behaviour(KineticBehaviorEvent::Cdn(e)) => {
                 crate::event_loop::handlers::cdn::handle(self, e).await;
             }
+            SwarmEvent::Behaviour(KineticBehaviorEvent::GovSync(e)) => {
+                crate::event_loop::handlers::gov_sync::handle(self, e).await;
+            }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(e)) => {
                 crate::event_loop::handlers::gossipsub::handle(self, e).await;
             }

@@ -156,6 +156,22 @@ pub(crate) fn build_full_swarm(
                 libp2p::request_response::Config::default(),
             );
 
+            let gov_sync = libp2p::request_response::cbor::Behaviour::<
+                kinetic_types::governance::GovSyncRequest,
+                kinetic_types::governance::GovSyncResponse,
+            >::new(
+                [(
+                    libp2p::StreamProtocol::try_from_owned(format!(
+                        "/{}/gov-sync/1.0.0",
+                        kinetic_core::constants::NETWORK_SALT_HEX
+                    ))
+                    .unwrap(),
+                    libp2p::request_response::ProtocolSupport::Full,
+                )],
+                libp2p::request_response::Config::default()
+                    .with_request_timeout(std::time::Duration::from_secs(60)),
+            );
+
             let stream = libp2p_stream::Behaviour::new();
             let _ = control_tx.send(stream.new_control());
 
@@ -232,6 +248,7 @@ pub(crate) fn build_full_swarm(
                 ping,
                 proxy,
                 cdn,
+                gov_sync,
                 stream,
                 kademlia,
                 gossipsub,

@@ -43,7 +43,7 @@ async fn spawn_test_node(
     };
 
     let dir = tempdir().unwrap();
-    let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+    let storage = Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
 
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
         std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());

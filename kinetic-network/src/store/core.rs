@@ -600,7 +600,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_store_rejects_garbage() {
         let dir = tempdir().unwrap();
-        let db_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
 
@@ -626,7 +626,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_pruning_idle_names() {
         let dir = tempdir().unwrap();
-        let db_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
@@ -679,7 +679,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_pruning_exempt_names() {
         let dir = tempdir().unwrap();
-        let db_storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let db_storage = Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
@@ -727,7 +727,7 @@ mod tests {
     async fn test_orphaned_heartbeat_cleanup_on_boot() {
         let dir = tempfile::tempdir().unwrap();
         let storage: std::sync::Arc<dyn kinetic_core::traits::StorageEngine> =
-            std::sync::Arc::new(KineticStorage::new(dir.path()).unwrap());
+            std::sync::Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
 
         let name = "orphan.kin";
         let hb_key = [crate::store::constants::KRS_HB_PREFIX, name.as_bytes()].concat();
@@ -765,7 +765,7 @@ mod tests {
     async fn test_80kb_payload_capacity() {
         let dir = tempfile::tempdir().unwrap();
         let storage: std::sync::Arc<dyn kinetic_core::traits::StorageEngine> =
-            std::sync::Arc::new(KineticStorage::new(dir.path()).unwrap());
+            std::sync::Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
             std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
@@ -801,7 +801,7 @@ mod tests {
     async fn test_schema_and_malformed_json_rejection() {
         let dir = tempfile::tempdir().unwrap();
         let storage: std::sync::Arc<dyn kinetic_core::traits::StorageEngine> =
-            std::sync::Arc::new(KineticStorage::new(dir.path()).unwrap());
+            std::sync::Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let peer_id = libp2p::PeerId::from(libp2p::identity::Keypair::generate_ed25519().public());
         let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
             std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());

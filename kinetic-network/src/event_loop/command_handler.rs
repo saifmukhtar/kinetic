@@ -377,6 +377,14 @@ impl super::core::NetworkEventLoop {
                     .gossipsub
                     .report_message_validation_result(&message_id, &propagation_source, acceptance);
             }
+            Command::SendGovSyncRequest { peer, req, responder } => {
+                let req_id = self.swarm.behaviour_mut().gov_sync.send_request(&peer, *req);
+                self.pending_gov_sync_requests.insert(req_id, responder);
+            }
+            Command::UpdateGovActionLog { actions } => {
+                self.gov_action_log = actions;
+                tracing::debug!("Network event loop updated internal gov_action_log with {} actions", self.gov_action_log.len());
+            }
         }
     }
 }

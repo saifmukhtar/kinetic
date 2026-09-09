@@ -371,3 +371,17 @@ mod tests {
         }
     }
 }
+
+/// Request to sync historical governance actions.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GovSyncRequest {
+    /// The local node's current Kyn. Unused currently, but useful for filtering later.
+    pub from_kyn: u64,
+}
+
+/// Response containing historical governance actions.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GovSyncResponse {
+    /// The append-only log of all executed signed governance messages.
+    pub actions: Vec<SignedGovernanceMessage>,
+}
