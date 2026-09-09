@@ -4,7 +4,7 @@
 //! governance or update authorities. All privileged actions are universally rejected.
 
 use crate::error::GovernanceError;
-use crate::traits::GovernanceEngine;
+use crate::traits::ActionEngine;
 use crate::types::{ActionConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage};
 
 /// Development-only engine driver where all governance modifications are rejected.
@@ -12,7 +12,7 @@ use crate::types::{ActionConfig, GovernanceEffect, GovernanceState, SignedGovern
 /// Represents a pure decentralized state with no Root or Council keys.
 pub struct PermissionlessEngine;
 
-impl GovernanceEngine for PermissionlessEngine {
+impl ActionEngine for PermissionlessEngine {
     /// Universally rejects all governance actions.
     ///
     /// # Errors

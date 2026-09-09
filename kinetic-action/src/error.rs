@@ -1,6 +1,6 @@
 //! Governance action verification and voting error types (`KIN-ACN-NNN`).
 //!
-//! [`GovernanceError`] is returned by the active [`GovernanceEngine`](crate::traits::GovernanceEngine)
+//! [`GovernanceError`] is returned by the active [`ActionEngine`](crate::traits::ActionEngine)
 //! when a [`SignedGovernanceMessage`](crate::governance::types::SignedGovernanceMessage) fails
 //! signature verification, threshold checks, or timelock constraints.
 //!

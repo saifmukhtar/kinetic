@@ -1,7 +1,7 @@
 //! Core governance state transitions and message signature aggregation.
 //!
 //! Implements the `GovernanceState` mutating operations that are called by the
-//! active [`GovernanceEngine`](crate::traits::GovernanceEngine) after signature verification:
+//! active [`ActionEngine`](crate::traits::ActionEngine) after signature verification:
 //! - [`GovernanceState::new`] — genesis state initialization
 //! - [`GovernanceState::hash_action`] — deterministic SHA-256 action hash derivation
 //! - [`GovernanceState::prune`] — stale proposal garbage collection

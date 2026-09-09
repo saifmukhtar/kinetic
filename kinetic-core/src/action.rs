@@ -4,7 +4,7 @@
 //! bridging it with `kinetic-core` configurations for ease of use across the workspace.
 
 pub use kinetic_action::error::GovernanceError;
-pub use kinetic_action::traits::GovernanceEngine;
+pub use kinetic_action::traits::ActionEngine;
 pub use kinetic_action::types;
 pub use kinetic_action::types::{
     GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage, verify_signature,

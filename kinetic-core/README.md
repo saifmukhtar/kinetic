@@ -10,4 +10,4 @@ This crate acts as the central hub of logic for the Kinetic Network. It implemen
 - **Governance Logic:** Permissionless and Sovereign governance engines.
 - **Drand Integration:** Verification of BLS12-381 G2 signatures from the League of Entropy.
 - **VDF Management:** Core structs and verification logic (handed off to `kinetic-verify`) for chiavdf Proofs of Sequential Work.
-- **Traits:** The foundational `StorageEngine`, `KynProvider`, and `GovernanceEngine` interfaces used to build modular frontends (like `kinetic-local` and `kinetic-network`).
+- **Traits:** The foundational `StorageEngine`, `KynProvider`, and `ActionEngine` interfaces used to build modular frontends (like `kinetic-local` and `kinetic-network`).

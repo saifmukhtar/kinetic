@@ -1,7 +1,7 @@
 use crate::error::GovernanceError;
 use crate::types::{GovernanceEffect, GovernanceState, SignedGovernanceMessage};
 
-pub trait GovernanceEngine: Send + Sync {
+pub trait ActionEngine: Send + Sync {
     /// Verifies whether a signed governance message meets threshold and timelock requirements.
     ///
     /// Does **not** mutate `state` on its own — state changes only happen in

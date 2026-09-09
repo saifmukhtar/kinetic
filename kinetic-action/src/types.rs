@@ -7,7 +7,7 @@
 //!
 //! All governance state changes follow a two-phase commit protocol:
 //! 1. A [`SignedGovernanceMessage`] is broadcast with one or more ML-DSA-65 signatures.
-//! 2. Threshold verification by the active [`GovernanceEngine`](crate::traits::GovernanceEngine)
+//! 2. Threshold verification by the active [`ActionEngine`](crate::traits::ActionEngine)
 //!    determines whether the action is immediately executed or enters a timelock queue.
 //!
 //! In **Sovereign mode**, the Root key acts as a single-signer authority.

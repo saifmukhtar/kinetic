@@ -5,7 +5,7 @@
 //! for private deployments or the earliest stages of bootstrap.
 
 use crate::error::GovernanceError;
-use crate::traits::GovernanceEngine;
+use crate::traits::ActionEngine;
 use crate::types::{
     GovernanceAction, ActionConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
     verify_signature,
@@ -14,7 +14,7 @@ use crate::types::{
 /// Single-signer governance engine driver controlled exclusively by the Founder Root key.
 pub struct SovereignEngine;
 
-impl GovernanceEngine for SovereignEngine {
+impl ActionEngine for SovereignEngine {
     /// Verifies that the proposal is signed by the Founder Root key.
     ///
     ///
