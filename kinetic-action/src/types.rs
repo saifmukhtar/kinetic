@@ -209,5 +209,5 @@ pub struct ActionConfig {
     /// Whether the network is running in dev mode (bypasses root key validation).
     pub is_dev_mode: bool,
     /// The governance model to use ("sovereign" or "permissionless").
-    pub governance_model: String,
+    pub action_model: String,
 }

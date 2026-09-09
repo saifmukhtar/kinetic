@@ -55,7 +55,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                         }
                         return false;
                     } else if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
-                        if kinetic_core::constants::GOVERNANCE_MODEL == "permissionless" {
+                        if kinetic_core::constants::ACTION_MODEL == "permissionless" {
                             return false;
                         }
                         if let Ok(signed_msg) = serde_json::from_slice::<

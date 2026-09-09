@@ -9,7 +9,7 @@
 //! These traits enable `kinetic-core` to be network-agnostic. The concrete implementations
 //! live in `kinetic-vdf`, `kinetic-storage`, and `kinetic-core/src/governance/engine/`
 //! respectively. The active `GovernanceEngine` is selected at compile time from `network.json`
-//! via the `GOVERNANCE_MODEL` constant.
+//! via the `ACTION_MODEL` constant.
 
 use crate::error::{StorageError, VdfError};
 use crate::types::{Commitment, VdfProof};

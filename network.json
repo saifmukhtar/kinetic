@@ -21,7 +21,7 @@
     ]
   },
   "governance": {
-    "governance_model": "sovereign",
+    "action_model": "sovereign",
     "max_age_kyns": 201600
   },
   "consensus": {

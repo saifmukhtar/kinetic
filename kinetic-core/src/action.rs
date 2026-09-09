@@ -31,7 +31,7 @@ pub fn get_action_config() -> ActionConfig {
         sovereign_key_hex: crate::constants::SOVEREIGN_KEY_HEX.to_string(),
         max_age_kyns: crate::constants::MAX_AGE_KYNS,
         is_dev_mode: crate::config::is_dev_mode(),
-        governance_model: crate::constants::GOVERNANCE_MODEL.to_string(),
+        action_model: crate::constants::ACTION_MODEL.to_string(),
     }
 }
 

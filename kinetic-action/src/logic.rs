@@ -48,7 +48,7 @@ pub fn validate_keys_initialized(
 impl GovernanceState {
     /// Initializes a new [`GovernanceState`] at network genesis.
     ///
-    /// The state starts in `GovernanceMode::Founder` with an empty council,
+    /// The state starts in `ActionMode::Founder` with an empty council,
     /// no pending updates, and no prime mappings.
     ///
     /// # Returns
@@ -124,7 +124,7 @@ impl GovernanceState {
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-        crate::engine::get_active_engine(&config.governance_model).verify_action(
+        crate::engine::get_active_engine(&config.action_model).verify_action(
             self,
             msg,
             current_kyn,
@@ -139,7 +139,7 @@ impl GovernanceState {
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
     ) -> Option<GovernanceEffect> {
-        crate::engine::get_active_engine(&config.governance_model).execute_action(
+        crate::engine::get_active_engine(&config.action_model).execute_action(
             self,
             msg,
             current_kyn,

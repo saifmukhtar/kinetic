@@ -31,7 +31,7 @@ mod tests {
             sovereign_key_hex: hex::encode(get_root_sk().pubkey_bytes()),
             max_age_kyns: 100,
             is_dev_mode: false,
-            governance_model: "sovereign".to_string(),
+            action_model: "sovereign".to_string(),
         }
     }
 

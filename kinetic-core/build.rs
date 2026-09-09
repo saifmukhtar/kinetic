@@ -71,8 +71,8 @@ struct DrandSection {
 }
 
 #[derive(Deserialize)]
-struct GovernanceSection {
-    governance_model: String,
+struct ActionSection {
+    action_model: String,
     max_age_kyns: u64,
 }
 
@@ -91,7 +91,7 @@ struct AdvancedSection {
 struct NetworkConfig {
     network: NetworkSection,
     drand: DrandSection,
-    governance: GovernanceSection,
+    governance: ActionSection,
     consensus: ConsensusConfig,
     advanced: AdvancedSection,
 }
@@ -180,8 +180,8 @@ fn main() {
 
     out.push_str(&format!(
         "/// The swappable governance engine used by this network.\n\
-         pub const GOVERNANCE_MODEL: &str = \"{}\";\n\n",
-        config.governance.governance_model
+         pub const ACTION_MODEL: &str = \"{}\";\n\n",
+        config.governance.action_model
     ));
 
     let local_bind_ip = &config.network.local_bind_ip;
