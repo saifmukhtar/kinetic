@@ -151,7 +151,7 @@ impl SignedGovernanceMessage {
 
 /// Errors arising from canonical governance message parsing and validation.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
-pub enum GovernanceTypeError {
+pub enum ActionTypeError {
     /// Provided byte slice is shorter than the minimum expected header or field size.
     #[error("Buffer too small for parsing governance payload")]
     BufferTooSmall,
@@ -173,17 +173,17 @@ impl GovernanceAction {
     /// - 1 byte opcode
     /// - Opcode-specific variable-length payload
     /// - 8 bytes timestamp (`u64` big-endian) at the very end
-    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, u64), GovernanceTypeError> {
+    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, u64), ActionTypeError> {
         if bytes.len() < 9 {
             // At least 1 byte opcode + 8 bytes timestamp
-            return Err(GovernanceTypeError::BufferTooSmall);
+            return Err(ActionTypeError::BufferTooSmall);
         }
 
         let timestamp_bytes = &bytes[bytes.len() - 8..];
         let timestamp_kyn = u64::from_be_bytes(timestamp_bytes.try_into().unwrap());
         let payload = &bytes[0..bytes.len() - 8];
         if payload.is_empty() {
-            return Err(GovernanceTypeError::BufferTooSmall);
+            return Err(ActionTypeError::BufferTooSmall);
         }
 
         let opcode = payload[0];
@@ -193,18 +193,18 @@ impl GovernanceAction {
             0x0A => {
                 // MapPrime
                 if action_data.len() < 4 {
-                    return Err(GovernanceTypeError::BufferTooSmall);
+                    return Err(ActionTypeError::BufferTooSmall);
                 }
                 let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
                 if action_data.len() < 4 + name_len {
-                    return Err(GovernanceTypeError::BufferTooSmall);
+                    return Err(ActionTypeError::BufferTooSmall);
                 }
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
-                    .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
+                    .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
                 if pubkey_bytes.len() != 1952 {
-                    return Err(GovernanceTypeError::InvalidPubkeyLength);
+                    return Err(ActionTypeError::InvalidPubkeyLength);
                 }
                 GovernanceAction::MapPrime {
                     name,
@@ -214,7 +214,7 @@ impl GovernanceAction {
             0x0B => {
                 // RotateRootKey
                 if action_data.len() != 1952 {
-                    return Err(GovernanceTypeError::InvalidPubkeyLength);
+                    return Err(ActionTypeError::InvalidPubkeyLength);
                 }
                 GovernanceAction::RotateRootKey {
                     new_key: action_data.to_vec(),
@@ -231,32 +231,32 @@ impl GovernanceAction {
             0x0E => {
                 // UnmapPrime
                 if action_data.len() < 4 {
-                    return Err(GovernanceTypeError::BufferTooSmall);
+                    return Err(ActionTypeError::BufferTooSmall);
                 }
                 let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
                 if action_data.len() < 4 + name_len {
-                    return Err(GovernanceTypeError::BufferTooSmall);
+                    return Err(ActionTypeError::BufferTooSmall);
                 }
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
-                    .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
+                    .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
                 GovernanceAction::UnmapPrime { name }
             }
             0x0F => {
                 // MapInfra
                 if action_data.len() < 4 {
-                    return Err(GovernanceTypeError::BufferTooSmall);
+                    return Err(ActionTypeError::BufferTooSmall);
                 }
                 let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
                 if action_data.len() < 4 + name_len {
-                    return Err(GovernanceTypeError::BufferTooSmall);
+                    return Err(ActionTypeError::BufferTooSmall);
                 }
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
-                    .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
+                    .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
                 if pubkey_bytes.len() != 1952 {
-                    return Err(GovernanceTypeError::InvalidPubkeyLength);
+                    return Err(ActionTypeError::InvalidPubkeyLength);
                 }
                 GovernanceAction::MapInfra {
                     name,
@@ -266,18 +266,18 @@ impl GovernanceAction {
             0x10 => {
                 // UnmapInfra
                 if action_data.len() < 4 {
-                    return Err(GovernanceTypeError::BufferTooSmall);
+                    return Err(ActionTypeError::BufferTooSmall);
                 }
                 let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
                 if action_data.len() < 4 + name_len {
-                    return Err(GovernanceTypeError::BufferTooSmall);
+                    return Err(ActionTypeError::BufferTooSmall);
                 }
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
-                    .map_err(|_| GovernanceTypeError::InvalidUtf8)?;
+                    .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
                 GovernanceAction::UnmapInfra { name }
             }
-            _ => return Err(GovernanceTypeError::UnknownOpcode(opcode)),
+            _ => return Err(ActionTypeError::UnknownOpcode(opcode)),
         };
 
         Ok((action, timestamp_kyn))
@@ -295,7 +295,7 @@ mod tests {
         let mut buf = vec![0xFF];
         buf.extend_from_slice(&[0; 8]); // Dummy timestamp
         let result = GovernanceAction::parse_payload(&buf);
-        assert_eq!(result, Err(GovernanceTypeError::UnknownOpcode(0xFF)));
+        assert_eq!(result, Err(ActionTypeError::UnknownOpcode(0xFF)));
     }
 
     #[test]
@@ -304,13 +304,16 @@ mod tests {
         let buf = vec![0x0A, 0, 0, 0, 0, 0, 0, 0]; // 8 bytes
         assert_eq!(
             GovernanceAction::parse_payload(&buf),
-            Err(GovernanceTypeError::BufferTooSmall)
+            Err(ActionTypeError::BufferTooSmall)
         );
+    }
 
-        let buf = vec![]; // 0 bytes
+    #[test]
+    fn test_parse_empty_payload_too_small() {
+        let result = GovernanceAction::parse_payload(&[]);
         assert_eq!(
-            GovernanceAction::parse_payload(&buf),
-            Err(GovernanceTypeError::BufferTooSmall)
+            result,
+            Err(ActionTypeError::BufferTooSmall)
         );
     }
 
@@ -326,7 +329,7 @@ mod tests {
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
         let result = GovernanceAction::parse_payload(&buf);
-        assert_eq!(result, Err(GovernanceTypeError::InvalidPubkeyLength));
+        assert_eq!(result, Err(ActionTypeError::InvalidPubkeyLength));
     }
 
     #[test]
@@ -339,7 +342,7 @@ mod tests {
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
         let result = GovernanceAction::parse_payload(&buf);
-        assert_eq!(result, Err(GovernanceTypeError::InvalidUtf8));
+        assert_eq!(result, Err(ActionTypeError::InvalidUtf8));
     }
 
     #[test]
