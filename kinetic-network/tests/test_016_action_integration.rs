@@ -1,5 +1,5 @@
 use kinetic_core::types::NameRecord;
-use kinetic_local::action::GLOBAL_GOVERNANCE_STATE;
+use kinetic_local::action::GLOBAL_ACTION_STATE;
 
 use kinetic_network::store::core::KineticRecordStore;
 use libp2p::identity;
@@ -31,7 +31,7 @@ async fn test_action_integration_halt() {
 
     // Halt the network globally
     {
-        let mut state = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+        let mut state = GLOBAL_ACTION_STATE.lock().unwrap();
         state.is_halted = true;
     }
 
@@ -63,7 +63,7 @@ async fn test_action_integration_halt() {
 
     // Unhalt
     {
-        let mut state = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+        let mut state = GLOBAL_ACTION_STATE.lock().unwrap();
         state.is_halted = false;
     }
 }

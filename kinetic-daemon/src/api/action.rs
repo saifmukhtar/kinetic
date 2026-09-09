@@ -2,7 +2,7 @@
 
 use axum::Json;
 use kinetic_core::types::KynNetworkExt;
-use kinetic_local::action::GLOBAL_GOVERNANCE_STATE;
+use kinetic_local::action::GLOBAL_ACTION_STATE;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -53,7 +53,7 @@ pub struct ActionStatusResponse {
 pub async fn handle_get_action_status(
     axum::extract::State(state): axum::extract::State<crate::api::ApiState>,
 ) -> Result<Json<ActionStatusResponse>, crate::api::error::AppError> {
-    let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
+    let gov = GLOBAL_ACTION_STATE.lock().map_err(|e| {
         let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
         crate::api::error::AppError(kinetic_rpc::ApiError {
             error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
@@ -120,7 +120,7 @@ pub struct ActionNamesResponse {
 
 /// Handles requests to retrieve all mapped Action names (primes and infras) in a single call.
 pub async fn handle_get_action_names() -> Result<Json<ActionNamesResponse>, crate::api::error::AppError> {
-    let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
+    let gov = GLOBAL_ACTION_STATE.lock().map_err(|e| {
         let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
         crate::api::error::AppError(kinetic_rpc::ApiError {
             error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
@@ -188,10 +188,10 @@ pub async fn handle_publish_action(
     };
 
     let is_valid = {
-        let mut gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
+        let mut gov = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        match kinetic_core::action::process_governance_message(
+        match kinetic_core::action::process_action_message(
             &mut gov,
             &msg,
             kinetic_types::clock::Kyn(current_kyn),

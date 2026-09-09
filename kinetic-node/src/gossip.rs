@@ -1,7 +1,7 @@
 //! Governance gossip message handler, state update processor, and disk persistence engine.
 
-use kinetic_core::action::{SignedGovernanceMessage, process_governance_message};
-use kinetic_local::action::GLOBAL_GOVERNANCE_STATE;
+use kinetic_core::action::{SignedGovernanceMessage, process_action_message};
+use kinetic_local::action::GLOBAL_ACTION_STATE;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -18,10 +18,10 @@ pub fn handle_action_gossip(
 ) {
     if let Ok(signed_msg) = serde_json::from_slice::<SignedGovernanceMessage>(payload) {
         let (state_snapshot, effect_result) = {
-            let mut state = GLOBAL_GOVERNANCE_STATE
+            let mut state = GLOBAL_ACTION_STATE
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let result = process_governance_message(
+            let result = process_action_message(
                 &mut state,
                 &signed_msg,
                 kinetic_types::clock::Kyn(current_kyn),

@@ -1,4 +1,4 @@
-use crate::logic::process_governance_message;
+use crate::logic::process_action_message;
 use crate::types::{
     GovernanceAction, GovernanceEffect, GovernanceState, PublicKeyBytes, SignedGovernanceMessage,
 };
@@ -55,7 +55,7 @@ fn test_infra_mappings() {
         .signatures
         .push(sign_action(&msg_invalid, &root_sk));
 
-    let err = process_governance_message(
+    let err = process_action_message(
         &mut state,
         &msg_invalid,
         Kyn(msg_invalid.timestamp_kyn),
@@ -78,7 +78,7 @@ fn test_infra_mappings() {
     };
     msg_valid.signatures.push(sign_action(&msg_valid, &root_sk));
 
-    let effect = process_governance_message(
+    let effect = process_action_message(
         &mut state,
         &msg_valid,
         Kyn(msg_valid.timestamp_kyn),
@@ -107,7 +107,7 @@ fn test_action_stale_rejection() {
     };
     msg.signatures.push(sign_action(&msg, &root_sk));
 
-    let err = process_governance_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
+    let err = process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
         .unwrap_err();
     assert!(matches!(err, crate::error::GovernanceError::StaleProposal));
 }

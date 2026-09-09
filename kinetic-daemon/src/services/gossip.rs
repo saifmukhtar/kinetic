@@ -43,13 +43,13 @@ pub fn start_gossip_processor(
                         };
                         let (should_update_log, log) = {
                             let Ok(mut state) =
-                                kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock()
+                                kinetic_local::action::GLOBAL_ACTION_STATE.lock()
                             else {
                                 network_client.report_gossip(message_id, propagation_source, is_valid);
                                 continue;
                             };
 
-                            match kinetic_core::action::process_governance_message(
+                            match kinetic_core::action::process_action_message(
                                 &mut state,
                                 &signed_msg,
                                 kinetic_types::clock::Kyn(current_kyn),
@@ -143,7 +143,7 @@ pub fn start_gossip_processor(
                                 }
                                 Err(e) => {
                                     tracing::debug!(
-                                        "Governance gossip message rejected by process_governance_message: {:?}",
+                                        "Governance gossip message rejected by process_action_message: {:?}",
                                         e
                                     );
                                     (false, None)

@@ -19,7 +19,7 @@ impl KineticRecordStore {
 
         if let Some(reveal) = reveal_ref {
             let paused_kyns =
-                if let Ok(state) = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock() {
+                if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
                     state.paused_kyns_since(kinetic_core::types::Kyn(reveal.kyn))
                 } else {
                     0

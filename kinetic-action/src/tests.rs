@@ -1,7 +1,7 @@
 #[cfg(test)]
 #[allow(clippy::module_inception)]
 mod tests {
-    use super::super::logic::process_governance_message;
+    use super::super::logic::process_action_message;
     use super::super::types::{
         GovernanceAction, GovernanceEffect, GovernanceState, PublicKeyBytes,
         SignedGovernanceMessage,
@@ -59,7 +59,7 @@ mod tests {
             .signatures
             .push(sign_action(&msg_invalid_len, &root_sk));
 
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &msg_invalid_len,
             Kyn(msg_invalid_len.timestamp_kyn),
@@ -84,7 +84,7 @@ mod tests {
                 signatures: vec![],
             };
             msg.signatures.push(sign_action(&msg, &root_sk));
-            let effect = process_governance_message(
+            let effect = process_action_message(
                 &mut state,
                 &msg,
                 Kyn(msg.timestamp_kyn),
@@ -127,7 +127,7 @@ mod tests {
             .signatures
             .push(sign_action(&rotate_msg, &root_sk));
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &rotate_msg,
             Kyn(rotate_msg.timestamp_kyn),
@@ -156,7 +156,7 @@ mod tests {
         };
         map_msg.signatures.push(sign_action(&map_msg, &root_sk)); // signed with old key
 
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &map_msg,
             Kyn(map_msg.timestamp_kyn),
@@ -172,7 +172,7 @@ mod tests {
         map_msg.signatures.clear();
         map_msg.signatures.push(sign_action(&map_msg, &new_root_sk)); // signed with NEW key
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &map_msg,
             Kyn(map_msg.timestamp_kyn),
@@ -238,7 +238,7 @@ mod tests {
         };
         halt_msg.signatures.push(sign_action(&halt_msg, &root_sk));
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &halt_msg,
             Kyn(halt_msg.timestamp_kyn),
@@ -257,7 +257,7 @@ mod tests {
             .signatures
             .push(sign_action(&resume_msg, &root_sk));
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &resume_msg,
             Kyn(resume_msg.timestamp_kyn),
@@ -290,7 +290,7 @@ mod tests {
         };
         fail_msg.signatures.push(sign_action(&fail_msg, &root_sk));
 
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &fail_msg,
             Kyn(fail_msg.timestamp_kyn),
@@ -312,7 +312,7 @@ mod tests {
             signatures: vec![],
         };
         map_msg.signatures.push(sign_action(&map_msg, &root_sk));
-        let _ = process_governance_message(
+        let _ = process_action_message(
             &mut state,
             &map_msg,
             Kyn(map_msg.timestamp_kyn),
@@ -332,7 +332,7 @@ mod tests {
             .signatures
             .push(sign_action(&success_msg, &root_sk));
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &success_msg,
             Kyn(success_msg.timestamp_kyn),
@@ -364,7 +364,7 @@ mod tests {
         msg.signatures.push(sign_action(&msg, &root_sk));
 
         // First submission succeeds
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &msg,
             Kyn(msg.timestamp_kyn),
@@ -374,7 +374,7 @@ mod tests {
         assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
 
         // Resubmitting the exact same message triggers the new AlreadyExecuted taxonomy error
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &msg,
             Kyn(msg.timestamp_kyn),
@@ -411,7 +411,7 @@ mod tests {
             .signatures
             .push(sign_action(&msg_invalid, &root_sk));
 
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &msg_invalid,
             Kyn(msg_invalid.timestamp_kyn),
@@ -433,7 +433,7 @@ mod tests {
             signatures: vec![],
         };
         msg_valid.signatures.push(sign_action(&msg_valid, &root_sk));
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &msg_valid,
             Kyn(msg_valid.timestamp_kyn),
@@ -463,7 +463,7 @@ mod tests {
         msg.signatures.push(sign_action(&msg, &root_sk));
 
         let err =
-            process_governance_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
+            process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
                 .unwrap_err();
         assert!(matches!(err, crate::error::GovernanceError::StaleProposal));
     }

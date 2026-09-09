@@ -153,7 +153,7 @@ impl GovernanceState {
 /// # Errors
 ///
 /// Returns a `GovernanceError` if the action fails verification or execution rules.
-pub fn process_governance_message(
+pub fn process_action_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
     current_kyn: kinetic_types::clock::Kyn,

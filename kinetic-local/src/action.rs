@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use std::time::SystemTime;
 
 lazy_static! {
-    pub static ref GLOBAL_GOVERNANCE_STATE: Mutex<GovernanceState> =
+    pub static ref GLOBAL_ACTION_STATE: Mutex<GovernanceState> =
         Mutex::new(GovernanceState::new(kinetic_core::types::clock::Kyn(
             kinetic_core::constants::KINETIC_GENESIS_KYN
         )));

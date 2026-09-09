@@ -37,16 +37,16 @@ pub async fn start_gossip_listener(
                 };
 
                 let (should_save, cloned_state) = {
-                    let Ok(mut state) = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock()
+                    let Ok(mut state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()
                     else {
                         tracing::error!(
-                            error = ?kinetic_core::error::SystemError::MutexPoisoned("GLOBAL_GOVERNANCE_STATE".into()),
+                            error = ?kinetic_core::error::SystemError::MutexPoisoned("GLOBAL_ACTION_STATE".into()),
                             "FATAL: Global governance state mutex is poisoned!"
                         );
                         continue;
                     };
 
-                    match kinetic_core::action::process_governance_message(
+                    match kinetic_core::action::process_action_message(
                         &mut state,
                         &signed_msg,
                         kinetic_types::clock::Kyn(current_kyn),

@@ -214,7 +214,7 @@ pub(crate) fn compute_required_iterations(
         let prev_req = consensus_math.iterations(&reveal.name);
 
         let paused_kyns =
-            if let Ok(state) = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock() {
+            if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
                 state.paused_kyns_since(kinetic_core::types::Kyn(prev.kyn))
             } else {
                 0
@@ -291,7 +291,7 @@ pub(crate) fn verify_reveal(
     current_kyn: u64,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> Result<(), KineticStoreError> {
-    if let Ok(state) = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock()
+    if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()
         && state.is_halted
     {
         return Err(KineticStoreError::NetworkHalted);

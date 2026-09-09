@@ -36,12 +36,12 @@ pub fn get_action_config() -> ActionConfig {
 }
 
 /// Processes a governance message by passing the network configurations automatically.
-pub fn process_governance_message(
+pub fn process_action_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
     current_kyn: kinetic_types::clock::Kyn,
 ) -> Result<Option<GovernanceEffect>, GovernanceError> {
-    kinetic_action::logic::process_governance_message(
+    kinetic_action::logic::process_action_message(
         state,
         msg,
         current_kyn,
