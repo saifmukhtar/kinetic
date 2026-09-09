@@ -381,45 +381,11 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.7.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
-dependencies = [
- "async-trait",
- "axum-core 0.4.5",
- "bytes",
- "futures-util",
- "http 1.5.0",
- "http-body",
- "http-body-util",
- "hyper",
- "hyper-util",
- "itoa",
- "matchit 0.7.3",
- "memchr",
- "mime",
- "percent-encoding",
- "pin-project-lite",
- "rustversion",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "serde_urlencoded",
- "sync_wrapper",
- "tokio",
- "tower",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "axum"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90"
 dependencies = [
- "axum-core 0.5.6",
+ "axum-core",
  "base64 0.22.1",
  "bytes",
  "form_urlencoded",
@@ -430,7 +396,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "itoa",
- "matchit 0.8.4",
+ "matchit",
  "memchr",
  "mime",
  "percent-encoding",
@@ -444,27 +410,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "tower",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f2bd6146b97ae3359fa0cc6d6b376d9539582c7b4220f041a33ec24c226199"
-dependencies = [
- "async-trait",
- "bytes",
- "futures-util",
- "http 1.5.0",
- "http-body",
- "http-body-util",
- "mime",
- "pin-project-lite",
- "rustversion",
- "sync_wrapper",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -2578,25 +2523,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
 
 [[package]]
-name = "is-docker"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "928bae27f42bc99b60d9ac7334e3a21d10ad8f1835a4e12ec3ec0464765ed1b3"
-dependencies = [
- "once_cell",
-]
-
-[[package]]
-name = "is-wsl"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "173609498df190136aa7dea1a91db051746d339e18476eed5ca40521f02d7aa5"
-dependencies = [
- "is-docker",
- "once_cell",
-]
-
-[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2736,7 +2662,7 @@ name = "kinetic-cli"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "axum 0.8.9",
+ "axum",
  "base64 0.23.1",
  "bip39",
  "clap",
@@ -2797,7 +2723,7 @@ dependencies = [
  "anyhow",
  "async-stream",
  "async-trait",
- "axum 0.8.9",
+ "axum",
  "bincode",
  "bytes",
  "clap",
@@ -2853,26 +2779,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "kinetic-forge"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "axum 0.7.9",
- "clap",
- "open",
- "regex",
- "serde",
- "serde_json",
- "tokio",
- "toml_edit",
-]
-
-[[package]]
 name = "kinetic-host"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "axum 0.8.9",
+ "axum",
  "bytes",
  "clap",
  "ed25519-dalek",
@@ -2989,7 +2900,7 @@ name = "kinetic-node"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "axum 0.8.9",
+ "axum",
  "clap",
  "http-body-util",
  "kinetic-core",
@@ -3016,7 +2927,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "axum 0.8.9",
+ "axum",
  "base64 0.23.1",
  "clap",
  "ed25519-dalek",
@@ -3044,7 +2955,7 @@ name = "kinetic-pac"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "axum 0.8.9",
+ "axum",
  "clap",
  "dirs 6.0.0",
  "kinetic-core",
@@ -3099,7 +3010,7 @@ name = "kinetic-test"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "axum 0.8.9",
+ "axum",
  "bytes",
  "ed25519-dalek",
  "hickory-client",
@@ -3877,12 +3788,6 @@ dependencies = [
 
 [[package]]
 name = "matchit"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
-
-[[package]]
-name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
@@ -4287,16 +4192,6 @@ name = "opaque-debug"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
-
-[[package]]
-name = "open"
-version = "5.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c603ab8300cf18bc3b14146b19fe3dfcc4843ae5a400cd0e7a30b95aa366634"
-dependencies = [
- "is-wsl",
- "libc",
-]
 
 [[package]]
 name = "openssl-probe"
@@ -6170,17 +6065,11 @@ dependencies = [
  "indexmap",
  "serde_core",
  "serde_spanned",
- "toml_datetime 1.1.1+spec-1.1.0",
+ "toml_datetime",
  "toml_parser",
  "toml_writer",
- "winnow 1.0.4",
+ "winnow",
 ]
-
-[[package]]
-name = "toml_datetime"
-version = "0.6.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c"
 
 [[package]]
 name = "toml_datetime"
@@ -6192,31 +6081,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "toml_edit"
-version = "0.22.27"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
-dependencies = [
- "indexmap",
- "toml_datetime 0.6.11",
- "toml_write",
- "winnow 0.7.15",
-]
-
-[[package]]
 name = "toml_parser"
 version = "1.1.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
 dependencies = [
- "winnow 1.0.4",
+ "winnow",
 ]
-
-[[package]]
-name = "toml_write"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "toml_writer"
@@ -7179,15 +7050,6 @@ name = "windows_x86_64_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
-
-[[package]]
-name = "winnow"
-version = "0.7.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
-dependencies = [
- "memchr",
-]
 
 [[package]]
 name = "winnow"
