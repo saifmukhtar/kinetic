@@ -7,7 +7,7 @@
 use crate::error::GovernanceError;
 use crate::traits::GovernanceEngine;
 use crate::types::{
-    GovernanceAction, GovernanceConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
+    GovernanceAction, ActionConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
     verify_signature,
 };
 
@@ -28,7 +28,7 @@ impl GovernanceEngine for SovereignEngine {
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
-        config: &GovernanceConfig,
+        config: &ActionConfig,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
         if current_kyn.0.abs_diff(msg.timestamp_kyn) > config.max_age_kyns {
             return Err(GovernanceError::StaleProposal);
@@ -133,7 +133,7 @@ impl GovernanceEngine for SovereignEngine {
         state: &mut GovernanceState,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
-        _config: &GovernanceConfig,
+        _config: &ActionConfig,
     ) -> Option<GovernanceEffect> {
         let action_hash = GovernanceState::hash_action(msg);
         state

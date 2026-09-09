@@ -90,7 +90,7 @@ pub const KINETIC_GOVERNANCE_KEY_PURPOSE: &str = concat!(
     env!("KINETIC_NSP"),
     "-",
     env!("KINETIC_SALT_PREFIX"),
-    "_GOV_KEY_v1_PQC"
+    "_ACTION_KEY_v1_PQC"
 );
 
 /// Prefix for storing registered `.kin` names in local Local DB storage.
@@ -153,7 +153,7 @@ pub const ENV_P2P: &str = concat!(env!("KINETIC_NSP_UPPER"), "_P2P");
 /// Environment variable string to override the backend proxy port for the host (e.g. `KINETIC_MAINNET_BACKEND`).
 pub const ENV_BACKEND: &str = concat!(env!("KINETIC_NSP_UPPER"), "_BACKEND");
 /// Environment variable string to override the governance state file path (e.g. `KINETIC_MAINNET_GOV`).
-pub const ENV_GOV: &str = concat!(env!("KINETIC_NSP_UPPER"), "_GOV");
+pub const ENV_ACTION: &str = concat!(env!("KINETIC_NSP_UPPER"), "_ACTION");
 /// Environment variable string to specify the instance name for host worker multiplexing (e.g. `KINETIC_MAINNET_INSTANCE`).
 pub const ENV_INSTANCE: &str = concat!(env!("KINETIC_NSP_UPPER"), "_INSTANCE");
 

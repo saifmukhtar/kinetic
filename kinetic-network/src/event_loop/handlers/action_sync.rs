@@ -11,7 +11,7 @@ pub async fn handle(
         Event::Message { peer, message, .. } => match message {
             Message::Request { channel, .. } => {
                 debug!("Received GovSyncRequest from peer {:?}", peer);
-                let response = GovSyncResponse { actions: swarm.gov_action_log.clone() };
+                let response = GovSyncResponse { actions: swarm.action_log.clone() };
                 let _ = swarm.swarm.behaviour_mut().gov_sync.send_response(channel, response);
             }
             Message::Response { request_id, response } => {

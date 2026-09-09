@@ -382,8 +382,8 @@ impl super::core::NetworkEventLoop {
                 self.pending_gov_sync_requests.insert(req_id, responder);
             }
             Command::UpdateGovActionLog { actions } => {
-                self.gov_action_log = actions;
-                tracing::debug!("Network event loop updated internal gov_action_log with {} actions", self.gov_action_log.len());
+                self.action_log = actions;
+                tracing::debug!("Network event loop updated internal action_log with {} actions", self.action_log.len());
             }
         }
     }

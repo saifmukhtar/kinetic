@@ -11,7 +11,7 @@ use std::sync::Arc;
 /// Any resulting updates to the governance state are then persisted to disk.
 pub fn handle_governance_gossip(
     payload: &[u8],
-    gossip_gov_path: Arc<PathBuf>,
+    gossip_action_path: Arc<PathBuf>,
     network_client: Option<kinetic_network::NetworkClient>,
     storage: Option<Arc<dyn kinetic_core::traits::StorageEngine>>,
     current_kyn: u64,
@@ -85,7 +85,7 @@ pub fn handle_governance_gossip(
                     }
                     if let Err(e) = kinetic_local::action::save_governance_to_disk(
                         &state_snapshot,
-                        &gossip_gov_path,
+                        &gossip_action_path,
                     ) {
                         let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                         tracing::error!(
@@ -108,7 +108,7 @@ pub fn handle_governance_gossip(
                     }
                     if let Err(e) = kinetic_local::action::save_governance_to_disk(
                         &state_snapshot,
-                        &gossip_gov_path,
+                        &gossip_action_path,
                     ) {
                         let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                         tracing::error!(

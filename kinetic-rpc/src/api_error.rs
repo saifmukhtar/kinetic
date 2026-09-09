@@ -145,7 +145,7 @@ impl From<GovernanceError> for ApiError {
             GovernanceError::MissingSovereignKey
             | GovernanceError::MalformedSovereignKey
             | GovernanceError::StateCorrupted => (500, "Internal Server Error"),
-            GovernanceError::GovernanceDisabled => (403, "Forbidden"),
+            GovernanceError::ActionDisabled => (403, "Forbidden"),
             GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
             GovernanceError::KeyLengthMismatch
             | GovernanceError::InvalidSignature

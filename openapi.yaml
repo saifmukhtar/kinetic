@@ -390,7 +390,7 @@ paths:
                 type: object
   /api/v1/micro/action/status:
     get:
-      operationId: getGovernance
+      operationId: getAction
       summary: Get current network action state [Public]
       tags: [Action]
       responses:

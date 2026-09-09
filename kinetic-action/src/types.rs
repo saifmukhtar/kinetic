@@ -201,7 +201,7 @@ mod tests {
 
 /// Configuration constants required for governance evaluation.
 #[derive(Debug, Clone)]
-pub struct GovernanceConfig {
+pub struct ActionConfig {
     /// The root public key hex string used to verify actions.
     pub sovereign_key_hex: String,
     /// Maximum age of a proposal in kyns before it is considered stale.

@@ -66,7 +66,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                                 .lock()
                                 .unwrap_or_else(|e| e.into_inner());
                             if let Ok(root_key) = gov.get_sovereign_key(
-                                &kinetic_core::action::get_governance_config(),
+                                &kinetic_core::action::get_action_config(),
                             ) {
                                 drop(gov);
                                 let action_bytes = signed_msg.to_bytes();

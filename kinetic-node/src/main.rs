@@ -267,7 +267,7 @@ async fn run_node() -> Result<()> {
         disable_storage_sync: false,
     };
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_ACTION)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| storage_dir.join("action-node.db"));
 
@@ -351,7 +351,7 @@ async fn run_node() -> Result<()> {
 
     info!("P2P Network architecture wired");
 
-    let gossip_gov_path = gov_state_path.clone();
+    let gossip_action_path = gov_state_path.clone();
     let kyn_provider_gossip = kyn_provider.clone();
     let kyn_tx_gossip = kyn_tx.clone();
     let gossip_storage = storage.clone();
@@ -386,7 +386,7 @@ async fn run_node() -> Result<()> {
                     };
                     gossip::handle_governance_gossip(
                         actual_payload,
-                        gossip_gov_path.clone(),
+                        gossip_action_path.clone(),
                         Some(gossip_network_client.clone()),
                         Some(gossip_storage.clone()),
                         current_kyn,

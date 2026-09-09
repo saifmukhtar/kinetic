@@ -197,7 +197,7 @@ pub async fn handle_publish_action(
             kinetic_types::clock::Kyn(current_kyn),
         ) {
             Ok(_) => {
-                let path = std::env::var(kinetic_core::constants::ENV_GOV)
+                let path = std::env::var(kinetic_core::constants::ENV_ACTION)
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|_| {
                         let config = kinetic_local::config::load_config();

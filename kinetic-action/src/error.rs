@@ -52,7 +52,7 @@ pub enum GovernanceError {
     /// **Why**: In permissionless testnets or specific deployments, global governance actions are universally rejected.
     /// **Fix**: The node safely dropped the message. Ensure you are targeting the correct network ID.
     #[error("Governance is disabled in permissionless mode")]
-    GovernanceDisabled,
+    ActionDisabled,
 
     /// **What**: The governance message signature failed cryptographic verification against the root key.
     /// **Why**: The payload was either tampered with in transit or signed by an unauthorized private key.
@@ -135,7 +135,7 @@ impl GovernanceError {
         match self {
             Self::MissingSovereignKey => "KIN-ACN-001",
             Self::MalformedSovereignKey => "KIN-ACN-002",
-            Self::GovernanceDisabled => "KIN-ACN-003",
+            Self::ActionDisabled => "KIN-ACN-003",
             Self::KeyLengthMismatch => "KIN-ACN-004",
             Self::StaleProposal => "KIN-ACN-005",
             Self::AlreadyExecuted => "KIN-ACN-006",
@@ -170,7 +170,7 @@ impl GovernanceError {
             | Self::StateSaveFailed
             | Self::P2pPublishFailed
             | Self::StateReadFailed => kinetic_types::error::Severity::Error,
-            Self::GovernanceDisabled
+            Self::ActionDisabled
             | Self::InvalidSignature
             | Self::InvalidPrimeLength
             | Self::InvalidProtocolName
@@ -200,7 +200,7 @@ impl GovernanceError {
             Self::StaleProposal => "The proposed governance action is too old and has been rejected to prevent replay attacks.".to_string(),
             Self::AlreadyExecuted => "The proposed governance action has already been executed on the network and cannot be replayed.".to_string(),
 
-            Self::GovernanceDisabled => {
+            Self::ActionDisabled => {
                 "The network is operating in permissionless mode where governance actions are universally rejected.".to_string()
             }
             Self::InvalidSignature => {

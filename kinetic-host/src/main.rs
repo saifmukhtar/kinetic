@@ -223,7 +223,7 @@ async fn run_host() -> Result<()> {
         test_mode: false,
         disable_storage_sync: false,
     };
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
+    let gov_state_path = std::env::var(kinetic_core::constants::ENV_ACTION)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| storage_dir.join("action-host.db"));
 

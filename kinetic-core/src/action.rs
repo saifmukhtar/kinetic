@@ -23,11 +23,11 @@ pub mod logic {
     }
 }
 
-use kinetic_action::types::GovernanceConfig;
+use kinetic_action::types::ActionConfig;
 
 /// Constructs the governance configuration based on network constants.
-pub fn get_governance_config() -> GovernanceConfig {
-    GovernanceConfig {
+pub fn get_action_config() -> ActionConfig {
+    ActionConfig {
         sovereign_key_hex: crate::constants::SOVEREIGN_KEY_HEX.to_string(),
         max_age_kyns: crate::constants::MAX_AGE_KYNS,
         is_dev_mode: crate::config::is_dev_mode(),
@@ -45,6 +45,6 @@ pub fn process_governance_message(
         state,
         msg,
         current_kyn,
-        &get_governance_config(),
+        &get_action_config(),
     )
 }

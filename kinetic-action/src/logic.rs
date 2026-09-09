@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::error::GovernanceError;
 use crate::types::{
-    GovernanceConfig, GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
+    ActionConfig, GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
     SignedGovernanceMessage,
 };
 
@@ -85,7 +85,7 @@ impl GovernanceState {
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.
-    pub fn prune(&mut self, current_kyn: kinetic_types::clock::Kyn, config: &GovernanceConfig) {
+    pub fn prune(&mut self, current_kyn: kinetic_types::clock::Kyn, config: &ActionConfig) {
         // Remove executed hashes older than the max age
         let max_age_kyns = config.max_age_kyns;
         self.executed_hashes
@@ -99,7 +99,7 @@ impl GovernanceState {
     /// Returns a `GovernanceError` if the key is missing, invalid, or has the wrong length.
     pub fn get_sovereign_key(
         &self,
-        config: &GovernanceConfig,
+        config: &ActionConfig,
     ) -> Result<PublicKeyBytes, GovernanceError> {
         if let Some(key) = &self.active_sovereign_key {
             return Ok(key.clone());
@@ -122,7 +122,7 @@ impl GovernanceState {
         &mut self,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
-        config: &GovernanceConfig,
+        config: &ActionConfig,
     ) -> Result<Option<GovernanceEffect>, GovernanceError> {
         crate::engine::get_active_engine(&config.governance_model).verify_action(
             self,
@@ -137,7 +137,7 @@ impl GovernanceState {
         &mut self,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
-        config: &GovernanceConfig,
+        config: &ActionConfig,
     ) -> Option<GovernanceEffect> {
         crate::engine::get_active_engine(&config.governance_model).execute_action(
             self,
@@ -157,7 +157,7 @@ pub fn process_governance_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
     current_kyn: kinetic_types::clock::Kyn,
-    config: &GovernanceConfig,
+    config: &ActionConfig,
 ) -> Result<Option<GovernanceEffect>, GovernanceError> {
     let effect = state.verify_action(msg, current_kyn, config)?;
 

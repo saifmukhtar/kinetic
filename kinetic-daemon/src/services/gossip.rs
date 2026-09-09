@@ -10,7 +10,7 @@ pub fn start_gossip_processor(
         libp2p::gossipsub::MessageId,
         libp2p::PeerId,
     )>,
-    gossip_gov_path: std::sync::Arc<std::path::PathBuf>,
+    gossip_action_path: std::sync::Arc<std::path::PathBuf>,
     kyn_provider_gossip: std::sync::Arc<dyn KynProvider>,
     kyn_tx_gossip: tokio::sync::watch::Sender<u64>,
     storage: Option<std::sync::Arc<dyn kinetic_core::traits::StorageEngine>>,
@@ -112,7 +112,7 @@ pub fn start_gossip_processor(
                                     }
                                     if let Err(e) = kinetic_local::action::save_governance_to_disk(
                                         &state,
-                                        &gossip_gov_path,
+                                        &gossip_action_path,
                                     ) {
                                         let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                                         tracing::error!(
@@ -130,7 +130,7 @@ pub fn start_gossip_processor(
                                     );
                                     if let Err(e) = kinetic_local::action::save_governance_to_disk(
                                         &state,
-                                        &gossip_gov_path,
+                                        &gossip_action_path,
                                     ) {
                                         let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                                         tracing::error!(

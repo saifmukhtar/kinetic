@@ -26,8 +26,8 @@ mod tests {
         signer.sign(&serialized)
     }
 
-    fn get_test_config() -> super::super::types::GovernanceConfig {
-        super::super::types::GovernanceConfig {
+    fn get_test_config() -> super::super::types::ActionConfig {
+        super::super::types::ActionConfig {
             sovereign_key_hex: hex::encode(get_root_sk().pubkey_bytes()),
             max_age_kyns: 100,
             is_dev_mode: false,

@@ -78,7 +78,7 @@ impl super::core::NetworkEventLoop {
             pending_proxy_requests: rustc_hash::FxHashMap::default(),
             pending_cdn_requests: rustc_hash::FxHashMap::default(),
             pending_gov_sync_requests: rustc_hash::FxHashMap::default(),
-            gov_action_log: Vec::new(),
+            action_log: Vec::new(),
             peer_registry: crate::peer_registry::PeerRegistry::new(500),
             incoming_proxy_tx,
             gossip_tx,

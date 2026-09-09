@@ -23,8 +23,8 @@ fn sign_action(msg: &SignedGovernanceMessage, signer: &KineticKeypair) -> Vec<u8
     signer.sign(&serialized)
 }
 
-fn get_test_config() -> crate::types::GovernanceConfig {
-    crate::types::GovernanceConfig {
+fn get_test_config() -> crate::types::ActionConfig {
+    crate::types::ActionConfig {
         sovereign_key_hex: hex::encode(get_root_sk().pubkey_bytes()),
         max_age_kyns: 100,
         is_dev_mode: false,

@@ -11,7 +11,7 @@ pub enum NetworkCommands {
     /// Submit proposals and manage Kinetic Network governance
     Governance {
         #[command(subcommand)]
-        cmd: action::GovernanceCommands,
+        cmd: action::ActionCommands,
     },
     /// Get Swarm/DHT networking status
     Status,
