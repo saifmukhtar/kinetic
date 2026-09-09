@@ -54,4 +54,4 @@ pub use error::{
     VdfRejectReason,
 };
 /// Protocol governance: sovereign actions, root keys, and parameter updates.
-pub mod governance;
+pub mod action;

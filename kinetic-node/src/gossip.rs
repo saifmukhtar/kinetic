@@ -1,7 +1,7 @@
 //! Governance gossip message handler, state update processor, and disk persistence engine.
 
-use kinetic_core::governance::{SignedGovernanceMessage, process_governance_message};
-use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
+use kinetic_core::action::{SignedGovernanceMessage, process_governance_message};
+use kinetic_local::action::GLOBAL_GOVERNANCE_STATE;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ pub fn handle_governance_gossip(
                 tracing::info!("Governance state updated via gossip. Effect: {:?}", effect);
                 if let Some(storage) = storage {
                     use kinetic_core::constants::DB_PREFIX_REVEAL;
-                    use kinetic_core::governance::types::GovernanceEffect;
+                    use kinetic_core::action::types::GovernanceEffect;
                     use kinetic_core::types::NameRecord;
 
                     match &effect {
@@ -83,7 +83,7 @@ pub fn handle_governance_gossip(
                             let _ = client.update_gov_action_log(action_log).await;
                         });
                     }
-                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                    if let Err(e) = kinetic_local::action::save_governance_to_disk(
                         &state_snapshot,
                         &gossip_gov_path,
                     ) {
@@ -106,7 +106,7 @@ pub fn handle_governance_gossip(
                             let _ = client.update_gov_action_log(action_log).await;
                         });
                     }
-                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                    if let Err(e) = kinetic_local::action::save_governance_to_disk(
                         &state_snapshot,
                         &gossip_gov_path,
                     ) {
@@ -150,7 +150,7 @@ pub fn handle_governance_gossip(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_core::governance::{GovernanceAction, SignedGovernanceMessage};
+    use kinetic_core::action::{GovernanceAction, SignedGovernanceMessage};
     use tempfile::tempdir;
 
     #[test]

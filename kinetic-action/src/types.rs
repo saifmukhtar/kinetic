@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-pub use kinetic_types::governance::{
+pub use kinetic_types::action::{
     GovernanceAction, Hash256, PublicKeyBytes, SignatureBytes, SignedGovernanceMessage,
 };
 
@@ -90,7 +90,7 @@ pub struct GovernanceState {
     pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
     #[serde(default)]
     /// Append-only log of all executed signed governance messages (used for P2P state syncing).
-    pub action_log: Vec<kinetic_types::governance::SignedGovernanceMessage>,
+    pub action_log: Vec<kinetic_types::action::SignedGovernanceMessage>,
     /// Active 1-character prime names and their associated ML-DSA-65 public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,

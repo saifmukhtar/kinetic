@@ -76,10 +76,10 @@ pub struct NetworkEventLoop {
     pub(crate) pending_gov_sync_requests: FxHashMap<
         libp2p::request_response::OutboundRequestId,
         oneshot::Sender<
-            std::result::Result<kinetic_types::governance::GovSyncResponse, crate::client::ProxyError>,
+            std::result::Result<kinetic_types::action::GovSyncResponse, crate::client::ProxyError>,
         >,
     >,
-    pub(crate) gov_action_log: Vec<kinetic_types::governance::SignedGovernanceMessage>,
+    pub(crate) gov_action_log: Vec<kinetic_types::action::SignedGovernanceMessage>,
     pub(crate) peer_registry: crate::peer_registry::PeerRegistry,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(

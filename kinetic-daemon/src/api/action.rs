@@ -2,7 +2,7 @@
 
 use axum::Json;
 use kinetic_core::types::KynNetworkExt;
-use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
+use kinetic_local::action::GLOBAL_GOVERNANCE_STATE;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -164,7 +164,7 @@ use kinetic_core::traits::KynProvider;
 pub async fn handle_publish_action(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
-    Json(msg): Json<kinetic_core::governance::SignedGovernanceMessage>,
+    Json(msg): Json<kinetic_core::action::SignedGovernanceMessage>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
     if !role.can_action() {
         return Err((
@@ -188,10 +188,10 @@ pub async fn handle_publish_action(
     };
 
     let is_valid = {
-        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+        let mut gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        match kinetic_core::governance::process_governance_message(
+        match kinetic_core::action::process_governance_message(
             &mut gov,
             &msg,
             kinetic_types::clock::Kyn(current_kyn),
@@ -205,7 +205,7 @@ pub async fn handle_publish_action(
                             .join(config.daemon.storage_dir)
                             .join("action.db")
                     });
-                if let Err(e) = kinetic_local::governance::save_governance_to_disk(&gov, &path) {
+                if let Err(e) = kinetic_local::action::save_governance_to_disk(&gov, &path) {
                     let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                     tracing::error!(
                         error_code = err.code(),

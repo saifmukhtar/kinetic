@@ -33,7 +33,7 @@ pub fn start_gossip_processor(
                 if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
                     let mut is_valid = false;
                     if let Ok(signed_msg) = serde_json::from_slice::<
-                        kinetic_core::governance::SignedGovernanceMessage,
+                        kinetic_core::action::SignedGovernanceMessage,
                     >(actual_payload)
                     {
                         use kinetic_core::types::clock::KynNetworkExt;
@@ -43,13 +43,13 @@ pub fn start_gossip_processor(
                         };
                         let (should_update_log, log) = {
                             let Ok(mut state) =
-                                kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                                kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock()
                             else {
                                 network_client.report_gossip(message_id, propagation_source, is_valid);
                                 continue;
                             };
 
-                            match kinetic_core::governance::process_governance_message(
+                            match kinetic_core::action::process_governance_message(
                                 &mut state,
                                 &signed_msg,
                                 kinetic_types::clock::Kyn(current_kyn),
@@ -63,7 +63,7 @@ pub fn start_gossip_processor(
 
                                     if let Some(storage) = &storage {
                                         use kinetic_core::constants::DB_PREFIX_REVEAL;
-                                        use kinetic_core::governance::types::GovernanceEffect;
+                                        use kinetic_core::action::types::GovernanceEffect;
                                         use kinetic_core::types::NameRecord;
 
                                         match &effect {
@@ -110,7 +110,7 @@ pub fn start_gossip_processor(
                                             _ => {}
                                         }
                                     }
-                                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                                    if let Err(e) = kinetic_local::action::save_governance_to_disk(
                                         &state,
                                         &gossip_gov_path,
                                     ) {
@@ -128,7 +128,7 @@ pub fn start_gossip_processor(
                                     tracing::info!(
                                         "Governance state updated via gossip. No immediate effect."
                                     );
-                                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                                    if let Err(e) = kinetic_local::action::save_governance_to_disk(
                                         &state,
                                         &gossip_gov_path,
                                     ) {

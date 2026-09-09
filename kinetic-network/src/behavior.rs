@@ -30,8 +30,8 @@ pub struct KineticBehavior {
 
     /// Request-response protocol for syncing governance state.
     pub gov_sync: libp2p::request_response::cbor::Behaviour<
-        kinetic_types::governance::GovSyncRequest,
-        kinetic_types::governance::GovSyncResponse,
+        kinetic_types::action::GovSyncRequest,
+        kinetic_types::action::GovSyncResponse,
     >,
 
     /// Stream protocol for passing raw traffic.

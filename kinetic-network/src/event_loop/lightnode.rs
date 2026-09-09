@@ -174,8 +174,8 @@ pub(crate) fn build_light_swarm(
             );
 
             let gov_sync = libp2p::request_response::cbor::Behaviour::<
-                kinetic_types::governance::GovSyncRequest,
-                kinetic_types::governance::GovSyncResponse,
+                kinetic_types::action::GovSyncRequest,
+                kinetic_types::action::GovSyncResponse,
             >::new(
                 [(
                     libp2p::StreamProtocol::try_from_owned(format!(

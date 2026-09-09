@@ -2,7 +2,7 @@
 
 use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
-use kinetic_core::governance::SignedGovernanceMessage;
+use kinetic_core::action::SignedGovernanceMessage;
 use reqwest::Client;
 use std::path::PathBuf;
 

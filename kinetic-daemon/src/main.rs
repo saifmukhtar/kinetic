@@ -243,7 +243,7 @@ fn stop_background_service() -> Result<()> {
 ///
 /// Returns an `anyhow::Error` if any fundamental networking or storage components fail to bind/initialize.
 async fn run_daemon() -> Result<()> {
-    if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
+    if let Err(e) = kinetic_core::action::logic::validate_keys_initialized() {
         tracing::error!(
             error_code = e.code(),
             "FATAL: Network cannot boot with a bricked governance plane: {}",
@@ -437,14 +437,14 @@ async fn run_daemon() -> Result<()> {
 
     let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
-        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+        let mut gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
             .lock()
             .map_err(|e| {
                 anyhow::Error::from(kinetic_core::error::SystemError::MutexPoisoned(
                     e.to_string(),
                 ))
             })?;
-        *gov = kinetic_local::governance::load_governance_from_disk(&gov_state_path);
+        *gov = kinetic_local::action::load_governance_from_disk(&gov_state_path);
     }
 
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
@@ -476,7 +476,7 @@ async fn run_daemon() -> Result<()> {
 
     // Push initial local governance log to the network cache
     {
-        let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+        let gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap();
         let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
@@ -484,7 +484,7 @@ async fn run_daemon() -> Result<()> {
 
     // If local state is empty, perform a P2P sync
     {
-        let is_empty = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+        let is_empty = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap()
             .action_log.is_empty();
@@ -495,18 +495,18 @@ async fn run_daemon() -> Result<()> {
             if let Ok(peers) = network_client.get_connected_peers().await {
                 for peer_str in peers {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
-                        if let Ok(resp) = network_client.send_gov_sync_request(peer_id, kinetic_types::governance::GovSyncRequest { from_kyn: 0 }).await {
+                        if let Ok(resp) = network_client.send_gov_sync_request(peer_id, kinetic_types::action::GovSyncRequest { from_kyn: 0 }).await {
                             if !resp.actions.is_empty() {
                                 tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
-                                let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+                                let mut gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
                                 for msg in &resp.actions {
-                                    if let Err(e) = kinetic_core::governance::process_governance_message(&mut gov, msg, kinetic_types::clock::Kyn(0)) {
+                                    if let Err(e) = kinetic_core::action::process_governance_message(&mut gov, msg, kinetic_types::clock::Kyn(0)) {
                                         tracing::error!("Failed to apply synced gov action: {}", e);
                                     }
                                 }
-                                kinetic_local::governance::save_governance_to_disk(&*gov, &gov_state_path);
+                                kinetic_local::action::save_governance_to_disk(&*gov, &gov_state_path);
                                 drop(gov);
-                                let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+                                let gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
                                 let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
                                 break;
                             }

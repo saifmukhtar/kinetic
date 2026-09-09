@@ -24,7 +24,7 @@ pub async fn start_gossip_listener(
 
             if opcode == kinetic_types::network::NetworkOpcode::Governance as u8
                 && let Ok(signed_msg) = serde_json::from_slice::<
-                    kinetic_core::governance::SignedGovernanceMessage,
+                    kinetic_core::action::SignedGovernanceMessage,
                 >(actual_payload)
             {
                 use kinetic_core::types::clock::KynNetworkExt;
@@ -37,7 +37,7 @@ pub async fn start_gossip_listener(
                 };
 
                 let (should_save, cloned_state) = {
-                    let Ok(mut state) = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                    let Ok(mut state) = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock()
                     else {
                         tracing::error!(
                             error = ?kinetic_core::error::SystemError::MutexPoisoned("GLOBAL_GOVERNANCE_STATE".into()),
@@ -46,7 +46,7 @@ pub async fn start_gossip_listener(
                         continue;
                     };
 
-                    match kinetic_core::governance::process_governance_message(
+                    match kinetic_core::action::process_governance_message(
                         &mut state,
                         &signed_msg,
                         kinetic_types::clock::Kyn(current_kyn),
@@ -78,7 +78,7 @@ pub async fn start_gossip_listener(
                         let _ = tokio::spawn(async move {
                             let _ = client_clone.update_gov_action_log(action_log).await;
                         });
-                        if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                        if let Err(e) = kinetic_local::action::save_governance_to_disk(
                             &cloned_state,
                             &path_clone,
                         ) {
@@ -106,7 +106,7 @@ mod proptests {
         fn test_gossip_garbage_payloads(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
             // Guarantee that receiving absolute garbage over the P2P gossip network
             // will never cause a deserialization panic.
-            let _ = serde_json::from_slice::<kinetic_core::governance::SignedGovernanceMessage>(&payload);
+            let _ = serde_json::from_slice::<kinetic_core::action::SignedGovernanceMessage>(&payload);
         }
     }
 }

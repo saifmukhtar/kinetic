@@ -1,6 +1,6 @@
 use clap::Subcommand;
 
-pub mod governance;
+pub mod action;
 pub mod status;
 pub mod peers;
 pub mod banned;
@@ -11,7 +11,7 @@ pub enum NetworkCommands {
     /// Submit proposals and manage Kinetic Network governance
     Governance {
         #[command(subcommand)]
-        cmd: governance::GovernanceCommands,
+        cmd: action::GovernanceCommands,
     },
     /// Get Swarm/DHT networking status
     Status,
@@ -30,7 +30,7 @@ pub async fn handle_network_command(
 ) -> anyhow::Result<()> {
     match cmd {
         NetworkCommands::Governance { cmd } => {
-            governance::handle_governance_command(cmd, config, client).await
+            action::handle_governance_command(cmd, config, client).await
         }
         NetworkCommands::Status => status::handle_status(config, client).await,
         NetworkCommands::Peers => peers::handle_peers(config, client).await,

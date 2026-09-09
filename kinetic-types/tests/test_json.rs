@@ -1,4 +1,4 @@
-use kinetic_types::governance::{GovernanceAction, SignedGovernanceMessage};
+use kinetic_types::action::{GovernanceAction, SignedGovernanceMessage};
 
 #[test]
 fn test_governance_json_output() {

@@ -77,7 +77,7 @@ pub mod telemetry;
 /// VDF engine error types.
 pub mod vdf;
 
-pub use crate::governance::GovernanceError;
+pub use crate::action::GovernanceError;
 pub use api::RestApiError;
 pub use config::ConfigError;
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};

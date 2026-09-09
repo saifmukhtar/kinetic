@@ -21,7 +21,7 @@
 pub mod cdn;
 pub mod clock;
 pub mod error;
-pub mod governance;
+pub mod action;
 pub mod identity;
 pub mod name_record;
 pub mod network;

@@ -1,5 +1,5 @@
 use libp2p::request_response::{Event, Message};
-use kinetic_types::governance::{GovSyncRequest, GovSyncResponse};
+use kinetic_types::action::{GovSyncRequest, GovSyncResponse};
 use tracing::{debug, info};
 
 /// Handle inbound GovSync protocol events

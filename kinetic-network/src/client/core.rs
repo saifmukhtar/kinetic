@@ -114,8 +114,8 @@ impl NetworkClient {
     pub async fn send_gov_sync_request(
         &self,
         peer: libp2p::PeerId,
-        req: kinetic_types::governance::GovSyncRequest,
-    ) -> std::result::Result<kinetic_types::governance::GovSyncResponse, ProxyError> {
+        req: kinetic_types::action::GovSyncRequest,
+    ) -> std::result::Result<kinetic_types::action::GovSyncResponse, ProxyError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self
             .sender
@@ -136,7 +136,7 @@ impl NetworkClient {
     /// Updates the background event loop's cache of the governance action log.
     pub async fn update_gov_action_log(
         &self,
-        actions: Vec<kinetic_types::governance::SignedGovernanceMessage>,
+        actions: Vec<kinetic_types::action::SignedGovernanceMessage>,
     ) -> std::result::Result<(), NetworkClientError> {
         let sender_clone = self
             .sender

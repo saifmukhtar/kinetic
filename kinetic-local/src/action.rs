@@ -1,4 +1,4 @@
-use kinetic_core::governance::GovernanceState;
+use kinetic_core::action::GovernanceState;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::time::SystemTime;
