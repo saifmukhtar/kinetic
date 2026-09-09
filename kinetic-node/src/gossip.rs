@@ -12,6 +12,7 @@ use std::sync::Arc;
 pub fn handle_governance_gossip(
     payload: &[u8],
     gossip_gov_path: Arc<PathBuf>,
+    network_client: Option<kinetic_network::NetworkClient>,
     storage: Option<Arc<dyn kinetic_core::traits::StorageEngine>>,
     current_kyn: u64,
 ) {
@@ -74,7 +75,14 @@ pub fn handle_governance_gossip(
                         _ => {}
                     }
                 }
+                let client_clone = network_client.clone();
+                let action_log = state_snapshot.action_log.clone();
                 tokio::task::spawn_blocking(move || {
+                    if let Some(client) = client_clone {
+                        let _ = tokio::spawn(async move {
+                            let _ = client.update_gov_action_log(action_log).await;
+                        });
+                    }
                     if let Err(e) = kinetic_local::governance::save_governance_to_disk(
                         &state_snapshot,
                         &gossip_gov_path,
@@ -90,7 +98,14 @@ pub fn handle_governance_gossip(
             }
             Ok(None) => {
                 tracing::info!("Governance state updated via gossip. No immediate effect.");
+                let client_clone = network_client.clone();
+                let action_log = state_snapshot.action_log.clone();
                 tokio::task::spawn_blocking(move || {
+                    if let Some(client) = client_clone {
+                        let _ = tokio::spawn(async move {
+                            let _ = client.update_gov_action_log(action_log).await;
+                        });
+                    }
                     if let Err(e) = kinetic_local::governance::save_governance_to_disk(
                         &state_snapshot,
                         &gossip_gov_path,
@@ -146,7 +161,7 @@ mod tests {
         let invalid_payload = b"not valid json";
 
         // This should not panic
-        handle_governance_gossip(invalid_payload, path, None, 100);
+        handle_governance_gossip(invalid_payload, path, None, None, 100);
     }
 
     #[test]
@@ -166,7 +181,7 @@ mod tests {
 
         // This should parse JSON successfully, but the process_governance_message should fail
         // or reject it. It should not panic.
-        handle_governance_gossip(&payload, path, None, 100);
+        handle_governance_gossip(&payload, path, None, None, 100);
     }
 
     #[test]
@@ -177,7 +192,7 @@ mod tests {
         let wrong_schema = b"{\"hello\": \"world\"}";
 
         // This should fail JSON parsing and exit gracefully
-        handle_governance_gossip(wrong_schema, path, None, 100);
+        handle_governance_gossip(wrong_schema, path, None, None, 100);
     }
 
     #[test]
@@ -190,7 +205,7 @@ mod tests {
         huge_payload.extend(vec![b']'; 500_000]);
 
         // Should reject immediately gracefully during parsing
-        handle_governance_gossip(&huge_payload, path, None, 100);
+        handle_governance_gossip(&huge_payload, path, None, None, 100);
     }
 
     #[test]
@@ -201,7 +216,7 @@ mod tests {
         let extra_fields = b"{\"action\": {\"MapPrime\": {\"name\": \"x\", \"target_pubkey\": []}}, \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
         // Should parse and handle or ignore the extra field without panicking
-        handle_governance_gossip(extra_fields, path, None, 100);
+        handle_governance_gossip(extra_fields, path, None, None, 100);
     }
 
     #[test]
@@ -222,7 +237,7 @@ mod tests {
         let payload = serde_json::to_vec(&msg).unwrap();
 
         // Should not panic when `state.save_to_disk` returns an Err
-        handle_governance_gossip(&payload, path, None, 100);
+        handle_governance_gossip(&payload, path, None, None, 100);
     }
 }
 
@@ -240,7 +255,7 @@ mod fuzzing {
         ) {
             let dir = tempdir().unwrap();
             let path = Arc::new(dir.path().join("gov.bin"));
-            handle_governance_gossip(&raw_payload, path, None, 100);
+            handle_governance_gossip(&raw_payload, path, None, None, 100);
         }
     }
 }

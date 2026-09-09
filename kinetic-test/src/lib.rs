@@ -39,7 +39,7 @@ mod tests {
         };
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
-            Arc::new(KineticStorage::new(dir.path()).unwrap());
+            Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let (_kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
             Arc::new(kinetic_vdf::RsaVdfEngine::new());
@@ -183,7 +183,7 @@ mod tests {
 
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
-            Arc::new(KineticStorage::new(dir.path()).unwrap());
+            Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let (_kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
             Arc::new(kinetic_vdf::RsaVdfEngine::new());
@@ -222,7 +222,7 @@ mod tests {
         let key_a = Keypair::generate_ed25519();
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
-            Arc::new(KineticStorage::new(dir.path()).unwrap());
+            Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let (kyn_tx, kyn_rx) = watch::channel(1000);
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
             Arc::new(kinetic_vdf::RsaVdfEngine::new());

@@ -127,6 +127,16 @@ impl NameRecord {
             Self::Prime { signature, .. } | Self::Infra { signature, .. } => signature,
         }
     }
+
+    /// Returns the optional delegated authorization proof.
+    pub fn authorization(&self) -> Option<&crate::identity::AuthorizedManifest> {
+        match self {
+            Self::Standard(r) => r.authorization.as_deref(),
+            Self::Prime { authorization, .. } | Self::Infra { authorization, .. } => {
+                authorization.as_deref()
+            }
+        }
+    }
 }
 
 /// Redundancy factor for DHT storage and heartbeat replication across the network.

@@ -6,10 +6,10 @@ fn test_locked_database_ux() {
     let dir = tempdir().unwrap();
 
     // First instance acquires the storage lock
-    let _storage1 = KineticStorage::new(dir.path()).unwrap();
+    let _storage1 = KineticStorage::new(dir.path().join("state.db")).unwrap();
 
     // Second instance tries to open the same database concurrently
-    let storage2_result = KineticStorage::new(dir.path());
+    let storage2_result = KineticStorage::new(dir.path().join("state.db"));
 
     let err_msg = match storage2_result {
         Ok(_) => panic!("Second storage instance should fail to open!"),

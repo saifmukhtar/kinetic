@@ -35,7 +35,7 @@ pub struct VdfRegisterRequest {
 /// # Errors
 ///
 /// Returns an error if a VDF task is already running.
-pub async fn handle_vdf_register(
+pub async fn handle_macro_register_name(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<VdfRegisterRequest>,
@@ -249,8 +249,45 @@ pub async fn handle_vdf_register(
 
         update_task_status(&tasks_clone, &task_id_clone, "Publishing Registration", 90);
 
-        // Construct Reveal
-        let records = HashMap::new();
+        // Generate or fetch KID for the user to attach to the new zone
+        update_task_status(&tasks_clone, &task_id_clone, "Injecting Identity (KID)", 92);
+        let current_kyn = {
+            let kyn_provider =
+                kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
+            use kinetic_core::traits::KynProvider;
+            use kinetic_core::types::clock::KynNetworkExt;
+            match kyn_provider.load_cached_kyn() {
+                Ok(kyn) => kyn.kyn,
+                Err(_) => kinetic_core::types::Kyn::now_local().0,
+            }
+        };
+        let current_kyn = kinetic_core::types::Kyn(current_kyn);
+        let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+
+        let kid_id = match kinetic_local::kid_manager::get_or_create_kid_for_name(
+            &fqdn,
+            true,
+            false,
+            current_kyn,
+            &identity_path,
+        ) {
+            Ok(res) => res.did,
+            Err(e) => {
+                update_task_error(
+                    &tasks_clone,
+                    &task_id_clone,
+                    format!("Failed to generate identity: {}", e),
+                );
+                return;
+            }
+        };
+
+        // Construct Reveal and Zone with KID injected
+        let mut records = HashMap::new();
+        records.insert(
+            "@".to_string(),
+            vec![kinetic_core::types::NrsRecord::KID(kid_id)],
+        );
         let zone = kinetic_core::types::NrsZone { records };
         let payload = match serde_json::to_vec(&zone) {
             Ok(b) => b,
@@ -341,7 +378,7 @@ pub async fn handle_vdf_register(
         drop(_lock);
 
         // Save default zone file
-        let zones_dir = kinetic_local::config::get_zones_dir();
+        let zones_dir = kinetic_local::config::get_zones_dir().join("config");
         let _ = std::fs::create_dir_all(&zones_dir);
         let path = zones_dir.join(format!("{}.json", fqdn));
         if let Ok(s) = serde_json::to_string_pretty(&zone)
@@ -367,7 +404,7 @@ pub async fn handle_vdf_register(
 /// # Errors
 ///
 /// Returns an error if there are issues finding the previous reveal or scheduling the VDF task.
-pub async fn handle_vdf_renew(
+pub async fn handle_macro_renew_name(
     Extension(role): Extension<Role>,
     State(state): State<ApiState>,
     Json(req): Json<NameRenewRequest>,
@@ -691,8 +728,25 @@ pub(crate) fn update_task_error(
     }
 }
 
+/// Retrieves all running or recently completed VDF tasks.
+pub async fn handle_macro_tasks(
+    Extension(role): Extension<Role>,
+    State(state): State<ApiState>,
+) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
+    if !role.can_vdf() {
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::InsufficientPrivileges,
+        ));
+    }
+    let tasks = {
+        let map = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
+        map.clone()
+    };
+    Ok(Json(serde_json::to_value(tasks).unwrap_or_default()))
+}
+
 /// Retrieves the current progress and status of a VDF task by ID.
-pub async fn handle_vdf_status(
+pub async fn handle_macro_status(
     Extension(role): Extension<Role>,
     Path(task_id): Path<String>,
     State(state): State<ApiState>,
@@ -711,22 +765,4 @@ pub async fn handle_vdf_status(
         Some(t) => Ok(Json(serde_json::to_value(t).unwrap_or_default())),
         None => Ok(Json(serde_json::json!({"error": "Task not found"}))),
     }
-}
-
-/// Deletes a VDF task's status record from memory. Useful to clear completed or failed tasks.
-pub async fn handle_vdf_status_delete(
-    Extension(role): Extension<Role>,
-    Path(task_id): Path<String>,
-    State(state): State<ApiState>,
-) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    if !role.can_vdf() {
-        return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::InsufficientPrivileges,
-        ));
-    }
-    let removed = {
-        let mut tasks = state.vdf_tasks.lock().unwrap_or_else(|e| e.into_inner());
-        tasks.remove(&task_id).is_some()
-    };
-    Ok(Json(serde_json::json!({ "success": removed })))
 }

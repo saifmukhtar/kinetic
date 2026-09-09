@@ -83,7 +83,7 @@ fn install_service() -> Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run 'kinetic-node start' to begin.");
+    println!("Service installed successfully. Run '{}-node start' to begin.", kinetic_core::constants::NSP);
     Ok(())
 }
 
@@ -182,14 +182,13 @@ async fn run_node() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let default_storage = kinetic_local::config::get_base_dir().join("node_db");
-    let storage_path = config
-        .daemon
-        .storage_dir
-        .to_str()
-        .unwrap_or(default_storage.to_str().unwrap_or("./kinetic_db"));
-    let storage = Arc::new(KineticStorage::new(storage_path)?);
-    info!("Storage engine initialized at {}", storage_path);
+    let base_config_dir = kinetic_local::config::get_base_dir();
+    let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
+    std::fs::create_dir_all(&storage_dir)?;
+    
+    let storage_path = storage_dir.join("kinetic-node.db");
+    let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
+    info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize Drand client for PoW validation of ephemeral clients
     let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
@@ -268,12 +267,11 @@ async fn run_node() -> Result<()> {
         disable_storage_sync: false,
     };
 
-    let base_config_dir = kinetic_local::config::get_base_dir();
-    std::fs::create_dir_all(&base_config_dir)?;
-
     let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| base_config_dir.join("governance.db"));
+        .unwrap_or_else(|_| storage_dir.join("action-node.db"));
+
+
     let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
         let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
@@ -307,6 +305,50 @@ async fn run_node() -> Result<()> {
     let _ = network_client
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL)
         .await;
+
+    // Push initial local governance log to the network cache
+    {
+        let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+            .lock()
+            .unwrap();
+        let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
+    }
+
+    // If local state is empty, perform a P2P sync
+    {
+        let is_empty = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+            .lock()
+            .unwrap()
+            .action_log.is_empty();
+
+        if is_empty {
+            tracing::info!("Local governance state is empty. Attempting P2P GovSync...");
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            if let Ok(peers) = network_client.get_connected_peers().await {
+                for peer_str in peers {
+                    if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
+                        if let Ok(resp) = network_client.send_gov_sync_request(peer_id, kinetic_types::governance::GovSyncRequest { from_kyn: 0 }).await {
+                            if !resp.actions.is_empty() {
+                                tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
+                                let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+                                for msg in &resp.actions {
+                                    if let Err(e) = kinetic_core::governance::process_governance_message(&mut gov, msg, kinetic_types::clock::Kyn(0)) {
+                                        tracing::error!("Failed to apply synced gov action: {}", e);
+                                    }
+                                }
+                                kinetic_local::governance::save_governance_to_disk(&*gov, &gov_state_path);
+                                drop(gov);
+                                let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+                                let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     info!("P2P Network architecture wired");
 
     let gossip_gov_path = gov_state_path.clone();
@@ -321,6 +363,7 @@ async fn run_node() -> Result<()> {
         kinetic_types::network::NodeType::Node,
     );
 
+    let gossip_network_client = network_client.clone();
     tokio::spawn(async move {
         loop {
             let (topic, payload, _, _) = match gossip_rx.recv().await {
@@ -344,6 +387,7 @@ async fn run_node() -> Result<()> {
                     gossip::handle_governance_gossip(
                         actual_payload,
                         gossip_gov_path.clone(),
+                        Some(gossip_network_client.clone()),
                         Some(gossip_storage.clone()),
                         current_kyn,
                     );

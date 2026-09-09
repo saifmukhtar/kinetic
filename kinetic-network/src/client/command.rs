@@ -43,6 +43,13 @@ pub enum Command {
         /// Channel to return the resolved payload.
         responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
     },
+    /// Resolve a heartbeat payload from the DHT redundantly.
+    ResolveHeartbeat {
+        /// The apex name.
+        name: Arc<str>,
+        /// Channel to return the resolved heartbeat payload.
+        responder: oneshot::Sender<std::result::Result<Vec<u8>, ResolutionError>>,
+    },
     /// Verify that a record has been replicated to a quorum of nodes.
     VerifyQuorum {
         /// The apex name.
@@ -97,5 +104,34 @@ pub enum Command {
         propagation_source: libp2p::PeerId,
         /// Whether the message should be accepted or rejected.
         acceptance: libp2p::gossipsub::MessageAcceptance,
+    },
+    /// Retrieve a list of all currently connected Peer IDs.
+    GetConnectedPeers {
+        /// Channel to return the list of Peer IDs.
+        responder: oneshot::Sender<std::result::Result<Vec<String>, NetworkClientError>>,
+    },
+    /// Retrieve a list of active Gossipsub topics.
+    GetGossipTopics {
+        /// Channel to return the list of topics.
+        responder: oneshot::Sender<std::result::Result<Vec<String>, NetworkClientError>>,
+    },
+    /// Retrieve a list of all currently banned Peer IDs.
+    GetBannedPeers {
+        /// Channel to return a list of (PeerId, ExpirationKyn).
+        responder: oneshot::Sender<std::result::Result<Vec<(String, u64)>, NetworkClientError>>,
+    },
+    /// Send a request to a remote node to sync governance state.
+    SendGovSyncRequest {
+        /// The remote peer ID.
+        peer: libp2p::PeerId,
+        /// The gov sync request payload.
+        req: Box<kinetic_types::governance::GovSyncRequest>,
+        /// Channel to return the gov sync response.
+        responder: oneshot::Sender<std::result::Result<kinetic_types::governance::GovSyncResponse, ProxyError>>,
+    },
+    /// Update the local cache of the governance action log.
+    UpdateGovActionLog {
+        /// The latest list of executed governance actions.
+        actions: Vec<kinetic_types::governance::SignedGovernanceMessage>,
     },
 }

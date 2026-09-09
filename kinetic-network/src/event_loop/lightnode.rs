@@ -173,6 +173,22 @@ pub(crate) fn build_light_swarm(
                 libp2p::request_response::Config::default(),
             );
 
+            let gov_sync = libp2p::request_response::cbor::Behaviour::<
+                kinetic_types::governance::GovSyncRequest,
+                kinetic_types::governance::GovSyncResponse,
+            >::new(
+                [(
+                    libp2p::StreamProtocol::try_from_owned(format!(
+                        "/{}/gov-sync/1.0.0",
+                        kinetic_core::constants::NETWORK_SALT_HEX
+                    ))
+                    .unwrap(),
+                    libp2p::request_response::ProtocolSupport::Full,
+                )],
+                libp2p::request_response::Config::default()
+                    .with_request_timeout(std::time::Duration::from_secs(60)),
+            );
+
             #[cfg(not(target_arch = "wasm32"))]
             let stream = libp2p_stream::Behaviour::new();
             #[cfg(not(target_arch = "wasm32"))]
@@ -232,6 +248,7 @@ pub(crate) fn build_light_swarm(
                 kademlia,
                 gossipsub,
                 cdn,
+                gov_sync,
                 autonat,
                 #[cfg(not(target_arch = "wasm32"))]
                 upnp,

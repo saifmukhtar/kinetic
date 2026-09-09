@@ -18,17 +18,19 @@ anyhow.workspace = true
 base64.workspace = true
 bip39.workspace = true
 clap = { workspace = true, features = ["derive"] }
+colored = "3.1.1"
+comfy-table = "8.0.0"
 data-encoding.workspace = true
 dirs.workspace = true
 getrandom.workspace = true
 hex.workspace = true
+indicatif = "0.18.6"
 kinetic-core = { path = "../kinetic-core" }
 kinetic-kid = { path = "../kinetic-kid" }
 kinetic-local = { path = "../kinetic-local" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-primitives = { path = "../kinetic-primitives" }
 kinetic-rpc = { path = "../kinetic-rpc" }
-kinetic-vdf = { path = "../kinetic-vdf" }
 reqwest = { workspace = true, features = ["json"] }
 rpassword.workspace = true
 serde_json.workspace = true

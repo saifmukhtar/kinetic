@@ -1,142 +1,157 @@
-//! CLI query handlers for listing, inspecting, and resolving .kin names.
-
 use kinetic_core::config::KineticConfig;
 use kinetic_local::config::get_zones_dir;
+use comfy_table::{Table, Cell, Color};
+use indicatif::{ProgressBar, ProgressStyle};
 
-use reqwest::Client;
-use tracing::{info, warn};
+pub async fn handle_name_list(config: &KineticConfig, client: &reqwest::Client) -> anyhow::Result<()> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.blue} {msg}")?);
+    pb.set_message("Fetching owned names from daemon...");
+    pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
-/// Lists all `.kin` names owned by the local node.
-///
-/// Queries the local daemon for owned names. If the daemon is unavailable,
-/// falls back to reading the local zones directory.
-///
-/// # Errors
-/// Returns an `anyhow::Error` if network or file system operations fail unexpectedly.
-pub async fn handle_name_list(config: &KineticConfig, client: &Client) -> anyhow::Result<()> {
     let daemon_url = format!(
-        "http://{}:{}/owned-names",
+        "http://{}:{}/api/v1/micro/nrs/owned",
         config.daemon.bind_ip, config.daemon.api_port
     );
     let response = client.get(&daemon_url).send().await;
+    pb.finish_and_clear();
+
+    let mut names = Vec::new();
+    let mut source = "Daemon API";
+
     match response {
         Ok(res) if res.status().is_success() => {
-            let names: Vec<String> = res.json().await.unwrap_or_default();
-            info!("Names managed by local daemon:");
-            for name in names {
-                info!("- {}", name);
-            }
+            names = res.json().await.unwrap_or_default();
         }
         _ => {
-            warn!("Daemon unreachable or returned error. Falling back to local storage...");
-            let zones_dir = get_zones_dir();
-            if let Ok(entries) = std::fs::read_dir(&zones_dir) {
-                info!("Local names found in {}:", zones_dir.display());
+            source = "Local Disk (Daemon Offline)";
+            let config_dir = get_zones_dir().join("config");
+            if let Ok(entries) = std::fs::read_dir(&config_dir) {
                 for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str()
-                        && name.ends_with(".json")
-                        && !name.ends_with(".reveal.json")
-                    {
-                        info!("- {}", name.trim_end_matches(".json"));
+                    if let Some(name) = entry.file_name().to_str() {
+                        if name.ends_with(".json") {
+                            names.push(name.trim_end_matches(".json").to_string());
+                        }
                     }
                 }
-            } else {
-                info!("No local names found.");
             }
         }
     }
+
+    if names.is_empty() {
+        println!("No owned names found.");
+        return Ok(());
+    }
+
+    let mut table = Table::new();
+    table.set_header(vec![
+        Cell::new("Name").fg(Color::Cyan),
+        Cell::new("Data Source").fg(Color::DarkGrey),
+    ]);
+
+    for name in names {
+        table.add_row(vec![
+            name.to_string(),
+            source.to_string(),
+        ]);
+    }
+
+    println!("\n{table}");
     Ok(())
 }
 
-/// Retrieves information about a specific `.kin` name.
-///
-/// Attempts to resolve the name from the network. If unavailable, falls back
-/// to local storage to provide details like Drand kyn and VDF iterations.
-///
-/// # Errors
-/// Returns an `anyhow::Error` if local data parsing fails or network requests error out.
 pub async fn handle_name_info(
     name: String,
     config: &KineticConfig,
-    client: &Client,
+    client: &reqwest::Client,
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.blue} {msg}")?);
+    pb.set_message(format!("Fetching info for {}...", fqdn));
+    pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
     let daemon_url = format!(
-        "http://{}:{}/resolve/{}",
+        "http://{}:{}/api/v1/micro/nrs/resolve/{}",
         config.daemon.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
+    pb.finish_and_clear();
 
-    let mut resolved_from_network = false;
-    match resolve_res {
-        Ok(res) if res.status().is_success() => {
-            info!("Info for {} (Resolved from network):", fqdn);
-            let text = res.text().await.unwrap_or_default();
-            info!("{}", text);
-            resolved_from_network = true;
-        }
-        _ => {
-            warn!("Daemon unreachable or name not found on DHT. Falling back to local storage...");
+    if let Ok(res) = resolve_res {
+        if res.status().is_success() {
+            let json: serde_json::Value = res.json().await?;
+            println!("Info for {} (Resolved from network):", fqdn);
+            println!("{}", serde_json::to_string_pretty(&json)?);
+            return Ok(());
         }
     }
 
-    if !resolved_from_network {
-        let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
-        if reveal_path.exists() {
-            let content = std::fs::read_to_string(&reveal_path)?;
-            let record: kinetic_core::types::NameRecord = serde_json::from_str(&content)?;
-            info!("Info for {} (Local):", fqdn);
-            match record {
-                kinetic_core::types::NameRecord::Standard(r) => {
-                    info!("  Type: Standard");
-                    info!("  Created at Drand kyn: {}", r.kyn);
-                    info!("  VDF Iterations: {}", r.iterations);
-                }
-                kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                    info!("  Type: Prime");
-                    info!("  Granted at: {}", granted_at);
-                }
-                kinetic_core::types::NameRecord::Infra { granted_at, .. } => {
-                    info!("  Type: Infra");
-                    info!("  Granted at: {}", granted_at);
-                }
+    println!("Daemon unreachable or name not found on DHT. Checking local cache...");
+    let record_path = get_zones_dir().join("cache").join(format!("{}.record.json", fqdn));
+    if record_path.exists() {
+        let content = std::fs::read_to_string(&record_path)?;
+        let record: kinetic_core::types::NameRecord = serde_json::from_str(&content)?;
+        
+        let mut table = Table::new();
+        table.set_header(vec![
+            Cell::new("Metric").fg(Color::Cyan),
+            Cell::new("Value").fg(Color::White),
+        ]);
+        
+        match record {
+            kinetic_core::types::NameRecord::Standard(r) => {
+                table.add_row(vec!["Type", "Standard"]);
+                table.add_row(vec!["Created at Drand KYN", &r.kyn.to_string()]);
+                table.add_row(vec!["VDF Iterations", &r.iterations.to_string()]);
             }
-            info!("  Status: Local reveal file exists, but network resolution failed.");
-        } else {
-            info!("No local info found for {}.", fqdn);
+            kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
+                table.add_row(vec!["Type", "Prime"]);
+                table.add_row(vec!["Granted at", &granted_at.to_string()]);
+            }
+            kinetic_core::types::NameRecord::Infra { granted_at, .. } => {
+                table.add_row(vec!["Type", "Infra"]);
+                table.add_row(vec!["Granted at", &granted_at.to_string()]);
+            }
         }
+        println!("\nInfo for {} (Local Cache):", fqdn);
+        println!("{table}");
+    } else {
+        println!("No local info found for {}.", fqdn);
     }
+    
     Ok(())
 }
-/// Resolves a `.kin` name directly from the network.
-///
-/// Fetches the latest published reveal and routing information from the local daemon.
-///
-/// # Errors
-/// Returns an `anyhow::Error` if the daemon is unreachable or the resolution fails.
+
 pub async fn handle_name_resolve(
     name: String,
     config: &KineticConfig,
-    client: &Client,
+    client: &reqwest::Client,
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
-    info!("Resolving {} via local daemon...", fqdn);
+    
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.magenta} {msg}")?);
+    pb.set_message(format!("Resolving {} via network...", fqdn));
+    pb.enable_steady_tick(std::time::Duration::from_millis(100));
+
     let daemon_url = format!(
-        "http://{}:{}/resolve/{}",
+        "http://{}:{}/api/v1/micro/nrs/resolve/{}",
         config.daemon.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
+    pb.finish_and_clear();
+
     match resolve_res {
         Ok(res) if res.status().is_success() => {
-            let text = res.text().await?;
-            info!("Resolved data:\n{}", text);
+            let json: serde_json::Value = res.json().await?;
+            println!("✅ Resolved data for {}:\n{}", fqdn, serde_json::to_string_pretty(&json)?);
         }
         Ok(res) => {
-            warn!("Failed to resolve: {}", res.status());
+            println!("❌ Failed to resolve: {}", res.status());
         }
         Err(e) => {
-            warn!("Daemon unreachable: {}", e);
+            println!("❌ Daemon unreachable: {}", e);
         }
     }
     Ok(())

@@ -130,10 +130,7 @@ impl PeerRegistry {
 
     /// Adds a peer if they have at least one public IP.
     pub fn add_verified_peer(&mut self, peer: PeerId, addrs: Vec<Multiaddr>) -> bool {
-        let public_addrs: Vec<Multiaddr> = addrs
-            .into_iter()
-            .filter(Self::is_public_addr)
-            .collect();
+        let public_addrs: Vec<Multiaddr> = addrs.into_iter().filter(Self::is_public_addr).collect();
 
         if !public_addrs.is_empty() {
             self.cache.put(peer, public_addrs);

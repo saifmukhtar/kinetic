@@ -15,7 +15,7 @@ fuzz_target!(|data: &[u8]| {
     // 1. Initialize the global storage instance
     let (storage, _temp_dir) = KINETIC_STORAGE.get_or_init(|| {
         let temp_dir = TempDir::new().unwrap();
-        let storage = Arc::new(KineticStorage::new(temp_dir.path()).unwrap());
+        let storage = Arc::new(KineticStorage::new(temp_dir.path().join("state.db")).unwrap());
         (storage, temp_dir)
     });
 

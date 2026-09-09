@@ -130,7 +130,7 @@ impl PacManager {
     pub fn new(config_dir: &std::path::Path) -> Self {
         Self {
             configurator: detect_configurator(),
-            lock_path: config_dir.join("kinetic.kin"),
+            lock_path: config_dir.join("pac_router.lock"),
         }
     }
 
@@ -141,7 +141,7 @@ impl PacManager {
     ) -> Self {
         Self {
             configurator,
-            lock_path: config_dir.join("kinetic.kin"),
+            lock_path: config_dir.join("pac_router.lock"),
         }
     }
 
@@ -153,9 +153,9 @@ impl PacManager {
         if self.lock_path.exists()
             && let Ok(Ok(saved)) =
                 File::open(&self.lock_path).map(serde_json::from_reader::<_, SavedState>)
-            {
-                let _ = self.configurator.restore_state(&saved);
-            }
+        {
+            let _ = self.configurator.restore_state(&saved);
+        }
         let previous = self.configurator.save_state()?;
         let tmp_path = self.lock_path.with_extension("tmp");
         if let Ok(file) = File::create(&tmp_path) {
@@ -170,20 +170,21 @@ impl PacManager {
             if let Some(ref old_url) = previous.previous_pac_url {
                 if old_url.starts_with("http") {
                     if let Ok(resp) = reqwest::blocking::get(old_url)
-                        && let Ok(text) = resp.text() {
-                            let _ = std::fs::write(&original_js, text);
-                            tracing::info!(
-                                "Successfully downloaded original PAC script for passthrough merging."
-                            );
-                        }
-                } else if old_url.starts_with("file://")
-                    && let Ok(text) = std::fs::read_to_string(old_url.trim_start_matches("file://"))
+                        && let Ok(text) = resp.text()
                     {
                         let _ = std::fs::write(&original_js, text);
                         tracing::info!(
-                            "Successfully read local original PAC script for passthrough merging."
+                            "Successfully downloaded original PAC script for passthrough merging."
                         );
                     }
+                } else if old_url.starts_with("file://")
+                    && let Ok(text) = std::fs::read_to_string(old_url.trim_start_matches("file://"))
+                {
+                    let _ = std::fs::write(&original_js, text);
+                    tracing::info!(
+                        "Successfully read local original PAC script for passthrough merging."
+                    );
+                }
             }
         }
 
@@ -240,6 +241,7 @@ impl PacManager {
                 let _ = std::fs::remove_file(parent.join("original_pac.js"));
             }
             let _ = std::fs::remove_file(&self.lock_path);
+            let _ = std::fs::remove_file(self.lock_path.with_extension("tmp"));
         } else {
             let _ = self.configurator.uninstall();
         }
@@ -347,7 +349,7 @@ fn stop_background_service() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn build_pac_script(proxies_dir: &std::path::Path) -> String {
+pub fn build_pac_script(base_dir: &std::path::Path) -> String {
     let mut pac_script = String::from("function FindProxyForURL(url, host) {\n");
 
     let mut proxy_map: std::collections::HashMap<
@@ -355,39 +357,43 @@ pub fn build_pac_script(proxies_dir: &std::path::Path) -> String {
         (Option<RegisteredProxy>, Option<RegisteredProxy>),
     > = std::collections::HashMap::new();
 
-    // Scan proxies dir for JSON files
-    if let Ok(entries) = std::fs::read_dir(proxies_dir) {
-        for entry in entries.flatten() {
-            if let Some(ext) = entry.path().extension()
-                && ext == "json"
+    // Helper to scan a directory and insert into proxy_map
+    let mut scan_dir = |dir: std::path::PathBuf, is_atlas: bool| {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                if let Some(ext) = entry.path().extension()
+                    && ext == "json"
                     && let Ok(contents) = std::fs::read_to_string(entry.path())
-                        && let Ok(proxy_info) = serde_json::from_str::<RegisteredProxy>(&contents) {
-                            if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
-                                tracing::warn!(
-                                    "Invalid IP address in proxy config: {}",
-                                    proxy_info.proxy_ip
-                                );
-                                continue;
-                            }
+                    && let Ok(proxy_info) = serde_json::from_str::<RegisteredProxy>(&contents)
+                {
+                    if proxy_info.proxy_ip.parse::<std::net::IpAddr>().is_err() {
+                        tracing::warn!(
+                            "Invalid IP address in proxy config: {}",
+                            proxy_info.proxy_ip
+                        );
+                        continue;
+                    }
 
-                            let nsp = if proxy_info.nsp.starts_with('.') {
-                                proxy_info.nsp.clone()
-                            } else {
-                                format!(".{}", proxy_info.nsp)
-                            };
+                    let nsp = if proxy_info.nsp.starts_with('.') {
+                        proxy_info.nsp.clone()
+                    } else {
+                        format!(".{}", proxy_info.nsp)
+                    };
 
-                            let is_atlas =
-                                entry.file_name().to_string_lossy().starts_with("atlas_");
-                            let entry = proxy_map.entry(nsp).or_insert((None, None));
+                    let entry = proxy_map.entry(nsp).or_insert((None, None));
 
-                            if is_atlas {
-                                entry.1 = Some(proxy_info);
-                            } else {
-                                entry.0 = Some(proxy_info);
-                            }
-                        }
+                    if is_atlas {
+                        entry.1 = Some(proxy_info);
+                    } else {
+                        entry.0 = Some(proxy_info);
+                    }
+                }
+            }
         }
-    }
+    };
+
+    scan_dir(base_dir.join("natives"), false);
+    scan_dir(base_dir.join("atlas"), true);
 
     for (nsp, proxies) in proxy_map {
         let mut proxy_string = String::new();
@@ -427,15 +433,13 @@ pub fn build_pac_script(proxies_dir: &std::path::Path) -> String {
     }
 
     let mut passthrough_injected = false;
-    if let Some(parent) = proxies_dir.parent() {
-        let original_js_path = parent.join("original_pac.js");
-        if let Ok(mut original_script) = std::fs::read_to_string(&original_js_path) {
-            original_script = original_script.replace("FindProxyForURL", "OriginalFindProxyForURL");
-            pac_script.push_str("    return OriginalFindProxyForURL(url, host);\n}\n\n");
-            pac_script.push_str("// --- USER'S ORIGINAL PAC SCRIPT BELOW ---\n");
-            pac_script.push_str(&original_script);
-            passthrough_injected = true;
-        }
+    let original_js_path = base_dir.join("original_pac.js");
+    if let Ok(mut original_script) = std::fs::read_to_string(&original_js_path) {
+        original_script = original_script.replace("FindProxyForURL", "OriginalFindProxyForURL");
+        pac_script.push_str("    return OriginalFindProxyForURL(url, host);\n}\n\n");
+        pac_script.push_str("// --- USER'S ORIGINAL PAC SCRIPT BELOW ---\n");
+        pac_script.push_str(&original_script);
+        passthrough_injected = true;
     }
 
     if !passthrough_injected {
@@ -456,14 +460,15 @@ async fn run_server() -> anyhow::Result<()> {
 
     std::fs::create_dir_all(&base_dir)?;
 
-    let proxies_dir = base_dir.join("proxies");
-    std::fs::create_dir_all(&proxies_dir)?;
+    std::fs::create_dir_all(base_dir.join("natives"))?;
+    std::fs::create_dir_all(base_dir.join("atlas"))?;
 
     let pac_manager = PacManager::new(&base_dir);
 
     let pac_url = "http://127.0.0.1:16001/proxy.pac";
     pac_manager.install(pac_url)?;
 
+    let base_dir_clone = base_dir.clone();
     let app = Router::new().route(
         "/proxy.pac",
         get(move |headers: axum::http::HeaderMap| async move {
@@ -474,7 +479,7 @@ async fn run_server() -> anyhow::Result<()> {
             let host_only = host.split(':').next().unwrap_or("");
 
             if host_only == "localhost" || host_only == "127.0.0.1" || host_only == "[::1]" {
-                let pac_script = build_pac_script(&proxies_dir);
+                let pac_script = build_pac_script(&base_dir_clone);
 
                 axum::response::Response::builder()
                     .header("Content-Type", "application/x-ns-proxy-autoconfig")
@@ -601,13 +606,16 @@ mod tests {
             proxy_ip: "127.0.255.2".to_string(),
         };
 
+        let natives_dir = dir.path().join("natives");
+        fs::create_dir_all(&natives_dir).unwrap();
+        
         fs::write(
-            dir.path().join("kin.json"),
+            natives_dir.join("kin.json"),
             serde_json::to_string(&kin_proxy).unwrap(),
         )
         .unwrap();
         fs::write(
-            dir.path().join("uni.json"),
+            natives_dir.join("uni.json"),
             serde_json::to_string(&uni_proxy).unwrap(),
         )
         .unwrap();
@@ -627,10 +635,10 @@ mod tests {
         let original_pac = "function FindProxyForURL(url, host) { return \"PROXY 10.0.0.5:80\"; }";
         fs::write(dir.path().join("original_pac.js"), original_pac).unwrap();
 
-        let proxies_dir = dir.path().join("proxies");
-        fs::create_dir_all(&proxies_dir).unwrap();
+        let natives_dir = dir.path().join("natives");
+        fs::create_dir_all(&natives_dir).unwrap();
 
-        let script = build_pac_script(&proxies_dir);
+        let script = build_pac_script(dir.path());
         assert!(script.contains("function OriginalFindProxyForURL(url, host)"));
         assert!(script.contains("return OriginalFindProxyForURL(url, host);"));
         assert!(script.contains("return \"PROXY 10.0.0.5:80\";"));

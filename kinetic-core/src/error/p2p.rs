@@ -34,20 +34,6 @@ pub enum P2pError {
     #[error("Peer {0} sent 3 invalid records within 60s — disconnecting and banning")]
     RecordSpamBan(String),
 
-    /// A light node failed the proof-of-work handshake when the node was at maximum connection capacity.
-    /// To prevent connection slot exhaustion during high load, the node disconnects unauthenticated light nodes.
-    /// If you run a light client, ensure it correctly computes the PoW handshake before dialing full nodes.
-    #[error(
-        "Light Node limit reached. Peer {0} failed PoW, disconnecting them to prevent connection slot exhaustion"
-    )]
-    LightNodePowFailureLimit(String),
-
-    /// A single cryptographic identifier attempted to multiplex too many light client connections.
-    /// The node enforces a strict limit of 3 light clients per identity to prevent Sybil resource exhaustion.
-    /// Disconnect redundant light clients using the same identity key, or generate distinct identities for each client.
-    #[error("Identifier {0} exceeded limit of 3 light clients. Disconnecting peer {1}.")]
-    LightNodeIdentityLimit(String, String),
-
     /// A quorum verification was attempted while the node had no peers.
     /// The node cannot verify network state or resolve conflicts if it is completely isolated from the mesh.
     /// Wait for the node to discover peers and sync the network state before attempting quorum operations.
@@ -65,12 +51,6 @@ pub enum P2pError {
     /// Messages are being aggressively dropped to prevent memory exhaustion. Consider allocating more CPU resources to the daemon.
     #[error("Gossip semaphore saturated — dropping message from {0} on topic {1}")]
     GossipSemaphoreSaturated(String, String),
-
-    /// A light node incorrectly attempted a DHT Write (`PutRecord`) operation.
-    /// By protocol design, light nodes do not have Write privileges and can only perform Read operations.
-    /// The offending peer was immediately disconnected. Ensure your light client applications only emit Read queries.
-    #[error("Light node {0} attempted to PutRecord (Write). Rejecting and disconnecting.")]
-    LightNodeWriteRejected(String),
 
     /// A peer spammed the Kademlia routing table with invalid routing records.
     /// The peer is attempting an Eclipse attack or routing table pollution.
@@ -123,12 +103,9 @@ impl P2pError {
             Self::ZeroPeersDetected => "KIN-P2P-002",
             Self::GossipSpamBan(_) => "KIN-P2P-003",
             Self::RecordSpamBan(_) => "KIN-P2P-004",
-            Self::LightNodePowFailureLimit(_) => "KIN-P2P-005",
-            Self::LightNodeIdentityLimit(..) => "KIN-P2P-006",
             Self::OfflineVerifyQuorum => "KIN-P2P-007",
             Self::MdnsBindFailed(_) => "KIN-P2P-008",
             Self::GossipSemaphoreSaturated(..) => "KIN-P2P-009",
-            Self::LightNodeWriteRejected(_) => "KIN-P2P-010",
             Self::KademliaRecordSpamBan(_) => "KIN-P2P-011",
             Self::OutgoingConnectionError(..) => "KIN-P2P-012",
             Self::BootstrapDialFailed(..) => "KIN-P2P-013",
@@ -176,12 +153,6 @@ impl P2pError {
             Self::RecordSpamBan(_) | Self::KademliaRecordSpamBan(_) => {
                 "Peer sent too many invalid records and was banned.".to_string()
             }
-            Self::LightNodePowFailureLimit(_) => {
-                "Light Node limit reached; disconnected peer without valid PoW.".to_string()
-            }
-            Self::LightNodeIdentityLimit(..) => {
-                "Identifier exceeded limit of 3 light clients; disconnected peer.".to_string()
-            }
             Self::OfflineVerifyQuorum => {
                 "Offline mode: Failing fast for VerifyQuorum (0 peers).".to_string()
             }
@@ -190,9 +161,6 @@ impl P2pError {
             }
             Self::GossipSemaphoreSaturated(..) => {
                 "Gossip semaphore saturated — dropping message.".to_string()
-            }
-            Self::LightNodeWriteRejected(_) => {
-                "Light node attempted to Write. Rejecting and disconnecting.".to_string()
             }
             Self::OutgoingConnectionError(..) => "Outgoing connection error to peer.".to_string(),
             Self::BootstrapDialFailed(..) => "Failed to dial bootstrap node.".to_string(),

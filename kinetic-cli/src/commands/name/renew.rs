@@ -1,25 +1,11 @@
-//! Name renewal engine with cryptographic proof chaining and owner VDF difficulty discounts.
-
 use crate::utils::parse_and_format_api_error;
 use kinetic_core::config::KineticConfig;
-use kinetic_core::traits::{KynProvider, VdfEngine};
-use kinetic_local::config::get_zones_dir;
-use kinetic_local::identity::load_keypair;
-
 use reqwest::Client;
-
+use serde_json::json;
 use std::time::Duration;
-use tracing::info;
+use indicatif::{ProgressBar, ProgressStyle};
+use colored::Colorize;
 
-/// Handles name renewal.
-///
-/// Renews an existing `.kin` name by fetching the latest Drand beacon,
-/// computing a discounted VDF proof based on the previous proof, and publishing
-/// the new `Reveal` to the DHT. This extends the lifespan of the registration.
-///
-/// # Errors
-/// Returns an `anyhow::Error` if the previous reveal is not found locally,
-/// keypairs don't match, or network/VDF generation steps fail.
 pub async fn handle_name_renew(
     name: String,
     iterations: u64,
@@ -27,172 +13,99 @@ pub async fn handle_name_renew(
     client: &Client,
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
-    info!("Starting renewal for '{}'", fqdn);
+    let required_iters = kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
+    let actual_iterations = std::cmp::max(iterations, required_iters);
 
-    let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
-    let old_reveal: kinetic_core::types::Reveal = if reveal_path.exists() {
-        let content = std::fs::read_to_string(&reveal_path)?;
-        let record: kinetic_core::types::NameRecord = serde_json::from_str(&content)?;
-        match record {
-            kinetic_core::types::NameRecord::Standard(r) => *r,
-            kinetic_core::types::NameRecord::Prime { .. }
-            | kinetic_core::types::NameRecord::Infra { .. } => {
-                return Err(anyhow::anyhow!(
-                    "Name '{}' is Prime/Infra. These names do not expire or require VDF renewal.",
-                    fqdn
-                ));
+    let diff_url = format!("http://{}:{}/api/v1/micro/consensus/difficulty/{}", config.daemon.bind_ip, config.daemon.api_port, fqdn);
+    let mut time_str = "an unknown amount of time".to_string();
+    let mut rating_str = "".to_string();
+    
+    if let Ok(res) = client.get(&diff_url).send().await {
+        if let Ok(json) = res.json::<serde_json::Value>().await {
+            if let Some(pred) = json.get("local_prediction") {
+                if let Some(fmt) = pred.get("estimated_formatted").and_then(|v| v.as_str()) {
+                    time_str = fmt.to_string();
+                }
+                if let Some(rating) = pred.get("hardware_rating").and_then(|v| v.as_str()) {
+                    rating_str = format!(" (Hardware Rating: {})", rating);
+                }
             }
         }
-    } else {
-        return Err(anyhow::anyhow!(
-            "No local reveal found for '{}'. Cannot renew.",
-            fqdn
-        ));
-    };
-
-    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
-    let keypair = load_keypair(&identity_path)?;
-    let pubkey = keypair.pubkey_bytes();
-
-    if old_reveal.pubkey != pubkey.as_slice() {
-        return Err(anyhow::anyhow!(
-            "Local keypair does not match the public key in the old reveal."
-        ));
     }
 
-    info!("Fetching latest Drand entropy beacon...");
-    let kyn_provider = kinetic_network::client::drand::DrandProvider::new(None);
-    let drand_data = kyn_provider.fetch_latest().await?;
-    info!("Successfully fetched Drand kyn {}.", drand_data.kyn);
+    println!("Renewing {} requires {} iterations and will take approximately {}{}.", fqdn, actual_iterations, time_str, rating_str);
 
-    let mut salt = [0u8; 32];
-    getrandom::fill(&mut salt).expect("Failed to generate random salt");
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(ProgressStyle::default_spinner().template("{spinner:.blue} {msg}")?);
+    pb.set_message("Submitting renewal request to local Kinetic Daemon...");
+    pb.enable_steady_tick(Duration::from_millis(100));
 
-    let drand_sig_bytes = hex::decode(&drand_data.signature)
-        .map_err(|_| anyhow::anyhow!("Received corrupted Drand signature from the beacon"))?;
-    let challenge = kinetic_core::types::Commitment::derive(
-        kinetic_core::constants::NETWORK_SALT,
-        &fqdn,
-        &salt,
-        &drand_sig_bytes,
-        &pubkey,
-    );
+    let daemon_url = format!("http://{}:{}/api/macro/renew", config.daemon.bind_ip, config.daemon.api_port);
+    let req_body = json!({ "name": fqdn, "iterations": actual_iterations });
+    let response = client.post(&daemon_url).json(&req_body).send().await;
 
-    info!("Broadcasting Commitment to DHT...");
-    let commit_req = kinetic_core::types::CommitRequest {
-        name: fqdn.clone(),
-        commitment: challenge.clone(),
-    };
-    let commit_res = client
-        .post(format!(
-            "http://{}:{}/commit",
-            config.daemon.bind_ip, config.daemon.api_port
-        ))
-        .json(&commit_req)
-        .send()
-        .await?;
-    if !commit_res.status().is_success() {
-        let status = commit_res.status();
-        let err_text = commit_res.text().await.unwrap_or_default();
-        let msg = parse_and_format_api_error("Failed to broadcast commitment", status, &err_text);
-        return Err(anyhow::anyhow!("{}", msg));
-    }
-    info!("Commitment accepted. Starting discounted VDF computation...");
-
-    let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
-    let base_iterations = consensus_math.iterations(&fqdn);
-
-    // 80% discount
-    let discounted_iterations = std::cmp::max(1, base_iterations / 5);
-    let actual_iterations = std::cmp::max(iterations, discounted_iterations);
-    info!(
-        "Using discounted iteration count: {} (base was {})",
-        actual_iterations, base_iterations
-    );
-
-    let refresh_challenge = challenge.clone();
-    let refresh_fqdn = fqdn.clone();
-    let refresh_port = config.daemon.api_port;
-    let refresh_client = client.clone();
-    let refresh_bind_ip = config.daemon.bind_ip.clone();
-    let refresh_handle = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(3600)); // Every hour
-        loop {
-            interval.tick().await;
-            let commit_req = kinetic_core::types::CommitRequest {
-                name: refresh_fqdn.clone(),
-                commitment: refresh_challenge.clone(),
-            };
-            let _ = refresh_client
-                .post(format!(
-                    "http://{}:{}/commit",
-                    refresh_bind_ip, refresh_port
-                ))
-                .json(&commit_req)
-                .send()
-                .await;
+    let task_id = match response {
+        Ok(res) if res.status().is_success() => {
+            let body: serde_json::Value = res.json().await?;
+            body["task_id"].as_str().unwrap_or_default().to_string()
         }
-    });
-
-    let vdf_engine = kinetic_vdf::RsaVdfEngine::new();
-    let vdf_proof =
-        tokio::task::spawn_blocking(move || vdf_engine.evaluate(&challenge, actual_iterations))
-            .await??;
-
-    refresh_handle.abort();
-
-    let mut previous_proof = kinetic_core::types::PreviousProof {
-        salt: old_reveal.salt,
-        kyn: old_reveal.kyn,
-        drand_signature: old_reveal.drand_signature.clone(),
-        iterations: old_reveal.iterations,
-        vdf_proof: old_reveal.vdf_proof.clone(),
-        signature: vec![],
+        Ok(res) => {
+            pb.finish_and_clear();
+            let status = res.status();
+            let text = res.text().await.unwrap_or_default();
+            let err = parse_and_format_api_error("Daemon error", status, &text);
+            anyhow::bail!("{}", err);
+        }
+        Err(e) => {
+            pb.finish_and_clear();
+            anyhow::bail!("Failed to connect to local daemon: {}\nAre you sure `kinetic-daemon` is running?", e);
+        }
     };
 
-    let prev_signable = previous_proof.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-    previous_proof.signature = keypair.sign(&prev_signable);
-
-    let mut new_reveal = kinetic_core::types::Reveal {
-        protocol_version: 1,
-        name: fqdn.clone(),
-        payload: old_reveal.payload.clone(),
-        salt,
-        kyn: drand_data.kyn,
-        drand_signature: drand_data.signature.clone(),
-        iterations: actual_iterations,
-        vdf_proof,
-        pubkey: pubkey.to_vec(),
-        signature: vec![],
-        authorization: None,
-        previous_proof: Some(previous_proof),
-        miner_pubkey: None,
-    };
-
-    new_reveal.signature =
-        keypair.sign(&new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
-
-    let req_body = serde_json::json!({
-        "reveal": new_reveal,
-    });
-    let res = client
-        .post(format!(
-            "http://{}:{}/publish",
-            config.daemon.bind_ip, config.daemon.api_port
-        ))
-        .json(&req_body)
-        .send()
-        .await?;
-
-    if res.status().is_success() {
-        info!("Successfully renewed '{}'!", fqdn);
-        let record = kinetic_core::types::NameRecord::Standard(Box::new(new_reveal));
-        std::fs::write(&reveal_path, serde_json::to_string_pretty(&record)?)?;
-    } else {
-        let status = res.status();
-        let err_text = res.text().await.unwrap_or_default();
-        let msg = parse_and_format_api_error("Failed to publish renewal", status, &err_text);
-        return Err(anyhow::anyhow!("{}", msg));
+    if task_id.is_empty() {
+        pb.finish_and_clear();
+        anyhow::bail!("Daemon did not return a valid task ID");
     }
+
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}% - {msg}")?
+        .progress_chars("#>-"));
+    pb.set_length(100);
+    pb.set_message("Waiting in queue...");
+
+    let status_url = format!("http://{}:{}/api/macro/status/{}", config.daemon.bind_ip, config.daemon.api_port, task_id);
+
+    loop {
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let res = match client.get(&status_url).send().await {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        if !res.status().is_success() { continue; }
+
+        let body: serde_json::Value = res.json().await.unwrap_or_default();
+        if let Some(err) = body.get("error").and_then(|v| v.as_str()) {
+            pb.finish_and_clear();
+            anyhow::bail!("Task failed: {}", err);
+        }
+
+        let status = body["status"].as_str().unwrap_or("Unknown").to_string();
+        let progress = body["progress"].as_u64().unwrap_or(0);
+
+        pb.set_position(progress);
+        pb.set_message(status.clone());
+
+        if status == "Complete" {
+            pb.finish_with_message("Renewal Complete!");
+            println!("✅ Success! {} has been completely renewed and published.", fqdn);
+            break;
+        } else if status == "Failed" {
+            pb.finish_and_clear();
+            let err_msg = body["error"].as_str().unwrap_or("Unknown error");
+            anyhow::bail!("Daemon failed to renew {}: {}", fqdn, err_msg);
+        }
+    }
+
     Ok(())
 }

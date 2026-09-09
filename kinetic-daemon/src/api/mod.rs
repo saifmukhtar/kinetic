@@ -1,43 +1,56 @@
 //! HTTP REST API router, authentication middleware, state management, and server bootstrap.
 
 use axum::{Router, extract::State, http::StatusCode, routing::post};
-use kinetic_core::traits::StorageEngine;
+use kinetic_core::traits::{KynProvider, StorageEngine};
 
 use kinetic_network::NetworkClient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+/// API endpoints for governance management.
+pub mod action;
 /// API endpoints for Atlas NSP sync.
 pub mod atlas;
+/// API endpoints for authentication.
+pub mod auth;
 /// API endpoints for configuration management.
 pub mod config;
+pub mod consensus;
 /// Error mappings and Newtype wrappers for HTTP response conversion.
 pub mod error;
 /// API endpoints for streaming Gossip.
 pub mod gossip;
+pub mod heartbeat;
 /// API endpoints for KID local management.
 pub mod kid;
-/// API endpoints for publishing names and content.
-pub mod publish;
-/// API endpoints for resolving names to payloads.
-pub mod resolve;
+/// Complex multi-step orchestrator endpoints (Macro API).
+pub mod macro_api;
+/// API endpoints for Node Metrics and Telemetry
+pub mod metric;
+/// API endpoints for Name Resolution System
+pub mod nrs;
+/// API endpoints for system management.
+pub mod system;
 /// API endpoints for streaming Kinetic time.
 pub mod time;
-/// API endpoints for Verifiable Delay Function tasks.
-pub mod vdf;
-/// API endpoints for DNS zone management.
-pub mod zone;
 
 use atlas::*;
 use config::*;
 use gossip::*;
-use kid::*;
-use publish::*;
-use resolve::*;
+use heartbeat::*;
+use kid::{
+    handle_fetch_kid, handle_generate_kid, handle_get_kid_manifest, handle_list_kids,
+    handle_publish_kid, handle_publish_manifest, handle_resolve_kid, handle_revoke_kid,
+    handle_rotate_kid, handle_update_kid_manifest,
+};
+use macro_api::*;
+use nrs::{
+    handle_delete_local_zone, handle_get_local_zone, handle_get_reserved_names, handle_get_zone,
+    handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_record,
+    handle_publish_zone, handle_publish_fat_zone, handle_resolve_name, handle_verify_quorum,
+};
 use time::*;
-use vdf::*;
-use zone::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VdfTaskStatus {
@@ -53,35 +66,69 @@ pub struct VdfTaskStatus {
 
 /// The access role granted by the provided token.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Role {
-    /// Full administrator access.
-    Admin,
-    /// Permission to publish zones.
-    Publish,
-    /// Permission to register/renew VDF proofs.
-    Vdf,
-    /// Permission to participate in governance.
-    Governance,
-    /// Permission for the Atlas bridge.
-    Atlas,
+pub struct Role {
+    /// True if the token grants full admin privileges.
+    pub is_admin: bool,
+    /// True if the token grants KID (Kinetic Identity Document) management privileges.
+    pub kid: bool,
+    /// True if the token grants Name Resolution System (NRS) routing privileges.
+    pub nrs: bool,
+    /// True if the token grants VDF registration/renewal privileges.
+    pub vdf: bool,
+    /// True if the token grants network action privileges.
+    pub action: bool,
+    /// True if the token grants raw P2P gossip privileges.
+    pub gossip: bool,
+    /// True if the token grants metrics/telemetry read privileges.
+    pub metric: bool,
+    /// True if the token grants system lifecycle (restart/shutdown) privileges.
+    pub system: bool,
+    /// True if the token grants atlas bridge privileges.
+    pub atlas: bool,
+    /// True if the token grants heartbeat liveness privileges.
+    pub heartbeat: bool,
 }
 
 impl Role {
-    /// Returns whether this role can publish records.
-    pub fn can_publish(&self) -> bool {
-        matches!(self, Role::Admin | Role::Publish)
+    /// Returns whether this role can manage KID records.
+    pub fn can_kid(&self) -> bool {
+        self.is_admin || self.kid
+    }
+    /// Returns whether this role can manage NRS records.
+    pub fn can_nrs(&self) -> bool {
+        self.is_admin || self.nrs
     }
     /// Returns whether this role can perform VDF operations.
     pub fn can_vdf(&self) -> bool {
-        matches!(self, Role::Admin | Role::Vdf)
+        self.is_admin || self.vdf
     }
-    /// Returns whether this role can trigger governance updates.
-    pub fn can_govern(&self) -> bool {
-        matches!(self, Role::Admin | Role::Governance)
+    /// Returns whether this role can trigger network actions.
+    pub fn can_action(&self) -> bool {
+        self.is_admin || self.action
+    }
+    /// Returns whether this role can broadcast raw P2P gossip.
+    pub fn can_gossip(&self) -> bool {
+        self.is_admin || self.gossip
+    }
+    /// Returns whether this role can read metrics and telemetry.
+    pub fn can_metric(&self) -> bool {
+        self.is_admin || self.metric
+    }
+    /// Returns whether this role can trigger system lifecycle events.
+    pub fn can_system(&self) -> bool {
+        self.is_admin || self.system
+    }
+    /// Returns whether this role can interact with the atlas bridge.
+    pub fn can_atlas(&self) -> bool {
+        self.is_admin || self.atlas
+    }
+    /// Returns whether this role can broadcast heartbeats.
+    pub fn can_heartbeat(&self) -> bool {
+        self.is_admin || self.heartbeat
     }
     /// Returns whether this role is a full administrator.
     pub fn is_admin(&self) -> bool {
-        matches!(self, Role::Admin)
+        self.is_admin
     }
 }
 
@@ -90,14 +137,24 @@ impl Role {
 pub struct ApiTokens {
     /// The admin token.
     pub admin: String,
-    /// The publish token.
-    pub publish: String,
+    /// The KID token.
+    pub kid: String,
+    /// The NRS token.
+    pub nrs: String,
     /// The VDF token.
     pub vdf: String,
-    /// The governance token.
-    pub governance: String,
+    /// The action token.
+    pub action: String,
+    /// The gossip token.
+    pub gossip: String,
+    /// The metric token.
+    pub metric: String,
+    /// The system token.
+    pub system: String,
     /// The atlas token.
     pub atlas: String,
+    /// The heartbeat token.
+    pub heartbeat: String,
 }
 
 /// Global lock to synchronize writes to the owned names storage list.
@@ -110,11 +167,17 @@ pub struct ApiState {
     pub network: NetworkClient,
     /// Local storage engine interface.
     pub storage: Arc<dyn StorageEngine>,
+    /// The daemon's identity keypair (used for signing manual heartbeats).
+    pub daemon_keypair: kinetic_primitives::keys::KineticKeypair,
+    /// Pre-calibrated host CPU speed for VDF time estimation (Iterations Per Second).
+    pub host_speed_ips: u64,
     /// Map of background VDF tasks.
     pub vdf_tasks: Arc<Mutex<HashMap<String, VdfTaskStatus>>>,
 
     /// API authentication tokens to restrict access by role.
     pub tokens: Arc<ApiTokens>,
+    /// The proxy DNS cache.
+    pub dns_cache: Arc<tokio::sync::Mutex<crate::proxy::dns_cache::DnsCache>>,
     /// Semaphore to restrict concurrent VDF computations.
     pub vdf_semaphore: Arc<tokio::sync::Semaphore>,
     /// The IP address this daemon is bound to.
@@ -182,91 +245,169 @@ pub fn app(state: ApiState) -> Router {
 
     // Auth-guarded routes (CLI uses these bare paths with a bearer token)
     let auth_routes = Router::new()
-        .route("/commit", post(handle_publish_commit))
-        .route("/publish", post(handle_publish_record))
-        .route("/publish-kid", post(handle_publish_kid))
-        .route("/publish-manifest", post(handle_publish_manifest))
-        .route("/publish-governance", post(handle_publish_governance))
-        .route("/config", axum::routing::get(handle_get_config))
-        .route("/config", axum::routing::post(handle_set_config))
+        .route("/v1/micro/system/shutdown", post(system::handle_shutdown))
+        .route("/v1/micro/system/restart", post(system::handle_restart))
+        .route("/v1/micro/system/ca-cert", axum::routing::get(system::handle_get_ca_cert))
+        .route("/v1/micro/network/bootstrap", post(config::handle_network_bootstrap))
+        .route("/v1/micro/auth/session", post(auth::handle_create_session))
         .route(
-            "/vdf/status/{task_id}",
-            axum::routing::get(handle_vdf_status),
+            "/v1/micro/auth/sessions",
+            axum::routing::get(auth::handle_list_sessions),
         )
         .route(
-            "/vdf/status/{task_id}",
-            axum::routing::delete(handle_vdf_status_delete),
+            "/v1/micro/auth/session/{id}",
+            axum::routing::delete(auth::handle_revoke_session),
         )
-        .route("/owned-names", axum::routing::get(handle_owned_names))
-        .route("/zone/{name}", axum::routing::post(handle_post_zone))
+        .route("/v1/micro/nrs/record/commit", post(handle_publish_commit))
+        .route("/v1/micro/nrs/record/publish", post(handle_publish_record))
+        .route("/v1/micro/kid/publish", post(handle_publish_kid))
         .route(
-            "/zone/local/{name}",
+            "/v1/micro/kid/manifest/publish",
+            post(handle_publish_manifest),
+        )
+        .route(
+            "/v1/micro/kid/generate",
+            axum::routing::post(handle_generate_kid),
+        )
+        .route(
+            "/v1/micro/kid/{name}/rotate",
+            axum::routing::post(handle_rotate_kid),
+        )
+        .route(
+            "/v1/micro/kid/{name}/revoke",
+            axum::routing::post(handle_revoke_kid),
+        )
+        .route(
+            "/v1/micro/kid/{name}/manifest",
+            axum::routing::post(handle_update_kid_manifest),
+        )
+        .route("/v1/micro/action/publish", post(action::handle_publish_action))
+        .route("/v1/micro/config", axum::routing::get(handle_get_config))
+        .route("/v1/micro/config", axum::routing::post(handle_set_config))
+        .route("/v1/micro/config/dns/flush", axum::routing::post(config::handle_dns_flush))
+        .route("/macro/tasks", axum::routing::get(handle_macro_tasks))
+        .route(
+            "/macro/status/{task_id}",
+            axum::routing::get(handle_macro_status),
+        )
+        .route("/v1/micro/nrs/owned", axum::routing::get(handle_owned_names))
+        .route("/v1/micro/nrs/zone/{name}", axum::routing::post(handle_post_zone))
+        .route(
+            "/v1/micro/nrs/zone/local/{name}",
             axum::routing::post(handle_post_local_zone),
         )
         .route(
-            "/zone/local/{name}",
+            "/v1/micro/nrs/zone/local/{name}",
             axum::routing::delete(handle_delete_local_zone),
         )
         .route(
-            "/zone/{name}/publish",
+            "/v1/micro/nrs/zone/{name}/publish",
             axum::routing::post(handle_publish_zone),
         )
-        .route("/kid", axum::routing::post(handle_generate_kid))
-        .route("/kid/{name}/rotate", axum::routing::post(handle_rotate_kid))
-        .route("/kid/{name}/revoke", axum::routing::post(handle_revoke_kid))
         .route(
-            "/kid/{name}/manifest",
-            axum::routing::post(handle_update_kid_manifest),
+            "/v1/micro/nrs/fat-zone/{name}",
+            axum::routing::post(handle_publish_fat_zone),
         )
-        .route("/vdf/register", axum::routing::post(handle_vdf_register))
-        .route("/vdf/renew", axum::routing::post(handle_vdf_renew))
         .route(
-            "/gossip/publish/{topic}",
+            "/macro/register",
+            axum::routing::post(handle_macro_register_name),
+        )
+        .route("/macro/renew", axum::routing::post(handle_macro_renew_name))
+        .route(
+            "/v1/micro/gossip/publish/{topic}",
             axum::routing::post(handle_gossip_publish),
         )
         .route(
-            "/internal/atlas/sync",
+            "/v1/micro/atlas/sync",
             axum::routing::post(handle_atlas_sync),
+        )
+        .route(
+            "/v1/micro/nrs/heartbeat/{name}",
+            axum::routing::post(handle_post_heartbeat),
+        )
+        .route(
+            "/v1/micro/nrs/fat-heartbeat/{name}",
+            axum::routing::post(handle_post_fat_heartbeat),
         )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth_middleware,
         ));
 
-    let public_api_routes = Router::new()
-        .route("/health", axum::routing::get(handle_get_health))
-        .route("/peer_id", axum::routing::get(handle_get_peer_id))
-        .route("/network-status", axum::routing::get(handle_network_status))
+    let public_api_routes: Router<ApiState> = Router::new()
+        .route("/v1/micro/health", axum::routing::get(handle_get_health))
         .route(
-            "/names/reserved",
+            "/v1/micro/consensus/difficulty/{name}",
+            axum::routing::get(consensus::handle_get_difficulty),
+        )
+        .route(
+            "/v1/micro/consensus/steal-difficulty/{name}",
+            axum::routing::get(consensus::handle_steal_difficulty),
+        )
+        .route(
+            "/v1/micro/consensus/validate",
+            axum::routing::post(consensus::handle_validate_name),
+        )
+        .route("/v1/micro/network/peer-id", axum::routing::get(handle_get_peer_id))
+        .route("/v1/micro/network/status", axum::routing::get(handle_network_status))
+        .route(
+            "/v1/micro/network/nat",
+            axum::routing::get(config::handle_network_nat),
+        )
+        .route("/v1/micro/network/peers", axum::routing::get(handle_network_peers))
+        .route(
+            "/v1/micro/nrs/heartbeats",
+            axum::routing::get(handle_get_heartbeats),
+        )
+        .route(
+            "/v1/micro/network/peers/banned",
+            axum::routing::get(config::handle_network_banned),
+        )
+        .route(
+            "/v1/micro/gossip/topics",
+            axum::routing::get(handle_get_gossip_topics),
+        )
+        .route(
+            "/v1/micro/nrs/names/reserved",
             axum::routing::get(handle_get_reserved_names),
         )
-        .route("/governance", axum::routing::get(handle_get_governance))
-        .route("/zone/{name}", axum::routing::get(handle_get_zone))
         .route(
-            "/zone/local/{name}",
+            "/v1/micro/action/status",
+            axum::routing::get(action::handle_get_action_status),
+        )
+        .route(
+            "/v1/micro/action/names",
+            axum::routing::get(action::handle_get_action_names),
+        )
+        .route("/v1/micro/nrs/zone/{name}", axum::routing::get(handle_get_zone))
+        .route(
+            "/v1/micro/nrs/zone/local/{name}",
             axum::routing::get(handle_get_local_zone),
         )
-        .route("/resolve/{name}", axum::routing::get(handle_resolve_name))
-        .route("/resolve-kid/{did}", axum::routing::get(handle_resolve_kid))
-        .route("/kid", axum::routing::get(handle_list_kids))
-        .route("/kid/{name}", axum::routing::get(handle_fetch_kid))
+        .route("/v1/micro/nrs/resolve/{name}", axum::routing::get(handle_resolve_name))
         .route(
-            "/kid/{name}/manifest",
+            "/v1/micro/nrs/resolve/{name}/quorum",
+            axum::routing::post(handle_verify_quorum),
+        )
+        .route(
+            "/v1/micro/kid/resolve/{did}",
+            axum::routing::get(handle_resolve_kid),
+        )
+        .route("/v1/micro/kid/list", axum::routing::get(handle_list_kids))
+        .route("/v1/micro/kid/{name}", axum::routing::get(handle_fetch_kid))
+        .route(
+            "/v1/micro/kid/{name}/manifest",
             axum::routing::get(handle_get_kid_manifest),
         )
-        .route("/time", axum::routing::get(handle_get_time))
+        .route("/v1/micro/time/current", axum::routing::get(handle_get_time))
         .route(
-            "/gossip/subscribe/{topic}",
+            "/v1/micro/gossip/subscribe/{topic}",
             axum::routing::get(handle_gossip_subscribe),
         );
 
-    // Expose all routes under /api (for the UI) and at bare paths (for the CLI).
-    // auth_routes is defined with .layer() so the middleware is preserved in both cases.
+    // Expose all routes exclusively under /api.
     Router::new()
-        .nest("/api", public_api_routes.clone().merge(auth_routes.clone()))
-        .merge(public_api_routes)
-        .merge(auth_routes)
+        .nest("/api", public_api_routes.merge(auth_routes))
         .layer(cors)
         .with_state(state)
 }
@@ -317,18 +458,17 @@ fn rotate_token_on_boot(token_path: &std::path::Path) -> anyhow::Result<String> 
 pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
     let tokens_dir = kinetic_local::config::get_api_tokens_dir();
 
-    let admin = rotate_token_on_boot(&tokens_dir.join("admin.token"))?;
-    let publish = rotate_token_on_boot(&tokens_dir.join("publish.token"))?;
-    let vdf = rotate_token_on_boot(&tokens_dir.join("vdf.token"))?;
-    let governance = rotate_token_on_boot(&tokens_dir.join("governance.token"))?;
-    let atlas = rotate_token_on_boot(&tokens_dir.join("atlas.token"))?;
-
     Ok(ApiTokens {
-        admin,
-        publish,
-        vdf,
-        governance,
-        atlas,
+        admin: rotate_token_on_boot(&tokens_dir.join("admin.token"))?,
+        kid: rotate_token_on_boot(&tokens_dir.join("kid.token"))?,
+        nrs: rotate_token_on_boot(&tokens_dir.join("nrs.token"))?,
+        vdf: rotate_token_on_boot(&tokens_dir.join("vdf.token"))?,
+        action: rotate_token_on_boot(&tokens_dir.join("action.token"))?,
+        gossip: rotate_token_on_boot(&tokens_dir.join("gossip.token"))?,
+        metric: rotate_token_on_boot(&tokens_dir.join("metric.token"))?,
+        system: rotate_token_on_boot(&tokens_dir.join("system.token"))?,
+        atlas: rotate_token_on_boot(&tokens_dir.join("atlas.token"))?,
+        heartbeat: rotate_token_on_boot(&tokens_dir.join("heartbeat.token"))?,
     })
 }
 
@@ -349,14 +489,20 @@ pub async fn start_server(
     bind_ip: String,
     port: u16,
     atlas_nsps: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
+    host_speed_ips: u64,
+    daemon_keypair: kinetic_primitives::keys::KineticKeypair,
+    dns_cache: Arc<tokio::sync::Mutex<crate::proxy::dns_cache::DnsCache>>,
 ) -> anyhow::Result<()> {
     let tokens = ensure_api_tokens()?;
 
     let state = ApiState {
         network,
         storage,
+        daemon_keypair,
+        host_speed_ips,
         vdf_tasks: Arc::new(Mutex::new(HashMap::new())),
         tokens: Arc::new(tokens),
+        dns_cache,
         vdf_semaphore: Arc::new(tokio::sync::Semaphore::new(1)),
         bind_ip: bind_ip.clone(),
         gossip_tx,
@@ -398,7 +544,9 @@ pub async fn start_server(
         local_addr
     );
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(kinetic_local::shutdown::shutdown_signal())
+        .await?;
     Ok(())
 }
 
@@ -449,16 +597,217 @@ async fn auth_middleware(
             }
         };
 
-        check_token(&state.tokens.admin, Role::Admin);
-        check_token(&state.tokens.publish, Role::Publish);
-        check_token(&state.tokens.vdf, Role::Vdf);
-        check_token(&state.tokens.governance, Role::Governance);
-        check_token(&state.tokens.atlas, Role::Atlas);
+        check_token(
+            &state.tokens.admin,
+            Role {
+                is_admin: true,
+                kid: true,
+                nrs: true,
+                vdf: true,
+                action: true,
+                gossip: true,
+                metric: true,
+                system: true,
+                atlas: true,
+                heartbeat: true,
+            },
+        );
+        check_token(
+            &state.tokens.kid,
+            Role {
+                is_admin: false,
+                kid: true,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.nrs,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: true,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.vdf,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: true,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.action,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: true,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.gossip,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: true,
+                metric: false,
+                system: false,
+                atlas: false,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.metric,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: true,
+                system: false,
+                atlas: false,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.system,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: true,
+                atlas: false,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.atlas,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: true,
+                heartbeat: false,
+            },
+        );
+        check_token(
+            &state.tokens.heartbeat,
+            Role {
+                is_admin: false,
+                kid: false,
+                nrs: false,
+                vdf: false,
+                action: false,
+                gossip: false,
+                metric: false,
+                system: false,
+                atlas: false,
+                heartbeat: true,
+            },
+        );
 
         matched_role
     };
 
-    match role {
+    let mut final_role = role;
+    if final_role.is_none() {
+        let db_key_token = format!("session_token:{}", provided_token);
+        if let Ok(Some(id_bytes)) = state.storage.get(db_key_token.as_bytes()) {
+            if let Ok(id_str) = String::from_utf8(id_bytes.to_vec()) {
+                let db_key_session = format!("session:{}", id_str);
+                if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes()) {
+                    if let Ok(session) =
+                        serde_json::from_slice::<crate::api::auth::AppSession>(&bytes)
+                    {
+                        // Verify expiration using cached Kyn
+                        let kyn_provider = kinetic_network::client::drand::DrandProvider::new(
+                            Some(state.storage.clone()),
+                        );
+                        let current_kyn =
+                            kyn_provider.load_cached_kyn().map(|d| d.kyn).unwrap_or(0);
+
+                        if current_kyn > 0 && current_kyn > session.expiry_kyn {
+                            tracing::warn!("Rejecting API request: Session token expired");
+                            return Err(StatusCode::UNAUTHORIZED);
+                        }
+
+                        let mut session_role = Role {
+                            is_admin: false,
+                            kid: false,
+                            nrs: false,
+                            vdf: false,
+                            action: false,
+                            gossip: false,
+                            metric: false,
+                            system: false,
+                            atlas: false,
+                            heartbeat: false,
+                        };
+                        for scope in session.scopes {
+                            match scope.to_lowercase().as_str() {
+                                "admin" => session_role.is_admin = true,
+                                "kid" => session_role.kid = true,
+                                "nrs" => session_role.nrs = true,
+                                "vdf" => session_role.vdf = true,
+                                "action" => session_role.action = true,
+                                "gossip" => session_role.gossip = true,
+                                "metric" => session_role.metric = true,
+                                "system" => session_role.system = true,
+                                "atlas" => session_role.atlas = true,
+                                "heartbeat" => session_role.heartbeat = true,
+                                _ => {}
+                            }
+                        }
+                        final_role = Some(session_role);
+                    }
+                }
+            }
+        }
+    }
+
+    match final_role {
         Some(r) => {
             req.extensions_mut().insert(r);
             Ok(next.run(req).await)

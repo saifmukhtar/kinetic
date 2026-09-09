@@ -105,14 +105,30 @@ pub fn unix_time() -> kinetic_types::clock::UTime {
     kinetic_types::clock::Kyn::now_local().to_network_utime()
 }
 
-/// Resolves the filesystem paths for a name's KID document and private key.
-pub fn get_kid_paths(name: &str) -> (PathBuf, PathBuf) {
+pub struct KidPaths {
+    pub did_path: PathBuf,
+    pub key_path: PathBuf,
+    pub manifest_path: PathBuf,
+}
+
+/// Resolves the filesystem paths for a name's KID document, private key, and manifest.
+pub fn get_kid_paths(name: &str) -> KidPaths {
     let fqdn = normalize_name(name);
-    let dir = get_kids_dir();
-    (
-        dir.join(format!("{}.json", fqdn)),
-        dir.join(format!("{}.key", fqdn)),
-    )
+    let apex = extract_apex_name(&fqdn);
+    let is_subname = fqdn != apex;
+    
+    let base = get_kids_dir();
+    let cat_dir = if is_subname {
+        base.join("subname")
+    } else {
+        base.join("name")
+    };
+    
+    KidPaths {
+        did_path: cat_dir.join("did").join(format!("{}.json", fqdn)),
+        key_path: cat_dir.join("keys").join(format!("{}.key", fqdn)),
+        manifest_path: cat_dir.join("manifest").join(format!("{}.manifest.json", fqdn)),
+    }
 }
 
 /// Atomically writes a private key file with POSIX `0o600` permissions.
@@ -220,11 +236,13 @@ pub fn get_or_create_kid_for_name(
     let apex = extract_apex_name(&fqdn);
     let is_subname = fqdn != apex;
 
-    let (doc_path, key_path) = get_kid_paths(&fqdn);
+    let paths = get_kid_paths(&fqdn);
+    let (doc_path, key_path) = (paths.did_path, paths.key_path);
 
     // Case 2: Subname inheritance (Default)
     if is_subname && inherit_subname {
-        let (apex_doc_path, _apex_key_path) = get_kid_paths(&apex);
+        let apex_paths = get_kid_paths(&apex);
+        let apex_doc_path = apex_paths.did_path;
         if apex_doc_path.exists() {
             let doc_data = fs::read_to_string(&apex_doc_path)?;
             let apex_doc: Document = serde_json::from_str(&doc_data)
@@ -321,7 +339,8 @@ pub fn get_or_create_kid_for_name(
 /// - Returns [`IdentityError::KidSigningFailed`] if signing fails.
 pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid, IdentityError> {
     let fqdn = normalize_name(name);
-    let (doc_path, key_path) = get_kid_paths(&fqdn);
+    let paths = get_kid_paths(&fqdn);
+    let (doc_path, key_path) = (paths.did_path, paths.key_path);
 
     if !doc_path.exists() {
         return Err(IdentityError::KidNotFound(format!(
@@ -381,7 +400,7 @@ pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid,
 /// Loads a local KID document for a given name, falling back to parent apex if inherited.
 pub fn load_local_kid(name: &str) -> Result<(Document, PathBuf), IdentityError> {
     let fqdn = normalize_name(name);
-    let (doc_path, _) = get_kid_paths(&fqdn);
+    let doc_path = get_kid_paths(&fqdn).did_path;
 
     if doc_path.exists() {
         let content = fs::read_to_string(&doc_path)?;
@@ -393,7 +412,7 @@ pub fn load_local_kid(name: &str) -> Result<(Document, PathBuf), IdentityError> 
     // Check parent apex name for subnames
     let apex = extract_apex_name(&fqdn);
     if fqdn != apex {
-        let (apex_doc_path, _) = get_kid_paths(&apex);
+        let apex_doc_path = get_kid_paths(&apex).did_path;
         if apex_doc_path.exists() {
             let content = fs::read_to_string(&apex_doc_path)?;
             let doc: Document = serde_json::from_str(&content)
@@ -407,33 +426,42 @@ pub fn load_local_kid(name: &str) -> Result<(Document, PathBuf), IdentityError> 
 
 /// Lists all locally managed name KIDs from `{base_dir}/kids/`.
 pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
-    let dir = get_kids_dir();
-    if !dir.exists() {
-        return Ok(vec![]);
-    }
-
     let mut summaries = Vec::new();
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("json")
-            && let Ok(content) = fs::read_to_string(&path)
-                && let Ok(doc) = serde_json::from_str::<Document>(&content) {
-                    let stem = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or_default()
-                        .to_string();
-                    let key_path = path.with_extension("key");
-                    summaries.push(LocalKidSummary {
-                        name: stem,
-                        did: doc.kid.as_str().to_string(),
-                        created_at: doc.created_at,
-                        doc_path: path,
-                        has_key: key_path.exists(),
-                        deactivated: doc.deactivated,
-                    });
-                }
+    let root = get_kids_dir();
+    
+    let did_dirs = vec![
+        root.join("name").join("did"),
+        root.join("subname").join("did"),
+    ];
+
+    for did_dir in did_dirs {
+        if !did_dir.exists() {
+            continue;
+        }
+        for entry in fs::read_dir(&did_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Ok(content) = fs::read_to_string(&path)
+                && let Ok(doc) = serde_json::from_str::<Document>(&content)
+            {
+                let stem = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default()
+                    .to_string();
+                
+                let paths = get_kid_paths(&stem);
+                summaries.push(LocalKidSummary {
+                    name: stem,
+                    did: doc.kid.as_str().to_string(),
+                    created_at: doc.created_at,
+                    doc_path: path,
+                    has_key: paths.key_path.exists(),
+                    deactivated: doc.deactivated,
+                });
+            }
+        }
     }
 
     summaries.sort_by(|a, b| a.name.cmp(&b.name));
@@ -443,7 +471,8 @@ pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
 /// Permanently deactivates and revokes a local KID document.
 pub fn revoke_local_kid(name: &str) -> Result<Document, IdentityError> {
     let fqdn = normalize_name(name);
-    let (doc_path, key_path) = get_kid_paths(&fqdn);
+    let paths = get_kid_paths(&fqdn);
+    let (doc_path, key_path) = (paths.did_path, paths.key_path);
 
     if !doc_path.exists() {
         return Err(IdentityError::KidNotFound(format!(
@@ -480,8 +509,7 @@ pub fn revoke_local_kid(name: &str) -> Result<Document, IdentityError> {
 /// checking the exact name first and falling back to apex if inherited.
 pub fn load_local_manifest(name: &str) -> Result<Option<Manifest>, IdentityError> {
     let fqdn = normalize_name(name);
-    let dir = get_kids_dir();
-    let manifest_path = dir.join(format!("{}.manifest.json", fqdn));
+    let manifest_path = get_kid_paths(&fqdn).manifest_path;
 
     if manifest_path.exists() {
         let content = fs::read_to_string(&manifest_path)?;
@@ -492,7 +520,7 @@ pub fn load_local_manifest(name: &str) -> Result<Option<Manifest>, IdentityError
 
     let apex = extract_apex_name(&fqdn);
     if fqdn != apex {
-        let apex_manifest_path = dir.join(format!("{}.manifest.json", apex));
+        let apex_manifest_path = get_kid_paths(&apex).manifest_path;
         if apex_manifest_path.exists() {
             let content = fs::read_to_string(&apex_manifest_path)?;
             let manifest: Manifest = serde_json::from_str(&content)
@@ -520,12 +548,12 @@ pub fn save_and_sign_local_manifest(
     }
 
     // Resolve key path (checking specific name key, then fallback to apex key)
-    let (_, key_path) = get_kid_paths(&fqdn);
+    let key_path = get_kid_paths(&fqdn).key_path;
     let effective_key_path = if key_path.exists() {
         key_path
     } else {
         let apex = extract_apex_name(&fqdn);
-        let (_, apex_key_path) = get_kid_paths(&apex);
+        let apex_key_path = get_kid_paths(&apex).key_path;
         if apex_key_path.exists() {
             apex_key_path
         } else {
@@ -560,9 +588,8 @@ pub fn save_and_sign_local_manifest(
         .sign(&signing_key)
         .map_err(|e| IdentityError::ManifestSigningFailed(format!("{}", e)))?;
 
-    // Persist manifest to kids/{fqdn}.manifest.json
-    let dir = get_kids_dir();
-    let manifest_path = dir.join(format!("{}.manifest.json", fqdn));
+    // Persist manifest
+    let manifest_path = get_kid_paths(&fqdn).manifest_path;
     let json_data = serde_json::to_string_pretty(&signed_manifest)
         .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
     write_json_document(&manifest_path, &json_data)?;

@@ -35,7 +35,8 @@ pub fn validate_keys_initialized(
     }
 
     // Attempt to decode the hex just to validate its format.
-    let bytes = hex::decode(sovereign_key_hex).map_err(|_| GovernanceError::MalformedSovereignKey)?;
+    let bytes =
+        hex::decode(sovereign_key_hex).map_err(|_| GovernanceError::MalformedSovereignKey)?;
 
     if bytes.len() != 1952 {
         return Err(GovernanceError::KeyLengthMismatch);
@@ -62,6 +63,7 @@ impl GovernanceState {
             total_paused_kyns: 0,
             pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
+            action_log: Vec::new(),
             mapped_prime_names: HashMap::new(),
             mapped_infra_names: HashMap::new(),
         }
@@ -167,5 +169,6 @@ pub fn process_governance_message(
     }
 
     state.execute_action(msg, current_kyn, config);
+    state.action_log.push(msg.clone());
     Ok(effect)
 }

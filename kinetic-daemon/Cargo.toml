@@ -18,6 +18,7 @@ path = "src/main.rs"
 simulation = ["kinetic-core/simulation", "kinetic-kid/simulation"]
 
 [dependencies]
+lru.workspace = true
 anyhow.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true

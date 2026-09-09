@@ -112,9 +112,10 @@ impl Manifest {
             return Err(Error::InvalidValidFrom);
         }
         if let Some(expires) = self.expires_at
-            && unix_time >= expires {
-                return Err(Error::ManifestExpired);
-            }
+            && unix_time >= expires
+        {
+            return Err(Error::ManifestExpired);
+        }
         if self.services.len() > 50 {
             return Err(Error::ServiceLimitExceeded);
         }
@@ -146,11 +147,10 @@ impl Manifest {
             if (key.key_type.eq_ignore_ascii_case("MlDsa65")
                 || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
                 && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
-                        .is_ok()
-                    {
-                        return Ok(());
-                    }
+                && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
+            {
+                return Ok(());
+            }
         }
 
         Err(Error::UnauthorizedManifestSignature)

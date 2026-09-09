@@ -36,7 +36,7 @@ pub enum RestApiError {
     /// The REST API rejected the request payload or URL parameters.
     /// The client provided malformed JSON, missing required fields, or used the endpoint incorrectly.
     /// Review the accompanying error string and the API documentation to ensure your request matches the expected schema.
-    #[error("Bad request or invalid endpoint usage")]
+    #[error("Bad request or invalid endpoint usage: {0}")]
     BadRequest(String),
 }
 

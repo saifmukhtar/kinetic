@@ -12,7 +12,7 @@ async fn test_governance_integration_halt() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
     let storage = std::sync::Arc::new(
-        kinetic_storage::KineticStorage::new(storage_path.to_str().unwrap()).unwrap(),
+        kinetic_storage::KineticStorage::new(storage_path.join("state.db").to_str().unwrap()).unwrap(),
     );
 
     let local_key = identity::Keypair::generate_ed25519();
@@ -73,7 +73,7 @@ async fn test_governance_integration_premium() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
     let storage = std::sync::Arc::new(
-        kinetic_storage::KineticStorage::new(storage_path.to_str().unwrap()).unwrap(),
+        kinetic_storage::KineticStorage::new(storage_path.join("state.db").to_str().unwrap()).unwrap(),
     );
 
     let local_key = identity::Keypair::generate_ed25519();

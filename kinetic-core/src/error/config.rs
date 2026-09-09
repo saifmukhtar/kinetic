@@ -62,7 +62,7 @@ pub enum ConfigError {
     /// A REST API request attempted to update the daemon configuration with invalid data.
     /// The submitted JSON payload failed schema validation (e.g., trying to set a port to a negative number).
     /// Review the accompanying API error response to correct your configuration payload.
-    #[error("Invalid configuration payload provided to the API")]
+    #[error("Invalid configuration payload provided to the API: {0}")]
     InvalidApiUpdate(String),
 }
 

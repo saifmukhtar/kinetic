@@ -28,6 +28,12 @@ pub struct KineticBehavior {
         kinetic_types::cdn::CdnResponse,
     >,
 
+    /// Request-response protocol for syncing governance state.
+    pub gov_sync: libp2p::request_response::cbor::Behaviour<
+        kinetic_types::governance::GovSyncRequest,
+        kinetic_types::governance::GovSyncResponse,
+    >,
+
     /// Stream protocol for passing raw traffic.
     #[cfg(not(target_arch = "wasm32"))]
     pub stream: libp2p_stream::Behaviour,

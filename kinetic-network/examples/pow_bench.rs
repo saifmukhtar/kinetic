@@ -1,4 +1,4 @@
-use kinetic_network::pow::mine_sybil_keypair;
+use kinetic_network::pow::mine_p2p_keypair;
 use kinetic_types::clock::Kyn;
 use std::time::Instant;
 
@@ -13,7 +13,7 @@ fn main() {
         let start = Instant::now();
 
         // This function generates the identity that meets the required bits (kyn 1 for testing)
-        let _ = mine_sybil_keypair(Kyn(1), bits);
+        let _ = mine_p2p_keypair(Kyn(1), bits);
 
         let elapsed = start.elapsed();
         println!("  -> Time taken: {:?}", elapsed);

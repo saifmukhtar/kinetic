@@ -77,6 +77,8 @@ impl super::core::NetworkEventLoop {
             query_id_to_name: rustc_hash::FxHashMap::default(),
             pending_proxy_requests: rustc_hash::FxHashMap::default(),
             pending_cdn_requests: rustc_hash::FxHashMap::default(),
+            pending_gov_sync_requests: rustc_hash::FxHashMap::default(),
+            gov_action_log: Vec::new(),
             peer_registry: crate::peer_registry::PeerRegistry::new(500),
             incoming_proxy_tx,
             gossip_tx,
@@ -120,8 +122,7 @@ impl super::core::NetworkEventLoop {
             loopback_tx: None,
             pow_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(2)),
             gossip_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(8)),
-            light_nodes: rustc_hash::FxHashSet::default(),
-            light_node_ips: rustc_hash::FxHashMap::default(),
+
             bootstrapped: false,
             proxy_cdn_usage: (0, web_time::Instant::now()),
         };

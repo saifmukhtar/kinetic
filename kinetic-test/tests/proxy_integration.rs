@@ -39,7 +39,7 @@ async fn setup_node_with_proxy(
     };
     let dir = tempdir().unwrap();
     let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
-        Arc::new(KineticStorage::new(dir.path()).unwrap());
+        Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
     let (_pulse_tx, pulse_rx) = watch::channel(1000);
 
     let (incoming_tx, incoming_rx) = if handle_proxy {

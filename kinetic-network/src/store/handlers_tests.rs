@@ -36,7 +36,7 @@ mod tests {
     ) {
         let dir = tempdir().unwrap();
         let storage: Arc<dyn kinetic_core::traits::StorageEngine> =
-            Arc::new(KineticStorage::new(dir.path()).unwrap());
+            Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
         let peer_id = PeerId::from(Keypair::generate_ed25519().public());
         let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> =
             Arc::new(kinetic_vdf::RsaVdfEngine::new());

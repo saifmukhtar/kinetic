@@ -8,15 +8,15 @@ use libp2p::kad::store::RecordStore;
 use libp2p::{kad, swarm::SwarmEvent};
 
 impl super::core::NetworkEventLoop {
-    pub(crate) fn is_valid_pow(&self, peer_id: &libp2p::PeerId) -> bool {
+    pub(crate) fn is_valid_pow(&self, peer_id: &libp2p::PeerId, difficulty: u32) -> bool {
         if self.disable_pow {
             return true;
         }
         self.current_kyn > 0
-            && crate::pow::is_valid_sybil_pow(
+            && crate::pow::verify_p2p_pow(
                 peer_id,
                 kinetic_types::clock::Kyn(self.current_kyn),
-                kinetic_core::constants::POW_DIFFICULTY_BITS,
+                difficulty,
             )
     }
 
@@ -159,18 +159,28 @@ impl super::core::NetworkEventLoop {
                     let remote_addr = endpoint.get_remote_address().clone();
                     crate::event_loop::utils::spawn(async move {
                         let _permit = pow_semaphore.acquire().await;
-                        let valid = crate::event_loop::utils::spawn_blocking(move || {
-                            crate::pow::is_valid_sybil_pow(
-                                &peer_id_clone,
-                                kinetic_types::clock::Kyn(current_kyn),
-                                kinetic_core::constants::POW_DIFFICULTY_BITS,
-                            )
-                        })
-                        .await;
+                        let (valid_server, valid_client) =
+                            crate::event_loop::utils::spawn_blocking(move || {
+                                let kyn = kinetic_types::clock::Kyn(current_kyn);
+                                let server = crate::pow::verify_p2p_pow(
+                                    &peer_id_clone,
+                                    kyn,
+                                    kinetic_core::constants::POW_DIFFICULTY_BITS,
+                                );
+                                let client = server
+                                    || crate::pow::verify_p2p_pow(
+                                        &peer_id_clone,
+                                        kyn,
+                                        kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT,
+                                    );
+                                (server, client)
+                            })
+                            .await;
                         let _ = loopback_clone.send(
                             crate::event_loop::core::LoopbackCommand::ConnectionPoWVerified {
                                 peer_id: peer_id_clone,
-                                valid,
+                                valid_client,
+                                valid_server,
                                 is_bootstrap,
                                 remote_addr,
                             },
@@ -186,6 +196,9 @@ impl super::core::NetworkEventLoop {
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Cdn(e)) => {
                 crate::event_loop::handlers::cdn::handle(self, e).await;
+            }
+            SwarmEvent::Behaviour(KineticBehaviorEvent::GovSync(e)) => {
+                crate::event_loop::handlers::gov_sync::handle(self, e).await;
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(e)) => {
                 crate::event_loop::handlers::gossipsub::handle(self, e).await;
@@ -243,7 +256,25 @@ impl super::core::NetworkEventLoop {
                     info.listen_addrs
                 );
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                let pow_valid = self.is_valid_pow(&peer_id);
+                let is_server = info.protocols.iter().any(|p| p.to_string().contains("kad"));
+                let expected_diff = if is_server {
+                    kinetic_core::constants::POW_DIFFICULTY_BITS
+                } else {
+                    kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT
+                };
+
+                let pow_valid = self.is_valid_pow(&peer_id, expected_diff);
+
+                if !pow_valid && !is_bootstrap {
+                    tracing::warn!(
+                        "Peer {} advertised as Kademlia Server={} but failed {}-bit PoW. Disconnecting.",
+                        peer_id,
+                        is_server,
+                        expected_diff
+                    );
+                    let _ = self.swarm.disconnect_peer_id(peer_id);
+                    return;
+                }
 
                 if !pow_valid
                     && is_bootstrap
@@ -287,7 +318,10 @@ impl super::core::NetworkEventLoop {
             ))) => {
                 for (peer_id, multiaddr) in list {
                     let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                    let pow_valid = self.is_valid_pow(&peer_id);
+                    let pow_valid = self.is_valid_pow(
+                        &peer_id,
+                        kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT,
+                    );
 
                     if pow_valid || is_bootstrap {
                         self.swarm
@@ -313,7 +347,6 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 tracing::info!("Connection closed for peer {:?}: {:?}", peer_id, cause);
                 self.bootstrap_connection_time.remove(&peer_id);
-                self.light_nodes.remove(&peer_id);
                 self.swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
             }
             _ => {}

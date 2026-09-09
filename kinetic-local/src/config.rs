@@ -32,7 +32,8 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
             default_cfg.drand.p2p_only = ctx == ConfigContext::Daemon;
 
             if let Some(parent) = config_path.parent() {
-                let _ = fs::create_dir_all(parent).map_err(|e| tracing::warn!("Failed to create config directory: {}", e));
+                let _ = fs::create_dir_all(parent)
+                    .map_err(|e| tracing::warn!("Failed to create config directory: {}", e));
             }
 
             if let Ok(toml_str) = toml::to_string_pretty(&default_cfg) {
@@ -81,33 +82,30 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
         }
     };
 
-    config.validate();
+    if let Err(e) = config.validate() {
+        tracing::error!(error_code = e.code(), "FATAL: {}", e);
+        std::process::exit(1);
+    }
     config
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn save_config(config: &KineticConfig) -> Result<(), kinetic_core::error::KineticError> {
+pub fn save_config(config: &KineticConfig) -> Result<(), kinetic_core::error::ConfigError> {
     let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG)
         .map(PathBuf::from)
         .unwrap_or_else(|_| get_base_dir().join("config.toml"));
 
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent).map_err(|e| {
-            kinetic_core::error::KineticError::Config(
-                kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string()),
-            )
+            kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string())
         })?;
     }
 
     let toml_str = toml::to_string_pretty(config).map_err(|e| {
-        kinetic_core::error::KineticError::Config(
-            kinetic_core::error::ConfigError::SerializationFailed(e.to_string()),
-        )
+        kinetic_core::error::ConfigError::SerializationFailed(e.to_string())
     })?;
     fs::write(&config_path, toml_str).map_err(|e| {
-        kinetic_core::error::KineticError::Config(kinetic_core::error::ConfigError::WriteFailed(
-            e.to_string(),
-        ))
+        kinetic_core::error::ConfigError::WriteFailed(e.to_string())
     })
 }
 

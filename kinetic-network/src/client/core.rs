@@ -110,6 +110,46 @@ impl NetworkClient {
         rx.await.unwrap_or(Err(ProxyError::ChannelClosed))
     }
 
+    /// Sends a request to sync governance state from a remote node.
+    pub async fn send_gov_sync_request(
+        &self,
+        peer: libp2p::PeerId,
+        req: kinetic_types::governance::GovSyncRequest,
+    ) -> std::result::Result<kinetic_types::governance::GovSyncResponse, ProxyError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        sender_clone
+            .send(Command::SendGovSyncRequest {
+                peer,
+                req: Box::new(req),
+                responder: tx,
+            })
+            .await
+            .map_err(|_| ProxyError::ChannelClosed)?;
+        rx.await.unwrap_or(Err(ProxyError::ChannelClosed))
+    }
+
+    /// Updates the background event loop's cache of the governance action log.
+    pub async fn update_gov_action_log(
+        &self,
+        actions: Vec<kinetic_types::governance::SignedGovernanceMessage>,
+    ) -> std::result::Result<(), NetworkClientError> {
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        sender_clone
+            .send(Command::UpdateGovActionLog { actions })
+            .await
+            .map_err(|_| NetworkClientError::ChannelClosed)?;
+        Ok(())
+    }
+
     /// Sends a response back to an incoming proxy request.
     ///
     /// # Errors
@@ -232,6 +272,61 @@ impl NetworkClient {
             .clone();
         sender_clone
             .send(Command::ResolveRedundant {
+                name: name.to_string().into(),
+                responder: tx,
+            })
+            .await
+            .map_err(|_| ResolutionError::Internal {
+                message: "Network channel closed unexpectedly".to_string(),
+                source: None,
+            })?;
+        #[cfg(not(target_arch = "wasm32"))]
+        match tokio::time::timeout(std::time::Duration::from_secs(10), rx).await {
+            Ok(Ok(res)) => res,
+            Ok(Err(_)) => Err(ResolutionError::Internal {
+                message: "Network channel closed unexpectedly".to_string(),
+                source: None,
+            }),
+            Err(_) => Err(ResolutionError::Internal {
+                message: "Resolution timed out".to_string(),
+                source: None,
+            }),
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use futures::future::{Either, select};
+            use futures_timer::Delay;
+            match select(Box::pin(rx), Delay::new(std::time::Duration::from_secs(10))).await {
+                Either::Left((Ok(res), _)) => res,
+                Either::Left((Err(_), _)) => Err(ResolutionError::Internal {
+                    message: "Network channel closed unexpectedly".to_string(),
+                    source: None,
+                }),
+                Either::Right(_) => Err(ResolutionError::Internal {
+                    message: "Resolution timed out".to_string(),
+                    source: None,
+                }),
+            }
+        }
+    }
+
+    /// Resolves a heartbeat payload from the DHT.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `ResolutionError` if the item is not found.
+    pub async fn resolve_heartbeat(
+        &self,
+        name: &str,
+    ) -> std::result::Result<Vec<u8>, ResolutionError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self
+            .sender
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        sender_clone
+            .send(Command::ResolveHeartbeat {
                 name: name.to_string().into(),
                 responder: tx,
             })
@@ -472,6 +567,43 @@ impl NetworkClient {
                 acceptance,
             });
         }
+    }
+
+    /// Retrieves the list of currently connected Peer IDs.
+    pub async fn get_connected_peers(
+        &self,
+    ) -> std::result::Result<Vec<String>, NetworkClientError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self.get_sender();
+        sender_clone
+            .send(Command::GetConnectedPeers { responder: tx })
+            .await
+            .map_err(|_| NetworkClientError::ChannelClosed)?;
+        rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
+    }
+
+    /// Retrieves the list of active Gossipsub topics.
+    pub async fn get_gossip_topics(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self.get_sender();
+        sender_clone
+            .send(Command::GetGossipTopics { responder: tx })
+            .await
+            .map_err(|_| NetworkClientError::ChannelClosed)?;
+        rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
+    }
+
+    /// Retrieves a list of currently banned peers.
+    pub async fn get_banned_peers(
+        &self,
+    ) -> std::result::Result<Vec<(String, u64)>, NetworkClientError> {
+        let (tx, rx) = oneshot::channel();
+        let sender_clone = self.get_sender();
+        sender_clone
+            .send(Command::GetBannedPeers { responder: tx })
+            .await
+            .map_err(|_| NetworkClientError::ChannelClosed)?;
+        rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
     }
 }
 

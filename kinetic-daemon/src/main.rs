@@ -138,7 +138,10 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
 
     println!("Generating root CA...");
     let _ = ca::load_or_create_root_ca(&base_config_dir)?;
-    let cert_path = base_config_dir.join("ca_cert.pem");
+    let nsp = kinetic_core::constants::NSP_SUFFIX;
+    let salt_prefix = &kinetic_core::constants::NETWORK_SALT_HEX[0..4];
+    let ca_prefix = format!("{}-{}", nsp, salt_prefix);
+    let cert_path = base_config_dir.join(format!("{}.cert.pem", ca_prefix));
 
     println!("Trusting root CA...");
     if let Err(e) = trust_ca(&cert_path) {
@@ -187,7 +190,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run 'kinetic-daemon start' to begin.");
+    println!("Service installed successfully. Run '{}-daemon start' to begin.", kinetic_core::constants::NSP);
     Ok(())
 }
 
@@ -279,18 +282,35 @@ async fn run_daemon() -> Result<()> {
 
     info!("Starting Kinetic Daemon (PID: {})...", std::process::id());
 
-    let storage_path = config.daemon.storage_dir.to_str().ok_or_else(|| {
-        anyhow::Error::from(kinetic_core::error::SystemError::InvalidOsEnvironment(
-            "Invalid UTF-8 path in storage_dir".into(),
-        ))
-    })?;
-    let storage = Arc::new(KineticStorage::new(storage_path)?);
-    info!("Storage engine initialized at {}", storage_path);
+    let base_config_dir = kinetic_local::config::get_base_dir();
+    let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
+    std::fs::create_dir_all(&storage_dir)?;
+    
+    let storage_path = storage_dir.join("kinetic.db");
+    let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
+    info!("Storage engine initialized at {:?}", storage_path);
 
     let vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine> = Arc::new(RsaVdfEngine::new());
     info!("VDF Engine initialized");
 
-    let daemon_keypair = match load_keypair(std::path::Path::new("identity.key")) {
+    info!("Running CPU micro-benchmark for VDF ETA calibration...");
+    let dummy_challenge = kinetic_types::vdf::Commitment { hash: [0u8; 32] };
+    let start = std::time::Instant::now();
+    let _ = tokio::task::spawn_blocking({
+        let engine = vdf_engine.clone();
+        move || engine.evaluate(&dummy_challenge, 5000)
+    })
+    .await;
+    let elapsed = start.elapsed().as_secs_f64();
+    let burst_ips = 5000.0 / elapsed;
+    let host_speed_ips = (burst_ips * 0.85) as u64;
+    info!(
+        "VDF Calibration Complete: Burst {:.0} IPS | Sustained Estimate: {} IPS",
+        burst_ips, host_speed_ips
+    );
+
+    let identity_path = base_config_dir.join("identity.key");
+    let daemon_keypair = match load_keypair(&identity_path) {
         Ok(k) => k,
         Err(e) => {
             tracing::error!(
@@ -335,7 +355,7 @@ async fn run_daemon() -> Result<()> {
     }
 
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
-    let local_key = kinetic_network::pow::mine_sybil_keypair(
+    let local_key = kinetic_network::pow::mine_p2p_keypair(
         kinetic_types::clock::Kyn(initial_kyn),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
@@ -411,86 +431,9 @@ async fn run_daemon() -> Result<()> {
 
     let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| base_config_dir.join("governance.db"));
+        .unwrap_or_else(|_| storage_dir.join("action.db"));
 
-    if !gov_state_path.exists() {
-        tracing::info!(
-            "Governance state file not found locally. Attempting to bootstrap from seed nodes..."
-        );
 
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .unwrap_or_default();
-        let mut success = false;
-
-        let mut target_ips = Vec::new();
-        for addr in &config.network.bootstrap_nodes {
-            if let Some(ip) = addr.split('/').nth(2) {
-                target_ips.push(ip.to_string());
-            }
-        }
-
-        for domain in &config.network.seed_domain {
-            let addrs = kinetic_network::dns_tree::resolve_dns_tree(domain.as_str()).await;
-            for multiaddr in addrs {
-                if let Some(ip) = multiaddr.to_string().split('/').nth(2) {
-                    target_ips.push(ip.to_string());
-                }
-            }
-        }
-
-        for ip in target_ips {
-            let url = format!(
-                "http://{}:{}/api/governance",
-                ip,
-                kinetic_core::config::ports::API_DAEMON
-            );
-            tracing::info!("Trying to fetch governance state from {}...", url);
-            if let Ok(resp) = client.get(&url).send().await
-                && resp.status().is_success()
-                && let Ok(bytes) = resp.bytes().await
-            {
-                if let Ok(downloaded_state) =
-                    bincode::deserialize::<kinetic_core::governance::GovernanceState>(&bytes)
-                {
-                    // Enforce strict content validation to prevent MITM attacks over HTTP
-                    if downloaded_state.genesis_kyn
-                        != kinetic_types::clock::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN)
-                    {
-                        tracing::warn!(
-                            "Seed node provided governance state for wrong network genesis."
-                        );
-                        continue;
-                    }
-
-                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
-                        &downloaded_state,
-                        &gov_state_path,
-                    ) {
-                        tracing::warn!(
-                            error = ?kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string()),
-                            "Failed to save downloaded governance state to disk"
-                        );
-                    } else {
-                        tracing::info!(
-                            "Successfully bootstrapped governance state from seed node."
-                        );
-                        success = true;
-                        break;
-                    }
-                } else {
-                    let err = kinetic_core::error::GovernanceError::InvalidSeedState;
-                    tracing::warn!(error_code = err.code(), "{}", err);
-                }
-            }
-        }
-
-        if !success {
-            let err = kinetic_core::error::GovernanceError::BootstrapFetchFailed;
-            tracing::warn!(error_code = err.code(), "{}", err);
-        }
-    }
 
     let gov_state_path = std::sync::Arc::new(gov_state_path);
     {
@@ -530,6 +473,50 @@ async fn run_daemon() -> Result<()> {
     let _ = network_client
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL)
         .await;
+
+    // Push initial local governance log to the network cache
+    {
+        let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+            .lock()
+            .unwrap();
+        let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
+    }
+
+    // If local state is empty, perform a P2P sync
+    {
+        let is_empty = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+            .lock()
+            .unwrap()
+            .action_log.is_empty();
+
+        if is_empty {
+            tracing::info!("Local governance state is empty. Attempting P2P GovSync...");
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await; // give it time to connect
+            if let Ok(peers) = network_client.get_connected_peers().await {
+                for peer_str in peers {
+                    if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
+                        if let Ok(resp) = network_client.send_gov_sync_request(peer_id, kinetic_types::governance::GovSyncRequest { from_kyn: 0 }).await {
+                            if !resp.actions.is_empty() {
+                                tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
+                                let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+                                for msg in &resp.actions {
+                                    if let Err(e) = kinetic_core::governance::process_governance_message(&mut gov, msg, kinetic_types::clock::Kyn(0)) {
+                                        tracing::error!("Failed to apply synced gov action: {}", e);
+                                    }
+                                }
+                                kinetic_local::governance::save_governance_to_disk(&*gov, &gov_state_path);
+                                drop(gov);
+                                let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+                                let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     info!("P2P Network architecture wired");
 
     kinetic_daemon::services::network::start_pow_miner_loop(
@@ -583,10 +570,14 @@ async fn run_daemon() -> Result<()> {
         }
     };
 
+    let dns_cache = std::sync::Arc::new(tokio::sync::Mutex::new(
+        kinetic_daemon::proxy::dns_cache::DnsCache::new(500, 300),
+    ));
     let leaf_cache = std::sync::Arc::new(tokio::sync::Mutex::new(ca::LeafCertCache::new()));
     let proxy_client = network_client.clone();
     let ca_clone = std::sync::Arc::clone(&root_ca);
     let cache_clone = std::sync::Arc::clone(&leaf_cache);
+    let dns_cache_proxy_clone = dns_cache.clone();
     let config_arc = std::sync::Arc::new(config.clone());
     let proxy_peer_id = local_peer_id.to_string();
     tokio::spawn(async move {
@@ -595,6 +586,7 @@ async fn run_daemon() -> Result<()> {
             config.daemon.proxy_port,
             ca_clone,
             cache_clone,
+            dns_cache_proxy_clone,
             config_arc,
             proxy_peer_id,
         )
@@ -628,6 +620,9 @@ async fn run_daemon() -> Result<()> {
         config.daemon.bind_ip.clone(),
         config.daemon.api_port,
         atlas_nsps.clone(),
+        host_speed_ips,
+        daemon_keypair.clone(),
+        dns_cache.clone(),
     );
 
     info!("Kinetic Daemon architecture successfully bootstrapped. Spawning loops...");
@@ -647,12 +642,13 @@ async fn run_daemon() -> Result<()> {
     // Register with kinetic-pac by dropping our proxy config into the global proxies directory
     let global_base = dirs::data_local_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic_global");
-    let proxies_dir = global_base.join("proxies");
-    let _ = std::fs::create_dir_all(&proxies_dir);
+        .join("kinetic")
+        .join("pac_router");
+    let natives_dir = global_base.join("natives");
+    let _ = std::fs::create_dir_all(&natives_dir);
 
     let nsp_clean = kinetic_core::constants::NSP_SUFFIX.trim_start_matches('.');
-    let proxy_json_path = proxies_dir.join(format!("{}.json", nsp_clean));
+    let proxy_json_path = natives_dir.join(format!("{}.json", nsp_clean));
 
     let proxy_info = serde_json::json!({
         "nsp": kinetic_core::constants::NSP_SUFFIX,
@@ -720,16 +716,13 @@ async fn run_daemon() -> Result<()> {
         }
     }
 
-    tokio::select! {
-        res = api_future => {
-            tracing::error!(
-                error = ?kinetic_core::error::SystemError::ServerCrashed(format!("{:?}", res)),
-                "API Server exited unexpectedly"
-            );
-        },
-        _ = kinetic_local::shutdown::shutdown_signal() => {
-            info!("Shutdown signal received. Commencing graceful shutdown...");
-        }
+    if let Err(e) = api_future.await {
+        tracing::error!(
+            error = ?kinetic_core::error::SystemError::ServerCrashed(format!("{:?}", e)),
+            "API Server exited unexpectedly"
+        );
+    } else {
+        info!("API Server gracefully shut down.");
     }
 
     // Guaranteed OS PAC Proxy cleanup on exit (Fixes Orphaned Proxy Blackhole)
@@ -747,11 +740,22 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
-    tokio::runtime::Builder::new_multi_thread()
+    let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
-        .expect("Failed to build tokio runtime")
-        .block_on(async_main())
+        .expect("Failed to build tokio runtime");
+
+    let res = rt.block_on(async_main());
+    rt.shutdown_timeout(std::time::Duration::from_millis(500));
+
+    if kinetic_local::shutdown::RESTART_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
+        println!(
+            "Restart requested. Exiting with code 1 to trigger service manager OnFailure policy."
+        );
+        std::process::exit(1);
+    }
+
+    res
 }
 
 async fn async_main() -> anyhow::Result<()> {

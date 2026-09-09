@@ -35,10 +35,7 @@ mod native {
         /// - Returns [`StorageError::DatabaseLocked`](kinetic_core::error::StorageError::DatabaseLocked) (`KIN-DBE-001`) if the database directory is already opened by another process.
         /// - Returns [`StorageError::OpenFailed`](kinetic_core::error::StorageError::OpenFailed) (`KIN-DBE-007`) if IO errors occur.
         pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
-            let base_path = path.as_ref();
-            // Older storage engines used directories, Redb uses a single file. For backward compatibility
-            // with the rest of the workspace, we treat the input as a directory and append a filename.
-            let db_path = base_path.join("state.redb");
+            let db_path = path.as_ref();
 
             // Create the directory if it doesn't exist to prevent IO errors
             if let Some(parent) = db_path.parent() {
@@ -84,7 +81,7 @@ mod native {
                             .map(|d| d.as_secs())
                             .unwrap_or(0);
 
-                        let mut bak_path = base_path.to_path_buf();
+                        let mut bak_path = db_path.to_path_buf();
                         let mut new_name = bak_path.file_name().unwrap_or_default().to_os_string();
                         new_name.push(format!(
                             ".corrupt.{}_{}_{}.bak",
@@ -100,11 +97,11 @@ mod native {
                         tracing::error!(
                             error_code = err.code(),
                             "CRITICAL: Embedded database corruption detected at {:?}. Backing up to {:?}",
-                            base_path,
+                            db_path,
                             bak_path
                         );
 
-                        if let Err(err) = std::fs::rename(base_path, &bak_path) {
+                        if let Err(err) = std::fs::rename(db_path, &bak_path) {
                             return Err(StorageError::OpenFailed(format!(
                                 "Database corrupted. Failed to backup corrupted database: {}. Manual intervention required.",
                                 err

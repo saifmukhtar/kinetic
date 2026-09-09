@@ -87,7 +87,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                 apex_name_clone
             );
 
-            let url = format!("{}/api/resolve/{}", api_url_clone, apex_name_clone);
+            let url = format!("{}/api/v1/micro/nrs/resolve/{}", api_url_clone, apex_name_clone);
             match http_client_clone.get(&url).send().await {
                 Ok(mut resp) => {
                     if resp.status().is_success() {
@@ -160,7 +160,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                             did
                                         );
                                         let kid_url =
-                                            format!("{}/api/resolve-kid/{}", api_url, did);
+                                            format!("{}/api/v1/micro/kid/resolve/{}", api_url, did);
                                         match http_client.get(&kid_url).send().await {
                                             Ok(kid_resp) if kid_resp.status().is_success() => {
                                                 if let Ok(kid_json) =

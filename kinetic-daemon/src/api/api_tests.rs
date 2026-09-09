@@ -20,7 +20,7 @@ mod tests {
 
     async fn setup_test_app() -> (axum::Router, mpsc::Receiver<Command>, Arc<KineticStorage>) {
         let dir = tempdir().unwrap();
-        let storage = Arc::new(KineticStorage::new(dir.path()).unwrap());
+        let storage = Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
 
         let (cmd_tx, cmd_rx) = mpsc::channel(32);
         let network = NetworkClient::new_mock(cmd_tx);
@@ -30,11 +30,21 @@ mod tests {
             network,
             gossip_tx,
             storage: storage.clone(),
+            host_speed_ips: 100_000,
+            daemon_keypair: kinetic_primitives::keys::KineticKeypair::generate(),
+            dns_cache: std::sync::Arc::new(tokio::sync::Mutex::new(
+                crate::proxy::dns_cache::DnsCache::new(100, 300),
+            )),
             tokens: Arc::new(crate::api::ApiTokens {
                 admin: "test-token-123".to_string(),
-                publish: "publish-token".to_string(),
+                kid: "kid-token".to_string(),
+                nrs: "nrs-token".to_string(),
                 vdf: "vdf-token".to_string(),
-                governance: "gov-token".to_string(),
+                action: "gov-token".to_string(),
+                gossip: "gossip-token".to_string(),
+                metric: "metric-token".to_string(),
+                heartbeat: "heartbeat-token".to_string(),
+                system: "system-token".to_string(),
                 atlas: "atlas-token".to_string(),
             }),
             vdf_tasks: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -54,7 +64,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req = Request::builder()
-            .uri("/commit")
+            .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
             .body(Body::empty())
             .unwrap();
@@ -75,7 +85,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/commit")
+            .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -86,6 +96,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
         let body = res.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("BODY: {}", body_str);
         assert!(body_str.contains("Commitment hash must not be all-zeros"));
     }
 
@@ -101,7 +112,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/commit")
+            .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -138,7 +149,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/publish")
+            .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -176,7 +187,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/publish")
+            .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -231,7 +242,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/publish")
+            .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -300,7 +311,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/resolve/validname.kin")
+            .uri("/api/v1/micro/nrs/resolve/validname.kin")
             .method("GET")
             .body(Body::empty())
             .unwrap();
@@ -317,7 +328,7 @@ mod tests {
         let (app, _, _) = setup_test_app().await;
 
         let req = Request::builder()
-            .uri("/zone/validname.kin/publish")
+            .uri("/api/v1/micro/nrs/zone/validname.kin/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .body(Body::empty())
@@ -339,7 +350,7 @@ mod tests {
         let req_body_str = req_body.to_string();
 
         let req1 = Request::builder()
-            .uri("/vdf/register")
+            .uri("/api/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -347,7 +358,7 @@ mod tests {
             .unwrap();
 
         let req2 = Request::builder()
-            .uri("/vdf/register")
+            .uri("/api/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -378,7 +389,7 @@ mod tests {
         });
 
         let req = Request::builder()
-            .uri("/publish-kid")
+            .uri("/api/v1/micro/kid/publish")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")

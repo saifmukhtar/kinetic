@@ -129,6 +129,39 @@ impl super::core::NetworkEventLoop {
                 );
                 self.enqueue_dht_puts(name, keys, payload, responder);
             }
+            Command::ResolveHeartbeat { name, responder } => {
+                let info = self.swarm.network_info();
+                if info.num_peers() == 0 {
+                    let _ = responder.send(Err(ResolutionError::Offline));
+                    return;
+                }
+
+                let hb_name: std::sync::Arc<str> = format!("hb:{}", name).into();
+                if let Some(pending) = self.pending_gets.get_mut(&hb_name) {
+                    pending.responders.push(responder);
+                    return;
+                }
+
+                let keys = kinetic_core::types::derive_heartbeat_keys(
+                    &name,
+                    kinetic_core::constants::NETWORK_SALT,
+                );
+                let expected = self.dispatch_dht_queries(
+                    hb_name.clone(),
+                    keys,
+                    crate::event_loop::core::QueryType::Get,
+                );
+
+                self.pending_gets.insert(
+                    hb_name.clone(),
+                    crate::event_loop::utils::PendingGet {
+                        responders: vec![responder],
+                        expected_responses: expected,
+                        received_payloads: Vec::new(),
+                        peers_queried: expected,
+                    },
+                );
+            }
             Command::ResolveRedundant { name, responder } => {
                 let info = self.swarm.network_info();
                 if info.num_peers() == 0 {
@@ -281,6 +314,32 @@ impl super::core::NetworkEventLoop {
                     "bytes_received": 0,
                 })));
             }
+            Command::GetConnectedPeers { responder } => {
+                let peers: Vec<String> = self
+                    .swarm
+                    .connected_peers()
+                    .map(|p| p.to_string())
+                    .collect();
+                let _ = responder.send(Ok(peers));
+            }
+            Command::GetGossipTopics { responder } => {
+                let topics: Vec<String> = self
+                    .swarm
+                    .behaviour()
+                    .gossipsub
+                    .topics()
+                    .map(|t| t.as_str().to_string())
+                    .collect();
+                let _ = responder.send(Ok(topics));
+            }
+            Command::GetBannedPeers { responder } => {
+                let banned = self
+                    .banned_peers
+                    .iter()
+                    .map(|(p, k)| (p.to_string(), *k))
+                    .collect();
+                let _ = responder.send(Ok(banned));
+            }
             Command::SubscribeGossip { topic, responder } => {
                 let ident_topic = libp2p::gossipsub::IdentTopic::new(topic.to_string());
                 let res = self
@@ -317,6 +376,14 @@ impl super::core::NetworkEventLoop {
                     .behaviour_mut()
                     .gossipsub
                     .report_message_validation_result(&message_id, &propagation_source, acceptance);
+            }
+            Command::SendGovSyncRequest { peer, req, responder } => {
+                let req_id = self.swarm.behaviour_mut().gov_sync.send_request(&peer, *req);
+                self.pending_gov_sync_requests.insert(req_id, responder);
+            }
+            Command::UpdateGovActionLog { actions } => {
+                self.gov_action_log = actions;
+                tracing::debug!("Network event loop updated internal gov_action_log with {} actions", self.gov_action_log.len());
             }
         }
     }

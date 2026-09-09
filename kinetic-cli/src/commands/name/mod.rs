@@ -8,6 +8,7 @@ pub mod publish;
 pub mod query;
 pub mod register;
 pub mod renew;
+pub mod overrides;
 #[cfg(test)]
 mod tests;
 
@@ -43,6 +44,28 @@ pub enum NameCommands {
     /// Resolve a .kin name from the network
     Resolve { name: String },
 
+    /// Publish a Fat Zone using a delegated hot key payload
+    FatZone {
+        /// The name to publish routing for
+        name: String,
+        /// Path to the Fat Zone JSON file
+        #[arg(short, long)]
+        file: std::path::PathBuf,
+    },
+    /// Save a local DNS override for a domain (bypasses DHT)
+    LocalZone {
+        /// The name to override locally
+        name: String,
+        /// Path to the JSON zone file
+        #[arg(short, long)]
+        file: std::path::PathBuf,
+    },
+    /// Delete a local DNS override
+    LocalZoneDelete {
+        /// The name to stop overriding locally
+        name: String,
+    },
+
     #[cfg(test)]
     Guard {
         name: String,
@@ -52,13 +75,6 @@ pub enum NameCommands {
 }
 
 /// Dispatches name-related CLI subcommands.
-///
-/// Handles name operations such as registration, publishing, renewal, and queries
-/// by forwarding them to the corresponding handlers.
-///
-/// # Errors
-/// Returns an `anyhow::Error` if the underlying API requests to the daemon fail,
-/// or if invalid inputs are provided.
 pub async fn handle_name_command(
     cmd: NameCommands,
     config: &KineticConfig,
@@ -75,6 +91,15 @@ pub async fn handle_name_command(
         NameCommands::List => query::handle_name_list(config, client).await,
         NameCommands::Info { name } => query::handle_name_info(name, config, client).await,
         NameCommands::Resolve { name } => query::handle_name_resolve(name, config, client).await,
+        NameCommands::FatZone { name, file } => {
+            overrides::handle_fat_zone(name, file, config, client).await
+        }
+        NameCommands::LocalZone { name, file } => {
+            overrides::handle_local_zone(name, file, config, client).await
+        }
+        NameCommands::LocalZoneDelete { name } => {
+            overrides::handle_local_zone_delete(name, config, client).await
+        }
         #[cfg(test)]
         NameCommands::Guard { .. } => Ok(()), // Just for tests
     }

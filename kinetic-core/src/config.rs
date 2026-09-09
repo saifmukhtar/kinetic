@@ -315,7 +315,7 @@ pub fn is_dev_mode() -> bool {
 
 impl KineticConfig {
     /// Validates the configuration for internal consistency.
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<(), crate::error::ConfigError> {
         let mut tcp_ports = vec![
             self.daemon.api_port,
             self.daemon.proxy_port,
@@ -332,7 +332,7 @@ impl KineticConfig {
         if tcp_ports.len() != tcp_len {
             let err = crate::error::ConfigError::TcpPortCollision;
             tracing::error!(error_code = err.code(), "{}", err);
-            std::process::exit(1);
+            return Err(err);
         }
 
         let mut udp_ports = vec![
@@ -349,7 +349,9 @@ impl KineticConfig {
         if udp_ports.len() != udp_len {
             let err = crate::error::ConfigError::UdpPortCollision;
             tracing::error!(error_code = err.code(), "{}", err);
-            std::process::exit(1);
+            return Err(err);
         }
+
+        Ok(())
     }
 }

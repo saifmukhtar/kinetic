@@ -41,108 +41,118 @@ pub fn start_gossip_processor(
                             Ok(kyn) => kyn.kyn,
                             Err(_) => kinetic_core::types::Kyn::now_local().0,
                         };
-                        let Ok(mut state) =
-                            kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
-                        else {
-                            network_client.report_gossip(message_id, propagation_source, is_valid);
-                            continue;
-                        };
+                        let (should_update_log, log) = {
+                            let Ok(mut state) =
+                                kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                            else {
+                                network_client.report_gossip(message_id, propagation_source, is_valid);
+                                continue;
+                            };
 
-                        match kinetic_core::governance::process_governance_message(
-                            &mut state,
-                            &signed_msg,
-                            kinetic_types::clock::Kyn(current_kyn),
-                        ) {
-                            Ok(Some(effect)) => {
-                                is_valid = true;
-                                tracing::info!(
-                                    "Governance state updated via gossip. Effect: {:?}",
-                                    effect
-                                );
+                            match kinetic_core::governance::process_governance_message(
+                                &mut state,
+                                &signed_msg,
+                                kinetic_types::clock::Kyn(current_kyn),
+                            ) {
+                                Ok(Some(effect)) => {
+                                    is_valid = true;
+                                    tracing::info!(
+                                        "Governance state updated via gossip. Effect: {:?}",
+                                        effect
+                                    );
 
-                                if let Some(storage) = &storage {
-                                    use kinetic_core::constants::DB_PREFIX_REVEAL;
-                                    use kinetic_core::governance::types::GovernanceEffect;
-                                    use kinetic_core::types::NameRecord;
+                                    if let Some(storage) = &storage {
+                                        use kinetic_core::constants::DB_PREFIX_REVEAL;
+                                        use kinetic_core::governance::types::GovernanceEffect;
+                                        use kinetic_core::types::NameRecord;
 
-                                    match &effect {
-                                        GovernanceEffect::PrimeMapped {
-                                            name,
-                                            target_pubkey,
-                                        } => {
-                                            let record = NameRecord::Prime {
-                                                name: name.clone(),
-                                                pubkey: target_pubkey.clone(),
-                                                granted_at: std::time::SystemTime::now()
-                                                    .duration_since(std::time::UNIX_EPOCH)
-                                                    .unwrap_or_default()
-                                                    .as_secs(),
-                                                payload: Vec::new(),
-                                                signature: Vec::new(),
-                                                authorization: None,
-                                            };
-                                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                            if let Ok(json_bytes) = serde_json::to_vec(&record) {
-                                                let _ = storage.put(key.as_bytes(), &json_bytes);
+                                        match &effect {
+                                            GovernanceEffect::PrimeMapped {
+                                                name,
+                                                target_pubkey,
+                                            } => {
+                                                let record = NameRecord::Prime {
+                                                    name: name.clone(),
+                                                    pubkey: target_pubkey.clone(),
+                                                    granted_at: std::time::SystemTime::now()
+                                                        .duration_since(std::time::UNIX_EPOCH)
+                                                        .unwrap_or_default()
+                                                        .as_secs(),
+                                                    payload: Vec::new(),
+                                                    signature: Vec::new(),
+                                                    authorization: None,
+                                                };
+                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
+                                                if let Ok(json_bytes) = serde_json::to_vec(&record) {
+                                                    let _ = storage.put(key.as_bytes(), &json_bytes);
+                                                    tracing::info!(
+                                                        "Injected NameRecord::Prime into storage for {}",
+                                                        name
+                                                    );
+                                                }
+                                            }
+                                            GovernanceEffect::PrimeUnmapped { name } => {
+                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
+                                                let _ = storage.delete(key.as_bytes());
                                                 tracing::info!(
-                                                    "Injected NameRecord::Prime into storage for {}",
+                                                    "Revoked NameRecord::Prime from storage for {}",
                                                     name
                                                 );
                                             }
+                                            GovernanceEffect::InfraUnmapped { name } => {
+                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
+                                                let _ = storage.delete(key.as_bytes());
+                                                tracing::info!(
+                                                    "Revoked NameRecord::Infra from storage for {}",
+                                                    name
+                                                );
+                                            }
+                                            _ => {}
                                         }
-                                        GovernanceEffect::PrimeUnmapped { name } => {
-                                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                            let _ = storage.delete(key.as_bytes());
-                                            tracing::info!(
-                                                "Revoked NameRecord::Prime from storage for {}",
-                                                name
-                                            );
-                                        }
-                                        GovernanceEffect::InfraUnmapped { name } => {
-                                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                            let _ = storage.delete(key.as_bytes());
-                                            tracing::info!(
-                                                "Revoked NameRecord::Infra from storage for {}",
-                                                name
-                                            );
-                                        }
-                                        _ => {}
                                     }
+                                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                                        &state,
+                                        &gossip_gov_path,
+                                    ) {
+                                        let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                                        tracing::error!(
+                                            error_code = err.code(),
+                                            "Failed to save modified governance state to disk: {}",
+                                            e
+                                        );
+                                    }
+                                    (true, Some(state.action_log.clone()))
                                 }
-                                if let Err(e) = kinetic_local::governance::save_governance_to_disk(
-                                    &state,
-                                    &gossip_gov_path,
-                                ) {
-                                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
-                                    tracing::error!(
-                                        error_code = err.code(),
-                                        "Failed to save modified governance state to disk: {}",
+                                Ok(None) => {
+                                    is_valid = true;
+                                    tracing::info!(
+                                        "Governance state updated via gossip. No immediate effect."
+                                    );
+                                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                                        &state,
+                                        &gossip_gov_path,
+                                    ) {
+                                        let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                                        tracing::error!(
+                                            error_code = err.code(),
+                                            "Failed to save modified governance state to disk: {}",
+                                            e
+                                        );
+                                    }
+                                    (true, Some(state.action_log.clone()))
+                                }
+                                Err(e) => {
+                                    tracing::debug!(
+                                        "Governance gossip message rejected by process_governance_message: {:?}",
                                         e
                                     );
+                                    (false, None)
                                 }
                             }
-                            Ok(None) => {
-                                is_valid = true;
-                                tracing::info!(
-                                    "Governance state updated via gossip. No immediate effect."
-                                );
-                                if let Err(e) = kinetic_local::governance::save_governance_to_disk(
-                                    &state,
-                                    &gossip_gov_path,
-                                ) {
-                                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
-                                    tracing::error!(
-                                        error_code = err.code(),
-                                        "Failed to save modified governance state to disk: {}",
-                                        e
-                                    );
-                                }
-                            }
-                            Err(e) => {
-                                tracing::debug!(
-                                    "Governance gossip message rejected by process_governance_message: {:?}",
-                                    e
-                                );
+                        };
+                        if should_update_log {
+                            if let Some(log) = log {
+                                let _ = network_client.update_gov_action_log(log).await;
                             }
                         }
                     }

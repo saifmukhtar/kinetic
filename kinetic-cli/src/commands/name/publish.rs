@@ -11,7 +11,7 @@ use tracing::{info, warn};
 
 /// Updates the routing zone data for a registered name.
 ///
-/// This involves checking for a local reveal file (or fetching it from the DHT),
+/// This involves checking for a local record cache (or fetching it from the DHT),
 /// signing the new payload, and propagating the updated record to the network.
 ///
 /// # Errors
@@ -31,18 +31,20 @@ pub async fn update_zone_logic(
     let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
     let keypair = load_keypair(&identity_path)?;
 
-    // Check for local reveal file first for massive UX improvement
-    let reveal_path = get_zones_dir().join(format!("{}.reveal.json", fqdn));
-    let mut existing_record: kinetic_core::types::NameRecord = if reveal_path.exists() {
-        let content = std::fs::read_to_string(&reveal_path)?;
+    // Check for local record cache first for massive UX improvement
+    let cache_dir = get_zones_dir().join("cache");
+    let _ = std::fs::create_dir_all(&cache_dir);
+    let record_path = cache_dir.join(format!("{}.record.json", fqdn));
+    let mut existing_record: kinetic_core::types::NameRecord = if record_path.exists() {
+        let content = std::fs::read_to_string(&record_path)?;
         serde_json::from_str(&content)
-            .map_err(|e| anyhow::anyhow!("Local reveal file corrupted: {}", e))?
+            .map_err(|e| anyhow::anyhow!("Local record cache corrupted: {}", e))?
     } else {
-        let resolve_url = format!(
-            "http://{}:{}/resolve/{}",
+        let daemon_url = format!(
+            "http://{}:{}/api/v1/micro/nrs/resolve/{}",
             config.daemon.bind_ip, config.daemon.api_port, fqdn
         );
-        let resolve_res = client.get(&resolve_url).send().await?;
+        let resolve_res = client.get(&daemon_url).send().await?;
         if !resolve_res.status().is_success() {
             let status = resolve_res.status();
             let text = resolve_res.text().await.unwrap_or_default();
@@ -51,7 +53,7 @@ pub async fn update_zone_logic(
                 status,
                 &text,
             );
-            return Err(anyhow::anyhow!("No local reveal file found, and {}", msg));
+            return Err(anyhow::anyhow!("No local record cache found, and {}", msg));
         }
         resolve_res.json().await?
     };
@@ -85,19 +87,20 @@ pub async fn update_zone_logic(
         }
     }
 
+    let publish_url = format!(
+        "http://{}:{}/api/v1/micro/nrs/record/publish",
+        config.daemon.bind_ip, config.daemon.api_port
+    );
     let response = client
-        .post(format!(
-            "http://{}:{}/publish",
-            config.daemon.bind_ip, config.daemon.api_port
-        ))
+        .post(publish_url)
         .json(&json!({"record": existing_record}))
         .send()
         .await?;
     if response.status().is_success() {
         info!("Success! {} updated.", fqdn);
         let _ = save_zone_file(&fqdn, &zone);
-        let reveal_str = serde_json::to_string_pretty(&existing_record)?;
-        let _ = std::fs::write(&reveal_path, reveal_str);
+        let record_str = serde_json::to_string_pretty(&existing_record)?;
+        let _ = std::fs::write(&record_path, record_str);
     } else {
         let status = response.status();
         let text = response.text().await.unwrap_or_default();
@@ -123,7 +126,7 @@ pub async fn handle_name_publish(
     client: &Client,
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
-    let mut zone_file = get_zones_dir();
+    let mut zone_file = get_zones_dir().join("config");
     zone_file.push(format!("{}.json", fqdn));
 
     if !zone_file.exists() {
