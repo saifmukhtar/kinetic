@@ -1,4 +1,4 @@
-//! Command-line service and daemon for the Kinetic DNS server.
+//! Command-line service and daemon for the Kinetic NRS server.
 //!
 //! Intercepts `.kin` queries and resolves them via the local Kinetic daemon HTTP API,
 //! while proxying all standard internet queries to upstream resolvers. Includes service management
@@ -149,8 +149,8 @@ fn remove_os_dns() {
 }
 
 fn install_service() -> Result<()> {
-    println!("Installing Kinetic DNS Server service...");
-    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NSP).parse()?;
+    println!("Installing Kinetic NRS Server service...");
+    let label: ServiceLabel = format!("{}-nrs", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     let current_exe = env::current_exe()?;
@@ -178,12 +178,12 @@ fn install_service() -> Result<()> {
         println!("Warning: Failed to configure OS DNS: {}", e);
     }
 
-    println!("Service installed successfully. Run 'kinetic-dns-server start' to begin.");
+    println!("Service installed successfully. Run '{}-nrs start' to begin.", kinetic_core::constants::NSP);
     Ok(())
 }
 
 fn uninstall_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NSP).parse()?;
+    let label: ServiceLabel = format!("{}-nrs", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.uninstall(ServiceUninstallCtx { label })?;
@@ -195,7 +195,7 @@ fn uninstall_service() -> Result<()> {
 }
 
 fn start_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NSP).parse()?;
+    let label: ServiceLabel = format!("{}-nrs", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.start(ServiceStartCtx { label })?;
@@ -204,7 +204,7 @@ fn start_background_service() -> Result<()> {
 }
 
 fn stop_background_service() -> Result<()> {
-    let label: ServiceLabel = format!("{}-dns", kinetic_core::constants::NSP).parse()?;
+    let label: ServiceLabel = format!("{}-nrs", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
     manager.stop(ServiceStopCtx { label })?;
@@ -220,7 +220,7 @@ async fn run_server(api_url: String, nrs_port: u16) -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber).ok();
 
-    info!("Starting Kinetic DNS Server");
+    info!("Starting Kinetic NRS Server");
     info!("Upstream Daemon API URL: {}", api_url);
 
     let dns_handler = KineticNrsHandler::new(

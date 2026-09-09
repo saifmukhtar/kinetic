@@ -66,7 +66,7 @@ echo "Waiting for propagation..."
 sleep 2
 
 echo "Resolving KID directly via Daemon API..."
-RESOLVE_OUT=$(curl -s "http://127.0.0.1:16002/v1/micro/kid/resolve/$DID")
+RESOLVE_OUT=$(curl -s "http://127.0.0.1:16002/api/v1/micro/kid/resolve/$DID")
 
 echo "Daemon returned: $RESOLVE_OUT"
 

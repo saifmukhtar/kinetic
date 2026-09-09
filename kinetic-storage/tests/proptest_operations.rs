@@ -28,7 +28,7 @@ proptest! {
         ops in prop::collection::vec(arbitrary_storage_op(), 1..100)
     ) {
         let dir = tempdir().unwrap();
-        let storage = KineticStorage::new(dir.path()).unwrap();
+        let storage = KineticStorage::new(dir.path().join("state.db")).unwrap();
 
         for op in ops {
             match op {

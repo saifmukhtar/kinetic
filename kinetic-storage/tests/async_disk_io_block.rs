@@ -6,7 +6,7 @@ use tempfile::tempdir;
 #[test]
 fn test_async_disk_io_block() {
     let dir = tempdir().unwrap();
-    let storage = KineticStorage::new(dir.path()).unwrap();
+    let storage = KineticStorage::new(dir.path().join("state.db")).unwrap();
 
     let start = Instant::now();
     for i in 0..100 {
