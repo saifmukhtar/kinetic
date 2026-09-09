@@ -30,7 +30,7 @@ pub async fn handle_network_command(
 ) -> anyhow::Result<()> {
     match cmd {
         NetworkCommands::Governance { cmd } => {
-            action::handle_governance_command(cmd, config, client).await
+            action::handle_action_command(cmd, config, client).await
         }
         NetworkCommands::Status => status::handle_status(config, client).await,
         NetworkCommands::Peers => peers::handle_peers(config, client).await,

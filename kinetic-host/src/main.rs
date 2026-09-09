@@ -233,7 +233,7 @@ async fn run_host() -> Result<()> {
         let mut gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
             .lock()
             .map_err(|e| anyhow::anyhow!("Poison error: {}", e))?;
-        *gov = kinetic_local::action::load_governance_from_disk(&action_state_path);
+        *gov = kinetic_local::action::load_action_from_disk(&action_state_path);
     }
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);

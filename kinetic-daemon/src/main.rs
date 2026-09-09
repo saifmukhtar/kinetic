@@ -444,7 +444,7 @@ async fn run_daemon() -> Result<()> {
                     e.to_string(),
                 ))
             })?;
-        *gov = kinetic_local::action::load_governance_from_disk(&action_state_path);
+        *gov = kinetic_local::action::load_action_from_disk(&action_state_path);
     }
 
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);

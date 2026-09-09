@@ -277,7 +277,7 @@ async fn run_node() -> Result<()> {
         let mut gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        *gov = kinetic_local::action::load_governance_from_disk(&action_state_path);
+        *gov = kinetic_local::action::load_action_from_disk(&action_state_path);
     }
 
     let (gossip_tx, mut gossip_rx) = tokio::sync::broadcast::channel(100);
@@ -384,7 +384,7 @@ async fn run_node() -> Result<()> {
                         Ok(kyn) => kyn.kyn,
                         Err(_) => kinetic_core::types::Kyn::now_local().0,
                     };
-                    gossip::handle_governance_gossip(
+                    gossip::handle_action_gossip(
                         actual_payload,
                         gossip_action_path.clone(),
                         Some(gossip_network_client.clone()),

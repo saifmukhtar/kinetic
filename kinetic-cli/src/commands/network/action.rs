@@ -24,7 +24,7 @@ pub enum ActionCommands {
 /// - The JSON contents cannot be parsed into a `SignedGovernanceMessage`.
 /// - The `admin.token` cannot be found or read from the local API token directory.
 /// - The daemon API cannot be reached or returns a non-200 HTTP error status.
-pub async fn handle_governance_command(
+pub async fn handle_action_command(
     cmd: ActionCommands,
     config: &KineticConfig,
     client: &Client,

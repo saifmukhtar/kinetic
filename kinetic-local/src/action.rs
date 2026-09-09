@@ -21,7 +21,7 @@ pub fn save_governance_to_disk(
     Ok(())
 }
 
-pub fn load_governance_from_disk(path: &std::path::Path) -> GovernanceState {
+pub fn load_action_from_disk(path: &std::path::Path) -> GovernanceState {
     match std::fs::File::open(path) {
         Ok(file) => match bincode::deserialize_from(file) {
             Ok(state) => state,

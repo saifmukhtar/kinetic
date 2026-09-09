@@ -86,7 +86,7 @@ pub const KADEMLIA_PROVIDER_RECORD_TTL_SECS: u64 = 4 * 3600;
 pub const KADEMLIA_PUBLICATION_INTERVAL_SECS: u64 = 3 * 3600;
 
 /// Purpose string used in PBKDF2 for deriving ML-DSA-65 deterministic governance keys.
-pub const KINETIC_GOVERNANCE_KEY_PURPOSE: &str = concat!(
+pub const KINETIC_ACTION_KEY_PURPOSE: &str = concat!(
     env!("KINETIC_NSP"),
     "-",
     env!("KINETIC_SALT_PREFIX"),
@@ -152,7 +152,7 @@ pub const ENV_CONFIG: &str = concat!(env!("KINETIC_NSP_UPPER"), "_CONFIG");
 pub const ENV_P2P: &str = concat!(env!("KINETIC_NSP_UPPER"), "_P2P");
 /// Environment variable string to override the backend proxy port for the host (e.g. `KINETIC_MAINNET_BACKEND`).
 pub const ENV_BACKEND: &str = concat!(env!("KINETIC_NSP_UPPER"), "_BACKEND");
-/// Environment variable string to override the governance state file path (e.g. `KINETIC_MAINNET_GOV`).
+/// Environment variable string to override the governance state file path (e.g. `KINETIC_MAINNET_ACTION`).
 pub const ENV_ACTION: &str = concat!(env!("KINETIC_NSP_UPPER"), "_ACTION");
 /// Environment variable string to specify the instance name for host worker multiplexing (e.g. `KINETIC_MAINNET_INSTANCE`).
 pub const ENV_INSTANCE: &str = concat!(env!("KINETIC_NSP_UPPER"), "_INSTANCE");
