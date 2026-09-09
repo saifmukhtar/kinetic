@@ -80,10 +80,10 @@ pub fn handle_action_gossip(
                 tokio::task::spawn_blocking(move || {
                     if let Some(client) = client_clone {
                         let _ = tokio::spawn(async move {
-                            let _ = client.update_gov_action_log(action_log).await;
+                            let _ = client.update_action_log(action_log).await;
                         });
                     }
-                    if let Err(e) = kinetic_local::action::save_governance_to_disk(
+                    if let Err(e) = kinetic_local::action::save_action_to_disk(
                         &state_snapshot,
                         &gossip_action_path,
                     ) {
@@ -103,10 +103,10 @@ pub fn handle_action_gossip(
                 tokio::task::spawn_blocking(move || {
                     if let Some(client) = client_clone {
                         let _ = tokio::spawn(async move {
-                            let _ = client.update_gov_action_log(action_log).await;
+                            let _ = client.update_action_log(action_log).await;
                         });
                     }
-                    if let Err(e) = kinetic_local::action::save_governance_to_disk(
+                    if let Err(e) = kinetic_local::action::save_action_to_disk(
                         &state_snapshot,
                         &gossip_action_path,
                     ) {

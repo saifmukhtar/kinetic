@@ -110,7 +110,7 @@ pub fn start_gossip_processor(
                                             _ => {}
                                         }
                                     }
-                                    if let Err(e) = kinetic_local::action::save_governance_to_disk(
+                                    if let Err(e) = kinetic_local::action::save_action_to_disk(
                                         &state,
                                         &gossip_action_path,
                                     ) {
@@ -128,7 +128,7 @@ pub fn start_gossip_processor(
                                     tracing::info!(
                                         "Governance state updated via gossip. No immediate effect."
                                     );
-                                    if let Err(e) = kinetic_local::action::save_governance_to_disk(
+                                    if let Err(e) = kinetic_local::action::save_action_to_disk(
                                         &state,
                                         &gossip_action_path,
                                     ) {
@@ -152,7 +152,7 @@ pub fn start_gossip_processor(
                         };
                         if should_update_log {
                             if let Some(log) = log {
-                                let _ = network_client.update_gov_action_log(log).await;
+                                let _ = network_client.update_action_log(log).await;
                             }
                         }
                     }

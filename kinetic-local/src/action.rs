@@ -10,7 +10,7 @@ lazy_static! {
         )));
 }
 
-pub fn save_governance_to_disk(
+pub fn save_action_to_disk(
     state: &GovernanceState,
     path: &std::path::Path,
 ) -> std::io::Result<()> {

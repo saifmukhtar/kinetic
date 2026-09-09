@@ -672,7 +672,7 @@ paths:
                 $ref: '#/components/schemas/PublishResponse'
   /api/v1/micro/action/publish:
     post:
-      operationId: publishGovernance
+      operationId: publishAction
       summary: Broadcast a signed network action (governance proposal) [Public]
       tags: [Action]
       requestBody:

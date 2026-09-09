@@ -76,9 +76,9 @@ pub async fn start_gossip_listener(
                     let action_log = cloned_state.action_log.clone();
                     tokio::task::spawn_blocking(move || {
                         let _ = tokio::spawn(async move {
-                            let _ = client_clone.update_gov_action_log(action_log).await;
+                            let _ = client_clone.update_action_log(action_log).await;
                         });
-                        if let Err(e) = kinetic_local::action::save_governance_to_disk(
+                        if let Err(e) = kinetic_local::action::save_action_to_disk(
                             &cloned_state,
                             &path_clone,
                         ) {

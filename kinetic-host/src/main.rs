@@ -259,7 +259,7 @@ async fn run_host() -> Result<()> {
         let gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
             .lock()
             .unwrap();
-        let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
+        let _ = network_client.update_action_log(gov.action_log.clone()).await;
     }
 
     // If local state is empty, perform a P2P sync
@@ -284,10 +284,10 @@ async fn run_host() -> Result<()> {
                                         tracing::error!("Failed to apply synced gov action: {}", e);
                                     }
                                 }
-                                kinetic_local::action::save_governance_to_disk(&*gov, &action_state_path);
+                                kinetic_local::action::save_action_to_disk(&*gov, &action_state_path);
                                 drop(gov);
                                 let gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
-                                let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
+                                let _ = network_client.update_action_log(gov.action_log.clone()).await;
                                 break;
                             }
                         }

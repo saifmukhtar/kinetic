@@ -130,7 +130,7 @@ pub enum Command {
         responder: oneshot::Sender<std::result::Result<kinetic_types::action::ActionSyncResponse, ProxyError>>,
     },
     /// Update the local cache of the governance action log.
-    UpdateGovActionLog {
+    UpdateActionLog {
         /// The latest list of executed governance actions.
         actions: Vec<kinetic_types::action::SignedGovernanceMessage>,
     },

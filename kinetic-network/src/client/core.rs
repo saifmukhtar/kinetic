@@ -134,7 +134,7 @@ impl NetworkClient {
     }
 
     /// Updates the background event loop's cache of the governance action log.
-    pub async fn update_gov_action_log(
+    pub async fn update_action_log(
         &self,
         actions: Vec<kinetic_types::action::SignedGovernanceMessage>,
     ) -> std::result::Result<(), NetworkClientError> {
@@ -144,7 +144,7 @@ impl NetworkClient {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         sender_clone
-            .send(Command::UpdateGovActionLog { actions })
+            .send(Command::UpdateActionLog { actions })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         Ok(())

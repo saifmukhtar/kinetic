@@ -381,7 +381,7 @@ impl super::core::NetworkEventLoop {
                 let req_id = self.swarm.behaviour_mut().action_sync.send_request(&peer, *req);
                 self.pending_action_sync_requests.insert(req_id, responder);
             }
-            Command::UpdateGovActionLog { actions } => {
+            Command::UpdateActionLog { actions } => {
                 self.action_log = actions;
                 tracing::debug!("Network event loop updated internal action_log with {} actions", self.action_log.len());
             }

@@ -205,7 +205,7 @@ pub async fn handle_publish_action(
                             .join(config.daemon.storage_dir)
                             .join("action.db")
                     });
-                if let Err(e) = kinetic_local::action::save_governance_to_disk(&gov, &path) {
+                if let Err(e) = kinetic_local::action::save_action_to_disk(&gov, &path) {
                     let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                     tracing::error!(
                         error_code = err.code(),

@@ -89,7 +89,7 @@ fn test_infra_mappings() {
 }
 
 #[test]
-fn test_governance_stale_rejection() {
+fn test_action_stale_rejection() {
     let root_sk = get_root_sk();
     let current_kyn = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
