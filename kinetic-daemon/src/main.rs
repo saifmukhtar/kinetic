@@ -429,13 +429,13 @@ async fn run_daemon() -> Result<()> {
         return Err(e.into());
     }
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_ACTION)
+    let action_state_path = std::env::var(kinetic_core::constants::ENV_ACTION)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| storage_dir.join("action.db"));
 
 
 
-    let gov_state_path = std::sync::Arc::new(gov_state_path);
+    let action_state_path = std::sync::Arc::new(action_state_path);
     {
         let mut gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE
             .lock()
@@ -444,7 +444,7 @@ async fn run_daemon() -> Result<()> {
                     e.to_string(),
                 ))
             })?;
-        *gov = kinetic_local::action::load_governance_from_disk(&gov_state_path);
+        *gov = kinetic_local::action::load_governance_from_disk(&action_state_path);
     }
 
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
@@ -490,12 +490,12 @@ async fn run_daemon() -> Result<()> {
             .action_log.is_empty();
 
         if is_empty {
-            tracing::info!("Local governance state is empty. Attempting P2P GovSync...");
+            tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await; // give it time to connect
             if let Ok(peers) = network_client.get_connected_peers().await {
                 for peer_str in peers {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
-                        if let Ok(resp) = network_client.send_gov_sync_request(peer_id, kinetic_types::action::GovSyncRequest { from_kyn: 0 }).await {
+                        if let Ok(resp) = network_client.send_action_sync_request(peer_id, kinetic_types::action::ActionSyncRequest { from_kyn: 0 }).await {
                             if !resp.actions.is_empty() {
                                 tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
                                 let mut gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
@@ -504,7 +504,7 @@ async fn run_daemon() -> Result<()> {
                                         tracing::error!("Failed to apply synced gov action: {}", e);
                                     }
                                 }
-                                kinetic_local::action::save_governance_to_disk(&*gov, &gov_state_path);
+                                kinetic_local::action::save_governance_to_disk(&*gov, &action_state_path);
                                 drop(gov);
                                 let gov = kinetic_local::action::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
                                 let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
@@ -534,7 +534,7 @@ async fn run_daemon() -> Result<()> {
     kinetic_daemon::services::gossip::start_gossip_processor(
         network_client.clone(),
         gossip_rx,
-        gov_state_path.clone(),
+        action_state_path.clone(),
         kyn_provider.clone(),
         kyn_tx.clone(),
         Some(storage.clone()),

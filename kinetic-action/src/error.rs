@@ -206,8 +206,8 @@ impl GovernanceError {
             Self::InvalidSignature => {
                 "The message signature does not cryptographically match the configured root key.".to_string()
             }
-            Self::InvalidPrimeLength => "Prime names governed by this action must be exactly 1 character long.".to_string(),
-            Self::InvalidProtocolName => "Protocol names governed by this action must be valid Category 2 names.".to_string(),
+            Self::InvalidPrimeLength => "Prime names managed by this action must be exactly 1 character long.".to_string(),
+            Self::InvalidProtocolName => "Protocol names managed by this action must be valid Category 2 names.".to_string(),
             Self::AlreadyMapped => "The requested name is already mapped. It must be explicitly unmapped first.".to_string(),
             Self::NotMapped => "The requested name is not currently mapped.".to_string(),
             Self::UnnormalizedName => "The name payload must be strictly normalized (no .kin suffix, lowercase).".to_string(),

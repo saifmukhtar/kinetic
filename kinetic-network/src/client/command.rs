@@ -121,13 +121,13 @@ pub enum Command {
         responder: oneshot::Sender<std::result::Result<Vec<(String, u64)>, NetworkClientError>>,
     },
     /// Send a request to a remote node to sync governance state.
-    SendGovSyncRequest {
+    SendActionSyncRequest {
         /// The remote peer ID.
         peer: libp2p::PeerId,
         /// The gov sync request payload.
-        req: Box<kinetic_types::action::GovSyncRequest>,
+        req: Box<kinetic_types::action::ActionSyncRequest>,
         /// Channel to return the gov sync response.
-        responder: oneshot::Sender<std::result::Result<kinetic_types::action::GovSyncResponse, ProxyError>>,
+        responder: oneshot::Sender<std::result::Result<kinetic_types::action::ActionSyncResponse, ProxyError>>,
     },
     /// Update the local cache of the governance action log.
     UpdateGovActionLog {

@@ -73,10 +73,10 @@ pub struct NetworkEventLoop {
         libp2p::request_response::OutboundRequestId,
         std::sync::Arc<str>, // The apex name being requested
     >,
-    pub(crate) pending_gov_sync_requests: FxHashMap<
+    pub(crate) pending_action_sync_requests: FxHashMap<
         libp2p::request_response::OutboundRequestId,
         oneshot::Sender<
-            std::result::Result<kinetic_types::action::GovSyncResponse, crate::client::ProxyError>,
+            std::result::Result<kinetic_types::action::ActionSyncResponse, crate::client::ProxyError>,
         >,
     >,
     pub(crate) action_log: Vec<kinetic_types::action::SignedGovernanceMessage>,

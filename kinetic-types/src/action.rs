@@ -26,7 +26,7 @@ pub type PublicKeyBytes = Vec<u8>;
 /// Raw ML-DSA-65 signature bytes (typically 3309 bytes for ML-DSA-65).
 pub type SignatureBytes = Vec<u8>;
 
-/// Enumerates privileged protocol actions governed by network governance.
+/// Enumerates privileged protocol actions managed by the network action system.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GovernanceAction {
     /// Grant a 1-character premium name (Root key only).
@@ -374,14 +374,14 @@ mod tests {
 
 /// Request to sync historical governance actions.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GovSyncRequest {
+pub struct ActionSyncRequest {
     /// The local node's current Kyn. Unused currently, but useful for filtering later.
     pub from_kyn: u64,
 }
 
 /// Response containing historical governance actions.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GovSyncResponse {
+pub struct ActionSyncResponse {
     /// The append-only log of all executed signed governance messages.
     pub actions: Vec<SignedGovernanceMessage>,
 }

@@ -57,7 +57,7 @@ impl KineticRecordStore {
     /// * `lru_cache_size` - The maximum number of reveals to cache in memory.
     /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per apex name.
     /// * `vdf_engine` - The backend engine used to verify VDF proofs.
-    /// * `gov_state` - The global governance state for emergency pause checks.
+    /// * `action_state` - The global action state for emergency pause checks.
     ///
     /// # Panics
     ///

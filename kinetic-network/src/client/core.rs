@@ -111,11 +111,11 @@ impl NetworkClient {
     }
 
     /// Sends a request to sync governance state from a remote node.
-    pub async fn send_gov_sync_request(
+    pub async fn send_action_sync_request(
         &self,
         peer: libp2p::PeerId,
-        req: kinetic_types::action::GovSyncRequest,
-    ) -> std::result::Result<kinetic_types::action::GovSyncResponse, ProxyError> {
+        req: kinetic_types::action::ActionSyncRequest,
+    ) -> std::result::Result<kinetic_types::action::ActionSyncResponse, ProxyError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self
             .sender
@@ -123,7 +123,7 @@ impl NetworkClient {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         sender_clone
-            .send(Command::SendGovSyncRequest {
+            .send(Command::SendActionSyncRequest {
                 peer,
                 req: Box::new(req),
                 responder: tx,

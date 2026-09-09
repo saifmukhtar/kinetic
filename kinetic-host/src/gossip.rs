@@ -12,7 +12,7 @@ pub async fn start_gossip_listener(
     kyn_provider: Arc<dyn KynProvider>,
     network_client: kinetic_network::NetworkClient,
     mut gossip_rx: tokio::sync::broadcast::Receiver<(String, Vec<u8>, MessageId, PeerId)>,
-    gov_state_path: Arc<PathBuf>,
+    action_state_path: Arc<PathBuf>,
 ) {
     while let Ok((topic, payload, _, _)) = gossip_rx.recv().await {
         if topic == kinetic_core::constants::GOSSIP_TOPIC_GLOBAL {
@@ -71,7 +71,7 @@ pub async fn start_gossip_listener(
                     }
                 };
                 if should_save {
-                    let path_clone = gov_state_path.clone();
+                    let path_clone = action_state_path.clone();
                     let client_clone = network_client.clone();
                     let action_log = cloned_state.action_log.clone();
                     tokio::task::spawn_blocking(move || {

@@ -17,7 +17,7 @@
 //!
 //! $$\text{Multiplier} = \left(\frac{\text{steal\_target\_kyns}}{\text{kyns\_idle} + 1}\right)^2$$
 
-/// Consensus parameters governing VDF difficulty and name takeover decay rates.
+/// Consensus parameters controlling VDF difficulty and name takeover decay rates.
 pub struct ConsensusParams {
     /// Number of Drand kyns a name must remain idle before takeover difficulty decays to $1\times$.
     pub steal_target_kyns: u64,

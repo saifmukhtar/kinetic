@@ -156,9 +156,9 @@ pub(crate) fn build_full_swarm(
                 libp2p::request_response::Config::default(),
             );
 
-            let gov_sync = libp2p::request_response::cbor::Behaviour::<
-                kinetic_types::action::GovSyncRequest,
-                kinetic_types::action::GovSyncResponse,
+            let action_sync = libp2p::request_response::cbor::Behaviour::<
+                kinetic_types::action::ActionSyncRequest,
+                kinetic_types::action::ActionSyncResponse,
             >::new(
                 [(
                     libp2p::StreamProtocol::try_from_owned(format!(
@@ -248,7 +248,7 @@ pub(crate) fn build_full_swarm(
                 ping,
                 proxy,
                 cdn,
-                gov_sync,
+                action_sync,
                 stream,
                 kademlia,
                 gossipsub,
