@@ -16,15 +16,14 @@ pub enum GovernanceCommands {
     },
 }
 
-/// Processes a governance CLI command, signs the action, and publishes it to the network.
+/// Reads a pre-signed governance message from a JSON file and broadcasts it to the network via the local daemon.
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if:
-/// - Target keys cannot be parsed or decoded from hex.
-/// - Pre-flight validation against mirror manifest files fails.
-/// - The local governance identity keypair cannot be loaded.
-/// - The daemon API cannot be reached or returns an error.
-/// - The governance message signature fails to generate.
+/// - The specified JSON file cannot be read from disk.
+/// - The JSON contents cannot be parsed into a `SignedGovernanceMessage`.
+/// - The `admin.token` cannot be found or read from the local API token directory.
+/// - The daemon API cannot be reached or returns a non-200 HTTP error status.
 pub async fn handle_governance_command(
     cmd: GovernanceCommands,
     config: &KineticConfig,
@@ -46,15 +45,22 @@ pub async fn handle_governance_command(
         std::fs::read_to_string(kinetic_local::config::get_api_tokens_dir().join("admin.token"))?;
 
     let publish_url = format!(
-        "http://{}:{}/publish-governance",
+        "http://{}:{}/api/v1/micro/action/publish",
         config.daemon.bind_ip, port
     );
+    let pb = indicatif::ProgressBar::new_spinner();
+    pb.set_style(indicatif::ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+    pb.set_message("Publishing governance action...");
+    pb.enable_steady_tick(std::time::Duration::from_millis(100));
+
     let publish_resp = client
         .post(&publish_url)
         .header("Authorization", format!("Bearer {}", token.trim()))
         .json(&msg)
         .send()
         .await?;
+
+    pb.finish_and_clear();
 
     if publish_resp.status().is_success() {
         println!("Successfully published governance action to the Kinetic Network!");

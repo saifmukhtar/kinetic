@@ -147,7 +147,7 @@ pub async fn handle_identity_command(
                 auth_kid.owner_signature = keypair.sign(&signable);
 
                 let daemon_url = format!(
-                    "http://{}:{}/v1/micro/kid/publish",
+                    "http://{}:{}/api/v1/micro/kid/publish",
                     config.daemon.bind_ip, config.daemon.api_port
                 );
                 info!(
@@ -180,7 +180,7 @@ pub async fn handle_identity_command(
                 auth_manifest.owner_signature = keypair.sign(&signable);
 
                 let daemon_url = format!(
-                    "http://{}:{}/v1/micro/kid/manifest/publish",
+                    "http://{}:{}/api/v1/micro/kid/manifest/publish",
                     config.daemon.bind_ip, config.daemon.api_port
                 );
                 info!(
@@ -201,7 +201,7 @@ pub async fn handle_identity_command(
         }
         IdentityCommands::Resolve { did } => {
             let daemon_url = format!(
-                "http://{}:{}/v1/micro/kid/resolve/{}",
+                "http://{}:{}/api/v1/micro/kid/resolve/{}",
                 config.daemon.bind_ip, config.daemon.api_port, did
             );
             info!("Resolving {} via local daemon...", did);
@@ -377,7 +377,7 @@ mod tests {
         }
         let app = Router::new()
             .route(
-                "/v1/micro/kid/publish",
+                "/api/v1/micro/kid/publish",
                 post(|| async {
                     axum::response::Response::builder()
                         .status(200)
@@ -386,7 +386,7 @@ mod tests {
                 }),
             )
             .route(
-                "/v1/micro/kid/resolve/{did}",
+                "/api/v1/micro/kid/resolve/{did}",
                 get(
                     |axum::extract::Path(did): axum::extract::Path<String>| async move {
                         if did == format!("{}valid", kinetic_core::constants::DID_PREFIX) {

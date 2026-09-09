@@ -22,7 +22,7 @@ mod commands;
 mod utils;
 
 use clap::Parser;
-use commands::{Commands, handle_service_command};
+use commands::Commands;
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser)]
@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Setup(cmd) => {
-            commands::setup::handle_setup_command(cmd).await?;
+            commands::utilities::setup::handle_setup_command(cmd).await?;
         }
         Commands::Name { cmd } => {
             let client = utils::build_client(30)?;
@@ -55,41 +55,29 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Identity { cmd } => {
             let client = utils::build_client(30)?;
-            commands::identity::handle_identity_command(cmd, &config, &client).await?;
+            commands::crypto::identity::handle_identity_command(cmd, &config, &client).await?;
         }
         Commands::Seed { cmd } => {
-            commands::seed::handle_seed_command(cmd).await?;
+            commands::crypto::seed::handle_seed_command(cmd).await?;
         }
-        Commands::Governance { cmd } => {
+        Commands::Network { cmd } => {
             let client = utils::build_client(30)?;
-            commands::governance::handle_governance_command(cmd, &config, &client).await?;
+            commands::network::handle_network_command(cmd, &config, &client).await?;
         }
         Commands::DnsTree { cmd } => {
-            commands::dns_tree::handle_dns_tree_command(cmd).await?;
+            commands::utilities::dns_tree::handle_dns_tree_command(cmd).await?;
         }
-        Commands::Daemon { cmd } => {
-            let bin = format!("{}-daemon", kinetic_core::constants::NSP);
-            handle_service_command(&bin, cmd, false).await?;
+        Commands::System { cmd } => {
+            let client = utils::build_client(30)?;
+            commands::services::handle_services_command(cmd, &config, &client).await?;
         }
-        Commands::Host { cmd } => {
-            let bin = format!("{}-host", kinetic_core::constants::NSP);
-            handle_service_command(&bin, cmd, false).await?;
-        }
-        Commands::Node { cmd } => {
-            let bin = format!("{}-node", kinetic_core::constants::NSP);
-            handle_service_command(&bin, cmd, false).await?;
-        }
-        Commands::Dns { cmd } => {
-            let bin = format!("{}-dns", kinetic_core::constants::NSP);
-            handle_service_command(&bin, cmd, true).await?;
-        }
-        Commands::Pac { cmd } => {
-            let bin = format!("{}-pac", kinetic_core::constants::NSP);
-            handle_service_command(&bin, cmd, false).await?;
+        Commands::Auth { cmd } => {
+            let client = utils::build_client(30)?;
+            commands::auth::handle_auth_command(cmd, &config, &client).await?;
         }
         Commands::Clock(args) => {
             let client = utils::build_client(30)?;
-            commands::clock::handle_clock_command(args, &config, &client).await?;
+            commands::utilities::clock::handle_clock_command(args, &config, &client).await?;
         }
     }
 

@@ -32,9 +32,9 @@ pub fn save_zone_file(fqdn: &str, zone: &kinetic_core::types::NrsZone) -> anyhow
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(fqdn) {
         anyhow::bail!("Invalid apex name: {:?}", e);
     }
-    let zones_dir = get_zones_dir();
-    std::fs::create_dir_all(&zones_dir).context("Failed to create zones directory")?;
-    let path = zones_dir.join(format!("{}.json", fqdn));
+    let config_dir = get_zones_dir().join("config");
+    std::fs::create_dir_all(&config_dir).context("Failed to create zones config directory")?;
+    let path = config_dir.join(format!("{}.json", fqdn));
     let json_str = serde_json::to_string_pretty(zone).context("Failed to serialize zone data")?;
     std::fs::write(path, json_str).context("Failed to write zone file to disk")
 }
