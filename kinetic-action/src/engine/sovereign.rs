@@ -7,7 +7,7 @@
 use crate::error::GovernanceError;
 use crate::traits::ActionEngine;
 use crate::types::{
-    GovernanceAction, ActionConfig, ActionEffect, GovernanceState, SignedGovernanceMessage,
+    GovernanceAction, ActionConfig, ActionEffect, ActionState, SignedGovernanceMessage,
     verify_signature,
 };
 
@@ -25,7 +25,7 @@ impl ActionEngine for SovereignEngine {
     /// - Returns [`GovernanceError::InvalidSignature`] if the Root key signature is missing or invalid.
     fn verify_action(
         &self,
-        state: &mut GovernanceState,
+        state: &mut ActionState,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
@@ -130,12 +130,12 @@ impl ActionEngine for SovereignEngine {
 
     fn execute_action(
         &self,
-        state: &mut GovernanceState,
+        state: &mut ActionState,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
         _config: &ActionConfig,
     ) -> Option<ActionEffect> {
-        let action_hash = GovernanceState::hash_action(msg);
+        let action_hash = ActionState::hash_action(msg);
         state
             .executed_hashes
             .insert(action_hash, kinetic_types::clock::Kyn(msg.timestamp_kyn));

@@ -3,7 +3,7 @@
 mod tests {
     use super::super::logic::process_action_message;
     use super::super::types::{
-        GovernanceAction, ActionEffect, GovernanceState, PublicKeyBytes,
+        GovernanceAction, ActionEffect, ActionState, PublicKeyBytes,
         SignedGovernanceMessage,
     };
     use kinetic_primitives::keys::KineticKeypair;
@@ -42,7 +42,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
 
         let (_, target_pubkey) = generate_key(99);
 
@@ -110,7 +110,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
 
         // Generate a new Root Key
         let (new_root_sk, new_root_pubkey) = generate_key(123);
@@ -212,7 +212,7 @@ mod tests {
             prop_assert_eq!(&bytes, &msg_clone.to_bytes());
 
             // Ensure hash computation does not panic
-            let hash = GovernanceState::hash_action(&msg);
+            let hash = ActionState::hash_action(&msg);
             prop_assert_eq!(hash.len(), 32);
         }
     }
@@ -225,7 +225,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
         assert!(!state.is_halted);
@@ -277,7 +277,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
         // Try to UnmapPrime (should fail)
@@ -353,7 +353,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
         let mut msg = SignedGovernanceMessage {
@@ -395,7 +395,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
         let (_, target_pubkey) = generate_key(99);
 
         // Test invalid infra name
@@ -450,7 +450,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
 
         // Create a message that is exactly MAX_AGE_KYNS + 1 old
         let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;

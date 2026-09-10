@@ -1,6 +1,6 @@
 use crate::logic::process_action_message;
 use crate::types::{
-    GovernanceAction, ActionEffect, GovernanceState, PublicKeyBytes, SignedGovernanceMessage,
+    GovernanceAction, ActionEffect, ActionState, PublicKeyBytes, SignedGovernanceMessage,
 };
 use kinetic_primitives::keys::KineticKeypair;
 use kinetic_types::clock::Kyn;
@@ -39,7 +39,7 @@ fn test_infra_mappings() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let mut state = GovernanceState::new(Kyn(current_kyn));
+    let mut state = ActionState::new(Kyn(current_kyn));
     let (_, target_pubkey) = generate_key(99);
 
     // Test invalid infra name
@@ -95,7 +95,7 @@ fn test_action_stale_rejection() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let mut state = GovernanceState::new(Kyn(current_kyn));
+    let mut state = ActionState::new(Kyn(current_kyn));
 
     // Create a message that is exactly MAX_AGE_KYNS + 1 old
     let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;

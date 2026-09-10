@@ -1,19 +1,20 @@
 //! Core governance state transitions and message signature aggregation.
 //!
-//! Implements the `GovernanceState` mutating operations that are called by the
-//! active [`ActionEngine`](crate::traits::ActionEngine) after signature verification:
-//! - [`GovernanceState::new`] — genesis state initialization
-//! - [`GovernanceState::hash_action`] — deterministic SHA-256 action hash derivation
-//! - [`GovernanceState::prune`] — stale proposal garbage collection
-//! - [`GovernanceState::get_sovereign_key`] — root verification key retrieval
-//! - [`GovernanceState::verify_action`] — engine action verification
-//! - [`GovernanceState::execute_action`] — engine action execution
+//! Implements the `ActionState` mutating operations that are called by the
+//! engine (Sovereign or Permissionless) during execution.
+//!
+//! - [`ActionState::new`] — genesis state initialization
+//! - [`ActionState::hash_action`] — deterministic SHA-256 action hash derivation
+//! - [`ActionState::prune`] — stale proposal garbage collection
+//! - [`ActionState::get_sovereign_key`] — root verification key retrieval
+//! - [`ActionState::verify_action`] — engine action verification
+//! - [`ActionState::execute_action`] — engine action execution
 
 use std::collections::HashMap;
 
 use crate::error::GovernanceError;
 use crate::types::{
-    ActionConfig, ActionEffect, GovernanceState, Hash256, PublicKeyBytes,
+    ActionConfig, ActionEffect, ActionState, Hash256, PublicKeyBytes,
     SignedGovernanceMessage,
 };
 
@@ -45,15 +46,15 @@ pub fn validate_keys_initialized(
     Ok(())
 }
 
-impl GovernanceState {
-    /// Initializes a new [`GovernanceState`] at network genesis.
+impl ActionState {
+    /// Initializes a new [`ActionState`] at network genesis.
     ///
     /// The state starts in `ActionMode::Founder` with an empty council,
     /// no pending updates, and no prime mappings.
     ///
     /// # Returns
     ///
-    /// A new `GovernanceState` ready for genesis block processing.
+    /// A new `ActionState` ready for genesis block processing.
     pub fn new(genesis_kyn: kinetic_types::clock::Kyn) -> Self {
         Self {
             genesis_kyn,
@@ -154,7 +155,7 @@ impl GovernanceState {
 ///
 /// Returns a `GovernanceError` if the action fails verification or execution rules.
 pub fn process_action_message(
-    state: &mut GovernanceState,
+    state: &mut ActionState,
     msg: &SignedGovernanceMessage,
     current_kyn: kinetic_types::clock::Kyn,
     config: &ActionConfig,
@@ -163,7 +164,7 @@ pub fn process_action_message(
 
     state.prune(current_kyn, config);
 
-    let action_hash = GovernanceState::hash_action(msg);
+    let action_hash = ActionState::hash_action(msg);
     if state.executed_hashes.contains_key(&action_hash) {
         return Err(GovernanceError::AlreadyExecuted);
     }

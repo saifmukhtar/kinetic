@@ -5,7 +5,7 @@
 
 use crate::error::GovernanceError;
 use crate::traits::ActionEngine;
-use crate::types::{ActionConfig, ActionEffect, GovernanceState, SignedGovernanceMessage};
+use crate::types::{ActionConfig, ActionEffect, ActionState, SignedGovernanceMessage};
 
 /// Development-only engine driver where all governance modifications are rejected.
 ///
@@ -20,7 +20,7 @@ impl ActionEngine for PermissionlessEngine {
     /// - Always returns [`GovernanceError::ActionDisabled`].
     fn verify_action(
         &self,
-        _state: &mut GovernanceState,
+        _state: &mut ActionState,
         _msg: &SignedGovernanceMessage,
         _current_kyn: kinetic_types::clock::Kyn,
         _config: &ActionConfig,
@@ -32,7 +32,7 @@ impl ActionEngine for PermissionlessEngine {
 
     fn execute_action(
         &self,
-        _state: &mut GovernanceState,
+        _state: &mut ActionState,
         _msg: &SignedGovernanceMessage,
         _current_kyn: kinetic_types::clock::Kyn,
         _config: &ActionConfig,

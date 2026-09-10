@@ -1,17 +1,17 @@
-use kinetic_core::action::GovernanceState;
+use kinetic_core::action::ActionState;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::time::SystemTime;
 
 lazy_static! {
-    pub static ref GLOBAL_ACTION_STATE: Mutex<GovernanceState> =
-        Mutex::new(GovernanceState::new(kinetic_core::types::clock::Kyn(
+    pub static ref GLOBAL_ACTION_STATE: Mutex<ActionState> =
+        Mutex::new(ActionState::new(kinetic_core::types::clock::Kyn(
             kinetic_core::constants::KINETIC_GENESIS_KYN
         )));
 }
 
 pub fn save_action_to_disk(
-    state: &GovernanceState,
+    state: &ActionState,
     path: &std::path::Path,
 ) -> std::io::Result<()> {
     let parent = path.parent().unwrap_or_else(|| std::path::Path::new("."));
@@ -21,7 +21,7 @@ pub fn save_action_to_disk(
     Ok(())
 }
 
-pub fn load_action_from_disk(path: &std::path::Path) -> GovernanceState {
+pub fn load_action_from_disk(path: &std::path::Path) -> ActionState {
     match std::fs::File::open(path) {
         Ok(file) => match bincode::deserialize_from(file) {
             Ok(state) => state,
@@ -47,7 +47,7 @@ pub fn load_action_from_disk(path: &std::path::Path) -> GovernanceState {
                 );
             }
         },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => GovernanceState::new(
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => ActionState::new(
             kinetic_core::types::clock::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
         ),
         Err(e) => {

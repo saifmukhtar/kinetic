@@ -1,6 +1,6 @@
 //! Data structures and serialized action types for network governance.
 //!
-//! Defines the complete set of [`GovernanceAction`] variants, the persistent [`GovernanceState`],
+//! Defines the complete set of [`GovernanceAction`] variants, the persistent [`ActionState`],
 //! the [`SignedGovernanceMessage`] proposal envelope, and canonical byte serialization.
 //!
 //! ## Protocol Context
@@ -68,7 +68,7 @@ pub enum ActionEffect {
 
 /// Persistent on-disk state container for the network governance subsystem.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GovernanceState {
+pub struct ActionState {
     /// Genesis Kyn when governance tracking started.
     pub genesis_kyn: kinetic_types::clock::Kyn,
     /// Active ML-DSA-65 root public key controlling the network.
@@ -99,7 +99,7 @@ pub struct GovernanceState {
     pub mapped_infra_names: HashMap<String, PublicKeyBytes>,
 }
 
-impl GovernanceState {
+impl ActionState {
     /// Calculates the exact number of paused kyns that occurred *after* a specific target kyn.
     pub fn paused_kyns_since(&self, target_kyn: kinetic_types::clock::Kyn) -> u64 {
         let mut total = 0;
@@ -126,8 +126,8 @@ mod tests {
     use kinetic_types::clock::Kyn;
     use std::collections::HashMap;
 
-    fn mock_state() -> GovernanceState {
-        GovernanceState {
+    fn mock_state() -> ActionState {
+        ActionState {
             genesis_kyn: Kyn(0),
             active_sovereign_key: None,
             is_halted: false,

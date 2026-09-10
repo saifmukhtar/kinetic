@@ -1,5 +1,5 @@
 use crate::error::GovernanceError;
-use crate::types::{ActionEffect, GovernanceState, SignedGovernanceMessage};
+use crate::types::{ActionEffect, ActionState, SignedGovernanceMessage};
 
 pub trait ActionEngine: Send + Sync {
     /// Verifies whether a signed governance message meets threshold and timelock requirements.
@@ -21,7 +21,7 @@ pub trait ActionEngine: Send + Sync {
     /// - Returns [`GovernanceError::MissingRootKey`] (`KIN-ACN-001`) if the root key is unconfigured.
     fn verify_action(
         &self,
-        state: &mut GovernanceState,
+        state: &mut ActionState,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &crate::types::ActionConfig,
@@ -38,7 +38,7 @@ pub trait ActionEngine: Send + Sync {
     /// council change). `None` if the action was enqueued for a future timelock.
     fn execute_action(
         &self,
-        state: &mut GovernanceState,
+        state: &mut ActionState,
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &crate::types::ActionConfig,
