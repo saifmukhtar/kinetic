@@ -30,7 +30,7 @@ pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
 
 /// Side effects produced when a governance action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum GovernanceEffect {
+pub enum ActionEffect {
     /// Inform node subsystems of a prime name mapping.
     PrimeMapped {
         /// Granted 1-character name.

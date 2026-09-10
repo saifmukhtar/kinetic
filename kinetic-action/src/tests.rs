@@ -3,7 +3,7 @@
 mod tests {
     use super::super::logic::process_action_message;
     use super::super::types::{
-        GovernanceAction, GovernanceEffect, GovernanceState, PublicKeyBytes,
+        GovernanceAction, ActionEffect, GovernanceState, PublicKeyBytes,
         SignedGovernanceMessage,
     };
     use kinetic_primitives::keys::KineticKeypair;
@@ -92,7 +92,7 @@ mod tests {
             )
             .unwrap();
 
-            if let Some(GovernanceEffect::PrimeMapped {
+            if let Some(ActionEffect::PrimeMapped {
                 name: mapped_name, ..
             }) = effect
             {
@@ -136,7 +136,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             effect,
-            Some(GovernanceEffect::RootKeyRotated { .. })
+            Some(ActionEffect::RootKeyRotated { .. })
         ));
 
         // The state should now have the new root key
@@ -179,7 +179,7 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::PrimeMapped { .. })));
+        assert!(matches!(effect, Some(ActionEffect::PrimeMapped { .. })));
     }
 
     use proptest::prelude::*;
@@ -245,7 +245,7 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
+        assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
         assert!(state.is_halted);
 
         let mut resume_msg = SignedGovernanceMessage {
@@ -264,7 +264,7 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::NetworkResumed)));
+        assert!(matches!(effect, Some(ActionEffect::NetworkResumed)));
         assert!(!state.is_halted);
         assert_eq!(state.total_paused_kyns, 1000);
     }
@@ -341,7 +341,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             effect,
-            Some(GovernanceEffect::PrimeUnmapped { .. })
+            Some(ActionEffect::PrimeUnmapped { .. })
         ));
     }
 
@@ -371,7 +371,7 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
+        assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
 
         // Resubmitting the exact same message triggers the new AlreadyExecuted taxonomy error
         let err = process_action_message(
@@ -440,7 +440,7 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::InfraMapped { .. })));
+        assert!(matches!(effect, Some(ActionEffect::InfraMapped { .. })));
     }
 
     #[test]

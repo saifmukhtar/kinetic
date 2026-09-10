@@ -1,6 +1,6 @@
 use crate::logic::process_action_message;
 use crate::types::{
-    GovernanceAction, GovernanceEffect, GovernanceState, PublicKeyBytes, SignedGovernanceMessage,
+    GovernanceAction, ActionEffect, GovernanceState, PublicKeyBytes, SignedGovernanceMessage,
 };
 use kinetic_primitives::keys::KineticKeypair;
 use kinetic_types::clock::Kyn;
@@ -85,7 +85,7 @@ fn test_infra_mappings() {
         &get_test_config(),
     )
     .unwrap();
-    assert!(matches!(effect, Some(GovernanceEffect::InfraMapped { .. })));
+    assert!(matches!(effect, Some(ActionEffect::InfraMapped { .. })));
 }
 
 #[test]

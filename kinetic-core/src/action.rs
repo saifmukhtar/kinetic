@@ -7,7 +7,7 @@ pub use kinetic_action::error::GovernanceError;
 pub use kinetic_action::traits::ActionEngine;
 pub use kinetic_action::types;
 pub use kinetic_action::types::{
-    GovernanceAction, GovernanceEffect, GovernanceState, SignedGovernanceMessage, verify_signature,
+    GovernanceAction, ActionEffect, GovernanceState, SignedGovernanceMessage, verify_signature,
 };
 
 /// Wraps logic bindings that require configurations.
@@ -40,7 +40,7 @@ pub fn process_action_message(
     state: &mut GovernanceState,
     msg: &SignedGovernanceMessage,
     current_kyn: kinetic_types::clock::Kyn,
-) -> Result<Option<GovernanceEffect>, GovernanceError> {
+) -> Result<Option<ActionEffect>, GovernanceError> {
     kinetic_action::logic::process_action_message(
         state,
         msg,

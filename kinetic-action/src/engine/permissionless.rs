@@ -5,7 +5,7 @@
 
 use crate::error::GovernanceError;
 use crate::traits::ActionEngine;
-use crate::types::{ActionConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage};
+use crate::types::{ActionConfig, ActionEffect, GovernanceState, SignedGovernanceMessage};
 
 /// Development-only engine driver where all governance modifications are rejected.
 ///
@@ -24,7 +24,7 @@ impl ActionEngine for PermissionlessEngine {
         _msg: &SignedGovernanceMessage,
         _current_kyn: kinetic_types::clock::Kyn,
         _config: &ActionConfig,
-    ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+    ) -> Result<Option<ActionEffect>, GovernanceError> {
         // In Permissionless mode, the network is perfectly immutable.
         // No governance actions (updates, name revocations) are allowed.
         Err(GovernanceError::ActionDisabled)
@@ -36,7 +36,7 @@ impl ActionEngine for PermissionlessEngine {
         _msg: &SignedGovernanceMessage,
         _current_kyn: kinetic_types::clock::Kyn,
         _config: &ActionConfig,
-    ) -> Option<GovernanceEffect> {
+    ) -> Option<ActionEffect> {
         unreachable!("Governance execution is permanently disabled in Permissionless mode")
     }
 }

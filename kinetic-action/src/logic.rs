@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::error::GovernanceError;
 use crate::types::{
-    ActionConfig, GovernanceEffect, GovernanceState, Hash256, PublicKeyBytes,
+    ActionConfig, ActionEffect, GovernanceState, Hash256, PublicKeyBytes,
     SignedGovernanceMessage,
 };
 
@@ -123,7 +123,7 @@ impl GovernanceState {
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
-    ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+    ) -> Result<Option<ActionEffect>, GovernanceError> {
         crate::engine::get_active_engine(&config.action_model).verify_action(
             self,
             msg,
@@ -138,7 +138,7 @@ impl GovernanceState {
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
-    ) -> Option<GovernanceEffect> {
+    ) -> Option<ActionEffect> {
         crate::engine::get_active_engine(&config.action_model).execute_action(
             self,
             msg,
@@ -158,7 +158,7 @@ pub fn process_action_message(
     msg: &SignedGovernanceMessage,
     current_kyn: kinetic_types::clock::Kyn,
     config: &ActionConfig,
-) -> Result<Option<GovernanceEffect>, GovernanceError> {
+) -> Result<Option<ActionEffect>, GovernanceError> {
     let effect = state.verify_action(msg, current_kyn, config)?;
 
     state.prune(current_kyn, config);

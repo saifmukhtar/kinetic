@@ -63,11 +63,11 @@ pub fn start_gossip_processor(
 
                                     if let Some(storage) = &storage {
                                         use kinetic_core::constants::DB_PREFIX_REVEAL;
-                                        use kinetic_core::action::types::GovernanceEffect;
+                                        use kinetic_core::action::types::ActionEffect;
                                         use kinetic_core::types::NameRecord;
 
                                         match &effect {
-                                            GovernanceEffect::PrimeMapped {
+                                            ActionEffect::PrimeMapped {
                                                 name,
                                                 target_pubkey,
                                             } => {
@@ -91,7 +91,7 @@ pub fn start_gossip_processor(
                                                     );
                                                 }
                                             }
-                                            GovernanceEffect::PrimeUnmapped { name } => {
+                                            ActionEffect::PrimeUnmapped { name } => {
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                                                 let _ = storage.delete(key.as_bytes());
                                                 tracing::info!(
@@ -99,7 +99,7 @@ pub fn start_gossip_processor(
                                                     name
                                                 );
                                             }
-                                            GovernanceEffect::InfraUnmapped { name } => {
+                                            ActionEffect::InfraUnmapped { name } => {
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                                                 let _ = storage.delete(key.as_bytes());
                                                 tracing::info!(

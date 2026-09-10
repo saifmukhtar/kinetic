@@ -34,11 +34,11 @@ pub fn handle_action_gossip(
                 tracing::info!("Governance state updated via gossip. Effect: {:?}", effect);
                 if let Some(storage) = storage {
                     use kinetic_core::constants::DB_PREFIX_REVEAL;
-                    use kinetic_core::action::types::GovernanceEffect;
+                    use kinetic_core::action::types::ActionEffect;
                     use kinetic_core::types::NameRecord;
 
                     match &effect {
-                        GovernanceEffect::PrimeMapped {
+                        ActionEffect::PrimeMapped {
                             name,
                             target_pubkey,
                         } => {
@@ -62,12 +62,12 @@ pub fn handle_action_gossip(
                                 );
                             }
                         }
-                        GovernanceEffect::PrimeUnmapped { name } => {
+                        ActionEffect::PrimeUnmapped { name } => {
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             let _ = storage.delete(key.as_bytes());
                             tracing::info!("Revoked NameRecord::Prime from storage for {}", name);
                         }
-                        GovernanceEffect::InfraUnmapped { name } => {
+                        ActionEffect::InfraUnmapped { name } => {
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             let _ = storage.delete(key.as_bytes());
                             tracing::info!("Revoked NameRecord::Infra from storage for {}", name);
@@ -179,7 +179,7 @@ mod tests {
         };
         let payload = serde_json::to_vec(&msg).unwrap();
 
-        // This should parse JSON successfully, but the process_governance_message should fail
+        // This should parse JSON successfully, but the process_action_message should fail
         // or reject it. It should not panic.
         handle_action_gossip(&payload, path, None, None, 100);
     }

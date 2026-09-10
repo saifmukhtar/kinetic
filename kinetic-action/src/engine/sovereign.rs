@@ -7,7 +7,7 @@
 use crate::error::GovernanceError;
 use crate::traits::ActionEngine;
 use crate::types::{
-    GovernanceAction, ActionConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
+    GovernanceAction, ActionConfig, ActionEffect, GovernanceState, SignedGovernanceMessage,
     verify_signature,
 };
 
@@ -29,7 +29,7 @@ impl ActionEngine for SovereignEngine {
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
-    ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+    ) -> Result<Option<ActionEffect>, GovernanceError> {
         if current_kyn.0.abs_diff(msg.timestamp_kyn) > config.max_age_kyns {
             return Err(GovernanceError::StaleProposal);
         }
@@ -63,7 +63,7 @@ impl ActionEngine for SovereignEngine {
                     if state.mapped_prime_names.contains_key(name) {
                         return Err(GovernanceError::AlreadyMapped);
                     }
-                    GovernanceEffect::PrimeMapped {
+                    ActionEffect::PrimeMapped {
                         name: name.clone(),
                         target_pubkey: target_pubkey.clone(),
                     }
@@ -81,7 +81,7 @@ impl ActionEngine for SovereignEngine {
                     if !state.mapped_prime_names.contains_key(name) {
                         return Err(GovernanceError::NotMapped);
                     }
-                    GovernanceEffect::PrimeUnmapped { name: name.clone() }
+                    ActionEffect::PrimeUnmapped { name: name.clone() }
                 }
                 GovernanceAction::MapInfra {
                     name,
@@ -96,7 +96,7 @@ impl ActionEngine for SovereignEngine {
                     if state.mapped_infra_names.contains_key(name) {
                         return Err(GovernanceError::AlreadyMapped);
                     }
-                    GovernanceEffect::InfraMapped {
+                    ActionEffect::InfraMapped {
                         name: name.clone(),
                         target_pubkey: target_pubkey.clone(),
                     }
@@ -108,18 +108,18 @@ impl ActionEngine for SovereignEngine {
                     if !state.mapped_infra_names.contains_key(name) {
                         return Err(GovernanceError::NotMapped);
                     }
-                    GovernanceEffect::InfraUnmapped { name: name.clone() }
+                    ActionEffect::InfraUnmapped { name: name.clone() }
                 }
                 GovernanceAction::RotateRootKey { new_key } => {
                     if new_key.len() != 1952 {
                         return Err(GovernanceError::KeyLengthMismatch);
                     }
-                    GovernanceEffect::RootKeyRotated {
+                    ActionEffect::RootKeyRotated {
                         new_key: new_key.clone(),
                     }
                 }
-                GovernanceAction::EmergencyHalt => GovernanceEffect::NetworkHalted,
-                GovernanceAction::EmergencyResume => GovernanceEffect::NetworkResumed,
+                GovernanceAction::EmergencyHalt => ActionEffect::NetworkHalted,
+                GovernanceAction::EmergencyResume => ActionEffect::NetworkResumed,
             };
 
             return Ok(Some(effect));
@@ -134,7 +134,7 @@ impl ActionEngine for SovereignEngine {
         msg: &SignedGovernanceMessage,
         current_kyn: kinetic_types::clock::Kyn,
         _config: &ActionConfig,
-    ) -> Option<GovernanceEffect> {
+    ) -> Option<ActionEffect> {
         let action_hash = GovernanceState::hash_action(msg);
         state
             .executed_hashes
@@ -148,14 +148,14 @@ impl ActionEngine for SovereignEngine {
                 state
                     .mapped_prime_names
                     .insert(name.clone(), target_pubkey.clone());
-                Some(GovernanceEffect::PrimeMapped {
+                Some(ActionEffect::PrimeMapped {
                     name: name.clone(),
                     target_pubkey: target_pubkey.clone(),
                 })
             }
             GovernanceAction::UnmapPrime { name } => {
                 state.mapped_prime_names.remove(name);
-                Some(GovernanceEffect::PrimeUnmapped { name: name.clone() })
+                Some(ActionEffect::PrimeUnmapped { name: name.clone() })
             }
             GovernanceAction::MapInfra {
                 name,
@@ -164,18 +164,18 @@ impl ActionEngine for SovereignEngine {
                 state
                     .mapped_infra_names
                     .insert(name.clone(), target_pubkey.clone());
-                Some(GovernanceEffect::InfraMapped {
+                Some(ActionEffect::InfraMapped {
                     name: name.clone(),
                     target_pubkey: target_pubkey.clone(),
                 })
             }
             GovernanceAction::UnmapInfra { name } => {
                 state.mapped_infra_names.remove(name);
-                Some(GovernanceEffect::InfraUnmapped { name: name.clone() })
+                Some(ActionEffect::InfraUnmapped { name: name.clone() })
             }
             GovernanceAction::RotateRootKey { new_key } => {
                 state.active_sovereign_key = Some(new_key.clone());
-                Some(GovernanceEffect::RootKeyRotated {
+                Some(ActionEffect::RootKeyRotated {
                     new_key: new_key.clone(),
                 })
             }
@@ -186,7 +186,7 @@ impl ActionEngine for SovereignEngine {
                         state.halt_start_kyn = Some(current_kyn);
                     }
                 }
-                Some(GovernanceEffect::NetworkHalted)
+                Some(ActionEffect::NetworkHalted)
             }
             GovernanceAction::EmergencyResume => {
                 if state.is_halted {
@@ -196,7 +196,7 @@ impl ActionEngine for SovereignEngine {
                     state.total_paused_kyns = state.total_paused_kyns.saturating_add(paused_kyns);
                     state.pause_history.push((start_kyn, current_kyn));
                 }
-                Some(GovernanceEffect::NetworkResumed)
+                Some(ActionEffect::NetworkResumed)
             }
         }
     }
