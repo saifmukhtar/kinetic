@@ -1,4 +1,4 @@
-//! HTTP REST API handlers for querying the Governance transparency layer.
+//! HTTP REST API handlers for querying the Action transparency layer.
 
 use axum::Json;
 use kinetic_core::types::KynNetworkExt;
@@ -22,14 +22,14 @@ pub struct ActionMetrics {
     pub total_prime_names: usize,
     /// Count of mapped infrastructure root names.
     pub total_infra_names: usize,
-    /// Total number of governance/action commands executed since genesis.
+    /// Total number of action/action commands executed since genesis.
     pub total_executed_actions: usize,
 }
 
-/// A frontend-friendly representation of the Action/Governance State.
+/// A frontend-friendly representation of the Action/Action State.
 #[derive(Serialize)]
 pub struct ActionStatusResponse {
-    /// Genesis Kyn when governance tracking started.
+    /// Genesis Kyn when action tracking started.
     pub genesis_kyn: u64,
     /// The current exact network Kyn.
     pub current_kyn: u64,
@@ -159,7 +159,7 @@ use kinetic_core::traits::KynProvider;
 ///
 /// # Errors
 ///
-/// Returns an error if the governance message is invalid, quorum checks fail prematurely,
+/// Returns an error if the action message is invalid, quorum checks fail prematurely,
 /// or publishing to the Gossipsub network fails.
 pub async fn handle_publish_action(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
@@ -172,7 +172,7 @@ pub async fn handle_publish_action(
             "Insufficient privileges: Requires Action or Admin role".to_string(),
         ));
     }
-    tracing::info!("Received API publish request for Governance action");
+    tracing::info!("Received API publish request for Action action");
 
     let current_kyn = {
         let kyn_provider =
@@ -210,7 +210,7 @@ pub async fn handle_publish_action(
                     let err = kinetic_core::error::ActionError::StateSaveFailed;
                     tracing::error!(
                         error_code = err.code(),
-                        "Failed to save modified governance state to disk: {}",
+                        "Failed to save modified action state to disk: {}",
                         e
                     );
                 }
@@ -220,12 +220,12 @@ pub async fn handle_publish_action(
             Err(e) => {
                 tracing::warn!(
                     error_code = e.code(),
-                    "Rejecting governance message via API: {}",
+                    "Rejecting action message via API: {}",
                     e
                 );
                 return Err((
                     StatusCode::BAD_REQUEST,
-                    format!("Invalid governance message: {}", e),
+                    format!("Invalid action message: {}", e),
                 ));
             }
         }
@@ -234,7 +234,7 @@ pub async fn handle_publish_action(
     if !is_valid {
         return Err((
             StatusCode::BAD_REQUEST,
-            "Governance message validation failed".to_string(),
+            "Action message validation failed".to_string(),
         ));
     }
 
@@ -249,7 +249,7 @@ pub async fn handle_publish_action(
         }
     };
 
-    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Governance as u8];
+    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Action as u8];
     envelope.extend(payload_bytes);
 
     match state
@@ -258,17 +258,17 @@ pub async fn handle_publish_action(
         .await
     {
         Ok(_) => {
-            tracing::info!("Successfully published Governance Message to the Gossip network");
+            tracing::info!("Successfully published Action Message to the Gossip network");
             Ok(Json(PublishResponse {
                 status: "success".to_string(),
-                message: "Governance action accepted and routed to P2P network".to_string(),
+                message: "Action action accepted and routed to P2P network".to_string(),
             }))
         }
         Err(e) => {
             let err = kinetic_core::error::ActionError::P2pPublishFailed;
             tracing::error!(
                 error_code = err.code(),
-                "Failed to publish Governance Message to P2P network: {}",
+                "Failed to publish Action Message to P2P network: {}",
                 e
             );
             Err((

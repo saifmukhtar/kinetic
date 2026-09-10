@@ -1,8 +1,8 @@
-//! Core governance data structures, action opcodes, and canonical binary serialization.
+//! Core action data structures, action opcodes, and canonical binary serialization.
 //!
 //! Provides the data structures and binary parsing logic for privileged network actions
 //! on the Kinetic network. This module is self-contained so that offline, air-gapped
-//! key management and signing tools can construct, sign, and verify governance proposals
+//! key management and signing tools can construct, sign, and verify action proposals
 //! without pulling in network dependencies.
 //!
 //! ## Action Opcodes
@@ -67,7 +67,7 @@ pub enum NetworkAction {
 /// Proposal message container with signatures from authorized council members.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SignedActionMessage {
-    /// Target governance action payload.
+    /// Target action action payload.
     pub action: NetworkAction,
     /// Unix timestamp in drand kyns when the proposal was signed.
     pub timestamp_kyn: u64,
@@ -76,7 +76,7 @@ pub struct SignedActionMessage {
 }
 
 impl SignedActionMessage {
-    /// Serializes the governance message into a canonical byte vector for SHA-256 hashing and ML-DSA-65 signature verification.
+    /// Serializes the action message into a canonical byte vector for SHA-256 hashing and ML-DSA-65 signature verification.
     ///
     /// Each [`NetworkAction`] variant is prefixed with a 1-byte opcode:
     ///
@@ -149,14 +149,14 @@ impl SignedActionMessage {
     }
 }
 
-/// Errors arising from canonical governance message parsing and validation.
+/// Errors arising from canonical action message parsing and validation.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum ActionTypeError {
     /// Provided byte slice is shorter than the minimum expected header or field size.
-    #[error("Buffer too small for parsing governance payload")]
+    #[error("Buffer too small for parsing action payload")]
     BufferTooSmall,
-    /// Opcode byte does not match any recognized governance action.
-    #[error("Unknown governance opcode: 0x{0:02X}")]
+    /// Opcode byte does not match any recognized action action.
+    #[error("Unknown action opcode: 0x{0:02X}")]
     UnknownOpcode(u8),
     /// Name string field contains invalid UTF-8 bytes.
     #[error("Invalid UTF-8 sequence in premium name string")]
@@ -291,7 +291,7 @@ mod tests {
 
     #[test]
     fn test_parse_invalid_opcode() {
-        // Opcode 0xFF is not a valid governance action
+        // Opcode 0xFF is not a valid action action
         let mut buf = vec![0xFF];
         buf.extend_from_slice(&[0; 8]); // Dummy timestamp
         let result = NetworkAction::parse_payload(&buf);
@@ -375,16 +375,16 @@ mod tests {
     }
 }
 
-/// Request to sync historical governance actions.
+/// Request to sync historical action actions.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionSyncRequest {
     /// The local node's current Kyn. Unused currently, but useful for filtering later.
     pub from_kyn: u64,
 }
 
-/// Response containing historical governance actions.
+/// Response containing historical action actions.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionSyncResponse {
-    /// The append-only log of all executed signed governance messages.
+    /// The append-only log of all executed signed action messages.
     pub actions: Vec<SignedActionMessage>,
 }

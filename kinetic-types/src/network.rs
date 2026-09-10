@@ -9,7 +9,7 @@
 #[repr(u8)]
 pub enum NetworkOpcode {
     /// Action broadcast by the root authority.
-    Governance = 0x01,
+    Action = 0x01,
     /// Clock synchronization pulse from the Drand Quicknet.
     Drand = 0x02,
     /// Anonymous network health statistics.
@@ -20,7 +20,7 @@ impl NetworkOpcode {
     /// Safely parses a single byte into a `NetworkOpcode`, if recognized.
     pub fn from_u8(val: u8) -> Option<Self> {
         match val {
-            0x01 => Some(Self::Governance),
+            0x01 => Some(Self::Action),
             0x02 => Some(Self::Drand),
             0x03 => Some(Self::Telemetry),
             _ => None,
@@ -96,7 +96,7 @@ mod tests {
         // Valid OpCodes
         assert_eq!(
             NetworkOpcode::from_u8(0x01),
-            Some(NetworkOpcode::Governance)
+            Some(NetworkOpcode::Action)
         );
         assert_eq!(NetworkOpcode::from_u8(0x02), Some(NetworkOpcode::Drand));
         assert_eq!(NetworkOpcode::from_u8(0x03), Some(NetworkOpcode::Telemetry));

@@ -8,7 +8,7 @@
 //!
 //! - Maintaining a stable Kademlia DHT peer identity (static keypair on disk).
 //! - Participating in record storage and routing for the `.kin` namespace.
-//! - Relaying governance gossip messages across the network.
+//! - Relaying action gossip messages across the network.
 //! - Exposing a health-check HTTP API on port 16003.
 //!
 //! Multiple infrastructure nodes run as part of the Kinetic bootstrap
@@ -154,16 +154,16 @@ async fn main() -> Result<()> {
 /// Instead, it focuses on:
 /// - Maintaining a stable Kademlia DHT peer identity (using a static key on disk).
 /// - Providing high-availability routing for the `.kin` namespace.
-/// - Relaying and persisting governance state updates.
+/// - Relaying and persisting action state updates.
 ///
-/// # Errors
-///
-/// Returns an `anyhow::Error` if fundamental networking, storage, or key generation fails.
-async fn run_node() -> Result<()> {
+/// In most deployments, infra nodes will bind to all interfaces (0.0.0.0)
+/// on standard DHT (e.g. 16001), Web (e.g. 16002), and Health (e.g. 16003) ports.
+/// Ensure your environment limits external access correctly.
+pub async fn run_node() -> Result<()> {
     if let Err(e) = kinetic_core::action::logic::validate_keys_initialized() {
         tracing::error!(
             error_code = e.code(),
-            "FATAL: Network cannot boot with a bricked governance plane: {}",
+            "FATAL: Network cannot boot with a bricked action plane: {}",
             e
         );
         std::process::exit(1);
@@ -306,7 +306,7 @@ async fn run_node() -> Result<()> {
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL)
         .await;
 
-    // Push initial local governance log to the network cache
+    // Push initial local action log to the network cache
     {
         let action_state = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
@@ -329,7 +329,7 @@ async fn run_node() -> Result<()> {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
                         if let Ok(resp) = network_client.send_action_sync_request(peer_id, kinetic_types::action::ActionSyncRequest { from_kyn: 0 }).await {
                             if !resp.actions.is_empty() {
-                                tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
+                                tracing::info!("Received {} action actions from {}", resp.actions.len(), peer_id);
                                 let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
                                 // Validate and apply locally first
                                 for msg in &resp.actions {
@@ -380,7 +380,7 @@ async fn run_node() -> Result<()> {
                 let opcode = payload[0];
                 let actual_payload = &payload[1..];
 
-                if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
                     use kinetic_core::types::clock::KynNetworkExt;
                     let current_kyn = match kyn_provider_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,

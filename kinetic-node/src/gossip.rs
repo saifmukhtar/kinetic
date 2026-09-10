@@ -1,14 +1,14 @@
-//! Governance gossip message handler, state update processor, and disk persistence engine.
+//! Action gossip message handler, state update processor, and disk persistence engine.
 
 use kinetic_core::action::{SignedActionMessage, process_action_message};
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Handles incoming governance gossip messages over the P2P network.
+/// Handles incoming action gossip messages over the P2P network.
 ///
-/// Parses the signed governance message and applies it to the global governance state if valid.
-/// Any resulting updates to the governance state are then persisted to disk.
+/// Parses the signed action message and applies it to the global action state if valid.
+/// Any resulting updates to the action state are then persisted to disk.
 pub fn handle_action_gossip(
     payload: &[u8],
     gossip_action_path: Arc<PathBuf>,
@@ -31,7 +31,7 @@ pub fn handle_action_gossip(
 
         match effect_result {
             Ok(Some(effect)) => {
-                tracing::info!("Governance state updated via gossip. Effect: {:?}", effect);
+                tracing::info!("Action state updated via gossip. Effect: {:?}", effect);
                 if let Some(storage) = storage {
                     use kinetic_core::constants::DB_PREFIX_REVEAL;
                     use kinetic_core::action::types::ActionEffect;
@@ -90,14 +90,14 @@ pub fn handle_action_gossip(
                         let err = kinetic_core::error::ActionError::StateSaveFailed;
                         tracing::error!(
                             error_code = err.code(),
-                            "Failed to save modified governance state to disk: {}",
+                            "Failed to save modified action state to disk: {}",
                             e
                         );
                     }
                 });
             }
             Ok(None) => {
-                tracing::info!("Governance state updated via gossip. No immediate effect.");
+                tracing::info!("Action state updated via gossip. No immediate effect.");
                 let client_clone = network_client.clone();
                 let action_log = state_snapshot.action_log.clone();
                 tokio::task::spawn_blocking(move || {
@@ -113,7 +113,7 @@ pub fn handle_action_gossip(
                         let err = kinetic_core::error::ActionError::StateSaveFailed;
                         tracing::error!(
                             error_code = err.code(),
-                            "Failed to save modified governance state to disk: {}",
+                            "Failed to save modified action state to disk: {}",
                             e
                         );
                     }
@@ -126,24 +126,24 @@ pub fn handle_action_gossip(
                 match e.severity() {
                     Severity::Info => tracing::info!(
                         error_code = code,
-                        "Governance gossip message rejected: {}",
+                        "Action gossip message rejected: {}",
                         msg
                     ),
                     Severity::Warning => tracing::warn!(
                         error_code = code,
-                        "Governance gossip message rejected: {}",
+                        "Action gossip message rejected: {}",
                         msg
                     ),
                     Severity::Error | Severity::Critical => tracing::error!(
                         error_code = code,
-                        "Governance gossip message rejected: {}",
+                        "Action gossip message rejected: {}",
                         msg
                     ),
                 }
             }
         }
     } else {
-        tracing::debug!("Failed to parse governance gossip payload");
+        tracing::debug!("Failed to parse action gossip payload");
     }
 }
 

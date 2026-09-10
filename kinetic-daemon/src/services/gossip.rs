@@ -1,4 +1,4 @@
-//! Backgkyn pub/sub gossip message processor for governance updates and Drand time kyns.
+//! Backgkyn pub/sub gossip message processor for action updates and Drand time kyns.
 
 use kinetic_core::traits::KynProvider;
 /// Starts the backgkyn task that processes incoming pubsub gossip messages.
@@ -30,7 +30,7 @@ pub fn start_gossip_processor(
                 let opcode = payload[0];
                 let actual_payload = &payload[1..];
 
-                if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
                     let mut is_valid = false;
                     if let Ok(signed_msg) = serde_json::from_slice::<
                         kinetic_core::action::SignedActionMessage,
@@ -57,7 +57,7 @@ pub fn start_gossip_processor(
                                 Ok(Some(effect)) => {
                                     is_valid = true;
                                     tracing::info!(
-                                        "Governance state updated via gossip. Effect: {:?}",
+                                        "Action state updated via gossip. Effect: {:?}",
                                         effect
                                     );
 
@@ -117,7 +117,7 @@ pub fn start_gossip_processor(
                                         let err = kinetic_core::error::ActionError::StateSaveFailed;
                                         tracing::error!(
                                             error_code = err.code(),
-                                            "Failed to save modified governance state to disk: {}",
+                                            "Failed to save modified action state to disk: {}",
                                             e
                                         );
                                     }
@@ -126,7 +126,7 @@ pub fn start_gossip_processor(
                                 Ok(None) => {
                                     is_valid = true;
                                     tracing::info!(
-                                        "Governance state updated via gossip. No immediate effect."
+                                        "Action state updated via gossip. No immediate effect."
                                     );
                                     if let Err(e) = kinetic_local::action::save_action_to_disk(
                                         &state,
@@ -135,7 +135,7 @@ pub fn start_gossip_processor(
                                         let err = kinetic_core::error::ActionError::StateSaveFailed;
                                         tracing::error!(
                                             error_code = err.code(),
-                                            "Failed to save modified governance state to disk: {}",
+                                            "Failed to save modified action state to disk: {}",
                                             e
                                         );
                                     }
@@ -143,7 +143,7 @@ pub fn start_gossip_processor(
                                 }
                                 Err(e) => {
                                     tracing::debug!(
-                                        "Governance gossip message rejected by process_action_message: {:?}",
+                                        "Action gossip message rejected by process_action_message: {:?}",
                                         e
                                     );
                                     (false, None)

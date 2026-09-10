@@ -54,7 +54,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                             return kyn.verify();
                         }
                         return false;
-                    } else if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                    } else if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
                         if kinetic_core::constants::ACTION_MODEL == "permissionless" {
                             return false;
                         }

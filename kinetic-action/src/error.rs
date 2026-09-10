@@ -1,4 +1,4 @@
-//! Governance action verification and voting error types (`KIN-ACN-NNN`).
+//! Action action verification and voting error types (`KIN-ACN-NNN`).
 //!
 //! [`ActionError`] is returned by the active [`ActionEngine`](crate::traits::ActionEngine)
 //! when a [`SignedActionMessage`](crate::types::SignedActionMessage) fails
@@ -6,7 +6,7 @@
 //!
 //! ## Protocol Context
 //!
-//! Kinetic governance is pluggable: `network.json` selects one of the engines
+//! Kinetic action is pluggable: `network.json` selects one of the engines
 //! (`sovereign` or `permissionless`) at compile time. Each engine
 //! runs `verify_action()` before any state mutation occurs.
 //!
@@ -15,11 +15,11 @@
 
 use thiserror::Error;
 
-/// Errors relating to Kinetic global governance actions.
+/// Errors relating to Kinetic global action actions.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ActionError {
     /// **What**: The daemon started in Sovereign mode but the `SOVEREIGN_KEY_HEX` environment variable is missing.
-    /// **Why**: The daemon requires the root public key at startup to verify incoming governance actions.
+    /// **Why**: The daemon requires the root public key at startup to verify incoming action actions.
     /// **Fix**: Ensure the `SOVEREIGN_KEY_HEX` environment variable is set to a valid 64-character hex string.
     #[error("Missing SOVEREIGN_KEY_HEX environment variable")]
     MissingSovereignKey,
@@ -36,25 +36,25 @@ pub enum ActionError {
     #[error("Invalid root key length")]
     KeyLengthMismatch,
 
-    /// **What**: The proposed governance action is older than the current network head timestamp.
+    /// **What**: The proposed action action is older than the current network head timestamp.
     /// **Why**: The node rejects historical actions to prevent time-delay and replay attacks.
     /// **Fix**: This action was discarded. If you are the issuer, ensure your local clock is synced via NTP before signing.
-    #[error("Governance action is older than the current network state")]
+    #[error("Action action is older than the current network state")]
     StaleProposal,
 
-    /// **What**: A governance action with a specific ID has already been executed and recorded in the local state.
+    /// **What**: A action action with a specific ID has already been executed and recorded in the local state.
     /// **Why**: The network strictly deduplicates actions based on their cryptographic signature to prevent immediate replay attacks.
     /// **Fix**: This action was safely ignored. No further action is required.
-    #[error("Governance action has already been executed")]
+    #[error("Action action has already been executed")]
     AlreadyExecuted,
 
-    /// **What**: A governance action was received, but the node is running in permissionless mode.
-    /// **Why**: In permissionless testnets or specific deployments, global governance actions are universally rejected.
+    /// **What**: A action action was received, but the node is running in permissionless mode.
+    /// **Why**: In permissionless testnets or specific deployments, global action actions are universally rejected.
     /// **Fix**: The node safely dropped the message. Ensure you are targeting the correct network ID.
-    #[error("Governance is disabled in permissionless mode")]
+    #[error("Action is disabled in permissionless mode")]
     ActionDisabled,
 
-    /// **What**: The governance message signature failed cryptographic verification against the root key.
+    /// **What**: The action message signature failed cryptographic verification against the root key.
     /// **Why**: The payload was either tampered with in transit or signed by an unauthorized private key.
     /// **Fix**: The message was rejected. If you are the issuer, ensure you are signing with the correct ML-DSA-65 root private key.
     #[error("Invalid signature")]
@@ -62,70 +62,70 @@ pub enum ActionError {
 
     /// **What**: A prime name mapping or unmapping was attempted on a name that is not exactly 1 character long.
     /// **Why**: By protocol definition, Prime names (e.g., `a.kin`) are strictly reserved and must be exactly one character.
-    /// **Fix**: Correct your governance payload to target a 1-character name.
+    /// **Fix**: Correct your action payload to target a 1-character name.
     #[error("Prime name mappings must be exactly 1 character long")]
     InvalidPrimeLength,
 
     /// **What**: A protocol name mapping was attempted on a name that is not whitelisted in the Category 2 protocols list.
     /// **Why**: Category 2 names (e.g., `seed.kin`, `docs.kin`) are strictly defined in the protocol schema.
-    /// **Fix**: Ensure your governance payload targets a valid, recognized protocol name.
+    /// **Fix**: Ensure your action payload targets a valid, recognized protocol name.
     #[error("Protocol name mappings must target a valid Category 2 protocol name")]
     InvalidProtocolName,
 
-    /// **What**: A governance action attempted to map a name that is already currently mapped.
+    /// **What**: A action action attempted to map a name that is already currently mapped.
     /// **Why**: The state transition is invalid. Overwriting an active mapping directly is forbidden to prevent accidental hijacking.
     /// **Fix**: You must explicitly unmap the name first by publishing a revocation action before remapping it.
     #[error("Name is already mapped, explicitly unmap it first")]
     AlreadyMapped,
 
-    /// **What**: A governance action attempted to revoke or unmap a name that does not exist in the current state.
+    /// **What**: A action action attempted to revoke or unmap a name that does not exist in the current state.
     /// **Why**: The state transition is invalid as there is no active mapping to remove.
-    /// **Fix**: Verify the current governance state using the local REST API before issuing revocations.
+    /// **Fix**: Verify the current action state using the local REST API before issuing revocations.
     #[error("Name is not currently mapped")]
     NotMapped,
 
-    /// **What**: The name payload in the governance action was unnormalized.
+    /// **What**: The name payload in the action action was unnormalized.
     /// **Why**: Payloads must be strictly normalized (no `.kin` suffix, strictly lowercase) before being signed to ensure deterministic verification.
-    /// **Fix**: Use the `kinetic_types::names::normalize` function before signing your governance payload.
+    /// **Fix**: Use the `kinetic_types::names::normalize` function before signing your action payload.
     #[error(
-        "Name payloads in governance actions must be strictly normalized (no .kin suffix, lowercase, length checks)"
+        "Name payloads in action actions must be strictly normalized (no .kin suffix, lowercase, length checks)"
     )]
     UnnormalizedName,
 
-    /// **What**: The daemon could not persist the updated governance state to disk.
+    /// **What**: The daemon could not persist the updated action state to disk.
     /// **Why**: The file system may be read-only, or the daemon process lacks necessary write permissions.
     /// **Fix**: Check disk space and permissions for the `base_dir/networks/nsp-salt_id/` directory.
-    #[error("Failed to save modified governance state to disk")]
+    #[error("Failed to save modified action state to disk")]
     StateSaveFailed,
 
     /// **What**: The local node successfully verified the action, but could not broadcast it to the P2P network.
     /// **Why**: The GossipSub publish operation failed due to a lack of connected peers or a saturated network queue.
     /// **Fix**: Verify your node is well-connected to the mesh before issuing administrative actions.
-    #[error("Failed to publish Governance Message to P2P network")]
+    #[error("Failed to publish Action Message to P2P network")]
     P2pPublishFailed,
 
-    /// **What**: A bootstrap seed node provided governance bytes that failed decoding or validation.
+    /// **What**: A bootstrap seed node provided action bytes that failed decoding or validation.
     /// **Why**: The seed node may be running an incompatible protocol version or attempting to distribute a malicious state.
     /// **Fix**: The node disconnected from the seed and will try another. Ensure your configured bootstrap nodes are trustworthy.
-    #[error("Seed node provided invalid governance state bytes")]
+    #[error("Seed node provided invalid action state bytes")]
     InvalidSeedState,
 
-    /// **What**: The local governance JSON state file on disk is corrupted and cannot be parsed.
+    /// **What**: The local action JSON state file on disk is corrupted and cannot be parsed.
     /// **Why**: A previous write operation was interrupted by a power loss or crash, leaving partial JSON bytes.
     /// **Fix**: The daemon will refuse to start to avoid overwriting valid network state. You must manually delete the corrupted file and let it resync.
-    #[error("Governance state corrupted")]
+    #[error("Action state corrupted")]
     StateCorrupted,
 
-    /// **What**: The local governance file could not be read.
+    /// **What**: The local action file could not be read.
     /// **Why**: The file is missing, locked by another process, or has incorrect OS permissions.
     /// **Fix**: Ensure the daemon user has read access to the data directory.
-    #[error("Failed to read Governance state file")]
+    #[error("Failed to read Action state file")]
     StateReadFailed,
 
-    /// **What**: The node failed to pull the initial governance state from any bootstrap peers.
+    /// **What**: The node failed to pull the initial action state from any bootstrap peers.
     /// **Why**: All configured bootstrap nodes are offline, unreachable, or returning invalid states.
     /// **Fix**: The node cannot join the network without a valid initial state. Check your internet connection and bootstrap configuration.
-    #[error("Failed to fetch governance state from any bootstrap node")]
+    #[error("Failed to fetch action state from any bootstrap node")]
     BootstrapFetchFailed,
 }
 
@@ -197,11 +197,11 @@ impl ActionError {
             Self::MalformedSovereignKey => "The SOVEREIGN_KEY_HEX environment variable contains invalid characters and cannot be decoded.".to_string(),
 
             Self::KeyLengthMismatch => "The provided cryptographic key length is invalid.".to_string(),
-            Self::StaleProposal => "The proposed governance action is too old and has been rejected to prevent replay attacks.".to_string(),
-            Self::AlreadyExecuted => "The proposed governance action has already been executed on the network and cannot be replayed.".to_string(),
+            Self::StaleProposal => "The proposed action action is too old and has been rejected to prevent replay attacks.".to_string(),
+            Self::AlreadyExecuted => "The proposed action action has already been executed on the network and cannot be replayed.".to_string(),
 
             Self::ActionDisabled => {
-                "The network is operating in permissionless mode where governance actions are universally rejected.".to_string()
+                "The network is operating in permissionless mode where action actions are universally rejected.".to_string()
             }
             Self::InvalidSignature => {
                 "The message signature does not cryptographically match the configured root key.".to_string()
@@ -211,12 +211,12 @@ impl ActionError {
             Self::AlreadyMapped => "The requested name is already mapped. It must be explicitly unmapped first.".to_string(),
             Self::NotMapped => "The requested name is not currently mapped.".to_string(),
             Self::UnnormalizedName => "The name payload must be strictly normalized (no .kin suffix, lowercase).".to_string(),
-            Self::StateSaveFailed => "Failed to save the modified governance state to disk.".to_string(),
-            Self::P2pPublishFailed => "Failed to broadcast the governance message to the P2P network.".to_string(),
-            Self::InvalidSeedState => "A bootstrap seed node provided an invalid governance state.".to_string(),
-            Self::StateCorrupted => "The local governance state file is corrupted.".to_string(),
-            Self::StateReadFailed => "Failed to read the local governance state file from disk.".to_string(),
-            Self::BootstrapFetchFailed => "Failed to pull governance state from bootstrap nodes.".to_string(),
+            Self::StateSaveFailed => "Failed to save the modified action state to disk.".to_string(),
+            Self::P2pPublishFailed => "Failed to broadcast the action message to the P2P network.".to_string(),
+            Self::InvalidSeedState => "A bootstrap seed node provided an invalid action state.".to_string(),
+            Self::StateCorrupted => "The local action state file is corrupted.".to_string(),
+            Self::StateReadFailed => "Failed to read the local action state file from disk.".to_string(),
+            Self::BootstrapFetchFailed => "Failed to pull action state from bootstrap nodes.".to_string(),
         }
     }
 }

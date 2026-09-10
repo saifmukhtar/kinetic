@@ -1,4 +1,4 @@
-//! Core governance state transitions and message signature aggregation.
+//! Core action state transitions and message signature aggregation.
 //!
 //! Implements the `ActionState` mutating operations that are called by the
 //! engine (Sovereign or Permissionless) during execution.
@@ -18,7 +18,7 @@ use crate::types::{
     SignedActionMessage,
 };
 
-/// Validates that the static cryptographic keys required for governance have been correctly initialized.
+/// Validates that the static cryptographic keys required for action have been correctly initialized.
 ///
 /// # Errors
 ///
@@ -70,7 +70,7 @@ impl ActionState {
         }
     }
 
-    /// Computes the SHA-256 action hash for a signed governance message.
+    /// Computes the SHA-256 action hash for a signed action message.
     ///
     /// The hash is derived from `SHA-256(msg.to_bytes())` and is used as the
     /// stable key for all subsequent state operations (timelock map, partial proposal map).
@@ -114,7 +114,7 @@ impl ActionState {
         Ok(bytes)
     }
 
-    /// Verifies whether a signed governance message meets the quorum and validity rules to be executed.
+    /// Verifies whether a signed action message meets the quorum and validity rules to be executed.
     ///
     /// # Errors
     ///
@@ -133,7 +133,7 @@ impl ActionState {
         )
     }
 
-    /// Executes a verified governance action, applying its state changes and returning any resulting effects.
+    /// Executes a verified action action, applying its state changes and returning any resulting effects.
     pub fn execute_action(
         &mut self,
         msg: &SignedActionMessage,
@@ -149,7 +149,7 @@ impl ActionState {
     }
 }
 
-/// Processes an incoming governance message, merging its signatures and executing the action if quorum is met.
+/// Processes an incoming action message, merging its signatures and executing the action if quorum is met.
 ///
 /// # Errors
 ///

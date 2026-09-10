@@ -13,7 +13,7 @@
 include!(concat!(env!("OUT_DIR"), "/network_constants.rs"));
 
 /// The mathematically derived 32-byte cryptographic salt unique to this network's
-/// combination of `NETWORK_ID` and Sovereign Governance `ROOT_PUBLIC_KEY`.
+/// combination of `NETWORK_ID` and Sovereign Action `ROOT_PUBLIC_KEY`.
 /// Used natively across the architecture to mathematically isolate networks.
 #[cfg(not(test))]
 pub const NETWORK_SALT: &[u8; 32] = &NETWORK_SALT_PROD;
@@ -31,14 +31,14 @@ pub const NETWORK_SALT: &[u8; 32] = &NETWORK_SALT_TEST;
 pub const NETWORK_SALT_HEX: &str = NETWORK_SALT_HEX_TEST;
 
 // ============================================================================
-// 2. GOVERNANCE CONSENSUS TIMINGS & LIMITS
-// Used by: `kinetic-core/src/governance/logic.rs` and engines
+// 2. ACTION CONSENSUS TIMINGS & LIMITS
+// Used by: `kinetic-core/src/action/logic.rs` and engines
 // (Now dynamically injected from network.json via build.rs)
 // ============================================================================
 
 // ============================================================================
-// 3. GOVERNANCE CRYPTOGRAPHY
-// Used by: `kinetic-core/src/governance/logic.rs` and engines
+// 3. ACTION CRYPTOGRAPHY
+// Used by: `kinetic-core/src/action/logic.rs` and engines
 // ============================================================================
 
 /// The target number of leading zero bits required for PoW mining.
@@ -85,7 +85,7 @@ pub const KADEMLIA_PROVIDER_RECORD_TTL_SECS: u64 = 4 * 3600;
 /// The interval at which Kademlia provider records are republished in seconds (3 hours).
 pub const KADEMLIA_PUBLICATION_INTERVAL_SECS: u64 = 3 * 3600;
 
-/// Purpose string used in PBKDF2 for deriving ML-DSA-65 deterministic governance keys.
+/// Purpose string used in PBKDF2 for deriving ML-DSA-65 deterministic action keys.
 pub const KINETIC_ACTION_KEY_PURPOSE: &str = concat!(
     env!("KINETIC_NSP"),
     "-",
@@ -137,7 +137,7 @@ pub const DB_NAME_PING: &str = concat!(
     "_ping_db"
 );
 
-/// The primary global Gossipsub topic for network events (Governance, Drand, Ping, etc.).
+/// The primary global Gossipsub topic for network events (Action, Drand, Ping, etc.).
 pub const GOSSIP_TOPIC_GLOBAL: &str = NETWORK_SALT_HEX;
 
 // ============================================================================
@@ -152,7 +152,7 @@ pub const ENV_CONFIG: &str = concat!(env!("KINETIC_NSP_UPPER"), "_CONFIG");
 pub const ENV_P2P: &str = concat!(env!("KINETIC_NSP_UPPER"), "_P2P");
 /// Environment variable string to override the backend proxy port for the host (e.g. `KINETIC_MAINNET_BACKEND`).
 pub const ENV_BACKEND: &str = concat!(env!("KINETIC_NSP_UPPER"), "_BACKEND");
-/// Environment variable string to override the governance state file path (e.g. `KINETIC_MAINNET_ACTION`).
+/// Environment variable string to override the action state file path (e.g. `KINETIC_MAINNET_ACTION`).
 pub const ENV_ACTION: &str = concat!(env!("KINETIC_NSP_UPPER"), "_ACTION");
 /// Environment variable string to specify the instance name for host worker multiplexing (e.g. `KINETIC_MAINNET_INSTANCE`).
 pub const ENV_INSTANCE: &str = concat!(env!("KINETIC_NSP_UPPER"), "_INSTANCE");

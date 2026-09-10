@@ -1,11 +1,11 @@
-//! Data structures and serialized action types for network governance.
+//! Data structures and serialized action types for network action.
 //!
 //! Defines the complete set of [`NetworkAction`] variants, the persistent [`ActionState`],
 //! the [`SignedActionMessage`] proposal envelope, and canonical byte serialization.
 //!
 //! ## Protocol Context
 //!
-//! All governance state changes follow a two-phase commit protocol:
+//! All action state changes follow a two-phase commit protocol:
 //! 1. A [`SignedActionMessage`] is broadcast with one or more ML-DSA-65 signatures.
 //! 2. Threshold verification by the active [`ActionEngine`](crate::traits::ActionEngine)
 //!    determines whether the action is immediately executed or enters a timelock queue.
@@ -27,7 +27,7 @@ pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
     kinetic_primitives::verify_mldsa(pubkey, msg, sig).is_ok()
 }
 
-/// Side effects produced when a governance action is executed.
+/// Side effects produced when a action action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ActionEffect {
     /// Inform node subsystems of a prime name mapping.
@@ -65,10 +65,10 @@ pub enum ActionEffect {
     NetworkResumed,
 }
 
-/// Persistent on-disk state container for the network governance subsystem.
+/// Persistent on-disk state container for the network action subsystem.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionState {
-    /// Genesis Kyn when governance tracking started.
+    /// Genesis Kyn when action tracking started.
     pub genesis_kyn: kinetic_types::clock::Kyn,
     /// Active ML-DSA-65 root public key controlling the network.
     pub active_sovereign_key: Option<PublicKeyBytes>,
@@ -88,7 +88,7 @@ pub struct ActionState {
     /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
     #[serde(default)]
-    /// Append-only log of all executed signed governance messages (used for P2P state syncing).
+    /// Append-only log of all executed signed action messages (used for P2P state syncing).
     pub action_log: Vec<kinetic_types::action::SignedActionMessage>,
     /// Active 1-character prime names and their associated ML-DSA-65 public keys.
     #[serde(default)]
@@ -198,7 +198,7 @@ mod tests {
     }
 }
 
-/// Configuration constants required for governance evaluation.
+/// Configuration constants required for action evaluation.
 #[derive(Debug, Clone)]
 pub struct ActionConfig {
     /// The root public key hex string used to verify actions.
@@ -207,6 +207,6 @@ pub struct ActionConfig {
     pub max_age_kyns: u64,
     /// Whether the network is running in dev mode (bypasses root key validation).
     pub is_dev_mode: bool,
-    /// The governance model to use ("sovereign" or "permissionless").
+    /// The action model to use ("sovereign" or "permissionless").
     pub action_model: String,
 }
