@@ -14,7 +14,7 @@
 //! `[network_salt][u32_be(name.len())][name_bytes][u32_be(payload.len())][payload_bytes]`
 //!
 //! The 32-byte `NETWORK_SALT` prefix prevents cross-network replay attacks, as it
-//! cryptographically binds the signatures to the specific NETWORK_ID and Governance Root Key.
+//! cryptographically binds the signatures to the specific NETWORK_ID and Action Root Key.
 
 pub use kinetic_types::identity::{AuthorizedKid, AuthorizedManifest};
 

@@ -6,8 +6,8 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Pure governance and protocol action evaluation for the Kinetic Network."
-keywords = ["kinetic", "governance", "consensus"]
+description = "Pure action and protocol action evaluation for the Kinetic Network."
+keywords = ["kinetic", "action", "consensus"]
 categories = ["cryptography", "network-programming"]
 
 [dependencies]

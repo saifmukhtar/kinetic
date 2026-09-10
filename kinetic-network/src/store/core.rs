@@ -133,7 +133,7 @@ impl KineticRecordStore {
                         }
                         kinetic_core::types::NameRecord::Prime { .. }
                         | kinetic_core::types::NameRecord::Infra { .. } => {
-                            // Domains injected by governance are implicitly valid.
+                            // Domains injected by action are implicitly valid.
                             is_valid = true;
                         }
                     }

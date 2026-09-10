@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-/// API endpoints for governance management.
+/// API endpoints for action management.
 pub mod action;
 /// API endpoints for Atlas NSP sync.
 pub mod atlas;

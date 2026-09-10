@@ -11,7 +11,7 @@ use crate::types::{
     verify_signature,
 };
 
-/// Single-signer governance engine driver controlled exclusively by the Founder Root key.
+/// Single-signer action engine driver controlled exclusively by the Founder Root key.
 pub struct SovereignEngine;
 
 impl ActionEngine for SovereignEngine {

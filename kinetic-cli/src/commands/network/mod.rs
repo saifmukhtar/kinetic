@@ -8,8 +8,8 @@ pub mod bootstrap;
 
 #[derive(Subcommand)]
 pub enum NetworkCommands {
-    /// Submit proposals and manage Kinetic Network governance
-    Governance {
+    /// Submit proposals and manage Kinetic Network action
+    Action {
         #[command(subcommand)]
         cmd: action::ActionCommands,
     },
@@ -29,7 +29,7 @@ pub async fn handle_network_command(
     client: &reqwest::Client,
 ) -> anyhow::Result<()> {
     match cmd {
-        NetworkCommands::Governance { cmd } => {
+        NetworkCommands::Action { cmd } => {
             action::handle_action_command(cmd, config, client).await
         }
         NetworkCommands::Status => status::handle_status(config, client).await,

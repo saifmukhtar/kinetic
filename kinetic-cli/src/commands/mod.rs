@@ -25,7 +25,7 @@ pub enum Commands {
     },
     /// Interactive wizard to initialize your Kinetic node
     Setup(utilities::setup::SetupCommand),
-    /// Network operations (peers, status, bootstrap, governance)
+    /// Network operations (peers, status, bootstrap, action)
     Network {
         #[command(subcommand)]
         cmd: network::NetworkCommands,

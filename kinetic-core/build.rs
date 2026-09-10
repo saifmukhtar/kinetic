@@ -91,7 +91,7 @@ struct AdvancedSection {
 struct NetworkConfig {
     network: NetworkSection,
     drand: DrandSection,
-    #[serde(alias = "governance")]
+    #[serde(alias = "action")]
     action: ActionSection,
     consensus: ConsensusConfig,
     advanced: AdvancedSection,

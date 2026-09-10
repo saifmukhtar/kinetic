@@ -673,7 +673,7 @@ paths:
   /api/v1/micro/action/publish:
     post:
       operationId: publishAction
-      summary: Broadcast a signed network action (governance proposal) [Public]
+      summary: Broadcast a signed network action (action proposal) [Public]
       tags: [Action]
       requestBody:
         required: true

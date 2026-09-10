@@ -7,7 +7,7 @@
 //! - `ActionEngine`: Protocol proposal verification and state transitions.
 //!
 //! These traits enable `kinetic-core` to be network-agnostic. The concrete implementations
-//! live in `kinetic-vdf`, `kinetic-storage`, and `kinetic-core/src/governance/engine/`
+//! live in `kinetic-vdf`, `kinetic-storage`, and `kinetic-core/src/action/engine/`
 //! respectively. The active `ActionEngine` is selected at compile time from `network.json`
 //! via the `ACTION_MODEL` constant.
 

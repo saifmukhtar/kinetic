@@ -233,7 +233,7 @@ fn stop_background_service() -> Result<()> {
 /// Executes the main logic for the Kinetic Daemon.
 ///
 /// This function is responsible for:
-/// - Validating the governance key state.
+/// - Validating the action key state.
 /// - Initializing database storage and the VDF engine.
 /// - Starting the Drand heartbeat and PoW sybil mining loop.
 /// - Establishing the Kademlia P2P Swarm.
@@ -246,7 +246,7 @@ async fn run_daemon() -> Result<()> {
     if let Err(e) = kinetic_core::action::logic::validate_keys_initialized() {
         tracing::error!(
             error_code = e.code(),
-            "FATAL: Network cannot boot with a bricked governance plane: {}",
+            "FATAL: Network cannot boot with a bricked action plane: {}",
             e
         );
         std::process::exit(1);
@@ -474,7 +474,7 @@ async fn run_daemon() -> Result<()> {
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL)
         .await;
 
-    // Push initial local governance log to the network cache
+    // Push initial local action log to the network cache
     {
         let action_state = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
@@ -497,7 +497,7 @@ async fn run_daemon() -> Result<()> {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
                         if let Ok(resp) = network_client.send_action_sync_request(peer_id, kinetic_types::action::ActionSyncRequest { from_kyn: 0 }).await {
                             if !resp.actions.is_empty() {
-                                tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
+                                tracing::info!("Received {} action actions from {}", resp.actions.len(), peer_id);
                                 let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
                                 for msg in &resp.actions {
                                     if let Err(e) = kinetic_core::action::process_action_message(&mut action_state, msg, kinetic_types::clock::Kyn(0)) {

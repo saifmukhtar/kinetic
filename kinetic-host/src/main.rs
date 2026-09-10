@@ -109,7 +109,7 @@ async fn run_host() -> Result<()> {
     if let Err(e) = kinetic_core::action::logic::validate_keys_initialized() {
         tracing::error!(
             error_code = e.code(),
-            "FATAL: Network cannot boot with a bricked governance plane: {}",
+            "FATAL: Network cannot boot with a bricked action plane: {}",
             e
         );
         std::process::exit(1);
@@ -254,7 +254,7 @@ async fn run_host() -> Result<()> {
         network_loop.run().await;
     })));
 
-    // Push initial local governance log to the network cache
+    // Push initial local action log to the network cache
     {
         let action_state = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
@@ -277,7 +277,7 @@ async fn run_host() -> Result<()> {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
                         if let Ok(resp) = network_client.send_action_sync_request(peer_id, kinetic_types::action::ActionSyncRequest { from_kyn: 0 }).await {
                             if !resp.actions.is_empty() {
-                                tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
+                                tracing::info!("Received {} action actions from {}", resp.actions.len(), peer_id);
                                 let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
                                 // Validate and apply locally first
                                 for msg in &resp.actions {

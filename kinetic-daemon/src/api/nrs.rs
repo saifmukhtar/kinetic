@@ -1,4 +1,4 @@
-//! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Governance actions.
+//! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Action actions.
 
 use super::*;
 use axum::{

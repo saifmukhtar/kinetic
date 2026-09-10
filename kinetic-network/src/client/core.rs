@@ -110,7 +110,7 @@ impl NetworkClient {
         rx.await.unwrap_or(Err(ProxyError::ChannelClosed))
     }
 
-    /// Sends a request to sync governance state from a remote node.
+    /// Sends a request to sync action state from a remote node.
     pub async fn send_action_sync_request(
         &self,
         peer: libp2p::PeerId,
@@ -133,7 +133,7 @@ impl NetworkClient {
         rx.await.unwrap_or(Err(ProxyError::ChannelClosed))
     }
 
-    /// Updates the background event loop's cache of the governance action log.
+    /// Updates the background event loop's cache of the action log.
     pub async fn update_action_log(
         &self,
         actions: Vec<kinetic_types::action::SignedActionMessage>,

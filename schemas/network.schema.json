@@ -7,7 +7,7 @@
   "required": [
     "network",
     "drand",
-    "governance",
+    "action",
     "consensus",
     "advanced"
   ],
@@ -69,7 +69,7 @@
         }
       }
     },
-    "governance": {
+    "action": {
       "type": "object",
       "required": ["action_model", "max_age_kyns"],
       "properties": {

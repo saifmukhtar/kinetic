@@ -24,7 +24,7 @@
 //! | `KIN-PUB-NNN` | [`PublishError`] | DHT record publishing |
 //! | `KIN-REG-NNN` | [`RegistrationError`] | Name registration flow |
 //! | `KIN-VDF-NNN` | `VdfError` | VDF engine operations |
-//! | `KIN-ACN-NNN` | `ActionError` | Council governance |
+//! | `KIN-ACN-NNN` | `ActionError` | Council action |
 //! | `KIN-NRS-NNN` | `NrsError` | NRS zone parsing |
 //! | `KIN-RND-NNN` | `DrandError` | Drand beacon |
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
@@ -214,7 +214,7 @@ pub enum Severity {
     Error,
     /// Security-critical failure requiring immediate response.
     ///
-    /// Examples: governance key missing, VDF unsupported on platform,
+    /// Examples: action key missing, VDF unsupported on platform,
     /// node cannot participate in network operations.
     Critical,
 }

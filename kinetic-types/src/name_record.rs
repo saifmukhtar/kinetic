@@ -5,7 +5,7 @@
 //! 1. **Standard Names** ([`NameRecord::Standard`]): Registered trustlessly via Proof-of-Work
 //!    and Verifiable Delay Function (VDF) computation. Ownership is proven via the reveal record.
 //! 2. **Prime Names** ([`NameRecord::Prime`]): 1/2-character prime names granted directly
-//!    by the Governance Root Authority key.
+//!    by the Action Root Authority key.
 //!
 //! To maintain active routing and prove name liveness, owners periodically publish [`Heartbeat`]
 //! proofs signed with their ML-DSA-65 post-quantum private keys.
@@ -61,7 +61,7 @@ impl Heartbeat {
 pub enum NameRecord {
     /// A standard name registered via Proof of Work and VDF.
     Standard(Box<crate::vdf::Reveal>),
-    /// A 1/2-letter Prime name granted directly by the Governance Root Key. Requires heartbeats.
+    /// A 1/2-letter Prime name granted directly by the Action Root Key. Requires heartbeats.
     Prime {
         /// The name.
         name: String,
@@ -77,7 +77,7 @@ pub enum NameRecord {
         #[serde(skip_serializing_if = "Option::is_none")]
         authorization: Option<Box<crate::identity::AuthorizedManifest>>,
     },
-    /// An immortal Infrastructure name granted directly by the Governance Root Key. No heartbeats.
+    /// An immortal Infrastructure name granted directly by the Action Root Key. No heartbeats.
     Infra {
         /// The name.
         name: String,

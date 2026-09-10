@@ -37,11 +37,16 @@ pub fn load_action_from_disk(path: &std::path::Path) -> ActionState {
                 let err = kinetic_action::error::ActionError::StateCorrupted;
                 tracing::error!(
                     error_code = err.code(),
-                    "CRITICAL: Governance state corrupted: {}. Refusing to start with a reset state.",
+                    "CRITICAL: Action state corrupted: {}. Refusing to start with a reset state.",
                     e
                 );
+                eprintln!(
+                    "Action state at {} is corrupt; manual recovery required (backup at {}).",
+                    path.display(),
+                    corrupt_path.display()
+                );
                 panic!(
-                    "Governance state at {} is corrupt; manual recovery required (backup at {}).",
+                    "Action state at {} is corrupt; manual recovery required (backup at {}).",
                     path.display(),
                     corrupt_path.display()
                 );
@@ -54,11 +59,15 @@ pub fn load_action_from_disk(path: &std::path::Path) -> ActionState {
             let err = kinetic_action::error::ActionError::StateReadFailed;
             tracing::error!(
                 error_code = err.code(),
-                "CRITICAL: Failed to read Governance state file: {}.",
+                "CRITICAL: Failed to read Action state file: {}.",
                 e
             );
+            eprintln!(
+                "Action state at {} is unreadable; manual recovery required.",
+                path.display()
+            );
             panic!(
-                "Governance state at {} is unreadable; manual recovery required.",
+                "Action state at {} is unreadable; manual recovery required.",
                 path.display()
             );
         }

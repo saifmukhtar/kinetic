@@ -1,4 +1,4 @@
-//! Protocol governance subsystem bindings.
+//! Protocol action subsystem bindings.
 //!
 //! This module re-exports types and functions from the decoupled `kinetic-action` crate,
 //! bridging it with `kinetic-core` configurations for ease of use across the workspace.
@@ -14,7 +14,7 @@ pub use kinetic_action::types::{
 pub mod logic {
     use super::*;
 
-    /// Validates that the static cryptographic keys required for governance have been correctly initialized.
+    /// Validates that the static cryptographic keys required for action have been correctly initialized.
     pub fn validate_keys_initialized() -> Result<(), ActionError> {
         kinetic_action::logic::validate_keys_initialized(
             crate::constants::SOVEREIGN_KEY_HEX,
@@ -25,7 +25,7 @@ pub mod logic {
 
 use kinetic_action::types::ActionConfig;
 
-/// Constructs the governance configuration based on network constants.
+/// Constructs the action configuration based on network constants.
 pub fn get_action_config() -> ActionConfig {
     ActionConfig {
         sovereign_key_hex: crate::constants::SOVEREIGN_KEY_HEX.to_string(),
@@ -35,7 +35,7 @@ pub fn get_action_config() -> ActionConfig {
     }
 }
 
-/// Processes a governance message by passing the network configurations automatically.
+/// Processes a action message by passing the network configurations automatically.
 pub fn process_action_message(
     state: &mut ActionState,
     msg: &SignedActionMessage,

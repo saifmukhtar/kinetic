@@ -53,5 +53,5 @@ pub use error::{
     KineticError, PublishError, RecordRejectReason, RegistrationError, ResolutionError, Severity,
     VdfRejectReason,
 };
-/// Protocol governance: sovereign actions, root keys, and parameter updates.
+/// Protocol action: sovereign actions, root keys, and parameter updates.
 pub mod action;

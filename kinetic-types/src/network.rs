@@ -1,7 +1,7 @@
 //! Core network taxonomies and opcodes for peer-to-peer communication.
 //!
 //! Defines the strict binary formats used by the network layer to efficiently
-//! multiplex distinct message channels (like Governance and Drand) over a single
+//! multiplex distinct message channels (like Action and Drand) over a single
 //! global Gossipsub topic.
 
 /// 1-byte opcode prepended to all Gossipsub payloads on the global topic.

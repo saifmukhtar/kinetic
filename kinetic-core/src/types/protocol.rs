@@ -1,7 +1,7 @@
 //! Category 2 reserved network protocol names and heartbeat exemption rules.
 //!
 //! Protocol names (`seed`, `node`, `docs`, `status`, `api`, `blog`, `rpc`, `foundation`, `metrics`)
-//! are permanently reserved and can only be allocated by the Kinetic Council via governance
+//! are permanently reserved and can only be allocated by the Kinetic Council via action
 //! proposal. Unlike user-owned names, protocol names:
 //!
 //! - **Cannot be mined** (registration will be rejected as [`NamesError::ProtocolName`](`crate::error::NamesError::ProtocolName`))

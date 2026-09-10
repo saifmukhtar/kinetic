@@ -11,7 +11,7 @@
 //! - [`nrs`]: NRS zone definitions, record variants (`A`, `AAAA`, `CNAME`, `TXT`, `PeerId`, `KID`, `IPFS`), and P2P routing records.
 //! - [`name_record`]: Name records ([`NameRecord`](name_record::NameRecord)), heartbeat liveness proofs ([`Heartbeat`](name_record::Heartbeat)), and signature verification.
 //! - [`error`]: Common error taxonomy metadata and severity classifications ([`Severity`](error::Severity)).
-//! - [`governance`]: Governance actions, signed proposal containers ([`SignedActionMessage`](governance::SignedActionMessage)), binary opcodes, and parser error types.
+//! - [`action`]: Action actions, signed proposal containers ([`SignedActionMessage`](action::SignedActionMessage)), binary opcodes, and parser error types.
 //! - [`network`]: Taxonomies and opcodes for peer-to-peer communication.
 //! - [`identity`]: Kinetic Identity Document ([`AuthorizedKid`](identity::AuthorizedKid)) and capability manifest attachments ([`AuthorizedManifest`](identity::AuthorizedManifest)) with replay protection.
 //! - [`proxy`]: High-performance IPC proxy requests and responses for browser and desktop integration.
