@@ -45,10 +45,7 @@ pub fn handle_action_gossip(
                             let record = NameRecord::Prime {
                                 name: name.clone(),
                                 pubkey: target_pubkey.clone(),
-                                granted_at: std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_secs(),
+                                kyn: signed_msg.timestamp_kyn,
                                 payload: Vec::new(),
                                 signature: Vec::new(),
                                 authorization: None,
@@ -66,6 +63,27 @@ pub fn handle_action_gossip(
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                             let _ = storage.delete(key.as_bytes());
                             tracing::info!("Revoked NameRecord::Prime from storage for {}", name);
+                        }
+                        ActionEffect::InfraMapped {
+                            name,
+                            target_pubkey,
+                        } => {
+                            let record = NameRecord::Infra {
+                                name: name.clone(),
+                                pubkey: target_pubkey.clone(),
+                                kyn: signed_msg.timestamp_kyn,
+                                payload: Vec::new(),
+                                signature: Vec::new(),
+                                authorization: None,
+                            };
+                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
+                            if let Ok(json_bytes) = serde_json::to_vec(&record) {
+                                let _ = storage.put(key.as_bytes(), &json_bytes);
+                                tracing::info!(
+                                    "Injected NameRecord::Infra into storage for {}",
+                                    name
+                                );
+                            }
                         }
                         ActionEffect::InfraUnmapped { name } => {
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);

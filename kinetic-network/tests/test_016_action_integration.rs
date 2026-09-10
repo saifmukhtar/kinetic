@@ -97,7 +97,7 @@ async fn test_action_integration_premium() {
     let domain_record = NameRecord::Prime {
         name: "test_premium".to_string(),
         pubkey: vec![1; 32],
-        granted_at: 0,
+        kyn: 0,
         payload: vec![],
         signature: vec![],
         authorization: None,

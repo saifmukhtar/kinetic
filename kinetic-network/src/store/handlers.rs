@@ -154,18 +154,12 @@ impl KineticRecordStore {
             } else {
                 let existing_pulse = match &existing_record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
-                    kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                        use kinetic_core::types::clock::UTimeNetworkExt;
-                        kinetic_types::clock::UTime(*granted_at).to_network_kyn().0
-                    }
+                    kinetic_core::types::NameRecord::Prime { kyn, .. } => *kyn,
                     kinetic_core::types::NameRecord::Infra { .. } => 0,
                 };
                 let new_pulse = match &record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
-                    kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                        use kinetic_core::types::clock::UTimeNetworkExt;
-                        kinetic_types::clock::UTime(*granted_at).to_network_kyn().0
-                    }
+                    kinetic_core::types::NameRecord::Prime { kyn, .. } => *kyn,
                     kinetic_core::types::NameRecord::Infra { .. } => 0,
                 };
 

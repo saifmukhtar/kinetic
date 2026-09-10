@@ -105,13 +105,13 @@ pub async fn handle_name_info(
                 table.add_row(vec!["Created at Drand KYN", &r.kyn.to_string()]);
                 table.add_row(vec!["VDF Iterations", &r.iterations.to_string()]);
             }
-            kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
+            kinetic_core::types::NameRecord::Prime { kyn, .. } => {
                 table.add_row(vec!["Type", "Prime"]);
-                table.add_row(vec!["Granted at", &granted_at.to_string()]);
+                table.add_row(vec!["Granted at Kyn", &kyn.to_string()]);
             }
-            kinetic_core::types::NameRecord::Infra { granted_at, .. } => {
+            kinetic_core::types::NameRecord::Infra { kyn, .. } => {
                 table.add_row(vec!["Type", "Infra"]);
-                table.add_row(vec!["Granted at", &granted_at.to_string()]);
+                table.add_row(vec!["Granted at Kyn", &kyn.to_string()]);
             }
         }
         println!("\nInfo for {} (Local Cache):", fqdn);

@@ -67,8 +67,8 @@ pub enum NameRecord {
         name: String,
         /// The ML-DSA-65 public key of the name owner.
         pubkey: Vec<u8>,
-        /// The unix timestamp in kyns when this grant was approved.
-        granted_at: u64,
+        /// The network kyn when this grant was approved.
+        kyn: u64,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
         /// The owner's ML-DSA-65 signature authorizing the payload.
@@ -83,8 +83,8 @@ pub enum NameRecord {
         name: String,
         /// The ML-DSA-65 public key of the name owner.
         pubkey: Vec<u8>,
-        /// The unix timestamp in kyns when this grant was approved.
-        granted_at: u64,
+        /// The network kyn when this grant was approved.
+        kyn: u64,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
         /// The owner's ML-DSA-65 signature authorizing the payload.

@@ -274,9 +274,8 @@ impl KineticRecordStore {
                         expired_names.push(name.clone());
                     }
                 }
-                kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                    use kinetic_core::types::clock::UTimeNetworkExt;
-                    let grant_kyn = kinetic_types::clock::UTime(*granted_at).to_network_kyn().0;
+                kinetic_core::types::NameRecord::Prime { kyn, .. } => {
+                    let grant_kyn = *kyn;
                     let last_hb = self
                         .last_heartbeats_by_name
                         .get(name)
@@ -434,7 +433,7 @@ impl KineticRecordStore {
                         return Err(err);
                     }
                 }
-            } else if parsed.get("vdf_proof").is_some() || parsed.get("granted_at").is_some() {
+            } else if parsed.get("vdf_proof").is_some() || parsed.get("kyn").is_some() {
                 match serde_json::from_value::<kinetic_core::types::NameRecord>(parsed) {
                     Ok(record) => {
                         tracing::debug!(
@@ -645,7 +644,7 @@ mod tests {
         let record = kinetic_core::types::NameRecord::Prime {
             name: name.to_string(),
             pubkey: vec![],
-            granted_at: 0,
+            kyn: 0,
             payload: vec![],
             signature: vec![],
             authorization: None,
@@ -698,7 +697,7 @@ mod tests {
         let record = kinetic_core::types::NameRecord::Infra {
             name: name.to_string(),
             pubkey: vec![],
-            granted_at: 0,
+            kyn: 0,
             payload: vec![],
             signature: vec![],
             authorization: None,
@@ -783,7 +782,7 @@ mod tests {
         let record = kinetic_core::types::NameRecord::Prime {
             name: "large.kin".to_string(),
             pubkey: vec![],
-            granted_at: 0,
+            kyn: 0,
             payload: large_payload,
             signature: vec![],
             authorization: None,

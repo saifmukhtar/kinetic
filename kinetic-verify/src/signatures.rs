@@ -198,7 +198,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: vk_bytes,
-            granted_at: 1000,
+            kyn: 1000,
             payload: payload.to_vec(),
             signature: sig,
             authorization: None,
@@ -223,7 +223,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: vk_bytes,
-            granted_at: 1000,
+            kyn: 1000,
             payload: payload.to_vec(),
             signature: sig,
             authorization: None,
@@ -247,7 +247,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: vk_bytes,
-            granted_at: 1000,
+            kyn: 1000,
             payload: payload.to_vec(),
             signature: sig,
             authorization: None,
@@ -332,7 +332,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: owner_vk_bytes,
-            granted_at: 1000,
+            kyn: 1000,
             payload: payload.to_vec(),
             signature: sig,
             authorization: Some(Box::new(auth)),
@@ -366,7 +366,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: owner_vk_bytes,
-            granted_at: 1000,
+            kyn: 1000,
             payload: payload.to_vec(),
             signature: sig,
             authorization: Some(Box::new(auth)),
@@ -404,7 +404,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: owner_vk_bytes,
-            granted_at: 1000,
+            kyn: 1000,
             payload: payload.to_vec(),
             signature: sig,
             authorization: Some(Box::new(auth)),
@@ -446,7 +446,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: owner_vk_bytes, // Owner's pubkey
-            granted_at: 1000,
+            kyn: 1000,
             payload: payload.to_vec(),
             signature: sig,
             authorization: Some(Box::new(auth)), // Bot attaches the valid auth for "test-domain"
@@ -472,7 +472,7 @@ mod tests {
             let record = NameRecord::Prime {
                 name,
                 pubkey,
-                granted_at: 1234,
+                kyn: 1234,
                 payload,
                 signature: sig,
                 authorization: None,

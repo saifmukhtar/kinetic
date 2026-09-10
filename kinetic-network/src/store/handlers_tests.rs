@@ -153,7 +153,7 @@ mod tests {
         let existing = kinetic_core::types::NameRecord::Prime {
             name: name.clone(),
             pubkey: vec![1, 2, 3],
-            granted_at: 0,
+            kyn: 0,
             payload: vec![],
             signature: vec![],
             authorization: None,

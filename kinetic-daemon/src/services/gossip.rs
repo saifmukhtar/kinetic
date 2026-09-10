@@ -74,10 +74,7 @@ pub fn start_gossip_processor(
                                                 let record = NameRecord::Prime {
                                                     name: name.clone(),
                                                     pubkey: target_pubkey.clone(),
-                                                    granted_at: std::time::SystemTime::now()
-                                                        .duration_since(std::time::UNIX_EPOCH)
-                                                        .unwrap_or_default()
-                                                        .as_secs(),
+                                                    kyn: signed_msg.timestamp_kyn,
                                                     payload: Vec::new(),
                                                     signature: Vec::new(),
                                                     authorization: None,
@@ -98,6 +95,27 @@ pub fn start_gossip_processor(
                                                     "Revoked NameRecord::Prime from storage for {}",
                                                     name
                                                 );
+                                            }
+                                            ActionEffect::InfraMapped {
+                                                name,
+                                                target_pubkey,
+                                            } => {
+                                                let record = NameRecord::Infra {
+                                                    name: name.clone(),
+                                                    pubkey: target_pubkey.clone(),
+                                                    kyn: signed_msg.timestamp_kyn,
+                                                    payload: Vec::new(),
+                                                    signature: Vec::new(),
+                                                    authorization: None,
+                                                };
+                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
+                                                if let Ok(json_bytes) = serde_json::to_vec(&record) {
+                                                    let _ = storage.put(key.as_bytes(), &json_bytes);
+                                                    tracing::info!(
+                                                        "Injected NameRecord::Infra into storage for {}",
+                                                        name
+                                                    );
+                                                }
                                             }
                                             ActionEffect::InfraUnmapped { name } => {
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
