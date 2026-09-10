@@ -1,6 +1,6 @@
 //! Governance gossip message handler, state update processor, and disk persistence engine.
 
-use kinetic_core::action::{SignedGovernanceMessage, process_action_message};
+use kinetic_core::action::{SignedActionMessage, process_action_message};
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -16,7 +16,7 @@ pub fn handle_action_gossip(
     storage: Option<Arc<dyn kinetic_core::traits::StorageEngine>>,
     current_kyn: u64,
 ) {
-    if let Ok(signed_msg) = serde_json::from_slice::<SignedGovernanceMessage>(payload) {
+    if let Ok(signed_msg) = serde_json::from_slice::<SignedActionMessage>(payload) {
         let (state_snapshot, effect_result) = {
             let mut state = GLOBAL_ACTION_STATE
                 .lock()
@@ -150,13 +150,13 @@ pub fn handle_action_gossip(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_core::action::{GovernanceAction, SignedGovernanceMessage};
+    use kinetic_core::action::{GovernanceAction, SignedActionMessage};
     use tempfile::tempdir;
 
     #[test]
     fn test_handle_invalid_json_payload() {
         let dir = tempdir().unwrap();
-        let path = Arc::new(dir.path().join("gov.bin"));
+        let path = Arc::new(dir.path().join("action.bin"));
 
         let invalid_payload = b"not valid json";
 
@@ -167,9 +167,9 @@ mod tests {
     #[test]
     fn test_handle_invalid_signature() {
         let dir = tempdir().unwrap();
-        let path = Arc::new(dir.path().join("gov.bin"));
+        let path = Arc::new(dir.path().join("action.bin"));
 
-        let msg = SignedGovernanceMessage {
+        let msg = SignedActionMessage {
             action: GovernanceAction::MapPrime {
                 name: "x".to_string(),
                 target_pubkey: vec![],
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn test_handle_wrong_json_schema() {
         let dir = tempdir().unwrap();
-        let path = Arc::new(dir.path().join("gov.bin"));
+        let path = Arc::new(dir.path().join("action.bin"));
 
         let wrong_schema = b"{\"hello\": \"world\"}";
 
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_handle_massive_payload() {
         let dir = tempdir().unwrap();
-        let path = Arc::new(dir.path().join("gov.bin"));
+        let path = Arc::new(dir.path().join("action.bin"));
 
         // 1 MB of brackets
         let mut huge_payload = vec![b'['; 500_000];
@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn test_handle_unexpected_fields() {
         let dir = tempdir().unwrap();
-        let path = Arc::new(dir.path().join("gov.bin"));
+        let path = Arc::new(dir.path().join("action.bin"));
 
         let extra_fields = b"{\"action\": {\"MapPrime\": {\"name\": \"x\", \"target_pubkey\": []}}, \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
@@ -226,7 +226,7 @@ mod tests {
         let path = Arc::new(dir.path().to_path_buf());
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
-        let msg = SignedGovernanceMessage {
+        let msg = SignedActionMessage {
             action: GovernanceAction::MapPrime {
                 name: "x".to_string(),
                 target_pubkey: vec![],
@@ -254,7 +254,7 @@ mod fuzzing {
             raw_payload in any::<Vec<u8>>()
         ) {
             let dir = tempdir().unwrap();
-            let path = Arc::new(dir.path().join("gov.bin"));
+            let path = Arc::new(dir.path().join("action.bin"));
             handle_action_gossip(&raw_payload, path, None, None, 100);
         }
     }

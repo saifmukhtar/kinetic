@@ -1,12 +1,12 @@
 //! Data structures and serialized action types for network governance.
 //!
 //! Defines the complete set of [`GovernanceAction`] variants, the persistent [`ActionState`],
-//! the [`SignedGovernanceMessage`] proposal envelope, and canonical byte serialization.
+//! the [`SignedActionMessage`] proposal envelope, and canonical byte serialization.
 //!
 //! ## Protocol Context
 //!
 //! All governance state changes follow a two-phase commit protocol:
-//! 1. A [`SignedGovernanceMessage`] is broadcast with one or more ML-DSA-65 signatures.
+//! 1. A [`SignedActionMessage`] is broadcast with one or more ML-DSA-65 signatures.
 //! 2. Threshold verification by the active [`ActionEngine`](crate::traits::ActionEngine)
 //!    determines whether the action is immediately executed or enters a timelock queue.
 //!
@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 
 pub use kinetic_types::action::{
-    GovernanceAction, Hash256, PublicKeyBytes, SignatureBytes, SignedGovernanceMessage,
+    GovernanceAction, Hash256, PublicKeyBytes, SignatureBytes, SignedActionMessage,
 };
 
 /// Verifies an ML-DSA-65 post-quantum signature over a message byte slice.
@@ -90,7 +90,7 @@ pub struct ActionState {
     pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
     #[serde(default)]
     /// Append-only log of all executed signed governance messages (used for P2P state syncing).
-    pub action_log: Vec<kinetic_types::action::SignedGovernanceMessage>,
+    pub action_log: Vec<kinetic_types::action::SignedActionMessage>,
     /// Active 1-character prime names and their associated ML-DSA-65 public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,

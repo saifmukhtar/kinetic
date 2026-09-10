@@ -24,7 +24,7 @@ pub async fn start_gossip_listener(
 
             if opcode == kinetic_types::network::NetworkOpcode::Governance as u8
                 && let Ok(signed_msg) = serde_json::from_slice::<
-                    kinetic_core::action::SignedGovernanceMessage,
+                    kinetic_core::action::SignedActionMessage,
                 >(actual_payload)
             {
                 use kinetic_core::types::clock::KynNetworkExt;
@@ -106,7 +106,7 @@ mod proptests {
         fn test_gossip_garbage_payloads(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
             // Guarantee that receiving absolute garbage over the P2P gossip network
             // will never cause a deserialization panic.
-            let _ = serde_json::from_slice::<kinetic_core::action::SignedGovernanceMessage>(&payload);
+            let _ = serde_json::from_slice::<kinetic_core::action::SignedActionMessage>(&payload);
         }
     }
 }

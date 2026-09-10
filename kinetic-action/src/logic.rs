@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use crate::error::GovernanceError;
 use crate::types::{
     ActionConfig, ActionEffect, ActionState, Hash256, PublicKeyBytes,
-    SignedGovernanceMessage,
+    SignedActionMessage,
 };
 
 /// Validates that the static cryptographic keys required for governance have been correctly initialized.
@@ -78,7 +78,7 @@ impl ActionState {
     /// # Returns
     ///
     /// A deterministic 32-byte `[u8; 32]` SHA-256 hash of the canonical message bytes.
-    pub fn hash_action(msg: &SignedGovernanceMessage) -> Hash256 {
+    pub fn hash_action(msg: &SignedActionMessage) -> Hash256 {
         kinetic_primitives::sha256_hash(&msg.to_bytes())
     }
 
@@ -121,7 +121,7 @@ impl ActionState {
     /// Returns a `GovernanceError` if the message is stale, signatures are insufficient, timelocks are not met, or other invariants are violated.
     pub fn verify_action(
         &mut self,
-        msg: &SignedGovernanceMessage,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, GovernanceError> {
@@ -136,7 +136,7 @@ impl ActionState {
     /// Executes a verified governance action, applying its state changes and returning any resulting effects.
     pub fn execute_action(
         &mut self,
-        msg: &SignedGovernanceMessage,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
     ) -> Option<ActionEffect> {
@@ -156,7 +156,7 @@ impl ActionState {
 /// Returns a `GovernanceError` if the action fails verification or execution rules.
 pub fn process_action_message(
     state: &mut ActionState,
-    msg: &SignedGovernanceMessage,
+    msg: &SignedActionMessage,
     current_kyn: kinetic_types::clock::Kyn,
     config: &ActionConfig,
 ) -> Result<Option<ActionEffect>, GovernanceError> {

@@ -66,7 +66,7 @@ pub enum GovernanceAction {
 
 /// Proposal message container with signatures from authorized council members.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct SignedGovernanceMessage {
+pub struct SignedActionMessage {
     /// Target governance action payload.
     pub action: GovernanceAction,
     /// Unix timestamp in drand kyns when the proposal was signed.
@@ -75,7 +75,7 @@ pub struct SignedGovernanceMessage {
     pub signatures: Vec<SignatureBytes>,
 }
 
-impl SignedGovernanceMessage {
+impl SignedActionMessage {
     /// Serializes the governance message into a canonical byte vector for SHA-256 hashing and ML-DSA-65 signature verification.
     ///
     /// Each [`GovernanceAction`] variant is prefixed with a 1-byte opcode:
@@ -351,7 +351,7 @@ mod tests {
             name: "x".to_string(),
             target_pubkey: vec![42; 1952],
         };
-        let msg = SignedGovernanceMessage {
+        let msg = SignedActionMessage {
             action: action.clone(),
             timestamp_kyn: 123456,
             signatures: vec![],
@@ -386,5 +386,5 @@ pub struct ActionSyncRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionSyncResponse {
     /// The append-only log of all executed signed governance messages.
-    pub actions: Vec<SignedGovernanceMessage>,
+    pub actions: Vec<SignedActionMessage>,
 }

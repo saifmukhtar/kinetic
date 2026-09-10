@@ -59,16 +59,16 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                             return false;
                         }
                         if let Ok(signed_msg) = serde_json::from_slice::<
-                            kinetic_core::action::SignedGovernanceMessage,
+                            kinetic_core::action::SignedActionMessage,
                         >(actual_payload)
                         {
-                            let gov = kinetic_local::action::GLOBAL_ACTION_STATE
+                            let action_state = kinetic_local::action::GLOBAL_ACTION_STATE
                                 .lock()
-                                .unwrap_or_else(|e| e.into_inner());
-                            if let Ok(root_key) = gov.get_sovereign_key(
+                                .unwrap();
+                            if let Ok(root_key) = action_state.get_sovereign_key(
                                 &kinetic_core::action::get_action_config(),
                             ) {
-                                drop(gov);
+                                drop(action_state);
                                 let action_bytes = signed_msg.to_bytes();
                                 return signed_msg.signatures.iter().any(|sig| {
                                     kinetic_core::action::verify_signature(

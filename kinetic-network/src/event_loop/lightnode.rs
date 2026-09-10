@@ -179,7 +179,7 @@ pub(crate) fn build_light_swarm(
             >::new(
                 [(
                     libp2p::StreamProtocol::try_from_owned(format!(
-                        "/{}/gov-sync/1.0.0",
+                        "/{}/action-sync/1.0.0",
                         kinetic_core::constants::NETWORK_SALT_HEX
                     ))
                     .unwrap(),

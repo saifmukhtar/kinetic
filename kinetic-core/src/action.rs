@@ -7,7 +7,7 @@ pub use kinetic_action::error::GovernanceError;
 pub use kinetic_action::traits::ActionEngine;
 pub use kinetic_action::types;
 pub use kinetic_action::types::{
-    GovernanceAction, ActionEffect, ActionState, SignedGovernanceMessage, verify_signature,
+    GovernanceAction, ActionEffect, ActionState, SignedActionMessage, verify_signature,
 };
 
 /// Wraps logic bindings that require configurations.
@@ -38,7 +38,7 @@ pub fn get_action_config() -> ActionConfig {
 /// Processes a governance message by passing the network configurations automatically.
 pub fn process_action_message(
     state: &mut ActionState,
-    msg: &SignedGovernanceMessage,
+    msg: &SignedActionMessage,
     current_kyn: kinetic_types::clock::Kyn,
 ) -> Result<Option<ActionEffect>, GovernanceError> {
     kinetic_action::logic::process_action_message(

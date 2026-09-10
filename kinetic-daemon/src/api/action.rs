@@ -53,7 +53,7 @@ pub struct ActionStatusResponse {
 pub async fn handle_get_action_status(
     axum::extract::State(state): axum::extract::State<crate::api::ApiState>,
 ) -> Result<Json<ActionStatusResponse>, crate::api::error::AppError> {
-    let gov = GLOBAL_ACTION_STATE.lock().map_err(|e| {
+    let action_state = GLOBAL_ACTION_STATE.lock().map_err(|e| {
         let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
         crate::api::error::AppError(kinetic_rpc::ApiError {
             error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
@@ -68,7 +68,7 @@ pub async fn handle_get_action_status(
         })
     })?;
 
-    let active_key_hex = gov.active_sovereign_key.as_ref().map(hex::encode);
+    let active_key_hex = action_state.active_sovereign_key.as_ref().map(hex::encode);
 
     // Fetch verified Kyn from the node's constantly updating local cache
     let current_kyn = {
@@ -82,28 +82,28 @@ pub async fn handle_get_action_status(
     };
 
     let active_kyn_age = current_kyn
-        .saturating_sub(gov.genesis_kyn.0)
-        .saturating_sub(gov.total_paused_kyns);
+        .saturating_sub(action_state.genesis_kyn.0)
+        .saturating_sub(action_state.total_paused_kyns);
 
-    let last_pause = gov.pause_history.last().map(|(start, end)| PausePeriod {
+    let last_pause = action_state.pause_history.last().map(|(start, end)| PausePeriod {
         start_kyn: start.0,
         end_kyn: end.0,
     });
 
     let metrics = ActionMetrics {
-        total_prime_names: gov.mapped_prime_names.len(),
-        total_infra_names: gov.mapped_infra_names.len(),
-        total_executed_actions: gov.executed_hashes.len(),
+        total_prime_names: action_state.mapped_prime_names.len(),
+        total_infra_names: action_state.mapped_infra_names.len(),
+        total_executed_actions: action_state.executed_hashes.len(),
     };
 
     Ok(Json(ActionStatusResponse {
-        genesis_kyn: gov.genesis_kyn.0,
+        genesis_kyn: action_state.genesis_kyn.0,
         current_kyn,
         active_kyn_age,
         active_sovereign_key_hex: active_key_hex,
-        is_halted: gov.is_halted,
-        halt_start_kyn: gov.halt_start_kyn.map(|k| k.0),
-        total_paused_kyns: gov.total_paused_kyns,
+        is_halted: action_state.is_halted,
+        halt_start_kyn: action_state.halt_start_kyn.map(|k| k.0),
+        total_paused_kyns: action_state.total_paused_kyns,
         last_pause,
         metrics,
     }))
@@ -120,7 +120,7 @@ pub struct ActionNamesResponse {
 
 /// Handles requests to retrieve all mapped Action names (primes and infras) in a single call.
 pub async fn handle_get_action_names() -> Result<Json<ActionNamesResponse>, crate::api::error::AppError> {
-    let gov = GLOBAL_ACTION_STATE.lock().map_err(|e| {
+    let action_state = GLOBAL_ACTION_STATE.lock().map_err(|e| {
         let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
         crate::api::error::AppError(kinetic_rpc::ApiError {
             error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
@@ -135,13 +135,13 @@ pub async fn handle_get_action_names() -> Result<Json<ActionNamesResponse>, crat
         })
     })?;
 
-    let primes = gov
+    let primes = action_state
         .mapped_prime_names
         .iter()
         .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
         .collect::<HashMap<String, String>>();
 
-    let infras = gov
+    let infras = action_state
         .mapped_infra_names
         .iter()
         .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
@@ -155,7 +155,7 @@ use crate::api::PublishResponse;
 use axum::{extract::State, http::StatusCode};
 use kinetic_core::traits::KynProvider;
 
-/// Handles API requests to publish a `SignedGovernanceMessage` to the DHT/Gossip network.
+/// Handles API requests to publish a `SignedActionMessage` to the DHT/Gossip network.
 ///
 /// # Errors
 ///
@@ -164,7 +164,7 @@ use kinetic_core::traits::KynProvider;
 pub async fn handle_publish_action(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
-    Json(msg): Json<kinetic_core::action::SignedGovernanceMessage>,
+    Json(msg): Json<kinetic_core::action::SignedActionMessage>,
 ) -> Result<Json<PublishResponse>, (StatusCode, String)> {
     if !role.can_action() {
         return Err((
@@ -188,14 +188,15 @@ pub async fn handle_publish_action(
     };
 
     let is_valid = {
-        let mut gov = kinetic_local::action::GLOBAL_ACTION_STATE
+        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        match kinetic_core::action::process_action_message(
-            &mut gov,
+            .unwrap();
+        let res = kinetic_core::action::process_action_message(
+            &mut action_state,
             &msg,
-            kinetic_types::clock::Kyn(current_kyn),
-        ) {
+            kinetic_types::clock::Kyn(0), // Doesn't matter because it relies on signed_timestamp anyway
+        );
+        match res {
             Ok(_) => {
                 let path = std::env::var(kinetic_core::constants::ENV_ACTION)
                     .map(std::path::PathBuf::from)
@@ -205,7 +206,7 @@ pub async fn handle_publish_action(
                             .join(config.daemon.storage_dir)
                             .join("action.db")
                     });
-                if let Err(e) = kinetic_local::action::save_action_to_disk(&gov, &path) {
+                if let Err(e) = kinetic_local::action::save_action_to_disk(&action_state, &path) {
                     let err = kinetic_core::error::GovernanceError::StateSaveFailed;
                     tracing::error!(
                         error_code = err.code(),

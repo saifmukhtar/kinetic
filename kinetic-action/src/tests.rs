@@ -4,7 +4,7 @@ mod tests {
     use super::super::logic::process_action_message;
     use super::super::types::{
         GovernanceAction, ActionEffect, ActionState, PublicKeyBytes,
-        SignedGovernanceMessage,
+        SignedActionMessage,
     };
     use kinetic_primitives::keys::KineticKeypair;
     use kinetic_types::clock::Kyn;
@@ -21,7 +21,7 @@ mod tests {
         (signing_key, verifying_key)
     }
 
-    fn sign_action(msg: &SignedGovernanceMessage, signer: &KineticKeypair) -> Vec<u8> {
+fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         let serialized = msg.to_bytes();
         signer.sign(&serialized)
     }
@@ -47,7 +47,7 @@ mod tests {
         let (_, target_pubkey) = generate_key(99);
 
         // Test invalid length
-        let mut msg_invalid_len = SignedGovernanceMessage {
+        let mut msg_invalid_len = SignedActionMessage {
             action: GovernanceAction::MapPrime {
                 name: "ab".to_string(),
                 target_pubkey: target_pubkey.clone(),
@@ -75,7 +75,7 @@ mod tests {
         // Map 5 valid names
         for i in 0..5 {
             let name = (b'a' + i) as char;
-            let mut msg = SignedGovernanceMessage {
+            let mut msg = SignedActionMessage {
                 action: GovernanceAction::MapPrime {
                     name: name.to_string(),
                     target_pubkey: target_pubkey.clone(),
@@ -116,7 +116,7 @@ mod tests {
         let (new_root_sk, new_root_pubkey) = generate_key(123);
 
         // Action 1: Rotate to the new Root Key (signed by current genesis root key)
-        let mut rotate_msg = SignedGovernanceMessage {
+        let mut rotate_msg = SignedActionMessage {
             action: GovernanceAction::RotateRootKey {
                 new_key: new_root_pubkey.clone(),
             },
@@ -146,7 +146,7 @@ mod tests {
         );
 
         // Action 2: Try mapping a name using the OLD root key (should fail)
-        let mut map_msg = SignedGovernanceMessage {
+        let mut map_msg = SignedActionMessage {
             action: GovernanceAction::MapPrime {
                 name: "b".to_string(),
                 target_pubkey: new_root_pubkey.clone(), // Doesn't matter
@@ -197,7 +197,7 @@ mod tests {
                 target_pubkey,
             };
 
-            let msg = SignedGovernanceMessage {
+            let msg = SignedActionMessage {
                 action: action.clone(),
                 timestamp_kyn: timestamp,
                 signatures: vec![], // Signatures aren't part of canonical hash
@@ -231,7 +231,7 @@ mod tests {
         assert!(!state.is_halted);
         assert_eq!(state.total_paused_kyns, 0);
 
-        let mut halt_msg = SignedGovernanceMessage {
+        let mut halt_msg = SignedActionMessage {
             action: GovernanceAction::EmergencyHalt,
             timestamp_kyn: current_kyn,
             signatures: vec![],
@@ -248,7 +248,7 @@ mod tests {
         assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
         assert!(state.is_halted);
 
-        let mut resume_msg = SignedGovernanceMessage {
+        let mut resume_msg = SignedActionMessage {
             action: GovernanceAction::EmergencyResume,
             timestamp_kyn: current_kyn + 1000,
             signatures: vec![],
@@ -281,7 +281,7 @@ mod tests {
         state.active_sovereign_key = Some(root_pubkey);
 
         // Try to UnmapPrime (should fail)
-        let mut fail_msg = SignedGovernanceMessage {
+        let mut fail_msg = SignedActionMessage {
             action: GovernanceAction::UnmapPrime {
                 name: "ab".to_string(),
             },
@@ -303,7 +303,7 @@ mod tests {
         ));
 
         // First, successfully map the name so it exists in state
-        let mut map_msg = SignedGovernanceMessage {
+        let mut map_msg = SignedActionMessage {
             action: GovernanceAction::MapPrime {
                 name: "a".to_string(),
                 target_pubkey: vec![0; 1952],
@@ -321,7 +321,7 @@ mod tests {
         .unwrap();
 
         // Try to revoke a 1-character name (should succeed)
-        let mut success_msg = SignedGovernanceMessage {
+        let mut success_msg = SignedActionMessage {
             action: GovernanceAction::UnmapPrime {
                 name: "a".to_string(),
             },
@@ -356,7 +356,7 @@ mod tests {
         let mut state = ActionState::new(Kyn(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
-        let mut msg = SignedGovernanceMessage {
+        let mut msg = SignedActionMessage {
             action: GovernanceAction::EmergencyHalt,
             timestamp_kyn: current_kyn,
             signatures: vec![],
@@ -399,7 +399,7 @@ mod tests {
         let (_, target_pubkey) = generate_key(99);
 
         // Test invalid infra name
-        let mut msg_invalid = SignedGovernanceMessage {
+        let mut msg_invalid = SignedActionMessage {
             action: GovernanceAction::MapInfra {
                 name: "invalidname".to_string(),
                 target_pubkey: target_pubkey.clone(),
@@ -424,7 +424,7 @@ mod tests {
         ));
 
         // Test valid infra name
-        let mut msg_valid = SignedGovernanceMessage {
+        let mut msg_valid = SignedActionMessage {
             action: GovernanceAction::MapInfra {
                 name: "seed".to_string(),
                 target_pubkey: target_pubkey.clone(),
@@ -455,7 +455,7 @@ mod tests {
         // Create a message that is exactly MAX_AGE_KYNS + 1 old
         let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
-        let mut msg = SignedGovernanceMessage {
+        let mut msg = SignedActionMessage {
             action: GovernanceAction::EmergencyHalt,
             timestamp_kyn: stale_kyn,
             signatures: vec![],

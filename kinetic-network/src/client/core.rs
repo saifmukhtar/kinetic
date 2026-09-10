@@ -136,7 +136,7 @@ impl NetworkClient {
     /// Updates the background event loop's cache of the governance action log.
     pub async fn update_action_log(
         &self,
-        actions: Vec<kinetic_types::action::SignedGovernanceMessage>,
+        actions: Vec<kinetic_types::action::SignedActionMessage>,
     ) -> std::result::Result<(), NetworkClientError> {
         let sender_clone = self
             .sender

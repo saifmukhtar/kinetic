@@ -33,7 +33,7 @@ pub fn start_gossip_processor(
                 if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
                     let mut is_valid = false;
                     if let Ok(signed_msg) = serde_json::from_slice::<
-                        kinetic_core::action::SignedGovernanceMessage,
+                        kinetic_core::action::SignedActionMessage,
                     >(actual_payload)
                     {
                         use kinetic_core::types::clock::KynNetworkExt;

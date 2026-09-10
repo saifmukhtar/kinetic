@@ -2,7 +2,7 @@
 
 use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
-use kinetic_core::action::SignedGovernanceMessage;
+use kinetic_core::action::SignedActionMessage;
 use reqwest::Client;
 use std::path::PathBuf;
 
@@ -21,7 +21,7 @@ pub enum ActionCommands {
 /// # Errors
 /// Returns an `anyhow::Error` if:
 /// - The specified JSON file cannot be read from disk.
-/// - The JSON contents cannot be parsed into a `SignedGovernanceMessage`.
+/// - The JSON contents cannot be parsed into a `SignedActionMessage`.
 /// - The `admin.token` cannot be found or read from the local API token directory.
 /// - The daemon API cannot be reached or returns a non-200 HTTP error status.
 pub async fn handle_action_command(
@@ -29,7 +29,7 @@ pub async fn handle_action_command(
     config: &KineticConfig,
     client: &Client,
 ) -> anyhow::Result<()> {
-    let msg: SignedGovernanceMessage = match cmd {
+    let msg: SignedActionMessage = match cmd {
         ActionCommands::Broadcast { file } => {
             let msg_str = std::fs::read_to_string(&file).map_err(|e| {
                 anyhow::anyhow!("Failed to read governance file {}: {}", file.display(), e)

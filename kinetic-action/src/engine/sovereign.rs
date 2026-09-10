@@ -7,7 +7,7 @@
 use crate::error::GovernanceError;
 use crate::traits::ActionEngine;
 use crate::types::{
-    GovernanceAction, ActionConfig, ActionEffect, ActionState, SignedGovernanceMessage,
+    GovernanceAction, ActionConfig, ActionEffect, ActionState, SignedActionMessage,
     verify_signature,
 };
 
@@ -26,7 +26,7 @@ impl ActionEngine for SovereignEngine {
     fn verify_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedGovernanceMessage,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, GovernanceError> {
@@ -131,7 +131,7 @@ impl ActionEngine for SovereignEngine {
     fn execute_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedGovernanceMessage,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         _config: &ActionConfig,
     ) -> Option<ActionEffect> {

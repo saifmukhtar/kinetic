@@ -1,6 +1,6 @@
 use crate::logic::process_action_message;
 use crate::types::{
-    GovernanceAction, ActionEffect, ActionState, PublicKeyBytes, SignedGovernanceMessage,
+    GovernanceAction, ActionEffect, ActionState, PublicKeyBytes, SignedActionMessage,
 };
 use kinetic_primitives::keys::KineticKeypair;
 use kinetic_types::clock::Kyn;
@@ -18,7 +18,7 @@ fn generate_key(seed: u8) -> (KineticKeypair, PublicKeyBytes) {
     (signing_key, verifying_key)
 }
 
-fn sign_action(msg: &SignedGovernanceMessage, signer: &KineticKeypair) -> Vec<u8> {
+fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
     let serialized = msg.to_bytes();
     signer.sign(&serialized)
 }
@@ -43,7 +43,7 @@ fn test_infra_mappings() {
     let (_, target_pubkey) = generate_key(99);
 
     // Test invalid infra name
-    let mut msg_invalid = SignedGovernanceMessage {
+    let mut msg_invalid = SignedActionMessage {
         action: GovernanceAction::MapInfra {
             name: "invalidname".to_string(),
             target_pubkey: target_pubkey.clone(),
@@ -68,7 +68,7 @@ fn test_infra_mappings() {
     ));
 
     // Test valid infra name
-    let mut msg_valid = SignedGovernanceMessage {
+    let mut msg_valid = SignedActionMessage {
         action: GovernanceAction::MapInfra {
             name: "seed".to_string(),
             target_pubkey: target_pubkey.clone(),
@@ -100,7 +100,7 @@ fn test_action_stale_rejection() {
     // Create a message that is exactly MAX_AGE_KYNS + 1 old
     let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
-    let mut msg = SignedGovernanceMessage {
+    let mut msg = SignedActionMessage {
         action: GovernanceAction::EmergencyHalt,
         timestamp_kyn: stale_kyn,
         signatures: vec![],

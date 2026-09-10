@@ -1,5 +1,5 @@
 use crate::error::GovernanceError;
-use crate::types::{ActionEffect, ActionState, SignedGovernanceMessage};
+use crate::types::{ActionEffect, ActionState, SignedActionMessage};
 
 pub trait ActionEngine: Send + Sync {
     /// Verifies whether a signed governance message meets threshold and timelock requirements.
@@ -22,7 +22,7 @@ pub trait ActionEngine: Send + Sync {
     fn verify_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedGovernanceMessage,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &crate::types::ActionConfig,
     ) -> Result<Option<ActionEffect>, GovernanceError>;
@@ -39,7 +39,7 @@ pub trait ActionEngine: Send + Sync {
     fn execute_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedGovernanceMessage,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &crate::types::ActionConfig,
     ) -> Option<ActionEffect>;

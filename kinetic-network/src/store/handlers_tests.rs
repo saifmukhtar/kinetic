@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn test_immutable_name_tie_broken() {
         let (mut store, _storage) = setup_store(100);
-        let name = "gov.kin".to_string();
+        let name = "action.kin".to_string();
 
         let existing = kinetic_core::types::NameRecord::Prime {
             name: name.clone(),

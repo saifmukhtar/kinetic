@@ -40,7 +40,7 @@ mod tests {
                 kid: "kid-token".to_string(),
                 nrs: "nrs-token".to_string(),
                 vdf: "vdf-token".to_string(),
-                action: "gov-token".to_string(),
+                action: "action-token".to_string(),
                 gossip: "gossip-token".to_string(),
                 metric: "metric-token".to_string(),
                 heartbeat: "heartbeat-token".to_string(),

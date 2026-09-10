@@ -230,10 +230,10 @@ async fn run_host() -> Result<()> {
 
     let action_state_path = std::sync::Arc::new(action_state_path);
     {
-        let mut gov = kinetic_local::action::GLOBAL_ACTION_STATE
+        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
-            .map_err(|e| anyhow::anyhow!("Poison error: {}", e))?;
-        *gov = kinetic_local::action::load_action_from_disk(&action_state_path);
+            .unwrap();
+        *action_state = kinetic_local::action::load_action_from_disk(&action_state_path);
     }
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
     let (gossip_tx, gossip_rx) = tokio::sync::broadcast::channel(100);
@@ -256,10 +256,10 @@ async fn run_host() -> Result<()> {
 
     // Push initial local governance log to the network cache
     {
-        let gov = kinetic_local::action::GLOBAL_ACTION_STATE
+        let action_state = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
             .unwrap();
-        let _ = network_client.update_action_log(gov.action_log.clone()).await;
+        let _ = network_client.update_action_log(action_state.action_log.clone()).await;
     }
 
     // If local state is empty, perform a P2P sync
@@ -278,16 +278,18 @@ async fn run_host() -> Result<()> {
                         if let Ok(resp) = network_client.send_action_sync_request(peer_id, kinetic_types::action::ActionSyncRequest { from_kyn: 0 }).await {
                             if !resp.actions.is_empty() {
                                 tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
-                                let mut gov = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                                let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                                // Validate and apply locally first
                                 for msg in &resp.actions {
-                                    if let Err(e) = kinetic_core::action::process_action_message(&mut gov, msg, kinetic_types::clock::Kyn(0)) {
-                                        tracing::error!("Failed to apply synced gov action: {}", e);
+                                    if let Err(e) = kinetic_core::action::process_action_message(&mut action_state, msg, kinetic_types::clock::Kyn(0)) {
+                                        tracing::error!("Failed to apply synced action: {}", e);
                                     }
                                 }
-                                kinetic_local::action::save_action_to_disk(&*gov, &action_state_path);
-                                drop(gov);
-                                let gov = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
-                                let _ = network_client.update_action_log(gov.action_log.clone()).await;
+                                // Persist state and broadcast update to background loop
+                                kinetic_local::action::save_action_to_disk(&*action_state, &action_state_path);
+                                drop(action_state);
+                                let action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                                let _ = network_client.update_action_log(action_state.action_log.clone()).await;
                                 break;
                             }
                         }

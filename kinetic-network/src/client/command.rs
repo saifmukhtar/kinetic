@@ -120,18 +120,18 @@ pub enum Command {
         /// Channel to return a list of (PeerId, ExpirationKyn).
         responder: oneshot::Sender<std::result::Result<Vec<(String, u64)>, NetworkClientError>>,
     },
-    /// Send a request to a remote node to sync governance state.
+    /// Send a request to a remote node to sync action state.
     SendActionSyncRequest {
         /// The remote peer ID.
         peer: libp2p::PeerId,
-        /// The gov sync request payload.
+        /// The action sync request payload.
         req: Box<kinetic_types::action::ActionSyncRequest>,
-        /// Channel to return the gov sync response.
+        /// Channel to return the action sync response.
         responder: oneshot::Sender<std::result::Result<kinetic_types::action::ActionSyncResponse, ProxyError>>,
     },
-    /// Update the local cache of the governance action log.
+    /// Update the local cache of the action log.
     UpdateActionLog {
         /// The latest list of executed governance actions.
-        actions: Vec<kinetic_types::action::SignedGovernanceMessage>,
+        actions: Vec<kinetic_types::action::SignedActionMessage>,
     },
 }

@@ -79,7 +79,7 @@ pub struct NetworkEventLoop {
             std::result::Result<kinetic_types::action::ActionSyncResponse, crate::client::ProxyError>,
         >,
     >,
-    pub(crate) action_log: Vec<kinetic_types::action::SignedGovernanceMessage>,
+    pub(crate) action_log: Vec<kinetic_types::action::SignedActionMessage>,
     pub(crate) peer_registry: crate::peer_registry::PeerRegistry,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(
