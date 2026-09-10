@@ -150,7 +150,7 @@ pub fn handle_action_gossip(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_core::action::{GovernanceAction, SignedActionMessage};
+    use kinetic_core::action::{NetworkAction, SignedActionMessage};
     use tempfile::tempdir;
 
     #[test]
@@ -170,7 +170,7 @@ mod tests {
         let path = Arc::new(dir.path().join("action.bin"));
 
         let msg = SignedActionMessage {
-            action: GovernanceAction::MapPrime {
+            action: NetworkAction::MapPrime {
                 name: "x".to_string(),
                 target_pubkey: vec![],
             },
@@ -227,7 +227,7 @@ mod tests {
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
         let msg = SignedActionMessage {
-            action: GovernanceAction::MapPrime {
+            action: NetworkAction::MapPrime {
                 name: "x".to_string(),
                 target_pubkey: vec![],
             },

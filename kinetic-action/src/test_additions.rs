@@ -1,6 +1,6 @@
 use crate::logic::process_action_message;
 use crate::types::{
-    GovernanceAction, ActionEffect, ActionState, PublicKeyBytes, SignedActionMessage,
+    NetworkAction, ActionEffect, ActionState, PublicKeyBytes, SignedActionMessage,
 };
 use kinetic_primitives::keys::KineticKeypair;
 use kinetic_types::clock::Kyn;
@@ -44,7 +44,7 @@ fn test_infra_mappings() {
 
     // Test invalid infra name
     let mut msg_invalid = SignedActionMessage {
-        action: GovernanceAction::MapInfra {
+        action: NetworkAction::MapInfra {
             name: "invalidname".to_string(),
             target_pubkey: target_pubkey.clone(),
         },
@@ -69,7 +69,7 @@ fn test_infra_mappings() {
 
     // Test valid infra name
     let mut msg_valid = SignedActionMessage {
-        action: GovernanceAction::MapInfra {
+        action: NetworkAction::MapInfra {
             name: "seed".to_string(),
             target_pubkey: target_pubkey.clone(),
         },
@@ -101,7 +101,7 @@ fn test_action_stale_rejection() {
     let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
     let mut msg = SignedActionMessage {
-        action: GovernanceAction::EmergencyHalt,
+        action: NetworkAction::EmergencyHalt,
         timestamp_kyn: stale_kyn,
         signatures: vec![],
     };

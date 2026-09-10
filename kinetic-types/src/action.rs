@@ -9,13 +9,13 @@
 //!
 //! | Opcode | Action Variant | Description |
 //! |---|---|---|
-//! | `0x0A` | [`GovernanceAction::MapPrime`] | Grant a 1-character prime name (Root key only) |
-//! | `0x0B` | [`GovernanceAction::RotateRootKey`] | Rotate network authority to a new ML-DSA-65 key |
-//! | `0x0C` | [`GovernanceAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
-//! | `0x0D` | [`GovernanceAction::EmergencyResume`] | Resume registrations and advance pause offset |
-//! | `0x0E` | [`GovernanceAction::UnmapPrime`] | Revoke a previously granted 1-character prime name |
-//! | `0x0F` | [`GovernanceAction::MapInfra`] | Grant a Category 2 infrastructure name (Root key only) |
-//! | `0x10` | [`GovernanceAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Root key only) |
+//! | `0x0A` | [`NetworkAction::MapPrime`] | Grant a 1-character prime name (Root key only) |
+//! | `0x0B` | [`NetworkAction::RotateRootKey`] | Rotate network authority to a new ML-DSA-65 key |
+//! | `0x0C` | [`NetworkAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
+//! | `0x0D` | [`NetworkAction::EmergencyResume`] | Resume registrations and advance pause offset |
+//! | `0x0E` | [`NetworkAction::UnmapPrime`] | Revoke a previously granted 1-character prime name |
+//! | `0x0F` | [`NetworkAction::MapInfra`] | Grant a Category 2 infrastructure name (Root key only) |
+//! | `0x10` | [`NetworkAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Root key only) |
 
 use thiserror::Error;
 
@@ -28,7 +28,7 @@ pub type SignatureBytes = Vec<u8>;
 
 /// Enumerates privileged protocol actions managed by the network action system.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum GovernanceAction {
+pub enum NetworkAction {
     /// Grant a 1-character premium name (Root key only).
     MapPrime {
         /// Target 1-character name label.
@@ -68,7 +68,7 @@ pub enum GovernanceAction {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SignedActionMessage {
     /// Target governance action payload.
-    pub action: GovernanceAction,
+    pub action: NetworkAction,
     /// Unix timestamp in drand kyns when the proposal was signed.
     pub timestamp_kyn: u64,
     /// Array of ML-DSA-65 signatures.
@@ -78,7 +78,7 @@ pub struct SignedActionMessage {
 impl SignedActionMessage {
     /// Serializes the governance message into a canonical byte vector for SHA-256 hashing and ML-DSA-65 signature verification.
     ///
-    /// Each [`GovernanceAction`] variant is prefixed with a 1-byte opcode:
+    /// Each [`NetworkAction`] variant is prefixed with a 1-byte opcode:
     ///
     /// | Opcode | Action Variant |
     /// |---|---|
@@ -100,7 +100,7 @@ impl SignedActionMessage {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
-            GovernanceAction::MapPrime {
+            NetworkAction::MapPrime {
                 name,
                 target_pubkey,
             } => {
@@ -110,13 +110,13 @@ impl SignedActionMessage {
                 buf.extend_from_slice(name_bytes);
                 buf.extend_from_slice(target_pubkey.as_slice());
             }
-            GovernanceAction::UnmapPrime { name } => {
+            NetworkAction::UnmapPrime { name } => {
                 buf.push(0x0E);
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
             }
-            GovernanceAction::MapInfra {
+            NetworkAction::MapInfra {
                 name,
                 target_pubkey,
             } => {
@@ -126,20 +126,20 @@ impl SignedActionMessage {
                 buf.extend_from_slice(name_bytes);
                 buf.extend_from_slice(target_pubkey.as_slice());
             }
-            GovernanceAction::UnmapInfra { name } => {
+            NetworkAction::UnmapInfra { name } => {
                 buf.push(0x10);
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
             }
-            GovernanceAction::RotateRootKey { new_key } => {
+            NetworkAction::RotateRootKey { new_key } => {
                 buf.push(0x0B);
                 buf.extend_from_slice(new_key.as_slice());
             }
-            GovernanceAction::EmergencyHalt => {
+            NetworkAction::EmergencyHalt => {
                 buf.push(0x0C);
             }
-            GovernanceAction::EmergencyResume => {
+            NetworkAction::EmergencyResume => {
                 buf.push(0x0D);
             }
         }
@@ -166,8 +166,8 @@ pub enum ActionTypeError {
     InvalidPubkeyLength,
 }
 
-impl GovernanceAction {
-    /// Parses a [`GovernanceAction`] and its trailing timestamp from a canonical byte slice.
+impl NetworkAction {
+    /// Parses a [`NetworkAction`] and its trailing timestamp from a canonical byte slice.
     ///
     /// The canonical binary format consists of:
     /// - 1 byte opcode
@@ -206,7 +206,7 @@ impl GovernanceAction {
                 if pubkey_bytes.len() != 1952 {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
-                GovernanceAction::MapPrime {
+                NetworkAction::MapPrime {
                     name,
                     target_pubkey: pubkey_bytes.to_vec(),
                 }
@@ -216,17 +216,17 @@ impl GovernanceAction {
                 if action_data.len() != 1952 {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
-                GovernanceAction::RotateRootKey {
+                NetworkAction::RotateRootKey {
                     new_key: action_data.to_vec(),
                 }
             }
             0x0C => {
                 // EmergencyHalt
-                GovernanceAction::EmergencyHalt
+                NetworkAction::EmergencyHalt
             }
             0x0D => {
                 // EmergencyResume
-                GovernanceAction::EmergencyResume
+                NetworkAction::EmergencyResume
             }
             0x0E => {
                 // UnmapPrime
@@ -240,7 +240,7 @@ impl GovernanceAction {
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
                     .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
-                GovernanceAction::UnmapPrime { name }
+                NetworkAction::UnmapPrime { name }
             }
             0x0F => {
                 // MapInfra
@@ -258,7 +258,7 @@ impl GovernanceAction {
                 if pubkey_bytes.len() != 1952 {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
-                GovernanceAction::MapInfra {
+                NetworkAction::MapInfra {
                     name,
                     target_pubkey: pubkey_bytes.to_vec(),
                 }
@@ -275,7 +275,7 @@ impl GovernanceAction {
                 let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
                     .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
-                GovernanceAction::UnmapInfra { name }
+                NetworkAction::UnmapInfra { name }
             }
             _ => return Err(ActionTypeError::UnknownOpcode(opcode)),
         };
@@ -294,7 +294,7 @@ mod tests {
         // Opcode 0xFF is not a valid governance action
         let mut buf = vec![0xFF];
         buf.extend_from_slice(&[0; 8]); // Dummy timestamp
-        let result = GovernanceAction::parse_payload(&buf);
+        let result = NetworkAction::parse_payload(&buf);
         assert_eq!(result, Err(ActionTypeError::UnknownOpcode(0xFF)));
     }
 
@@ -303,14 +303,14 @@ mod tests {
         // Buffer < 9 bytes should fail
         let buf = vec![0x0A, 0, 0, 0, 0, 0, 0, 0]; // 8 bytes
         assert_eq!(
-            GovernanceAction::parse_payload(&buf),
+            NetworkAction::parse_payload(&buf),
             Err(ActionTypeError::BufferTooSmall)
         );
     }
 
     #[test]
     fn test_parse_empty_payload_too_small() {
-        let result = GovernanceAction::parse_payload(&[]);
+        let result = NetworkAction::parse_payload(&[]);
         assert_eq!(
             result,
             Err(ActionTypeError::BufferTooSmall)
@@ -328,7 +328,7 @@ mod tests {
         buf.extend_from_slice(&[1, 2, 3]);
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
-        let result = GovernanceAction::parse_payload(&buf);
+        let result = NetworkAction::parse_payload(&buf);
         assert_eq!(result, Err(ActionTypeError::InvalidPubkeyLength));
     }
 
@@ -341,13 +341,13 @@ mod tests {
         buf.extend_from_slice(&[0; 1952]); // Valid pubkey length
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
-        let result = GovernanceAction::parse_payload(&buf);
+        let result = NetworkAction::parse_payload(&buf);
         assert_eq!(result, Err(ActionTypeError::InvalidUtf8));
     }
 
     #[test]
     fn test_roundtrip_valid_map_prime() {
-        let action = GovernanceAction::MapPrime {
+        let action = NetworkAction::MapPrime {
             name: "x".to_string(),
             target_pubkey: vec![42; 1952],
         };
@@ -358,7 +358,7 @@ mod tests {
         };
 
         let buf = msg.to_bytes();
-        let (parsed_action, parsed_time) = GovernanceAction::parse_payload(&buf).unwrap();
+        let (parsed_action, parsed_time) = NetworkAction::parse_payload(&buf).unwrap();
 
         assert_eq!(parsed_action, action);
         assert_eq!(parsed_time, 123456);
@@ -370,7 +370,7 @@ mod tests {
             raw_payload in any::<Vec<u8>>()
         ) {
             // Fuzzer guarantees this will not panic under any garbage P2P input
-            let _ = GovernanceAction::parse_payload(&raw_payload);
+            let _ = NetworkAction::parse_payload(&raw_payload);
         }
     }
 }

@@ -7,7 +7,7 @@ pub use kinetic_action::error::GovernanceError;
 pub use kinetic_action::traits::ActionEngine;
 pub use kinetic_action::types;
 pub use kinetic_action::types::{
-    GovernanceAction, ActionEffect, ActionState, SignedActionMessage, verify_signature,
+    NetworkAction, ActionEffect, ActionState, SignedActionMessage, verify_signature,
 };
 
 /// Wraps logic bindings that require configurations.

@@ -1,8 +1,8 @@
-use kinetic_types::action::{GovernanceAction, SignedActionMessage};
+use kinetic_types::action::{NetworkAction, SignedActionMessage};
 
 #[test]
 fn test_action_json_output() {
-    let action = GovernanceAction::EmergencyHalt;
+    let action = NetworkAction::EmergencyHalt;
     let msg = SignedActionMessage {
         action,
         timestamp_kyn: 1234567890,

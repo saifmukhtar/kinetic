@@ -7,7 +7,7 @@
 use crate::error::GovernanceError;
 use crate::traits::ActionEngine;
 use crate::types::{
-    GovernanceAction, ActionConfig, ActionEffect, ActionState, SignedActionMessage,
+    NetworkAction, ActionConfig, ActionEffect, ActionState, SignedActionMessage,
     verify_signature,
 };
 
@@ -44,7 +44,7 @@ impl ActionEngine for SovereignEngine {
 
         if root_signed {
             let effect = match &msg.action {
-                GovernanceAction::MapPrime {
+                NetworkAction::MapPrime {
                     name,
                     target_pubkey,
                 } => {
@@ -68,7 +68,7 @@ impl ActionEngine for SovereignEngine {
                         target_pubkey: target_pubkey.clone(),
                     }
                 }
-                GovernanceAction::UnmapPrime { name } => {
+                NetworkAction::UnmapPrime { name } => {
                     if name.len() != 1 {
                         return Err(GovernanceError::InvalidPrimeLength);
                     }
@@ -83,7 +83,7 @@ impl ActionEngine for SovereignEngine {
                     }
                     ActionEffect::PrimeUnmapped { name: name.clone() }
                 }
-                GovernanceAction::MapInfra {
+                NetworkAction::MapInfra {
                     name,
                     target_pubkey,
                 } => {
@@ -101,7 +101,7 @@ impl ActionEngine for SovereignEngine {
                         target_pubkey: target_pubkey.clone(),
                     }
                 }
-                GovernanceAction::UnmapInfra { name } => {
+                NetworkAction::UnmapInfra { name } => {
                     if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
                         return Err(GovernanceError::InvalidProtocolName);
                     }
@@ -110,7 +110,7 @@ impl ActionEngine for SovereignEngine {
                     }
                     ActionEffect::InfraUnmapped { name: name.clone() }
                 }
-                GovernanceAction::RotateRootKey { new_key } => {
+                NetworkAction::RotateRootKey { new_key } => {
                     if new_key.len() != 1952 {
                         return Err(GovernanceError::KeyLengthMismatch);
                     }
@@ -118,8 +118,8 @@ impl ActionEngine for SovereignEngine {
                         new_key: new_key.clone(),
                     }
                 }
-                GovernanceAction::EmergencyHalt => ActionEffect::NetworkHalted,
-                GovernanceAction::EmergencyResume => ActionEffect::NetworkResumed,
+                NetworkAction::EmergencyHalt => ActionEffect::NetworkHalted,
+                NetworkAction::EmergencyResume => ActionEffect::NetworkResumed,
             };
 
             return Ok(Some(effect));
@@ -141,7 +141,7 @@ impl ActionEngine for SovereignEngine {
             .insert(action_hash, kinetic_types::clock::Kyn(msg.timestamp_kyn));
 
         match &msg.action {
-            GovernanceAction::MapPrime {
+            NetworkAction::MapPrime {
                 name,
                 target_pubkey,
             } => {
@@ -153,11 +153,11 @@ impl ActionEngine for SovereignEngine {
                     target_pubkey: target_pubkey.clone(),
                 })
             }
-            GovernanceAction::UnmapPrime { name } => {
+            NetworkAction::UnmapPrime { name } => {
                 state.mapped_prime_names.remove(name);
                 Some(ActionEffect::PrimeUnmapped { name: name.clone() })
             }
-            GovernanceAction::MapInfra {
+            NetworkAction::MapInfra {
                 name,
                 target_pubkey,
             } => {
@@ -169,17 +169,17 @@ impl ActionEngine for SovereignEngine {
                     target_pubkey: target_pubkey.clone(),
                 })
             }
-            GovernanceAction::UnmapInfra { name } => {
+            NetworkAction::UnmapInfra { name } => {
                 state.mapped_infra_names.remove(name);
                 Some(ActionEffect::InfraUnmapped { name: name.clone() })
             }
-            GovernanceAction::RotateRootKey { new_key } => {
+            NetworkAction::RotateRootKey { new_key } => {
                 state.active_sovereign_key = Some(new_key.clone());
                 Some(ActionEffect::RootKeyRotated {
                     new_key: new_key.clone(),
                 })
             }
-            GovernanceAction::EmergencyHalt => {
+            NetworkAction::EmergencyHalt => {
                 if !state.is_halted {
                     state.is_halted = true;
                     if state.halt_start_kyn.is_none() {
@@ -188,7 +188,7 @@ impl ActionEngine for SovereignEngine {
                 }
                 Some(ActionEffect::NetworkHalted)
             }
-            GovernanceAction::EmergencyResume => {
+            NetworkAction::EmergencyResume => {
                 if state.is_halted {
                     state.is_halted = false;
                     let start_kyn = state.halt_start_kyn.take().unwrap_or(current_kyn);

@@ -3,7 +3,7 @@
 mod tests {
     use super::super::logic::process_action_message;
     use super::super::types::{
-        GovernanceAction, ActionEffect, ActionState, PublicKeyBytes,
+        NetworkAction, ActionEffect, ActionState, PublicKeyBytes,
         SignedActionMessage,
     };
     use kinetic_primitives::keys::KineticKeypair;
@@ -48,7 +48,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
 
         // Test invalid length
         let mut msg_invalid_len = SignedActionMessage {
-            action: GovernanceAction::MapPrime {
+            action: NetworkAction::MapPrime {
                 name: "ab".to_string(),
                 target_pubkey: target_pubkey.clone(),
             },
@@ -76,7 +76,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         for i in 0..5 {
             let name = (b'a' + i) as char;
             let mut msg = SignedActionMessage {
-                action: GovernanceAction::MapPrime {
+                action: NetworkAction::MapPrime {
                     name: name.to_string(),
                     target_pubkey: target_pubkey.clone(),
                 },
@@ -117,7 +117,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
 
         // Action 1: Rotate to the new Root Key (signed by current genesis root key)
         let mut rotate_msg = SignedActionMessage {
-            action: GovernanceAction::RotateRootKey {
+            action: NetworkAction::RotateRootKey {
                 new_key: new_root_pubkey.clone(),
             },
             timestamp_kyn: current_kyn,
@@ -147,7 +147,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
 
         // Action 2: Try mapping a name using the OLD root key (should fail)
         let mut map_msg = SignedActionMessage {
-            action: GovernanceAction::MapPrime {
+            action: NetworkAction::MapPrime {
                 name: "b".to_string(),
                 target_pubkey: new_root_pubkey.clone(), // Doesn't matter
             },
@@ -192,7 +192,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
             timestamp in any::<u64>(),
         ) {
             let (_, target_pubkey) = generate_key(99);
-            let action = GovernanceAction::MapPrime {
+            let action = NetworkAction::MapPrime {
                 name,
                 target_pubkey,
             };
@@ -232,7 +232,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         assert_eq!(state.total_paused_kyns, 0);
 
         let mut halt_msg = SignedActionMessage {
-            action: GovernanceAction::EmergencyHalt,
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: current_kyn,
             signatures: vec![],
         };
@@ -249,7 +249,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         assert!(state.is_halted);
 
         let mut resume_msg = SignedActionMessage {
-            action: GovernanceAction::EmergencyResume,
+            action: NetworkAction::EmergencyResume,
             timestamp_kyn: current_kyn + 1000,
             signatures: vec![],
         };
@@ -282,7 +282,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
 
         // Try to UnmapPrime (should fail)
         let mut fail_msg = SignedActionMessage {
-            action: GovernanceAction::UnmapPrime {
+            action: NetworkAction::UnmapPrime {
                 name: "ab".to_string(),
             },
             timestamp_kyn: current_kyn,
@@ -304,7 +304,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
 
         // First, successfully map the name so it exists in state
         let mut map_msg = SignedActionMessage {
-            action: GovernanceAction::MapPrime {
+            action: NetworkAction::MapPrime {
                 name: "a".to_string(),
                 target_pubkey: vec![0; 1952],
             },
@@ -322,7 +322,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
 
         // Try to revoke a 1-character name (should succeed)
         let mut success_msg = SignedActionMessage {
-            action: GovernanceAction::UnmapPrime {
+            action: NetworkAction::UnmapPrime {
                 name: "a".to_string(),
             },
             timestamp_kyn: current_kyn + 2,
@@ -357,7 +357,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         state.active_sovereign_key = Some(root_pubkey);
 
         let mut msg = SignedActionMessage {
-            action: GovernanceAction::EmergencyHalt,
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: current_kyn,
             signatures: vec![],
         };
@@ -400,7 +400,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
 
         // Test invalid infra name
         let mut msg_invalid = SignedActionMessage {
-            action: GovernanceAction::MapInfra {
+            action: NetworkAction::MapInfra {
                 name: "invalidname".to_string(),
                 target_pubkey: target_pubkey.clone(),
             },
@@ -425,7 +425,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
 
         // Test valid infra name
         let mut msg_valid = SignedActionMessage {
-            action: GovernanceAction::MapInfra {
+            action: NetworkAction::MapInfra {
                 name: "seed".to_string(),
                 target_pubkey: target_pubkey.clone(),
             },
@@ -456,7 +456,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
         let mut msg = SignedActionMessage {
-            action: GovernanceAction::EmergencyHalt,
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: stale_kyn,
             signatures: vec![],
         };

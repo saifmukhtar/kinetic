@@ -1,6 +1,6 @@
 //! Data structures and serialized action types for network governance.
 //!
-//! Defines the complete set of [`GovernanceAction`] variants, the persistent [`ActionState`],
+//! Defines the complete set of [`NetworkAction`] variants, the persistent [`ActionState`],
 //! the [`SignedActionMessage`] proposal envelope, and canonical byte serialization.
 //!
 //! ## Protocol Context
@@ -11,11 +11,10 @@
 //!    determines whether the action is immediately executed or enters a timelock queue.
 //!
 //! In **Sovereign mode**, the Root key acts as a single-signer authority.
-
 use std::collections::HashMap;
 
 pub use kinetic_types::action::{
-    GovernanceAction, Hash256, PublicKeyBytes, SignatureBytes, SignedActionMessage,
+    NetworkAction, Hash256, PublicKeyBytes, SignatureBytes, SignedActionMessage,
 };
 
 /// Verifies an ML-DSA-65 post-quantum signature over a message byte slice.
