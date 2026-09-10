@@ -1,4 +1,4 @@
-use crate::error::GovernanceError;
+use crate::error::ActionError;
 use crate::types::{ActionEffect, ActionState, SignedActionMessage};
 
 pub trait ActionEngine: Send + Sync {
@@ -14,18 +14,18 @@ pub trait ActionEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::InvalidSignature`] (`KIN-ACN-007`) if required signatures or threshold are not met.
-    /// - Returns [`GovernanceError::StaleProposal`] (`KIN-ACN-005`) if the proposal timestamp is outside the replay window.
-    /// - Returns [`GovernanceError::ActionDisabled`] (`KIN-ACN-003`) if governance actions are disabled in this mode.
-    /// - Returns [`GovernanceError::KeyLengthMismatch`] (`KIN-ACN-004`) if a key length is invalid.
-    /// - Returns [`GovernanceError::MissingRootKey`] (`KIN-ACN-001`) if the root key is unconfigured.
+    /// - Returns [`ActionError::InvalidSignature`] (`KIN-ACN-007`) if required signatures or threshold are not met.
+    /// - Returns [`ActionError::StaleProposal`] (`KIN-ACN-005`) if the proposal timestamp is outside the replay window.
+    /// - Returns [`ActionError::ActionDisabled`] (`KIN-ACN-003`) if governance actions are disabled in this mode.
+    /// - Returns [`ActionError::KeyLengthMismatch`] (`KIN-ACN-004`) if a key length is invalid.
+    /// - Returns [`ActionError::MissingRootKey`] (`KIN-ACN-001`) if the root key is unconfigured.
     fn verify_action(
         &self,
         state: &mut ActionState,
         msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &crate::types::ActionConfig,
-    ) -> Result<Option<ActionEffect>, GovernanceError>;
+    ) -> Result<Option<ActionEffect>, ActionError>;
 
     /// Executes a previously verified governance action, applying state changes.
     ///

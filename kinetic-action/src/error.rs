@@ -1,6 +1,6 @@
 //! Governance action verification and voting error types (`KIN-ACN-NNN`).
 //!
-//! [`GovernanceError`] is returned by the active [`ActionEngine`](crate::traits::ActionEngine)
+//! [`ActionError`] is returned by the active [`ActionEngine`](crate::traits::ActionEngine)
 //! when a [`SignedActionMessage`](crate::types::SignedActionMessage) fails
 //! signature verification, threshold checks, or timelock constraints.
 //!
@@ -17,7 +17,7 @@ use thiserror::Error;
 
 /// Errors relating to Kinetic global governance actions.
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum GovernanceError {
+pub enum ActionError {
     /// **What**: The daemon started in Sovereign mode but the `SOVEREIGN_KEY_HEX` environment variable is missing.
     /// **Why**: The daemon requires the root public key at startup to verify incoming governance actions.
     /// **Fix**: Ensure the `SOVEREIGN_KEY_HEX` environment variable is set to a valid 64-character hex string.
@@ -129,7 +129,7 @@ pub enum GovernanceError {
     BootstrapFetchFailed,
 }
 
-impl GovernanceError {
+impl ActionError {
     /// Stable protocol error code. Part of the Kinetic error taxonomy.
     pub fn code(&self) -> &'static str {
         match self {

@@ -67,7 +67,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         )
         .unwrap_err();
         assert!(
-            matches!(err, crate::error::GovernanceError::InvalidPrimeLength),
+            matches!(err, crate::error::ActionError::InvalidPrimeLength),
             "Got error: {:?}",
             err
         );
@@ -165,7 +165,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         .unwrap_err();
         assert!(matches!(
             err,
-            crate::error::GovernanceError::InvalidSignature
+            crate::error::ActionError::InvalidSignature
         ));
 
         // Action 3: Map a name using the NEW root key (should succeed)
@@ -299,7 +299,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         .unwrap_err();
         assert!(matches!(
             err,
-            crate::error::GovernanceError::InvalidPrimeLength
+            crate::error::ActionError::InvalidPrimeLength
         ));
 
         // First, successfully map the name so it exists in state
@@ -382,7 +382,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         )
         .unwrap_err();
         assert!(
-            matches!(err, crate::error::GovernanceError::AlreadyExecuted),
+            matches!(err, crate::error::ActionError::AlreadyExecuted),
             "Expected AlreadyExecuted error on replay attack, got: {:?}",
             err
         );
@@ -420,7 +420,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         .unwrap_err();
         assert!(matches!(
             err,
-            crate::error::GovernanceError::InvalidProtocolName
+            crate::error::ActionError::InvalidProtocolName
         ));
 
         // Test valid infra name
@@ -465,6 +465,6 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         let err =
             process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
                 .unwrap_err();
-        assert!(matches!(err, crate::error::GovernanceError::StaleProposal));
+        assert!(matches!(err, crate::error::ActionError::StaleProposal));
     }
 }

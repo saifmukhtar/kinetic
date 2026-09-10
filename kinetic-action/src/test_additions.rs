@@ -64,7 +64,7 @@ fn test_infra_mappings() {
     .unwrap_err();
     assert!(matches!(
         err,
-        crate::error::GovernanceError::InvalidProtocolName
+        crate::error::ActionError::InvalidProtocolName
     ));
 
     // Test valid infra name
@@ -109,5 +109,5 @@ fn test_action_stale_rejection() {
 
     let err = process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
         .unwrap_err();
-    assert!(matches!(err, crate::error::GovernanceError::StaleProposal));
+    assert!(matches!(err, crate::error::ActionError::StaleProposal));
 }

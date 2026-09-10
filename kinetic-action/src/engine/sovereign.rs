@@ -4,7 +4,7 @@
 //! Council member signatures are ignored, and threshold logic is bypassed. Used primarily
 //! for private deployments or the earliest stages of bootstrap.
 
-use crate::error::GovernanceError;
+use crate::error::ActionError;
 use crate::traits::ActionEngine;
 use crate::types::{
     NetworkAction, ActionConfig, ActionEffect, ActionState, SignedActionMessage,
@@ -20,18 +20,18 @@ impl ActionEngine for SovereignEngine {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds `config.max_age_kyns`.
-    /// - Returns [`GovernanceError::InvalidPrimeLength`] if a prime name is not 1 character.
-    /// - Returns [`GovernanceError::InvalidSignature`] if the Root key signature is missing or invalid.
+    /// - Returns [`ActionError::StaleProposal`] if the proposal timestamp exceeds `config.max_age_kyns`.
+    /// - Returns [`ActionError::InvalidPrimeLength`] if a prime name is not 1 character.
+    /// - Returns [`ActionError::InvalidSignature`] if the Root key signature is missing or invalid.
     fn verify_action(
         &self,
         state: &mut ActionState,
         msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
-    ) -> Result<Option<ActionEffect>, GovernanceError> {
+    ) -> Result<Option<ActionEffect>, ActionError> {
         if current_kyn.0.abs_diff(msg.timestamp_kyn) > config.max_age_kyns {
-            return Err(GovernanceError::StaleProposal);
+            return Err(ActionError::StaleProposal);
         }
 
         let root_key = state.get_sovereign_key(config)?;
@@ -49,19 +49,19 @@ impl ActionEngine for SovereignEngine {
                     target_pubkey,
                 } => {
                     if name.len() != 1 {
-                        return Err(GovernanceError::InvalidPrimeLength);
+                        return Err(ActionError::InvalidPrimeLength);
                     }
                     if !name
                         .chars()
                         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
                     {
-                        return Err(GovernanceError::UnnormalizedName);
+                        return Err(ActionError::UnnormalizedName);
                     }
                     if target_pubkey.len() != 1952 {
-                        return Err(GovernanceError::KeyLengthMismatch);
+                        return Err(ActionError::KeyLengthMismatch);
                     }
                     if state.mapped_prime_names.contains_key(name) {
-                        return Err(GovernanceError::AlreadyMapped);
+                        return Err(ActionError::AlreadyMapped);
                     }
                     ActionEffect::PrimeMapped {
                         name: name.clone(),
@@ -70,16 +70,16 @@ impl ActionEngine for SovereignEngine {
                 }
                 NetworkAction::UnmapPrime { name } => {
                     if name.len() != 1 {
-                        return Err(GovernanceError::InvalidPrimeLength);
+                        return Err(ActionError::InvalidPrimeLength);
                     }
                     if !name
                         .chars()
                         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
                     {
-                        return Err(GovernanceError::UnnormalizedName);
+                        return Err(ActionError::UnnormalizedName);
                     }
                     if !state.mapped_prime_names.contains_key(name) {
-                        return Err(GovernanceError::NotMapped);
+                        return Err(ActionError::NotMapped);
                     }
                     ActionEffect::PrimeUnmapped { name: name.clone() }
                 }
@@ -88,13 +88,13 @@ impl ActionEngine for SovereignEngine {
                     target_pubkey,
                 } => {
                     if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
-                        return Err(GovernanceError::InvalidProtocolName);
+                        return Err(ActionError::InvalidProtocolName);
                     }
                     if target_pubkey.len() != 1952 {
-                        return Err(GovernanceError::KeyLengthMismatch);
+                        return Err(ActionError::KeyLengthMismatch);
                     }
                     if state.mapped_infra_names.contains_key(name) {
-                        return Err(GovernanceError::AlreadyMapped);
+                        return Err(ActionError::AlreadyMapped);
                     }
                     ActionEffect::InfraMapped {
                         name: name.clone(),
@@ -103,16 +103,16 @@ impl ActionEngine for SovereignEngine {
                 }
                 NetworkAction::UnmapInfra { name } => {
                     if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
-                        return Err(GovernanceError::InvalidProtocolName);
+                        return Err(ActionError::InvalidProtocolName);
                     }
                     if !state.mapped_infra_names.contains_key(name) {
-                        return Err(GovernanceError::NotMapped);
+                        return Err(ActionError::NotMapped);
                     }
                     ActionEffect::InfraUnmapped { name: name.clone() }
                 }
                 NetworkAction::RotateRootKey { new_key } => {
                     if new_key.len() != 1952 {
-                        return Err(GovernanceError::KeyLengthMismatch);
+                        return Err(ActionError::KeyLengthMismatch);
                     }
                     ActionEffect::RootKeyRotated {
                         new_key: new_key.clone(),
@@ -125,7 +125,7 @@ impl ActionEngine for SovereignEngine {
             return Ok(Some(effect));
         }
 
-        Err(GovernanceError::InvalidSignature)
+        Err(ActionError::InvalidSignature)
     }
 
     fn execute_action(

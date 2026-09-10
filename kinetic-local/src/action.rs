@@ -34,7 +34,7 @@ pub fn load_action_from_disk(path: &std::path::Path) -> ActionState {
                 new_name.push(format!(".corrupt.{}", now));
                 let corrupt_path = path.with_file_name(new_name);
                 let _ = std::fs::rename(path, &corrupt_path);
-                let err = kinetic_action::error::GovernanceError::StateCorrupted;
+                let err = kinetic_action::error::ActionError::StateCorrupted;
                 tracing::error!(
                     error_code = err.code(),
                     "CRITICAL: Governance state corrupted: {}. Refusing to start with a reset state.",
@@ -51,7 +51,7 @@ pub fn load_action_from_disk(path: &std::path::Path) -> ActionState {
             kinetic_core::types::clock::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
         ),
         Err(e) => {
-            let err = kinetic_action::error::GovernanceError::StateReadFailed;
+            let err = kinetic_action::error::ActionError::StateReadFailed;
             tracing::error!(
                 error_code = err.code(),
                 "CRITICAL: Failed to read Governance state file: {}.",

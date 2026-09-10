@@ -82,7 +82,7 @@ pub async fn start_gossip_listener(
                             &cloned_state,
                             &path_clone,
                         ) {
-                            let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                            let err = kinetic_core::error::ActionError::StateSaveFailed;
                             tracing::error!(
                                 error_code = err.code(),
                                 "Failed to save modified governance state to disk: {}",

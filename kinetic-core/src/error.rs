@@ -24,7 +24,7 @@
 //! | `KIN-PUB-NNN` | [`PublishError`] | DHT record publishing |
 //! | `KIN-REG-NNN` | [`RegistrationError`] | Name registration flow |
 //! | `KIN-VDF-NNN` | `VdfError` | VDF engine operations |
-//! | `KIN-ACN-NNN` | `GovernanceError` | Council governance |
+//! | `KIN-ACN-NNN` | `ActionError` | Council governance |
 //! | `KIN-NRS-NNN` | `NrsError` | NRS zone parsing |
 //! | `KIN-RND-NNN` | `DrandError` | Drand beacon |
 //! | `KIN-IDN-NNN` | `IdentityError` | Node identity keys |
@@ -77,7 +77,7 @@ pub mod telemetry;
 /// VDF engine error types.
 pub mod vdf;
 
-pub use crate::action::GovernanceError;
+pub use crate::action::ActionError;
 pub use api::RestApiError;
 pub use config::ConfigError;
 pub use dht::{PublishError, RecordRejectReason, RegistrationError, ResolutionError};

@@ -207,7 +207,7 @@ pub async fn handle_publish_action(
                             .join("action.db")
                     });
                 if let Err(e) = kinetic_local::action::save_action_to_disk(&action_state, &path) {
-                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                    let err = kinetic_core::error::ActionError::StateSaveFailed;
                     tracing::error!(
                         error_code = err.code(),
                         "Failed to save modified governance state to disk: {}",
@@ -265,7 +265,7 @@ pub async fn handle_publish_action(
             }))
         }
         Err(e) => {
-            let err = kinetic_core::error::GovernanceError::P2pPublishFailed;
+            let err = kinetic_core::error::ActionError::P2pPublishFailed;
             tracing::error!(
                 error_code = err.code(),
                 "Failed to publish Governance Message to P2P network: {}",

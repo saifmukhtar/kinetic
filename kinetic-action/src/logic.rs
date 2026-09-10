@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use crate::error::GovernanceError;
+use crate::error::ActionError;
 use crate::types::{
     ActionConfig, ActionEffect, ActionState, Hash256, PublicKeyBytes,
     SignedActionMessage,
@@ -22,25 +22,25 @@ use crate::types::{
 ///
 /// # Errors
 ///
-/// - Returns [`GovernanceError::MissingSovereignKey`] if the root key hex string is unconfigured or invalid.
-/// - Returns [`GovernanceError::KeyLengthMismatch`] if a public key is not exactly 1,952 bytes.
+/// - Returns [`ActionError::MissingSovereignKey`] if the root key hex string is unconfigured or invalid.
+/// - Returns [`ActionError::KeyLengthMismatch`] if a public key is not exactly 1,952 bytes.
 pub fn validate_keys_initialized(
     sovereign_key_hex: &str,
     is_dev_mode: bool,
-) -> Result<(), GovernanceError> {
+) -> Result<(), ActionError> {
     if is_dev_mode {
         return Ok(());
     }
     if sovereign_key_hex.contains("REPLACE_ME") {
-        return Err(GovernanceError::MissingSovereignKey);
+        return Err(ActionError::MissingSovereignKey);
     }
 
     // Attempt to decode the hex just to validate its format.
     let bytes =
-        hex::decode(sovereign_key_hex).map_err(|_| GovernanceError::MalformedSovereignKey)?;
+        hex::decode(sovereign_key_hex).map_err(|_| ActionError::MalformedSovereignKey)?;
 
     if bytes.len() != 1952 {
-        return Err(GovernanceError::KeyLengthMismatch);
+        return Err(ActionError::KeyLengthMismatch);
     }
 
     Ok(())
@@ -97,19 +97,19 @@ impl ActionState {
     ///
     /// # Errors
     ///
-    /// Returns a `GovernanceError` if the key is missing, invalid, or has the wrong length.
+    /// Returns a `ActionError` if the key is missing, invalid, or has the wrong length.
     pub fn get_sovereign_key(
         &self,
         config: &ActionConfig,
-    ) -> Result<PublicKeyBytes, GovernanceError> {
+    ) -> Result<PublicKeyBytes, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
             return Ok(key.clone());
         }
 
         let bytes = hex::decode(&config.sovereign_key_hex)
-            .map_err(|_| GovernanceError::MalformedSovereignKey)?;
+            .map_err(|_| ActionError::MalformedSovereignKey)?;
         if bytes.len() != 1952 {
-            return Err(GovernanceError::KeyLengthMismatch);
+            return Err(ActionError::KeyLengthMismatch);
         }
         Ok(bytes)
     }
@@ -118,13 +118,13 @@ impl ActionState {
     ///
     /// # Errors
     ///
-    /// Returns a `GovernanceError` if the message is stale, signatures are insufficient, timelocks are not met, or other invariants are violated.
+    /// Returns a `ActionError` if the message is stale, signatures are insufficient, timelocks are not met, or other invariants are violated.
     pub fn verify_action(
         &mut self,
         msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
         config: &ActionConfig,
-    ) -> Result<Option<ActionEffect>, GovernanceError> {
+    ) -> Result<Option<ActionEffect>, ActionError> {
         crate::engine::get_active_engine(&config.action_model).verify_action(
             self,
             msg,
@@ -153,20 +153,20 @@ impl ActionState {
 ///
 /// # Errors
 ///
-/// Returns a `GovernanceError` if the action fails verification or execution rules.
+/// Returns a `ActionError` if the action fails verification or execution rules.
 pub fn process_action_message(
     state: &mut ActionState,
     msg: &SignedActionMessage,
     current_kyn: kinetic_types::clock::Kyn,
     config: &ActionConfig,
-) -> Result<Option<ActionEffect>, GovernanceError> {
+) -> Result<Option<ActionEffect>, ActionError> {
     let effect = state.verify_action(msg, current_kyn, config)?;
 
     state.prune(current_kyn, config);
 
     let action_hash = ActionState::hash_action(msg);
     if state.executed_hashes.contains_key(&action_hash) {
-        return Err(GovernanceError::AlreadyExecuted);
+        return Err(ActionError::AlreadyExecuted);
     }
 
     state.execute_action(msg, current_kyn, config);

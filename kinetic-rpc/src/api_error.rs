@@ -5,7 +5,7 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use kinetic_core::error::{
-    ConfigError, GovernanceError, IdentityError, KynProviderError, NamesError, NetworkClientError,
+    ConfigError, ActionError, IdentityError, KynProviderError, NamesError, NetworkClientError,
     NrsError, P2pError, PublishError, RegistrationError, ResolutionError, StorageError, SystemError,
     VdfError, vdf::RevealValidationError,
 };
@@ -139,26 +139,26 @@ impl From<RegistrationError> for ApiError {
     }
 }
 
-impl From<GovernanceError> for ApiError {
-    fn from(e: GovernanceError) -> Self {
+impl From<ActionError> for ApiError {
+    fn from(e: ActionError) -> Self {
         let (status, title): (u16, &'static str) = match &e {
-            GovernanceError::MissingSovereignKey
-            | GovernanceError::MalformedSovereignKey
-            | GovernanceError::StateCorrupted => (500, "Internal Server Error"),
-            GovernanceError::ActionDisabled => (403, "Forbidden"),
-            GovernanceError::StaleProposal | GovernanceError::AlreadyExecuted => (409, "Conflict"),
-            GovernanceError::KeyLengthMismatch
-            | GovernanceError::InvalidSignature
-            | GovernanceError::InvalidPrimeLength
-            | GovernanceError::InvalidProtocolName
-            | GovernanceError::AlreadyMapped
-            | GovernanceError::NotMapped
-            | GovernanceError::UnnormalizedName
-            | GovernanceError::InvalidSeedState => (400, "Bad Request"),
-            GovernanceError::StateSaveFailed | GovernanceError::StateReadFailed => {
+            ActionError::MissingSovereignKey
+            | ActionError::MalformedSovereignKey
+            | ActionError::StateCorrupted => (500, "Internal Server Error"),
+            ActionError::ActionDisabled => (403, "Forbidden"),
+            ActionError::StaleProposal | ActionError::AlreadyExecuted => (409, "Conflict"),
+            ActionError::KeyLengthMismatch
+            | ActionError::InvalidSignature
+            | ActionError::InvalidPrimeLength
+            | ActionError::InvalidProtocolName
+            | ActionError::AlreadyMapped
+            | ActionError::NotMapped
+            | ActionError::UnnormalizedName
+            | ActionError::InvalidSeedState => (400, "Bad Request"),
+            ActionError::StateSaveFailed | ActionError::StateReadFailed => {
                 (500, "Internal Server Error")
             }
-            GovernanceError::P2pPublishFailed | GovernanceError::BootstrapFetchFailed => {
+            ActionError::P2pPublishFailed | ActionError::BootstrapFetchFailed => {
                 (502, "Bad Gateway")
             }
         };
