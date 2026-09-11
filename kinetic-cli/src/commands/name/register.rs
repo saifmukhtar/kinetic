@@ -40,7 +40,7 @@ pub async fn handle_name_register(
     if !label.is_empty() && label.len() <= 6 {
         println!("{}", "================================================================".yellow());
         println!("{}", format!("CRITICAL WARNING: You are attempting to register a {}-letter name.", label.len()).yellow().bold());
-        println!("{}", "Short names require massive VDF computations to prevent squatting.".yellow());
+        println!("{}", "Short names require massive VDF computations to prevent namespace hoarding.".yellow());
         println!("{}", format!("This requires {} iterations and will take approximately {}{}.", actual_iterations, time_str, rating_str).yellow());
         println!("{}", "If your computer sleeps, restarts, or loses power during this process, ALL PROGRESS WILL BE LOST.".red().bold());
         println!("{}", "================================================================".yellow());
@@ -55,7 +55,7 @@ pub async fn handle_name_register(
     pb.set_message("Submitting registration request to local Kinetic Daemon...");
     pb.enable_steady_tick(Duration::from_millis(100));
 
-    let daemon_url = format!("http://{}:{}/api/macro/register", config.daemon.bind_ip, config.daemon.api_port);
+    let daemon_url = format!("http://{}:{}/api/v1/macro/register", config.daemon.bind_ip, config.daemon.api_port);
     let req_body = json!({ "name": fqdn, "iterations": actual_iterations });
     let response = client.post(&daemon_url).json(&req_body).send().await;
 
@@ -88,7 +88,7 @@ pub async fn handle_name_register(
     pb.set_length(100);
     pb.set_message("Waiting in queue...");
 
-    let status_url = format!("http://{}:{}/api/macro/status/{}", config.daemon.bind_ip, config.daemon.api_port, task_id);
+    let status_url = format!("http://{}:{}/api/v1/macro/status/{}", config.daemon.bind_ip, config.daemon.api_port, task_id);
 
     loop {
         tokio::time::sleep(Duration::from_secs(2)).await;

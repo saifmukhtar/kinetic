@@ -23,7 +23,7 @@ pub enum Commands {
         #[command(subcommand)]
         cmd: crypto::identity::IdentityCommands,
     },
-    /// Interactive wizard to initialize your Kinetic node
+    /// Interactive configuration utility to initialize your Kinetic node
     Setup(utilities::setup::SetupCommand),
     /// Network operations (peers, status, bootstrap, action)
     Network {

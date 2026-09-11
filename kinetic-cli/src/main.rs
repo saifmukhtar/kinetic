@@ -11,7 +11,7 @@
 //! - **`identity`** — Display the local node's Peer ID and network identity.
 //! - **`name`** — Register, renew, update, and transfer `.kin` names.
 //! - **`service`** — Install, uninstall, start, and stop the daemon as a system service.
-//! - **`setup`** — Interactive setup wizard for initial node configuration.
+//! - **`setup`** — Interactive configuration utility for initial node setup.
 //! - **`seed`** — Generate or restore the node's seed phrase identity.
 //! - **`action`** — Submit and manage post-quantum action proposals.
 //! - **`dns-tree`** — Generate Merkle DNS tree zone files for P2P bootstrapping.

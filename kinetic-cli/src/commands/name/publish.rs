@@ -1,145 +1,49 @@
 //! Name zone routing updates and commit-reveal network publishing logic.
 
-use crate::utils::{parse_and_format_api_error, save_zone_file};
 use kinetic_core::config::KineticConfig;
-use kinetic_local::config::get_zones_dir;
-use kinetic_local::identity::load_keypair;
-
 use reqwest::Client;
-use serde_json::json;
-use tracing::{info, warn};
-
-/// Updates the routing zone data for a registered name.
-///
-/// This involves checking for a local record cache (or fetching it from the DHT),
-/// signing the new payload, and propagating the updated record to the network.
-///
-/// # Errors
-/// Returns an `anyhow::Error` if the name is invalid, keys cannot be loaded,
-/// the existing record cannot be found, or the DHT publish fails.
-pub async fn update_zone_logic(
-    fqdn: String,
-    zone: kinetic_core::types::NrsZone,
-    config: &KineticConfig,
-    client: &Client,
-    _display_val: String,
-) -> anyhow::Result<()> {
-    if let Err(e) = kinetic_core::types::is_valid_apex_name(&fqdn) {
-        tracing::error!("Invalid name '{}': {}", fqdn, e);
-        return Ok(());
-    }
-    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
-    let keypair = load_keypair(&identity_path)?;
-
-    // Check for local record cache first for massive UX improvement
-    let cache_dir = get_zones_dir().join("cache");
-    let _ = std::fs::create_dir_all(&cache_dir);
-    let record_path = cache_dir.join(format!("{}.record.json", fqdn));
-    let mut existing_record: kinetic_core::types::NameRecord = if record_path.exists() {
-        let content = std::fs::read_to_string(&record_path)?;
-        serde_json::from_str(&content)
-            .map_err(|e| anyhow::anyhow!("Local record cache corrupted: {}", e))?
-    } else {
-        let daemon_url = format!(
-            "http://{}:{}/api/v1/micro/nrs/resolve/{}",
-            config.daemon.bind_ip, config.daemon.api_port, fqdn
-        );
-        let resolve_res = client.get(&daemon_url).send().await?;
-        if !resolve_res.status().is_success() {
-            let status = resolve_res.status();
-            let text = resolve_res.text().await.unwrap_or_default();
-            let msg = parse_and_format_api_error(
-                "Failed to resolve existing name from DHT",
-                status,
-                &text,
-            );
-            return Err(anyhow::anyhow!("No local record cache found, and {}", msg));
-        }
-        resolve_res.json().await?
-    };
-
-    let new_payload = serde_json::to_vec(&zone).expect("Failed to serialize NrsZone");
-    match &mut existing_record {
-        kinetic_core::types::NameRecord::Standard(r) => {
-            r.payload = new_payload;
-            let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            r.signature = keypair.sign(&signable);
-        }
-        kinetic_core::types::NameRecord::Prime {
-            name,
-            payload,
-            signature,
-            ..
-        }
-        | kinetic_core::types::NameRecord::Infra {
-            name,
-            payload,
-            signature,
-            ..
-        } => {
-            payload.clone_from(&new_payload);
-            // The signature for NameRecord uses the NameRecord method verify_signature which signs (name || payload || network_salt)
-            let mut signable = Vec::new();
-            signable.extend_from_slice(name.as_bytes());
-            signable.extend_from_slice(payload);
-            signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
-            signature.clone_from(&keypair.sign(&signable));
-        }
-    }
-
-    let publish_url = format!(
-        "http://{}:{}/api/v1/micro/nrs/record/publish",
-        config.daemon.bind_ip, config.daemon.api_port
-    );
-    let response = client
-        .post(publish_url)
-        .json(&json!({"record": existing_record}))
-        .send()
-        .await?;
-    if response.status().is_success() {
-        info!("Success! {} updated.", fqdn);
-        let _ = save_zone_file(&fqdn, &zone);
-        let record_str = serde_json::to_string_pretty(&existing_record)?;
-        let _ = std::fs::write(&record_path, record_str);
-    } else {
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        warn!(
-            "Daemon returned an error updating zone: {}",
-            parse_and_format_api_error("Publish zone error", status, &text)
-        );
-    }
-    Ok(())
-}
+use tracing::info;
 
 /// Handles publishing local zone configuration to the network.
 ///
-/// Reads the corresponding `zone.json` file for the given name
-/// and calls `update_zone_logic` to submit it to the local daemon.
+/// Instructs the Kinetic Daemon to securely read the local zone file,
+/// apply the cryptographic signature using its wallet, and publish the
+/// updated NameRecord to the DHT.
 ///
 /// # Errors
-/// Returns an `anyhow::Error` if the zone file does not exist, cannot be read
-/// or parsed, or if the update process fails.
+/// Returns an `anyhow::Error` if the daemon rejects the publish request.
 pub async fn handle_name_publish(
     name: String,
     config: &KineticConfig,
     client: &Client,
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
-    let mut zone_file = get_zones_dir().join("config");
-    zone_file.push(format!("{}.json", fqdn));
+    let port = config.daemon.api_port;
+    let url = format!(
+        "http://{}:{}/api/v1/micro/nrs/zone/{}/publish",
+        config.daemon.bind_ip, port, fqdn
+    );
 
-    if !zone_file.exists() {
-        return Err(anyhow::anyhow!(
-            "No zone file found at {}. Please create it or run 'register' first.",
-            zone_file.display()
-        ));
+    // Grab admin token for secure daemon access
+    let token_path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
+    let token = std::fs::read_to_string(&token_path).unwrap_or_default();
+    let auth_header = format!("Bearer {}", token.trim());
+
+    info!("Instructing daemon to sign and publish zone for {}...", fqdn);
+    
+    let response = client
+        .post(&url)
+        .header("Authorization", &auth_header)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        info!("Success! Zone for {} successfully published to the network.", fqdn);
+    } else {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        anyhow::bail!("Daemon rejected zone publish ({}): {}", status, text);
     }
 
-    let file_contents = std::fs::read_to_string(&zone_file)?;
-    let zone: kinetic_core::types::NrsZone = serde_json::from_str(&file_contents)
-        .map_err(|e| anyhow::anyhow!("Invalid NrsZone JSON in {}: {}", zone_file.display(), e))?;
-
-    update_zone_logic(fqdn, zone, config, client, "ZonePublish".to_string()).await?;
     Ok(())
 }

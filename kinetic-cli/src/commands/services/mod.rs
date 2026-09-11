@@ -43,6 +43,10 @@ pub enum ServicesCommand {
     Config,
     /// Flush the in-memory DNS cache
     DnsFlush,
+    /// View background VDF proofs and macro jobs
+    Tasks,
+    /// Download the local proxy's TLS Root certificate
+    CaCert,
 }
 
 /// Dispatches the service lifecycle command to the appropriate binary or API.
@@ -77,5 +81,7 @@ pub async fn handle_services_command(
         ServicesCommand::Shutdown => system_ctrl::handle_shutdown(config, client).await,
         ServicesCommand::Config => config_ctrl::handle_config(config, client).await,
         ServicesCommand::DnsFlush => config_ctrl::handle_dns_flush(config, client).await,
+        ServicesCommand::Tasks => system_ctrl::handle_tasks(config, client).await,
+        ServicesCommand::CaCert => system_ctrl::handle_ca_cert(config, client).await,
     }
 }

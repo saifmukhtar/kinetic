@@ -24,12 +24,16 @@ pub async fn handle_auth_command(
             let port = config.daemon.api_port;
             let url = format!("http://{}:{}/api/v1/micro/auth/sessions", config.daemon.bind_ip, port);
             
+            let token_path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
+            let token = std::fs::read_to_string(&token_path).unwrap_or_default();
+            let auth_header = format!("Bearer {}", token.trim());
+
             let pb = ProgressBar::new_spinner();
             pb.set_style(ProgressStyle::default_spinner().template("{spinner:.green} {msg}")?);
             pb.set_message("Fetching active sessions...");
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
-            let resp = client.get(&url).send().await?;
+            let resp = client.get(&url).header("Authorization", &auth_header).send().await?;
             
             pb.finish_and_clear();
 
@@ -77,6 +81,10 @@ pub async fn handle_auth_command(
             Ok(())
         }
         AuthCommands::Revoke { id } => {
+            let token_path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
+            let token = std::fs::read_to_string(&token_path).unwrap_or_default();
+            let auth_header = format!("Bearer {}", token.trim());
+
             let pb = ProgressBar::new_spinner();
             pb.set_style(ProgressStyle::default_spinner().template("{spinner:.red} {msg}")?);
             pb.set_message(format!("Revoking session {}...", id));
@@ -84,7 +92,7 @@ pub async fn handle_auth_command(
 
             let port = config.daemon.api_port;
             let url = format!("http://{}:{}/api/v1/micro/auth/session/{}", config.daemon.bind_ip, port, id);
-            let resp = client.delete(&url).send().await?;
+            let resp = client.delete(&url).header("Authorization", &auth_header).send().await?;
             
             pb.finish_and_clear();
 

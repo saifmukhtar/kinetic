@@ -1,9 +1,9 @@
-//! Interactive setup wizard for onboarding new Kinetic nodes and identities.
+//! Interactive configuration utility for onboarding new Kinetic nodes and identities.
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-/// Interactive setup wizard for new Kinetic users.
+/// Interactive configuration utility for new Kinetic users.
 #[derive(Parser)]
 pub struct SetupCommand {
     #[command(subcommand)]
@@ -16,7 +16,7 @@ pub enum SetupTarget {
     Firefox,
 }
 
-/// Executes the interactive setup wizard for initial node configuration.
+/// Executes the interactive configuration utility for initial node setup.
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if the underlying seed phrase generation or identity writing fails.

@@ -9,6 +9,9 @@ pub mod query;
 pub mod register;
 pub mod renew;
 pub mod overrides;
+pub mod reserved;
+pub mod verify;
+pub mod heartbeat;
 #[cfg(test)]
 mod tests;
 
@@ -66,6 +69,18 @@ pub enum NameCommands {
         name: String,
     },
 
+    /// List network-reserved names that cannot be registered
+    Reserved,
+    /// Verify the quorum replication status of a name on the network
+    Verify {
+        name: String,
+    },
+    /// Manage and inspect background DHT heartbeats
+    Heartbeat {
+        #[command(subcommand)]
+        cmd: heartbeat::HeartbeatCommands,
+    },
+
     #[cfg(test)]
     Guard {
         name: String,
@@ -100,6 +115,9 @@ pub async fn handle_name_command(
         NameCommands::LocalZoneDelete { name } => {
             overrides::handle_local_zone_delete(name, config, client).await
         }
+        NameCommands::Reserved => reserved::handle_reserved(config, client).await,
+        NameCommands::Verify { name } => verify::handle_verify(name, config, client).await,
+        NameCommands::Heartbeat { cmd } => heartbeat::handle_heartbeat(cmd, config, client).await,
         #[cfg(test)]
         NameCommands::Guard { .. } => Ok(()), // Just for tests
     }
