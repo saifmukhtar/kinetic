@@ -29,7 +29,7 @@ pub fn start_heartbeat_loop(
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_kyn_provider.load_cached_kyn() {
+                if let Ok(latest) = hb_kyn_provider.load_cached() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
@@ -69,12 +69,12 @@ pub fn start_heartbeat_loop(
                         p
                     }
                     Err(_) => hb_kyn_provider
-                        .load_cached_kyn()
+                        .load_cached()
                         .unwrap_or(kinetic_core::drand::RawKyn::unavailable()),
                 }
             } else {
                 hb_kyn_provider
-                    .load_cached_kyn()
+                    .load_cached()
                     .unwrap_or(kinetic_core::drand::RawKyn::unavailable())
             };
 

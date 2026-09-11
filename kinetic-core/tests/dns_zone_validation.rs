@@ -6,10 +6,10 @@ fn test_nrs_zone_validation() {
         records: std::collections::HashMap::new(),
     };
 
-    // 1. Max Records Bomb Test
+    // 1. Max Records Threshold Test
     let mut massive_records = Vec::new();
     for _ in 0..51 {
-        massive_records.push(NrsRecord::TXT("bomb".to_string()));
+        massive_records.push(NrsRecord::TXT("excess_record".to_string()));
     }
     zone.records.insert("@".to_string(), massive_records);
     assert!(

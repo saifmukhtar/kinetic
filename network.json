@@ -46,7 +46,7 @@
   "advanced": {
     "benchmark_base_iterations": 238819830,
     "benchmark_target_minutes": 30.0,
-    "steal_target_kyns": 7884000,
+    "takeover_target_kyns": 7884000,
     "m_redundancy": 32,
     "dev_mode_iterations": 1000,
     "limits": {

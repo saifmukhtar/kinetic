@@ -222,7 +222,7 @@ pub struct P2pConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_address: Option<String>,
     /// Send anonymous statistics to map network health.
-    /// Enabled by default to ensure an accurate network map, but uses a ghost SessionID for absolute privacy.
+    /// Enabled by default to ensure an accurate network map, but uses an ephemeral SessionID for absolute privacy.
     #[serde(default = "default_true")]
     pub enable_anonymous_telemetry: bool,
 }

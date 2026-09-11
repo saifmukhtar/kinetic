@@ -51,16 +51,16 @@ pub struct DifficultyResponse {
     pub local_prediction: LocalPrediction,
 }
 
-/// Query parameters for fetching idle steal difficulty.
+/// Query parameters for fetching idle takeover difficulty.
 #[derive(Deserialize)]
-pub struct StealQuery {
+pub struct TakeoverQuery {
     /// The number of Kyns the name has been idle (since the last heartbeat).
     pub kyns_idle: Option<u64>,
 }
 
-/// Response returned by the steal difficulty calculator.
+/// Response returned by the takeover difficulty calculator.
 #[derive(Serialize)]
-pub struct StealDifficultyResponse {
+pub struct TakeoverDifficultyResponse {
     /// The normalized name used for the calculation.
     pub name: String,
     /// The base required iterations to register this name if it was perfectly new.
@@ -187,13 +187,13 @@ pub async fn handle_get_difficulty(
     }))
 }
 
-/// Calculates the decayed steal difficulty for an idle name.
+/// Calculates the decayed takeover difficulty for an idle name.
 /// Requires the client to pass `?kyns_idle=X` in the query string.
-pub async fn handle_steal_difficulty(
+pub async fn handle_takeover_difficulty(
     State(_state): State<ApiState>,
     Path(name): Path<String>,
-    Query(query): Query<StealQuery>,
-) -> Result<Json<StealDifficultyResponse>, crate::api::error::AppError> {
+    Query(query): Query<TakeoverQuery>,
+) -> Result<Json<TakeoverDifficultyResponse>, crate::api::error::AppError> {
     let normalized = kinetic_core::types::names::normalize_name(&name);
     let params = ConsensusParams::default();
     let base_iterations = params.iterations(&normalized);
@@ -209,14 +209,14 @@ pub async fn handle_steal_difficulty(
         }
     };
 
-    let current_iterations = params.steal_diff(base_iterations, kyns_idle);
+    let current_iterations = params.takeover_diff(base_iterations, kyns_idle);
     let decay_multiplier = if base_iterations > 0 {
         current_iterations as f64 / base_iterations as f64
     } else {
         1.0
     };
 
-    Ok(Json(StealDifficultyResponse {
+    Ok(Json(TakeoverDifficultyResponse {
         name: normalized,
         base_iterations,
         kyns_idle,

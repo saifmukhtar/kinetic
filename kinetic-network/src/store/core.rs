@@ -162,17 +162,17 @@ impl KineticRecordStore {
                 }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if val_bytes.len() == 8 {
-                    // Fix 2: Check for orphaned heartbeats
+                    // Fix 2: Check for unreferenced heartbeats
                     if reveals_by_name.contains(&name) {
                         let kyn = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
                         tracing::info!("[KRS restore] Heartbeat kyn {} for {}", kyn, name);
                         last_heartbeats_by_name.insert(name, kyn);
                     } else {
                         let err =
-                            kinetic_core::error::storage::StorageError::OrphanedHeartbeatPurged;
+                            kinetic_core::error::storage::StorageError::UnreferencedHeartbeatPurged;
                         tracing::warn!(
                             error_code = err.code(),
-                            "[KRS restore] Purging orphaned heartbeat for {}",
+                            "[KRS restore] Purging unreferenced heartbeat for {}",
                             name
                         );
                         let _ = storage.delete(&key_bytes);
@@ -723,7 +723,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_orphaned_heartbeat_cleanup_on_boot() {
+    async fn test_unreferenced_heartbeat_cleanup_on_boot() {
         let dir = tempfile::tempdir().unwrap();
         let storage: std::sync::Arc<dyn kinetic_core::traits::StorageEngine> =
             std::sync::Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());

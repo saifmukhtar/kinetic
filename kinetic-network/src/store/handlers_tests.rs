@@ -8,7 +8,7 @@ mod tests {
     use std::sync::Arc;
     use tempfile::tempdir;
 
-    fn dummy_reveal(name: &str, kyn: u64) -> Reveal {
+    fn mock_reveal(name: &str, kyn: u64) -> Reveal {
         Reveal {
             protocol_version: 1,
             name: name.to_string(),
@@ -23,7 +23,6 @@ mod tests {
             pubkey: vec![],
             signature: vec![],
             previous_proof: None,
-            miner_pubkey: None,
             authorization: None,
         }
     }
@@ -116,7 +115,7 @@ mod tests {
         let (mut store, _storage) = setup_store(100);
         let name = "test.kinetic".to_string();
 
-        let mut reveal = dummy_reveal(&name, 100);
+        let mut reveal = mock_reveal(&name, 100);
         let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
         reveal.pubkey = ml_kp.pubkey_bytes();
 
@@ -161,7 +160,7 @@ mod tests {
         store.reveals_by_name.put(name.clone(), existing);
 
         let new_reveal =
-            kinetic_core::types::NameRecord::Standard(Box::new(dummy_reveal(&name, 100)));
+            kinetic_core::types::NameRecord::Standard(Box::new(mock_reveal(&name, 100)));
         let result = store.handle_put_record(&new_reveal, true);
 
         assert!(matches!(
@@ -175,7 +174,7 @@ mod tests {
         let (mut store, _storage) = setup_store(100);
         let name = "test.kin".to_string();
 
-        let mut reveal = dummy_reveal(&name, 100);
+        let mut reveal = mock_reveal(&name, 100);
         let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
         reveal.pubkey = ml_kp.pubkey_bytes();
 
@@ -206,7 +205,7 @@ mod tests {
         let (mut store, _storage) = setup_store(100);
         let name = "tie.kin".to_string();
 
-        let mut existing = dummy_reveal(&name, 100);
+        let mut existing = mock_reveal(&name, 100);
         existing.pubkey = vec![0x00];
         existing.vdf_proof.proof_bytes = vec![0x01];
         existing.iterations = 1000;
@@ -216,7 +215,7 @@ mod tests {
         );
         store.last_heartbeats_by_name.insert(name.clone(), 100);
 
-        let mut attacker_lose = dummy_reveal(&name, 100);
+        let mut attacker_lose = mock_reveal(&name, 100);
         attacker_lose.pubkey = vec![0x01];
         attacker_lose.vdf_proof.proof_bytes = vec![0x03]; // XOR = 2
         attacker_lose.vdf_proof.proof_bytes = vec![0x02];
@@ -231,7 +230,7 @@ mod tests {
             crate::error::KineticStoreError::TieBroken
         ));
 
-        let mut attacker_win = dummy_reveal(&name, 100);
+        let mut attacker_win = mock_reveal(&name, 100);
         attacker_win.pubkey = vec![0x01];
         attacker_win.vdf_proof.proof_bytes = vec![0x01]; // XOR = 0
         attacker_win.vdf_proof.proof_bytes = vec![0x00];

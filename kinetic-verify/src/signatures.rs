@@ -265,7 +265,7 @@ mod tests {
     ) -> kinetic_types::identity::AuthorizedManifest {
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 
-        let dummy_did = kinetic_kid::did::Did::new(
+        let mock_did = kinetic_kid::did::Did::new(
             "did:kin:0000000000000000000000000000000000000000000000000000000000000000",
         )
         .unwrap();
@@ -274,7 +274,7 @@ mod tests {
             name: "kin".to_string(),
             manifest: kinetic_kid::manifest::Manifest {
                 doc_type: "kinetic.manifest.v1".to_string(),
-                kid: dummy_did.clone(),
+                kid: mock_did.clone(),
                 version: 1,
                 valid_from: 0,
                 expires_at: None,
@@ -288,7 +288,7 @@ mod tests {
             },
             kid_doc: Some(kinetic_kid::document::Document {
                 doc_type: "kinetic.kid.v1".to_string(),
-                kid: dummy_did,
+                kid: mock_did,
                 created_at: 0,
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: "key-1".to_string(),
@@ -343,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fat_signature_missing_capability() {
+    fn test_delegated_signature_missing_capability() {
         let owner_sk = generate_keypair();
         let owner_vk_bytes = owner_sk.pubkey_bytes();
         let bot_sk = generate_keypair();
@@ -380,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fat_signature_invalid_owner_grant() {
+    fn test_delegated_signature_invalid_owner_grant() {
         let owner_sk = generate_keypair();
         let owner_vk_bytes = owner_sk.pubkey_bytes();
         let bot_sk = generate_keypair();
@@ -418,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fat_signature_cross_name_escalation() {
+    fn test_delegated_signature_cross_name_escalation() {
         let owner_sk = generate_keypair();
         let owner_vk_bytes = owner_sk.pubkey_bytes();
         let bot_sk = generate_keypair();
@@ -437,7 +437,7 @@ mod tests {
         let auth_signable = auth.signable_bytes(network_salt);
         auth.owner_signature = owner_sk.sign(&auth_signable);
 
-        // Bot tries to use this authorization to hijack "prod-domain" (which is also owned by the same owner)
+        // Bot tries to use this authorization to illegally takeover "prod-domain" (which is also owned by the same owner)
         let name = "prod-domain";
         let payload = b"malicious-payload";
 
@@ -462,7 +462,7 @@ mod tests {
     use proptest::prelude::*;
     proptest! {
         #[test]
-        fn proptest_random_garbage_rejection(
+        fn proptest_malformed_bytes_rejection(
             name in ".*",
             payload in any::<Vec<u8>>(),
             sig in any::<Vec<u8>>(),
@@ -504,7 +504,6 @@ mod tests {
             signature: vec![],
             authorization: None,
             previous_proof: None,
-            miner_pubkey: None,
         };
 
         // Sign the Reveal

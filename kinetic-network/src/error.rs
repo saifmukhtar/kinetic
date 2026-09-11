@@ -52,9 +52,9 @@ pub enum KineticStoreError {
     #[error("lost the XOR tie-break against an existing record")]
     TieBroken,
     /// The VDF iterations provided are insufficient to override the existing active record.
-    /// To steal or update an active name without authorization, you must provide a larger PoW proof than the current owner.
+    /// To takeover or update an active name without authorization, you must provide a larger PoW proof than the current owner.
     /// Run the VDF sequencer longer to accumulate more iterations.
-    #[error("insufficient VDF iterations to steal this name")]
+    #[error("insufficient VDF iterations to takeover this name")]
     InsufficientIterations,
     /// The local Kademlia memory store encountered a fatal error while writing.
     /// This usually indicates the node is out of memory or the internal database is locked.
@@ -167,9 +167,9 @@ pub enum KineticStoreError {
     #[error("heartbeat timestamp is too far in the future")]
     FutureHeartbeat,
     /// The name type is classified as strictly immutable.
-    /// Prime names and Infrastructure identities cannot be forcefully stolen via PoW.
+    /// Prime names and Infrastructure identities cannot be forcefully taken over via PoW.
     /// You must choose a standard kinetic apex name for registration.
-    #[error("Prime and Infra names are immutable and cannot be stolen")]
+    #[error("Prime and Infra names are immutable and cannot be forcefully taken over")]
     ImmutableName,
 
     // ==========================================

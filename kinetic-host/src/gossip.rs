@@ -28,7 +28,7 @@ pub async fn start_gossip_listener(
                 >(actual_payload)
             {
                 use kinetic_core::types::clock::KynNetworkExt;
-                let current_kyn = match kyn_provider.load_cached_kyn() {
+                let current_kyn = match kyn_provider.load_cached() {
                     Ok(kyn) => kyn.kyn,
                     Err(_) => match kyn_provider.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
@@ -103,8 +103,8 @@ mod proptests {
 
     proptest! {
         #[test]
-        fn test_gossip_garbage_payloads(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
-            // Guarantee that receiving absolute garbage over the P2P gossip network
+        fn test_gossip_malformed_payloads(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
+            // Guarantee that receiving malformed payloads over the P2P gossip network
             // will never cause a deserialization panic.
             let _ = serde_json::from_slice::<kinetic_core::action::SignedActionMessage>(&payload);
         }

@@ -107,7 +107,6 @@ async fn test_chaos_routing_partition() {
             pubkey: vec![0; 1952],
             signature: vec![0; 4627],
             previous_proof: None,
-            miner_pubkey: None,
             authorization: None,
         },
     )))
@@ -135,7 +134,7 @@ async fn test_chaos_routing_partition() {
     // Allow time for DHT replication
     tokio::time::sleep(Duration::from_millis(2000)).await;
 
-    // Unleash Chaos: Kill Node 2 and Node 3 brutally.
+    // Induce Network Partition: Terminate Node 2 and Node 3 abruptly.
     // This creates a large network partition between Node 1 and Node 5.
     println!("Unleashing Chaos: Dropping Node 2 and Node 3...");
     handle2.abort();

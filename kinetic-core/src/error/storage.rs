@@ -67,10 +67,10 @@ pub enum StorageError {
     InvalidRecordDiscarded,
 
     /// The Kinetic Record Store (KRS) detected a heartbeat for a name that no longer exists.
-    /// The parent record was purged or transferred, leaving the heartbeat orphaned.
-    /// The daemon safely purged the orphan automatically. No manual action is required.
-    #[error("Purging orphaned heartbeat")]
-    OrphanedHeartbeatPurged,
+    /// The parent record was purged or transferred, leaving the heartbeat unreferenced.
+    /// The daemon safely purged the unreferenced record automatically. No manual action is required.
+    #[error("Purging unreferenced heartbeat")]
+    UnreferencedHeartbeatPurged,
 }
 
 impl StorageError {
@@ -86,7 +86,7 @@ impl StorageError {
             Self::OpenFailed(_) => "KIN-DBE-007",
             Self::DeserializationFailed(_) => "KIN-DBE-008",
             Self::InvalidRecordDiscarded => "KIN-DBE-011",
-            Self::OrphanedHeartbeatPurged => "KIN-DBE-012",
+            Self::UnreferencedHeartbeatPurged => "KIN-DBE-012",
         }
     }
 
@@ -105,7 +105,7 @@ impl StorageError {
             | Self::DeleteFailed(_)
             | Self::ScanFailed(_)
             | Self::OpenFailed(_) => Severity::Error,
-            Self::InvalidRecordDiscarded | Self::OrphanedHeartbeatPurged => Severity::Warning,
+            Self::InvalidRecordDiscarded | Self::UnreferencedHeartbeatPurged => Severity::Warning,
         }
     }
 
@@ -143,8 +143,8 @@ impl StorageError {
             Self::InvalidRecordDiscarded => {
                 "An invalid or expired local record was safely discarded.".to_string()
             }
-            Self::OrphanedHeartbeatPurged => {
-                "An orphaned heartbeat was safely purged from local storage.".to_string()
+            Self::UnreferencedHeartbeatPurged => {
+                "An unreferenced heartbeat was safely purged from local storage.".to_string()
             }
         }
     }

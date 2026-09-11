@@ -1,4 +1,4 @@
-//! Protocol-level constants and magic numbers for the Kinetic network.
+//! Protocol-level constants and format signatures for the Kinetic network.
 //!
 //! These values define the immutable characteristics of the network (like the NSP
 //! suffix, bootstrap nodes, and genesis time). Once compiled, they cannot be changed

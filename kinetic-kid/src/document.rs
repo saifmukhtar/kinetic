@@ -223,7 +223,7 @@ impl Document {
     /// that appeared in `previous_doc` (the currently stored document).
     ///
     /// Call this during **KID updates** (when a document already exists for the DID)
-    /// to enforce the authorised key-rotation chain and prevent hijacking.
+    /// to enforce the authorised key-rotation chain and prevent unauthorized modification.
     ///
     /// # Returns
     ///

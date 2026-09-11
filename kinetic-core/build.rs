@@ -80,7 +80,7 @@ struct ActionSection {
 struct AdvancedSection {
     benchmark_base_iterations: u64,
     benchmark_target_minutes: Option<f64>,
-    steal_target_kyns: u64,
+    takeover_target_kyns: u64,
     m_redundancy: u8,
     dev_mode_iterations: u64,
     limits: LimitsConfig,
@@ -157,8 +157,8 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The number of kyns a name must be inactive before the steal difficulty completely decays.\npub const STEAL_TARGET_KYNS: u64 = {};\n\n",
-        config.advanced.steal_target_kyns
+        "/// The number of kyns a name must be inactive before the takeover difficulty completely decays.\npub const TAKEOVER_TARGET_KYNS: u64 = {};\n\n",
+        config.advanced.takeover_target_kyns
     ));
 
     // Safety floor: refuse to compile a network with fewer than 5 redundant DHT keys.

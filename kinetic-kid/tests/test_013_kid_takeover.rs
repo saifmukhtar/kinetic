@@ -3,7 +3,7 @@ use kinetic_kid::{ControllerKey, Did, Document};
 use kinetic_primitives::keys::KineticKeypair;
 
 #[test]
-fn test_013_kid_hijack() {
+fn test_013_kid_takeover() {
     // 1. Victim generates their identity
     let victim_key = KineticKeypair::generate();
     let victim_pub_b64 = b64_url.encode(victim_key.pubkey_bytes());
@@ -32,7 +32,7 @@ fn test_013_kid_hijack() {
     let victim_doc = doc.sign(&victim_key).unwrap();
     assert!(victim_doc.verify().is_ok());
 
-    // 2. Attacker generates a random key and hijacks the victim's DID
+    // 2. Attacker generates a random key and attempts a DID takeover of the victim's DID
     let attacker_key = KineticKeypair::generate();
     let attacker_pub_b64 = b64_url.encode(attacker_key.pubkey_bytes());
 

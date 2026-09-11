@@ -293,7 +293,7 @@ mod tests {
     fn test_parse_invalid_opcode() {
         // Opcode 0xFF is not a valid action action
         let mut buf = vec![0xFF];
-        buf.extend_from_slice(&[0; 8]); // Dummy timestamp
+        buf.extend_from_slice(&[0; 8]); // Placeholder timestamp
         let result = NetworkAction::parse_payload(&buf);
         assert_eq!(result, Err(ActionTypeError::UnknownOpcode(0xFF)));
     }
@@ -366,10 +366,10 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_parse_random_garbage(
+        fn test_parse_random_bytes(
             raw_payload in any::<Vec<u8>>()
         ) {
-            // Fuzzer guarantees this will not panic under any garbage P2P input
+            // Fuzzer guarantees this will not panic under any malformed P2P input
             let _ = NetworkAction::parse_payload(&raw_payload);
         }
     }

@@ -13,7 +13,7 @@ pub async fn handle_get_time(
     // Always prefer the cache for instantaneous responses,
     // the Heartbeat loop ensures this cache is populated.
     // If the cache somehow fails, fallback to local clock estimation.
-    match kyn_provider.load_cached_kyn() {
+    match kyn_provider.load_cached() {
         Ok(drand_data) => {
             let time = KineticTime::from_kyn(
                 kinetic_core::types::Kyn(drand_data.kyn),

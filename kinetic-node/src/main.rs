@@ -397,7 +397,7 @@ pub async fn run_node() -> Result<()> {
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
                     && kyn.verify()
                 {
-                    let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
+                    let latest_kyn = match kyn_provider_gossip.load_cached() {
                         Ok(latest) => {
                             if latest.is_unavailable {
                                 0
@@ -418,7 +418,7 @@ pub async fn run_node() -> Result<()> {
                     };
 
                     if kyn.kyn > latest_kyn {
-                        if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
+                        if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                             tracing::error!(
                                 error_code = e.code(),
                                 "Failed to cache drand kyn in node gossip handler: {}",
@@ -445,7 +445,7 @@ pub async fn run_node() -> Result<()> {
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_kyn_provider.load_cached_kyn() {
+                if let Ok(latest) = hb_kyn_provider.load_cached() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()

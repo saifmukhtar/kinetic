@@ -73,7 +73,7 @@ pub enum ActionError {
     InvalidProtocolName,
 
     /// **What**: A action action attempted to map a name that is already currently mapped.
-    /// **Why**: The state transition is invalid. Overwriting an active mapping directly is forbidden to prevent accidental hijacking.
+    /// **Why**: The state transition is invalid. Overwriting an active mapping directly is forbidden to prevent unauthorized reassignment.
     /// **Fix**: You must explicitly unmap the name first by publishing a revocation action before remapping it.
     #[error("Name is already mapped, explicitly unmap it first")]
     AlreadyMapped,

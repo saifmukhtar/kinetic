@@ -54,7 +54,6 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         iterations: 1,
         pubkey: vec![],
         signature: vec![],
-        miner_pubkey: None,
         previous_proof: None,
         authorization: None,
     };

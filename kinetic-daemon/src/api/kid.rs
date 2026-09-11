@@ -18,7 +18,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> Kyn {
 
     let kyn_provider =
         kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
-    match kyn_provider.load_cached_kyn() {
+    match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => Kyn(kyn.kyn),
         _ => Kyn::now_local(),
     }

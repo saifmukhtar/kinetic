@@ -75,7 +75,7 @@ pub async fn handle_get_action_status(
         let kyn_provider =
             kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
         use kinetic_core::traits::KynProvider;
-        match kyn_provider.load_cached_kyn() {
+        match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn,
             Err(_) => kinetic_core::types::Kyn::now_local().0, // Fallback to OS clock if DB is completely empty (genesis)
         }
@@ -178,7 +178,7 @@ pub async fn handle_publish_action(
         let kyn_provider =
             kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
         use kinetic_core::types::clock::KynNetworkExt;
-        match kyn_provider.load_cached_kyn() {
+        match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn,
             Err(_) => match kyn_provider.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,

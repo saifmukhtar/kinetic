@@ -17,7 +17,6 @@ fn test_reveal_invalid_names() {
         pubkey: vec![0; 1952],
         signature: vec![0; 4627],
         previous_proof: None,
-        miner_pubkey: None,
         authorization: None,
     };
 

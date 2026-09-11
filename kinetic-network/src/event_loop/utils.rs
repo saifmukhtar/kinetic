@@ -406,7 +406,7 @@ mod tests {
     use crate::event_loop::core::NetworkEventLoop;
     use kinetic_core::types::{Reveal, VdfProof};
 
-    fn make_dummy_reveal(proof_first_byte: u8) -> Vec<u8> {
+    fn make_mock_reveal(proof_first_byte: u8) -> Vec<u8> {
         let mut proof_bytes = vec![0u8; 100];
         proof_bytes[0] = proof_first_byte;
 
@@ -421,7 +421,6 @@ mod tests {
             iterations: 1000,
             pubkey: vec![0; 1952],
             signature: vec![0; 4627],
-            miner_pubkey: None,
             previous_proof: None,
             authorization: None,
         };
@@ -430,8 +429,8 @@ mod tests {
 
     #[test]
     fn test_xor_tie_breaker() {
-        let payload_a = make_dummy_reveal(0x10);
-        let payload_b = make_dummy_reveal(0x05);
+        let payload_a = make_mock_reveal(0x10);
+        let payload_b = make_mock_reveal(0x05);
 
         let winner = NetworkEventLoop::xor_tie_breaker(
             "dummy.kin",

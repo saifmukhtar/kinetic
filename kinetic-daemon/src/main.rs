@@ -294,11 +294,11 @@ async fn run_daemon() -> Result<()> {
     info!("VDF Engine initialized");
 
     info!("Running CPU micro-benchmark for VDF ETA calibration...");
-    let dummy_challenge = kinetic_types::vdf::Commitment { hash: [0u8; 32] };
+    let calibration_challenge = kinetic_types::vdf::Commitment { hash: [0u8; 32] };
     let start = std::time::Instant::now();
     let _ = tokio::task::spawn_blocking({
         let engine = vdf_engine.clone();
-        move || engine.evaluate(&dummy_challenge, 5000)
+        move || engine.evaluate(&calibration_challenge, 5000)
     })
     .await;
     let elapsed = start.elapsed().as_secs_f64();
@@ -725,7 +725,7 @@ async fn run_daemon() -> Result<()> {
         info!("API Server gracefully shut down.");
     }
 
-    // Guaranteed OS PAC Proxy cleanup on exit (Fixes Orphaned Proxy Blackhole)
+    // Guaranteed OS PAC Proxy cleanup on exit (Fixes Dangling Proxy Connection)
     let _ = std::fs::remove_file(&proxy_json_path);
     info!("Safely removed PAC proxy registration from OS.");
 

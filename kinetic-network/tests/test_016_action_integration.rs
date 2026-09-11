@@ -35,8 +35,8 @@ async fn test_action_integration_halt() {
         state.is_halted = true;
     }
 
-    // Try to inject a fake reveal
-    let fake_reveal = kinetic_core::types::Reveal {
+    // Try to inject a forged reveal
+    let forged_reveal = kinetic_core::types::Reveal {
         name: "test".to_string(),
         pubkey: vec![1; 32],
         salt: [0; 32],
@@ -48,13 +48,12 @@ async fn test_action_integration_halt() {
         },
         previous_proof: None,
         signature: vec![],
-        miner_pubkey: None,
         payload: vec![],
         protocol_version: 2,
         authorization: None,
     };
 
-    let domain_record = NameRecord::Standard(Box::new(fake_reveal));
+    let domain_record = NameRecord::Standard(Box::new(forged_reveal));
     let record_bytes = serde_json::to_vec(&domain_record).unwrap();
     let record = Record::new(libp2p::kad::RecordKey::new(&"test"), record_bytes);
 

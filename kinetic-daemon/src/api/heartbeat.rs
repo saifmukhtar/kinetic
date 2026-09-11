@@ -46,7 +46,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> u64 {
     let kyn_provider =
         kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
     use kinetic_core::traits::KynProvider;
-    match kyn_provider.load_cached_kyn() {
+    match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => kyn.kyn,
         _ => kinetic_core::types::Kyn::now_local().0,
     }

@@ -213,7 +213,7 @@ impl From<StorageError> for ApiError {
             | StorageError::DeleteFailed(_)
             | StorageError::ScanFailed(_)
             | StorageError::OpenFailed(_) => (500, "Storage Operation Failed"),
-            StorageError::InvalidRecordDiscarded | StorageError::OrphanedHeartbeatPurged => {
+            StorageError::InvalidRecordDiscarded | StorageError::UnreferencedHeartbeatPurged => {
                 (500, "Storage Consistency Warning")
             }
         };

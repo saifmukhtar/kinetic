@@ -285,9 +285,9 @@ pub fn app(state: ApiState) -> Router {
         .route("/v1/micro/config", axum::routing::get(handle_get_config))
         .route("/v1/micro/config", axum::routing::post(handle_set_config))
         .route("/v1/micro/config/dns/flush", axum::routing::post(config::handle_dns_flush))
-        .route("/macro/tasks", axum::routing::get(handle_macro_tasks))
+        .route("/v1/macro/tasks", axum::routing::get(handle_macro_tasks))
         .route(
-            "/macro/status/{task_id}",
+            "/v1/macro/status/{task_id}",
             axum::routing::get(handle_macro_status),
         )
         .route("/v1/micro/nrs/owned", axum::routing::get(handle_owned_names))
@@ -309,10 +309,10 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::post(handle_publish_fat_zone),
         )
         .route(
-            "/macro/register",
+            "/v1/macro/register",
             axum::routing::post(handle_macro_register_name),
         )
-        .route("/macro/renew", axum::routing::post(handle_macro_renew_name))
+        .route("/v1/macro/renew", axum::routing::post(handle_macro_renew_name))
         .route(
             "/v1/micro/gossip/publish/{topic}",
             axum::routing::post(handle_gossip_publish),
@@ -341,8 +341,8 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::get(consensus::handle_get_difficulty),
         )
         .route(
-            "/v1/micro/consensus/steal-difficulty/{name}",
-            axum::routing::get(consensus::handle_steal_difficulty),
+            "/v1/micro/consensus/takeover-difficulty/{name}",
+            axum::routing::get(consensus::handle_takeover_difficulty),
         )
         .route(
             "/v1/micro/consensus/validate",
@@ -766,7 +766,7 @@ async fn auth_middleware(
                             Some(state.storage.clone()),
                         );
                         let current_kyn =
-                            kyn_provider.load_cached_kyn().map(|d| d.kyn).unwrap_or(0);
+                            kyn_provider.load_cached().map(|d| d.kyn).unwrap_or(0);
 
                         if current_kyn > 0 && current_kyn > session.expiry_kyn {
                             tracing::warn!("Rejecting API request: Session token expired");

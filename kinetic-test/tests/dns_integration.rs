@@ -44,7 +44,6 @@ mod tests {
                 pubkey: key_a.public().encode_protobuf(),
                 signature: vec![],
                 previous_proof: None,
-                miner_pubkey: None,
                 authorization: None,
             };
             let keypair = kinetic_primitives::keys::KineticKeypair::generate();

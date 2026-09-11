@@ -90,7 +90,6 @@ mod tests {
             salt: [0u8; 32],
             protocol_version: 1,
             authorization: None,
-            miner_pubkey: None,
         }
     }
 

@@ -5,7 +5,7 @@
 //!
 //! - [`ActionState::new`] — genesis state initialization
 //! - [`ActionState::hash_action`] — deterministic SHA-256 action hash derivation
-//! - [`ActionState::prune`] — stale proposal garbage collection
+//! - [`ActionState::prune`] — stale proposal pruning
 //! - [`ActionState::get_sovereign_key`] — root verification key retrieval
 //! - [`ActionState::verify_action`] — engine action verification
 //! - [`ActionState::execute_action`] — engine action execution
@@ -82,7 +82,7 @@ impl ActionState {
         kinetic_primitives::sha256_hash(&msg.to_bytes())
     }
 
-    /// Garbage collects the `executed_hashes` set.
+    /// Prunes the `executed_hashes` set.
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.

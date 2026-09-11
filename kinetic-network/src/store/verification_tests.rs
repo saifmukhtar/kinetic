@@ -75,7 +75,6 @@ mod tests {
             pubkey: ml_pub_bytes.clone(),
             signature: vec![],
             previous_proof: None,
-            miner_pubkey: None,
             authorization: None,
         };
 

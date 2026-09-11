@@ -18,7 +18,7 @@ impl NrsZoneExt for NrsZone {
     /// Parses a raw JSON payload into a [`NrsZone`] and validates its structure.
     ///
     /// Uses `serde_json`'s built-in recursion limit to prevent
-    /// stack-overflow DoS attacks ("JSON bombs") when handling untrusted network data.
+    /// stack-overflow DoS attacks ("asymmetric resource exhaustion") when handling untrusted network data.
     ///
     /// # Errors
     ///

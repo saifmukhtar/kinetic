@@ -102,7 +102,7 @@ pub async fn handle_macro_register_name(
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
         let kyn_provider =
             kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
-        let drand_data = match kyn_provider.fetch_latest().await {
+        let drand_data = match kyn_provider.load_cached() {
             Ok(d) => d,
             Err(e) => {
                 update_task_error(&tasks_clone, &task_id_clone, format!("Drand error: {}", e));
@@ -256,7 +256,7 @@ pub async fn handle_macro_register_name(
                 kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
             use kinetic_core::traits::KynProvider;
             use kinetic_core::types::clock::KynNetworkExt;
-            match kyn_provider.load_cached_kyn() {
+            match kyn_provider.load_cached() {
                 Ok(kyn) => kyn.kyn,
                 Err(_) => kinetic_core::types::Kyn::now_local().0,
             }
@@ -320,7 +320,6 @@ pub async fn handle_macro_register_name(
             signature: vec![],
             authorization: None,
             previous_proof: None,
-            miner_pubkey: None,
         };
 
         let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
@@ -498,7 +497,7 @@ pub async fn handle_macro_renew_name(
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
         let kyn_provider =
             kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
-        let drand_data = match kyn_provider.fetch_latest().await {
+        let drand_data = match kyn_provider.load_cached() {
             Ok(d) => d,
             Err(e) => {
                 update_task_error(&tasks_clone, &task_id_clone, format!("Drand error: {}", e));
@@ -660,7 +659,6 @@ pub async fn handle_macro_renew_name(
             signature: vec![],
             authorization: None,
             previous_proof: Some(previous_proof),
-            miner_pubkey: None,
         };
 
         let signable = new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);

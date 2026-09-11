@@ -10,8 +10,8 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
 
     #[test]
-    fn test_store_garbage_payloads(
-        garbage in any::<Vec<u8>>()
+    fn test_store_malformed_payloads(
+        malformed_bytes in any::<Vec<u8>>()
     ) {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_storage = Arc::new(KineticStorage::new(temp_dir.path().join("state.db")).unwrap());
@@ -31,9 +31,9 @@ proptest! {
         );
 
         let key = kad::RecordKey::new(&[0u8; 32]);
-        let record = kad::Record::new(key, garbage);
+        let record = kad::Record::new(key, malformed_bytes);
 
-        // Put record might fail because it's garbage, but it MUST NOT panic.
+        // Put record might fail because it's malformed, but it MUST NOT panic.
         let _ = store.put(record);
     }
 
@@ -63,7 +63,6 @@ proptest! {
                 vdf_proof: VdfProof { proof_bytes: vec![] },
                 signature: vec![0u8; 64],
             }),
-            miner_pubkey: None,
             authorization: None,
         };
 

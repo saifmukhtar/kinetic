@@ -6,7 +6,7 @@
 //!
 //! - **Cannot be mined** (registration will be rejected as [`NamesError::ProtocolName`](`crate::error::NamesError::ProtocolName`))
 //! - **Are exempt from heartbeat requirements** — they never expire from inactivity
-//! - **Are exempt from thermodynamic pruning** — they cannot be stolen by idle-name takeover
+//! - **Are exempt from thermodynamic pruning** — they cannot be taken over by idle-name takeover
 //!
 //! Contrast with Category 1 reserved names (RFC 2606/6761: `localhost`, `test`, `example`)
 //! which are handled by [`NamesError::ReservedName`](`crate::error::NamesError::ReservedName`).
@@ -38,7 +38,7 @@ pub fn is_protocol_name(name: &str) -> bool {
 ///
 /// All user-registered names must publish a [`Heartbeat`](crate::types::domain::Heartbeat)
 /// record at regular intervals to prove active ownership. Names that fall idle beyond
-/// `STEAL_TARGET_ROUNDS` are eligible for thermodynamic takeover.
+/// `TAKEOVER_TARGET_KYNS` are eligible for thermodynamic takeover.
 ///
 /// Protocol names are permanently exempt from this requirement.
 ///

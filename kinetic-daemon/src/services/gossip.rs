@@ -37,7 +37,7 @@ pub fn start_gossip_processor(
                     >(actual_payload)
                     {
                         use kinetic_core::types::clock::KynNetworkExt;
-                        let current_kyn = match kyn_provider_gossip.fetch_latest().await {
+                        let current_kyn = match kyn_provider_gossip.load_cached() {
                             Ok(kyn) => kyn.kyn,
                             Err(_) => kinetic_core::types::Kyn::now_local().0,
                         };
@@ -185,7 +185,7 @@ pub fn start_gossip_processor(
                             .await
                             .unwrap_or(false);
                         if is_valid {
-                            let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
+                            let latest_kyn = match kyn_provider_gossip.load_cached() {
                                 Ok(latest) => {
                                     if latest.is_unavailable {
                                         0
@@ -209,7 +209,7 @@ pub fn start_gossip_processor(
                             };
 
                             if kyn.kyn > latest_kyn {
-                                if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
+                                if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                                     tracing::error!(
                                         error_code = e.code(),
                                         "Failed to cache drand kyn in gossip handler: {}",

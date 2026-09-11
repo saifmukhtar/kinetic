@@ -8,7 +8,7 @@ fn bench_ed25519(c: &mut Criterion) {
     fill(&mut bytes).unwrap();
     let signing_key = EdSigningKey::from_bytes(&bytes);
     let verifying_key = signing_key.verifying_key();
-    let message: &[u8] = b"This is a dummy heartbeat payload for benchmarking";
+    let message: &[u8] = b"This is a mock heartbeat payload for performance benchmarking";
 
     let mut group = c.benchmark_group("ed25519_crypto");
 
@@ -27,7 +27,7 @@ fn bench_mldsa65(c: &mut Criterion) {
     let signing_key = kinetic_primitives::keys::KineticKeypair::generate();
     let verifying_key_bytes = signing_key.pubkey_bytes();
     let message: &[u8] =
-        b"This is a dummy heartbeat payload for benchmarking post-quantum ML-DSA-65";
+        b"This is a mock heartbeat payload for benchmarking post-quantum ML-DSA-65";
 
     let mut group = c.benchmark_group("mldsa65_crypto");
 

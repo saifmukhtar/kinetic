@@ -123,8 +123,8 @@ pub trait KynProvider: Send + Sync {
     async fn fetch_latest(&self) -> Result<RawKyn, KynProviderError>;
 
     /// Loads the most recently cached kyn from local memory or disk.
-    fn load_cached_kyn(&self) -> Result<RawKyn, KynProviderError>;
+    fn load_cached(&self) -> Result<RawKyn, KynProviderError>;
 
     /// Caches a newly verified kyn to memory and disk.
-    fn cache_kyn(&self, kyn: &RawKyn) -> Result<(), KynProviderError>;
+    fn cache(&self, kyn: &RawKyn) -> Result<(), KynProviderError>;
 }
