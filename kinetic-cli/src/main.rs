@@ -25,9 +25,22 @@ use clap::Parser;
 use commands::Commands;
 use tracing_subscriber::FmtSubscriber;
 
+use clap::builder::styling::{AnsiColor, Effects};
+use clap::builder::Styles;
+
+fn cli_styles() -> Styles {
+    Styles::styled()
+        .header(AnsiColor::Cyan.on_default() | Effects::BOLD | Effects::UNDERLINE)
+        .usage(AnsiColor::Green.on_default() | Effects::BOLD)
+        .literal(AnsiColor::Blue.on_default() | Effects::BOLD)
+        .placeholder(AnsiColor::Yellow.on_default())
+}
+
 #[derive(Parser)]
 #[command(name = "kinetic")]
 #[command(about = "CLI for the Kinetic Decentralized DNS Network", long_about = None)]
+#[command(styles = cli_styles())]
+#[command(override_usage = "kinetic <COMMAND> <SUBCOMMAND>")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
