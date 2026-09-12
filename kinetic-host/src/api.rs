@@ -35,9 +35,7 @@ pub async fn start_health_api(
         .route(
             "/:name/peer_id",
             get(move |Path(name): Path<String>| async move {
-                let file_path = route_dir
-                    .join("hosts")
-                    .join(format!("{}.txt", name));
+                let file_path = route_dir.join("hosts").join(format!("{}.txt", name));
                 match std::fs::read_to_string(file_path) {
                     Ok(peer_id) => (StatusCode::OK, peer_id),
                     Err(_) => (StatusCode::NOT_FOUND, "Instance not found".to_string()),

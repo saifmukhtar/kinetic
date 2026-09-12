@@ -1,22 +1,17 @@
 use clap::Subcommand;
 
-pub mod action;
-pub mod status;
-pub mod peers;
+pub mod atlas_sync;
 pub mod banned;
 pub mod bootstrap;
-pub mod peer_id;
-pub mod nat;
+pub mod dns_flush;
 pub mod gossip;
-pub mod atlas_sync;
+pub mod nat;
+pub mod peer_id;
+pub mod peers;
+pub mod status;
 
 #[derive(Subcommand)]
 pub enum NetworkCommands {
-    /// Submit proposals and manage Kinetic Network action
-    Action {
-        #[command(subcommand)]
-        cmd: action::ActionCommands,
-    },
     /// Get Swarm/DHT networking status
     Status,
     /// List connected peers
@@ -36,6 +31,8 @@ pub enum NetworkCommands {
     },
     /// Manually trigger a global Atlas index synchronization
     AtlasSync,
+    /// Flush the in-memory DNS cache
+    DnsFlush,
 }
 
 pub async fn handle_network_command(
@@ -44,9 +41,6 @@ pub async fn handle_network_command(
     client: &reqwest::Client,
 ) -> anyhow::Result<()> {
     match cmd {
-        NetworkCommands::Action { cmd } => {
-            action::handle_action_command(cmd, config, client).await
-        }
         NetworkCommands::Status => status::handle_status(config, client).await,
         NetworkCommands::Peers => peers::handle_peers(config, client).await,
         NetworkCommands::Banned => banned::handle_banned(config, client).await,
@@ -55,5 +49,6 @@ pub async fn handle_network_command(
         NetworkCommands::Nat => nat::handle_nat(config, client).await,
         NetworkCommands::Gossip { cmd } => gossip::handle_gossip_command(cmd, config, client).await,
         NetworkCommands::AtlasSync => atlas_sync::handle_atlas_sync(config, client).await,
+        NetworkCommands::DnsFlush => dns_flush::handle_dns_flush(config, client).await,
     }
 }

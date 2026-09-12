@@ -63,8 +63,11 @@ fn test_xor_eclipse_routing() {
     let real_bytes = serde_json::to_vec(&real_reveal).unwrap();
     let adversarial_bytes = serde_json::to_vec(&adversarial_reveal).unwrap();
 
-    let winner =
-        NetworkEventLoop::xor_tie_breaker(name, vec![real_bytes.clone(), adversarial_bytes.clone()], kyn);
+    let winner = NetworkEventLoop::xor_tie_breaker(
+        name,
+        vec![real_bytes.clone(), adversarial_bytes.clone()],
+        kyn,
+    );
 
     // The tie breaker should pick the REAL bytes, because the adversarial bytes fail VDF verification.
     assert_eq!(

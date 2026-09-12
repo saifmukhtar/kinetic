@@ -33,8 +33,8 @@ pub fn handle_action_gossip(
             Ok(Some(effect)) => {
                 tracing::info!("Action state updated via gossip. Effect: {:?}", effect);
                 if let Some(storage) = storage {
-                    use kinetic_core::constants::DB_PREFIX_REVEAL;
                     use kinetic_core::action::types::ActionEffect;
+                    use kinetic_core::constants::DB_PREFIX_REVEAL;
                     use kinetic_core::types::NameRecord;
 
                     match &effect {
@@ -97,7 +97,7 @@ pub fn handle_action_gossip(
                 let action_log = state_snapshot.action_log.clone();
                 tokio::task::spawn_blocking(move || {
                     if let Some(client) = client_clone {
-                        let _ = tokio::spawn(async move {
+                        tokio::spawn(async move {
                             let _ = client.update_action_log(action_log).await;
                         });
                     }
@@ -120,7 +120,7 @@ pub fn handle_action_gossip(
                 let action_log = state_snapshot.action_log.clone();
                 tokio::task::spawn_blocking(move || {
                     if let Some(client) = client_clone {
-                        let _ = tokio::spawn(async move {
+                        tokio::spawn(async move {
                             let _ = client.update_action_log(action_log).await;
                         });
                     }
@@ -142,16 +142,12 @@ pub fn handle_action_gossip(
                 let msg = e.user_message();
                 use kinetic_types::error::Severity;
                 match e.severity() {
-                    Severity::Info => tracing::info!(
-                        error_code = code,
-                        "Action gossip message rejected: {}",
-                        msg
-                    ),
-                    Severity::Warning => tracing::warn!(
-                        error_code = code,
-                        "Action gossip message rejected: {}",
-                        msg
-                    ),
+                    Severity::Info => {
+                        tracing::info!(error_code = code, "Action gossip message rejected: {}", msg)
+                    }
+                    Severity::Warning => {
+                        tracing::warn!(error_code = code, "Action gossip message rejected: {}", msg)
+                    }
                     Severity::Error | Severity::Critical => tracing::error!(
                         error_code = code,
                         "Action gossip message rejected: {}",

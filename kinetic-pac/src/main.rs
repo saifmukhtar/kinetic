@@ -608,7 +608,7 @@ mod tests {
 
         let natives_dir = dir.path().join("natives");
         fs::create_dir_all(&natives_dir).unwrap();
-        
+
         fs::write(
             natives_dir.join("kin.json"),
             serde_json::to_string(&kin_proxy).unwrap(),

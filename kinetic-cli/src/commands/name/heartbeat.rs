@@ -23,16 +23,11 @@ pub async fn handle_heartbeat(
 ) -> anyhow::Result<()> {
     let port = config.daemon.api_port;
     let base_url = format!("http://{}:{}", config.daemon.bind_ip, port);
-    
-    // Grab admin token
-    let token_path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
-    let token = std::fs::read_to_string(&token_path).unwrap_or_default();
-    let auth_header = format!("Bearer {}", token.trim());
 
     match cmd {
         HeartbeatCommands::List => {
             let url = format!("{}/api/v1/micro/heartbeat", base_url);
-            let resp = client.get(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.get(&url).send().await?;
             if !resp.status().is_success() {
                 anyhow::bail!("Failed to list heartbeats: {}", resp.text().await?);
             }
@@ -45,14 +40,22 @@ pub async fn handle_heartbeat(
             } else {
                 format!("{}/api/v1/micro/heartbeat/{}", base_url, name)
             };
-            
-            let resp = client.post(&url).header("Authorization", &auth_header).send().await?;
+
+            let resp = client.post(&url).send().await?;
             if !resp.status().is_success() {
-                anyhow::bail!("Failed to trigger heartbeat for '{}': {}", name, resp.text().await?);
+                anyhow::bail!(
+                    "Failed to trigger heartbeat for '{}': {}",
+                    name,
+                    resp.text().await?
+                );
             }
-            println!("Successfully triggered {}heartbeat for '{}'.", if fat { "Fat Zone " } else { "" }, name);
+            println!(
+                "Successfully triggered {}heartbeat for '{}'.",
+                if fat { "Fat Zone " } else { "" },
+                name
+            );
         }
     }
-    
+
     Ok(())
 }

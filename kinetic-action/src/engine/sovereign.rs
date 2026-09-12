@@ -7,8 +7,7 @@
 use crate::error::ActionError;
 use crate::traits::ActionEngine;
 use crate::types::{
-    NetworkAction, ActionConfig, ActionEffect, ActionState, SignedActionMessage,
-    verify_signature,
+    ActionConfig, ActionEffect, ActionState, NetworkAction, SignedActionMessage, verify_signature,
 };
 
 /// Single-signer action engine driver controlled exclusively by the Founder Root key.

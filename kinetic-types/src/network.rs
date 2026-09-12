@@ -94,10 +94,7 @@ mod tests {
     #[test]
     fn test_network_opcode_parsing() {
         // Valid OpCodes
-        assert_eq!(
-            NetworkOpcode::from_u8(0x01),
-            Some(NetworkOpcode::Action)
-        );
+        assert_eq!(NetworkOpcode::from_u8(0x01), Some(NetworkOpcode::Action));
         assert_eq!(NetworkOpcode::from_u8(0x02), Some(NetworkOpcode::Drand));
         assert_eq!(NetworkOpcode::from_u8(0x03), Some(NetworkOpcode::Telemetry));
 

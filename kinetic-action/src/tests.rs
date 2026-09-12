@@ -3,8 +3,7 @@
 mod tests {
     use super::super::logic::process_action_message;
     use super::super::types::{
-        NetworkAction, ActionEffect, ActionState, PublicKeyBytes,
-        SignedActionMessage,
+        ActionEffect, ActionState, NetworkAction, PublicKeyBytes, SignedActionMessage,
     };
     use kinetic_primitives::keys::KineticKeypair;
     use kinetic_types::clock::Kyn;
@@ -21,7 +20,7 @@ mod tests {
         (signing_key, verifying_key)
     }
 
-fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
+    fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         let serialized = msg.to_bytes();
         signer.sign(&serialized)
     }
@@ -134,10 +133,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(
-            effect,
-            Some(ActionEffect::RootKeyRotated { .. })
-        ));
+        assert!(matches!(effect, Some(ActionEffect::RootKeyRotated { .. })));
 
         // The state should now have the new root key
         assert_eq!(
@@ -163,10 +159,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
             &get_test_config(),
         )
         .unwrap_err();
-        assert!(matches!(
-            err,
-            crate::error::ActionError::InvalidSignature
-        ));
+        assert!(matches!(err, crate::error::ActionError::InvalidSignature));
 
         // Action 3: Map a name using the NEW root key (should succeed)
         map_msg.signatures.clear();
@@ -297,10 +290,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
             &get_test_config(),
         )
         .unwrap_err();
-        assert!(matches!(
-            err,
-            crate::error::ActionError::InvalidPrimeLength
-        ));
+        assert!(matches!(err, crate::error::ActionError::InvalidPrimeLength));
 
         // First, successfully map the name so it exists in state
         let mut map_msg = SignedActionMessage {
@@ -339,10 +329,7 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(
-            effect,
-            Some(ActionEffect::PrimeUnmapped { .. })
-        ));
+        assert!(matches!(effect, Some(ActionEffect::PrimeUnmapped { .. })));
     }
 
     #[test]
@@ -364,23 +351,15 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         msg.signatures.push(sign_action(&msg, &root_sk));
 
         // First submission succeeds
-        let effect = process_action_message(
-            &mut state,
-            &msg,
-            Kyn(msg.timestamp_kyn),
-            &get_test_config(),
-        )
-        .unwrap();
+        let effect =
+            process_action_message(&mut state, &msg, Kyn(msg.timestamp_kyn), &get_test_config())
+                .unwrap();
         assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
 
         // Resubmitting the exact same message triggers the new AlreadyExecuted taxonomy error
-        let err = process_action_message(
-            &mut state,
-            &msg,
-            Kyn(msg.timestamp_kyn),
-            &get_test_config(),
-        )
-        .unwrap_err();
+        let err =
+            process_action_message(&mut state, &msg, Kyn(msg.timestamp_kyn), &get_test_config())
+                .unwrap_err();
         assert!(
             matches!(err, crate::error::ActionError::AlreadyExecuted),
             "Expected AlreadyExecuted error on replay attack, got: {:?}",
@@ -462,9 +441,8 @@ fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         };
         msg.signatures.push(sign_action(&msg, &root_sk));
 
-        let err =
-            process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
-                .unwrap_err();
+        let err = process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
+            .unwrap_err();
         assert!(matches!(err, crate::error::ActionError::StaleProposal));
     }
 }

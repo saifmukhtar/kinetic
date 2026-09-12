@@ -1,16 +1,22 @@
-use kinetic_core::config::KineticConfig;
+use comfy_table::{Cell, Color, Table};
 use indicatif::{ProgressBar, ProgressStyle};
-use comfy_table::{Table, Cell, Color};
+use kinetic_core::config::KineticConfig;
 
-pub async fn handle_bootstrap(config: &KineticConfig, client: &reqwest::Client) -> anyhow::Result<()> {
+pub async fn handle_bootstrap(
+    config: &KineticConfig,
+    client: &reqwest::Client,
+) -> anyhow::Result<()> {
     let pb = ProgressBar::new_spinner();
     pb.set_style(ProgressStyle::default_spinner().template("{spinner:.magenta} {msg}")?);
     pb.set_message("Bootstrapping DHT and searching for peers...");
     pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
     let port = config.daemon.api_port;
-    let url = format!("http://{}:{}/api/v1/micro/network/bootstrap", config.daemon.bind_ip, port);
-    
+    let url = format!(
+        "http://{}:{}/api/v1/micro/network/bootstrap",
+        config.daemon.bind_ip, port
+    );
+
     let resp = client.post(&url).send().await?;
     pb.finish_and_clear();
 
@@ -18,7 +24,7 @@ pub async fn handle_bootstrap(config: &KineticConfig, client: &reqwest::Client) 
         let err = resp.text().await?;
         anyhow::bail!("Failed to bootstrap network: {}", err);
     }
-    
+
     let json: serde_json::Value = resp.json().await?;
     let mut table = Table::new();
     table.set_header(vec![

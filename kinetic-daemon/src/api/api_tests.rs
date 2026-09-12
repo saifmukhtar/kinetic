@@ -349,7 +349,7 @@ mod tests {
         let req_body_str = req_body.to_string();
 
         let req1 = Request::builder()
-            .uri("/api/macro/register")
+            .uri("/api/v1/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -357,7 +357,7 @@ mod tests {
             .unwrap();
 
         let req2 = Request::builder()
-            .uri("/api/macro/register")
+            .uri("/api/v1/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")

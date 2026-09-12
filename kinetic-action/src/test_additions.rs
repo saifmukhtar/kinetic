@@ -1,7 +1,5 @@
 use crate::logic::process_action_message;
-use crate::types::{
-    NetworkAction, ActionEffect, ActionState, PublicKeyBytes, SignedActionMessage,
-};
+use crate::types::{ActionEffect, ActionState, NetworkAction, PublicKeyBytes, SignedActionMessage};
 use kinetic_primitives::keys::KineticKeypair;
 use kinetic_types::clock::Kyn;
 
@@ -107,7 +105,7 @@ fn test_action_stale_rejection() {
     };
     msg.signatures.push(sign_action(&msg, &root_sk));
 
-    let err = process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
-        .unwrap_err();
+    let err =
+        process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config()).unwrap_err();
     assert!(matches!(err, crate::error::ActionError::StaleProposal));
 }

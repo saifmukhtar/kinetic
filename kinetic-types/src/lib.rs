@@ -18,10 +18,10 @@
 //! - [`cdn`]: Request/Response types for the P2P CDN caching layer.
 //! - [`vdf`]: Proof-of-work commitment ([`Commitment`](vdf::Commitment)), evaluation proofs ([`VdfProof`](vdf::VdfProof)), and reveal submissions ([`Reveal`](vdf::Reveal)) with ML-DSA-65 signature verification.
 
+pub mod action;
 pub mod cdn;
 pub mod clock;
 pub mod error;
-pub mod action;
 pub mod identity;
 pub mod name_record;
 pub mod network;

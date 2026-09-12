@@ -116,18 +116,20 @@ pub fn get_kid_paths(name: &str) -> KidPaths {
     let fqdn = normalize_name(name);
     let apex = extract_apex_name(&fqdn);
     let is_subname = fqdn != apex;
-    
+
     let base = get_kids_dir();
     let cat_dir = if is_subname {
         base.join("subname")
     } else {
         base.join("name")
     };
-    
+
     KidPaths {
         did_path: cat_dir.join("did").join(format!("{}.json", fqdn)),
         key_path: cat_dir.join("keys").join(format!("{}.key", fqdn)),
-        manifest_path: cat_dir.join("manifest").join(format!("{}.manifest.json", fqdn)),
+        manifest_path: cat_dir
+            .join("manifest")
+            .join(format!("{}.manifest.json", fqdn)),
     }
 }
 
@@ -428,7 +430,7 @@ pub fn load_local_kid(name: &str) -> Result<(Document, PathBuf), IdentityError> 
 pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
     let mut summaries = Vec::new();
     let root = get_kids_dir();
-    
+
     let did_dirs = vec![
         root.join("name").join("did"),
         root.join("subname").join("did"),
@@ -450,7 +452,7 @@ pub fn list_local_kids() -> Result<Vec<LocalKidSummary>, IdentityError> {
                     .and_then(|s| s.to_str())
                     .unwrap_or_default()
                     .to_string();
-                
+
                 let paths = get_kid_paths(&stem);
                 summaries.push(LocalKidSummary {
                     name: stem,

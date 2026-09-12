@@ -56,7 +56,11 @@ pub async fn handle_get_action_status(
     let action_state = GLOBAL_ACTION_STATE.lock().map_err(|e| {
         let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
         crate::api::error::AppError(kinetic_rpc::ApiError {
-            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            error_type: format!(
+                "{}/errors/{}",
+                kinetic_core::constants::DOCS_URL,
+                sys_err.code()
+            ),
             title: "Internal Server Error".to_string(),
             status: 500,
             detail: sys_err.user_message(),
@@ -85,10 +89,13 @@ pub async fn handle_get_action_status(
         .saturating_sub(action_state.genesis_kyn.0)
         .saturating_sub(action_state.total_paused_kyns);
 
-    let last_pause = action_state.pause_history.last().map(|(start, end)| PausePeriod {
-        start_kyn: start.0,
-        end_kyn: end.0,
-    });
+    let last_pause = action_state
+        .pause_history
+        .last()
+        .map(|(start, end)| PausePeriod {
+            start_kyn: start.0,
+            end_kyn: end.0,
+        });
 
     let metrics = ActionMetrics {
         total_prime_names: action_state.mapped_prime_names.len(),
@@ -119,11 +126,16 @@ pub struct ActionNamesResponse {
 }
 
 /// Handles requests to retrieve all mapped Action names (primes and infras) in a single call.
-pub async fn handle_get_action_names() -> Result<Json<ActionNamesResponse>, crate::api::error::AppError> {
+pub async fn handle_get_action_names()
+-> Result<Json<ActionNamesResponse>, crate::api::error::AppError> {
     let action_state = GLOBAL_ACTION_STATE.lock().map_err(|e| {
         let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
         crate::api::error::AppError(kinetic_rpc::ApiError {
-            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            error_type: format!(
+                "{}/errors/{}",
+                kinetic_core::constants::DOCS_URL,
+                sys_err.code()
+            ),
             title: "Internal Server Error".to_string(),
             status: 500,
             detail: sys_err.user_message(),
@@ -174,7 +186,7 @@ pub async fn handle_publish_action(
     }
     tracing::info!("Received API publish request for Action action");
 
-    let current_kyn = {
+    let _current_kyn = {
         let kyn_provider =
             kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
         use kinetic_core::types::clock::KynNetworkExt;
@@ -188,9 +200,7 @@ pub async fn handle_publish_action(
     };
 
     let is_valid = {
-        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE
-            .lock()
-            .unwrap();
+        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
         let res = kinetic_core::action::process_action_message(
             &mut action_state,
             &msg,
@@ -278,4 +288,3 @@ pub async fn handle_publish_action(
         }
     }
 }
-

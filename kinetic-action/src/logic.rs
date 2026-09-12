@@ -14,8 +14,7 @@ use std::collections::HashMap;
 
 use crate::error::ActionError;
 use crate::types::{
-    ActionConfig, ActionEffect, ActionState, Hash256, PublicKeyBytes,
-    SignedActionMessage,
+    ActionConfig, ActionEffect, ActionState, Hash256, PublicKeyBytes, SignedActionMessage,
 };
 
 /// Validates that the static cryptographic keys required for action have been correctly initialized.
@@ -36,8 +35,7 @@ pub fn validate_keys_initialized(
     }
 
     // Attempt to decode the hex just to validate its format.
-    let bytes =
-        hex::decode(sovereign_key_hex).map_err(|_| ActionError::MalformedSovereignKey)?;
+    let bytes = hex::decode(sovereign_key_hex).map_err(|_| ActionError::MalformedSovereignKey)?;
 
     if bytes.len() != 1952 {
         return Err(ActionError::KeyLengthMismatch);
@@ -98,10 +96,7 @@ impl ActionState {
     /// # Errors
     ///
     /// Returns a `ActionError` if the key is missing, invalid, or has the wrong length.
-    pub fn get_sovereign_key(
-        &self,
-        config: &ActionConfig,
-    ) -> Result<PublicKeyBytes, ActionError> {
+    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<PublicKeyBytes, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
             return Ok(key.clone());
         }

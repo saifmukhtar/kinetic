@@ -4,16 +4,12 @@ use std::sync::Mutex;
 use std::time::SystemTime;
 
 lazy_static! {
-    pub static ref GLOBAL_ACTION_STATE: Mutex<ActionState> =
-        Mutex::new(ActionState::new(kinetic_core::types::clock::Kyn(
-            kinetic_core::constants::KINETIC_GENESIS_KYN
-        )));
+    pub static ref GLOBAL_ACTION_STATE: Mutex<ActionState> = Mutex::new(ActionState::new(
+        kinetic_core::types::clock::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN)
+    ));
 }
 
-pub fn save_action_to_disk(
-    state: &ActionState,
-    path: &std::path::Path,
-) -> std::io::Result<()> {
+pub fn save_action_to_disk(state: &ActionState, path: &std::path::Path) -> std::io::Result<()> {
     let parent = path.parent().unwrap_or_else(|| std::path::Path::new("."));
     let mut temp_file = tempfile::NamedTempFile::new_in(parent)?;
     bincode::serialize_into(&mut temp_file, state).map_err(std::io::Error::other)?;

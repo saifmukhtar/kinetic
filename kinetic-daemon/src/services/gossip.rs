@@ -42,10 +42,13 @@ pub fn start_gossip_processor(
                             Err(_) => kinetic_core::types::Kyn::now_local().0,
                         };
                         let (should_update_log, log) = {
-                            let Ok(mut state) =
-                                kinetic_local::action::GLOBAL_ACTION_STATE.lock()
+                            let Ok(mut state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()
                             else {
-                                network_client.report_gossip(message_id, propagation_source, is_valid);
+                                network_client.report_gossip(
+                                    message_id,
+                                    propagation_source,
+                                    is_valid,
+                                );
                                 continue;
                             };
 
@@ -62,8 +65,8 @@ pub fn start_gossip_processor(
                                     );
 
                                     if let Some(storage) = &storage {
-                                        use kinetic_core::constants::DB_PREFIX_REVEAL;
                                         use kinetic_core::action::types::ActionEffect;
+                                        use kinetic_core::constants::DB_PREFIX_REVEAL;
                                         use kinetic_core::types::NameRecord;
 
                                         match &effect {
@@ -80,8 +83,10 @@ pub fn start_gossip_processor(
                                                     authorization: None,
                                                 };
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                                if let Ok(json_bytes) = serde_json::to_vec(&record) {
-                                                    let _ = storage.put(key.as_bytes(), &json_bytes);
+                                                if let Ok(json_bytes) = serde_json::to_vec(&record)
+                                                {
+                                                    let _ =
+                                                        storage.put(key.as_bytes(), &json_bytes);
                                                     tracing::info!(
                                                         "Injected NameRecord::Prime into storage for {}",
                                                         name
@@ -109,8 +114,10 @@ pub fn start_gossip_processor(
                                                     authorization: None,
                                                 };
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                                if let Ok(json_bytes) = serde_json::to_vec(&record) {
-                                                    let _ = storage.put(key.as_bytes(), &json_bytes);
+                                                if let Ok(json_bytes) = serde_json::to_vec(&record)
+                                                {
+                                                    let _ =
+                                                        storage.put(key.as_bytes(), &json_bytes);
                                                     tracing::info!(
                                                         "Injected NameRecord::Infra into storage for {}",
                                                         name
@@ -168,11 +175,10 @@ pub fn start_gossip_processor(
                                 }
                             }
                         };
-                        if should_update_log {
-                            if let Some(log) = log {
+                        if should_update_log
+                            && let Some(log) = log {
                                 let _ = network_client.update_action_log(log).await;
                             }
-                        }
                     }
                     network_client.report_gossip(message_id, propagation_source, is_valid);
                 } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {

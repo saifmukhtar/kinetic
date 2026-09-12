@@ -4,8 +4,8 @@
 use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
 use reqwest::Client;
-use tracing::{info, warn};
 use serde_json::json;
+use tracing::{info, warn};
 
 /// Available subcommands for identity operations.
 #[derive(Subcommand)]
@@ -24,21 +24,13 @@ pub enum IdentityCommands {
     /// List all identities managed by the local daemon
     List,
     /// Fetch details of a specific identity from the daemon
-    Info {
-        name: String,
-    },
+    Info { name: String },
     /// Rotate the controller key for an identity securely within the daemon
-    RotateKey {
-        name: String,
-    },
+    RotateKey { name: String },
     /// Revoke a Kinetic Identity securely within the daemon
-    Revoke {
-        name: String,
-    },
+    Revoke { name: String },
     /// Fetch the local capability manifest for an identity
-    Manifest {
-        name: String,
-    },
+    Manifest { name: String },
     /// Update the local capability manifest for an identity
     UpdateManifest {
         name: String,
@@ -68,13 +60,13 @@ pub async fn handle_identity_command(
     let port = config.daemon.api_port;
     let base_url = format!("http://{}:{}", config.daemon.bind_ip, port);
 
-    // Grab admin token if available for authenticated daemon requests
-    let token_path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
-    let token = std::fs::read_to_string(&token_path).unwrap_or_default();
-    let auth_header = format!("Bearer {}", token.trim());
-
     match cmd {
-        IdentityCommands::Generate { base_name, sub_name, inherit_subname, force } => {
+        IdentityCommands::Generate {
+            base_name,
+            sub_name,
+            inherit_subname,
+            force,
+        } => {
             let url = format!("{}/api/v1/micro/kid/generate", base_url);
             let payload = json!({
                 "base_name": base_name,
@@ -82,17 +74,20 @@ pub async fn handle_identity_command(
                 "inherit_subname": inherit_subname,
                 "force": force
             });
-            let resp = client.post(&url).header("Authorization", &auth_header).json(&payload).send().await?;
+            let resp = client.post(&url).json(&payload).send().await?;
             if resp.status().is_success() {
                 let json: serde_json::Value = resp.json().await?;
-                println!("Successfully generated identity:\n{}", serde_json::to_string_pretty(&json)?);
+                println!(
+                    "Successfully generated identity:\n{}",
+                    serde_json::to_string_pretty(&json)?
+                );
             } else {
                 anyhow::bail!("Failed to generate identity: {}", resp.text().await?);
             }
         }
         IdentityCommands::List => {
             let url = format!("{}/api/v1/micro/kid/list", base_url);
-            let resp = client.get(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.get(&url).send().await?;
             if resp.status().is_success() {
                 let json: serde_json::Value = resp.json().await?;
                 println!("{}", serde_json::to_string_pretty(&json)?);
@@ -102,7 +97,7 @@ pub async fn handle_identity_command(
         }
         IdentityCommands::Info { name } => {
             let url = format!("{}/api/v1/micro/kid/{}", base_url, name);
-            let resp = client.get(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.get(&url).send().await?;
             if resp.status().is_success() {
                 let json: serde_json::Value = resp.json().await?;
                 println!("{}", serde_json::to_string_pretty(&json)?);
@@ -112,7 +107,7 @@ pub async fn handle_identity_command(
         }
         IdentityCommands::RotateKey { name } => {
             let url = format!("{}/api/v1/micro/kid/{}/rotate", base_url, name);
-            let resp = client.post(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.post(&url).send().await?;
             if resp.status().is_success() {
                 println!("Successfully rotated identity keys for {}.", name);
             } else {
@@ -121,7 +116,7 @@ pub async fn handle_identity_command(
         }
         IdentityCommands::Revoke { name } => {
             let url = format!("{}/api/v1/micro/kid/{}/revoke", base_url, name);
-            let resp = client.post(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.post(&url).send().await?;
             if resp.status().is_success() {
                 println!("Successfully revoked identity for {}.", name);
             } else {
@@ -130,7 +125,7 @@ pub async fn handle_identity_command(
         }
         IdentityCommands::Manifest { name } => {
             let url = format!("{}/api/v1/micro/kid/{}/manifest", base_url, name);
-            let resp = client.get(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.get(&url).send().await?;
             if resp.status().is_success() {
                 let json: serde_json::Value = resp.json().await?;
                 println!("{}", serde_json::to_string_pretty(&json)?);
@@ -141,19 +136,23 @@ pub async fn handle_identity_command(
         IdentityCommands::UpdateManifest { name, file } => {
             let data = std::fs::read_to_string(&file)
                 .map_err(|e| anyhow::anyhow!("Failed to read manifest file: {}", e))?;
-            
+
             let payload: serde_json::Value = serde_json::from_str(&data)
                 .map_err(|e| anyhow::anyhow!("Failed to parse JSON payload: {}", e))?;
 
             let url = format!("{}/api/v1/micro/kid/{}/manifest", base_url, name);
-            let resp = client.post(&url).header("Authorization", &auth_header).json(&payload).send().await?;
+            let resp = client.post(&url).json(&payload).send().await?;
             if resp.status().is_success() {
                 println!("Successfully updated local manifest for {}.", name);
             } else {
                 anyhow::bail!("Failed to update manifest: {}", resp.text().await?);
             }
         }
-        IdentityCommands::Publish { kid, manifest, name } => {
+        IdentityCommands::Publish {
+            kid,
+            manifest,
+            name,
+        } => {
             // Retain the existing local signing behavior for Publish until the Daemon
             // exposes a direct `POST /v1/micro/kid/{name}/publish` API.
             let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
@@ -172,9 +171,12 @@ pub async fn handle_identity_command(
                 auth_kid.owner_signature = keypair.sign(&signable);
 
                 let daemon_url = format!("{}/api/v1/micro/kid/publish", base_url);
-                info!("Publishing AuthorizedKID {} to local daemon...", auth_kid.kid_doc.kid.as_str());
-                
-                let response = client.post(daemon_url).header("Authorization", &auth_header).json(&auth_kid).send().await?;
+                info!(
+                    "Publishing AuthorizedKID {} to local daemon...",
+                    auth_kid.kid_doc.kid.as_str()
+                );
+
+                let response = client.post(daemon_url).json(&auth_kid).send().await?;
                 if response.status().is_success() {
                     info!("Success! KID successfully routed to DHT.");
                 } else {
@@ -199,19 +201,22 @@ pub async fn handle_identity_command(
 
                 let daemon_url = format!("{}/api/v1/micro/kid/manifest/publish", base_url);
                 info!("Publishing AuthorizedManifest to local daemon...");
-                let response = client.post(daemon_url).header("Authorization", &auth_header).json(&auth_manifest).send().await?;
+                let response = client.post(daemon_url).json(&auth_manifest).send().await?;
                 if response.status().is_success() {
                     info!("Success! Manifest successfully routed to DHT.");
                 } else {
                     warn!("Daemon rejected Manifest: {}", response.text().await?);
                 }
             } else {
-                warn!("Manifest file '{}' not found. Skipping manifest publish.", manifest);
+                warn!(
+                    "Manifest file '{}' not found. Skipping manifest publish.",
+                    manifest
+                );
             }
         }
         IdentityCommands::Resolve { did } => {
             let url = format!("{}/api/v1/micro/kid/resolve/{}", base_url, did);
-            let resp = client.get(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.get(&url).send().await?;
             if resp.status().is_success() {
                 let json: serde_json::Value = resp.json().await?;
                 println!("{}", serde_json::to_string_pretty(&json)?);

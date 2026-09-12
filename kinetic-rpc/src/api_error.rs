@@ -5,9 +5,9 @@
 //! mapping internal failures to RFC 7807 Problem Details JSON format with Kinetic extensions.
 
 use kinetic_core::error::{
-    ConfigError, ActionError, IdentityError, KynProviderError, NamesError, NetworkClientError,
-    NrsError, P2pError, PublishError, RegistrationError, ResolutionError, StorageError, SystemError,
-    VdfError, vdf::RevealValidationError,
+    ActionError, ConfigError, IdentityError, KynProviderError, NamesError, NetworkClientError,
+    NrsError, P2pError, PublishError, RegistrationError, ResolutionError, StorageError,
+    SystemError, VdfError, vdf::RevealValidationError,
 };
 use serde::{Deserialize, Serialize};
 

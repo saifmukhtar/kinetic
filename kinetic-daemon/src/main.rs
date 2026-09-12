@@ -190,7 +190,10 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run '{}-daemon start' to begin.", kinetic_core::constants::NSP);
+    println!(
+        "Service installed successfully. Run '{}-daemon start' to begin.",
+        kinetic_core::constants::NSP
+    );
     Ok(())
 }
 
@@ -285,7 +288,7 @@ async fn run_daemon() -> Result<()> {
     let base_config_dir = kinetic_local::config::get_base_dir();
     let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
-    
+
     let storage_path = storage_dir.join("kinetic.db");
     let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
     info!("Storage engine initialized at {:?}", storage_path);
@@ -433,13 +436,9 @@ async fn run_daemon() -> Result<()> {
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| storage_dir.join("action.db"));
 
-
-
     let action_state_path = std::sync::Arc::new(action_state_path);
     {
-        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE
-            .lock()
-            .unwrap();
+        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
         // Load into state from binary
         // Note: this will overwrite the genesis kyn with the one saved in the binary!
         // so when we do `--delete-action-state`, the genesis_kyn might reset back
@@ -476,10 +475,12 @@ async fn run_daemon() -> Result<()> {
 
     // Push initial local action log to the network cache
     {
-        let action_state = kinetic_local::action::GLOBAL_ACTION_STATE
+        let action_log = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
-            .unwrap();
-        let _ = network_client.update_action_log(action_state.action_log.clone()).await;
+            .unwrap()
+            .action_log
+            .clone();
+        let _ = network_client.update_action_log(action_log).await;
     }
 
     // If local state is empty, perform a P2P sync
@@ -487,31 +488,50 @@ async fn run_daemon() -> Result<()> {
         let is_empty = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
             .unwrap()
-            .action_log.is_empty();
+            .action_log
+            .is_empty();
 
         if is_empty {
             tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await; // give it time to connect
             if let Ok(peers) = network_client.get_connected_peers().await {
                 for peer_str in peers {
-                    if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
-                        if let Ok(resp) = network_client.send_action_sync_request(peer_id, kinetic_types::action::ActionSyncRequest { from_kyn: 0 }).await {
-                            if !resp.actions.is_empty() {
-                                tracing::info!("Received {} action actions from {}", resp.actions.len(), peer_id);
-                                let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
-                                for msg in &resp.actions {
-                                    if let Err(e) = kinetic_core::action::process_action_message(&mut action_state, msg, kinetic_types::clock::Kyn(0)) {
-                                        tracing::error!("Failed to apply synced action: {}", e);
+                    if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>()
+                        && let Ok(resp) = network_client
+                            .send_action_sync_request(
+                                peer_id,
+                                kinetic_types::action::ActionSyncRequest { from_kyn: 0 },
+                            )
+                            .await
+                            && !resp.actions.is_empty() {
+                                tracing::info!(
+                                    "Received {} action actions from {}",
+                                    resp.actions.len(),
+                                    peer_id
+                                );
+                                let action_log = {
+                                    let mut action_state =
+                                        kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                                    for msg in &resp.actions {
+                                        if let Err(e) = kinetic_core::action::process_action_message(
+                                            &mut action_state,
+                                            msg,
+                                            kinetic_types::clock::Kyn(0),
+                                        ) {
+                                            tracing::error!("Failed to apply synced action: {}", e);
+                                        }
                                     }
-                                }
-                                kinetic_local::action::save_action_to_disk(&*action_state, &action_state_path);
-                                drop(action_state);
-                                let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
-                                let _ = network_client.update_action_log(action_state.action_log.clone()).await;
+                                    let _ = kinetic_local::action::save_action_to_disk(
+                                        &action_state,
+                                        &action_state_path,
+                                    );
+                                    action_state.action_log.clone()
+                                };
+                                let _ = network_client
+                                    .update_action_log(action_log)
+                                    .await;
                                 break;
                             }
-                        }
-                    }
                 }
             }
         }

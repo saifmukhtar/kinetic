@@ -62,12 +62,11 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                             kinetic_core::action::SignedActionMessage,
                         >(actual_payload)
                         {
-                            let action_state = kinetic_local::action::GLOBAL_ACTION_STATE
-                                .lock()
-                                .unwrap();
-                            if let Ok(root_key) = action_state.get_sovereign_key(
-                                &kinetic_core::action::get_action_config(),
-                            ) {
+                            let action_state =
+                                kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                            if let Ok(root_key) = action_state
+                                .get_sovereign_key(&kinetic_core::action::get_action_config())
+                            {
                                 drop(action_state);
                                 let action_bytes = signed_msg.to_bytes();
                                 return signed_msg.signatures.iter().any(|sig| {

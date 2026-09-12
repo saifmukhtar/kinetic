@@ -127,7 +127,9 @@ pub enum Command {
         /// The action sync request payload.
         req: Box<kinetic_types::action::ActionSyncRequest>,
         /// Channel to return the action sync response.
-        responder: oneshot::Sender<std::result::Result<kinetic_types::action::ActionSyncResponse, ProxyError>>,
+        responder: oneshot::Sender<
+            std::result::Result<kinetic_types::action::ActionSyncResponse, ProxyError>,
+        >,
     },
     /// Update the local cache of the action log.
     UpdateActionLog {

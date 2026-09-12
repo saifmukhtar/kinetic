@@ -14,7 +14,7 @@
 use std::collections::HashMap;
 
 pub use kinetic_types::action::{
-    NetworkAction, Hash256, PublicKeyBytes, SignatureBytes, SignedActionMessage,
+    Hash256, NetworkAction, PublicKeyBytes, SignatureBytes, SignedActionMessage,
 };
 
 /// Verifies an ML-DSA-65 post-quantum signature over a message byte slice.

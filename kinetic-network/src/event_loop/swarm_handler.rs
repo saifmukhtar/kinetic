@@ -180,9 +180,9 @@ impl super::core::NetworkEventLoop {
                             crate::event_loop::core::LoopbackCommand::ConnectionPoWVerified {
                                 peer_id: peer_id_clone,
                                 valid_client,
-                                valid_server,
+                                _valid_server: valid_server,
                                 is_bootstrap,
-                                remote_addr,
+                                _remote_addr: remote_addr,
                             },
                         );
                     });

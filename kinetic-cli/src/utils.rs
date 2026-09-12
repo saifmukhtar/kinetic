@@ -22,8 +22,6 @@ pub fn parse_and_format_api_error(
     }
 }
 
-
-
 /// Retrieves the API authentication token from the configured token path.
 ///
 /// # Errors

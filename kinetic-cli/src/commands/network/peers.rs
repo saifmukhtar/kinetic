@@ -1,6 +1,6 @@
-use kinetic_core::config::KineticConfig;
-use comfy_table::{Table, Cell, Color};
+use comfy_table::{Cell, Color, Table};
 use indicatif::{ProgressBar, ProgressStyle};
+use kinetic_core::config::KineticConfig;
 
 pub async fn handle_peers(config: &KineticConfig, client: &reqwest::Client) -> anyhow::Result<()> {
     let pb = ProgressBar::new_spinner();
@@ -9,8 +9,11 @@ pub async fn handle_peers(config: &KineticConfig, client: &reqwest::Client) -> a
     pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
     let port = config.daemon.api_port;
-    let url = format!("http://{}:{}/api/v1/micro/network/peers", config.daemon.bind_ip, port);
-    
+    let url = format!(
+        "http://{}:{}/api/v1/micro/network/peers",
+        config.daemon.bind_ip, port
+    );
+
     let resp = client.get(&url).send().await?;
     pb.finish_and_clear();
 
@@ -18,10 +21,14 @@ pub async fn handle_peers(config: &KineticConfig, client: &reqwest::Client) -> a
         let err = resp.text().await?;
         anyhow::bail!("Failed to list peers: {}", err);
     }
-    
+
     let json: serde_json::Value = resp.json().await?;
-    let peers = json.get("peers").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-    
+    let peers = json
+        .get("peers")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+
     if peers.is_empty() {
         println!("No connected peers found.");
         return Ok(());
@@ -37,13 +44,13 @@ pub async fn handle_peers(config: &KineticConfig, client: &reqwest::Client) -> a
     for p in peers {
         let id = p.get("id").and_then(|v| v.as_str()).unwrap_or("-");
         let ip = p.get("ip").and_then(|v| v.as_str()).unwrap_or("-");
-        let latency = p.get("latency").and_then(|v| v.as_u64()).map(|l| format!("{}ms", l)).unwrap_or_else(|| "-".to_string());
-        
-        table.add_row(vec![
-            id.to_string(),
-            ip.to_string(),
-            latency,
-        ]);
+        let latency = p
+            .get("latency")
+            .and_then(|v| v.as_u64())
+            .map(|l| format!("{}ms", l))
+            .unwrap_or_else(|| "-".to_string());
+
+        table.add_row(vec![id.to_string(), ip.to_string(), latency]);
     }
 
     println!("\n{table}");

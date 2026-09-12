@@ -47,8 +47,8 @@ use kid::{
 use macro_api::*;
 use nrs::{
     handle_delete_local_zone, handle_get_local_zone, handle_get_reserved_names, handle_get_zone,
-    handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_record,
-    handle_publish_zone, handle_publish_fat_zone, handle_resolve_name, handle_verify_quorum,
+    handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_fat_zone,
+    handle_publish_record, handle_publish_zone, handle_resolve_name, handle_verify_quorum,
 };
 use time::*;
 /// Represents the status of an ongoing Verifiable Delay Function (VDF) task.
@@ -247,8 +247,14 @@ pub fn app(state: ApiState) -> Router {
     let auth_routes = Router::new()
         .route("/v1/micro/system/shutdown", post(system::handle_shutdown))
         .route("/v1/micro/system/restart", post(system::handle_restart))
-        .route("/v1/micro/system/ca-cert", axum::routing::get(system::handle_get_ca_cert))
-        .route("/v1/micro/network/bootstrap", post(config::handle_network_bootstrap))
+        .route(
+            "/v1/micro/system/ca-cert",
+            axum::routing::get(system::handle_get_ca_cert),
+        )
+        .route(
+            "/v1/micro/network/bootstrap",
+            post(config::handle_network_bootstrap),
+        )
         .route("/v1/micro/auth/session", post(auth::handle_create_session))
         .route(
             "/v1/micro/auth/sessions",
@@ -281,17 +287,29 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/kid/{name}/manifest",
             axum::routing::post(handle_update_kid_manifest),
         )
-        .route("/v1/micro/action/publish", post(action::handle_publish_action))
+        .route(
+            "/v1/micro/action/publish",
+            post(action::handle_publish_action),
+        )
         .route("/v1/micro/config", axum::routing::get(handle_get_config))
         .route("/v1/micro/config", axum::routing::post(handle_set_config))
-        .route("/v1/micro/config/dns/flush", axum::routing::post(config::handle_dns_flush))
+        .route(
+            "/v1/micro/config/dns/flush",
+            axum::routing::post(config::handle_dns_flush),
+        )
         .route("/v1/macro/tasks", axum::routing::get(handle_macro_tasks))
         .route(
             "/v1/macro/status/{task_id}",
             axum::routing::get(handle_macro_status),
         )
-        .route("/v1/micro/nrs/owned", axum::routing::get(handle_owned_names))
-        .route("/v1/micro/nrs/zone/{name}", axum::routing::post(handle_post_zone))
+        .route(
+            "/v1/micro/nrs/owned",
+            axum::routing::get(handle_owned_names),
+        )
+        .route(
+            "/v1/micro/nrs/zone/{name}",
+            axum::routing::post(handle_post_zone),
+        )
         .route(
             "/v1/micro/nrs/zone/local/{name}",
             axum::routing::post(handle_post_local_zone),
@@ -312,7 +330,10 @@ pub fn app(state: ApiState) -> Router {
             "/v1/macro/register",
             axum::routing::post(handle_macro_register_name),
         )
-        .route("/v1/macro/renew", axum::routing::post(handle_macro_renew_name))
+        .route(
+            "/v1/macro/renew",
+            axum::routing::post(handle_macro_renew_name),
+        )
         .route(
             "/v1/micro/gossip/publish/{topic}",
             axum::routing::post(handle_gossip_publish),
@@ -348,13 +369,22 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/consensus/validate",
             axum::routing::post(consensus::handle_validate_name),
         )
-        .route("/v1/micro/network/peer-id", axum::routing::get(handle_get_peer_id))
-        .route("/v1/micro/network/status", axum::routing::get(handle_network_status))
+        .route(
+            "/v1/micro/network/peer-id",
+            axum::routing::get(handle_get_peer_id),
+        )
+        .route(
+            "/v1/micro/network/status",
+            axum::routing::get(handle_network_status),
+        )
         .route(
             "/v1/micro/network/nat",
             axum::routing::get(config::handle_network_nat),
         )
-        .route("/v1/micro/network/peers", axum::routing::get(handle_network_peers))
+        .route(
+            "/v1/micro/network/peers",
+            axum::routing::get(handle_network_peers),
+        )
         .route(
             "/v1/micro/nrs/heartbeats",
             axum::routing::get(handle_get_heartbeats),
@@ -379,12 +409,18 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/action/names",
             axum::routing::get(action::handle_get_action_names),
         )
-        .route("/v1/micro/nrs/zone/{name}", axum::routing::get(handle_get_zone))
+        .route(
+            "/v1/micro/nrs/zone/{name}",
+            axum::routing::get(handle_get_zone),
+        )
         .route(
             "/v1/micro/nrs/zone/local/{name}",
             axum::routing::get(handle_get_local_zone),
         )
-        .route("/v1/micro/nrs/resolve/{name}", axum::routing::get(handle_resolve_name))
+        .route(
+            "/v1/micro/nrs/resolve/{name}",
+            axum::routing::get(handle_resolve_name),
+        )
         .route(
             "/v1/micro/nrs/resolve/{name}/quorum",
             axum::routing::post(handle_verify_quorum),
@@ -399,7 +435,10 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/kid/{name}/manifest",
             axum::routing::get(handle_get_kid_manifest),
         )
-        .route("/v1/micro/time/current", axum::routing::get(handle_get_time))
+        .route(
+            "/v1/micro/time/current",
+            axum::routing::get(handle_get_time),
+        )
         .route(
             "/v1/micro/gossip/subscribe/{topic}",
             axum::routing::get(handle_gossip_subscribe),
@@ -477,6 +516,7 @@ pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
 /// # Errors
 ///
 /// Returns an error if the server fails to bind to the port or if token generation fails.
+#[allow(clippy::too_many_arguments)]
 pub async fn start_server(
     network: NetworkClient,
     storage: Arc<dyn StorageEngine>,
@@ -754,19 +794,18 @@ async fn auth_middleware(
     let mut final_role = role;
     if final_role.is_none() {
         let db_key_token = format!("session_token:{}", provided_token);
-        if let Ok(Some(id_bytes)) = state.storage.get(db_key_token.as_bytes()) {
-            if let Ok(id_str) = String::from_utf8(id_bytes.to_vec()) {
+        if let Ok(Some(id_bytes)) = state.storage.get(db_key_token.as_bytes())
+            && let Ok(id_str) = String::from_utf8(id_bytes.to_vec()) {
                 let db_key_session = format!("session:{}", id_str);
-                if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes()) {
-                    if let Ok(session) =
+                if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes())
+                    && let Ok(session) =
                         serde_json::from_slice::<crate::api::auth::AppSession>(&bytes)
                     {
                         // Verify expiration using cached Kyn
                         let kyn_provider = kinetic_network::client::drand::DrandProvider::new(
                             Some(state.storage.clone()),
                         );
-                        let current_kyn =
-                            kyn_provider.load_cached().map(|d| d.kyn).unwrap_or(0);
+                        let current_kyn = kyn_provider.load_cached().map(|d| d.kyn).unwrap_or(0);
 
                         if current_kyn > 0 && current_kyn > session.expiry_kyn {
                             tracing::warn!("Rejecting API request: Session token expired");
@@ -802,9 +841,7 @@ async fn auth_middleware(
                         }
                         final_role = Some(session_role);
                     }
-                }
             }
-        }
     }
 
     match final_role {

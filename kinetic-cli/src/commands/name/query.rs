@@ -1,9 +1,12 @@
+use comfy_table::{Cell, Color, Table};
+use indicatif::{ProgressBar, ProgressStyle};
 use kinetic_core::config::KineticConfig;
 use kinetic_local::config::get_zones_dir;
-use comfy_table::{Table, Cell, Color};
-use indicatif::{ProgressBar, ProgressStyle};
 
-pub async fn handle_name_list(config: &KineticConfig, client: &reqwest::Client) -> anyhow::Result<()> {
+pub async fn handle_name_list(
+    config: &KineticConfig,
+    client: &reqwest::Client,
+) -> anyhow::Result<()> {
     let pb = ProgressBar::new_spinner();
     pb.set_style(ProgressStyle::default_spinner().template("{spinner:.blue} {msg}")?);
     pb.set_message("Fetching owned names from daemon...");
@@ -28,11 +31,10 @@ pub async fn handle_name_list(config: &KineticConfig, client: &reqwest::Client) 
             let config_dir = get_zones_dir().join("config");
             if let Ok(entries) = std::fs::read_dir(&config_dir) {
                 for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if name.ends_with(".json") {
+                    if let Some(name) = entry.file_name().to_str()
+                        && name.ends_with(".json") {
                             names.push(name.trim_end_matches(".json").to_string());
                         }
-                    }
                 }
             }
         }
@@ -50,10 +52,7 @@ pub async fn handle_name_list(config: &KineticConfig, client: &reqwest::Client) 
     ]);
 
     for name in names {
-        table.add_row(vec![
-            name.to_string(),
-            source.to_string(),
-        ]);
+        table.add_row(vec![name.to_string(), source.to_string()]);
     }
 
     println!("\n{table}");
@@ -78,27 +77,28 @@ pub async fn handle_name_info(
     let resolve_res = client.get(&daemon_url).send().await;
     pb.finish_and_clear();
 
-    if let Ok(res) = resolve_res {
-        if res.status().is_success() {
+    if let Ok(res) = resolve_res
+        && res.status().is_success() {
             let json: serde_json::Value = res.json().await?;
             println!("Info for {} (Resolved from network):", fqdn);
             println!("{}", serde_json::to_string_pretty(&json)?);
             return Ok(());
         }
-    }
 
     println!("Daemon unreachable or name not found on DHT. Checking local cache...");
-    let record_path = get_zones_dir().join("cache").join(format!("{}.record.json", fqdn));
+    let record_path = get_zones_dir()
+        .join("cache")
+        .join(format!("{}.record.json", fqdn));
     if record_path.exists() {
         let content = std::fs::read_to_string(&record_path)?;
         let record: kinetic_core::types::NameRecord = serde_json::from_str(&content)?;
-        
+
         let mut table = Table::new();
         table.set_header(vec![
             Cell::new("Metric").fg(Color::Cyan),
             Cell::new("Value").fg(Color::White),
         ]);
-        
+
         match record {
             kinetic_core::types::NameRecord::Standard(r) => {
                 table.add_row(vec!["Type", "Standard"]);
@@ -119,7 +119,7 @@ pub async fn handle_name_info(
     } else {
         println!("No local info found for {}.", fqdn);
     }
-    
+
     Ok(())
 }
 
@@ -129,7 +129,7 @@ pub async fn handle_name_resolve(
     client: &reqwest::Client,
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
-    
+
     let pb = ProgressBar::new_spinner();
     pb.set_style(ProgressStyle::default_spinner().template("{spinner:.magenta} {msg}")?);
     pb.set_message(format!("Resolving {} via network...", fqdn));
@@ -145,7 +145,11 @@ pub async fn handle_name_resolve(
     match resolve_res {
         Ok(res) if res.status().is_success() => {
             let json: serde_json::Value = res.json().await?;
-            println!("✅ Resolved data for {}:\n{}", fqdn, serde_json::to_string_pretty(&json)?);
+            println!(
+                "✅ Resolved data for {}:\n{}",
+                fqdn,
+                serde_json::to_string_pretty(&json)?
+            );
         }
         Ok(res) => {
             println!("❌ Failed to resolve: {}", res.status());
@@ -154,5 +158,67 @@ pub async fn handle_name_resolve(
             println!("❌ Daemon unreachable: {}", e);
         }
     }
+    Ok(())
+}
+
+pub async fn handle_name_difficulty(
+    name: String,
+    kyns_idle: Option<u64>,
+    config: &KineticConfig,
+    client: &reqwest::Client,
+) -> anyhow::Result<()> {
+    let fqdn = kinetic_core::types::normalize_name(&name);
+    let port = config.daemon.api_port;
+
+    let base_url = format!(
+        "http://{}:{}/api/v1/micro/consensus/difficulty/{}",
+        config.daemon.bind_ip, port, fqdn
+    );
+    let resp = client.get(&base_url).send().await?;
+    if !resp.status().is_success() {
+        anyhow::bail!("Failed to fetch difficulty: {}", resp.text().await?);
+    }
+
+    let base_json: serde_json::Value = resp.json().await?;
+    println!("Base Difficulty (Mining):");
+    println!("{}", serde_json::to_string_pretty(&base_json)?);
+
+    if let Some(idle) = kyns_idle {
+        let takeover_url = format!(
+            "http://{}:{}/api/v1/micro/consensus/takeover-difficulty/{}?kyns_idle={}",
+            config.daemon.bind_ip, port, fqdn, idle
+        );
+        let t_resp = client.get(&takeover_url).send().await?;
+        if t_resp.status().is_success() {
+            let t_json: serde_json::Value = t_resp.json().await?;
+            println!("\nTakeover Difficulty ({} Kyns idle):", idle);
+            println!("{}", serde_json::to_string_pretty(&t_json)?);
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn handle_name_validate(
+    name: String,
+    config: &KineticConfig,
+    client: &reqwest::Client,
+) -> anyhow::Result<()> {
+    let port = config.daemon.api_port;
+    let url = format!(
+        "http://{}:{}/api/v1/micro/consensus/validate",
+        config.daemon.bind_ip, port
+    );
+
+    let payload = serde_json::json!({ "name": name });
+    let resp = client.post(&url).json(&payload).send().await?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!("Failed to validate name: {}", resp.text().await?);
+    }
+
+    let json: serde_json::Value = resp.json().await?;
+    println!("{}", serde_json::to_string_pretty(&json)?);
+
     Ok(())
 }

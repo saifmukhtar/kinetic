@@ -37,8 +37,7 @@ pub async fn start_gossip_listener(
                 };
 
                 let (should_save, cloned_state) = {
-                    let Ok(mut state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()
-                    else {
+                    let Ok(mut state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() else {
                         tracing::error!(
                             error = ?kinetic_core::error::SystemError::MutexPoisoned("GLOBAL_ACTION_STATE".into()),
                             "FATAL: Global action state mutex is poisoned!"
@@ -52,16 +51,11 @@ pub async fn start_gossip_listener(
                         kinetic_types::clock::Kyn(current_kyn),
                     ) {
                         Ok(Some(effect)) => {
-                            tracing::info!(
-                                "Action state updated via gossip. Effect: {:?}",
-                                effect
-                            );
+                            tracing::info!("Action state updated via gossip. Effect: {:?}", effect);
                             (true, state.clone())
                         }
                         Ok(None) => {
-                            tracing::info!(
-                                "Action state updated via gossip. No immediate effect."
-                            );
+                            tracing::info!("Action state updated via gossip. No immediate effect.");
                             (true, state.clone())
                         }
                         Err(e) => {
@@ -75,13 +69,12 @@ pub async fn start_gossip_listener(
                     let client_clone = network_client.clone();
                     let action_log = cloned_state.action_log.clone();
                     tokio::task::spawn_blocking(move || {
-                        let _ = tokio::spawn(async move {
+                        tokio::spawn(async move {
                             let _ = client_clone.update_action_log(action_log).await;
                         });
-                        if let Err(e) = kinetic_local::action::save_action_to_disk(
-                            &cloned_state,
-                            &path_clone,
-                        ) {
+                        if let Err(e) =
+                            kinetic_local::action::save_action_to_disk(&cloned_state, &path_clone)
+                        {
                             let err = kinetic_core::error::ActionError::StateSaveFailed;
                             tracing::error!(
                                 error_code = err.code(),

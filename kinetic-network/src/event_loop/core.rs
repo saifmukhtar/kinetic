@@ -37,9 +37,9 @@ pub(crate) enum LoopbackCommand {
     ConnectionPoWVerified {
         peer_id: libp2p::PeerId,
         valid_client: bool,
-        valid_server: bool,
+        _valid_server: bool,
         is_bootstrap: bool,
-        remote_addr: libp2p::Multiaddr,
+        _remote_addr: libp2p::Multiaddr,
     },
     DialResolvedSeed(libp2p::Multiaddr),
     CdnResolutionVerified {
@@ -76,7 +76,10 @@ pub struct NetworkEventLoop {
     pub(crate) pending_action_sync_requests: FxHashMap<
         libp2p::request_response::OutboundRequestId,
         oneshot::Sender<
-            std::result::Result<kinetic_types::action::ActionSyncResponse, crate::client::ProxyError>,
+            std::result::Result<
+                kinetic_types::action::ActionSyncResponse,
+                crate::client::ProxyError,
+            >,
         >,
     >,
     pub(crate) action_log: Vec<kinetic_types::action::SignedActionMessage>,
@@ -388,9 +391,9 @@ impl NetworkEventLoop {
             LoopbackCommand::ConnectionPoWVerified {
                 peer_id,
                 valid_client,
-                valid_server: _,
+                _valid_server: _,
                 is_bootstrap,
-                remote_addr: _,
+                _remote_addr: _,
             } => {
                 if !valid_client && !is_bootstrap {
                     tracing::warn!(

@@ -18,12 +18,11 @@ impl KineticRecordStore {
         };
 
         if let Some(reveal) = reveal_ref {
-            let paused_kyns =
-                if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
-                    state.paused_kyns_since(kinetic_core::types::Kyn(reveal.kyn))
-                } else {
-                    0
-                };
+            let paused_kyns = if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
+                state.paused_kyns_since(kinetic_core::types::Kyn(reveal.kyn))
+            } else {
+                0
+            };
 
             let effective_age = self
                 .current_kyn
@@ -222,7 +221,8 @@ impl KineticRecordStore {
                         }
                         (Some(exist_manifest), Some(new_manifest)) => {
                             // Both are Delegated Keys. The one with the newer manifest (valid_from) wins.
-                            if new_manifest.manifest.valid_from < exist_manifest.manifest.valid_from {
+                            if new_manifest.manifest.valid_from < exist_manifest.manifest.valid_from
+                            {
                                 let err = KineticStoreError::StaleReveal;
                                 err.log_warning(
                                     record.name(),

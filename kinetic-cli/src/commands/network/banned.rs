@@ -1,6 +1,6 @@
-use kinetic_core::config::KineticConfig;
-use comfy_table::{Table, Cell, Color};
+use comfy_table::{Cell, Color, Table};
 use indicatif::{ProgressBar, ProgressStyle};
+use kinetic_core::config::KineticConfig;
 
 pub async fn handle_banned(config: &KineticConfig, client: &reqwest::Client) -> anyhow::Result<()> {
     let pb = ProgressBar::new_spinner();
@@ -9,8 +9,11 @@ pub async fn handle_banned(config: &KineticConfig, client: &reqwest::Client) -> 
     pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
     let port = config.daemon.api_port;
-    let url = format!("http://{}:{}/api/v1/micro/network/peers/banned", config.daemon.bind_ip, port);
-    
+    let url = format!(
+        "http://{}:{}/api/v1/micro/network/peers/banned",
+        config.daemon.bind_ip, port
+    );
+
     let resp = client.get(&url).send().await?;
     pb.finish_and_clear();
 
@@ -18,7 +21,7 @@ pub async fn handle_banned(config: &KineticConfig, client: &reqwest::Client) -> 
         let err = resp.text().await?;
         anyhow::bail!("Failed to list banned peers: {}", err);
     }
-    
+
     let json: serde_json::Value = resp.json().await?;
     let banned = json.as_object().cloned().unwrap_or_default();
 
@@ -35,10 +38,7 @@ pub async fn handle_banned(config: &KineticConfig, client: &reqwest::Client) -> 
 
     for (peer_id, strikes) in banned {
         let strike_count = strikes.as_u64().unwrap_or(0);
-        table.add_row(vec![
-            peer_id,
-            strike_count.to_string(),
-        ]);
+        table.add_row(vec![peer_id, strike_count.to_string()]);
     }
 
     println!("\n{table}");

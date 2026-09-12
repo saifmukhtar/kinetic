@@ -19,8 +19,7 @@ pub fn start_telemetry_service(
     tokio::spawn(async move {
         // Generate a random temporary ID for this boot session in RAM.
         let mut session_id = uuid::Uuid::new_v4().to_string();
-        let mut session_generated_at_kyn =
-            kyn_provider.load_cached().map(|k| k.kyn).unwrap_or(0);
+        let mut session_generated_at_kyn = kyn_provider.load_cached().map(|k| k.kyn).unwrap_or(0);
         let process_start_time = tokio::time::Instant::now();
 
         // 10 minute interval

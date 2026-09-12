@@ -1,8 +1,8 @@
 //! CLI commands for submitting, signing, and managing post-quantum Kinetic network action proposals.
 
 use clap::Subcommand;
-use kinetic_core::config::KineticConfig;
 use kinetic_core::action::SignedActionMessage;
+use kinetic_core::config::KineticConfig;
 use reqwest::Client;
 use std::path::PathBuf;
 
@@ -28,11 +28,6 @@ pub async fn handle_action_command(
 ) -> anyhow::Result<()> {
     let port = config.daemon.api_port;
     let base_url = format!("http://{}:{}", config.daemon.bind_ip, port);
-    
-    // Grab admin token
-    let token_path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
-    let token = std::fs::read_to_string(&token_path).unwrap_or_default();
-    let auth_header = format!("Bearer {}", token.trim());
 
     match cmd {
         ActionCommands::Publish { file } => {
@@ -44,16 +39,13 @@ pub async fn handle_action_command(
 
             let publish_url = format!("{}/api/v1/micro/action/publish", base_url);
             let pb = indicatif::ProgressBar::new_spinner();
-            pb.set_style(indicatif::ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?);
+            pb.set_style(
+                indicatif::ProgressStyle::default_spinner().template("{spinner:.cyan} {msg}")?,
+            );
             pb.set_message("Publishing action...");
             pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
-            let publish_resp = client
-                .post(&publish_url)
-                .header("Authorization", &auth_header)
-                .json(&msg)
-                .send()
-                .await?;
+            let publish_resp = client.post(&publish_url).json(&msg).send().await?;
 
             pb.finish_and_clear();
 
@@ -66,7 +58,7 @@ pub async fn handle_action_command(
         }
         ActionCommands::Status => {
             let url = format!("{}/api/v1/micro/action/status", base_url);
-            let resp = client.get(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.get(&url).send().await?;
             if !resp.status().is_success() {
                 anyhow::bail!("Failed to fetch action status: {}", resp.text().await?);
             }
@@ -75,7 +67,7 @@ pub async fn handle_action_command(
         }
         ActionCommands::Names => {
             let url = format!("{}/api/v1/micro/action/names", base_url);
-            let resp = client.get(&url).header("Authorization", &auth_header).send().await?;
+            let resp = client.get(&url).send().await?;
             if !resp.status().is_success() {
                 anyhow::bail!("Failed to fetch action prime names: {}", resp.text().await?);
             }

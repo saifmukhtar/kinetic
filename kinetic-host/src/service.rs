@@ -53,7 +53,10 @@ pub fn install_service() -> Result<()> {
             ))
         })?;
 
-    println!("Service installed successfully. Run '{}-host start' to begin.", kinetic_core::constants::NSP);
+    println!(
+        "Service installed successfully. Run '{}-host start' to begin.",
+        kinetic_core::constants::NSP
+    );
     Ok(())
 }
 

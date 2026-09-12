@@ -47,37 +47,45 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Setup(cmd) => {
-            commands::utilities::setup::handle_setup_command(cmd).await?;
+            commands::setup::handle_setup_command(cmd).await?;
+        }
+        Commands::Action { cmd } => {
+            let client = utils::build_client(30)?;
+            commands::action::handle_action_command(cmd, &config, &client).await?;
         }
         Commands::Name { cmd } => {
             let client = utils::build_client(30)?;
             commands::name::handle_name_command(cmd, &config, &client).await?;
         }
+        Commands::Zone { cmd } => {
+            let client = utils::build_client(30)?;
+            commands::zone::handle_zone_command(cmd, &config, &client).await?;
+        }
         Commands::Identity { cmd } => {
             let client = utils::build_client(30)?;
-            commands::crypto::identity::handle_identity_command(cmd, &config, &client).await?;
-        }
-        Commands::Seed { cmd } => {
-            commands::crypto::seed::handle_seed_command(cmd).await?;
+            commands::identity::handle_identity_command(cmd, &config, &client).await?;
         }
         Commands::Network { cmd } => {
             let client = utils::build_client(30)?;
             commands::network::handle_network_command(cmd, &config, &client).await?;
         }
-        Commands::DnsTree { cmd } => {
-            commands::utilities::dns_tree::handle_dns_tree_command(cmd).await?;
+        Commands::Seed { cmd } => {
+            commands::seed::handle_seed_command(cmd).await?;
         }
-        Commands::System { cmd } => {
+        Commands::DnsTree { cmd } => {
+            commands::dns_tree::handle_dns_tree_command(cmd).await?;
+        }
+        Commands::Clock(cmd) => {
             let client = utils::build_client(30)?;
-            commands::services::handle_services_command(cmd, &config, &client).await?;
+            commands::clock::handle_clock_command(cmd, &config, &client).await?;
         }
         Commands::Auth { cmd } => {
             let client = utils::build_client(30)?;
             commands::auth::handle_auth_command(cmd, &config, &client).await?;
         }
-        Commands::Clock(args) => {
+        Commands::System { cmd } => {
             let client = utils::build_client(30)?;
-            commands::utilities::clock::handle_clock_command(args, &config, &client).await?;
+            commands::system::handle_services_command(cmd, &config, &client).await?;
         }
     }
 

@@ -54,13 +54,17 @@ pub async fn handle_create_session(
 
     if req.scopes.iter().any(|s| s.to_lowercase() == "admin") {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::BadRequest("Cannot generate secondary Admin tokens".to_string()),
+            kinetic_core::error::RestApiError::BadRequest(
+                "Cannot generate secondary Admin tokens".to_string(),
+            ),
         ));
     }
 
     if req.scopes.is_empty() {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::BadRequest("At least one scope must be requested".to_string()),
+            kinetic_core::error::RestApiError::BadRequest(
+                "At least one scope must be requested".to_string(),
+            ),
         ));
     }
 
@@ -90,17 +94,18 @@ pub async fn handle_create_session(
 
     let storage_clone = state.storage.clone();
     let id_for_storage = id.clone();
-    tokio::task::spawn_blocking(move || -> Result<(), crate::api::error::AppError> {
+    tokio::task::spawn_blocking(move || -> Result<(), Box<crate::api::error::AppError>> {
         if let Err(e) = storage_clone.put(db_key_session.as_bytes(), &session_bytes) {
-            return Err(e.into());
+            return Err(Box::new(e.into()));
         }
         if let Err(e) = storage_clone.put(db_key_token.as_bytes(), id_for_storage.as_bytes()) {
-            return Err(e.into());
+            return Err(Box::new(e.into()));
         }
         Ok(())
     })
     .await
-    .expect("Spawn blocking failed")?;
+    .expect("Spawn blocking failed")
+    .map_err(|e| *e)?;
 
     Ok(Json(serde_json::json!({
         "status": "success",
@@ -125,12 +130,11 @@ pub async fn handle_list_sessions(
         let mut sessions = Vec::new();
         if let Ok(entries) = storage_clone.scan_prefix(b"session:", None) {
             for (k, v) in entries {
-                if !k.starts_with(b"session_token:") {
-                    if let Ok(mut session) = serde_json::from_slice::<AppSession>(&v) {
+                if !k.starts_with(b"session_token:")
+                    && let Ok(mut session) = serde_json::from_slice::<AppSession>(&v) {
                         session.token = "hidden".to_string();
                         sessions.push(session);
                     }
-                }
             }
         }
         sessions
@@ -154,7 +158,7 @@ pub async fn handle_revoke_session(
     }
 
     let storage_clone = state.storage.clone();
-    tokio::task::spawn_blocking(move || -> Result<(), crate::api::error::AppError> {
+    tokio::task::spawn_blocking(move || -> Result<(), Box<crate::api::error::AppError>> {
         let db_key_session = format!("session:{}", id);
 
         // First read the session to get the raw token so we can delete the lookup
@@ -164,17 +168,18 @@ pub async fn handle_revoke_session(
                 let _ = storage_clone.delete(db_key_token.as_bytes());
             }
         } else {
-            return Err(kinetic_core::error::RestApiError::NotFound.into());
+            return Err(Box::new(kinetic_core::error::RestApiError::NotFound.into()));
         }
 
         if let Err(e) = storage_clone.delete(db_key_session.as_bytes()) {
-            return Err(e.into());
+            return Err(Box::new(e.into()));
         }
 
         Ok(())
     })
     .await
-    .expect("Spawn blocking failed")?;
+    .expect("Spawn blocking failed")
+    .map_err(|e| *e)?;
 
     Ok(Json(serde_json::json!({
         "status": "success",

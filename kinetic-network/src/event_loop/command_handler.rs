@@ -377,13 +377,24 @@ impl super::core::NetworkEventLoop {
                     .gossipsub
                     .report_message_validation_result(&message_id, &propagation_source, acceptance);
             }
-            Command::SendActionSyncRequest { peer, req, responder } => {
-                let req_id = self.swarm.behaviour_mut().action_sync.send_request(&peer, *req);
+            Command::SendActionSyncRequest {
+                peer,
+                req,
+                responder,
+            } => {
+                let req_id = self
+                    .swarm
+                    .behaviour_mut()
+                    .action_sync
+                    .send_request(&peer, *req);
                 self.pending_action_sync_requests.insert(req_id, responder);
             }
             Command::UpdateActionLog { actions } => {
                 self.action_log = actions;
-                tracing::debug!("Network event loop updated internal action_log with {} actions", self.action_log.len());
+                tracing::debug!(
+                    "Network event loop updated internal action_log with {} actions",
+                    self.action_log.len()
+                );
             }
         }
     }

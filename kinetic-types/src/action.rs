@@ -311,10 +311,7 @@ mod tests {
     #[test]
     fn test_parse_empty_payload_too_small() {
         let result = NetworkAction::parse_payload(&[]);
-        assert_eq!(
-            result,
-            Err(ActionTypeError::BufferTooSmall)
-        );
+        assert_eq!(result, Err(ActionTypeError::BufferTooSmall));
     }
 
     #[test]

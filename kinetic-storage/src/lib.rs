@@ -43,7 +43,7 @@ mod native {
                     .map_err(|e| StorageError::OpenFailed(e.to_string()))?;
             }
 
-            match Database::create(&db_path) {
+            match Database::create(db_path) {
                 Ok(db) => {
                     // Ensure the table exists
                     let write_txn = db

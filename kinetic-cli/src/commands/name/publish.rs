@@ -24,21 +24,18 @@ pub async fn handle_name_publish(
         config.daemon.bind_ip, port, fqdn
     );
 
-    // Grab admin token for secure daemon access
-    let token_path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
-    let token = std::fs::read_to_string(&token_path).unwrap_or_default();
-    let auth_header = format!("Bearer {}", token.trim());
+    info!(
+        "Instructing daemon to sign and publish zone for {}...",
+        fqdn
+    );
 
-    info!("Instructing daemon to sign and publish zone for {}...", fqdn);
-    
-    let response = client
-        .post(&url)
-        .header("Authorization", &auth_header)
-        .send()
-        .await?;
+    let response = client.post(&url).send().await?;
 
     if response.status().is_success() {
-        info!("Success! Zone for {} successfully published to the network.", fqdn);
+        info!(
+            "Success! Zone for {} successfully published to the network.",
+            fqdn
+        );
     } else {
         let status = response.status();
         let text = response.text().await.unwrap_or_default();
