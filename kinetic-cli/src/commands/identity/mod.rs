@@ -2,6 +2,7 @@
 //! Now utilizes the secure Kinetic Daemon API for wallet management.
 
 use clap::Subcommand;
+use comfy_table::{Cell, Color, Table};
 use kinetic_core::config::KineticConfig;
 use reqwest::Client;
 use serde_json::json;
@@ -92,7 +93,36 @@ pub async fn handle_identity_command(
             let resp = client.get(&url).send().await?;
             if resp.status().is_success() {
                 let json: serde_json::Value = resp.json().await?;
-                println!("{}", serde_json::to_string_pretty(&json)?);
+                if let Some(kids) = json.get("kids").and_then(|k| k.as_array()) {
+                    if kids.is_empty() {
+                        println!("No local identities found.");
+                    } else {
+                        let mut table = Table::new();
+                        table.set_header(vec![
+                            Cell::new("Name").fg(Color::Cyan),
+                            Cell::new("DID").fg(Color::Yellow),
+                            Cell::new("Has Key").fg(Color::White),
+                        ]);
+                        for k in kids {
+                            let name = k.get("name").and_then(|v| v.as_str()).unwrap_or("-");
+                            let did = k.get("did").and_then(|v| v.as_str()).unwrap_or("-");
+                            let has_key = k.get("has_key").and_then(|v| v.as_bool()).unwrap_or(false);
+                            let has_key_cell = if has_key {
+                                Cell::new("Yes").fg(Color::Green)
+                            } else {
+                                Cell::new("No").fg(Color::Red)
+                            };
+                            table.add_row(vec![
+                                Cell::new(name),
+                                Cell::new(did),
+                                has_key_cell,
+                            ]);
+                        }
+                        println!("\n{}", table);
+                    }
+                } else {
+                    println!("{}", serde_json::to_string_pretty(&json)?);
+                }
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();

@@ -19,7 +19,13 @@ pub async fn handle_peer_id(
     }
 
     let json: serde_json::Value = resp.json().await?;
-    println!("{}", serde_json::to_string_pretty(&json)?);
+    if let Some(peer_id) = json.get("peer_id").and_then(|v| v.as_str()) {
+        use colored::Colorize;
+        println!("🆔 Local Node Peer ID:");
+        println!("   {}", peer_id.cyan().bold());
+    } else {
+        println!("{}", serde_json::to_string_pretty(&json)?);
+    }
 
     Ok(())
 }

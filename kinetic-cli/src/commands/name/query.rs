@@ -83,7 +83,26 @@ pub async fn handle_name_info(
     {
         let json: serde_json::Value = res.json().await?;
         println!("Info for {} (Resolved from network):", fqdn);
-        println!("{}", serde_json::to_string_pretty(&json)?);
+        let mut table = Table::new();
+        table.set_header(vec![
+            Cell::new("Key").fg(Color::Cyan),
+            Cell::new("Value").fg(Color::White),
+        ]);
+        
+        if let Some(obj) = json.as_object() {
+            for (k, v) in obj {
+                if v.is_object() || v.is_array() {
+                    table.add_row(vec![k.to_string(), serde_json::to_string(v).unwrap_or_default()]);
+                } else if let Some(s) = v.as_str() {
+                    table.add_row(vec![k.to_string(), s.to_string()]);
+                } else {
+                    table.add_row(vec![k.to_string(), v.to_string()]);
+                }
+            }
+            println!("\n{table}");
+        } else {
+            println!("{}", serde_json::to_string_pretty(&json)?);
+        }
         return Ok(());
     }
 

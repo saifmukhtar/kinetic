@@ -19,7 +19,15 @@ pub async fn handle_reserved(
     }
 
     let json: serde_json::Value = resp.json().await?;
-    println!("{}", serde_json::to_string_pretty(&json)?);
+    if let Some(arr) = json.as_array() {
+        use colored::Colorize;
+        println!("{} Reserved Names:", "🔒".bold());
+        for name in arr.iter().filter_map(|v| v.as_str()) {
+            println!("  - {}", name.yellow());
+        }
+    } else {
+        println!("{}", serde_json::to_string_pretty(&json)?);
+    }
 
     Ok(())
 }
