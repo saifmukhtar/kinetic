@@ -7,7 +7,6 @@ use kinetic_core::types::NrsZoneExt;
 use kinetic_verify::signatures::VerifySignature;
 use moka::future::Cache;
 use std::str::FromStr;
-use std::sync::Arc;
 use tracing::{error, info, warn};
 
 /// Resolves a `.kin` name by querying the daemon API and checking the local cache.
@@ -103,7 +102,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                         if limit_exceeded {
                             let err = kinetic_core::error::api::RestApiError::ResponseTooLarge;
                             warn!(error_code = err.code(), "API response exceeded 100KB limit for {}", apex_name_clone);
-                            Ok::<_, Arc<anyhow::Error>>(None)
+                            Ok::<_, kinetic_core::error::NrsError>(None)
                         } else {
                             if !is_reserved_clone {
                                 match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
@@ -113,32 +112,32 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 error = ?kinetic_verify::error::SignatureVerifyError::InvalidSignature,
                                                 "Rejecting .kin resolution: record signature invalid for {}", apex_name_clone
                                             );
-                                            return Err(Arc::new(anyhow::anyhow!("Invalid signature")));
+                                            return Err(kinetic_core::error::NrsError::InvalidSignature);
                                         }
                                     }
                                     Err(e) => {
                                         warn!(
-                                            error = ?kinetic_core::error::NrsError::ParseError(e),
+                                            error = %e,
                                             "Invalid NameRecord format for {apex_name_clone}"
                                         );
-                                        return Err(Arc::new(anyhow::anyhow!("Invalid format")));
+                                        return Err(kinetic_core::error::NrsError::ParseError(e));
                                     }
                                 }
                             }
-                            Ok::<_, Arc<anyhow::Error>>(Some(payload))
+                            Ok::<_, kinetic_core::error::NrsError>(Some(payload))
                         }
                     } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
                         Ok(None)
                     } else {
                         let err = kinetic_core::error::api::RestApiError::BadRequest(format!("Daemon API returned status: {}", resp.status()));
                         warn!(error_code = err.code(), "Daemon API returned status: {}", resp.status());
-                        Err(Arc::new(anyhow::anyhow!("API error: {}", resp.status())))
+                        Err(kinetic_core::error::NrsError::UpstreamResolveError(format!("API error: {}", resp.status())))
                     }
                 }
                 Err(e) => {
                     let err = kinetic_core::error::api::RestApiError::BadRequest(format!("Daemon API request failed: {}", e));
                     warn!(error_code = err.code(), "Daemon API request failed: {}", e);
-                    Err(Arc::new(e.into()))
+                    Err(kinetic_core::error::NrsError::DnsRequestFailed(format!("Request failed: {}", e)))
                 }
             }
         })

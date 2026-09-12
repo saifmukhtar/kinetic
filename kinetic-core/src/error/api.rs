@@ -38,6 +38,12 @@ pub enum RestApiError {
     /// Review the accompanying error string and the API documentation to ensure your request matches the expected schema.
     #[error("Bad request or invalid endpoint usage: {0}")]
     BadRequest(String),
+
+    /// An unexpected internal server error occurred while processing the request.
+    /// The daemon failed to serialize data, interact with internal state, or execute an internal routine.
+    /// Review the accompanying error string and check the daemon logs for panic or error traces.
+    #[error("Internal server error: {0}")]
+    InternalServerError(String),
 }
 
 impl RestApiError {
@@ -50,6 +56,7 @@ impl RestApiError {
             Self::InsufficientPrivileges => "KIN-API-004",
             Self::NotFound => "KIN-API-005",
             Self::BadRequest(_) => "KIN-API-006",
+            Self::InternalServerError(_) => "KIN-API-007",
         }
     }
 
@@ -60,7 +67,7 @@ impl RestApiError {
             Self::InsufficientPrivileges => 403,
             Self::NotFound => 404,
             Self::BadRequest(_) => 400,
-            Self::SseStreamLagged | Self::ResponseTooLarge => 500,
+            Self::SseStreamLagged | Self::ResponseTooLarge | Self::InternalServerError(_) => 500,
         }
     }
 

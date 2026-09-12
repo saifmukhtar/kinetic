@@ -104,7 +104,11 @@ pub async fn handle_create_session(
         Ok(())
     })
     .await
-    .expect("Spawn blocking failed")
+    .map_err(|_| {
+        crate::api::error::AppError::from(kinetic_core::error::SystemError::ServerCrashed(
+            "Async blocking pool panicked".into(),
+        ))
+    })?
     .map_err(|e| *e)?;
 
     Ok(Json(serde_json::json!({
@@ -131,16 +135,21 @@ pub async fn handle_list_sessions(
         if let Ok(entries) = storage_clone.scan_prefix(b"session:", None) {
             for (k, v) in entries {
                 if !k.starts_with(b"session_token:")
-                    && let Ok(mut session) = serde_json::from_slice::<AppSession>(&v) {
-                        session.token = "hidden".to_string();
-                        sessions.push(session);
-                    }
+                    && let Ok(mut session) = serde_json::from_slice::<AppSession>(&v)
+                {
+                    session.token = "hidden".to_string();
+                    sessions.push(session);
+                }
             }
         }
         sessions
     })
     .await
-    .expect("Spawn blocking failed");
+    .map_err(|_| {
+        crate::api::error::AppError::from(kinetic_core::error::SystemError::ServerCrashed(
+            "Async blocking pool panicked".into(),
+        ))
+    })?;
 
     Ok(Json(ListSessionsResponse { sessions }))
 }
@@ -178,7 +187,11 @@ pub async fn handle_revoke_session(
         Ok(())
     })
     .await
-    .expect("Spawn blocking failed")
+    .map_err(|_| {
+        crate::api::error::AppError::from(kinetic_core::error::SystemError::ServerCrashed(
+            "Async blocking pool panicked".into(),
+        ))
+    })?
     .map_err(|e| *e)?;
 
     Ok(Json(serde_json::json!({

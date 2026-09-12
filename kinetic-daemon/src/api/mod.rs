@@ -795,53 +795,52 @@ async fn auth_middleware(
     if final_role.is_none() {
         let db_key_token = format!("session_token:{}", provided_token);
         if let Ok(Some(id_bytes)) = state.storage.get(db_key_token.as_bytes())
-            && let Ok(id_str) = String::from_utf8(id_bytes.to_vec()) {
-                let db_key_session = format!("session:{}", id_str);
-                if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes())
-                    && let Ok(session) =
-                        serde_json::from_slice::<crate::api::auth::AppSession>(&bytes)
-                    {
-                        // Verify expiration using cached Kyn
-                        let kyn_provider = kinetic_network::client::drand::DrandProvider::new(
-                            Some(state.storage.clone()),
-                        );
-                        let current_kyn = kyn_provider.load_cached().map(|d| d.kyn).unwrap_or(0);
+            && let Ok(id_str) = String::from_utf8(id_bytes.to_vec())
+        {
+            let db_key_session = format!("session:{}", id_str);
+            if let Ok(Some(bytes)) = state.storage.get(db_key_session.as_bytes())
+                && let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes)
+            {
+                // Verify expiration using cached Kyn
+                let kyn_provider =
+                    kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+                let current_kyn = kyn_provider.load_cached().map(|d| d.kyn).unwrap_or(0);
 
-                        if current_kyn > 0 && current_kyn > session.expiry_kyn {
-                            tracing::warn!("Rejecting API request: Session token expired");
-                            return Err(StatusCode::UNAUTHORIZED);
-                        }
+                if current_kyn > 0 && current_kyn > session.expiry_kyn {
+                    tracing::warn!("Rejecting API request: Session token expired");
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
 
-                        let mut session_role = Role {
-                            is_admin: false,
-                            kid: false,
-                            nrs: false,
-                            vdf: false,
-                            action: false,
-                            gossip: false,
-                            metric: false,
-                            system: false,
-                            atlas: false,
-                            heartbeat: false,
-                        };
-                        for scope in session.scopes {
-                            match scope.to_lowercase().as_str() {
-                                "admin" => session_role.is_admin = true,
-                                "kid" => session_role.kid = true,
-                                "nrs" => session_role.nrs = true,
-                                "vdf" => session_role.vdf = true,
-                                "action" => session_role.action = true,
-                                "gossip" => session_role.gossip = true,
-                                "metric" => session_role.metric = true,
-                                "system" => session_role.system = true,
-                                "atlas" => session_role.atlas = true,
-                                "heartbeat" => session_role.heartbeat = true,
-                                _ => {}
-                            }
-                        }
-                        final_role = Some(session_role);
+                let mut session_role = Role {
+                    is_admin: false,
+                    kid: false,
+                    nrs: false,
+                    vdf: false,
+                    action: false,
+                    gossip: false,
+                    metric: false,
+                    system: false,
+                    atlas: false,
+                    heartbeat: false,
+                };
+                for scope in session.scopes {
+                    match scope.to_lowercase().as_str() {
+                        "admin" => session_role.is_admin = true,
+                        "kid" => session_role.kid = true,
+                        "nrs" => session_role.nrs = true,
+                        "vdf" => session_role.vdf = true,
+                        "action" => session_role.action = true,
+                        "gossip" => session_role.gossip = true,
+                        "metric" => session_role.metric = true,
+                        "system" => session_role.system = true,
+                        "atlas" => session_role.atlas = true,
+                        "heartbeat" => session_role.heartbeat = true,
+                        _ => {}
                     }
+                }
+                final_role = Some(session_role);
             }
+        }
     }
 
     match final_role {

@@ -164,7 +164,7 @@ pub async fn handle_get_action_names()
 
 use crate::api::ApiState;
 use crate::api::PublishResponse;
-use axum::{extract::State, http::StatusCode};
+use axum::extract::State;
 use kinetic_core::traits::KynProvider;
 
 /// Handles API requests to publish a `SignedActionMessage` to the DHT/Gossip network.
@@ -177,12 +177,9 @@ pub async fn handle_publish_action(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
     Json(msg): Json<kinetic_core::action::SignedActionMessage>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_action() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "Insufficient privileges: Requires Action or Admin role".to_string(),
-        ));
+        return Err(kinetic_core::error::RestApiError::InsufficientPrivileges.into());
     }
     tracing::info!("Received API publish request for Action action");
 
@@ -233,29 +230,33 @@ pub async fn handle_publish_action(
                     "Rejecting action message via API: {}",
                     e
                 );
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    format!("Invalid action message: {}", e),
-                ));
+                return Err(kinetic_core::error::RestApiError::BadRequest(format!(
+                    "Invalid action message: {}",
+                    e
+                ))
+                .into());
             }
         }
     };
 
     if !is_valid {
-        return Err((
-            StatusCode::BAD_REQUEST,
+        return Err(kinetic_core::error::RestApiError::BadRequest(
             "Action message validation failed".to_string(),
-        ));
+        )
+        .into());
     }
 
     // Serialize and gossip
     let payload_bytes = match serde_json::to_vec(&msg) {
         Ok(b) => b,
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Serialization failed: {}", e),
-            ));
+            return Err(
+                kinetic_core::error::RestApiError::InternalServerError(format!(
+                    "Serialization failed: {}",
+                    e
+                ))
+                .into(),
+            );
         }
     };
 
@@ -281,10 +282,13 @@ pub async fn handle_publish_action(
                 "Failed to publish Action Message to P2P network: {}",
                 e
             );
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to broadcast: {}", e),
-            ))
+            Err(
+                kinetic_core::error::RestApiError::InternalServerError(format!(
+                    "Failed to broadcast: {}",
+                    e
+                ))
+                .into(),
+            )
         }
     }
 }

@@ -608,9 +608,7 @@ pub async fn handle_publish_zone(
             .await
             .map_err(|e| {
                 crate::api::error::AppError::from(kinetic_core::error::IdentityError::Io(
-                    std::io::Error::other(
-                        format!("Identity worker task failed: {}", e),
-                    ),
+                    std::io::Error::other(format!("Identity worker task failed: {}", e)),
                 ))
             })?
             .map_err(crate::api::error::AppError::from)?;

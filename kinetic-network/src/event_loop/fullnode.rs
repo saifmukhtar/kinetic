@@ -301,9 +301,9 @@ pub(crate) fn build_full_swarm(
     }
 
     if !tcp_success && !quic_success {
-        return Err(anyhow::anyhow!(
-            "FATAL: Failed to bind to any TCP or QUIC listening ports. Cannot operate as a Full Node."
-        ));
+        return Err(anyhow::Error::from(kinetic_core::error::SystemError::PortInUse(
+            "FATAL: Failed to bind to any TCP or QUIC listening ports. Cannot operate as a Full Node.".to_string()
+        )));
     }
 
     if let Some(addr) = &config.external_address {

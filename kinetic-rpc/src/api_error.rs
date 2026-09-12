@@ -323,6 +323,7 @@ impl From<NrsError> for ApiError {
             | NrsError::InvalidKid(_)
             | NrsError::InvalidIpfsCid(_)
             | NrsError::ParseError(_)
+            | NrsError::InvalidSignature
             | NrsError::MultipleCnames(_) => (400, "Bad Request"),
             NrsError::UpstreamResolveError(_)
             | NrsError::DnsRequestFailed(_)
@@ -453,6 +454,9 @@ impl From<kinetic_core::error::RestApiError> for ApiError {
                 kinetic_core::error::RestApiError::SseStreamLagged => "SSE Lagged".to_string(),
                 kinetic_core::error::RestApiError::ResponseTooLarge => {
                     "Payload Too Large".to_string()
+                }
+                kinetic_core::error::RestApiError::InternalServerError(_) => {
+                    "Internal Server Error".to_string()
                 }
             },
             status: e.status(),

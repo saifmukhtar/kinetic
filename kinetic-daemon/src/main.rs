@@ -503,35 +503,34 @@ async fn run_daemon() -> Result<()> {
                                 kinetic_types::action::ActionSyncRequest { from_kyn: 0 },
                             )
                             .await
-                            && !resp.actions.is_empty() {
-                                tracing::info!(
-                                    "Received {} action actions from {}",
-                                    resp.actions.len(),
-                                    peer_id
-                                );
-                                let action_log = {
-                                    let mut action_state =
-                                        kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
-                                    for msg in &resp.actions {
-                                        if let Err(e) = kinetic_core::action::process_action_message(
-                                            &mut action_state,
-                                            msg,
-                                            kinetic_types::clock::Kyn(0),
-                                        ) {
-                                            tracing::error!("Failed to apply synced action: {}", e);
-                                        }
-                                    }
-                                    let _ = kinetic_local::action::save_action_to_disk(
-                                        &action_state,
-                                        &action_state_path,
-                                    );
-                                    action_state.action_log.clone()
-                                };
-                                let _ = network_client
-                                    .update_action_log(action_log)
-                                    .await;
-                                break;
+                        && !resp.actions.is_empty()
+                    {
+                        tracing::info!(
+                            "Received {} action actions from {}",
+                            resp.actions.len(),
+                            peer_id
+                        );
+                        let action_log = {
+                            let mut action_state =
+                                kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                            for msg in &resp.actions {
+                                if let Err(e) = kinetic_core::action::process_action_message(
+                                    &mut action_state,
+                                    msg,
+                                    kinetic_types::clock::Kyn(0),
+                                ) {
+                                    tracing::error!("Failed to apply synced action: {}", e);
+                                }
                             }
+                            let _ = kinetic_local::action::save_action_to_disk(
+                                &action_state,
+                                &action_state_path,
+                            );
+                            action_state.action_log.clone()
+                        };
+                        let _ = network_client.update_action_log(action_log).await;
+                        break;
+                    }
                 }
             }
         }
@@ -583,10 +582,12 @@ async fn run_daemon() -> Result<()> {
         Ok((root_ca, _is_new)) => std::sync::Arc::new(root_ca),
         Err(e) => {
             tracing::error!(
-                error = ?kinetic_core::error::SystemError::TrustInstallationFailed(e.to_string()),
+                error = ?kinetic_core::error::SystemError::CaInitFailed(e.to_string()),
                 "Failed to initialize Root CA"
             );
-            return Err(anyhow::anyhow!("CA Init Failed: {}", e));
+            return Err(anyhow::Error::from(
+                kinetic_core::error::SystemError::CaInitFailed(e.to_string()),
+            ));
         }
     };
 

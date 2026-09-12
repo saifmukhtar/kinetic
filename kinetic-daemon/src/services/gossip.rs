@@ -175,10 +175,9 @@ pub fn start_gossip_processor(
                                 }
                             }
                         };
-                        if should_update_log
-                            && let Some(log) = log {
-                                let _ = network_client.update_action_log(log).await;
-                            }
+                        if should_update_log && let Some(log) = log {
+                            let _ = network_client.update_action_log(log).await;
+                        }
                     }
                     network_client.report_gossip(message_id, propagation_source, is_valid);
                 } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
