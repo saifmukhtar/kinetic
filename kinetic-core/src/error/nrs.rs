@@ -17,6 +17,12 @@ pub enum NrsError {
     #[error("Failed to parse NRS zone: {0}")]
     ParseError(#[from] serde_json::Error),
 
+    /// A cryptographic signature on the record is missing or invalid.
+    /// The Ed25519 signature does not match the record data and public key.
+    /// Ensure the record data was not modified after signing and you are using the correct key.
+    #[error("Invalid record signature")]
+    InvalidSignature,
+
     /// The zone contains more than the maximum allowed number of records (50).
     /// This strict upper bound ensures zones stay well within the 80 KB limit for fast DHT replication and parsing.
     /// You must prune the zone file. Consolidate records or remove unnecessary subdomains.
@@ -131,6 +137,7 @@ impl PartialEq for NrsError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::ParseError(a), Self::ParseError(b)) => a.to_string() == b.to_string(),
+            (Self::InvalidSignature, Self::InvalidSignature) => true,
             (Self::TooManyRecords, Self::TooManyRecords) => true,
             (Self::InvalidLabelLength(a), Self::InvalidLabelLength(b)) => a == b,
             (Self::InvalidLabelCharacters(a), Self::InvalidLabelCharacters(b)) => a == b,
@@ -173,6 +180,7 @@ impl NrsError {
             Self::InvalidPeerId(_) => "KIN-NRS-009",
             Self::InvalidKid(_) => "KIN-NRS-010",
             Self::InvalidIpfsCid(_) => "KIN-NRS-011",
+            Self::InvalidSignature => "KIN-NRS-012",
             Self::UpstreamResolveError(_) => "KIN-NRS-050",
             Self::DnsRequestFailed(_) => "KIN-NRS-051",
             Self::NrsServerExecutionError(_) => "KIN-NRS-052",
@@ -219,6 +227,7 @@ impl NrsError {
     pub fn user_message(&self) -> String {
         match self {
             Self::ParseError(_) => "Failed to parse the NRS zone data.".to_string(),
+            Self::InvalidSignature => "The record signature is missing or cryptographically invalid.".to_string(),
             Self::TooManyRecords => {
                 "The NRS zone contains too many records (maximum 50).".to_string()
             }

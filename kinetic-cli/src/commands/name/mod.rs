@@ -4,13 +4,16 @@ use clap::Subcommand;
 use kinetic_core::config::KineticConfig;
 use reqwest::Client;
 
+pub mod heartbeat;
 pub mod publish;
 pub mod query;
 pub mod register;
 pub mod renew;
-pub mod overrides;
+pub mod reserved;
+pub mod tasks;
 #[cfg(test)]
 mod tests;
+pub mod verify;
 
 /// Available subcommands for managing `.kin` names.
 #[derive(Subcommand)]
@@ -44,25 +47,28 @@ pub enum NameCommands {
     /// Resolve a .kin name from the network
     Resolve { name: String },
 
-    /// Publish a Fat Zone using a delegated hot key payload
-    FatZone {
-        /// The name to publish routing for
-        name: String,
-        /// Path to the Fat Zone JSON file
-        #[arg(short, long)]
-        file: std::path::PathBuf,
+    /// List network-reserved names that cannot be registered
+    Reserved,
+    /// Verify the quorum replication status of a name on the network
+    Verify { name: String },
+    /// Manage and inspect background DHT heartbeats
+    Heartbeat {
+        #[command(subcommand)]
+        cmd: heartbeat::HeartbeatCommands,
     },
-    /// Save a local DNS override for a domain (bypasses DHT)
-    LocalZone {
-        /// The name to override locally
+    /// View background VDF proofs and macro jobs
+    Tasks,
+    /// Query the VDF mining difficulty and network takeover difficulty for a name
+    Difficulty {
+        /// The name to check difficulty for
         name: String,
-        /// Path to the JSON zone file
+        /// How many Kyns the name has been idle (for takeover difficulty)
         #[arg(short, long)]
-        file: std::path::PathBuf,
+        kyns_idle: Option<u64>,
     },
-    /// Delete a local DNS override
-    LocalZoneDelete {
-        /// The name to stop overriding locally
+    /// Validate a potential name string according to Kinetic's naming rules
+    Validate {
+        /// The raw string name to validate
         name: String,
     },
 
@@ -91,15 +97,14 @@ pub async fn handle_name_command(
         NameCommands::List => query::handle_name_list(config, client).await,
         NameCommands::Info { name } => query::handle_name_info(name, config, client).await,
         NameCommands::Resolve { name } => query::handle_name_resolve(name, config, client).await,
-        NameCommands::FatZone { name, file } => {
-            overrides::handle_fat_zone(name, file, config, client).await
+        NameCommands::Reserved => reserved::handle_reserved(config, client).await,
+        NameCommands::Verify { name } => verify::handle_verify(name, config, client).await,
+        NameCommands::Heartbeat { cmd } => heartbeat::handle_heartbeat(cmd, config, client).await,
+        NameCommands::Tasks => tasks::handle_tasks(config, client).await,
+        NameCommands::Difficulty { name, kyns_idle } => {
+            query::handle_name_difficulty(name, kyns_idle, config, client).await
         }
-        NameCommands::LocalZone { name, file } => {
-            overrides::handle_local_zone(name, file, config, client).await
-        }
-        NameCommands::LocalZoneDelete { name } => {
-            overrides::handle_local_zone_delete(name, config, client).await
-        }
+        NameCommands::Validate { name } => query::handle_name_validate(name, config, client).await,
         #[cfg(test)]
         NameCommands::Guard { .. } => Ok(()), // Just for tests
     }

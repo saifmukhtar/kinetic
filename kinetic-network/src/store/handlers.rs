@@ -18,12 +18,11 @@ impl KineticRecordStore {
         };
 
         if let Some(reveal) = reveal_ref {
-            let paused_kyns =
-                if let Ok(state) = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock() {
-                    state.paused_kyns_since(kinetic_core::types::Kyn(reveal.kyn))
-                } else {
-                    0
-                };
+            let paused_kyns = if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
+                state.paused_kyns_since(kinetic_core::types::Kyn(reveal.kyn))
+            } else {
+                0
+            };
 
             let effective_age = self
                 .current_kyn
@@ -68,13 +67,13 @@ impl KineticRecordStore {
                     ) => (existing, new),
                     _ => {
                         let err = KineticStoreError::ImmutableName;
-                        err.log_warning(record.name(), "Rejecting Steal:");
+                        err.log_warning(record.name(), "Rejecting Takeover:");
                         return Err(err);
                     }
                 };
 
                 let base_diff = consensus_math.iterations(&new_reveal.name);
-                let steal_threshold = consensus_math.steal_diff(base_diff, hb_age);
+                let takeover_threshold = consensus_math.takeover_diff(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
                 if new_reveal.iterations == existing_reveal.iterations && hb_age < 100 {
@@ -108,21 +107,21 @@ impl KineticRecordStore {
 
                     if dist_new > dist_existing {
                         let err = KineticStoreError::TieBroken;
-                        err.log_warning(&new_reveal.name, "Rejecting Steal Reveal:");
+                        err.log_warning(&new_reveal.name, "Rejecting Takeover Reveal:");
                         return Err(err);
                     } else {
                         tracing::info!(
-                            "Valid Steal Reveal for {}! Tie-break won!",
+                            "Valid Takeover Reveal for {}! Tie-break won!",
                             new_reveal.name
                         );
                     }
-                } else if new_reveal.iterations < steal_threshold {
+                } else if new_reveal.iterations < takeover_threshold {
                     let err = KineticStoreError::InsufficientIterations;
-                    err.log_warning(&new_reveal.name, "Rejecting Steal Reveal:");
+                    err.log_warning(&new_reveal.name, "Rejecting Takeover Reveal:");
                     return Err(err);
                 } else {
                     tracing::info!(
-                        "Valid Steal Reveal for {}! Overwriting previous owner (idle for {} kyns).",
+                        "Valid Takeover Reveal for {}! Overwriting previous owner (idle for {} kyns).",
                         new_reveal.name,
                         hb_age
                     );
@@ -154,18 +153,12 @@ impl KineticRecordStore {
             } else {
                 let existing_pulse = match &existing_record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
-                    kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                        use kinetic_core::types::clock::UTimeNetworkExt;
-                        kinetic_types::clock::UTime(*granted_at).to_network_kyn().0
-                    }
+                    kinetic_core::types::NameRecord::Prime { kyn, .. } => *kyn,
                     kinetic_core::types::NameRecord::Infra { .. } => 0,
                 };
                 let new_pulse = match &record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
-                    kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                        use kinetic_core::types::clock::UTimeNetworkExt;
-                        kinetic_types::clock::UTime(*granted_at).to_network_kyn().0
-                    }
+                    kinetic_core::types::NameRecord::Prime { kyn, .. } => *kyn,
                     kinetic_core::types::NameRecord::Infra { .. } => 0,
                 };
 
@@ -228,7 +221,8 @@ impl KineticRecordStore {
                         }
                         (Some(exist_manifest), Some(new_manifest)) => {
                             // Both are Delegated Keys. The one with the newer manifest (valid_from) wins.
-                            if new_manifest.manifest.valid_from < exist_manifest.manifest.valid_from {
+                            if new_manifest.manifest.valid_from < exist_manifest.manifest.valid_from
+                            {
                                 let err = KineticStoreError::StaleReveal;
                                 err.log_warning(
                                     record.name(),

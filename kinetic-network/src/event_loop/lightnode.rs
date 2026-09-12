@@ -173,13 +173,13 @@ pub(crate) fn build_light_swarm(
                 libp2p::request_response::Config::default(),
             );
 
-            let gov_sync = libp2p::request_response::cbor::Behaviour::<
-                kinetic_types::governance::GovSyncRequest,
-                kinetic_types::governance::GovSyncResponse,
+            let action_sync = libp2p::request_response::cbor::Behaviour::<
+                kinetic_types::action::ActionSyncRequest,
+                kinetic_types::action::ActionSyncResponse,
             >::new(
                 [(
                     libp2p::StreamProtocol::try_from_owned(format!(
-                        "/{}/gov-sync/1.0.0",
+                        "/{}/action-sync/1.0.0",
                         kinetic_core::constants::NETWORK_SALT_HEX
                     ))
                     .unwrap(),
@@ -248,7 +248,7 @@ pub(crate) fn build_light_swarm(
                 kademlia,
                 gossipsub,
                 cdn,
-                gov_sync,
+                action_sync,
                 autonat,
                 #[cfg(not(target_arch = "wasm32"))]
                 upnp,

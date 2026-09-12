@@ -1,7 +1,5 @@
-use crate::logic::process_governance_message;
-use crate::types::{
-    GovernanceAction, GovernanceEffect, GovernanceState, PublicKeyBytes, SignedGovernanceMessage,
-};
+use crate::logic::process_action_message;
+use crate::types::{ActionEffect, ActionState, NetworkAction, PublicKeyBytes, SignedActionMessage};
 use kinetic_primitives::keys::KineticKeypair;
 use kinetic_types::clock::Kyn;
 
@@ -18,17 +16,17 @@ fn generate_key(seed: u8) -> (KineticKeypair, PublicKeyBytes) {
     (signing_key, verifying_key)
 }
 
-fn sign_action(msg: &SignedGovernanceMessage, signer: &KineticKeypair) -> Vec<u8> {
+fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
     let serialized = msg.to_bytes();
     signer.sign(&serialized)
 }
 
-fn get_test_config() -> crate::types::GovernanceConfig {
-    crate::types::GovernanceConfig {
+fn get_test_config() -> crate::types::ActionConfig {
+    crate::types::ActionConfig {
         sovereign_key_hex: hex::encode(get_root_sk().pubkey_bytes()),
         max_age_kyns: 100,
         is_dev_mode: false,
-        governance_model: "sovereign".to_string(),
+        action_model: "sovereign".to_string(),
     }
 }
 
@@ -39,12 +37,12 @@ fn test_infra_mappings() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let mut state = GovernanceState::new(Kyn(current_kyn));
+    let mut state = ActionState::new(Kyn(current_kyn));
     let (_, target_pubkey) = generate_key(99);
 
     // Test invalid infra name
-    let mut msg_invalid = SignedGovernanceMessage {
-        action: GovernanceAction::MapInfra {
+    let mut msg_invalid = SignedActionMessage {
+        action: NetworkAction::MapInfra {
             name: "invalidname".to_string(),
             target_pubkey: target_pubkey.clone(),
         },
@@ -55,7 +53,7 @@ fn test_infra_mappings() {
         .signatures
         .push(sign_action(&msg_invalid, &root_sk));
 
-    let err = process_governance_message(
+    let err = process_action_message(
         &mut state,
         &msg_invalid,
         Kyn(msg_invalid.timestamp_kyn),
@@ -64,12 +62,12 @@ fn test_infra_mappings() {
     .unwrap_err();
     assert!(matches!(
         err,
-        crate::error::GovernanceError::InvalidProtocolName
+        crate::error::ActionError::InvalidProtocolName
     ));
 
     // Test valid infra name
-    let mut msg_valid = SignedGovernanceMessage {
-        action: GovernanceAction::MapInfra {
+    let mut msg_valid = SignedActionMessage {
+        action: NetworkAction::MapInfra {
             name: "seed".to_string(),
             target_pubkey: target_pubkey.clone(),
         },
@@ -78,36 +76,36 @@ fn test_infra_mappings() {
     };
     msg_valid.signatures.push(sign_action(&msg_valid, &root_sk));
 
-    let effect = process_governance_message(
+    let effect = process_action_message(
         &mut state,
         &msg_valid,
         Kyn(msg_valid.timestamp_kyn),
         &get_test_config(),
     )
     .unwrap();
-    assert!(matches!(effect, Some(GovernanceEffect::InfraMapped { .. })));
+    assert!(matches!(effect, Some(ActionEffect::InfraMapped { .. })));
 }
 
 #[test]
-fn test_governance_stale_rejection() {
+fn test_action_stale_rejection() {
     let root_sk = get_root_sk();
     let current_kyn = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let mut state = GovernanceState::new(Kyn(current_kyn));
+    let mut state = ActionState::new(Kyn(current_kyn));
 
     // Create a message that is exactly MAX_AGE_KYNS + 1 old
     let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
-    let mut msg = SignedGovernanceMessage {
-        action: GovernanceAction::EmergencyHalt,
+    let mut msg = SignedActionMessage {
+        action: NetworkAction::EmergencyHalt,
         timestamp_kyn: stale_kyn,
         signatures: vec![],
     };
     msg.signatures.push(sign_action(&msg, &root_sk));
 
-    let err = process_governance_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
-        .unwrap_err();
-    assert!(matches!(err, crate::error::GovernanceError::StaleProposal));
+    let err =
+        process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config()).unwrap_err();
+    assert!(matches!(err, crate::error::ActionError::StaleProposal));
 }

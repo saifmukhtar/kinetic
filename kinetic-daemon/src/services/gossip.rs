@@ -1,4 +1,4 @@
-//! Backgkyn pub/sub gossip message processor for governance updates and Drand time kyns.
+//! Backgkyn pub/sub gossip message processor for action updates and Drand time kyns.
 
 use kinetic_core::traits::KynProvider;
 /// Starts the backgkyn task that processes incoming pubsub gossip messages.
@@ -10,7 +10,7 @@ pub fn start_gossip_processor(
         libp2p::gossipsub::MessageId,
         libp2p::PeerId,
     )>,
-    gossip_gov_path: std::sync::Arc<std::path::PathBuf>,
+    gossip_action_path: std::sync::Arc<std::path::PathBuf>,
     kyn_provider_gossip: std::sync::Arc<dyn KynProvider>,
     kyn_tx_gossip: tokio::sync::watch::Sender<u64>,
     storage: Option<std::sync::Arc<dyn kinetic_core::traits::StorageEngine>>,
@@ -30,26 +30,29 @@ pub fn start_gossip_processor(
                 let opcode = payload[0];
                 let actual_payload = &payload[1..];
 
-                if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
                     let mut is_valid = false;
                     if let Ok(signed_msg) = serde_json::from_slice::<
-                        kinetic_core::governance::SignedGovernanceMessage,
+                        kinetic_core::action::SignedActionMessage,
                     >(actual_payload)
                     {
                         use kinetic_core::types::clock::KynNetworkExt;
-                        let current_kyn = match kyn_provider_gossip.fetch_latest().await {
+                        let current_kyn = match kyn_provider_gossip.load_cached() {
                             Ok(kyn) => kyn.kyn,
                             Err(_) => kinetic_core::types::Kyn::now_local().0,
                         };
                         let (should_update_log, log) = {
-                            let Ok(mut state) =
-                                kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock()
+                            let Ok(mut state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()
                             else {
-                                network_client.report_gossip(message_id, propagation_source, is_valid);
+                                network_client.report_gossip(
+                                    message_id,
+                                    propagation_source,
+                                    is_valid,
+                                );
                                 continue;
                             };
 
-                            match kinetic_core::governance::process_governance_message(
+                            match kinetic_core::action::process_action_message(
                                 &mut state,
                                 &signed_msg,
                                 kinetic_types::clock::Kyn(current_kyn),
@@ -57,41 +60,40 @@ pub fn start_gossip_processor(
                                 Ok(Some(effect)) => {
                                     is_valid = true;
                                     tracing::info!(
-                                        "Governance state updated via gossip. Effect: {:?}",
+                                        "Action state updated via gossip. Effect: {:?}",
                                         effect
                                     );
 
                                     if let Some(storage) = &storage {
+                                        use kinetic_core::action::types::ActionEffect;
                                         use kinetic_core::constants::DB_PREFIX_REVEAL;
-                                        use kinetic_core::governance::types::GovernanceEffect;
                                         use kinetic_core::types::NameRecord;
 
                                         match &effect {
-                                            GovernanceEffect::PrimeMapped {
+                                            ActionEffect::PrimeMapped {
                                                 name,
                                                 target_pubkey,
                                             } => {
                                                 let record = NameRecord::Prime {
                                                     name: name.clone(),
                                                     pubkey: target_pubkey.clone(),
-                                                    granted_at: std::time::SystemTime::now()
-                                                        .duration_since(std::time::UNIX_EPOCH)
-                                                        .unwrap_or_default()
-                                                        .as_secs(),
+                                                    kyn: signed_msg.timestamp_kyn,
                                                     payload: Vec::new(),
                                                     signature: Vec::new(),
                                                     authorization: None,
                                                 };
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                                if let Ok(json_bytes) = serde_json::to_vec(&record) {
-                                                    let _ = storage.put(key.as_bytes(), &json_bytes);
+                                                if let Ok(json_bytes) = serde_json::to_vec(&record)
+                                                {
+                                                    let _ =
+                                                        storage.put(key.as_bytes(), &json_bytes);
                                                     tracing::info!(
                                                         "Injected NameRecord::Prime into storage for {}",
                                                         name
                                                     );
                                                 }
                                             }
-                                            GovernanceEffect::PrimeUnmapped { name } => {
+                                            ActionEffect::PrimeUnmapped { name } => {
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                                                 let _ = storage.delete(key.as_bytes());
                                                 tracing::info!(
@@ -99,7 +101,30 @@ pub fn start_gossip_processor(
                                                     name
                                                 );
                                             }
-                                            GovernanceEffect::InfraUnmapped { name } => {
+                                            ActionEffect::InfraMapped {
+                                                name,
+                                                target_pubkey,
+                                            } => {
+                                                let record = NameRecord::Infra {
+                                                    name: name.clone(),
+                                                    pubkey: target_pubkey.clone(),
+                                                    kyn: signed_msg.timestamp_kyn,
+                                                    payload: Vec::new(),
+                                                    signature: Vec::new(),
+                                                    authorization: None,
+                                                };
+                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
+                                                if let Ok(json_bytes) = serde_json::to_vec(&record)
+                                                {
+                                                    let _ =
+                                                        storage.put(key.as_bytes(), &json_bytes);
+                                                    tracing::info!(
+                                                        "Injected NameRecord::Infra into storage for {}",
+                                                        name
+                                                    );
+                                                }
+                                            }
+                                            ActionEffect::InfraUnmapped { name } => {
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
                                                 let _ = storage.delete(key.as_bytes());
                                                 tracing::info!(
@@ -110,14 +135,14 @@ pub fn start_gossip_processor(
                                             _ => {}
                                         }
                                     }
-                                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                                    if let Err(e) = kinetic_local::action::save_action_to_disk(
                                         &state,
-                                        &gossip_gov_path,
+                                        &gossip_action_path,
                                     ) {
-                                        let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                                        let err = kinetic_core::error::ActionError::StateSaveFailed;
                                         tracing::error!(
                                             error_code = err.code(),
-                                            "Failed to save modified governance state to disk: {}",
+                                            "Failed to save modified action state to disk: {}",
                                             e
                                         );
                                     }
@@ -126,16 +151,16 @@ pub fn start_gossip_processor(
                                 Ok(None) => {
                                     is_valid = true;
                                     tracing::info!(
-                                        "Governance state updated via gossip. No immediate effect."
+                                        "Action state updated via gossip. No immediate effect."
                                     );
-                                    if let Err(e) = kinetic_local::governance::save_governance_to_disk(
+                                    if let Err(e) = kinetic_local::action::save_action_to_disk(
                                         &state,
-                                        &gossip_gov_path,
+                                        &gossip_action_path,
                                     ) {
-                                        let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                                        let err = kinetic_core::error::ActionError::StateSaveFailed;
                                         tracing::error!(
                                             error_code = err.code(),
-                                            "Failed to save modified governance state to disk: {}",
+                                            "Failed to save modified action state to disk: {}",
                                             e
                                         );
                                     }
@@ -143,17 +168,15 @@ pub fn start_gossip_processor(
                                 }
                                 Err(e) => {
                                     tracing::debug!(
-                                        "Governance gossip message rejected by process_governance_message: {:?}",
+                                        "Action gossip message rejected by process_action_message: {:?}",
                                         e
                                     );
                                     (false, None)
                                 }
                             }
                         };
-                        if should_update_log {
-                            if let Some(log) = log {
-                                let _ = network_client.update_gov_action_log(log).await;
-                            }
+                        if should_update_log && let Some(log) = log {
+                            let _ = network_client.update_action_log(log).await;
                         }
                     }
                     network_client.report_gossip(message_id, propagation_source, is_valid);
@@ -167,7 +190,7 @@ pub fn start_gossip_processor(
                             .await
                             .unwrap_or(false);
                         if is_valid {
-                            let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
+                            let latest_kyn = match kyn_provider_gossip.load_cached() {
                                 Ok(latest) => {
                                     if latest.is_unavailable {
                                         0
@@ -191,7 +214,7 @@ pub fn start_gossip_processor(
                             };
 
                             if kyn.kyn > latest_kyn {
-                                if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
+                                if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                                     tracing::error!(
                                         error_code = e.code(),
                                         "Failed to cache drand kyn in gossip handler: {}",

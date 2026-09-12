@@ -110,12 +110,12 @@ impl NetworkClient {
         rx.await.unwrap_or(Err(ProxyError::ChannelClosed))
     }
 
-    /// Sends a request to sync governance state from a remote node.
-    pub async fn send_gov_sync_request(
+    /// Sends a request to sync action state from a remote node.
+    pub async fn send_action_sync_request(
         &self,
         peer: libp2p::PeerId,
-        req: kinetic_types::governance::GovSyncRequest,
-    ) -> std::result::Result<kinetic_types::governance::GovSyncResponse, ProxyError> {
+        req: kinetic_types::action::ActionSyncRequest,
+    ) -> std::result::Result<kinetic_types::action::ActionSyncResponse, ProxyError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self
             .sender
@@ -123,7 +123,7 @@ impl NetworkClient {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         sender_clone
-            .send(Command::SendGovSyncRequest {
+            .send(Command::SendActionSyncRequest {
                 peer,
                 req: Box::new(req),
                 responder: tx,
@@ -133,10 +133,10 @@ impl NetworkClient {
         rx.await.unwrap_or(Err(ProxyError::ChannelClosed))
     }
 
-    /// Updates the background event loop's cache of the governance action log.
-    pub async fn update_gov_action_log(
+    /// Updates the background event loop's cache of the action log.
+    pub async fn update_action_log(
         &self,
-        actions: Vec<kinetic_types::governance::SignedGovernanceMessage>,
+        actions: Vec<kinetic_types::action::SignedActionMessage>,
     ) -> std::result::Result<(), NetworkClientError> {
         let sender_clone = self
             .sender
@@ -144,7 +144,7 @@ impl NetworkClient {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         sender_clone
-            .send(Command::UpdateGovActionLog { actions })
+            .send(Command::UpdateActionLog { actions })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         Ok(())

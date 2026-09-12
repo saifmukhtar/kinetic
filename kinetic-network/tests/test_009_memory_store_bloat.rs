@@ -42,7 +42,6 @@ fn test_memory_store_bloat() {
                 pubkey: vec![],
                 payload: vec![],
                 previous_proof: None,
-                miner_pubkey: None,
                 authorization: None,
             })),
         );

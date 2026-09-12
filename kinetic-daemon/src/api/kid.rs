@@ -18,7 +18,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> Kyn {
 
     let kyn_provider =
         kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
-    match kyn_provider.load_cached_kyn() {
+    match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => Kyn(kyn.kyn),
         _ => Kyn::now_local(),
     }
@@ -380,12 +380,11 @@ pub async fn handle_publish_kid(
     }
 
     // 2. Serialize and Publish to DHT
-    let payload_bytes = serde_json::to_vec(&auth_kid).map_err(|e| {
-        kinetic_core::error::PublishError::Internal {
+    let payload_bytes =
+        serde_json::to_vec(&auth_kid).map_err(|e| kinetic_core::error::PublishError::Internal {
             message: format!("Serialization failed: {}", e),
             source: None,
-        }
-    })?;
+        })?;
     let fqdn = auth_kid.kid_doc.kid.as_str().to_string(); // Use DID as the DHT key
 
     state
@@ -483,7 +482,10 @@ pub async fn handle_publish_manifest(
         .verify_at_time(&kid_doc, current_network_time)
     {
         return Err(crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::BadRequest(format!("Invalid Manifest signature: {}", e)),
+            kinetic_core::error::RestApiError::BadRequest(format!(
+                "Invalid Manifest signature: {}",
+                e
+            )),
         ));
     }
 

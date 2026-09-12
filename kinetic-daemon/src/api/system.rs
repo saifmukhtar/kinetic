@@ -57,7 +57,7 @@ pub async fn handle_get_ca_cert(
     }
 
     let base_config_dir = kinetic_local::config::get_base_dir();
-    
+
     let nsp = kinetic_core::constants::NSP_SUFFIX;
     let salt_prefix = &kinetic_core::constants::NETWORK_SALT_HEX[0..4];
     let ca_prefix = format!("{}-{}", nsp, salt_prefix);

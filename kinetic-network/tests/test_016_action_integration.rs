@@ -1,5 +1,5 @@
 use kinetic_core::types::NameRecord;
-use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
+use kinetic_local::action::GLOBAL_ACTION_STATE;
 
 use kinetic_network::store::core::KineticRecordStore;
 use libp2p::identity;
@@ -8,11 +8,12 @@ use libp2p::kad::Record;
 use tempfile::tempdir;
 
 #[tokio::test]
-async fn test_governance_integration_halt() {
+async fn test_action_integration_halt() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
     let storage = std::sync::Arc::new(
-        kinetic_storage::KineticStorage::new(storage_path.join("state.db").to_str().unwrap()).unwrap(),
+        kinetic_storage::KineticStorage::new(storage_path.join("state.db").to_str().unwrap())
+            .unwrap(),
     );
 
     let local_key = identity::Keypair::generate_ed25519();
@@ -31,12 +32,12 @@ async fn test_governance_integration_halt() {
 
     // Halt the network globally
     {
-        let mut state = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+        let mut state = GLOBAL_ACTION_STATE.lock().unwrap();
         state.is_halted = true;
     }
 
-    // Try to inject a fake reveal
-    let fake_reveal = kinetic_core::types::Reveal {
+    // Try to inject a forged reveal
+    let forged_reveal = kinetic_core::types::Reveal {
         name: "test".to_string(),
         pubkey: vec![1; 32],
         salt: [0; 32],
@@ -48,13 +49,12 @@ async fn test_governance_integration_halt() {
         },
         previous_proof: None,
         signature: vec![],
-        miner_pubkey: None,
         payload: vec![],
         protocol_version: 2,
         authorization: None,
     };
 
-    let domain_record = NameRecord::Standard(Box::new(fake_reveal));
+    let domain_record = NameRecord::Standard(Box::new(forged_reveal));
     let record_bytes = serde_json::to_vec(&domain_record).unwrap();
     let record = Record::new(libp2p::kad::RecordKey::new(&"test"), record_bytes);
 
@@ -63,17 +63,18 @@ async fn test_governance_integration_halt() {
 
     // Unhalt
     {
-        let mut state = GLOBAL_GOVERNANCE_STATE.lock().unwrap();
+        let mut state = GLOBAL_ACTION_STATE.lock().unwrap();
         state.is_halted = false;
     }
 }
 
 #[tokio::test]
-async fn test_governance_integration_premium() {
+async fn test_action_integration_premium() {
     let dir = tempdir().unwrap();
     let storage_path = dir.path().join("kinetic_db");
     let storage = std::sync::Arc::new(
-        kinetic_storage::KineticStorage::new(storage_path.join("state.db").to_str().unwrap()).unwrap(),
+        kinetic_storage::KineticStorage::new(storage_path.join("state.db").to_str().unwrap())
+            .unwrap(),
     );
 
     let local_key = identity::Keypair::generate_ed25519();
@@ -97,7 +98,7 @@ async fn test_governance_integration_premium() {
     let domain_record = NameRecord::Prime {
         name: "test_premium".to_string(),
         pubkey: vec![1; 32],
-        granted_at: 0,
+        kyn: 0,
         payload: vec![],
         signature: vec![],
         authorization: None,

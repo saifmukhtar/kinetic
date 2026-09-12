@@ -1,8 +1,8 @@
-use crate::error::GovernanceError;
-use crate::types::{GovernanceEffect, GovernanceState, SignedGovernanceMessage};
+use crate::error::ActionError;
+use crate::types::{ActionEffect, ActionState, SignedActionMessage};
 
-pub trait GovernanceEngine: Send + Sync {
-    /// Verifies whether a signed governance message meets threshold and timelock requirements.
+pub trait ActionEngine: Send + Sync {
+    /// Verifies whether a signed action message meets threshold and timelock requirements.
     ///
     /// Does **not** mutate `state` on its own — state changes only happen in
     /// [`execute_action`](Self::execute_action).
@@ -14,20 +14,20 @@ pub trait GovernanceEngine: Send + Sync {
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::InvalidSignature`] (`KIN-ACN-007`) if required signatures or threshold are not met.
-    /// - Returns [`GovernanceError::StaleProposal`] (`KIN-ACN-005`) if the proposal timestamp is outside the replay window.
-    /// - Returns [`GovernanceError::GovernanceDisabled`] (`KIN-ACN-003`) if governance actions are disabled in this mode.
-    /// - Returns [`GovernanceError::KeyLengthMismatch`] (`KIN-ACN-004`) if a key length is invalid.
-    /// - Returns [`GovernanceError::MissingRootKey`] (`KIN-ACN-001`) if the root key is unconfigured.
+    /// - Returns [`ActionError::InvalidSignature`] (`KIN-ACN-007`) if required signatures or threshold are not met.
+    /// - Returns [`ActionError::StaleProposal`] (`KIN-ACN-005`) if the proposal timestamp is outside the replay window.
+    /// - Returns [`ActionError::ActionDisabled`] (`KIN-ACN-003`) if action actions are disabled in this mode.
+    /// - Returns [`ActionError::KeyLengthMismatch`] (`KIN-ACN-004`) if a key length is invalid.
+    /// - Returns [`ActionError::MissingRootKey`] (`KIN-ACN-001`) if the root key is unconfigured.
     fn verify_action(
         &self,
-        state: &mut GovernanceState,
-        msg: &SignedGovernanceMessage,
+        state: &mut ActionState,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
-        config: &crate::types::GovernanceConfig,
-    ) -> Result<Option<GovernanceEffect>, GovernanceError>;
+        config: &crate::types::ActionConfig,
+    ) -> Result<Option<ActionEffect>, ActionError>;
 
-    /// Executes a previously verified governance action, applying state changes.
+    /// Executes a previously verified action action, applying state changes.
     ///
     /// Must only be called after [`verify_action`](Self::verify_action) returns `Ok(_)`.
     /// The `wait_time` parameter is the remaining timelock seconds to apply for deferred effects.
@@ -38,9 +38,9 @@ pub trait GovernanceEngine: Send + Sync {
     /// council change). `None` if the action was enqueued for a future timelock.
     fn execute_action(
         &self,
-        state: &mut GovernanceState,
-        msg: &SignedGovernanceMessage,
+        state: &mut ActionState,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
-        config: &crate::types::GovernanceConfig,
-    ) -> Option<GovernanceEffect>;
+        config: &crate::types::ActionConfig,
+    ) -> Option<ActionEffect>;
 }

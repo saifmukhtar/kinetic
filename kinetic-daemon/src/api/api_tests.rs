@@ -40,7 +40,7 @@ mod tests {
                 kid: "kid-token".to_string(),
                 nrs: "nrs-token".to_string(),
                 vdf: "vdf-token".to_string(),
-                action: "gov-token".to_string(),
+                action: "action-token".to_string(),
                 gossip: "gossip-token".to_string(),
                 metric: "metric-token".to_string(),
                 heartbeat: "heartbeat-token".to_string(),
@@ -280,7 +280,6 @@ mod tests {
             pubkey: vec![1; 1952],
             signature: vec![2; 4627],
             previous_proof: None,
-            miner_pubkey: None,
             authorization: None,
         };
         let reveal_key = format!("{}validname.kin", kinetic_core::constants::DB_PREFIX_REVEAL);
@@ -350,7 +349,7 @@ mod tests {
         let req_body_str = req_body.to_string();
 
         let req1 = Request::builder()
-            .uri("/api/macro/register")
+            .uri("/api/v1/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")
@@ -358,7 +357,7 @@ mod tests {
             .unwrap();
 
         let req2 = Request::builder()
-            .uri("/api/macro/register")
+            .uri("/api/v1/macro/register")
             .method("POST")
             .header("Authorization", format!("Bearer {}", get_test_token()))
             .header("Content-Type", "application/json")

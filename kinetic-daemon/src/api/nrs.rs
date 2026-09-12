@@ -1,4 +1,4 @@
-//! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Governance actions.
+//! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Action actions.
 
 use super::*;
 use axum::{
@@ -20,7 +20,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> kinetic_core::types::Kyn {
 
     let kyn_provider =
         kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
-    match kyn_provider.load_cached_kyn() {
+    match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => kinetic_core::types::Kyn(kyn.kyn),
         _ => kinetic_core::types::Kyn::now_local(),
     }
@@ -90,7 +90,9 @@ pub async fn handle_publish_record(
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(format!(
                     "Reveal rejected: VDF kyn {} is {} kyns old (max allowed: {}). Please re-compute a fresh VDF proof.",
-                    kyn, age, kinetic_core::types::RESQUARING_EPOCH_KYNS
+                    kyn,
+                    age,
+                    kinetic_core::types::RESQUARING_EPOCH_KYNS
                 )),
             ));
         }
@@ -141,7 +143,11 @@ pub async fn handle_publish_record(
         }
         drop(_lock);
 
-        let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn_persist);
+        let reveal_key = format!(
+            "{}{}",
+            kinetic_core::constants::DB_PREFIX_REVEAL,
+            fqdn_persist
+        );
         if let Ok(reveal_bytes) = serde_json::to_vec(&name_record_clone) {
             let _ = storage.put(reveal_key.as_bytes(), &reveal_bytes);
         }
@@ -169,10 +175,8 @@ pub async fn handle_publish_record(
                 );
             }
             Ok(quorum) => {
-                let err = kinetic_core::error::PublishError::QuorumFailed(
-                    fqdn_clone.to_string(),
-                    quorum,
-                );
+                let err =
+                    kinetic_core::error::PublishError::QuorumFailed(fqdn_clone.to_string(), quorum);
                 tracing::warn!(error_code = err.code(), "{}", err);
             }
             Err(e) => {
@@ -347,16 +351,17 @@ pub async fn handle_resolve_name(
             // This rescues users who lost their local record cache (.record.json) and the DHT dropped their record
             let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
             let storage = state.storage.clone();
-            let record_bytes = tokio::task::spawn_blocking(move || storage.get(reveal_key.as_bytes()))
-                .await
-                .map_err(|e| kinetic_core::error::ResolutionError::Internal {
-                    message: format!("Storage worker task failed: {}", e),
-                    source: None,
-                })?
-                .map_err(|e| kinetic_core::error::ResolutionError::Internal {
-                    message: format!("Storage read failed: {}", e),
-                    source: None,
-                })?;
+            let record_bytes =
+                tokio::task::spawn_blocking(move || storage.get(reveal_key.as_bytes()))
+                    .await
+                    .map_err(|e| kinetic_core::error::ResolutionError::Internal {
+                        message: format!("Storage worker task failed: {}", e),
+                        source: None,
+                    })?
+                    .map_err(|e| kinetic_core::error::ResolutionError::Internal {
+                        message: format!("Storage read failed: {}", e),
+                        source: None,
+                    })?;
 
             match record_bytes {
                 Some(bytes) => {
@@ -452,9 +457,9 @@ pub async fn handle_get_reserved_names()
     })
     .await
     .map_err(|e| {
-        crate::api::error::AppError::from(
-            kinetic_core::error::SystemError::DiskPersistenceFailed(e.to_string()),
-        )
+        crate::api::error::AppError::from(kinetic_core::error::SystemError::DiskPersistenceFailed(
+            e.to_string(),
+        ))
     })?;
 
     Ok(Json(statuses))
@@ -471,7 +476,9 @@ pub async fn handle_get_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
-    let path = kinetic_local::config::get_zones_dir().join("config").join(format!("{}.json", fqdn));
+    let path = kinetic_local::config::get_zones_dir()
+        .join("config")
+        .join(format!("{}.json", fqdn));
     match tokio::fs::read_to_string(&path).await {
         Ok(content) => match serde_json::from_str::<kinetic_core::types::NrsZone>(&content) {
             Ok(zone) => Ok(Json(zone)),
@@ -479,11 +486,9 @@ pub async fn handle_get_zone(
                 kinetic_core::error::NrsError::ParseError(e),
             )),
         },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            Err(crate::api::error::AppError::from(
-                kinetic_core::error::RestApiError::NotFound,
-            ))
-        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(
+            crate::api::error::AppError::from(kinetic_core::error::RestApiError::NotFound),
+        ),
         Err(e) => Err(crate::api::error::AppError::from(
             kinetic_core::error::StorageError::ReadFailed(e.to_string()),
         )),
@@ -519,9 +524,10 @@ pub async fn handle_post_zone(
     })?;
 
     tokio::fs::create_dir_all(&zones_dir).await.map_err(|e| {
-        crate::api::error::AppError::from(kinetic_core::error::StorageError::WriteFailed(
-            format!("Failed to create zones directory: {}", e),
-        ))
+        crate::api::error::AppError::from(kinetic_core::error::StorageError::WriteFailed(format!(
+            "Failed to create zones directory: {}",
+            e
+        )))
     })?;
 
     tokio::fs::write(&path, content).await.map_err(|e| {
@@ -553,7 +559,9 @@ pub async fn handle_publish_zone(
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
     // 1. Read the current zone file asynchronously
-    let zone_path = kinetic_local::config::get_zones_dir().join("config").join(format!("{}.json", fqdn));
+    let zone_path = kinetic_local::config::get_zones_dir()
+        .join("config")
+        .join(format!("{}.json", fqdn));
     let content = match tokio::fs::read_to_string(&zone_path).await {
         Ok(c) => c,
         Err(_) => {
@@ -562,8 +570,9 @@ pub async fn handle_publish_zone(
             ));
         }
     };
-    let zone: kinetic_core::types::NrsZone = serde_json::from_str(&content)
-        .map_err(|e| crate::api::error::AppError::from(kinetic_core::error::NrsError::ParseError(e)))?;
+    let zone: kinetic_core::types::NrsZone = serde_json::from_str(&content).map_err(|e| {
+        crate::api::error::AppError::from(kinetic_core::error::NrsError::ParseError(e))
+    })?;
 
     // 2. Load the persisted Reveal (stored at registration time)
     let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
@@ -576,37 +585,40 @@ pub async fn handle_publish_zone(
                 format!("Storage worker task failed: {}", e),
             ))
         })?
-        .map_err(|e| crate::api::error::AppError::from(e))?
+        .map_err(crate::api::error::AppError::from)?
         .ok_or_else(|| {
-            crate::api::error::AppError::from(kinetic_core::error::RegistrationError::NotRegisteredLocal {
-                name: fqdn.clone(),
-            })
+            crate::api::error::AppError::from(
+                kinetic_core::error::RegistrationError::NotRegisteredLocal { name: fqdn.clone() },
+            )
         })?;
 
     let mut record: kinetic_core::types::NameRecord = serde_json::from_slice(&reveal_bytes)
         .map_err(|_| {
-            crate::api::error::AppError::from(kinetic_core::error::StorageError::DeserializationFailed(
-                "Stored registration data is corrupted.".to_string(),
-            ))
+            crate::api::error::AppError::from(
+                kinetic_core::error::StorageError::DeserializationFailed(
+                    "Stored registration data is corrupted.".to_string(),
+                ),
+            )
         })?;
 
     // 3. Load the daemon keypair and re-sign with the updated payload
     let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
-    let keypair = tokio::task::spawn_blocking(move || kinetic_local::identity::load_keypair(&identity_path))
-        .await
-        .map_err(|e| {
-            crate::api::error::AppError::from(kinetic_core::error::IdentityError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Identity worker task failed: {}", e)
-            )))
-        })?
-        .map_err(|e| crate::api::error::AppError::from(e))?;
+    let keypair =
+        tokio::task::spawn_blocking(move || kinetic_local::identity::load_keypair(&identity_path))
+            .await
+            .map_err(|e| {
+                crate::api::error::AppError::from(kinetic_core::error::IdentityError::Io(
+                    std::io::Error::other(format!("Identity worker task failed: {}", e)),
+                ))
+            })?
+            .map_err(crate::api::error::AppError::from)?;
 
     let pubkey_bytes = keypair.pubkey_bytes();
     if record.pubkey() != pubkey_bytes.as_slice() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::IdentityError::PubkeyMismatch(
-                "The daemon key does not match the owner key for this name registration.".to_string(),
+                "The daemon key does not match the owner key for this name registration."
+                    .to_string(),
             ),
         ));
     }
@@ -668,7 +680,7 @@ pub async fn handle_publish_zone(
         .network
         .publish_redundant_payload(&fqdn, dht_payload)
         .await
-        .map_err(|e| crate::api::error::AppError::from(e))?;
+        .map_err(crate::api::error::AppError::from)?;
 
     tracing::info!("Zone published to DHT for {}", fqdn);
     Ok(Json(PublishResponse {
@@ -704,9 +716,10 @@ pub async fn handle_post_local_zone(
 
     let local_dir = kinetic_local::config::get_zones_dir().join("local");
     tokio::fs::create_dir_all(&local_dir).await.map_err(|e| {
-        crate::api::error::AppError::from(kinetic_core::error::StorageError::WriteFailed(
-            format!("Failed to create local zones directory: {}", e),
-        ))
+        crate::api::error::AppError::from(kinetic_core::error::StorageError::WriteFailed(format!(
+            "Failed to create local zones directory: {}",
+            e
+        )))
     })?;
     let path = local_dir.join(format!("{}.json", apex_no_tld));
 
@@ -756,16 +769,11 @@ pub async fn handle_delete_local_zone(
 
     match tokio::fs::remove_file(&path).await {
         Ok(_) => Ok(Json(serde_json::json!({ "success": true }))),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            Err(crate::api::error::AppError::from(
-                kinetic_core::error::RestApiError::NotFound,
-            ))
-        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(
+            crate::api::error::AppError::from(kinetic_core::error::RestApiError::NotFound),
+        ),
         Err(e) => Err(crate::api::error::AppError::from(
-            kinetic_core::error::StorageError::DeleteFailed(format!(
-                "File delete failed: {}",
-                e
-            )),
+            kinetic_core::error::StorageError::DeleteFailed(format!("File delete failed: {}", e)),
         )),
     }
 }
@@ -799,19 +807,14 @@ pub async fn handle_get_local_zone(
                 kinetic_core::error::NrsError::ParseError(e),
             )),
         },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            Err(crate::api::error::AppError::from(
-                kinetic_core::error::RestApiError::NotFound,
-            ))
-        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(
+            crate::api::error::AppError::from(kinetic_core::error::RestApiError::NotFound),
+        ),
         Err(e) => Err(crate::api::error::AppError::from(
             kinetic_core::error::StorageError::ReadFailed(e.to_string()),
         )),
     }
 }
-
-/// Request payload for manually broadcasting a Fat NRS Zone update.
-
 
 /// Request payload for manually broadcasting a Fat NRS Zone update.
 #[derive(serde::Deserialize)]
@@ -836,12 +839,16 @@ pub async fn handle_publish_fat_zone(
             kinetic_core::error::RestApiError::InsufficientPrivileges,
         ));
     }
-    
+
     let fqdn = kinetic_core::types::names::normalize_name(&name);
     kinetic_core::types::names::is_valid_apex_name(&fqdn)?;
 
     // 1. Verify the capability is present in the manifest
-    let has_cap = req.authorized_manifest.manifest.services.iter()
+    let has_cap = req
+        .authorized_manifest
+        .manifest
+        .services
+        .iter()
         .any(|s| s.service_type == "kinetic.capability.dns_update");
     if !has_cap {
         return Err(crate::api::error::AppError::from(
@@ -851,11 +858,17 @@ pub async fn handle_publish_fat_zone(
 
     // 2. Load the hot key
     let hot_key_bytes = hex::decode(&req.hot_key_hex).map_err(|e| {
-        crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!("Invalid hot_key_hex: {}", e)))
+        crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
+            "Invalid hot_key_hex: {}",
+            e
+        )))
     })?;
-    let keypair = kinetic_primitives::keys::KineticKeypair::from_slice(&hot_key_bytes).map_err(|e| {
-         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!("Invalid ML-DSA keypair: {}", e)))
-    })?;
+    let keypair =
+        kinetic_primitives::keys::KineticKeypair::from_slice(&hot_key_bytes).map_err(|e| {
+            crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
+                format!("Invalid ML-DSA keypair: {}", e),
+            ))
+        })?;
 
     // 3. Load the persisted Reveal (stored at registration time) to retain the valid VDF proof
     let reveal_key = format!("{}{}", kinetic_core::constants::DB_PREFIX_REVEAL, fqdn);
@@ -868,18 +881,20 @@ pub async fn handle_publish_fat_zone(
                 format!("Storage worker task failed: {}", e),
             ))
         })?
-        .map_err(|e| crate::api::error::AppError::from(e))?
+        .map_err(crate::api::error::AppError::from)?
         .ok_or_else(|| {
-            crate::api::error::AppError::from(kinetic_core::error::RegistrationError::NotRegisteredLocal {
-                name: fqdn.clone(),
-            })
+            crate::api::error::AppError::from(
+                kinetic_core::error::RegistrationError::NotRegisteredLocal { name: fqdn.clone() },
+            )
         })?;
 
     let mut record: kinetic_core::types::NameRecord = serde_json::from_slice(&reveal_bytes)
         .map_err(|_| {
-            crate::api::error::AppError::from(kinetic_core::error::StorageError::DeserializationFailed(
-                "Stored registration data is corrupted.".to_string(),
-            ))
+            crate::api::error::AppError::from(
+                kinetic_core::error::StorageError::DeserializationFailed(
+                    "Stored registration data is corrupted.".to_string(),
+                ),
+            )
         })?;
 
     // 4. Update payload and authorization, then sign with hot key
@@ -894,28 +909,44 @@ pub async fn handle_publish_fat_zone(
             reveal.payload = payload_bytes;
             reveal.authorization = Some(Box::new(req.authorized_manifest));
             let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            reveal.signature = tokio::task::spawn_blocking(move || keypair.sign(&signable)).await.unwrap();
+            reveal.signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
+                .await
+                .unwrap();
         }
-        kinetic_core::types::NameRecord::Prime { name, payload, authorization, signature, .. }
-        | kinetic_core::types::NameRecord::Infra { name, payload, authorization, signature, .. } => {
+        kinetic_core::types::NameRecord::Prime {
+            name,
+            payload,
+            authorization,
+            signature,
+            ..
+        }
+        | kinetic_core::types::NameRecord::Infra {
+            name,
+            payload,
+            authorization,
+            signature,
+            ..
+        } => {
             *payload = payload_bytes;
             *authorization = Some(Box::new(req.authorized_manifest));
-            
+
             let mut signable = Vec::new();
             signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
             signable.extend_from_slice(name.as_bytes());
             signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
             signable.extend_from_slice(payload);
             signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
-            
-            *signature = tokio::task::spawn_blocking(move || keypair.sign(&signable)).await.unwrap();
+
+            *signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
+                .await
+                .unwrap();
         }
     }
 
     // 5. Save the updated reveal locally so the daemon serves the newest zone on fallback
     let final_bytes = serde_json::to_vec(&record).unwrap();
     let network = state.network.clone();
-    
+
     let s2 = state.storage.clone();
     let fqdn2 = fqdn.clone();
     let fb = final_bytes.clone();
@@ -923,9 +954,10 @@ pub async fn handle_publish_fat_zone(
         let _ = s2.put(reveal_key.as_bytes(), &fb);
     });
 
-    network.publish_redundant_payload(&fqdn2, final_bytes)
+    network
+        .publish_redundant_payload(&fqdn2, final_bytes)
         .await
-        .map_err(|e| crate::api::error::AppError::from(e))?;
+        .map_err(crate::api::error::AppError::from)?;
 
     Ok(axum::Json(crate::api::nrs::PublishResponse {
         status: "success".to_string(),

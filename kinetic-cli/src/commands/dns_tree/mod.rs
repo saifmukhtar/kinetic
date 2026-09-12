@@ -9,8 +9,8 @@ use std::io::{BufRead, BufReader, Write};
 /// Available subcommands for managing DNS Tree discovery.
 #[derive(Subcommand)]
 pub enum DnsTreeCommands {
-    /// Generate a Cloudflare-ready DNS Tree from a list of Libp2p Multiaddrs.
-    Generate {
+    /// Create a Cloudflare-ready DNS Tree from a list of Libp2p Multiaddrs.
+    Create {
         /// Path to a file containing one Multiaddr per line
         #[arg(long)]
         input: String,
@@ -27,7 +27,7 @@ pub enum DnsTreeCommands {
 /// Returns an `anyhow::Error` if the input file cannot be read, if no valid multiaddrs are found, or if the output zone file cannot be written to disk.
 pub async fn handle_dns_tree_command(cmd: DnsTreeCommands) -> anyhow::Result<()> {
     match cmd {
-        DnsTreeCommands::Generate {
+        DnsTreeCommands::Create {
             input,
             output,
             domain,

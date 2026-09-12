@@ -4,34 +4,33 @@
 //! Council member signatures are ignored, and threshold logic is bypassed. Used primarily
 //! for private deployments or the earliest stages of bootstrap.
 
-use crate::error::GovernanceError;
-use crate::traits::GovernanceEngine;
+use crate::error::ActionError;
+use crate::traits::ActionEngine;
 use crate::types::{
-    GovernanceAction, GovernanceConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage,
-    verify_signature,
+    ActionConfig, ActionEffect, ActionState, NetworkAction, SignedActionMessage, verify_signature,
 };
 
-/// Single-signer governance engine driver controlled exclusively by the Founder Root key.
+/// Single-signer action engine driver controlled exclusively by the Founder Root key.
 pub struct SovereignEngine;
 
-impl GovernanceEngine for SovereignEngine {
+impl ActionEngine for SovereignEngine {
     /// Verifies that the proposal is signed by the Founder Root key.
     ///
     ///
     /// # Errors
     ///
-    /// - Returns [`GovernanceError::StaleProposal`] if the proposal timestamp exceeds `config.max_age_kyns`.
-    /// - Returns [`GovernanceError::InvalidPrimeLength`] if a prime name is not 1 character.
-    /// - Returns [`GovernanceError::InvalidSignature`] if the Root key signature is missing or invalid.
+    /// - Returns [`ActionError::StaleProposal`] if the proposal timestamp exceeds `config.max_age_kyns`.
+    /// - Returns [`ActionError::InvalidPrimeLength`] if a prime name is not 1 character.
+    /// - Returns [`ActionError::InvalidSignature`] if the Root key signature is missing or invalid.
     fn verify_action(
         &self,
-        state: &mut GovernanceState,
-        msg: &SignedGovernanceMessage,
+        state: &mut ActionState,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
-        config: &GovernanceConfig,
-    ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+        config: &ActionConfig,
+    ) -> Result<Option<ActionEffect>, ActionError> {
         if current_kyn.0.abs_diff(msg.timestamp_kyn) > config.max_age_kyns {
-            return Err(GovernanceError::StaleProposal);
+            return Err(ActionError::StaleProposal);
         }
 
         let root_key = state.get_sovereign_key(config)?;
@@ -44,151 +43,151 @@ impl GovernanceEngine for SovereignEngine {
 
         if root_signed {
             let effect = match &msg.action {
-                GovernanceAction::MapPrime {
+                NetworkAction::MapPrime {
                     name,
                     target_pubkey,
                 } => {
                     if name.len() != 1 {
-                        return Err(GovernanceError::InvalidPrimeLength);
+                        return Err(ActionError::InvalidPrimeLength);
                     }
                     if !name
                         .chars()
                         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
                     {
-                        return Err(GovernanceError::UnnormalizedName);
+                        return Err(ActionError::UnnormalizedName);
                     }
                     if target_pubkey.len() != 1952 {
-                        return Err(GovernanceError::KeyLengthMismatch);
+                        return Err(ActionError::KeyLengthMismatch);
                     }
                     if state.mapped_prime_names.contains_key(name) {
-                        return Err(GovernanceError::AlreadyMapped);
+                        return Err(ActionError::AlreadyMapped);
                     }
-                    GovernanceEffect::PrimeMapped {
+                    ActionEffect::PrimeMapped {
                         name: name.clone(),
                         target_pubkey: target_pubkey.clone(),
                     }
                 }
-                GovernanceAction::UnmapPrime { name } => {
+                NetworkAction::UnmapPrime { name } => {
                     if name.len() != 1 {
-                        return Err(GovernanceError::InvalidPrimeLength);
+                        return Err(ActionError::InvalidPrimeLength);
                     }
                     if !name
                         .chars()
                         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
                     {
-                        return Err(GovernanceError::UnnormalizedName);
+                        return Err(ActionError::UnnormalizedName);
                     }
                     if !state.mapped_prime_names.contains_key(name) {
-                        return Err(GovernanceError::NotMapped);
+                        return Err(ActionError::NotMapped);
                     }
-                    GovernanceEffect::PrimeUnmapped { name: name.clone() }
+                    ActionEffect::PrimeUnmapped { name: name.clone() }
                 }
-                GovernanceAction::MapInfra {
+                NetworkAction::MapInfra {
                     name,
                     target_pubkey,
                 } => {
                     if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
-                        return Err(GovernanceError::InvalidProtocolName);
+                        return Err(ActionError::InvalidProtocolName);
                     }
                     if target_pubkey.len() != 1952 {
-                        return Err(GovernanceError::KeyLengthMismatch);
+                        return Err(ActionError::KeyLengthMismatch);
                     }
                     if state.mapped_infra_names.contains_key(name) {
-                        return Err(GovernanceError::AlreadyMapped);
+                        return Err(ActionError::AlreadyMapped);
                     }
-                    GovernanceEffect::InfraMapped {
+                    ActionEffect::InfraMapped {
                         name: name.clone(),
                         target_pubkey: target_pubkey.clone(),
                     }
                 }
-                GovernanceAction::UnmapInfra { name } => {
+                NetworkAction::UnmapInfra { name } => {
                     if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
-                        return Err(GovernanceError::InvalidProtocolName);
+                        return Err(ActionError::InvalidProtocolName);
                     }
                     if !state.mapped_infra_names.contains_key(name) {
-                        return Err(GovernanceError::NotMapped);
+                        return Err(ActionError::NotMapped);
                     }
-                    GovernanceEffect::InfraUnmapped { name: name.clone() }
+                    ActionEffect::InfraUnmapped { name: name.clone() }
                 }
-                GovernanceAction::RotateRootKey { new_key } => {
+                NetworkAction::RotateRootKey { new_key } => {
                     if new_key.len() != 1952 {
-                        return Err(GovernanceError::KeyLengthMismatch);
+                        return Err(ActionError::KeyLengthMismatch);
                     }
-                    GovernanceEffect::RootKeyRotated {
+                    ActionEffect::RootKeyRotated {
                         new_key: new_key.clone(),
                     }
                 }
-                GovernanceAction::EmergencyHalt => GovernanceEffect::NetworkHalted,
-                GovernanceAction::EmergencyResume => GovernanceEffect::NetworkResumed,
+                NetworkAction::EmergencyHalt => ActionEffect::NetworkHalted,
+                NetworkAction::EmergencyResume => ActionEffect::NetworkResumed,
             };
 
             return Ok(Some(effect));
         }
 
-        Err(GovernanceError::InvalidSignature)
+        Err(ActionError::InvalidSignature)
     }
 
     fn execute_action(
         &self,
-        state: &mut GovernanceState,
-        msg: &SignedGovernanceMessage,
+        state: &mut ActionState,
+        msg: &SignedActionMessage,
         current_kyn: kinetic_types::clock::Kyn,
-        _config: &GovernanceConfig,
-    ) -> Option<GovernanceEffect> {
-        let action_hash = GovernanceState::hash_action(msg);
+        _config: &ActionConfig,
+    ) -> Option<ActionEffect> {
+        let action_hash = ActionState::hash_action(msg);
         state
             .executed_hashes
             .insert(action_hash, kinetic_types::clock::Kyn(msg.timestamp_kyn));
 
         match &msg.action {
-            GovernanceAction::MapPrime {
+            NetworkAction::MapPrime {
                 name,
                 target_pubkey,
             } => {
                 state
                     .mapped_prime_names
                     .insert(name.clone(), target_pubkey.clone());
-                Some(GovernanceEffect::PrimeMapped {
+                Some(ActionEffect::PrimeMapped {
                     name: name.clone(),
                     target_pubkey: target_pubkey.clone(),
                 })
             }
-            GovernanceAction::UnmapPrime { name } => {
+            NetworkAction::UnmapPrime { name } => {
                 state.mapped_prime_names.remove(name);
-                Some(GovernanceEffect::PrimeUnmapped { name: name.clone() })
+                Some(ActionEffect::PrimeUnmapped { name: name.clone() })
             }
-            GovernanceAction::MapInfra {
+            NetworkAction::MapInfra {
                 name,
                 target_pubkey,
             } => {
                 state
                     .mapped_infra_names
                     .insert(name.clone(), target_pubkey.clone());
-                Some(GovernanceEffect::InfraMapped {
+                Some(ActionEffect::InfraMapped {
                     name: name.clone(),
                     target_pubkey: target_pubkey.clone(),
                 })
             }
-            GovernanceAction::UnmapInfra { name } => {
+            NetworkAction::UnmapInfra { name } => {
                 state.mapped_infra_names.remove(name);
-                Some(GovernanceEffect::InfraUnmapped { name: name.clone() })
+                Some(ActionEffect::InfraUnmapped { name: name.clone() })
             }
-            GovernanceAction::RotateRootKey { new_key } => {
+            NetworkAction::RotateRootKey { new_key } => {
                 state.active_sovereign_key = Some(new_key.clone());
-                Some(GovernanceEffect::RootKeyRotated {
+                Some(ActionEffect::RootKeyRotated {
                     new_key: new_key.clone(),
                 })
             }
-            GovernanceAction::EmergencyHalt => {
+            NetworkAction::EmergencyHalt => {
                 if !state.is_halted {
                     state.is_halted = true;
                     if state.halt_start_kyn.is_none() {
                         state.halt_start_kyn = Some(current_kyn);
                     }
                 }
-                Some(GovernanceEffect::NetworkHalted)
+                Some(ActionEffect::NetworkHalted)
             }
-            GovernanceAction::EmergencyResume => {
+            NetworkAction::EmergencyResume => {
                 if state.is_halted {
                     state.is_halted = false;
                     let start_kyn = state.halt_start_kyn.take().unwrap_or(current_kyn);
@@ -196,7 +195,7 @@ impl GovernanceEngine for SovereignEngine {
                     state.total_paused_kyns = state.total_paused_kyns.saturating_add(paused_kyns);
                     state.pause_history.push((start_kyn, current_kyn));
                 }
-                Some(GovernanceEffect::NetworkResumed)
+                Some(ActionEffect::NetworkResumed)
             }
         }
     }

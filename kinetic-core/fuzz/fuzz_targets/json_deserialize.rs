@@ -15,5 +15,5 @@ fuzz_target!(|data: &[u8]| {
         // Successfully parsed as DnsZone
     }
     
-    let _ = bincode::deserialize::<kinetic_core::governance::types::SignedGovernanceMessage>(data);
+    let _ = bincode::deserialize::<kinetic_core::action::types::SignedActionMessage>(data);
 });

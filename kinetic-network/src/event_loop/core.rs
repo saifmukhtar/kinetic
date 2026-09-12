@@ -37,9 +37,9 @@ pub(crate) enum LoopbackCommand {
     ConnectionPoWVerified {
         peer_id: libp2p::PeerId,
         valid_client: bool,
-        valid_server: bool,
+        _valid_server: bool,
         is_bootstrap: bool,
-        remote_addr: libp2p::Multiaddr,
+        _remote_addr: libp2p::Multiaddr,
     },
     DialResolvedSeed(libp2p::Multiaddr),
     CdnResolutionVerified {
@@ -73,13 +73,16 @@ pub struct NetworkEventLoop {
         libp2p::request_response::OutboundRequestId,
         std::sync::Arc<str>, // The apex name being requested
     >,
-    pub(crate) pending_gov_sync_requests: FxHashMap<
+    pub(crate) pending_action_sync_requests: FxHashMap<
         libp2p::request_response::OutboundRequestId,
         oneshot::Sender<
-            std::result::Result<kinetic_types::governance::GovSyncResponse, crate::client::ProxyError>,
+            std::result::Result<
+                kinetic_types::action::ActionSyncResponse,
+                crate::client::ProxyError,
+            >,
         >,
     >,
-    pub(crate) gov_action_log: Vec<kinetic_types::governance::SignedGovernanceMessage>,
+    pub(crate) action_log: Vec<kinetic_types::action::SignedActionMessage>,
     pub(crate) peer_registry: crate::peer_registry::PeerRegistry,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(
@@ -388,9 +391,9 @@ impl NetworkEventLoop {
             LoopbackCommand::ConnectionPoWVerified {
                 peer_id,
                 valid_client,
-                valid_server: _,
+                _valid_server: _,
                 is_bootstrap,
-                remote_addr: _,
+                _remote_addr: _,
             } => {
                 if !valid_client && !is_bootstrap {
                     tracing::warn!(

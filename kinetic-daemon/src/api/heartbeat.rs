@@ -39,14 +39,15 @@ const STALE_HEARTBEAT_MAX_KYNS: u64 = 28_800;
 /// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
 async fn get_safe_current_kyn(state: &ApiState) -> u64 {
     if let Ok(kyn) = state.network.get_current_kyn().await
-        && kyn > 0 {
-            return kyn;
-        }
+        && kyn > 0
+    {
+        return kyn;
+    }
 
     let kyn_provider =
         kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
     use kinetic_core::traits::KynProvider;
-    match kyn_provider.load_cached_kyn() {
+    match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => kyn.kyn,
         _ => kinetic_core::types::Kyn::now_local().0,
     }
@@ -177,12 +178,10 @@ pub async fn handle_post_heartbeat(
     heartbeat.signature = sig_bytes;
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
-        crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::BadRequest(format!(
-                "Failed to serialize heartbeat: {}",
-                e
-            )),
-        )
+        crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
+            "Failed to serialize heartbeat: {}",
+            e
+        )))
     })?;
 
     match state.network.publish_heartbeat(&normalized, payload).await {
@@ -226,7 +225,11 @@ pub async fn handle_post_fat_heartbeat(
     }
 
     // Verify the capability is present in the manifest
-    let has_cap = req.authorized_manifest.manifest.services.iter()
+    let has_cap = req
+        .authorized_manifest
+        .manifest
+        .services
+        .iter()
         .any(|s| s.service_type == "kinetic.capability.heartbeat");
     if !has_cap {
         return Err(crate::api::error::AppError::from(
@@ -236,11 +239,17 @@ pub async fn handle_post_fat_heartbeat(
 
     // Load the hot key
     let hot_key_bytes = hex::decode(&req.hot_key_hex).map_err(|e| {
-        crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!("Invalid hot_key_hex: {}", e)))
+        crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
+            "Invalid hot_key_hex: {}",
+            e
+        )))
     })?;
-    let keypair = kinetic_primitives::keys::KineticKeypair::from_slice(&hot_key_bytes).map_err(|e| {
-         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!("Invalid ML-DSA keypair: {}", e)))
-    })?;
+    let keypair =
+        kinetic_primitives::keys::KineticKeypair::from_slice(&hot_key_bytes).map_err(|e| {
+            crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
+                format!("Invalid ML-DSA keypair: {}", e),
+            ))
+        })?;
 
     let current_kyn = get_safe_current_kyn(&state).await;
 
@@ -252,7 +261,7 @@ pub async fn handle_post_fat_heartbeat(
     };
 
     let signable_bytes = heartbeat.signable_bytes(constants::NETWORK_SALT);
-    
+
     let sig_bytes = tokio::task::spawn_blocking(move || keypair.sign(&signable_bytes))
         .await
         .map_err(|e| {
@@ -272,12 +281,10 @@ pub async fn handle_post_fat_heartbeat(
     heartbeat.signature = sig_bytes;
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
-        crate::api::error::AppError::from(
-            kinetic_core::error::RestApiError::BadRequest(format!(
-                "Failed to serialize fat heartbeat: {}",
-                e
-            )),
-        )
+        crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
+            "Failed to serialize fat heartbeat: {}",
+            e
+        )))
     })?;
 
     match state.network.publish_heartbeat(&normalized, payload).await {

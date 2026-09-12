@@ -44,7 +44,6 @@ mod tests {
                 pubkey: key_a.public().encode_protobuf(),
                 signature: vec![],
                 previous_proof: None,
-                miner_pubkey: None,
                 authorization: None,
             };
             let keypair = kinetic_primitives::keys::KineticKeypair::generate();
@@ -182,7 +181,10 @@ mod tests {
     #[tokio::test]
     async fn test_dns_timeout() {
         // Start Axum mock server with hanging handler
-        let app = Router::new().route("/api/v1/micro/nrs/resolve/{name}", get(mock_resolve_timeout));
+        let app = Router::new().route(
+            "/api/v1/micro/nrs/resolve/{name}",
+            get(mock_resolve_timeout),
+        );
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let api_port = listener.local_addr().unwrap().port();
         let api_url = format!("http://127.0.0.1:{}", api_port);

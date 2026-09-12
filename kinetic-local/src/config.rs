@@ -101,12 +101,10 @@ pub fn save_config(config: &KineticConfig) -> Result<(), kinetic_core::error::Co
         })?;
     }
 
-    let toml_str = toml::to_string_pretty(config).map_err(|e| {
-        kinetic_core::error::ConfigError::SerializationFailed(e.to_string())
-    })?;
-    fs::write(&config_path, toml_str).map_err(|e| {
-        kinetic_core::error::ConfigError::WriteFailed(e.to_string())
-    })
+    let toml_str = toml::to_string_pretty(config)
+        .map_err(|e| kinetic_core::error::ConfigError::SerializationFailed(e.to_string()))?;
+    fs::write(&config_path, toml_str)
+        .map_err(|e| kinetic_core::error::ConfigError::WriteFailed(e.to_string()))
 }
 
 pub fn get_zones_dir() -> PathBuf {

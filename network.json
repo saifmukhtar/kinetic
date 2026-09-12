@@ -20,8 +20,8 @@
       "https://api3.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest"
     ]
   },
-  "governance": {
-    "governance_model": "sovereign",
+  "action": {
+    "action_model": "sovereign",
     "max_age_kyns": 201600
   },
   "consensus": {
@@ -46,7 +46,7 @@
   "advanced": {
     "benchmark_base_iterations": 238819830,
     "benchmark_target_minutes": 30.0,
-    "steal_target_kyns": 7884000,
+    "takeover_target_kyns": 7884000,
     "m_redundancy": 32,
     "dev_mode_iterations": 1000,
     "limits": {

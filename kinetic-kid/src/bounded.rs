@@ -1,7 +1,7 @@
 //! Bounded Serde deserialization helpers for DoS and OOM protection.
 //!
 //! Standard JSON deserializers allocate memory based on sequence length hints, which
-//! exposes the node to JSON memory bomb attacks (e.g., an array claiming 10 million items).
+//! exposes the node to JSON memory exhaustion attacks (e.g., an array claiming 10 million items).
 //! This module implements strict streaming boundaries that enforce compile-time limits
 //! (derived from `network.json`) *during* stream parsing, instantly aborting on violation
 //! before excessive memory can be allocated.

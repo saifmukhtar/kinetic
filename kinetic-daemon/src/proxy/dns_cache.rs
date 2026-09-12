@@ -23,10 +23,10 @@ impl DnsCache {
 
     /// Gets a cached resolution payload if it exists and has not expired.
     pub fn get(&mut self, name: &str) -> Option<Vec<u8>> {
-        if let Some((payload, timestamp)) = self.cache.get(name) {
-            if timestamp.elapsed() <= self.ttl {
-                return Some(payload.clone());
-            }
+        if let Some((payload, timestamp)) = self.cache.get(name)
+            && timestamp.elapsed() <= self.ttl
+        {
+            return Some(payload.clone());
         }
         None
     }

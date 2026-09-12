@@ -451,7 +451,7 @@ pub enum RegistrationError {
     CommitmentMismatch,
     /// The name was claimed by a different key before this registration completed.
     /// Another user successfully completed their PoW and revealed before your node finished.
-    /// You must choose a different, unregistered name or compute a longer PoW to steal it.
+    /// You must choose a different, unregistered name or compute a longer PoW to take it over.
     #[error("'{name}' is already owned by a different key")]
     AlreadyOwned {
         /// The `.kin` name that is already registered.

@@ -75,7 +75,7 @@ pub enum SystemError {
     #[error("Global concurrency lock poisoned: {0}")]
     MutexPoisoned(String),
 
-    // --- PKI / CA (012–013) ---
+    // --- PKI / CA (012–013, 016) ---
     /// Failed to install the Root CA into the OS system trust store.
     /// The node attempted to install the TLS intercept root cert, but was blocked by the OS.
     /// Follow the manual installation instructions in the Kinetic UI, or run as administrator.
@@ -86,6 +86,11 @@ pub enum SystemError {
     /// Manually delete the `~/.kinetic/certs` folder and restart the daemon.
     #[error("Local Root CA expiring or rotation failed: {0}")]
     CaRotationFailed(String),
+    /// Failed to generate or initialize the local Root Certificate Authority.
+    /// The node requires a valid internal CA to transparently proxy TLS traffic.
+    /// Check system entropy and disk write permissions.
+    #[error("Local Root CA initialization failed: {0}")]
+    CaInitFailed(String),
 
     // --- OS Signals (014–015) ---
     /// Failed to bind to the SIGINT (Ctrl+C) keyboard signal.
@@ -124,6 +129,7 @@ impl SystemError {
             // --- PKI / CA ---
             Self::TrustInstallationFailed(_) => "KIN-SYS-012",
             Self::CaRotationFailed(_) => "KIN-SYS-013",
+            Self::CaInitFailed(_) => "KIN-SYS-016",
             // --- OS Signals ---
             Self::SigIntBindingFailed(_) => "KIN-SYS-014",
             Self::SigTermBindingFailed(_) => "KIN-SYS-015",
@@ -155,6 +161,7 @@ impl SystemError {
             Self::InvalidOsEnvironment(_) => Severity::Critical,
             Self::PrivilegeDropFailed(_) => Severity::Critical,
             Self::MutexPoisoned(_) => Severity::Critical,
+            Self::CaInitFailed(_) => Severity::Critical,
         }
     }
 
@@ -193,6 +200,9 @@ impl SystemError {
                 "Failed to install OS certificate trust.".to_string()
             }
             Self::CaRotationFailed(_) => "Local Certificate Authority rotation failed.".to_string(),
+            Self::CaInitFailed(_) => {
+                "Local Certificate Authority initialization failed.".to_string()
+            }
             Self::SigIntBindingFailed(_) => {
                 "Graceful keyboard shutdown is disabled (Ctrl+C listener failed).".to_string()
             }

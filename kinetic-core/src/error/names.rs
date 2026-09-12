@@ -54,7 +54,7 @@ pub enum NamesError {
 
     /// The name is reserved for critical network protocol functionality (e.g., `seed`, `explorer`, `docs`).
     /// These Category 2 names are locked by the core protocol to ensure official infrastructure remains secure.
-    /// These names are locked until Phase 2 governance is activated. Choose a different name.
+    /// These names are locked until Phase 2 action is activated. Choose a different name.
     #[error("Name is a protected protocol name (e.g., seed, explorer)")]
     ProtocolName,
 

@@ -57,7 +57,7 @@ impl KineticRecordStore {
     /// * `lru_cache_size` - The maximum number of reveals to cache in memory.
     /// * `max_reveals_per_hour` - Rate limit configuration for incoming reveals per apex name.
     /// * `vdf_engine` - The backend engine used to verify VDF proofs.
-    /// * `gov_state` - The global governance state for emergency pause checks.
+    /// * `action_state` - The global action state for emergency pause checks.
     ///
     /// # Panics
     ///
@@ -133,7 +133,7 @@ impl KineticRecordStore {
                         }
                         kinetic_core::types::NameRecord::Prime { .. }
                         | kinetic_core::types::NameRecord::Infra { .. } => {
-                            // Domains injected by governance are implicitly valid.
+                            // Domains injected by action are implicitly valid.
                             is_valid = true;
                         }
                     }
@@ -162,17 +162,17 @@ impl KineticRecordStore {
                 }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if val_bytes.len() == 8 {
-                    // Fix 2: Check for orphaned heartbeats
+                    // Fix 2: Check for unreferenced heartbeats
                     if reveals_by_name.contains(&name) {
                         let kyn = u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0u8; 8]));
                         tracing::info!("[KRS restore] Heartbeat kyn {} for {}", kyn, name);
                         last_heartbeats_by_name.insert(name, kyn);
                     } else {
                         let err =
-                            kinetic_core::error::storage::StorageError::OrphanedHeartbeatPurged;
+                            kinetic_core::error::storage::StorageError::UnreferencedHeartbeatPurged;
                         tracing::warn!(
                             error_code = err.code(),
-                            "[KRS restore] Purging orphaned heartbeat for {}",
+                            "[KRS restore] Purging unreferenced heartbeat for {}",
                             name
                         );
                         let _ = storage.delete(&key_bytes);
@@ -274,9 +274,8 @@ impl KineticRecordStore {
                         expired_names.push(name.clone());
                     }
                 }
-                kinetic_core::types::NameRecord::Prime { granted_at, .. } => {
-                    use kinetic_core::types::clock::UTimeNetworkExt;
-                    let grant_kyn = kinetic_types::clock::UTime(*granted_at).to_network_kyn().0;
+                kinetic_core::types::NameRecord::Prime { kyn, .. } => {
+                    let grant_kyn = *kyn;
                     let last_hb = self
                         .last_heartbeats_by_name
                         .get(name)
@@ -434,7 +433,7 @@ impl KineticRecordStore {
                         return Err(err);
                     }
                 }
-            } else if parsed.get("vdf_proof").is_some() || parsed.get("granted_at").is_some() {
+            } else if parsed.get("vdf_proof").is_some() || parsed.get("kyn").is_some() {
                 match serde_json::from_value::<kinetic_core::types::NameRecord>(parsed) {
                     Ok(record) => {
                         tracing::debug!(
@@ -645,7 +644,7 @@ mod tests {
         let record = kinetic_core::types::NameRecord::Prime {
             name: name.to_string(),
             pubkey: vec![],
-            granted_at: 0,
+            kyn: 0,
             payload: vec![],
             signature: vec![],
             authorization: None,
@@ -698,7 +697,7 @@ mod tests {
         let record = kinetic_core::types::NameRecord::Infra {
             name: name.to_string(),
             pubkey: vec![],
-            granted_at: 0,
+            kyn: 0,
             payload: vec![],
             signature: vec![],
             authorization: None,
@@ -724,7 +723,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_orphaned_heartbeat_cleanup_on_boot() {
+    async fn test_unreferenced_heartbeat_cleanup_on_boot() {
         let dir = tempfile::tempdir().unwrap();
         let storage: std::sync::Arc<dyn kinetic_core::traits::StorageEngine> =
             std::sync::Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
@@ -783,7 +782,7 @@ mod tests {
         let record = kinetic_core::types::NameRecord::Prime {
             name: "large.kin".to_string(),
             pubkey: vec![],
-            granted_at: 0,
+            kyn: 0,
             payload: large_payload,
             signature: vec![],
             authorization: None,

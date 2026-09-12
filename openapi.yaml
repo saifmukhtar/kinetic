@@ -390,7 +390,7 @@ paths:
                 type: object
   /api/v1/micro/action/status:
     get:
-      operationId: getGovernance
+      operationId: getAction
       summary: Get current network action state [Public]
       tags: [Action]
       responses:
@@ -672,8 +672,8 @@ paths:
                 $ref: '#/components/schemas/PublishResponse'
   /api/v1/micro/action/publish:
     post:
-      operationId: publishGovernance
-      summary: Broadcast a signed network action (governance proposal) [Public]
+      operationId: publishAction
+      summary: Broadcast a signed network action (action proposal) [Public]
       tags: [Action]
       requestBody:
         required: true
@@ -739,7 +739,7 @@ paths:
                 type: array
                 items:
                   type: string
-  /api/macro/register:
+  /api/v1/macro/register:
     post:
       operationId: vdfRegister
       summary: Start VDF name registration task [Private]
@@ -765,7 +765,7 @@ paths:
                     type: string
                   message:
                     type: string
-  /api/macro/renew:
+  /api/v1/macro/renew:
     post:
       operationId: vdfRenew
       summary: Start VDF name renewal task [Private]
@@ -791,7 +791,7 @@ paths:
                     type: string
                   message:
                     type: string
-  /api/macro/status/{task_id}:
+  /api/v1/macro/status/{task_id}:
     get:
       operationId: getVdfStatus
       summary: Get status of a VDF task [Private]
@@ -1243,9 +1243,9 @@ paths:
                         type: string
                       hardware_rating:
                         type: string
-  /api/v1/micro/consensus/steal-difficulty/{name}:
+  /api/v1/micro/consensus/takeover-difficulty/{name}:
     get:
-      operationId: getStealDifficulty
+      operationId: getTakeoverDifficulty
       summary: Calculates decay multiplier for taking over idle names [Public]
       tags: [Consensus]
       parameters:
@@ -1261,7 +1261,7 @@ paths:
             type: integer
       responses:
         '200':
-          description: Steal difficulty parameters
+          description: Takeover difficulty parameters
           content:
             application/json:
               schema:
@@ -1312,7 +1312,7 @@ paths:
                     nullable: true
   /api/v1/micro/action/status:
     get:
-      operationId: getGovernanceStatus
+      operationId: getActionStatus
       summary: Retrieves human-readable JSON of network action state, halts, and rules [Public]
       tags: [Action]
       responses:
@@ -1474,7 +1474,7 @@ paths:
                     type: string
                   message:
                     type: string
-  /api/macro/tasks:
+  /api/v1/macro/tasks:
     get:
       operationId: getVdfTasks
       summary: Retrieve all active and completed background VDF tasks [Private]

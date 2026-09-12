@@ -7,8 +7,8 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 readme = "README.md"
-description = "Core governance primitives and post-quantum (ML-DSA-65) serialization for the Kinetic network."
-keywords = ["kinetic", "governance", "ml-dsa", "post-quantum"]
+description = "Core action primitives and post-quantum (ML-DSA-65) serialization for the Kinetic network."
+keywords = ["kinetic", "action", "ml-dsa", "post-quantum"]
 categories = ["cryptography", "data-structures"]
 
 [dependencies]

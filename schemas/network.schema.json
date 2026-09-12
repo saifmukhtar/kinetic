@@ -7,7 +7,7 @@
   "required": [
     "network",
     "drand",
-    "governance",
+    "action",
     "consensus",
     "advanced"
   ],
@@ -69,11 +69,11 @@
         }
       }
     },
-    "governance": {
+    "action": {
       "type": "object",
-      "required": ["governance_model", "max_age_kyns"],
+      "required": ["action_model", "max_age_kyns"],
       "properties": {
-        "governance_model": {
+        "action_model": {
           "type": "string",
           "enum": ["sovereign", "council", "immutable"]
         },

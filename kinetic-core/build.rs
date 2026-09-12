@@ -71,8 +71,8 @@ struct DrandSection {
 }
 
 #[derive(Deserialize)]
-struct GovernanceSection {
-    governance_model: String,
+struct ActionSection {
+    action_model: String,
     max_age_kyns: u64,
 }
 
@@ -80,7 +80,7 @@ struct GovernanceSection {
 struct AdvancedSection {
     benchmark_base_iterations: u64,
     benchmark_target_minutes: Option<f64>,
-    steal_target_kyns: u64,
+    takeover_target_kyns: u64,
     m_redundancy: u8,
     dev_mode_iterations: u64,
     limits: LimitsConfig,
@@ -91,7 +91,8 @@ struct AdvancedSection {
 struct NetworkConfig {
     network: NetworkSection,
     drand: DrandSection,
-    governance: GovernanceSection,
+    #[serde(alias = "action")]
+    action: ActionSection,
     consensus: ConsensusConfig,
     advanced: AdvancedSection,
 }
@@ -156,8 +157,8 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The number of kyns a name must be inactive before the steal difficulty completely decays.\npub const STEAL_TARGET_KYNS: u64 = {};\n\n",
-        config.advanced.steal_target_kyns
+        "/// The number of kyns a name must be inactive before the takeover difficulty completely decays.\npub const TAKEOVER_TARGET_KYNS: u64 = {};\n\n",
+        config.advanced.takeover_target_kyns
     ));
 
     // Safety floor: refuse to compile a network with fewer than 5 redundant DHT keys.
@@ -179,9 +180,9 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The swappable governance engine used by this network.\n\
-         pub const GOVERNANCE_MODEL: &str = \"{}\";\n\n",
-        config.governance.governance_model
+        "/// The swappable action engine used by this network.\n\
+         pub const ACTION_MODEL: &str = \"{}\";\n\n",
+        config.action.action_model
     ));
 
     let local_bind_ip = &config.network.local_bind_ip;
@@ -192,8 +193,8 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The maximum age (in kyns) a governance proposal is valid before it expires.\npub const MAX_AGE_KYNS: u64 = {};\n\n",
-        config.governance.max_age_kyns
+        "/// The maximum age (in kyns) a action proposal is valid before it expires.\npub const MAX_AGE_KYNS: u64 = {};\n\n",
+        config.action.max_age_kyns
     ));
 
     out.push_str(&format!(
@@ -357,7 +358,7 @@ fn main() {
     out.push_str(&format!("/// Network prune interval in seconds\npub const TIMEOUTS_NETWORK_PRUNE_INTERVAL_SECONDS: u64 = {};\n", config.advanced.timeouts.network_prune_interval_seconds));
     out.push_str(&format!("/// Maximum age of a host route in seconds\npub const TIMEOUTS_HOST_ROUTE_MAX_AGE_SECONDS: u64 = {};\n\n", config.advanced.timeouts.host_route_max_age_seconds));
 
-    // Compile-time Governance Network Salt Calculation
+    // Compile-time Action Network Salt Calculation
     // Extract the ROOT_PUBLIC_KEY_HEX from src/constants.rs so we can bake the salted hashes into the binary.
     let constants_src =
         fs::read_to_string("src/constants.rs").expect("build.rs failed to read src/constants.rs");

@@ -13,7 +13,7 @@
 //! - **[`types`]** — Shared wire-format types ([`NrsZone`](types::NrsZone), [`NrsRecord`](types::NrsRecord), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
 //! - **[`error`]** — Unified error logbook ([`KineticError`](error::KineticError)), domain errors ([`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), [`RegistrationError`](error::RegistrationError)), and stable error codes.
 //! - **[`traits`]** — Core abstraction traits ([`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine)).
-//! - **[`governance`]** — Sovereign state machine and parameter rulebooks governing privileged protocol actions.
+//! - **[`action`]** — Sovereign state machine and parameter rulebooks controlling privileged protocol actions.
 //! - **[`consensus_math`]** — Deterministic math routines for VDF difficulty scaling, name-length pricing, and grace period calculations.
 //! - **[`drand`]** — Client interface for the drand distributed randomness beacon used in time-bound operations.
 //! - **[`net`]** — Network security primitives, IP classification, and SSRF prevention guards.
@@ -53,5 +53,5 @@ pub use error::{
     KineticError, PublishError, RecordRejectReason, RegistrationError, ResolutionError, Severity,
     VdfRejectReason,
 };
-/// Protocol governance: sovereign actions, root keys, and parameter updates.
-pub mod governance;
+/// Protocol action: sovereign actions, root keys, and parameter updates.
+pub mod action;

@@ -457,11 +457,11 @@ mod tests {
         let challenge = Commitment { hash: [0xCDu8; 32] };
 
         // Build a structurally valid 512-byte proof filled with arbitrary bytes
-        let fake_proof = VdfProof {
+        let invalid_proof = VdfProof {
             proof_bytes: vec![0x42u8; 512],
         };
 
-        let result = engine.verify(&challenge, &fake_proof, 0);
+        let result = engine.verify(&challenge, &invalid_proof, 0);
         assert!(
             matches!(result, Err(VdfError::InvalidProof)),
             "SECURITY FLAW: verify(iterations=0) did not return InvalidProof! Got: {:?}",

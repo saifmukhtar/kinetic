@@ -2,7 +2,7 @@ use kinetic_core::types::RevealExt;
 use kinetic_core::types::{Reveal, VdfProof};
 
 #[test]
-fn test_subdomain_hijack_validation() {
+fn test_subdomain_escalation_validation() {
     let invalid_reveal = Reveal {
         protocol_version: 1,
         name: format!(
@@ -21,7 +21,6 @@ fn test_subdomain_hijack_validation() {
         pubkey: vec![0; 1952],
         signature: vec![0; 4627],
         previous_proof: None,
-        miner_pubkey: None,
         authorization: None,
     };
 
@@ -44,7 +43,6 @@ fn test_subdomain_hijack_validation() {
         pubkey: vec![0; 1952],
         signature: vec![0; 4627],
         previous_proof: None,
-        miner_pubkey: None,
         authorization: None,
     };
 

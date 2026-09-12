@@ -1,6 +1,6 @@
 # Kinetic Types
 
-Core governance primitives, time constants, and post-quantum (ML-DSA-65) serialization logic for the Kinetic Network.
+Core action primitives, time constants, and post-quantum (ML-DSA-65) serialization logic for the Kinetic Network.
 
 ## Architecture
 

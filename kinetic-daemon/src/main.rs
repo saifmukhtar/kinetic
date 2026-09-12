@@ -190,7 +190,10 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run '{}-daemon start' to begin.", kinetic_core::constants::NSP);
+    println!(
+        "Service installed successfully. Run '{}-daemon start' to begin.",
+        kinetic_core::constants::NSP
+    );
     Ok(())
 }
 
@@ -233,7 +236,7 @@ fn stop_background_service() -> Result<()> {
 /// Executes the main logic for the Kinetic Daemon.
 ///
 /// This function is responsible for:
-/// - Validating the governance key state.
+/// - Validating the action key state.
 /// - Initializing database storage and the VDF engine.
 /// - Starting the Drand heartbeat and PoW sybil mining loop.
 /// - Establishing the Kademlia P2P Swarm.
@@ -243,10 +246,10 @@ fn stop_background_service() -> Result<()> {
 ///
 /// Returns an `anyhow::Error` if any fundamental networking or storage components fail to bind/initialize.
 async fn run_daemon() -> Result<()> {
-    if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
+    if let Err(e) = kinetic_core::action::logic::validate_keys_initialized() {
         tracing::error!(
             error_code = e.code(),
-            "FATAL: Network cannot boot with a bricked governance plane: {}",
+            "FATAL: Network cannot boot with a bricked action plane: {}",
             e
         );
         std::process::exit(1);
@@ -285,7 +288,7 @@ async fn run_daemon() -> Result<()> {
     let base_config_dir = kinetic_local::config::get_base_dir();
     let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
-    
+
     let storage_path = storage_dir.join("kinetic.db");
     let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
     info!("Storage engine initialized at {:?}", storage_path);
@@ -294,11 +297,11 @@ async fn run_daemon() -> Result<()> {
     info!("VDF Engine initialized");
 
     info!("Running CPU micro-benchmark for VDF ETA calibration...");
-    let dummy_challenge = kinetic_types::vdf::Commitment { hash: [0u8; 32] };
+    let calibration_challenge = kinetic_types::vdf::Commitment { hash: [0u8; 32] };
     let start = std::time::Instant::now();
     let _ = tokio::task::spawn_blocking({
         let engine = vdf_engine.clone();
-        move || engine.evaluate(&dummy_challenge, 5000)
+        move || engine.evaluate(&calibration_challenge, 5000)
     })
     .await;
     let elapsed = start.elapsed().as_secs_f64();
@@ -429,22 +432,18 @@ async fn run_daemon() -> Result<()> {
         return Err(e.into());
     }
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
+    let action_state_path = std::env::var(kinetic_core::constants::ENV_ACTION)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| storage_dir.join("action.db"));
 
-
-
-    let gov_state_path = std::sync::Arc::new(gov_state_path);
+    let action_state_path = std::sync::Arc::new(action_state_path);
     {
-        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
-            .lock()
-            .map_err(|e| {
-                anyhow::Error::from(kinetic_core::error::SystemError::MutexPoisoned(
-                    e.to_string(),
-                ))
-            })?;
-        *gov = kinetic_local::governance::load_governance_from_disk(&gov_state_path);
+        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+        // Load into state from binary
+        // Note: this will overwrite the genesis kyn with the one saved in the binary!
+        // so when we do `--delete-action-state`, the genesis_kyn might reset back
+        // depending on the behavior in `load_action_from_disk`.
+        *action_state = kinetic_local::action::load_action_from_disk(&action_state_path);
     }
 
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::channel(32);
@@ -474,43 +473,63 @@ async fn run_daemon() -> Result<()> {
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL)
         .await;
 
-    // Push initial local governance log to the network cache
+    // Push initial local action log to the network cache
     {
-        let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+        let action_log = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
-            .unwrap();
-        let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
+            .unwrap()
+            .action_log
+            .clone();
+        let _ = network_client.update_action_log(action_log).await;
     }
 
     // If local state is empty, perform a P2P sync
     {
-        let is_empty = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+        let is_empty = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
             .unwrap()
-            .action_log.is_empty();
+            .action_log
+            .is_empty();
 
         if is_empty {
-            tracing::info!("Local governance state is empty. Attempting P2P GovSync...");
+            tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await; // give it time to connect
             if let Ok(peers) = network_client.get_connected_peers().await {
                 for peer_str in peers {
-                    if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
-                        if let Ok(resp) = network_client.send_gov_sync_request(peer_id, kinetic_types::governance::GovSyncRequest { from_kyn: 0 }).await {
-                            if !resp.actions.is_empty() {
-                                tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
-                                let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
-                                for msg in &resp.actions {
-                                    if let Err(e) = kinetic_core::governance::process_governance_message(&mut gov, msg, kinetic_types::clock::Kyn(0)) {
-                                        tracing::error!("Failed to apply synced gov action: {}", e);
-                                    }
+                    if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>()
+                        && let Ok(resp) = network_client
+                            .send_action_sync_request(
+                                peer_id,
+                                kinetic_types::action::ActionSyncRequest { from_kyn: 0 },
+                            )
+                            .await
+                        && !resp.actions.is_empty()
+                    {
+                        tracing::info!(
+                            "Received {} action actions from {}",
+                            resp.actions.len(),
+                            peer_id
+                        );
+                        let action_log = {
+                            let mut action_state =
+                                kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                            for msg in &resp.actions {
+                                if let Err(e) = kinetic_core::action::process_action_message(
+                                    &mut action_state,
+                                    msg,
+                                    kinetic_types::clock::Kyn(0),
+                                ) {
+                                    tracing::error!("Failed to apply synced action: {}", e);
                                 }
-                                kinetic_local::governance::save_governance_to_disk(&*gov, &gov_state_path);
-                                drop(gov);
-                                let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
-                                let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
-                                break;
                             }
-                        }
+                            let _ = kinetic_local::action::save_action_to_disk(
+                                &action_state,
+                                &action_state_path,
+                            );
+                            action_state.action_log.clone()
+                        };
+                        let _ = network_client.update_action_log(action_log).await;
+                        break;
                     }
                 }
             }
@@ -534,7 +553,7 @@ async fn run_daemon() -> Result<()> {
     kinetic_daemon::services::gossip::start_gossip_processor(
         network_client.clone(),
         gossip_rx,
-        gov_state_path.clone(),
+        action_state_path.clone(),
         kyn_provider.clone(),
         kyn_tx.clone(),
         Some(storage.clone()),
@@ -563,10 +582,12 @@ async fn run_daemon() -> Result<()> {
         Ok((root_ca, _is_new)) => std::sync::Arc::new(root_ca),
         Err(e) => {
             tracing::error!(
-                error = ?kinetic_core::error::SystemError::TrustInstallationFailed(e.to_string()),
+                error = ?kinetic_core::error::SystemError::CaInitFailed(e.to_string()),
                 "Failed to initialize Root CA"
             );
-            return Err(anyhow::anyhow!("CA Init Failed: {}", e));
+            return Err(anyhow::Error::from(
+                kinetic_core::error::SystemError::CaInitFailed(e.to_string()),
+            ));
         }
     };
 
@@ -725,7 +746,7 @@ async fn run_daemon() -> Result<()> {
         info!("API Server gracefully shut down.");
     }
 
-    // Guaranteed OS PAC Proxy cleanup on exit (Fixes Orphaned Proxy Blackhole)
+    // Guaranteed OS PAC Proxy cleanup on exit (Fixes Dangling Proxy Connection)
     let _ = std::fs::remove_file(&proxy_json_path);
     info!("Safely removed PAC proxy registration from OS.");
 

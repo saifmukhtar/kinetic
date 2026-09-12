@@ -211,7 +211,7 @@ mod fuzzing {
             let key_path = dir.path().join("fuzz_key.bin");
             let _ = std::fs::write(&key_path, &file_content);
 
-            // This function must gracefully ignore the garbage and mint a new identity
+            // This function must gracefully ignore corrupted keyfiles and mint a new identity
             let key = load_or_generate_key(&key_path);
             assert!(!key.public().to_peer_id().to_string().is_empty());
         }

@@ -28,10 +28,10 @@ pub struct KineticBehavior {
         kinetic_types::cdn::CdnResponse,
     >,
 
-    /// Request-response protocol for syncing governance state.
-    pub gov_sync: libp2p::request_response::cbor::Behaviour<
-        kinetic_types::governance::GovSyncRequest,
-        kinetic_types::governance::GovSyncResponse,
+    /// Request-response protocol for syncing action state.
+    pub action_sync: libp2p::request_response::cbor::Behaviour<
+        kinetic_types::action::ActionSyncRequest,
+        kinetic_types::action::ActionSyncResponse,
     >,
 
     /// Stream protocol for passing raw traffic.

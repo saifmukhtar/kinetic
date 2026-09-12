@@ -140,7 +140,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/health?foo=bar")
+                    .uri("/health?verbose=true")
                     .body(Body::empty())
                     .unwrap(),
             )

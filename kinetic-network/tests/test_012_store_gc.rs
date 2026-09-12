@@ -6,7 +6,7 @@ use libp2p::kad::store::RecordStore;
 use tempfile::tempdir;
 
 #[tokio::test]
-async fn test_store_garbage_collection() {
+async fn test_store_pruning() {
     let dir = tempdir().unwrap();
     let storage = KineticStorage::new(dir.path().join("state.db")).unwrap();
     let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =

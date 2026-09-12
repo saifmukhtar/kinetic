@@ -17,7 +17,6 @@ fn test_reveal_crypto_lengths() {
         pubkey: vec![0; 1952],    // ML-DSA-65 exact len
         signature: vec![0; 4627], // ML-DSA-65 exact len
         previous_proof: None,
-        miner_pubkey: None,
         authorization: None,
     };
 

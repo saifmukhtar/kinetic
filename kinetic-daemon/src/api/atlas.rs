@@ -44,7 +44,7 @@ pub async fn handle_atlas_sync(
                 count,
                 clean_nsps
             );
-            
+
             *lock = clean_nsps;
 
             Ok(Json(serde_json::json!({

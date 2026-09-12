@@ -1,8 +1,8 @@
-//! HTTP REST API handlers for querying the Governance transparency layer.
+//! HTTP REST API handlers for querying the Action transparency layer.
 
 use axum::Json;
 use kinetic_core::types::KynNetworkExt;
-use kinetic_local::governance::GLOBAL_GOVERNANCE_STATE;
+use kinetic_local::action::GLOBAL_ACTION_STATE;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -22,14 +22,14 @@ pub struct ActionMetrics {
     pub total_prime_names: usize,
     /// Count of mapped infrastructure root names.
     pub total_infra_names: usize,
-    /// Total number of governance/action commands executed since genesis.
+    /// Total number of action/action commands executed since genesis.
     pub total_executed_actions: usize,
 }
 
-/// A frontend-friendly representation of the Action/Governance State.
+/// A frontend-friendly representation of the Action/Action State.
 #[derive(Serialize)]
 pub struct ActionStatusResponse {
-    /// Genesis Kyn when governance tracking started.
+    /// Genesis Kyn when action tracking started.
     pub genesis_kyn: u64,
     /// The current exact network Kyn.
     pub current_kyn: u64,
@@ -53,10 +53,14 @@ pub struct ActionStatusResponse {
 pub async fn handle_get_action_status(
     axum::extract::State(state): axum::extract::State<crate::api::ApiState>,
 ) -> Result<Json<ActionStatusResponse>, crate::api::error::AppError> {
-    let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
+    let action_state = GLOBAL_ACTION_STATE.lock().map_err(|e| {
         let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
         crate::api::error::AppError(kinetic_rpc::ApiError {
-            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            error_type: format!(
+                "{}/errors/{}",
+                kinetic_core::constants::DOCS_URL,
+                sys_err.code()
+            ),
             title: "Internal Server Error".to_string(),
             status: 500,
             detail: sys_err.user_message(),
@@ -68,42 +72,45 @@ pub async fn handle_get_action_status(
         })
     })?;
 
-    let active_key_hex = gov.active_sovereign_key.as_ref().map(hex::encode);
+    let active_key_hex = action_state.active_sovereign_key.as_ref().map(hex::encode);
 
     // Fetch verified Kyn from the node's constantly updating local cache
     let current_kyn = {
         let kyn_provider =
             kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
         use kinetic_core::traits::KynProvider;
-        match kyn_provider.load_cached_kyn() {
+        match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn,
             Err(_) => kinetic_core::types::Kyn::now_local().0, // Fallback to OS clock if DB is completely empty (genesis)
         }
     };
 
     let active_kyn_age = current_kyn
-        .saturating_sub(gov.genesis_kyn.0)
-        .saturating_sub(gov.total_paused_kyns);
+        .saturating_sub(action_state.genesis_kyn.0)
+        .saturating_sub(action_state.total_paused_kyns);
 
-    let last_pause = gov.pause_history.last().map(|(start, end)| PausePeriod {
-        start_kyn: start.0,
-        end_kyn: end.0,
-    });
+    let last_pause = action_state
+        .pause_history
+        .last()
+        .map(|(start, end)| PausePeriod {
+            start_kyn: start.0,
+            end_kyn: end.0,
+        });
 
     let metrics = ActionMetrics {
-        total_prime_names: gov.mapped_prime_names.len(),
-        total_infra_names: gov.mapped_infra_names.len(),
-        total_executed_actions: gov.executed_hashes.len(),
+        total_prime_names: action_state.mapped_prime_names.len(),
+        total_infra_names: action_state.mapped_infra_names.len(),
+        total_executed_actions: action_state.executed_hashes.len(),
     };
 
     Ok(Json(ActionStatusResponse {
-        genesis_kyn: gov.genesis_kyn.0,
+        genesis_kyn: action_state.genesis_kyn.0,
         current_kyn,
         active_kyn_age,
         active_sovereign_key_hex: active_key_hex,
-        is_halted: gov.is_halted,
-        halt_start_kyn: gov.halt_start_kyn.map(|k| k.0),
-        total_paused_kyns: gov.total_paused_kyns,
+        is_halted: action_state.is_halted,
+        halt_start_kyn: action_state.halt_start_kyn.map(|k| k.0),
+        total_paused_kyns: action_state.total_paused_kyns,
         last_pause,
         metrics,
     }))
@@ -119,11 +126,16 @@ pub struct ActionNamesResponse {
 }
 
 /// Handles requests to retrieve all mapped Action names (primes and infras) in a single call.
-pub async fn handle_get_action_names() -> Result<Json<ActionNamesResponse>, crate::api::error::AppError> {
-    let gov = GLOBAL_GOVERNANCE_STATE.lock().map_err(|e| {
+pub async fn handle_get_action_names()
+-> Result<Json<ActionNamesResponse>, crate::api::error::AppError> {
+    let action_state = GLOBAL_ACTION_STATE.lock().map_err(|e| {
         let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
         crate::api::error::AppError(kinetic_rpc::ApiError {
-            error_type: format!("{}/errors/{}", kinetic_core::constants::DOCS_URL, sys_err.code()),
+            error_type: format!(
+                "{}/errors/{}",
+                kinetic_core::constants::DOCS_URL,
+                sys_err.code()
+            ),
             title: "Internal Server Error".to_string(),
             status: 500,
             detail: sys_err.user_message(),
@@ -135,13 +147,13 @@ pub async fn handle_get_action_names() -> Result<Json<ActionNamesResponse>, crat
         })
     })?;
 
-    let primes = gov
+    let primes = action_state
         .mapped_prime_names
         .iter()
         .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
         .collect::<HashMap<String, String>>();
 
-    let infras = gov
+    let infras = action_state
         .mapped_infra_names
         .iter()
         .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
@@ -152,33 +164,30 @@ pub async fn handle_get_action_names() -> Result<Json<ActionNamesResponse>, crat
 
 use crate::api::ApiState;
 use crate::api::PublishResponse;
-use axum::{extract::State, http::StatusCode};
+use axum::extract::State;
 use kinetic_core::traits::KynProvider;
 
-/// Handles API requests to publish a `SignedGovernanceMessage` to the DHT/Gossip network.
+/// Handles API requests to publish a `SignedActionMessage` to the DHT/Gossip network.
 ///
 /// # Errors
 ///
-/// Returns an error if the governance message is invalid, quorum checks fail prematurely,
+/// Returns an error if the action message is invalid, quorum checks fail prematurely,
 /// or publishing to the Gossipsub network fails.
 pub async fn handle_publish_action(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
-    Json(msg): Json<kinetic_core::governance::SignedGovernanceMessage>,
-) -> Result<Json<PublishResponse>, (StatusCode, String)> {
+    Json(msg): Json<kinetic_core::action::SignedActionMessage>,
+) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_action() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "Insufficient privileges: Requires Action or Admin role".to_string(),
-        ));
+        return Err(kinetic_core::error::RestApiError::InsufficientPrivileges.into());
     }
-    tracing::info!("Received API publish request for Governance action");
+    tracing::info!("Received API publish request for Action action");
 
-    let current_kyn = {
+    let _current_kyn = {
         let kyn_provider =
             kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
         use kinetic_core::types::clock::KynNetworkExt;
-        match kyn_provider.load_cached_kyn() {
+        match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn,
             Err(_) => match kyn_provider.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,
@@ -188,16 +197,15 @@ pub async fn handle_publish_action(
     };
 
     let is_valid = {
-        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        match kinetic_core::governance::process_governance_message(
-            &mut gov,
+        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+        let res = kinetic_core::action::process_action_message(
+            &mut action_state,
             &msg,
-            kinetic_types::clock::Kyn(current_kyn),
-        ) {
+            kinetic_types::clock::Kyn(0), // Doesn't matter because it relies on signed_timestamp anyway
+        );
+        match res {
             Ok(_) => {
-                let path = std::env::var(kinetic_core::constants::ENV_GOV)
+                let path = std::env::var(kinetic_core::constants::ENV_ACTION)
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|_| {
                         let config = kinetic_local::config::load_config();
@@ -205,11 +213,11 @@ pub async fn handle_publish_action(
                             .join(config.daemon.storage_dir)
                             .join("action.db")
                     });
-                if let Err(e) = kinetic_local::governance::save_governance_to_disk(&gov, &path) {
-                    let err = kinetic_core::error::GovernanceError::StateSaveFailed;
+                if let Err(e) = kinetic_local::action::save_action_to_disk(&action_state, &path) {
+                    let err = kinetic_core::error::ActionError::StateSaveFailed;
                     tracing::error!(
                         error_code = err.code(),
-                        "Failed to save modified governance state to disk: {}",
+                        "Failed to save modified action state to disk: {}",
                         e
                     );
                 }
@@ -219,36 +227,40 @@ pub async fn handle_publish_action(
             Err(e) => {
                 tracing::warn!(
                     error_code = e.code(),
-                    "Rejecting governance message via API: {}",
+                    "Rejecting action message via API: {}",
                     e
                 );
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    format!("Invalid governance message: {}", e),
-                ));
+                return Err(kinetic_core::error::RestApiError::BadRequest(format!(
+                    "Invalid action message: {}",
+                    e
+                ))
+                .into());
             }
         }
     };
 
     if !is_valid {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Governance message validation failed".to_string(),
-        ));
+        return Err(kinetic_core::error::RestApiError::BadRequest(
+            "Action message validation failed".to_string(),
+        )
+        .into());
     }
 
     // Serialize and gossip
     let payload_bytes = match serde_json::to_vec(&msg) {
         Ok(b) => b,
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Serialization failed: {}", e),
-            ));
+            return Err(
+                kinetic_core::error::RestApiError::InternalServerError(format!(
+                    "Serialization failed: {}",
+                    e
+                ))
+                .into(),
+            );
         }
     };
 
-    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Governance as u8];
+    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Action as u8];
     envelope.extend(payload_bytes);
 
     match state
@@ -257,24 +269,26 @@ pub async fn handle_publish_action(
         .await
     {
         Ok(_) => {
-            tracing::info!("Successfully published Governance Message to the Gossip network");
+            tracing::info!("Successfully published Action Message to the Gossip network");
             Ok(Json(PublishResponse {
                 status: "success".to_string(),
-                message: "Governance action accepted and routed to P2P network".to_string(),
+                message: "Action action accepted and routed to P2P network".to_string(),
             }))
         }
         Err(e) => {
-            let err = kinetic_core::error::GovernanceError::P2pPublishFailed;
+            let err = kinetic_core::error::ActionError::P2pPublishFailed;
             tracing::error!(
                 error_code = err.code(),
-                "Failed to publish Governance Message to P2P network: {}",
+                "Failed to publish Action Message to P2P network: {}",
                 e
             );
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to broadcast: {}", e),
-            ))
+            Err(
+                kinetic_core::error::RestApiError::InternalServerError(format!(
+                    "Failed to broadcast: {}",
+                    e
+                ))
+                .into(),
+            )
         }
     }
 }
-

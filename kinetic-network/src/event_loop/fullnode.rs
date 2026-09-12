@@ -156,13 +156,13 @@ pub(crate) fn build_full_swarm(
                 libp2p::request_response::Config::default(),
             );
 
-            let gov_sync = libp2p::request_response::cbor::Behaviour::<
-                kinetic_types::governance::GovSyncRequest,
-                kinetic_types::governance::GovSyncResponse,
+            let action_sync = libp2p::request_response::cbor::Behaviour::<
+                kinetic_types::action::ActionSyncRequest,
+                kinetic_types::action::ActionSyncResponse,
             >::new(
                 [(
                     libp2p::StreamProtocol::try_from_owned(format!(
-                        "/{}/gov-sync/1.0.0",
+                        "/{}/action-sync/1.0.0",
                         kinetic_core::constants::NETWORK_SALT_HEX
                     ))
                     .unwrap(),
@@ -248,7 +248,7 @@ pub(crate) fn build_full_swarm(
                 ping,
                 proxy,
                 cdn,
-                gov_sync,
+                action_sync,
                 stream,
                 kademlia,
                 gossipsub,
@@ -301,9 +301,9 @@ pub(crate) fn build_full_swarm(
     }
 
     if !tcp_success && !quic_success {
-        return Err(anyhow::anyhow!(
-            "FATAL: Failed to bind to any TCP or QUIC listening ports. Cannot operate as a Full Node."
-        ));
+        return Err(anyhow::Error::from(kinetic_core::error::SystemError::PortInUse(
+            "FATAL: Failed to bind to any TCP or QUIC listening ports. Cannot operate as a Full Node.".to_string()
+        )));
     }
 
     if let Some(addr) = &config.external_address {

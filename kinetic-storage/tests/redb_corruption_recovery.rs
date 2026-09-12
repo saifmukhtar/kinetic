@@ -11,7 +11,7 @@ fn test_db_corruption_recovery() {
     let corrupt_file = db_dir.join("state.db");
     fs::write(
         &corrupt_file,
-        b"this is completely invalid garbage data for the database that definitely isn't a valid database file header whatsoever it should be at least a few bytes long",
+        b"this is completely invalid corrupted data for the database that definitely isn't a valid database file header whatsoever it should be at least a few bytes long",
     )
     .unwrap();
 

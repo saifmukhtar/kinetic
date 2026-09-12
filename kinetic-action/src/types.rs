@@ -1,21 +1,20 @@
-//! Data structures and serialized action types for network governance.
+//! Data structures and serialized action types for network action.
 //!
-//! Defines the complete set of [`GovernanceAction`] variants, the persistent [`GovernanceState`],
-//! the [`SignedGovernanceMessage`] proposal envelope, and canonical byte serialization.
+//! Defines the complete set of [`NetworkAction`] variants, the persistent [`ActionState`],
+//! the [`SignedActionMessage`] proposal envelope, and canonical byte serialization.
 //!
 //! ## Protocol Context
 //!
-//! All governance state changes follow a two-phase commit protocol:
-//! 1. A [`SignedGovernanceMessage`] is broadcast with one or more ML-DSA-65 signatures.
-//! 2. Threshold verification by the active [`GovernanceEngine`](crate::traits::GovernanceEngine)
+//! All action state changes follow a two-phase commit protocol:
+//! 1. A [`SignedActionMessage`] is broadcast with one or more ML-DSA-65 signatures.
+//! 2. Threshold verification by the active [`ActionEngine`](crate::traits::ActionEngine)
 //!    determines whether the action is immediately executed or enters a timelock queue.
 //!
 //! In **Sovereign mode**, the Root key acts as a single-signer authority.
-
 use std::collections::HashMap;
 
-pub use kinetic_types::governance::{
-    GovernanceAction, Hash256, PublicKeyBytes, SignatureBytes, SignedGovernanceMessage,
+pub use kinetic_types::action::{
+    Hash256, NetworkAction, PublicKeyBytes, SignatureBytes, SignedActionMessage,
 };
 
 /// Verifies an ML-DSA-65 post-quantum signature over a message byte slice.
@@ -28,9 +27,9 @@ pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
     kinetic_primitives::verify_mldsa(pubkey, msg, sig).is_ok()
 }
 
-/// Side effects produced when a governance action is executed.
+/// Side effects produced when a action action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum GovernanceEffect {
+pub enum ActionEffect {
     /// Inform node subsystems of a prime name mapping.
     PrimeMapped {
         /// Granted 1-character name.
@@ -66,10 +65,10 @@ pub enum GovernanceEffect {
     NetworkResumed,
 }
 
-/// Persistent on-disk state container for the network governance subsystem.
+/// Persistent on-disk state container for the network action subsystem.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GovernanceState {
-    /// Genesis Kyn when governance tracking started.
+pub struct ActionState {
+    /// Genesis Kyn when action tracking started.
     pub genesis_kyn: kinetic_types::clock::Kyn,
     /// Active ML-DSA-65 root public key controlling the network.
     pub active_sovereign_key: Option<PublicKeyBytes>,
@@ -89,8 +88,8 @@ pub struct GovernanceState {
     /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
     #[serde(default)]
-    /// Append-only log of all executed signed governance messages (used for P2P state syncing).
-    pub action_log: Vec<kinetic_types::governance::SignedGovernanceMessage>,
+    /// Append-only log of all executed signed action messages (used for P2P state syncing).
+    pub action_log: Vec<kinetic_types::action::SignedActionMessage>,
     /// Active 1-character prime names and their associated ML-DSA-65 public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
@@ -99,7 +98,7 @@ pub struct GovernanceState {
     pub mapped_infra_names: HashMap<String, PublicKeyBytes>,
 }
 
-impl GovernanceState {
+impl ActionState {
     /// Calculates the exact number of paused kyns that occurred *after* a specific target kyn.
     pub fn paused_kyns_since(&self, target_kyn: kinetic_types::clock::Kyn) -> u64 {
         let mut total = 0;
@@ -126,8 +125,8 @@ mod tests {
     use kinetic_types::clock::Kyn;
     use std::collections::HashMap;
 
-    fn mock_state() -> GovernanceState {
-        GovernanceState {
+    fn mock_state() -> ActionState {
+        ActionState {
             genesis_kyn: Kyn(0),
             active_sovereign_key: None,
             is_halted: false,
@@ -199,15 +198,15 @@ mod tests {
     }
 }
 
-/// Configuration constants required for governance evaluation.
+/// Configuration constants required for action evaluation.
 #[derive(Debug, Clone)]
-pub struct GovernanceConfig {
+pub struct ActionConfig {
     /// The root public key hex string used to verify actions.
     pub sovereign_key_hex: String,
     /// Maximum age of a proposal in kyns before it is considered stale.
     pub max_age_kyns: u64,
     /// Whether the network is running in dev mode (bypasses root key validation).
     pub is_dev_mode: bool,
-    /// The governance model to use ("sovereign" or "permissionless").
-    pub governance_model: String,
+    /// The action model to use ("sovereign" or "permissionless").
+    pub action_model: String,
 }

@@ -179,8 +179,6 @@ pub struct Reveal {
     pub authorization: Option<Box<crate::identity::AuthorizedManifest>>,
     /// Optional chained proof for name renewal operations.
     pub previous_proof: Option<PreviousProof>,
-    /// Optional public key of the miner that computed the VDF proof.
-    pub miner_pubkey: Option<Vec<u8>>,
 }
 
 impl Reveal {
@@ -208,11 +206,6 @@ impl Reveal {
 
         if self.previous_proof.is_some() {
             capacity += 4 + prev_proof_bytes.len();
-        }
-
-        capacity += 1; // miner_pubkey option flag
-        if let Some(miner_pk) = &self.miner_pubkey {
-            capacity += 4 + miner_pk.len();
         }
 
         let mut bytes = Vec::with_capacity(capacity);
@@ -244,14 +237,6 @@ impl Reveal {
             bytes.push(1);
             bytes.extend_from_slice(&(prev_proof_bytes.len() as u32).to_be_bytes());
             bytes.extend_from_slice(&prev_proof_bytes);
-        } else {
-            bytes.push(0);
-        }
-
-        if let Some(miner_pk) = &self.miner_pubkey {
-            bytes.push(1);
-            bytes.extend_from_slice(&(miner_pk.len() as u32).to_be_bytes());
-            bytes.extend_from_slice(miner_pk);
         } else {
             bytes.push(0);
         }

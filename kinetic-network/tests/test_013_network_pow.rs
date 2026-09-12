@@ -1,4 +1,4 @@
-use kinetic_network::pow::{verify_p2p_pow, mine_p2p_keypair};
+use kinetic_network::pow::{mine_p2p_keypair, verify_p2p_pow};
 use kinetic_types::clock::Kyn;
 use libp2p::PeerId;
 #[test]

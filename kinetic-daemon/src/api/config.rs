@@ -1,4 +1,4 @@
-//! HTTP REST API endpoints for daemon configuration, node status, owned names, and governance state.
+//! HTTP REST API endpoints for daemon configuration, node status, owned names, and action state.
 
 use super::*;
 use axum::{
@@ -154,7 +154,9 @@ pub async fn handle_set_config(
             let err = kinetic_core::error::ConfigError::InvalidApiUpdate(
                 "Missing 'config' object in payload.".to_string(),
             );
-            return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(err)));
+            return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(
+                err,
+            )));
         }
     };
 
@@ -249,9 +251,6 @@ pub async fn handle_get_peer_id(
         Err(e) => Err(crate::api::error::AppError::from(e)),
     }
 }
-
-
-
 
 /// Flushes the local DNS resolution memory cache.
 pub async fn handle_dns_flush(

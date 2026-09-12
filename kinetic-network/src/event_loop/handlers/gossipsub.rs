@@ -54,24 +54,23 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                             return kyn.verify();
                         }
                         return false;
-                    } else if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
-                        if kinetic_core::constants::GOVERNANCE_MODEL == "permissionless" {
+                    } else if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
+                        if kinetic_core::constants::ACTION_MODEL == "permissionless" {
                             return false;
                         }
                         if let Ok(signed_msg) = serde_json::from_slice::<
-                            kinetic_core::governance::SignedGovernanceMessage,
+                            kinetic_core::action::SignedActionMessage,
                         >(actual_payload)
                         {
-                            let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
-                                .lock()
-                                .unwrap_or_else(|e| e.into_inner());
-                            if let Ok(root_key) = gov.get_sovereign_key(
-                                &kinetic_core::governance::get_governance_config(),
-                            ) {
-                                drop(gov);
+                            let action_state =
+                                kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                            if let Ok(root_key) = action_state
+                                .get_sovereign_key(&kinetic_core::action::get_action_config())
+                            {
+                                drop(action_state);
                                 let action_bytes = signed_msg.to_bytes();
                                 return signed_msg.signatures.iter().any(|sig| {
-                                    kinetic_core::governance::verify_signature(
+                                    kinetic_core::action::verify_signature(
                                         &root_key,
                                         &action_bytes,
                                         sig,

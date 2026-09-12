@@ -1,9 +1,9 @@
 use clap::Subcommand;
 
+pub mod config_ctrl;
 pub mod executor;
 pub mod health;
 pub mod system_ctrl;
-pub mod config_ctrl;
 
 /// Available subcommands for managing Kinetic background services and system state.
 #[derive(Subcommand)]
@@ -41,8 +41,8 @@ pub enum ServicesCommand {
     Shutdown,
     /// Fetch the live configuration of the daemon
     Config,
-    /// Flush the in-memory DNS cache
-    DnsFlush,
+    /// Download the local proxy's TLS Root certificate
+    CaCert,
 }
 
 /// Dispatches the service lifecycle command to the appropriate binary or API.
@@ -76,6 +76,6 @@ pub async fn handle_services_command(
         ServicesCommand::Restart => system_ctrl::handle_restart(config, client).await,
         ServicesCommand::Shutdown => system_ctrl::handle_shutdown(config, client).await,
         ServicesCommand::Config => config_ctrl::handle_config(config, client).await,
-        ServicesCommand::DnsFlush => config_ctrl::handle_dns_flush(config, client).await,
+        ServicesCommand::CaCert => system_ctrl::handle_ca_cert(config, client).await,
     }
 }

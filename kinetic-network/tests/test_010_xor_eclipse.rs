@@ -43,7 +43,6 @@ fn test_xor_eclipse_routing() {
         protocol_version: 1,
         payload: vec![],
         previous_proof: None,
-        miner_pubkey: None,
         authorization: None,
     };
     real_reveal.signature = keypair
@@ -51,26 +50,29 @@ fn test_xor_eclipse_routing() {
         .to_bytes()
         .to_vec();
 
-    // Generate FAKE payload with proof bytes matching the kyn exactly (so XOR = 0)
+    // Generate ADVERSARIAL payload with proof bytes matching the kyn exactly (so XOR = 0)
     // but the VDF is invalid.
-    let mut fake_reveal = real_reveal.clone();
-    fake_reveal.vdf_proof.proof_bytes = kyn_bytes.to_vec(); // will xor to 0, which is perfectly close
+    let mut adversarial_reveal = real_reveal.clone();
+    adversarial_reveal.vdf_proof.proof_bytes = kyn_bytes.to_vec(); // will xor to 0, which is perfectly close
     // re-sign so signature is valid
-    fake_reveal.signature = keypair
-        .sign(&fake_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
+    adversarial_reveal.signature = keypair
+        .sign(&adversarial_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT))
         .to_bytes()
         .to_vec();
 
     let real_bytes = serde_json::to_vec(&real_reveal).unwrap();
-    let fake_bytes = serde_json::to_vec(&fake_reveal).unwrap();
+    let adversarial_bytes = serde_json::to_vec(&adversarial_reveal).unwrap();
 
-    let winner =
-        NetworkEventLoop::xor_tie_breaker(name, vec![real_bytes.clone(), fake_bytes.clone()], kyn);
+    let winner = NetworkEventLoop::xor_tie_breaker(
+        name,
+        vec![real_bytes.clone(), adversarial_bytes.clone()],
+        kyn,
+    );
 
-    // The tie breaker should pick the REAL bytes, because the fake bytes fail VDF verification.
+    // The tie breaker should pick the REAL bytes, because the adversarial bytes fail VDF verification.
     assert_eq!(
         winner.unwrap(),
         real_bytes,
-        "SECURITY FLAW: Fake payload won tie-breaker! Eclipse successful!"
+        "SECURITY FLAW: Adversarial payload won tie-breaker! Eclipse successful!"
     );
 }

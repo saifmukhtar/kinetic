@@ -178,7 +178,10 @@ fn install_service() -> Result<()> {
         println!("Warning: Failed to configure OS DNS: {}", e);
     }
 
-    println!("Service installed successfully. Run '{}-nrs start' to begin.", kinetic_core::constants::NSP);
+    println!(
+        "Service installed successfully. Run '{}-nrs start' to begin.",
+        kinetic_core::constants::NSP
+    );
     Ok(())
 }
 

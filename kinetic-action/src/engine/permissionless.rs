@@ -1,42 +1,42 @@
 //! Permissionless (development) protocol engine driver.
 //!
 //! Used for local testing and simulation where the network runs without any central
-//! governance or update authorities. All privileged actions are universally rejected.
+//! action or update authorities. All privileged actions are universally rejected.
 
-use crate::error::GovernanceError;
-use crate::traits::GovernanceEngine;
-use crate::types::{GovernanceConfig, GovernanceEffect, GovernanceState, SignedGovernanceMessage};
+use crate::error::ActionError;
+use crate::traits::ActionEngine;
+use crate::types::{ActionConfig, ActionEffect, ActionState, SignedActionMessage};
 
-/// Development-only engine driver where all governance modifications are rejected.
+/// Development-only engine driver where all action modifications are rejected.
 ///
 /// Represents a pure decentralized state with no Root or Council keys.
 pub struct PermissionlessEngine;
 
-impl GovernanceEngine for PermissionlessEngine {
-    /// Universally rejects all governance actions.
+impl ActionEngine for PermissionlessEngine {
+    /// Universally rejects all action actions.
     ///
     /// # Errors
     ///
-    /// - Always returns [`GovernanceError::GovernanceDisabled`].
+    /// - Always returns [`ActionError::ActionDisabled`].
     fn verify_action(
         &self,
-        _state: &mut GovernanceState,
-        _msg: &SignedGovernanceMessage,
+        _state: &mut ActionState,
+        _msg: &SignedActionMessage,
         _current_kyn: kinetic_types::clock::Kyn,
-        _config: &GovernanceConfig,
-    ) -> Result<Option<GovernanceEffect>, GovernanceError> {
+        _config: &ActionConfig,
+    ) -> Result<Option<ActionEffect>, ActionError> {
         // In Permissionless mode, the network is perfectly immutable.
-        // No governance actions (updates, name revocations) are allowed.
-        Err(GovernanceError::GovernanceDisabled)
+        // No action actions (updates, name revocations) are allowed.
+        Err(ActionError::ActionDisabled)
     }
 
     fn execute_action(
         &self,
-        _state: &mut GovernanceState,
-        _msg: &SignedGovernanceMessage,
+        _state: &mut ActionState,
+        _msg: &SignedActionMessage,
         _current_kyn: kinetic_types::clock::Kyn,
-        _config: &GovernanceConfig,
-    ) -> Option<GovernanceEffect> {
-        unreachable!("Governance execution is permanently disabled in Permissionless mode")
+        _config: &ActionConfig,
+    ) -> Option<ActionEffect> {
+        unreachable!("Action execution is permanently disabled in Permissionless mode")
     }
 }

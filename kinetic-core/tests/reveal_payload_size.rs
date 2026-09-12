@@ -2,7 +2,7 @@ use kinetic_core::types::RevealExt;
 use kinetic_core::types::{MAX_PAYLOAD_SIZE, Reveal, VdfProof};
 
 #[test]
-fn test_003_oom_payload_bomb() {
+fn test_003_oom_payload_exhaustion() {
     // 1. Create a Reveal struct with an artificially inflated payload (e.g., just over the max size)
     // We don't need a full 500MB to test the logic, just MAX_PAYLOAD_SIZE + 1
 
@@ -22,7 +22,6 @@ fn test_003_oom_payload_bomb() {
         pubkey: vec![],
         signature: vec![],
         previous_proof: None,
-        miner_pubkey: None,
         authorization: None,
     };
 

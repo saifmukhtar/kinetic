@@ -8,7 +8,7 @@
 //!
 //! - Maintaining a stable Kademlia DHT peer identity (static keypair on disk).
 //! - Participating in record storage and routing for the `.kin` namespace.
-//! - Relaying governance gossip messages across the network.
+//! - Relaying action gossip messages across the network.
 //! - Exposing a health-check HTTP API on port 16003.
 //!
 //! Multiple infrastructure nodes run as part of the Kinetic bootstrap
@@ -83,7 +83,10 @@ fn install_service() -> Result<()> {
         restart_policy: service_manager::RestartPolicy::default(),
     })?;
 
-    println!("Service installed successfully. Run '{}-node start' to begin.", kinetic_core::constants::NSP);
+    println!(
+        "Service installed successfully. Run '{}-node start' to begin.",
+        kinetic_core::constants::NSP
+    );
     Ok(())
 }
 
@@ -154,16 +157,16 @@ async fn main() -> Result<()> {
 /// Instead, it focuses on:
 /// - Maintaining a stable Kademlia DHT peer identity (using a static key on disk).
 /// - Providing high-availability routing for the `.kin` namespace.
-/// - Relaying and persisting governance state updates.
+/// - Relaying and persisting action state updates.
 ///
-/// # Errors
-///
-/// Returns an `anyhow::Error` if fundamental networking, storage, or key generation fails.
-async fn run_node() -> Result<()> {
-    if let Err(e) = kinetic_core::governance::logic::validate_keys_initialized() {
+/// In most deployments, infra nodes will bind to all interfaces (0.0.0.0)
+/// on standard DHT (e.g. 16001), Web (e.g. 16002), and Health (e.g. 16003) ports.
+/// Ensure your environment limits external access correctly.
+pub async fn run_node() -> Result<()> {
+    if let Err(e) = kinetic_core::action::logic::validate_keys_initialized() {
         tracing::error!(
             error_code = e.code(),
-            "FATAL: Network cannot boot with a bricked governance plane: {}",
+            "FATAL: Network cannot boot with a bricked action plane: {}",
             e
         );
         std::process::exit(1);
@@ -185,7 +188,7 @@ async fn run_node() -> Result<()> {
     let base_config_dir = kinetic_local::config::get_base_dir();
     let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
-    
+
     let storage_path = storage_dir.join("kinetic-node.db");
     let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
     info!("Storage engine initialized at {:?}", storage_path);
@@ -267,17 +270,14 @@ async fn run_node() -> Result<()> {
         disable_storage_sync: false,
     };
 
-    let gov_state_path = std::env::var(kinetic_core::constants::ENV_GOV)
+    let action_state_path = std::env::var(kinetic_core::constants::ENV_ACTION)
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| storage_dir.join("action-node.db"));
 
-
-    let gov_state_path = std::sync::Arc::new(gov_state_path);
+    let action_state_path = std::sync::Arc::new(action_state_path);
     {
-        let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        *gov = kinetic_local::governance::load_governance_from_disk(&gov_state_path);
+        let mut action_state = kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+        *action_state = kinetic_local::action::load_action_from_disk(&action_state_path);
     }
 
     let (gossip_tx, mut gossip_rx) = tokio::sync::broadcast::channel(100);
@@ -306,43 +306,65 @@ async fn run_node() -> Result<()> {
         .subscribe_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL)
         .await;
 
-    // Push initial local governance log to the network cache
+    // Push initial local action log to the network cache
     {
-        let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+        let action_log = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
-            .unwrap();
-        let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
+            .unwrap()
+            .action_log
+            .clone();
+        let _ = network_client.update_action_log(action_log).await;
     }
 
     // If local state is empty, perform a P2P sync
     {
-        let is_empty = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE
+        let is_empty = kinetic_local::action::GLOBAL_ACTION_STATE
             .lock()
             .unwrap()
-            .action_log.is_empty();
+            .action_log
+            .is_empty();
 
         if is_empty {
-            tracing::info!("Local governance state is empty. Attempting P2P GovSync...");
+            tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             if let Ok(peers) = network_client.get_connected_peers().await {
                 for peer_str in peers {
-                    if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>() {
-                        if let Ok(resp) = network_client.send_gov_sync_request(peer_id, kinetic_types::governance::GovSyncRequest { from_kyn: 0 }).await {
-                            if !resp.actions.is_empty() {
-                                tracing::info!("Received {} governance actions from {}", resp.actions.len(), peer_id);
-                                let mut gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
-                                for msg in &resp.actions {
-                                    if let Err(e) = kinetic_core::governance::process_governance_message(&mut gov, msg, kinetic_types::clock::Kyn(0)) {
-                                        tracing::error!("Failed to apply synced gov action: {}", e);
-                                    }
+                    if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>()
+                        && let Ok(resp) = network_client
+                            .send_action_sync_request(
+                                peer_id,
+                                kinetic_types::action::ActionSyncRequest { from_kyn: 0 },
+                            )
+                            .await
+                        && !resp.actions.is_empty()
+                    {
+                        tracing::info!(
+                            "Received {} action actions from {}",
+                            resp.actions.len(),
+                            peer_id
+                        );
+                        let action_log = {
+                            let mut action_state =
+                                kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
+                            // Validate and apply locally first
+                            for msg in &resp.actions {
+                                if let Err(e) = kinetic_core::action::process_action_message(
+                                    &mut action_state,
+                                    msg,
+                                    kinetic_types::clock::Kyn(0),
+                                ) {
+                                    tracing::error!("Failed to apply synced action: {}", e);
                                 }
-                                kinetic_local::governance::save_governance_to_disk(&*gov, &gov_state_path);
-                                drop(gov);
-                                let gov = kinetic_local::governance::GLOBAL_GOVERNANCE_STATE.lock().unwrap();
-                                let _ = network_client.update_gov_action_log(gov.action_log.clone()).await;
-                                break;
                             }
-                        }
+                            // Persist state and broadcast update to background loop
+                            let _ = kinetic_local::action::save_action_to_disk(
+                                &action_state,
+                                &action_state_path,
+                            );
+                            action_state.action_log.clone()
+                        };
+                        let _ = network_client.update_action_log(action_log).await;
+                        break;
                     }
                 }
             }
@@ -351,7 +373,7 @@ async fn run_node() -> Result<()> {
 
     info!("P2P Network architecture wired");
 
-    let gossip_gov_path = gov_state_path.clone();
+    let gossip_action_path = action_state_path.clone();
     let kyn_provider_gossip = kyn_provider.clone();
     let kyn_tx_gossip = kyn_tx.clone();
     let gossip_storage = storage.clone();
@@ -378,15 +400,15 @@ async fn run_node() -> Result<()> {
                 let opcode = payload[0];
                 let actual_payload = &payload[1..];
 
-                if opcode == kinetic_types::network::NetworkOpcode::Governance as u8 {
+                if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
                     use kinetic_core::types::clock::KynNetworkExt;
                     let current_kyn = match kyn_provider_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
                         Err(_) => kinetic_core::types::Kyn::now_local().0,
                     };
-                    gossip::handle_governance_gossip(
+                    gossip::handle_action_gossip(
                         actual_payload,
-                        gossip_gov_path.clone(),
+                        gossip_action_path.clone(),
                         Some(gossip_network_client.clone()),
                         Some(gossip_storage.clone()),
                         current_kyn,
@@ -395,7 +417,7 @@ async fn run_node() -> Result<()> {
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
                     && kyn.verify()
                 {
-                    let latest_kyn = match kyn_provider_gossip.load_cached_kyn() {
+                    let latest_kyn = match kyn_provider_gossip.load_cached() {
                         Ok(latest) => {
                             if latest.is_unavailable {
                                 0
@@ -416,7 +438,7 @@ async fn run_node() -> Result<()> {
                     };
 
                     if kyn.kyn > latest_kyn {
-                        if let Err(e) = kyn_provider_gossip.cache_kyn(&kyn) {
+                        if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                             tracing::error!(
                                 error_code = e.code(),
                                 "Failed to cache drand kyn in node gossip handler: {}",
@@ -443,7 +465,7 @@ async fn run_node() -> Result<()> {
             let mut should_fetch_http = !p2p_only;
 
             if p2p_only {
-                if let Ok(latest) = hb_kyn_provider.load_cached_kyn() {
+                if let Ok(latest) = hb_kyn_provider.load_cached() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()

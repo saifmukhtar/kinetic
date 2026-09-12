@@ -180,9 +180,9 @@ impl super::core::NetworkEventLoop {
                             crate::event_loop::core::LoopbackCommand::ConnectionPoWVerified {
                                 peer_id: peer_id_clone,
                                 valid_client,
-                                valid_server,
+                                _valid_server: valid_server,
                                 is_bootstrap,
-                                remote_addr,
+                                _remote_addr: remote_addr,
                             },
                         );
                     });
@@ -197,8 +197,8 @@ impl super::core::NetworkEventLoop {
             SwarmEvent::Behaviour(KineticBehaviorEvent::Cdn(e)) => {
                 crate::event_loop::handlers::cdn::handle(self, e).await;
             }
-            SwarmEvent::Behaviour(KineticBehaviorEvent::GovSync(e)) => {
-                crate::event_loop::handlers::gov_sync::handle(self, e).await;
+            SwarmEvent::Behaviour(KineticBehaviorEvent::ActionSync(e)) => {
+                crate::event_loop::handlers::action_sync::handle(self, e).await;
             }
             SwarmEvent::Behaviour(KineticBehaviorEvent::Gossipsub(e)) => {
                 crate::event_loop::handlers::gossipsub::handle(self, e).await;

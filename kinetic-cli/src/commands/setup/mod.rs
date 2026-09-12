@@ -1,9 +1,9 @@
-//! Interactive setup wizard for onboarding new Kinetic nodes and identities.
+//! Interactive configuration utility for onboarding new Kinetic nodes and identities.
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-/// Interactive setup wizard for new Kinetic users.
+/// Interactive configuration utility for new Kinetic users.
 #[derive(Parser)]
 pub struct SetupCommand {
     #[command(subcommand)]
@@ -16,7 +16,7 @@ pub enum SetupTarget {
     Firefox,
 }
 
-/// Executes the interactive setup wizard for initial node configuration.
+/// Executes the interactive configuration utility for initial node setup.
 ///
 /// # Errors
 /// Returns an `anyhow::Error` if the underlying seed phrase generation or identity writing fails.
@@ -32,7 +32,7 @@ pub async fn handle_setup_command(cmd: SetupCommand) -> anyhow::Result<()> {
 
     // 1. Generate identity
     println!("Step 1: Generating your Node Identity");
-    crate::commands::crypto::seed::handle_seed_command(crate::commands::crypto::seed::SeedCommands::Init).await?;
+    crate::commands::seed::handle_seed_command(crate::commands::seed::SeedCommands::Init).await?;
 
     // 2. Wrap up
     println!("\n========================================================");
@@ -40,9 +40,20 @@ pub async fn handle_setup_command(cmd: SetupCommand) -> anyhow::Result<()> {
     println!("========================================================");
     println!("Your Kinetic environment is ready to go.");
     println!("\nNext Steps:");
-    println!("  1. Start the Kinetic Daemon:   sudo systemctl start {}-daemon", kinetic_core::constants::NSP);
-    println!("  2. Check your node status:     {} daemon status", kinetic_core::constants::NSP);
-    println!("  3. Register your .{} name:  {} name register <name.{}>", kinetic_core::constants::NSP_SUFFIX.trim_start_matches('.'), kinetic_core::constants::NSP, kinetic_core::constants::NSP_SUFFIX.trim_start_matches('.'));
+    println!(
+        "  1. Start the Kinetic Daemon:   sudo systemctl start {}-daemon",
+        kinetic_core::constants::NSP
+    );
+    println!(
+        "  2. Check your node status:     {} daemon status",
+        kinetic_core::constants::NSP
+    );
+    println!(
+        "  3. Register your .{} name:  {} name register <name.{}>",
+        kinetic_core::constants::NSP_SUFFIX.trim_start_matches('.'),
+        kinetic_core::constants::NSP,
+        kinetic_core::constants::NSP_SUFFIX.trim_start_matches('.')
+    );
     println!("\nFor documentation, visit https://kinetic.saifmukhtar.dev");
     println!("========================================================\n");
 

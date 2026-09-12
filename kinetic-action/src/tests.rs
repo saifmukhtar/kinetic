@@ -1,10 +1,9 @@
 #[cfg(test)]
 #[allow(clippy::module_inception)]
 mod tests {
-    use super::super::logic::process_governance_message;
+    use super::super::logic::process_action_message;
     use super::super::types::{
-        GovernanceAction, GovernanceEffect, GovernanceState, PublicKeyBytes,
-        SignedGovernanceMessage,
+        ActionEffect, ActionState, NetworkAction, PublicKeyBytes, SignedActionMessage,
     };
     use kinetic_primitives::keys::KineticKeypair;
     use kinetic_types::clock::Kyn;
@@ -21,17 +20,17 @@ mod tests {
         (signing_key, verifying_key)
     }
 
-    fn sign_action(msg: &SignedGovernanceMessage, signer: &KineticKeypair) -> Vec<u8> {
+    fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
         let serialized = msg.to_bytes();
         signer.sign(&serialized)
     }
 
-    fn get_test_config() -> super::super::types::GovernanceConfig {
-        super::super::types::GovernanceConfig {
+    fn get_test_config() -> super::super::types::ActionConfig {
+        super::super::types::ActionConfig {
             sovereign_key_hex: hex::encode(get_root_sk().pubkey_bytes()),
             max_age_kyns: 100,
             is_dev_mode: false,
-            governance_model: "sovereign".to_string(),
+            action_model: "sovereign".to_string(),
         }
     }
 
@@ -42,13 +41,13 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
 
         let (_, target_pubkey) = generate_key(99);
 
         // Test invalid length
-        let mut msg_invalid_len = SignedGovernanceMessage {
-            action: GovernanceAction::MapPrime {
+        let mut msg_invalid_len = SignedActionMessage {
+            action: NetworkAction::MapPrime {
                 name: "ab".to_string(),
                 target_pubkey: target_pubkey.clone(),
             },
@@ -59,7 +58,7 @@ mod tests {
             .signatures
             .push(sign_action(&msg_invalid_len, &root_sk));
 
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &msg_invalid_len,
             Kyn(msg_invalid_len.timestamp_kyn),
@@ -67,7 +66,7 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            matches!(err, crate::error::GovernanceError::InvalidPrimeLength),
+            matches!(err, crate::error::ActionError::InvalidPrimeLength),
             "Got error: {:?}",
             err
         );
@@ -75,8 +74,8 @@ mod tests {
         // Map 5 valid names
         for i in 0..5 {
             let name = (b'a' + i) as char;
-            let mut msg = SignedGovernanceMessage {
-                action: GovernanceAction::MapPrime {
+            let mut msg = SignedActionMessage {
+                action: NetworkAction::MapPrime {
                     name: name.to_string(),
                     target_pubkey: target_pubkey.clone(),
                 },
@@ -84,7 +83,7 @@ mod tests {
                 signatures: vec![],
             };
             msg.signatures.push(sign_action(&msg, &root_sk));
-            let effect = process_governance_message(
+            let effect = process_action_message(
                 &mut state,
                 &msg,
                 Kyn(msg.timestamp_kyn),
@@ -92,7 +91,7 @@ mod tests {
             )
             .unwrap();
 
-            if let Some(GovernanceEffect::PrimeMapped {
+            if let Some(ActionEffect::PrimeMapped {
                 name: mapped_name, ..
             }) = effect
             {
@@ -110,14 +109,14 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
 
         // Generate a new Root Key
         let (new_root_sk, new_root_pubkey) = generate_key(123);
 
         // Action 1: Rotate to the new Root Key (signed by current genesis root key)
-        let mut rotate_msg = SignedGovernanceMessage {
-            action: GovernanceAction::RotateRootKey {
+        let mut rotate_msg = SignedActionMessage {
+            action: NetworkAction::RotateRootKey {
                 new_key: new_root_pubkey.clone(),
             },
             timestamp_kyn: current_kyn,
@@ -127,17 +126,14 @@ mod tests {
             .signatures
             .push(sign_action(&rotate_msg, &root_sk));
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &rotate_msg,
             Kyn(rotate_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(
-            effect,
-            Some(GovernanceEffect::RootKeyRotated { .. })
-        ));
+        assert!(matches!(effect, Some(ActionEffect::RootKeyRotated { .. })));
 
         // The state should now have the new root key
         assert_eq!(
@@ -146,8 +142,8 @@ mod tests {
         );
 
         // Action 2: Try mapping a name using the OLD root key (should fail)
-        let mut map_msg = SignedGovernanceMessage {
-            action: GovernanceAction::MapPrime {
+        let mut map_msg = SignedActionMessage {
+            action: NetworkAction::MapPrime {
                 name: "b".to_string(),
                 target_pubkey: new_root_pubkey.clone(), // Doesn't matter
             },
@@ -156,30 +152,27 @@ mod tests {
         };
         map_msg.signatures.push(sign_action(&map_msg, &root_sk)); // signed with old key
 
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &map_msg,
             Kyn(map_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap_err();
-        assert!(matches!(
-            err,
-            crate::error::GovernanceError::InvalidSignature
-        ));
+        assert!(matches!(err, crate::error::ActionError::InvalidSignature));
 
         // Action 3: Map a name using the NEW root key (should succeed)
         map_msg.signatures.clear();
         map_msg.signatures.push(sign_action(&map_msg, &new_root_sk)); // signed with NEW key
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &map_msg,
             Kyn(map_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::PrimeMapped { .. })));
+        assert!(matches!(effect, Some(ActionEffect::PrimeMapped { .. })));
     }
 
     use proptest::prelude::*;
@@ -192,12 +185,12 @@ mod tests {
             timestamp in any::<u64>(),
         ) {
             let (_, target_pubkey) = generate_key(99);
-            let action = GovernanceAction::MapPrime {
+            let action = NetworkAction::MapPrime {
                 name,
                 target_pubkey,
             };
 
-            let msg = SignedGovernanceMessage {
+            let msg = SignedActionMessage {
                 action: action.clone(),
                 timestamp_kyn: timestamp,
                 signatures: vec![], // Signatures aren't part of canonical hash
@@ -212,7 +205,7 @@ mod tests {
             prop_assert_eq!(&bytes, &msg_clone.to_bytes());
 
             // Ensure hash computation does not panic
-            let hash = GovernanceState::hash_action(&msg);
+            let hash = ActionState::hash_action(&msg);
             prop_assert_eq!(hash.len(), 32);
         }
     }
@@ -225,31 +218,31 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
         assert!(!state.is_halted);
         assert_eq!(state.total_paused_kyns, 0);
 
-        let mut halt_msg = SignedGovernanceMessage {
-            action: GovernanceAction::EmergencyHalt,
+        let mut halt_msg = SignedActionMessage {
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: current_kyn,
             signatures: vec![],
         };
         halt_msg.signatures.push(sign_action(&halt_msg, &root_sk));
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &halt_msg,
             Kyn(halt_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
+        assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
         assert!(state.is_halted);
 
-        let mut resume_msg = SignedGovernanceMessage {
-            action: GovernanceAction::EmergencyResume,
+        let mut resume_msg = SignedActionMessage {
+            action: NetworkAction::EmergencyResume,
             timestamp_kyn: current_kyn + 1000,
             signatures: vec![],
         };
@@ -257,14 +250,14 @@ mod tests {
             .signatures
             .push(sign_action(&resume_msg, &root_sk));
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &resume_msg,
             Kyn(resume_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::NetworkResumed)));
+        assert!(matches!(effect, Some(ActionEffect::NetworkResumed)));
         assert!(!state.is_halted);
         assert_eq!(state.total_paused_kyns, 1000);
     }
@@ -277,12 +270,12 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
         // Try to UnmapPrime (should fail)
-        let mut fail_msg = SignedGovernanceMessage {
-            action: GovernanceAction::UnmapPrime {
+        let mut fail_msg = SignedActionMessage {
+            action: NetworkAction::UnmapPrime {
                 name: "ab".to_string(),
             },
             timestamp_kyn: current_kyn,
@@ -290,21 +283,18 @@ mod tests {
         };
         fail_msg.signatures.push(sign_action(&fail_msg, &root_sk));
 
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &fail_msg,
             Kyn(fail_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap_err();
-        assert!(matches!(
-            err,
-            crate::error::GovernanceError::InvalidPrimeLength
-        ));
+        assert!(matches!(err, crate::error::ActionError::InvalidPrimeLength));
 
         // First, successfully map the name so it exists in state
-        let mut map_msg = SignedGovernanceMessage {
-            action: GovernanceAction::MapPrime {
+        let mut map_msg = SignedActionMessage {
+            action: NetworkAction::MapPrime {
                 name: "a".to_string(),
                 target_pubkey: vec![0; 1952],
             },
@@ -312,7 +302,7 @@ mod tests {
             signatures: vec![],
         };
         map_msg.signatures.push(sign_action(&map_msg, &root_sk));
-        let _ = process_governance_message(
+        let _ = process_action_message(
             &mut state,
             &map_msg,
             Kyn(map_msg.timestamp_kyn),
@@ -321,8 +311,8 @@ mod tests {
         .unwrap();
 
         // Try to revoke a 1-character name (should succeed)
-        let mut success_msg = SignedGovernanceMessage {
-            action: GovernanceAction::UnmapPrime {
+        let mut success_msg = SignedActionMessage {
+            action: NetworkAction::UnmapPrime {
                 name: "a".to_string(),
             },
             timestamp_kyn: current_kyn + 2,
@@ -332,17 +322,14 @@ mod tests {
             .signatures
             .push(sign_action(&success_msg, &root_sk));
 
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &success_msg,
             Kyn(success_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(
-            effect,
-            Some(GovernanceEffect::PrimeUnmapped { .. })
-        ));
+        assert!(matches!(effect, Some(ActionEffect::PrimeUnmapped { .. })));
     }
 
     #[test]
@@ -353,36 +340,28 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
-        let mut msg = SignedGovernanceMessage {
-            action: GovernanceAction::EmergencyHalt,
+        let mut msg = SignedActionMessage {
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: current_kyn,
             signatures: vec![],
         };
         msg.signatures.push(sign_action(&msg, &root_sk));
 
         // First submission succeeds
-        let effect = process_governance_message(
-            &mut state,
-            &msg,
-            Kyn(msg.timestamp_kyn),
-            &get_test_config(),
-        )
-        .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::NetworkHalted)));
+        let effect =
+            process_action_message(&mut state, &msg, Kyn(msg.timestamp_kyn), &get_test_config())
+                .unwrap();
+        assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
 
         // Resubmitting the exact same message triggers the new AlreadyExecuted taxonomy error
-        let err = process_governance_message(
-            &mut state,
-            &msg,
-            Kyn(msg.timestamp_kyn),
-            &get_test_config(),
-        )
-        .unwrap_err();
+        let err =
+            process_action_message(&mut state, &msg, Kyn(msg.timestamp_kyn), &get_test_config())
+                .unwrap_err();
         assert!(
-            matches!(err, crate::error::GovernanceError::AlreadyExecuted),
+            matches!(err, crate::error::ActionError::AlreadyExecuted),
             "Expected AlreadyExecuted error on replay attack, got: {:?}",
             err
         );
@@ -395,12 +374,12 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
         let (_, target_pubkey) = generate_key(99);
 
         // Test invalid infra name
-        let mut msg_invalid = SignedGovernanceMessage {
-            action: GovernanceAction::MapInfra {
+        let mut msg_invalid = SignedActionMessage {
+            action: NetworkAction::MapInfra {
                 name: "invalidname".to_string(),
                 target_pubkey: target_pubkey.clone(),
             },
@@ -411,7 +390,7 @@ mod tests {
             .signatures
             .push(sign_action(&msg_invalid, &root_sk));
 
-        let err = process_governance_message(
+        let err = process_action_message(
             &mut state,
             &msg_invalid,
             Kyn(msg_invalid.timestamp_kyn),
@@ -420,12 +399,12 @@ mod tests {
         .unwrap_err();
         assert!(matches!(
             err,
-            crate::error::GovernanceError::InvalidProtocolName
+            crate::error::ActionError::InvalidProtocolName
         ));
 
         // Test valid infra name
-        let mut msg_valid = SignedGovernanceMessage {
-            action: GovernanceAction::MapInfra {
+        let mut msg_valid = SignedActionMessage {
+            action: NetworkAction::MapInfra {
                 name: "seed".to_string(),
                 target_pubkey: target_pubkey.clone(),
             },
@@ -433,14 +412,14 @@ mod tests {
             signatures: vec![],
         };
         msg_valid.signatures.push(sign_action(&msg_valid, &root_sk));
-        let effect = process_governance_message(
+        let effect = process_action_message(
             &mut state,
             &msg_valid,
             Kyn(msg_valid.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(GovernanceEffect::InfraMapped { .. })));
+        assert!(matches!(effect, Some(ActionEffect::InfraMapped { .. })));
     }
 
     #[test]
@@ -450,21 +429,20 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = GovernanceState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(Kyn(current_kyn));
 
         // Create a message that is exactly MAX_AGE_KYNS + 1 old
         let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
-        let mut msg = SignedGovernanceMessage {
-            action: GovernanceAction::EmergencyHalt,
+        let mut msg = SignedActionMessage {
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: stale_kyn,
             signatures: vec![],
         };
         msg.signatures.push(sign_action(&msg, &root_sk));
 
-        let err =
-            process_governance_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
-                .unwrap_err();
-        assert!(matches!(err, crate::error::GovernanceError::StaleProposal));
+        let err = process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
+            .unwrap_err();
+        assert!(matches!(err, crate::error::ActionError::StaleProposal));
     }
 }

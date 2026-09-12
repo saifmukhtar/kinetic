@@ -4,12 +4,12 @@
 //!
 //! - `VdfEngine`: CPU-bound Wesolowski VDF proof evaluation and verification.
 //! - `StorageEngine`: Key-value persistence and prefix scanning (B-tree storage engine).
-//! - `GovernanceEngine`: Protocol proposal verification and state transitions.
+//! - `ActionEngine`: Protocol proposal verification and state transitions.
 //!
 //! These traits enable `kinetic-core` to be network-agnostic. The concrete implementations
-//! live in `kinetic-vdf`, `kinetic-storage`, and `kinetic-core/src/governance/engine/`
-//! respectively. The active `GovernanceEngine` is selected at compile time from `network.json`
-//! via the `GOVERNANCE_MODEL` constant.
+//! live in `kinetic-vdf`, `kinetic-storage`, and `kinetic-core/src/action/engine/`
+//! respectively. The active `ActionEngine` is selected at compile time from `network.json`
+//! via the `ACTION_MODEL` constant.
 
 use crate::error::{StorageError, VdfError};
 use crate::types::{Commitment, VdfProof};
@@ -123,8 +123,8 @@ pub trait KynProvider: Send + Sync {
     async fn fetch_latest(&self) -> Result<RawKyn, KynProviderError>;
 
     /// Loads the most recently cached kyn from local memory or disk.
-    fn load_cached_kyn(&self) -> Result<RawKyn, KynProviderError>;
+    fn load_cached(&self) -> Result<RawKyn, KynProviderError>;
 
     /// Caches a newly verified kyn to memory and disk.
-    fn cache_kyn(&self, kyn: &RawKyn) -> Result<(), KynProviderError>;
+    fn cache(&self, kyn: &RawKyn) -> Result<(), KynProviderError>;
 }

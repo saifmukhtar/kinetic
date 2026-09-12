@@ -140,7 +140,7 @@ impl KynProvider for DrandProvider {
     /// - Returns [`KynProviderError::AllEndpointsFailed`](crate::error::KynProviderError::AllEndpointsFailed) if network and fallback attempts fail.
     async fn fetch_latest(&self) -> Result<RawKyn, KynProviderError> {
         if kinetic_core::config::is_dev_mode() {
-            return self.load_cached_kyn();
+            return self.load_cached();
         }
 
         let mut endpoints = self.endpoints.clone();
@@ -208,7 +208,7 @@ impl KynProvider for DrandProvider {
                     kyn.is_from_cache = false;
                     kyn.is_unavailable = false;
 
-                    let _ = self.cache_kyn(&kyn);
+                    let _ = self.cache(&kyn);
                     return Ok(kyn);
                 }
                 Err(e) => {
@@ -219,7 +219,7 @@ impl KynProvider for DrandProvider {
         }
 
         warn!("All drand live endpoints failed. Attempting to fall back to cached kyn.");
-        match self.load_cached_kyn() {
+        match self.load_cached() {
             Ok(kyn) => {
                 let err = KynProviderError::LiveFetchFailedFallback;
                 warn!(error_code = err.code(), "{}", err);
@@ -229,7 +229,7 @@ impl KynProvider for DrandProvider {
         }
     }
 
-    fn cache_kyn(&self, kyn: &RawKyn) -> Result<(), KynProviderError> {
+    fn cache(&self, kyn: &RawKyn) -> Result<(), KynProviderError> {
         if let Some(storage) = &self.storage
             && let Ok(bytes) = serde_json::to_vec(kyn)
         {
@@ -240,7 +240,7 @@ impl KynProvider for DrandProvider {
         Ok(())
     }
 
-    fn load_cached_kyn(&self) -> Result<RawKyn, KynProviderError> {
+    fn load_cached(&self) -> Result<RawKyn, KynProviderError> {
         if let Some(storage) = &self.storage
             && let Some(bytes) = storage
                 .get(kinetic_core::constants::DB_PREFIX_LAST_DRAND)
