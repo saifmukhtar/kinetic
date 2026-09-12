@@ -10,8 +10,9 @@ pub async fn handle_nat(config: &KineticConfig, client: &reqwest::Client) -> any
     let resp = client.get(&url).send().await?;
 
     if !resp.status().is_success() {
-        let err = resp.text().await?;
-        anyhow::bail!("Failed to get NAT status: {}", err);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
 
     let json: serde_json::Value = resp.json().await?;

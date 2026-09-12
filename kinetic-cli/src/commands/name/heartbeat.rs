@@ -29,7 +29,9 @@ pub async fn handle_heartbeat(
             let url = format!("{}/api/v1/micro/heartbeat", base_url);
             let resp = client.get(&url).send().await?;
             if !resp.status().is_success() {
-                anyhow::bail!("Failed to list heartbeats: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);
@@ -43,11 +45,9 @@ pub async fn handle_heartbeat(
 
             let resp = client.post(&url).send().await?;
             if !resp.status().is_success() {
-                anyhow::bail!(
-                    "Failed to trigger heartbeat for '{}': {}",
-                    name,
-                    resp.text().await?
-                );
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
             println!(
                 "Successfully triggered {}heartbeat for '{}'.",

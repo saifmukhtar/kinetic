@@ -52,15 +52,18 @@ pub async fn handle_action_command(
             if publish_resp.status().is_success() {
                 println!("✅ Successfully published action to the Kinetic Network!");
             } else {
-                let err_text = publish_resp.text().await?;
-                anyhow::bail!("Failed to publish action: {}", err_text);
+                let status = publish_resp.status();
+                let err_text = publish_resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &err_text));
             }
         }
         ActionCommands::Status => {
             let url = format!("{}/api/v1/micro/action/status", base_url);
             let resp = client.get(&url).send().await?;
             if !resp.status().is_success() {
-                anyhow::bail!("Failed to fetch action status: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);
@@ -69,7 +72,9 @@ pub async fn handle_action_command(
             let url = format!("{}/api/v1/micro/action/names", base_url);
             let resp = client.get(&url).send().await?;
             if !resp.status().is_success() {
-                anyhow::bail!("Failed to fetch action prime names: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);

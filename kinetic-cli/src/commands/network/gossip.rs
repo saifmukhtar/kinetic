@@ -31,7 +31,9 @@ pub async fn handle_gossip_command(
             let url = format!("{}/api/v1/micro/gossip/topics", base_url);
             let resp = client.get(&url).send().await?;
             if !resp.status().is_success() {
-                anyhow::bail!("Failed to list gossip topics: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);
@@ -45,7 +47,9 @@ pub async fn handle_gossip_command(
 
             let resp = client.post(&url).json(&payload).send().await?;
             if !resp.status().is_success() {
-                anyhow::bail!("Failed to publish to topic: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
             println!("Successfully published message to topic '{}'.", topic);
         }
@@ -58,7 +62,9 @@ pub async fn handle_gossip_command(
 
             let mut resp = client.get(&url).send().await?;
             if !resp.status().is_success() {
-                anyhow::bail!("Failed to subscribe to topic: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
 
             while let Some(chunk) = resp.chunk().await? {

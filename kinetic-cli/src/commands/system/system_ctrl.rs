@@ -20,7 +20,9 @@ pub async fn handle_restart(
     pb.finish_and_clear();
 
     if !resp.status().is_success() {
-        anyhow::bail!("Failed to restart daemon: {}", resp.text().await?);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
     println!("✅ Daemon restart initiated gracefully.");
     Ok(())
@@ -45,7 +47,9 @@ pub async fn handle_shutdown(
     pb.finish_and_clear();
 
     if !resp.status().is_success() {
-        anyhow::bail!("Failed to shutdown daemon: {}", resp.text().await?);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
     println!("🛑 Daemon shutdown initiated gracefully.");
     Ok(())
@@ -63,7 +67,9 @@ pub async fn handle_ca_cert(
     let resp = client.get(&url).send().await?;
 
     if !resp.status().is_success() {
-        anyhow::bail!("Failed to fetch CA Cert: {}", resp.text().await?);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
     let cert = resp.text().await?;
     println!("{}", cert);

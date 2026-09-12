@@ -82,7 +82,9 @@ pub async fn handle_identity_command(
                     serde_json::to_string_pretty(&json)?
                 );
             } else {
-                anyhow::bail!("Failed to generate identity: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
         }
         IdentityCommands::List => {
@@ -92,7 +94,9 @@ pub async fn handle_identity_command(
                 let json: serde_json::Value = resp.json().await?;
                 println!("{}", serde_json::to_string_pretty(&json)?);
             } else {
-                anyhow::bail!("Failed to list identities: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
         }
         IdentityCommands::Info { name } => {
@@ -102,7 +106,9 @@ pub async fn handle_identity_command(
                 let json: serde_json::Value = resp.json().await?;
                 println!("{}", serde_json::to_string_pretty(&json)?);
             } else {
-                anyhow::bail!("Failed to fetch identity info: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
         }
         IdentityCommands::RotateKey { name } => {
@@ -111,7 +117,9 @@ pub async fn handle_identity_command(
             if resp.status().is_success() {
                 println!("Successfully rotated identity keys for {}.", name);
             } else {
-                anyhow::bail!("Failed to rotate identity: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
         }
         IdentityCommands::Revoke { name } => {
@@ -120,7 +128,9 @@ pub async fn handle_identity_command(
             if resp.status().is_success() {
                 println!("Successfully revoked identity for {}.", name);
             } else {
-                anyhow::bail!("Failed to revoke identity: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
         }
         IdentityCommands::Manifest { name } => {
@@ -130,7 +140,9 @@ pub async fn handle_identity_command(
                 let json: serde_json::Value = resp.json().await?;
                 println!("{}", serde_json::to_string_pretty(&json)?);
             } else {
-                anyhow::bail!("Failed to fetch manifest: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
         }
         IdentityCommands::UpdateManifest { name, file } => {
@@ -145,7 +157,9 @@ pub async fn handle_identity_command(
             if resp.status().is_success() {
                 println!("Successfully updated local manifest for {}.", name);
             } else {
-                anyhow::bail!("Failed to update manifest: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
         }
         IdentityCommands::Publish {
@@ -180,7 +194,9 @@ pub async fn handle_identity_command(
                 if response.status().is_success() {
                     info!("Success! KID successfully routed to DHT.");
                 } else {
-                    warn!("Daemon rejected KID: {}", response.text().await?);
+                    let status = response.status();
+                    let text = response.text().await.unwrap_or_default();
+                    warn!("{}", crate::utils::parse_and_format_api_error("Daemon rejected KID", status, &text));
                 }
             } else {
                 warn!("KID file '{}' not found. Skipping KID publish.", kid);
@@ -205,7 +221,9 @@ pub async fn handle_identity_command(
                 if response.status().is_success() {
                     info!("Success! Manifest successfully routed to DHT.");
                 } else {
-                    warn!("Daemon rejected Manifest: {}", response.text().await?);
+                    let status = response.status();
+                    let text = response.text().await.unwrap_or_default();
+                    warn!("{}", crate::utils::parse_and_format_api_error("Daemon rejected Manifest", status, &text));
                 }
             } else {
                 warn!(
@@ -221,7 +239,9 @@ pub async fn handle_identity_command(
                 let json: serde_json::Value = resp.json().await?;
                 println!("{}", serde_json::to_string_pretty(&json)?);
             } else {
-                anyhow::bail!("Failed to resolve identity: {}", resp.text().await?);
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
             }
         }
     }

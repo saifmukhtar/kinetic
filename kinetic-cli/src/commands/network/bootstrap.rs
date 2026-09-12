@@ -21,8 +21,9 @@ pub async fn handle_bootstrap(
     pb.finish_and_clear();
 
     if !resp.status().is_success() {
-        let err = resp.text().await?;
-        anyhow::bail!("Failed to bootstrap network: {}", err);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
 
     let json: serde_json::Value = resp.json().await?;

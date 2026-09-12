@@ -32,9 +32,10 @@ pub async fn handle_name_list(
             if let Ok(entries) = std::fs::read_dir(&config_dir) {
                 for entry in entries.flatten() {
                     if let Some(name) = entry.file_name().to_str()
-                        && name.ends_with(".json") {
-                            names.push(name.trim_end_matches(".json").to_string());
-                        }
+                        && name.ends_with(".json")
+                    {
+                        names.push(name.trim_end_matches(".json").to_string());
+                    }
                 }
             }
         }
@@ -78,12 +79,13 @@ pub async fn handle_name_info(
     pb.finish_and_clear();
 
     if let Ok(res) = resolve_res
-        && res.status().is_success() {
-            let json: serde_json::Value = res.json().await?;
-            println!("Info for {} (Resolved from network):", fqdn);
-            println!("{}", serde_json::to_string_pretty(&json)?);
-            return Ok(());
-        }
+        && res.status().is_success()
+    {
+        let json: serde_json::Value = res.json().await?;
+        println!("Info for {} (Resolved from network):", fqdn);
+        println!("{}", serde_json::to_string_pretty(&json)?);
+        return Ok(());
+    }
 
     println!("Daemon unreachable or name not found on DHT. Checking local cache...");
     let record_path = get_zones_dir()
@@ -176,7 +178,9 @@ pub async fn handle_name_difficulty(
     );
     let resp = client.get(&base_url).send().await?;
     if !resp.status().is_success() {
-        anyhow::bail!("Failed to fetch difficulty: {}", resp.text().await?);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
 
     let base_json: serde_json::Value = resp.json().await?;
@@ -214,7 +218,9 @@ pub async fn handle_name_validate(
     let resp = client.post(&url).json(&payload).send().await?;
 
     if !resp.status().is_success() {
-        anyhow::bail!("Failed to validate name: {}", resp.text().await?);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
 
     let json: serde_json::Value = resp.json().await?;

@@ -31,14 +31,15 @@ pub async fn handle_name_register(
 
     if let Ok(res) = client.get(&diff_url).send().await
         && let Ok(json) = res.json::<serde_json::Value>().await
-            && let Some(pred) = json.get("local_prediction") {
-                if let Some(fmt) = pred.get("estimated_formatted").and_then(|v| v.as_str()) {
-                    time_str = fmt.to_string();
-                }
-                if let Some(rating) = pred.get("hardware_rating").and_then(|v| v.as_str()) {
-                    rating_str = format!(" (Hardware Rating: {})", rating);
-                }
-            }
+        && let Some(pred) = json.get("local_prediction")
+    {
+        if let Some(fmt) = pred.get("estimated_formatted").and_then(|v| v.as_str()) {
+            time_str = fmt.to_string();
+        }
+        if let Some(rating) = pred.get("hardware_rating").and_then(|v| v.as_str()) {
+            rating_str = format!(" (Hardware Rating: {})", rating);
+        }
+    }
 
     if !label.is_empty() && label.len() <= 6 {
         println!(

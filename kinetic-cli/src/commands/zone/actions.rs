@@ -20,7 +20,9 @@ pub async fn handle_fat_zone(
 
     let resp = client.post(&url).json(&json_body).send().await?;
     if !resp.status().is_success() {
-        anyhow::bail!("Failed to publish fat zone: {}", resp.text().await?);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
 
     println!("Successfully published Fat Zone for {}", name);
@@ -46,7 +48,9 @@ pub async fn handle_local_zone(
 
     let resp = client.post(&url).json(&json_body).send().await?;
     if !resp.status().is_success() {
-        anyhow::bail!("Failed to save local zone override: {}", resp.text().await?);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
 
     println!("Successfully saved local DNS override for {}", name);
@@ -66,10 +70,9 @@ pub async fn handle_local_zone_delete(
 
     let resp = client.delete(&url).send().await?;
     if !resp.status().is_success() {
-        anyhow::bail!(
-            "Failed to delete local zone override: {}",
-            resp.text().await?
-        );
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
 
     println!("Successfully deleted local DNS override for {}", name);
@@ -95,7 +98,9 @@ pub async fn handle_fat_heartbeat(
 
     let resp = client.post(&url).json(&json_body).send().await?;
     if !resp.status().is_success() {
-        anyhow::bail!("Failed to broadcast fat heartbeat: {}", resp.text().await?);
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
     }
 
     println!("Successfully broadcasted Fat Heartbeat for {}", name);
