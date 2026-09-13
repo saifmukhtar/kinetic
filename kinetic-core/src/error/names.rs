@@ -6,8 +6,8 @@
 //! - **LDH rule** (RFC 5891): only lowercase letters, digits, and internal hyphens.
 //! - **Length limits**: total ≤253 chars; each label ≤63 chars (RFC 1035).
 //! - **Apex-only**: subnames are managed by the apex owner, not the DHT directly.
-//! - **Category 1 reserved** (RFC 2606/6761): `localhost`, `test`, `example`, etc.
-//! - **Category 2 protocol names**: `seed`, `explorer`, `docs`, etc. locked until Phase 2.
+//! - **RFC reserved** (RFC 2606/6761): `localhost`, `test`, `example`, etc.
+//! - **Infrastructure protocol names**: `seed`, `explorer`, `docs`, etc. locked by Sovereign protocol rules.
 use super::Severity;
 use thiserror::Error;
 
@@ -46,16 +46,16 @@ pub enum NamesError {
     #[error("Labels cannot start or end with a hyphen")]
     InvalidHyphenPlacement,
 
-    /// The name is a permanently reserved public utility name (e.g., `localhost`, `test`, `example`).
-    /// These Category 1 names are strictly protected by RFC 2606 to prevent catastrophic network confusion.
-    /// These names can never be registered on the Kinetic network. Choose a different name.
-    #[error("Name is a protected public utility name (e.g., localhost, test)")]
+    /// The name is an RFC reserved public utility name (e.g. `localhost`).
+    /// These names are strictly protected by RFC 2606 to prevent catastrophic network confusion.
+    /// You must choose a normal name intended for global decentralized resolution.
+    #[error("name is an RFC reserved public utility name")]
     ReservedName,
 
-    /// The name is reserved for critical network protocol functionality (e.g., `seed`, `explorer`, `docs`).
-    /// These Category 2 names are locked by the core protocol to ensure official infrastructure remains secure.
-    /// These names are locked until Phase 2 action is activated. Choose a different name.
-    #[error("Name is a protected protocol name (e.g., seed, explorer)")]
+    /// The name is an official Kinetic infrastructure protocol name (e.g. `seed`, `docs`).
+    /// These infrastructure protocol names are locked by the core protocol to ensure official network infrastructure remains secure.
+    /// Only a Sovereign network action can allocate this name.
+    #[error("Name is a protected infrastructure protocol name")]
     ProtocolName,
 
     /// An operation was attempted on a subname (e.g., `sub.example.kin`), but the operation strictly requires an apex name.

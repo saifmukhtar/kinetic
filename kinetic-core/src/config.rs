@@ -48,28 +48,28 @@ pub mod ports {
 
 /// Primary configuration container for Kinetic nodes and daemons.
 ///
-/// Holds settings for daemon behavior, P2P networking, and Drand beacon connections.
+/// Holds settings for daemon behavior, P2P networking, and KYN Provider connections.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KineticConfig {
     /// Daemon-level settings: ports, storage path, and network mode.
     pub daemon: DaemonConfig,
     /// P2P networking settings: ports, bootstrap nodes, and mDNS.
     pub network: P2pConfig,
-    /// Drand randomness beacon settings: custom endpoints and DNS seed.
+    /// Network time provider settings: custom endpoints and DNS seed.
     #[serde(default)]
     pub drand: DrandConfig,
 }
 
-/// Drand networking configuration.
+/// KYN Provider networking configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrandConfig {
-    /// Drand HTTP endpoints to query for Quicknet kyns.
+    /// KYN Provider HTTP endpoints to query for Quicknet kyns.
     #[serde(default = "default_drand_endpoints")]
     pub endpoints: Vec<String>,
-    /// Domains to query via DNS TXT records for dynamic Drand endpoints.
+    /// Domains to query via DNS TXT records for dynamic provider endpoints.
     #[serde(default = "default_drand_seed_domain")]
     pub drand_domain: Vec<String>,
-    /// If true, the node will only listen to P2P gossipsub for Drand kyns
+    /// If true, the node will only listen to P2P gossipsub for network kyns
     /// and will not query the internet via HTTP/DNS.
     #[serde(default)]
     pub p2p_only: bool,

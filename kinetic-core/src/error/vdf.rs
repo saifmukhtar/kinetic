@@ -111,7 +111,7 @@ pub enum VdfRejectReason {
     #[error("proof bytes are malformed")]
     MalformedProof,
     /// The proof verified successfully, but for a different challenge than expected.
-    /// A peer attempted to submit a valid PoW that belongs to a different name or an older Drand round.
+    /// A peer attempted to submit a valid PoW that belongs to a different name or an older network time round.
     /// Ensure you are generating the proof against the exact current challenge hash.
     #[error("proof does not match the challenge")]
     ChallengeMismatch,
@@ -189,7 +189,7 @@ pub enum VdfError {
     LockAcquireError(String),
     /// Generating the RSA discriminant from the challenge failed.
     /// The challenge bytes yielded a mathematically degenerate prime.
-    /// The current round cannot be evaluated; wait for the next Drand tick.
+    /// The current round cannot be evaluated; wait for the next network time tick.
     #[error("Failed to create VDF discriminant")]
     DiscriminantError,
     /// The underlying VDF prover threw an internal error or panicked.

@@ -51,14 +51,14 @@ pub enum KynProviderError {
     /// The BLS threshold signature was mathematically invalid.
     /// A malicious endpoint attempted to feed the node a forged random beacon.
     /// The beacon was safely rejected.
-    #[error("Invalid Beacon signature")]
+    #[error("Invalid KYN Provider signature")]
     InvalidSignature,
     /// The returned kyn is too old compared to the system clock.
-    /// An endpoint is serving outdated beacon rounds, potentially as a replay attack.
+    /// An endpoint is serving outdated kyn rounds, potentially as a replay attack.
     /// The node expects the round to roughly match the current Unix time.
     #[error("Stale kyn: expected kyn ~{expected}, but got {got}")]
     StaleKyn {
-        /// The expected Beacon kyn based on the local system clock.
+        /// The expected network kyn based on the local system clock.
         expected: u64,
         /// The actual kyn returned by the endpoint.
         got: u64,
@@ -73,27 +73,27 @@ pub enum KynProviderError {
     /// The connection was terminated safely.
     #[error("Response too large: {0} bytes")]
     ResponseTooLarge(usize),
-    /// The beacon beacon was unavailable when the node started up.
-    /// The node cannot initialize its internal clock without a valid beacon round.
-    /// The node will fail to start until it can reach a beacon endpoint.
-    #[error("Beacon beacon unavailable on startup: {0}")]
+    /// The KYN Provider was unavailable when the node started up.
+    /// The node cannot initialize its internal clock without a valid kyn round.
+    /// The node will fail to start until it can reach a provider endpoint.
+    #[error("KYN Provider unavailable on startup: {0}")]
     UnavailableOnStartup(String),
-    /// The node fell too far behind and triggered the P2P beacon fallback mechanism.
+    /// The node fell too far behind and triggered the P2P KYN fallback mechanism.
     /// The node's clock drifted too far from the network's clock.
     /// The node is now relying on P2P peers to catch up.
-    #[error("P2P Beacon fallback triggered! We are behind by {behind} kyns.")]
+    #[error("P2P KYN fallback triggered! We are behind by {behind} kyns.")]
     P2pFallbackTriggered {
         /// Number of kyns the node was behind.
         behind: u64,
     },
     /// Dev mode warning: returning a mock kyn because the cache was empty.
-    #[error("DEV MODE: Returning mock beacon kyn because cache is empty.")]
+    #[error("DEV MODE: Returning mock network kyn because cache is empty.")]
     DevModeMockKyn,
-    /// Registration is disabled because the beacon could not be reached.
-    #[error("P2P swarm and proxy will start — registration disabled until beacon reachable")]
+    /// Registration is disabled because the KYN Provider could not be reached.
+    #[error("P2P swarm and proxy will start — registration disabled until KYN Provider is reachable")]
     RegistrationDisabled,
     /// Live fetch failed, gracefully falling back to local cached kyn.
-    #[error("Could not fetch live beacon kyn, falling back to cached value for staleness check")]
+    #[error("Could not fetch live network kyn, falling back to cached value for staleness check")]
     LiveFetchFailedFallback,
 }
 
@@ -210,20 +210,20 @@ impl KynProviderError {
             }
             Self::InvalidSignature => "Invalid network signature.".to_string(),
             Self::StaleKyn { .. } => "The fetched network kyn was too old.".to_string(),
-            Self::UnavailableOnStartup(e) => format!("Beacon beacon unavailable on startup: {}", e),
+            Self::UnavailableOnStartup(e) => format!("KYN Provider unavailable on startup: {}", e),
             Self::P2pFallbackTriggered { behind } => format!(
-                "P2P Beacon fallback triggered! We are behind by {} kyns.",
+                "P2P KYN fallback triggered! We are behind by {} kyns.",
                 behind
             ),
             Self::DevModeMockKyn => {
-                "DEV MODE: Returning mock beacon kyn because cache is empty.".to_string()
+                "DEV MODE: Returning mock network kyn because cache is empty.".to_string()
             }
             Self::RegistrationDisabled => {
-                "P2P swarm and proxy will start — registration disabled until beacon reachable"
+                "P2P swarm and proxy will start — registration disabled until KYN Provider is reachable"
                     .to_string()
             }
             Self::LiveFetchFailedFallback => {
-                "Could not fetch live beacon kyn, falling back to cached value for staleness check"
+                "Could not fetch live network kyn, falling back to cached value for staleness check"
                     .to_string()
             }
         }

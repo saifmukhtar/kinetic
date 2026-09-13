@@ -1,12 +1,12 @@
-//! League of Entropy Drand Quicknet randomness beacon client and cache manager.
+//! KYN Provider network time client and cache manager.
 //!
-//! Fetches 3-second public randomness kyns from Drand HTTP endpoints and DNS seed TXT records,
+//! Fetches 3-second public randomness kyns from KYN HTTP endpoints and DNS seed TXT records,
 //! verifies BLS12-381 G2 signatures, binds SHA-256 randomness output, and caches valid kyns to storage.
 //!
 //! ## Kyn Acquisition Strategy
 //!
 //! 1. Try each HTTP endpoint (from `config.toml` and DNS TXT records) with up to 3 attempts and 500ms/1s/2s backoff.
-//! 2. For each successful response: verify BLS signature + SHA-256 binding + staleness (≤200 rounds / 10 minutes).
+//! 2. For each successful response: verify BLS signature + SHA-256 binding + staleness (≤200 kyns / 10 minutes).
 //! 3. If all endpoints fail: fall back to local storage cache (may be stale but still usable for heartbeats).
 //! 4. If no cache exists: return `KynProviderError::NoCachedKyn` (`KIN-RND-004`).
 //!
@@ -18,10 +18,10 @@
 use drand_verify::{G2PubkeyRfc, Pubkey};
 use serde::{Deserialize, Serialize};
 
-// Heartbeat staleness threshold — 10 minutes in Drand Quicknet rounds (3s each)
-const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200; // 10min * 20 rounds/min
+// Heartbeat staleness threshold — 10 minutes in network kyns (3s each)
+const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200; // 10min * 20 kyns/min
 
-/// A single randomness beacon kyn from the drand Quicknet network.
+/// A single network time kyn from the global provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawKyn {
     /// Monotonically increasing kyn number.

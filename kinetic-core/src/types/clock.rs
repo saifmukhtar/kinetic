@@ -1,7 +1,7 @@
 //! Kinetic Network Timekeeping & Branded Time Units.
 //!
 //! Provides branded time tracking for frontends, explorers, and node monitoring.
-//! The underlying consensus engine uses absolute network beacons, which this module
+//! The underlying consensus engine uses the absolute KYN Provider, which this module
 //! translates into the official Kinetic time hierarchy (The Crystal Lexicon).
 
 use crate::constants::{DRAND_GENESIS_TIME, DRAND_PERIOD};
@@ -9,10 +9,10 @@ pub use kinetic_types::clock::{KineticTime, Kyn, UTime};
 
 /// Extension trait that adds network-aware conversions to the pure math clock types.
 pub trait KynNetworkExt {
-    /// Converts a Drand kyn into deterministic Unix epoch seconds using local network constants.
+    /// Converts a Kinetic Network Time kyn into deterministic Unix epoch seconds using local network constants.
     fn to_network_utime(&self) -> UTime;
 
-    /// Returns the estimated current network Kyn based on the local OS clock.
+    /// Returns the estimated current network kyn based on the local OS clock.
     fn now_local() -> Kyn;
 }
 
@@ -30,7 +30,7 @@ impl KynNetworkExt for Kyn {
 
 /// Extension trait for estimating network kyns from Unix time.
 pub trait UTimeNetworkExt {
-    /// Converts a Unix timestamp into an estimated network Drand kyn using local network constants.
+    /// Converts a Unix timestamp into an estimated network kyn using local network constants.
     fn to_network_kyn(&self) -> Kyn;
 }
 

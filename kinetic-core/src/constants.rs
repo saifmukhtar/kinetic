@@ -120,7 +120,7 @@ pub const DB_PREFIX_BANNED_PEER: &str = concat!(
     "_banned_peer:"
 );
 
-/// Storage key for persisting the latest processed Drand kyn number.
+/// Storage key for persisting the latest processed network kyn number.
 pub const DB_PREFIX_LAST_DRAND: &[u8] = concat!(
     env!("KINETIC_NSP"),
     "-",
@@ -137,7 +137,7 @@ pub const DB_NAME_PING: &str = concat!(
     "_ping_db"
 );
 
-/// The primary global Gossipsub topic for network events (Action, Drand, Ping, etc.).
+/// The primary global Gossipsub topic for network events (Action, KYN, Ping, etc.).
 pub const GOSSIP_TOPIC_GLOBAL: &str = NETWORK_SALT_HEX;
 
 // ============================================================================
@@ -163,32 +163,32 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     #[test]
-    fn test_production_root_key_fingerprint() {
+    fn test_production_sovereign_key_fingerprint() {
         // We decode the hex production key and check its SHA-256 fingerprint.
         // This ensures the production key is NEVER accidentally changed without explicitly updating this test.
         let pub_bytes = hex::decode(prod_keys::SOVEREIGN_KEY_HEX)
-            .expect("Production root key must be valid hex");
+            .expect("Production Sovereign key must be valid hex");
 
         let mut hasher = Sha256::new();
         hasher.update(&pub_bytes);
         let hash = hasher.finalize();
         let hash_hex = hex::encode(hash);
 
-        // The expected SHA-256 fingerprint of the officially generated ML-DSA-65 root key.
+        // The expected SHA-256 fingerprint of the officially generated Sovereign key.
         let expected_fingerprint =
             "8b8b8ca511b8aec64accac035802a55f1674201eed1f8e54547a275af56124d7";
 
         assert_eq!(
             hash_hex, expected_fingerprint,
-            "CRITICAL SECURITY ALERT: The production SOVEREIGN_KEY_HEX does not match the expected SHA-256 fingerprint! Was the root key changed?"
+            "CRITICAL SECURITY ALERT: The production SOVEREIGN_KEY_HEX does not match the expected SHA-256 fingerprint! Was the Sovereign key changed?"
         );
     }
 
     #[test]
-    fn test_testnet_root_key_fingerprint() {
+    fn test_testnet_sovereign_key_fingerprint() {
         // Ensures the testnet key is not accidentally replaced or mutated.
         let pub_bytes =
-            hex::decode(test_keys::SOVEREIGN_KEY_HEX).expect("Testnet root key must be valid hex");
+            hex::decode(test_keys::SOVEREIGN_KEY_HEX).expect("Testnet Sovereign key must be valid hex");
 
         let mut hasher = Sha256::new();
         hasher.update(&pub_bytes);

@@ -20,7 +20,7 @@ use thiserror::Error;
 pub enum RecordRejectReason {
     /// The record's cryptographic signature did not verify against the public key.
     /// This happens if the payload was tampered with, or signed with the wrong key.
-    /// Verify that the record is generated using the authorized identity key (ML-DSA-65) or transport key (Ed25519).
+    /// Verify that the record is generated using the authorized identity key (Sovereign) or transport key (Ed25519).
     #[error("invalid signature")]
     InvalidSignature,
     /// The embedded VDF proof failed cryptographic verification.
@@ -29,7 +29,7 @@ pub enum RecordRejectReason {
     #[error("VDF proof invalid")]
     InvalidVdf,
     /// The registration epoch has passed and the record is no longer valid.
-    /// The current drand round has advanced past the record's expiry window.
+    /// The current KYN Provider round has advanced past the record's expiry window.
     /// The apex owner must generate a fresh heartbeat to maintain registration.
     #[error("registration has expired")]
     Expired,
@@ -100,13 +100,14 @@ pub enum ResolutionError {
         count: usize,
     },
     /// The name's registration has passed its validity window.
-    /// The network time (drand kyn) has advanced past the expiration limit of the NameRecord.
-    /// The owner must renew the registration by publishing a fresh heartbeat.
-    #[error("'{name}' registration has expired ({age} rounds old)")]
+    /// The network time (network kyn) has advanced past the expiration limit of the NameRecord.
+    /// The apex owner failed to broadcast a heartbeat within the required grace period.
+    /// The name must be re-registered or it is currently vulnerable to thermodynamic takeover.
+    #[error("Record for {name} expired {age} kyns ago")]
     Expired {
-        /// The `.kin` name that was queried.
+        /// The `.kin` name that expired.
         name: String,
-        /// Age of the record in drand rounds.
+        /// Age of the record in network kyns.
         age: u64,
     },
     /// The resolution attempt timed out before a result was returned.
