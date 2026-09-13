@@ -1,6 +1,13 @@
 use thiserror::Error;
 
-/// Error type returned by all operations in the `kinetic-kid` crate.
+/// The comprehensive error type returned by all operations in the `kinetic-kid` crate.
+///
+/// # Semantic Output Boundary
+/// This enum defines the strict boundaries of the `kinetic-kid` mathematical sandbox. 
+/// Any failure returned here represents a cryptographically or structurally invalid 
+/// identity document. These errors are designed to be caught by the `kinetic-daemon` 
+/// and safely exposed to the user or API consumer via the [`Error::code`] and 
+/// [`Error::user_message`] implementations.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
     /// The provided DID string does not start with the expected `did:kin:` prefix.
@@ -39,7 +46,7 @@ pub enum Error {
     #[error("Failed to canonicalize JSON (JCS): {0}")]
     CanonicalizationError(String),
 
-    /// The ML-DSA-65 signature bytes on the Identity Document are invalid or do not verify.
+    /// The `KineticKeypair` signature bytes on the Identity Document are invalid or do not verify.
     /// The payload was either tampered with in transit or signed by an incorrect private key.
     /// Ensure you are cryptographically signing the exact JCS-canonicalized bytes of the document.
     #[error("Invalid signature")]
@@ -47,7 +54,7 @@ pub enum Error {
 
     /// The Identity Document or capability manifest is missing a required `proof` signature field.
     /// By protocol design, all identity mutations and manifests must be cryptographically authenticated by the controller.
-    /// You must attach a valid ML-DSA-65 signature proof to the document before publishing.
+    /// You must attach a valid `KineticKeypair` signature proof to the document before publishing.
     #[error("Missing signature in document")]
     MissingSignature,
 

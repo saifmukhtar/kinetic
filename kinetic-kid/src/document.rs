@@ -35,9 +35,14 @@ pub struct ManifestPointer {
 
 /// A Kinetic Identity Document (KID) — the W3C DID-compatible root of identity.
 ///
-/// Identifies a Kinetic user and binds their ML-DSA-65 public keys to a
-/// `did:kin:<hash>` decentralized identifier. The document is signed with the
-/// controller key.
+/// Identifies a Kinetic user and binds their `KineticKeypair` public keys to a
+/// decentralized identifier. The document is signed with the controller key.
+///
+/// # Security Architecture (Hot vs Cold Keys)
+/// This document enforces a strict separation of privileges:
+/// - **Controller Keys (Hot):** Used for standard updates, key rotations, and signing manifests.
+/// - **Revocation Keys (Cold):** Kept fully offline. They are cryptographically restricted 
+///   to a single action: authorizing a `deactivated: true` document to permanently burn the identity.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Document {
     #[serde(rename = "type")]
@@ -71,10 +76,14 @@ pub struct Document {
 }
 
 impl Document {
-    /// Returns the canonical JCS serialization of the document without the signature field.
+    /// Returns the canonical JCS (RFC 8785) serialization of the document without the signature field.
+    ///
+    /// # Security
+    /// JCS Canonicalization is mandatory. It ensures that arbitrary JSON formatting 
+    /// (whitespace, key ordering) by different network peers does not alter the underlying 
+    /// byte representation, which would otherwise invalidate the cryptographic signature.
     ///
     /// # Errors
-    ///
     /// - Returns [`Error::CanonicalizationError`] if JSON serialization fails.
     pub fn canonicalize(&self) -> Result<String, Error> {
         let mut unsigned_doc = self.clone();
@@ -86,13 +95,46 @@ impl Document {
     /// Verifies the signature of the document against listed controller or revocation keys.
     ///
     /// # Errors
-    ///
     /// - Returns [`Error::KeyLimitExceeded`] if controller or revocation key count bounds are exceeded.
     /// - Returns [`Error::LocationLimitExceeded`] if manifest location bounds are exceeded.
     /// - Returns [`Error::StringLengthExceeded`] if any identifier or url string is too long.
     /// - Returns [`Error::MissingSignature`] if the signature field is absent.
     /// - Returns [`Error::Base64Error`] if signature base64url decoding fails.
-    /// - Returns [`Error::InvalidSignature`] if no listed key produces a valid ML-DSA-65 signature.
+    /// - Returns [`Error::InvalidSignature`] if no listed key produces a valid `KineticKeypair` signature.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_kid::{Document, Did, ControllerKey};
+    /// use kinetic_primitives::keys::KineticKeypair;
+    /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
+    /// 
+    /// let keypair = KineticKeypair::generate();
+    /// let pubkey_b64 = b64_url.encode(keypair.pubkey_bytes());
+    /// 
+    /// // Generate genesis DID
+    /// let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
+    /// let hex_hash = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    /// let did = Did::new(&format!("did:kin:{}", hex_hash)).unwrap();
+    ///
+    /// let doc = Document {
+    ///     doc_type: "kinetic.kid.v1".to_string(),
+    ///     kid: did.clone(),
+    ///     created_at: 1000,
+    ///     controller_keys: vec![ControllerKey {
+    ///         id: format!("{}#primary", did.as_str()),
+    ///         key_type: "MlDsa65".to_string(),
+    ///         public_key: pubkey_b64,
+    ///     }],
+    ///     manifest: None,
+    ///     revocation_keys: vec![],
+    ///     deactivated: false,
+    ///     signature: None,
+    /// };
+    /// 
+    /// let signed_doc = doc.sign(&keypair).unwrap();
+    /// assert!(signed_doc.verify().is_ok());
+    /// assert!(signed_doc.verify_genesis().is_ok());
+    /// ```
     pub fn verify(&self) -> Result<(), Error> {
         if self.controller_keys.len() > 20 || self.revocation_keys.len() > 20 {
             return Err(Error::KeyLimitExceeded);
@@ -179,21 +221,20 @@ impl Document {
         Err(Error::InvalidSignature)
     }
 
-    /// Verifies the cryptographic genesis binding: that the `kid` DID identifier
+    /// Verifies the cryptographic genesis binding: that the DID
     /// is the SHA-256 hash of the primary (first) controller key's raw public bytes.
     ///
-    /// This check MUST be called during **first publication** of a KID document,
-    /// before any document for this DID is stored. It ensures a DID cannot be
-    /// claimed by an arbitrary key that has no cryptographic relationship to it.
-    ///
-    /// It must NOT be called on subsequent updates, because key rotation legitimately
-    /// changes the controller keys while the DID stays the same.
+    /// # Consensus Rule
+    /// This check MUST be executed by the local `kinetic-daemon` **only** during the 
+    /// very first publication (genesis) of a KID document. It cryptographically proves 
+    /// the creator controls the key that generated the DID. It must **NOT** be called 
+    /// on subsequent updates, because authorized key rotation will change the controller 
+    /// keys while the DID remains static.
     ///
     /// # Errors
-    ///
     /// - Returns [`Error::InvalidSignature`] if the document has no controller keys.
     /// - Returns [`Error::Base64Error`] if the primary key is not valid Base64url.
-    /// - Returns [`Error::DidKeyMismatch`] if the DID hex suffix does not match
+    /// - Returns [`Error::DidKeyMismatch`] if the DID hex suffix does not precisely match
     ///   `hex(SHA-256(primary_controller_key_bytes))`.
     pub fn verify_genesis(&self) -> Result<(), Error> {
         use std::fmt::Write as FmtWrite;
@@ -222,11 +263,12 @@ impl Document {
     /// Checks whether `self` (the incoming updated document) was signed by a key
     /// that appeared in `previous_doc` (the currently stored document).
     ///
-    /// Call this during **KID updates** (when a document already exists for the DID)
-    /// to enforce the authorised key-rotation chain and prevent unauthorized modification.
+    /// # Security
+    /// This is the core mechanism for secure key rotation. By validating the new document's 
+    /// signature against the *old* document's authorized keys, the network maintains an 
+    /// unbroken cryptographic chain of custody.
     ///
     /// # Returns
-    ///
     /// `true` if the update is authorised by a prior controller key, `false` otherwise.
     pub fn is_authorized(&self, previous_doc: &Document) -> bool {
         let sig_b64 = match self.signature.as_ref() {

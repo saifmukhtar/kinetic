@@ -1,4 +1,4 @@
-//! NRS zone definitions, record schemas, and host routing records.
+//! Name Resolution System (NRS) zone definitions, record schemas, and host routing records.
 //!
 //! Defines the canonical representation of NRS zone files published to the Kinetic network.
 //! In addition to standard internet record types (`A`, `AAAA`, `CNAME`, `TXT`), Kinetic NRS
@@ -8,10 +8,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Parsed NRS zone mapping subdomain labels to collections of [`NrsRecord`] entries.
+/// Parsed NRS zone mapping subname labels to collections of [`NrsRecord`] entries.
+///
+/// The zone acts identically to a traditional DNS zone file, but is published securely 
+/// into the Kinetic network's decentralized DHT.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NrsZone {
-    /// Mapping from subdomain label (e.g. `@`, `www`, `api`) to a list of associated NRS records.
+    /// Mapping from subname label (e.g., `@`, `www`, `api`) to a list of associated NRS records.
     #[serde(default)]
     pub records: HashMap<String, Vec<NrsRecord>>,
 }
@@ -24,11 +27,11 @@ pub enum NrsRecord {
     A(std::net::Ipv4Addr),
     /// Standard IPv6 address record.
     AAAA(std::net::Ipv6Addr),
-    /// Canonical Name record aliasing one domain to another.
+    /// Canonical Name record aliasing one name to another.
     CNAME(String),
-    /// Arbitrary text record for domain verification and metadata.
+    /// Arbitrary text record for name verification and metadata.
     TXT(String),
-    /// libp2p Peer ID record for direct peer-to-peer transport routing.
+    /// Network peer identifier for direct peer-to-peer transport routing.
     PeerId(String),
     /// Kinetic Identity Document (KID) reference pointing to an authorized identity document.
     KID(String),
@@ -44,20 +47,40 @@ pub enum NrsRecord {
 pub struct HostRoutingRecord {
     /// Unique host identifier string.
     pub host_id: String,
-    /// Currently assigned libp2p PeerId.
+    /// Currently assigned P2P network peer ID.
     pub current_peer_id: String,
-    /// The Drand kyn kyn when this record was created.
+    /// The KineticTime kyn number when this record was created.
     pub kyn: u64,
     /// Owner signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
     pub signature: Vec<u8>,
 }
 
 impl HostRoutingRecord {
-    /// Serializes the host routing record into length-prefixed bytes for signing.
+    /// Serializes the host routing record into a canonical byte string for owner signature verification.
     ///
-    /// # Returns
+    /// The byte layout is:
+    /// `network_salt` (32 bytes) + `b"-nrs-routing-v1"` + `u32_be(host_id.len())` + `host_bytes` + `u32_be(peer_id.len())` + `peer_bytes` + `u64_be(kyn)`
     ///
-    /// Concatenated byte vector prefixed with the cryptographic network salt and routing header (`NETWORK_SALT || \"-nrs-routing-v1\"`).
+    /// # Security
+    /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte 
+    /// `network_salt` and the literal `b"-nrs-routing-v1"`, a routing record signed for 
+    /// the `.kin` network cannot be maliciously replayed on other networks.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::nrs::HostRoutingRecord;
+    ///
+    /// let routing = HostRoutingRecord {
+    ///     host_id: "host-123".to_string(),
+    ///     current_peer_id: "12D3KooW...".to_string(),
+    ///     kyn: 150000,
+    ///     signature: vec![],
+    /// };
+    /// 
+    /// let salt = [0x42; 32];
+    /// let bytes = routing.signable_bytes(&salt);
+    /// assert!(bytes.len() > 32);
+    /// ```
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
         let name_separator = b"-nrs-routing-v1";
         let mut bytes = Vec::with_capacity(

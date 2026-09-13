@@ -1,27 +1,32 @@
 //! Name records, ownership models, and heartbeat proofs.
 //!
-//! On the Kinetic network, name ownership is structured into two distinct classes:
+//! On the Kinetic network, name ownership is structured into three distinct classes:
 //!
-//! 1. **Standard Names** ([`NameRecord::Standard`]): Registered trustlessly via Proof-of-Work
+//! 1. **Standard Names** ([`NameRecord::Standard`]): Registered trustlessly via Proof of Patience
 //!    and Verifiable Delay Function (VDF) computation. Ownership is proven via the reveal record.
-//! 2. **Prime Names** ([`NameRecord::Prime`]): 1/2-character prime names granted directly
-//!    by the Action Root Authority key.
+//! 2. **Prime Names** ([`NameRecord::Prime`]): 1-character prime names mapped directly
+//!    by the Sovereign key.
+//! 3. **Infrastructure Names** ([`NameRecord::Infra`]): Essential network infrastructure names 
+//!    mapped directly by the Sovereign key.
 //!
 //! To maintain active routing and prove name liveness, owners periodically publish [`Heartbeat`]
-//! proofs signed with their ML-DSA-65 post-quantum private keys.
+//! proofs signed with their `KineticKeypair`s.
 
 #![allow(clippy::collapsible_if)]
 use serde::{Deserialize, Serialize};
 
 /// Represents a heartbeat proof indicating that a `.kin` name is actively maintained by its owner.
+///
+/// The network requires heartbeats to ensure that abandoned names do not permanently 
+/// pollute the active routing table (except for Infra names, which are immortal and do not require heartbeats).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Heartbeat {
     /// Name associated with this heartbeat.
     pub name: String,
-    /// Latest drand kyn number proving heartbeat recency.
+    /// Latest KineticTime kyn number proving heartbeat recency.
     pub latest_kyn: u64,
-    /// Owner's ML-DSA-65 post-quantum signature over [`signable_bytes`](Heartbeat::signable_bytes).
+    /// Owner's cryptographic signature over [`signable_bytes`](Heartbeat::signable_bytes).
     pub signature: Vec<u8>,
     /// Optional delegated authorization proof (Fat Heartbeat).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -30,6 +35,26 @@ pub struct Heartbeat {
 
 impl Heartbeat {
     /// Serializes this heartbeat payload into a canonical byte string for owner signature verification.
+    ///
+    /// # Security
+    /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte 
+    /// `network_salt` and the literal `b"-heartbeat-v1"`, a heartbeat signed for 
+    /// the `.kin` network cannot be maliciously replayed on other networks.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::name_record::Heartbeat;
+    ///
+    /// let hb = Heartbeat {
+    ///     name: "example".to_string(),
+    ///     latest_kyn: 12345,
+    ///     signature: vec![],
+    ///     authorization: None,
+    /// };
+    /// let salt = [0x42; 32];
+    /// let bytes = hb.signable_bytes(&salt);
+    /// assert!(bytes.len() > 32);
+    /// ```
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
         let name_separator = b"-heartbeat-v1";
         let auth_sig_len = match &self.authorization {
@@ -55,41 +80,41 @@ impl Heartbeat {
     }
 }
 
-/// Represents the two different ways a name can be owned on the Kinetic network.
+/// Represents the different ways a name can be owned on the Kinetic network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "record_type")]
 pub enum NameRecord {
-    /// A standard name registered via Proof of Work and VDF.
+    /// A standard name registered via Proof of Patience and VDF.
     Standard(Box<crate::vdf::Reveal>),
-    /// A 1/2-letter Prime name granted directly by the Action Root Key. Requires heartbeats.
+    /// A 1-character Prime name mapped directly by the Sovereign key. Requires heartbeats.
     Prime {
         /// The name.
         name: String,
-        /// The ML-DSA-65 public key of the name owner.
+        /// The public key bytes of the name owner.
         pubkey: Vec<u8>,
-        /// The network kyn when this grant was approved.
+        /// The network kyn when this mapping was approved.
         kyn: u64,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
-        /// The owner's ML-DSA-65 signature authorizing the payload.
+        /// The owner's signature authorizing the payload.
         signature: Vec<u8>,
-        /// Optional delegated authorization proof for DNS updates.
+        /// Optional delegated authorization proof for NRS zone updates.
         #[serde(skip_serializing_if = "Option::is_none")]
         authorization: Option<Box<crate::identity::AuthorizedManifest>>,
     },
-    /// An immortal Infrastructure name granted directly by the Action Root Key. No heartbeats.
+    /// An immortal Infrastructure name mapped directly by the Sovereign key. No heartbeats required.
     Infra {
         /// The name.
         name: String,
-        /// The ML-DSA-65 public key of the name owner.
+        /// The public key bytes of the name owner.
         pubkey: Vec<u8>,
-        /// The network kyn when this grant was approved.
+        /// The network kyn when this mapping was approved.
         kyn: u64,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
-        /// The owner's ML-DSA-65 signature authorizing the payload.
+        /// The owner's signature authorizing the payload.
         signature: Vec<u8>,
-        /// Optional delegated authorization proof for DNS updates.
+        /// Optional delegated authorization proof for NRS zone updates.
         #[serde(skip_serializing_if = "Option::is_none")]
         authorization: Option<Box<crate::identity::AuthorizedManifest>>,
     },
@@ -120,7 +145,7 @@ impl NameRecord {
         }
     }
 
-    /// Returns the ML-DSA-65 signature.
+    /// Returns the cryptographic signature.
     pub fn signature(&self) -> &[u8] {
         match self {
             Self::Standard(r) => &r.signature,
@@ -143,7 +168,16 @@ impl NameRecord {
 pub const M_REDUNDANCY: u8 = 32;
 
 /// Normalizes a given name string for consistent key derivation.
-/// Converts the name to lowercase and strips trailing dots.
+/// 
+/// Converts the name to lowercase and strips trailing dots to ensure that 
+/// `Example.kin.` and `example.kin` route to the exact same DHT storage arrays.
+///
+/// # Examples
+/// ```rust
+/// use kinetic_types::name_record::normalize_name;
+/// 
+/// assert_eq!(normalize_name("EXAmple.kin."), "example.kin");
+/// ```
 pub fn normalize_name(name: &str) -> String {
     let mut norm = name.to_lowercase();
     while norm.ends_with('.') {

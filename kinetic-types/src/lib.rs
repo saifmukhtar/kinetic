@@ -1,22 +1,23 @@
 //! Canonical data types, schemas, and cryptographic serialization for the Kinetic network.
 //!
-//! `kinetic-types` serves as the zero-dependency, lightweight type hub for the entire
+//! `kinetic-types` serves as the Layer 2 data schema hub for the entire
 //! Kinetic workspace. It defines the core data contracts, wire serialization formats,
 //! and cryptographic structures needed by nodes, clients, browser extensions, wallets,
 //! and offline toolchains without pulling in heavy consensus or networking engines.
 //!
 //! ## Subsystem Architecture
 //!
-//! - [`clock`]: Branded time hierarchy ([`KineticTime`](clock::KineticTime)) based on network beacons (Kyns, Facets, Prisms, Matrices, Lattices, Apexes).
-//! - [`nrs`]: NRS zone definitions, record variants (`A`, `AAAA`, `CNAME`, `TXT`, `PeerId`, `KID`, `IPFS`), and P2P routing records.
-//! - [`name_record`]: Name records ([`NameRecord`](name_record::NameRecord)), heartbeat liveness proofs ([`Heartbeat`](name_record::Heartbeat)), and signature verification.
-//! - [`error`]: Common error taxonomy metadata and severity classifications ([`Severity`](error::Severity)).
-//! - [`action`]: Action actions, signed proposal containers ([`SignedActionMessage`](action::SignedActionMessage)), binary opcodes, and parser error types.
-//! - [`network`]: Taxonomies and opcodes for peer-to-peer communication.
-//! - [`identity`]: Kinetic Identity Document ([`AuthorizedKid`](identity::AuthorizedKid)) and capability manifest attachments ([`AuthorizedManifest`](identity::AuthorizedManifest)) with replay protection.
-//! - [`proxy`]: High-performance IPC proxy requests and responses for browser and desktop integration.
-//! - [`cdn`]: Request/Response types for the P2P CDN caching layer.
-//! - [`vdf`]: Proof-of-work commitment ([`Commitment`](vdf::Commitment)), evaluation proofs ([`VdfProof`](vdf::VdfProof)), and reveal submissions ([`Reveal`](vdf::Reveal)) with ML-DSA-65 signature verification.
+//! - [`action`]: Network actions, signed network proposal containers ([`SignedActionMessage`](action::SignedActionMessage)), and strict binary payload parsers.
+//! - [`cdn`]: Request/Response taxonomies for the distributed P2P CDN caching layer.
+//! - [`clock`]: Domain-specific time hierarchy based on mathematical consensus beacons (Kyns, Facets, Prisms, Matrices, Lattices, Apexes).
+//! - [`error`]: Common error taxonomy metadata and deterministic severity classifications ([`Severity`](error::Severity)).
+//! - [`identity`]: Kinetic Identity Document ([`AuthorizedKid`](identity::AuthorizedKid)) and capability manifest attachments ([`AuthorizedManifest`](identity::AuthorizedManifest)) with Cross-Network Replay Protection.
+//! - [`name_record`]: Registration containers ([`NameRecord`](name_record::NameRecord)), active routing liveness proofs ([`Heartbeat`](name_record::Heartbeat)), and DHT key derivation.
+//! - [`network`]: Taxonomies and payload opcodes for P2P publication multiplexing.
+//! - [`nrs`]: Name Resolution System (NRS) zone definitions, routing variants, and decentralized host routing bindings.
+//! - [`protocol`]: Immutable system constants and reserved official `.kin` network names.
+//! - [`proxy`]: High-performance zero-copy IPC proxy payloads for local `kinetic-daemon` browser integration.
+//! - [`vdf`]: Proof of Patience commitments, mathematical evaluation proofs ([`VdfProof`](vdf::VdfProof)), and deterministic registration submissions ([`Reveal`](vdf::Reveal)).
 
 pub mod action;
 pub mod cdn;

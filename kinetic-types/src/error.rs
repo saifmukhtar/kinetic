@@ -1,14 +1,31 @@
-//! Unified error types and severity levels for Kinetic types.
+//! Unified error taxonomy and severity classifications.
 //!
-//! Provides the core [`Severity`] classification enum and taxonomy interfaces
-//! used across all domain-specific error types in the `kinetic-types` crate.
+//! Provides the core [`Severity`] classification enum used across all 
+//! domain-specific error types in the Kinetic architecture to drive deterministic 
+//! logging, alerting, and failure boundaries.
 
 use serde::{Deserialize, Serialize};
 
-/// Alert and logging severity level for a Kinetic error.
+/// Alert and logging severity level for a Kinetic network error.
 ///
 /// Every domain error type in the Kinetic network implements a `severity()` method
-/// returning one of these variants to drive log filtering and UI alert levels.
+/// returning one of these variants. This decoupling allows the routing layer to 
+/// universally filter logs and UI alerts without needing to understand the underlying 
+/// error context.
+///
+/// # Semantic Output Boundary
+/// The integer order of these variants (0-3) is mathematically significant for 
+/// strict magnitude comparisons (`Info < Warning < Error < Critical`).
+///
+/// # Examples
+/// ```rust
+/// use kinetic_types::error::Severity;
+///
+/// // Severity is strictly mathematically ordered for log filtering.
+/// assert!(Severity::Info < Severity::Warning);
+/// assert!(Severity::Error > Severity::Warning);
+/// assert!(Severity::Critical >= Severity::Error);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Severity {
     /// Expected protocol outcome or benign condition; no action needed.
@@ -22,6 +39,7 @@ pub enum Severity {
 }
 
 impl std::fmt::Display for Severity {
+    /// Formats the severity into a standardized uppercase string (e.g., `"CRITICAL"`).
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Info => write!(f, "INFO"),

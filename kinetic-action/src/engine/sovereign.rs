@@ -1,8 +1,7 @@
-//! Sovereign (root-only) protocol engine driver.
+//! Sovereign network action engine driver.
 //!
-//! In Sovereign mode, the network relies entirely on the offline Root key for all decisions.
-//! Council member signatures are ignored, and threshold logic is bypassed. Used primarily
-//! for private deployments or the earliest stages of bootstrap.
+//! In Sovereign mode, the network relies entirely on the offline Sovereign key for all decisions.
+//! Used primarily for private deployments or the earliest stages of bootstrap.
 
 use crate::error::ActionError;
 use crate::traits::ActionEngine;
@@ -10,18 +9,18 @@ use crate::types::{
     ActionConfig, ActionEffect, ActionState, NetworkAction, SignedActionMessage, verify_signature,
 };
 
-/// Single-signer action engine driver controlled exclusively by the Founder Root key.
+/// Single-signer network action engine driver controlled exclusively by the Sovereign key.
 pub struct SovereignEngine;
 
 impl ActionEngine for SovereignEngine {
-    /// Verifies that the proposal is signed by the Founder Root key.
+    /// Verifies that the proposal is signed by the Sovereign key.
     ///
     ///
     /// # Errors
     ///
     /// - Returns [`ActionError::StaleProposal`] if the proposal timestamp exceeds `config.max_age_kyns`.
     /// - Returns [`ActionError::InvalidPrimeLength`] if a prime name is not 1 character.
-    /// - Returns [`ActionError::InvalidSignature`] if the Root key signature is missing or invalid.
+    /// - Returns [`ActionError::InvalidSignature`] if the Sovereign signature is missing or invalid.
     fn verify_action(
         &self,
         state: &mut ActionState,
@@ -33,15 +32,15 @@ impl ActionEngine for SovereignEngine {
             return Err(ActionError::StaleProposal);
         }
 
-        let root_key = state.get_sovereign_key(config)?;
+        let sovereign_key = state.get_sovereign_key(config)?;
         let action_bytes = msg.to_bytes();
 
-        let root_signed = msg
+        let is_sovereign_signed = msg
             .signatures
             .iter()
-            .any(|sig| verify_signature(&root_key, &action_bytes, sig));
+            .any(|sig| verify_signature(&sovereign_key, &action_bytes, sig));
 
-        if root_signed {
+        if is_sovereign_signed {
             let effect = match &msg.action {
                 NetworkAction::MapPrime {
                     name,

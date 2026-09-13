@@ -50,16 +50,20 @@ pub struct Manifest {
     /// Ordered list of service endpoints this DID owner is advertising.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_50")]
     pub services: Vec<Service>,
-    /// Base64url-encoded ML-DSA-65 signature over the JCS-canonical manifest (excluding this field).
+    /// Base64url-encoded `KineticKeypair` signature over the JCS-canonical manifest (excluding this field).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
 }
 
 impl Manifest {
-    /// Returns the canonical JCS serialization of the manifest without the signature field.
+    /// Returns the canonical JCS (RFC 8785) serialization of the manifest without the signature field.
+    ///
+    /// # Security
+    /// JCS Canonicalization ensures that arbitrary JSON formatting (whitespace, key ordering) 
+    /// does not alter the underlying byte representation, which would otherwise invalidate 
+    /// the cryptographic signature.
     ///
     /// # Errors
-    ///
     /// - Returns [`Error::CanonicalizationError`] if JSON serialization fails.
     pub fn canonicalize(&self) -> Result<String, Error> {
         let mut unsigned_manifest = self.clone();
@@ -99,6 +103,47 @@ impl Manifest {
     /// - Returns [`Error::MissingSignature`] if the signature field is absent.
     /// - Returns [`Error::Base64Error`] if signature decoding fails.
     /// - Returns [`Error::InvalidSignature`] if signature bytes are invalid.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_kid::{Document, Did, ControllerKey, Manifest, Service};
+    /// use kinetic_primitives::keys::KineticKeypair;
+    /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
+    /// 
+    /// let keypair = KineticKeypair::generate();
+    /// let pubkey_b64 = b64_url.encode(keypair.pubkey_bytes());
+    /// let did = Did::new(&format!("did:kin:{}", "0".repeat(64))).unwrap();
+    ///
+    /// let doc = Document {
+    ///     doc_type: "kinetic.kid.v1".to_string(),
+    ///     kid: did.clone(),
+    ///     created_at: 1000,
+    ///     controller_keys: vec![ControllerKey {
+    ///         id: format!("{}#primary", did.as_str()),
+    ///         key_type: "MlDsa65".to_string(),
+    ///         public_key: pubkey_b64,
+    ///     }],
+    ///     manifest: None,
+    ///     revocation_keys: vec![],
+    ///     deactivated: false,
+    ///     signature: None,
+    /// };
+    ///
+    /// let manifest = Manifest {
+    ///     doc_type: "kinetic.manifest.v1".to_string(),
+    ///     kid: did,
+    ///     version: 1,
+    ///     valid_from: 1000,
+    ///     expires_at: None,
+    ///     services: vec![],
+    ///     signature: None,
+    /// };
+    /// 
+    /// let signed_manifest = manifest.sign(&keypair).unwrap();
+    /// 
+    /// // Verify at Unix timestamp 1005 (valid since it is >= valid_from)
+    /// assert!(signed_manifest.verify_at_time(&doc, 1005).is_ok());
+    /// ```
     pub fn verify_at_time(&self, kid_document: &Document, unix_time: u64) -> Result<(), Error> {
         if kid_document.controller_keys.len() > 20 {
             return Err(Error::KeyLimitExceeded);
@@ -156,10 +201,9 @@ impl Manifest {
         Err(Error::UnauthorizedManifestSignature)
     }
 
-    /// Helper to sign the manifest with an ML-DSA-65 keypair and return the signed manifest.
+    /// Helper to sign the manifest with a `KineticKeypair` and return the signed manifest.
     ///
     /// # Errors
-    ///
     /// - Returns [`Error::CanonicalizationError`] if JCS canonicalization fails.
     pub fn sign(
         mut self,

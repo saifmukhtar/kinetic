@@ -17,6 +17,11 @@
 use serde::{Deserialize, Serialize};
 
 /// Authorized Kinetic Identity Document (KID) document bound to a `.kin` name.
+///
+/// This container is used to securely attach a self-sovereign W3C DID document 
+/// (from Layer 2 `kinetic-kid`) to a specific `.kin` network name. It includes 
+/// the owner's cryptographic signature over the combined payload to prove they 
+/// authorized the attachment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedKid {
     /// Name associated with this KID.
@@ -33,12 +38,35 @@ impl AuthorizedKid {
     /// The byte layout is:
     /// `network_salt` (32 bytes) + `b"-auth-kid-v1"` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
     ///
-    /// The 32-byte `network_salt` prefix prevents a signature produced on one Kinetic network (e.g. `.kin`)
-    /// from being replayed on another (e.g. `.corp`).
+    /// # Security
+    /// The 32-byte `network_salt` prefix guarantees Cross-Network Replay Protection. 
+    /// A signature produced on the production `.kin` network cannot be maliciously 
+    /// replayed on a private `.corp` or test network because the underlying byte 
+    /// payload will fundamentally mismatch.
     ///
-    /// # Returns
-    ///
-    /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::identity::AuthorizedKid;
+    /// 
+    /// let kid_json = r#"{
+    ///     "type": "kinetic.kid.v1",
+    ///     "kid": "did:kin:0000000000000000000000000000000000000000000000000000000000000000",
+    ///     "created_at": 1700000000,
+    ///     "controller_keys": [],
+    ///     "revocation_keys": []
+    /// }"#;
+    /// let kid_doc = serde_json::from_str(kid_json).unwrap();
+    /// 
+    /// let auth = AuthorizedKid {
+    ///     name: "example.kin".to_string(),
+    ///     kid_doc,
+    ///     owner_signature: vec![],
+    /// };
+    /// 
+    /// let production_network_salt = [0x42; 32];
+    /// let bytes = auth.signable_bytes(&production_network_salt);
+    /// assert!(bytes.len() > 32);
+    /// ```
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
         let name_separator = b"-auth-kid-v1";
         let canon_bytes = self.kid_doc.canonicalize().unwrap_or_default();
@@ -57,6 +85,10 @@ impl AuthorizedKid {
 }
 
 /// Authorized capability manifest bound to a `.kin` name.
+///
+/// This container is used to securely attach a time-bounded capability manifest 
+/// (e.g., routing hints or service endpoints) to a specific `.kin` network name. 
+/// It includes the owner's cryptographic signature to prove authorization.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuthorizedManifest {
     /// Name associated with this capability manifest.
@@ -75,9 +107,35 @@ impl AuthorizedManifest {
     /// The byte layout is:
     /// `network_salt` (32 bytes) + `b"-auth-manifest-v1"` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
     ///
-    /// # Returns
+    /// # Security
+    /// Enforces Cross-Network Replay Protection by prepending the network-specific 
+    /// 32-byte salt.
     ///
-    /// A `Vec<u8>` containing the fully serialized, network-scoped signable payload.
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::identity::AuthorizedManifest;
+    /// 
+    /// let manifest_json = r#"{
+    ///     "type": "kinetic.manifest.v1",
+    ///     "kid": "did:kin:0000000000000000000000000000000000000000000000000000000000000000",
+    ///     "version": 1,
+    ///     "valid_from": 1700000000,
+    ///     "expires_at": 1800000000,
+    ///     "services": []
+    /// }"#;
+    /// let manifest = serde_json::from_str(manifest_json).unwrap();
+    /// 
+    /// let auth = AuthorizedManifest {
+    ///     name: "example.kin".to_string(),
+    ///     manifest,
+    ///     kid_doc: None,
+    ///     owner_signature: vec![],
+    /// };
+    /// 
+    /// let test_network_salt = [0xFF; 32];
+    /// let bytes = auth.signable_bytes(&test_network_salt);
+    /// assert!(bytes.len() > 32);
+    /// ```
     pub fn signable_bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
         let name_separator = b"-auth-manifest-v1";
         let canon_bytes = self.manifest.canonicalize().unwrap_or_default();

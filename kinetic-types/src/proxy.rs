@@ -1,8 +1,8 @@
 //! High-performance IPC proxy payloads for browser extension and desktop integration.
 //!
 //! Provides zero-copy, reference-counted HTTP request and response structures ([`ProxyRequest`],
-//! [`ProxyResponse`]) used to bridge client interfaces (e.g. browser extensions, PAC proxy daemons,
-//! and native desktop apps) with the underlying Kinetic node and gateway.
+//! [`ProxyResponse`]) used to bridge client interfaces (e.g., browser extensions, PAC proxy daemons,
+//! and native desktop apps) with the local `kinetic-daemon`.
 //!
 //! Header keys, values, methods, and paths leverage [`Arc<str>`](std::sync::Arc) to eliminate redundant
 //! heap allocations across concurrent proxy worker threads.
@@ -10,6 +10,10 @@
 use serde::{Deserialize, Serialize};
 
 /// High-performance HTTP proxy request container for client IPC forwarding.
+///
+/// Uses reference-counted `Arc<str>` strings and zero-copy `bytes::Bytes` to 
+/// ensure extremely high throughput when multiplexing thousands of concurrent 
+/// web assets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProxyRequest {
     /// HTTP method (e.g. `GET`, `POST`, `OPTIONS`).
@@ -37,6 +41,19 @@ pub struct ProxyResponse {
 
 impl ProxyResponse {
     /// Returns true if the HTTP status code is in the successful range (`200..=299`).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::proxy::ProxyResponse;
+    /// use bytes::Bytes;
+    ///
+    /// let res = ProxyResponse {
+    ///     status: 200,
+    ///     headers: vec![],
+    ///     body: Bytes::new(),
+    /// };
+    /// assert!(res.is_success());
+    /// ```
     pub fn is_success(&self) -> bool {
         self.status >= 200 && self.status < 300
     }
