@@ -1,4 +1,10 @@
-//! Periodic name heartbeat generator and Drand kyn synchronization worker loop.
+//! Periodic name heartbeat generator and KYN Time Oracle synchronization worker loop.
+//!
+//! ## Layer 5 Architecture: The Liveness Engine
+//! Domains on the Kinetic network require periodic "heartbeats" to prove liveness and 
+//! remain discoverable. This background worker constantly queries the local Storage engine 
+//! for locally owned `.kin` names, calculates the current cryptographic KYN epoch, and 
+//! floods `Heartbeat` packets over the Gossipsub mesh.
 
 use kinetic_core::traits::KynProvider;
 use kinetic_core::traits::StorageEngine;
@@ -8,7 +14,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-/// Starts a backgkyn loop that periodically broadcasts heartbeats for owned names.
+/// Starts a background loop that periodically broadcasts heartbeats for owned names.
 pub fn start_heartbeat_loop(
     hb_storage: Arc<dyn StorageEngine>,
     hb_network: kinetic_network::NetworkClient,

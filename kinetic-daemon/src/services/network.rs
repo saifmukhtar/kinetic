@@ -1,9 +1,15 @@
 //! Background network loops for dynamic PoW identity rotation and periodic DHT name republishing.
+//!
+//! ## Layer 5 Architecture: Client Identity Rotation
+//! Just like the `kinetic-host` payload seeder, the `kinetic-daemon` must maintain Sybil 
+//! resistance to interact with the Kademlia DHT. It achieves this by continuously calculating 
+//! a Proof-of-Work threshold bound to the current KYN epoch. When the time oracle pulses a 
+//! new network time, this background worker safely hot-swaps the underlying P2P swarm identity.
 
 use kinetic_core::traits::StorageEngine;
 
 #[allow(clippy::too_many_arguments)]
-/// Starts a background loop that monitors Drand kyns and seamlessly rotates
+/// Starts a background loop that monitors KYN Provider time epochs and seamlessly rotates
 /// the node's libp2p identity to maintain a valid Proof of Work (PoW) Sybil resistance.
 pub fn start_pow_miner_loop(
     hc_client: kinetic_network::NetworkClient,
@@ -170,7 +176,7 @@ pub fn start_republisher(
                                         .publish_redundant_payload(&n_commit, commit_bytes)
                                         .await;
 
-                                    // Wait 12 Drand rounds (36 seconds) so the commitment matures (>10 rounds required)
+                                    // Wait 12 KYN Time Provider rounds (36 seconds) so the commitment matures (>10 rounds required)
                                     tokio::time::sleep(std::time::Duration::from_secs(36)).await;
 
                                     tracing::info!(
