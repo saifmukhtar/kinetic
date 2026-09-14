@@ -1,3 +1,11 @@
+//! CLI subcommands for interacting with the Libp2p Network Swarm.
+//!
+//! ## Layer 5 Architecture: Network Diagnostics Dispatcher
+//! This module provides terminal tooling to inspect the running `kinetic-daemon`'s 
+//! Libp2p Swarm. Because the CLI is stateless, it relies entirely on the Daemon's 
+//! `/api/v1/micro/network/*` endpoints to read the Kademlia routing tables, Gossipsub 
+//! mesh state, and NAT hole-punching status.
+
 use clap::Subcommand;
 
 pub mod atlas_sync;

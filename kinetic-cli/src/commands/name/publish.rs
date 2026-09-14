@@ -4,14 +4,22 @@ use kinetic_core::config::KineticConfig;
 use reqwest::Client;
 use tracing::info;
 
-/// Handles publishing local zone configuration to the network.
+/// Dispatches a request to the Daemon to broadcast a routing manifest to the network.
 ///
-/// Instructs the Kinetic Daemon to securely read the local zone file,
-/// apply the cryptographic signature using its wallet, and publish the
-/// updated NameRecord to the DHT.
+/// > [!NOTE]
+/// > Because the CLI itself is completely stateless and has no cryptographic identity, 
+/// > it cannot directly sign the routing update. It delegates this task to the Daemon, 
+/// > which has access to the `kinetic-local` Secure Enclave keystore.
+///
+/// ### Execution Flow
+/// 1. **Normalization**: Ensures the target domain is properly formatted (e.g., lowercase `.kin`).
+/// 2. **Delegation**: Sends an authenticated HTTP POST to `/api/v1/micro/nrs/zone/{fqdn}/publish`.
+/// 3. **Daemon Processing**: The daemon reads the local zone configuration, cryptographically signs 
+///    it using the domain owner's private key, and injects the `Reveal` packet into the Libp2p Swarm.
+/// 4. **Terminal Feedback**: The CLI waits for the HTTP 200 OK from the daemon and prints success to stdout.
 ///
 /// # Errors
-/// Returns an `anyhow::Error` if the daemon rejects the publish request.
+/// Returns an `anyhow::Error` if the daemon rejects the publish request (e.g., due to invalid signatures or network offline).
 pub async fn handle_name_publish(
     name: String,
     config: &KineticConfig,

@@ -2,6 +2,19 @@ use comfy_table::{Cell, Color, Table};
 use indicatif::{ProgressBar, ProgressStyle};
 use kinetic_core::config::KineticConfig;
 
+/// Manually triggers a Kademlia Distributed Hash Table (DHT) bootstrapping event.
+///
+/// > [!NOTE]
+/// > Standard users rarely need to call this manually. The Kinetic Daemon automatically 
+/// > bootstraps on startup and runs periodic refresh cycles. This command is primarily 
+/// > designed for debugging partitioned networks.
+///
+/// ### Execution Flow
+/// 1. Sends an HTTP POST to `/api/v1/micro/network/bootstrap`.
+/// 2. The Daemon receives the request and commands its local `NetworkClient` to 
+///    traverse the Libp2p swarm routing table to mathematically discover the closest peers.
+/// 3. The CLI formats the JSON response into a tabular terminal display showing the 
+///    discovered `PeerId`s and their Multiaddrs.
 pub async fn handle_bootstrap(
     config: &KineticConfig,
     client: &reqwest::Client,

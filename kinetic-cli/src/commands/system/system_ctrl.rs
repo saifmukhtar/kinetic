@@ -1,6 +1,15 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use kinetic_core::config::KineticConfig;
 
+/// Instructs the Kinetic Daemon to execute a graceful restart cycle.
+///
+/// > [!WARNING]
+/// > Because the daemon orchestrates critical network infrastructure, ripping the process 
+/// > from memory (e.g., `kill -9`) can corrupt the redb storage and abruptly drop proxy connections.
+///
+/// This CLI command delegates the restart logic to the Daemon via the `/api/v1/micro/system/restart` 
+/// endpoint, ensuring the Daemon gracefully flushes its local Kademlia DHT state to disk and cleanly 
+/// terminates OS-level proxy loops before spinning back up.
 pub async fn handle_restart(
     config: &KineticConfig,
     client: &reqwest::Client,
@@ -28,6 +37,13 @@ pub async fn handle_restart(
     Ok(())
 }
 
+/// Instructs the Kinetic Daemon to securely and permanently halt its execution.
+///
+/// ### Execution Flow
+/// 1. Instantiates an HTTP client with the `X-Kinetic-Token` authorization header.
+/// 2. Sends an authenticated POST to `/api/v1/micro/system/shutdown`.
+/// 3. The daemon acknowledges the request (HTTP 200) before initiating its internal OS teardown logic.
+/// 4. The CLI reports success to the user terminal.
 pub async fn handle_shutdown(
     config: &KineticConfig,
     client: &reqwest::Client,

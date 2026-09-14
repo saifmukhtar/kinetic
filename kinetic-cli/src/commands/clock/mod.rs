@@ -13,10 +13,22 @@ pub struct ClockArgs {
     pub listen: bool,
 }
 
-/// Executes the `clock` command to display Kinetic Network Time.
+/// Executes the `kinetic clock` command to render the current Network Time Oracle epoch.
+///
+/// > [!IMPORTANT]
+/// > Kinetic relies heavily on synchronized network time (KYNs) rather than absolute UNIX time 
+/// > for Proof-of-Work staleness and DNS epoch rotation.
+///
+/// ### Execution Flow
+/// 1. Initiates an HTTP GET request to the Daemon's `/api/v1/micro/time/current` endpoint.
+/// 2. If the daemon is online, displays the verified `KineticTime` (including the exact KYN epoch).
+/// 3. If the daemon is offline (Connection Refused), the CLI executes a mathematical fallback 
+///    by locally checking the machine's `SystemTime`, subtracting `KYN_GENESIS_TIME`, and 
+///    dividing by `KYN_PERIOD` to provide an unverified estimate.
+/// 4. If the `--listen` flag is provided, loops the CLI terminal output infinitely like a digital clock.
 ///
 /// # Errors
-/// Returns an `anyhow::Error` if the API client cannot connect to the daemon (when fallback is disabled) or if internal parsing fails.
+/// Returns an `anyhow::Error` if terminal formatting fails or the system clock is severely de-synchronized.
 pub async fn handle_clock_command(
     args: ClockArgs,
     config: &KineticConfig,
