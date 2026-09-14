@@ -1,16 +1,20 @@
 # kinetic-daemon
 
-**The background service and REST API gateway for local node administration and routing.**
+## 1. Overview
+`kinetic-daemon` is the primary user-facing engine of the Kinetic network. Installed on Windows, macOS, or Linux via the desktop installer, this background service handles everything from domain registration math to in-browser privacy routing.
 
-`kinetic-daemon` is the localized administrative controller for a Kinetic node. It runs in the background and exposes a secure HTTPS REST API (default port `16002`) to coordinate name resolution, key management, telemetry, and node lifecycle events.
+## 2. Architecture & Responsibilities
+Because end-users require a seamless Web3 experience within their standard Web2 browsers (Chrome, Safari), this daemon packs a massive amount of functionality:
 
-While `kinetic-host` manages external proxying and `kinetic-network` manages the P2P swarm, `kinetic-daemon` provides the command-and-control surface for the CLI and user applications.
+1. **The Asynchronous Workers (`services/`)**: Runs background threads to sync the KYN Time Oracle, recalculate Proof-of-Work to avoid Kademlia DHT bans, and listen for Global Action State gossip to automatically halt the daemon during network upgrades.
+2. **The Macro API (`api/`)**: Generating VDF proofs for domains takes hours. Instead of blocking HTTP requests, the API immediately returns `task_id`s, allowing the Desktop UI to poll for real-time progress bars while the CPU churns in the background.
+3. **The TLS Interceptor (`proxy/`)**: When a user types `https://example.kin` into Chrome, this daemon dynamically generates a spoofed SSL certificate signed by the local OS, decrypts the request, tunnels it through the privacy-preserving Libp2p swarm, and returns it securely to the browser.
 
-## Features
+## 3. Reading Guide
+- `src/api/*`: The HTTP REST endpoints. Start with `mod.rs` to see the routing tree, then look at `macro_api.rs` to understand how heavy asynchronous tasks are returned to the UI.
+- `src/services/*`: The background workers. Read `network.rs` to understand the Sybil-resistant hot-swap.
+- `src/proxy/*`: The MITM proxy. Start with `http.rs` to understand the traffic cop, and `route_p2p.rs` to see how HTTP requests are packed into Gossip payloads.
+- `src/main.rs`: The massive orchestrator boot sequence.
 
-- **Secure REST API**: Exposes an `axum`-based HTTPS API bounded by a dynamically generated, cryptographically secure Bearer token.
-- **Local CA & TLS**: Uses `rcgen` and `rustls` to automatically generate a localized Root Certificate Authority (CA) and issues self-signed TLS certificates for `localhost`, ensuring all CLI-to-daemon communication is end-to-end encrypted.
-- **Constant-time Auth**: Employs `subtle::ConstantTimeEq` when validating API Bearer tokens to protect the daemon against timing side-channel attacks.
-- **Governance Mutations**: Exposes endpoints for users to craft, sign, and broadcast Governance and VDF payloads onto the network.
-- **IPC & System Daemon**: Can be installed as a permanent system service via `service-manager`, keeping the local Kinetic node online and routing traffic seamlessly across system reboots.
-- **Local DNS & Gateway**: Interfaces with `hickory-server` and `axum` routing layers to bridge IPFS CIDs and traditional DNS queries safely.
+## 4. Taxonomy
+This crate is a **Layer 5 Executable**. See [`./LAYER_5.md`](./LAYER_5.md) for architectural constraints.

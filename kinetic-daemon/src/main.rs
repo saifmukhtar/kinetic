@@ -1,29 +1,28 @@
-//! # kinetic-daemon
+//! # kinetic-daemon (Layer 5: Heavy User Engine)
 //!
-//! The primary user-facing Kinetic daemon binary (`kinetic-daemon`).
+//! The primary user-facing Kinetic daemon executable (`kinetic-daemon`).
 //!
-//! The daemon is the central coordinator of a Kinetic network participant's
-//! local stack. It manages the full lifecycle of name registration,
-//! renewal, and resolution, and exposes an authenticated HTTP API that the
-//! `kinetic-cli` and desktop app interact with.
+//! ## Layer 5 Architecture: The All-In-One Node
+//! Unlike `kinetic-node` (headless cloud router) or `kinetic-host` (headless payload seeder), 
+//! the `kinetic-daemon` is designed to be installed on a user's personal laptop (macOS, Windows, Linux).
+//! It is the central coordinator of the entire Kinetic stack.
 //!
-//! ## Responsibilities
+//! Because end-users expect a rich, interactive experience, this executable bundles a massive 
+//! amount of functionality into a single process:
 //!
-//! - **P2P networking**: Runs a full Kademlia DHT node for publishing and
-//!   resolving `.kin` DNS records.
-//! - **VDF engine**: Drives the Chia VDF to produce time-lock proofs for
-//!   name registration and ownership transfers.
-//! - **DNS resolver**: Embeds `kinetic-dns` to answer system-level DNS queries
-//!   for `.kin` names on the loopback interface.
-//! - **HTTP API**: Authenticated REST API on port 16002 for CLI and UI clients.
-//! - **Service manager**: Can install, start, stop, and uninstall itself as a
-//!   system service (systemd on Linux, launchd on macOS, SCM on Windows).
+//! - **P2P Networking**: Runs a full Kademlia DHT node to resolve and browse the `.kin` namespace.
+//! - **Cryptographic Math**: Drives the local CPU VDF engine (via `kinetic-vdf`) to generate 
+//!   time-lock proofs for registering new premium or standard domains.
+//! - **OS Integrations**: Embeds a local DNS interceptor (via `kinetic-nrs`) to hijack `.kin` 
+//!   DNS queries at the operating system level and route them through the Libp2p proxy.
+//! - **HTTP REST API**: Exposes port `16001` allowing the Electron Desktop UI and the `kinetic-cli` 
+//!   to send interactive commands (like transferring domains or generating KIDs).
+//! - **Service Manager**: Can install, start, stop, and uninstall itself natively using 
+//!   `systemd`, `launchd`, or `SCM`.
 //!
-//! ## Authentication
-//!
-//! A random API token is written to `~/.local/share/kinetic/api.token` on first
-//! run. All mutating API calls must include this token in the
-//! `X-Kinetic-Token` header.
+//! ## Security Boundary
+//! A random API token is written to `~/.local/share/kinetic/api.token` on first run. 
+//! All mutating API calls from the CLI or UI must include this token in the `X-Kinetic-Token` header.
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -233,14 +232,19 @@ fn stop_background_service() -> Result<()> {
     Ok(())
 }
 
-/// Executes the main logic for the Kinetic Daemon.
+/// Executes the massive synchronous orchestration logic for the Kinetic Daemon.
+///
+/// > [!IMPORTANT]
+/// > Because this executable wires together the entire Layer 4 stack (Networking, Storage, 
+/// > VDF Math, HTTP Proxy), it is structurally massive. It does not contain domain logic 
+/// > itself, but rather orchestrates the boot sequence.
 ///
 /// This function is responsible for:
-/// - Validating the action key state.
-/// - Initializing database storage and the VDF engine.
-/// - Starting the Drand heartbeat and PoW sybil mining loop.
-/// - Establishing the Kademlia P2P Swarm.
-/// - Starting the API server, PAC server, DNS proxy, and HTTP proxy.
+/// 1. Validating the Global Action Key state (e.g., verifying no Sovereign network halts).
+/// 2. Initializing `kinetic-storage` (redb) and the `kinetic-vdf` Wesolowski engine.
+/// 3. Booting the Time Oracle heartbeat and S/Kademlia PoW sybil mining loop.
+/// 4. Establishing the Libp2p Swarm multiplexer.
+/// 5. Spawning the API server, PAC server, OS-level DNS proxy, and HTTP `.kin` proxy.
 ///
 /// # Errors
 ///
@@ -334,7 +338,7 @@ async fn run_daemon() -> Result<()> {
     );
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("Drand beacon connected — kyn #{}", kyn.kyn);
+            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
             kyn
         }
         Err(e) => {
