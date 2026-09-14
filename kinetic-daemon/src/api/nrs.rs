@@ -1,4 +1,23 @@
-//! HTTP REST API handlers for publishing Reveals, Commitments, Authorized KIDs, Manifests, and Action actions.
+//! HTTP REST API handlers for the Kinetic Name Registration System (NRS).
+//!
+//! ## Layer 5 Architecture: The Registration Gateway
+//! This file is the primary ingress point for the local Desktop UI to interact with the global 
+//! Kademlia DHT. It handles the highly complex multi-stage cryptographic flow of domain 
+//! registration (Commit, Reveal, Verify).
+//!
+//! ### The Publishing Flow
+//! ```text
+//! [Desktop UI] -> POST /nrs/publish -> [handle_publish_record]
+//!                                                |
+//!                                   +------------v-------------+
+//!                                   | 1. Cryptographic Verify  |
+//!                                   | 2. Staleness Math Check  |
+//!                                   | 3. Local DB Persistence  |
+//!                                   | 4. Libp2p Swarm Injection|
+//!                                   +--------------------------+
+//!                                                |
+//!                                       [Gossipsub / Kademlia]
+//! ```
 
 use super::*;
 use axum::{
@@ -10,7 +29,16 @@ use kinetic_core::types::RevealExt;
 use kinetic_core::types::clock::KynNetworkExt;
 use kinetic_verify::signatures::VerifySignature;
 
-/// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
+/// Resolves the canonical current network time epoch (KYN) with high availability.
+///
+/// > [!NOTE]
+/// > Because domain registration is bound to the current time epoch to prevent spam, 
+/// > we must have absolute certainty of the network time.
+///
+/// This function executes a cascading fallback strategy:
+/// 1. Tries to query the live Libp2p swarm for the absolute freshest time.
+/// 2. If the swarm is offline, falls back to the local `kinetic-storage` Time Oracle cache.
+/// 3. If the cache is empty (genesis boot), it estimates the time mathematically using the local clock.
 async fn get_safe_current_kyn(state: &ApiState) -> kinetic_core::types::Kyn {
     if let Ok(kyn) = state.network.get_current_kyn().await
         && kyn > 0
@@ -26,12 +54,23 @@ async fn get_safe_current_kyn(state: &ApiState) -> kinetic_core::types::Kyn {
     }
 }
 
-/// Handles API requests to publish a `Reveal` to the DHT.
+/// Injects a fully verified `Reveal` payload into the global Kademlia DHT.
+///
+/// > [!IMPORTANT]
+/// > This is the final step in the NRS registration flow. A `Reveal` is only accepted if 
+/// > the corresponding `Commit` has successfully matured (>10 epochs) on the network.
+///
+/// ### Execution Flow
+/// 1. **Classification:** Determines if the domain is Standard (requires PoW) or Premium.
+/// 2. **Staleness Enforcement:** Rejects any Standard `Reveal` if its attached Time Oracle 
+///    epoch is older than the `RESQUARING_EPOCH_KYNS` threshold.
+/// 3. **Validation:** Executes the `verify()` trait method to validate the Ed25519 signatures.
+/// 4. **Persistence:** Saves the `Reveal` locally to ensure it survives reboots.
+/// 5. **Network Injection:** Sends the payload to the asynchronous `NetworkClient` to be 
+///    routed to the mathematically closest DHT peers.
 ///
 /// # Errors
-///
-/// Returns an `AppError` if the name is invalid, the `Reveal` validation fails,
-/// or if publishing to the DHT fails.
+/// Returns an `AppError::Validation` if signatures fail, or `AppError::Network` if the DHT is unreachable.
 pub async fn handle_publish_record(
     axum::extract::Extension(role): axum::extract::Extension<Role>,
     State(state): State<ApiState>,
@@ -57,7 +96,7 @@ pub async fn handle_publish_record(
 
     let mut name_record = req.record;
 
-    // For Standard names, we need to validate and enforce Drand staleness.
+    // For Standard names, we need to validate and enforce KYN Time Oracle staleness.
     // Premium names bypass VDF staleness checks.
     let mut is_standard = false;
     let mut kyn = 0;
@@ -72,7 +111,7 @@ pub async fn handle_publish_record(
         kyn = reveal.kyn;
     }
 
-    // Enforce drand staleness — reject Reveals whose VDF kyn is older
+    // Enforce Time Oracle staleness — reject Reveals whose VDF kyn is older
     // than RESQUARING_EPOCH_KYNS using the safe cached network Kyn.
     let current_kyn = get_safe_current_kyn(&state).await.0;
 

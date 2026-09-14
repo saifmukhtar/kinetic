@@ -1,4 +1,17 @@
-//! HTTP REST API endpoints and backgkyn task workers for VDF registration, renewal, and task progress tracking.
+//! HTTP REST API endpoints and background task workers for VDF generation workflows.
+//!
+//! ## Layer 5 Architecture: Asynchronous UI Task Management
+//! Because generating a Verifiable Delay Function (VDF) for a Standard Domain Registration 
+//! takes significant wall-clock time (potentially hours depending on the difficulty), the 
+//! UI cannot simply block on an HTTP request.
+//!
+//! This module implements the **Macro API Pattern**:
+//! 1. The user's Desktop UI sends a POST request to initiate a heavy cryptographic workflow.
+//! 2. The endpoint immediately spins up a detached `tokio::spawn` worker to execute the math.
+//! 3. The endpoint returns a unique `task_id` to the UI instantly (HTTP 202 Accepted).
+//! 4. The detached worker computes the VDF in the background, updating a thread-safe `Arc<Mutex>` 
+//!    status map at each cryptographic milestone.
+//! 5. The UI periodically polls `/api/v1/macro/tasks/{task_id}` to display a real-time progress bar.
 
 use super::*;
 use axum::{
@@ -98,14 +111,15 @@ pub async fn handle_macro_register_name(
     let iterations = req.iterations.unwrap_or(4_194_304);
 
     tokio::spawn(async move {
-        // Step 1: Drand
-        update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let kyn_provider =
-            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
+        // Step 1: KYN Time Oracle
+        update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);
+        let kyn_provider: std::sync::Arc<dyn kinetic_core::traits::KynProvider> = std::sync::Arc::new(
+            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone())),
+        );
         let drand_data = match kyn_provider.load_cached() {
-            Ok(d) => d,
+            Ok(data) => data,
             Err(e) => {
-                update_task_error(&tasks_clone, &task_id_clone, format!("Drand error: {}", e));
+                update_task_error(&tasks_clone, &task_id_clone, format!("KYN Time Oracle error: {}", e));
                 return;
             }
         };
@@ -150,7 +164,7 @@ pub async fn handle_macro_register_name(
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    format!("Failed to decode Drand signature: {}", e),
+                    format!("Failed to decode Time Oracle signature: {}", e),
                 );
                 return;
             }
@@ -493,14 +507,15 @@ pub async fn handle_macro_renew_name(
             }
         };
 
-        // Step 2: Drand
-        update_task_status(&tasks_clone, &task_id_clone, "Fetching Drand beacon", 10);
-        let kyn_provider =
-            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
+        // Step 2: KYN Time Oracle
+        update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);
+        let kyn_provider: std::sync::Arc<dyn kinetic_core::traits::KynProvider> = std::sync::Arc::new(
+            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone())),
+        );
         let drand_data = match kyn_provider.load_cached() {
             Ok(d) => d,
             Err(e) => {
-                update_task_error(&tasks_clone, &task_id_clone, format!("Drand error: {}", e));
+                update_task_error(&tasks_clone, &task_id_clone, format!("KYN Time Oracle error: {}", e));
                 return;
             }
         };
@@ -535,7 +550,7 @@ pub async fn handle_macro_renew_name(
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    format!("Failed to decode Drand signature: {}", e),
+                    format!("Failed to decode Time Oracle signature: {}", e),
                 );
                 return;
             }
