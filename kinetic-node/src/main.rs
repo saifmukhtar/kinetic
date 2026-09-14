@@ -1,19 +1,24 @@
-//! # kinetic-node
+//! # kinetic-node (Layer 5: Public Infrastructure)
 //!
-//! The Kinetic infrastructure node binary (`kinetic-node`).
+//! The Kinetic public infrastructure node executable (`kinetic-node`).
 //!
-//! An infrastructure node is a long-lived, always-on participant in the Kinetic
-//! P2P network. It is not a user-facing daemon — it does not expose a DNS
-//! resolver or an HTTP registration API. Its sole responsibilities are:
+//! ## Layer 5 Architecture: The Headless Router
+//! `kinetic-node` is a highly privileged, headless server process designed exclusively 
+//! to run on cloud infrastructure (e.g. AWS, DigitalOcean). 
+//! 
+//! **CRITICAL DISTINCTION:** This is *not* a blockchain validator. It does not mine blocks, 
+//! build a ledger, or process user transactions. There is no global state.
 //!
-//! - Maintaining a stable Kademlia DHT peer identity (static keypair on disk).
-//! - Participating in record storage and routing for the `.kin` namespace.
-//! - Relaying action gossip messages across the network.
-//! - Exposing a health-check HTTP API on port 16003.
-//!
-//! Multiple infrastructure nodes run as part of the Kinetic bootstrap
-//! infrastructure. They provide the initial routing table entries that new
-//! peers connect to when joining the network.
+//! Its architectural responsibilities are strictly limited to:
+//! 1. **DHT Bootstrapping:** Providing stable IP addresses (via a static Ed25519 `node_key`) 
+//!    for new user daemons to connect to when joining the network.
+//! 2. **Time Oracle Ingestion:** This binary acts as the bridge to the external KYN Provider. 
+//!    It runs a background heartbeat that fetches cryptographically secure entropy over HTTP/DNS, 
+//!    wraps it in a `NetworkOpcode::KynTime`, and floods it into the Gossipsub mesh so that 
+//!    local user daemons never have to make external HTTP requests.
+//! 3. **Action Gossip Relay:** Relaying Global Action State pauses/upgrades across the swarm.
+//! 4. **Load Balancer Health:** Exposing a minimal Axum web server on port 16003 for Kubernetes 
+//!    or HAProxy load balancer liveness checks.
 
 mod api;
 mod gossip;
@@ -193,12 +198,12 @@ pub async fn run_node() -> Result<()> {
     let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
     info!("Storage engine initialized at {:?}", storage_path);
 
-    // 3. Initialize Drand client for PoW validation of ephemeral clients
+    // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
     let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
 
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("Drand beacon connected — kyn #{}", kyn.kyn);
+            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
             kyn
         }
         Err(e) => {
@@ -441,7 +446,7 @@ pub async fn run_node() -> Result<()> {
                         if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                             tracing::error!(
                                 error_code = e.code(),
-                                "Failed to cache drand kyn in node gossip handler: {}",
+                                "Failed to cache KYN Provider time in node gossip handler: {}",
                                 e
                             );
                         }
@@ -452,7 +457,7 @@ pub async fn run_node() -> Result<()> {
         }
     });
 
-    // 6. Start Drand Heartbeat
+    // 6. Start Time Oracle Heartbeat
     let hb_kyn_provider = kyn_provider.clone();
     let hb_network = network_client.clone();
     let p2p_only = config.drand.p2p_only;
