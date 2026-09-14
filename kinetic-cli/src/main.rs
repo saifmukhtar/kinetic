@@ -1,19 +1,23 @@
-//! # kinetic
+//! # kinetic-cli (Layer 5: User Interface)
 //!
-//! The command-line interface for the Kinetic daemon (`kinetic`).
+//! The command-line interface for the Kinetic workspace (`kinetic`).
 //!
-//! This binary provides an ergonomic terminal interface for interacting with a
-//! locally running `kinetic-daemon`. It authenticates all requests using the
-//! token stored in `~/.local/share/kinetic/api.token`.
+//! ## Layer 5 Architecture: The Stateless Client
+//! This executable is extremely thin. It acts purely as a stateless REST client.
+//! It does not perform cryptographic hashing, it does not hold network state, and it 
+//! does not write to the redb database.
+//! 
+//! Instead, it provides an ergonomic terminal interface, serializing user arguments into 
+//! JSON, and dispatching them to the authenticated `kinetic-daemon` running on `127.0.0.1:16001`.
 //!
-//! ## Command groups
+//! ### Command groups
 //!
 //! - **`identity`** — Display the local node's Peer ID and network identity.
 //! - **`name`** — Register, renew, update, and transfer `.kin` names.
 //! - **`service`** — Install, uninstall, start, and stop the daemon as a system service.
 //! - **`setup`** — Interactive configuration utility for initial node setup.
 //! - **`seed`** — Generate or restore the node's seed phrase identity.
-//! - **`action`** — Submit and manage post-quantum action proposals.
+//! - **`action`** — Submit and manage Sovereign action proposals.
 //! - **`dns-tree`** — Generate Merkle DNS tree zone files for P2P bootstrapping.
 //! - **`clock`** — Display the Kinetic Network Time and sync status.
 //! - **`daemon` / `host` / `node` / `dns`** — Process management commands for individual Kinetic subsystems.

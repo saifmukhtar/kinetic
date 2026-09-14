@@ -1,4 +1,4 @@
-//! CLI commands for submitting, signing, and managing post-quantum Kinetic network action proposals.
+//! CLI commands for submitting, signing, and managing Sovereign Kinetic network action proposals.
 
 use clap::Subcommand;
 use kinetic_core::action::SignedActionMessage;

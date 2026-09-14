@@ -123,7 +123,7 @@ pub async fn handle_name_info(
         match record {
             kinetic_core::types::NameRecord::Standard(r) => {
                 table.add_row(vec!["Type", "Standard"]);
-                table.add_row(vec!["Created at Drand KYN", &r.kyn.to_string()]);
+                table.add_row(vec!["Created at KYN Time Oracle Epoch", &r.kyn.to_string()]);
                 table.add_row(vec!["VDF Iterations", &r.iterations.to_string()]);
             }
             kinetic_core::types::NameRecord::Prime { kyn, .. } => {
