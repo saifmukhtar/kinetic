@@ -26,7 +26,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
 ) -> ResponseInfo {
     let query = request.query();
 
-    // Intercept Category 1 RESERVED_NAMES (but only resolve localhost directly)
+    // Intercept RFC reserved public utility names (RESERVED_NAMES) (but only resolve localhost directly)
     let parts: Vec<&str> = apex_name.split('.').collect();
     let is_reserved = !parts.is_empty() && kinetic_core::types::RESERVED_NAMES.contains(&parts[0]);
 

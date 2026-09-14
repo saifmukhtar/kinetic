@@ -1,3 +1,8 @@
+//! Fiat-Shamir heuristic implementation for deterministic prime generation.
+//!
+//! This module provides the mathematical routines necessary to generate the 256-bit prime
+//! used in Wesolowski's proof of exponentiation, ensuring prover and verifier consistency.
+
 use num_bigint::BigUint;
 use num_prime::nt_funcs::is_prime;
 

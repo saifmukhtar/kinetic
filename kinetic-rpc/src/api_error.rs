@@ -504,9 +504,9 @@ mod tests {
         };
         assert_eq!(ApiError::from(err).status, 404);
 
-        // Test proxy leak fix (Drand 404 shouldn't leak to client)
-        let drand_err = KynProviderError::HttpError(404);
-        assert_eq!(ApiError::from(drand_err).status, 502);
+        // Test proxy leak fix (KYN Provider 404 shouldn't leak to client as 404)
+        let kyn_err = KynProviderError::HttpError(404);
+        assert_eq!(ApiError::from(kyn_err).status, 502);
 
         // Test blame-shifting fix (Malformed docs shouldn't be 500)
         let id_err = IdentityError::MalformedManifest("bad".to_string());
