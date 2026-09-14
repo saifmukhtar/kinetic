@@ -4,7 +4,7 @@ use argon2::{Algorithm, Argon2, Params, Version};
 use libp2p::{PeerId, identity::Keypair};
 use tracing::info;
 
-/// The number of drand kyns in a single PoW epoch (e.g., 1440 for 12 hours at 30s per kyn).
+/// The number of KYN Provider pulses in a single PoW epoch (e.g., 1440 for 12 hours at 30s per kyn).
 pub const EPOCH_KYNS: u64 = 1440; // 12 hours at 30s per kyn
 
 /// Computes the leading zero bits of a given byte slice.
@@ -93,7 +93,7 @@ pub fn verify_p2p_pow(
 /// ensure it is wrapped in `tokio::task::spawn_blocking` to prevent executor starvation.
 pub fn mine_p2p_keypair(current_kyn: kinetic_types::clock::Kyn, difficulty: u32) -> Keypair {
     if current_kyn.0 == 0 && !kinetic_core::config::is_dev_mode() {
-        panic!("Cannot generate PoW against kyn 0 (drand uninitialized)");
+        panic!("Cannot generate PoW against kyn 0 (KYN Provider uninitialized)");
     }
 
     if kinetic_core::config::is_dev_mode() {

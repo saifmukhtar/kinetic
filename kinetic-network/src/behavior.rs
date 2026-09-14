@@ -1,4 +1,23 @@
 #![allow(missing_docs)]
+//! Libp2p `NetworkBehaviour` aggregator.
+//! ## Layer 4 Architecture: The Network Compositor
+//! This module defines the `KineticBehavior` struct, which acts as the supreme 
+//! router for all P2P sub-protocols. Because Kinetic does not rely on a global 
+//! blockchain ledger, it requires a highly specific composition of decentralized 
+//! protocols to maintain state and propagate events.
+//!
+//! ## Core Protocols Composed
+//! - **Kademlia (`kad`)**: The Distributed Hash Table (DHT). Used for long-term 
+//!   storage of domain `Reveals`, `Commitments`, and KYN payloads. It routes 
+//!   mathematical state across the network based on XOR distance.
+//! - **Gossipsub (`gossipsub`)**: The high-speed mesh flood router. Used for 
+//!   ephemeral, globally relevant pulses (e.g. Time Oracle ticks, emergency 
+//!   Network Halts) that must reach all nodes in milliseconds without being stored.
+//! - **AutoNAT & dcutr**: Distributed NAT traversal. Allows nodes behind restrictive 
+//!   home routers or carrier-grade NATs to punch holes and establish direct peer 
+//!   connections for decentralized CDN routing.
+//! - **Request-Response**: Point-to-point private messaging used for Tor-like 
+//!   proxy routing and direct web asset delivery.
 
 use crate::client::{ProxyRequest, ProxyResponse};
 use crate::store::KineticRecordStore;

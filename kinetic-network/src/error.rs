@@ -14,7 +14,7 @@ pub enum KineticStoreError {
     #[error("payload exceeds maximum size limit")]
     PayloadTooLarge,
     /// The VDF proof attached to this record is too old to be accepted.
-    /// The network requires PoW to be bound to recent Drand randomness to prevent pre-computation attacks.
+    /// The network requires PoW to be bound to recent KYN Provider time to prevent pre-computation attacks.
     /// You must re-run the VDF sequencer using the latest network `kyn`.
     #[error("VDF proof has expired ({age} rounds old)")]
     VdfExpired {
@@ -76,14 +76,14 @@ pub enum KineticStoreError {
     /// Ensure your client library is up to date with the latest Kinetic protocol spec.
     #[error("unknown record type prefix")]
     UnknownRecordType,
-    /// The hex-encoded Drand randomness could not be decoded.
+    /// The hex-encoded KYN Provider randomness could not be decoded.
     /// The string is likely malformed, truncated, or contains non-hex characters.
-    /// Ensure the Drand signature is a valid 96-byte BLS signature encoded as a 192-character hex string.
+    /// Ensure the oracle signature is a valid 96-byte BLS signature encoded as a 192-character hex string.
     #[error("drand_signature field contains invalid hex")]
     InvalidDrandHex,
     /// The heartbeat kyn is not strictly greater than the stored value (Finding 8).
     /// Heartbeats must strictly advance the kyn round to prevent replay attacks of old heartbeat packets.
-    /// Wait for the next Drand round before broadcasting a new heartbeat.
+    /// Wait for the next KYN Provider pulse before broadcasting a new heartbeat.
     #[error("stale heartbeat: received kyn is not newer than existing record")]
     StaleHeartbeat,
     /// The HostRoutingRecord failed signature verification or timestamp check (Finding 13).
@@ -98,7 +98,7 @@ pub enum KineticStoreError {
     RateLimited,
     /// The reveal commitment is too recent.
     /// The network enforces a minimum delay between publishing a commitment and revealing the data to prevent front-running.
-    /// Wait the required number of Drand rounds before revealing.
+    /// Wait the required number of KYN Provider network kyns before revealing.
     #[error("reveal commitment is too recent")]
     StaleReveal,
     /// The parsed JSON is valid, but violates the strict Kinetic protocol schema.
@@ -126,9 +126,9 @@ pub enum KineticStoreError {
     /// Regenerate the authorization proof and ensure it is signed by the master key.
     #[error("delegated authorization proof is invalid")]
     DelegatedAuthorizationInvalid,
-    /// The Drand BLS signature failed mathematical verification.
+    /// The KYN Provider BLS signature failed mathematical verification.
     /// The randomness injected into the PoW is forged or belongs to a different network/round.
-    /// Ensure you are querying the correct League of Entropy Drand beacon.
+    /// Ensure you are querying the correct time oracle network beacon.
     #[error("drand signature failed BLS verification")]
     InvalidDrandSignature,
     /// The raw payload bytes could not be parsed as JSON.
@@ -181,7 +181,7 @@ pub enum KineticStoreError {
     #[error("no existing reveal found for this name")]
     RevealNotFound,
     /// The required prior commitment could not be found in the DHT.
-    /// A reveal cannot be processed unless a valid commitment was published in a prior Drand round.
+    /// A reveal cannot be processed unless a valid commitment was published in a prior KYN epoch.
     /// Ensure the commitment was successfully published and confirmed before revealing.
     #[error("no prior commitment found in DHT")]
     MissingCommitment {

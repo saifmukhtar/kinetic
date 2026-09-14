@@ -1,28 +1,33 @@
 #![allow(rustdoc::redundant_explicit_links)]
-//! # kinetic-network
+//! # kinetic-network (Layer 4 Trunk)
 //!
-//! The libp2p networking layer for the Kinetic decentralised naming network.
+//! The heavy P2P networking layer for the Kinetic sovereign naming network.
 //!
-//! This crate owns everything related to peer-to-peer communication. It wraps
-//! libp2p into a clean, channel-based API so that the rest of the workspace
-//! (daemon, node, host) can interact with the network without needing to know
-//! anything about swarm internals.
+//! This crate is the absolute Trunk of Layer 4. It owns everything related to peer-to-peer 
+//! communication. It wraps the highly complex `libp2p` state machines into a clean, channel-based 
+//! API so that the Layer 5 executables (`kinetic-daemon`, `kinetic-node`, `kinetic-host`) can 
+//! interact with the network without needing to know anything about Swarm internals.
 //!
-//! ## Architecture
-//!
-//! The crate is built around a single long-running task — [`NetworkEventLoop`]
-//! — that drives the libp2p swarm. All callers interact with it exclusively
-//! through a [`NetworkClient`] handle, which communicates via a bounded
-//! `mpsc` channel. This design keeps the swarm single-threaded and avoids any
-//! locking on the hot path.
-//!
-//! ## What lives here
-//!
-//! - **`client`** — The [`NetworkClient`] handle and the [`NetworkConfig`]
-//!   used to initialise the swarm. Also exposes [`NetworkMode`] (FullNode /
-//!   LightNode) and the [`ProxyRequest`] / [`ProxyResponse`] types.
-//! - **`event_loop`** — The [`NetworkEventLoop`] task and its swarm builder,
-//!   event handlers, and utility functions.
+//! ## Layer 4 Architecture
+//! ```text
+//!                              [ Layer 5 Executables ]
+//!                                         |
+//!                                  (mpsc channel)
+//!                                         v
+//! ............................... [ NetworkClient ] ................................
+//! .                                       |                                      .
+//! .                               (tokio::select!)                               .
+//! .                                       v                                      .
+//! .                             [ NetworkEventLoop ]                             .
+//! .                            /          |         \                            .
+//! .                     (Gossipsub)   (Kademlia)   (AutoNAT)                     .
+//! .                          |            |            |                         .
+//! .                          v            v            v                         .
+//! .                 [ Action/Time ] [ RecordStore ] [ dcutr ]                    .
+//! ........................................|.......................................
+//!                                         v
+//!                               [ kinetic-storage ]
+//! ```
 //! - **`store`** — The in-memory DHT record store with GC, PoW verification,
 //!   and signature validation.
 //! - **`behavior`** — The composed libp2p `NetworkBehaviour` combining

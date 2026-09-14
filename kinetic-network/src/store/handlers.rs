@@ -1,4 +1,22 @@
-//! Handler logic for processing apex name reveals and liveness heartbeats.
+//! Handler logic for processing apex name reveals, commitments, and liveness heartbeats.
+//!
+//! ## The State Machine Transition Rules
+//! This module houses `handle_put_record`, the most complex state transition function 
+//! in the Kinetic DHT. It enforces the economic and cryptographic rules of namespace 
+//! acquisition without relying on a global blockchain ledger.
+//!
+//! ## Core Enforcement Mechanics
+//! - **Commit-Reveal Timelocks:** Enforces that a valid Commitment (hash) existed 
+//!   in the DHT for at least N network kyns before accepting the plaintext Reveal. 
+//!   This prevents front-running and namespace snipping by malicious routing peers.
+//! - **Loyalty Discounts:** Analyzes the `previous_proof` attached to a Reveal. 
+//!   If a user has continuously maintained their namespace by chaining proofs over 
+//!   months, this module automatically calculates a drastic reduction in the required 
+//!   VDF (Verifiable Delay Function) iterations to renew the name.
+//! - **Network Action Pauses:** Queries `kinetic-local::action::GLOBAL_ACTION_STATE` 
+//!   to deduct any paused network kyns from the age of a record. If the network was 
+//!   halted for an emergency upgrade, time is effectively frozen, ensuring legitimate 
+//!   users do not lose their names due to missed renewals.
 
 use crate::error::KineticStoreError;
 use crate::store::constants::*;

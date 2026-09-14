@@ -1,10 +1,22 @@
 //! Custom Kademlia `RecordStore` implementation managing persistent database storage, LRU caching, and validation dispatching.
 //!
-//! This module defines the [`KineticRecordStore`], which implements libp2p's
-//! [`RecordStore`](libp2p::kad::store::RecordStore) trait. It intercepts DHT
-//! `put` requests to strictly enforce Kinetic protocol rules, such as VDF proof
-//! validation, Ed25519 signature checks, and heartbeat timestamp progression,
-//! before persisting records to the underlying embedded database.
+//! ## Layer 4 Architecture: The Kademlia Interceptor
+//! This module defines the [`KineticRecordStore`]. It implements libp2p's
+//! [`RecordStore`](libp2p::kad::store::RecordStore) trait, but acts as a hostile 
+//! interceptor. Standard libp2p nodes accept `put` requests blindly into an in-memory 
+//! hashmap. `KineticRecordStore` rejects this behavior. Every incoming DHT record 
+//! must mathematically prove its right to exist in the namespace before it is 
+//! allowed to touch the local database.
+//!
+//! ## Defense Mechanisms
+//! - **LRU Memory Hardening:** Employs strict bounds via `lru::LruCache` to prevent 
+//!   OOM (Out Of Memory) crashing vectors from malicious peers spamming large DHT payloads.
+//! - **VDF State Tracking:** Maintains a running view of `current_kyn` (KYN Provider network time). 
+//!   It uses this state to aggressively drop stale records, future-dated timestamps, 
+//!   or proofs that lack the required VDF difficulty.
+//! - **Storage Abstraction:** Wraps the generic `StorageEngine` trait from `kinetic-core`, 
+//!   allowing the P2P network to remain completely decoupled from whether the node is running 
+//!   on a native OS (`kinetic-storage` via Redb) or a web browser (WASM OPFS).
 use libp2p::{PeerId, kad};
 use std::collections::HashMap;
 use std::sync::Arc;

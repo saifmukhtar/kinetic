@@ -16,7 +16,7 @@ use kinetic_verify::signatures::VerifySignature;
 /// # Arguments
 ///
 /// * `record` - The host routing record to be verified.
-/// * `current_kyn` - The current global drand kyn kyn.
+/// * `current_kyn` - The current global KYN Provider network time.
 ///
 /// # Errors
 ///
@@ -29,7 +29,7 @@ pub(crate) fn verify_host_routing_record(
 ) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
-    // Enforce Drand kyn freshness — reject records older than 100 kyns (~5 minutes),
+    // Enforce KYN Provider network time freshness — reject records older than 100 kyns (~5 minutes),
     // and reject records from the future to prevent pinning via u64::MAX timestamps.
     if current_kyn.saturating_sub(record.kyn) > 100 {
         let err = KineticStoreError::InvalidHostRouteSignature;
@@ -104,13 +104,13 @@ fn get_u64_from_db(
 /// # Arguments
 ///
 /// * `reveal` - The proposed reveal to compute iterations for.
-/// * `current_kyn` - The current global drand kyn kyn.
+/// * `current_kyn` - The current global KYN Provider network time.
 /// * `engine` - The VDF engine reference used to verify any `previous_proof` attached for a discount.
 ///
 /// # Errors
 ///
 /// * Returns `KineticStoreError::InvalidName` if the apex name is malformed.
-/// * Returns `KineticStoreError::InvalidDrandHex` if the Drand randomness is not valid hex.
+/// * Returns `KineticStoreError::InvalidDrandHex` if the KYN Provider randomness is not valid hex.
 pub(crate) fn compute_required_iterations(
     reveal: &kinetic_core::types::Reveal,
     current_kyn: u64,
@@ -273,7 +273,7 @@ pub(crate) fn compute_required_iterations(
 ///
 /// * `reveal` - The Reveal payload.
 /// * `storage` - The local database storage engine (to look up the commitment).
-/// * `current_kyn` - The current drand kyn kyn.
+/// * `current_kyn` - The current KYN Provider network time.
 /// * `engine` - The VDF engine used to verify the proof.
 ///
 /// # Errors
