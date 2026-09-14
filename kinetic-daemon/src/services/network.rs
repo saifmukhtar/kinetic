@@ -9,8 +9,28 @@
 use kinetic_core::traits::StorageEngine;
 
 #[allow(clippy::too_many_arguments)]
-/// Starts a background loop that monitors KYN Provider time epochs and seamlessly rotates
-/// the node's libp2p identity to maintain a valid Proof of Work (PoW) Sybil resistance.
+/// Initiates the Sybil-resistant Proof-of-Work (PoW) hot-swapping loop.
+///
+/// > [!IMPORTANT]
+/// > Kinetic requires all DHT participants to prove identity through a PoW challenge bound 
+/// > to the current cryptographic time epoch (KYN). When time advances, identities expire.
+///
+/// This asynchronous worker operates completely independently from the REST API. It performs 
+/// three critical state transitions:
+///
+/// 1. **Time Epoch Monitoring**: It blocks on `hc_drand_rx.changed()`, waiting for the Gossipsub 
+///    mesh to flood a new Time Oracle pulse.
+/// 2. **Preemptive Mining**: When the network time advances, it spins up a heavily threaded 
+///    background miner (`tokio::task::spawn_blocking`) to calculate a new valid Ed25519 identity 
+///    that satisfies the mathematical leading-zero requirement of the new epoch.
+/// 3. **The Hot Swap**: It terminates the existing Libp2p `NetworkEventLoop` handle, re-initializes 
+///    the Swarm with the newly mined PoW identity, and seamlessly re-attaches the MPSC channels.
+///
+/// ### Arguments
+/// * `hc_client`: The thread-safe channel to the running Libp2p event loop.
+/// * `hc_drand_rx`: The reactive receiver for Time Oracle pulses.
+/// * `hc_config` & `hc_storage`: Bootstrapping dependencies required to rebuild the Swarm.
+/// * `incoming_tx` & `gossip_tx`: Channels required to reconnect proxy and action routing after the swap.
 pub fn start_pow_miner_loop(
     hc_client: kinetic_network::NetworkClient,
     hc_drand_rx: tokio::sync::watch::Receiver<u64>,
@@ -126,8 +146,16 @@ pub fn start_pow_miner_loop(
     })
 }
 
-/// Starts a background loop that periodically republishes owned name payloads
-/// to the DHT to ensure they remain alive and discoverable.
+/// Initiates the background Distributed Hash Table (DHT) liveness republisher.
+///
+/// > [!NOTE]
+/// > Because Kademlia DHT nodes are highly ephemeral (laptops go to sleep, routers reboot), 
+/// > records naturally fall out of the network over time. 
+///
+/// To guarantee that a user's locally owned `.kin` domain routing payloads remain discoverable, 
+/// this asynchronous worker periodically wakes up, queries the local `kinetic-storage` for all 
+/// owned `NameRecord` datasets, and aggressively pushes `put_record` requests back into the DHT 
+/// to refresh their Time-To-Live (TTL).
 pub fn start_republisher(
     republish_network: kinetic_network::NetworkClient,
     republish_storage: std::sync::Arc<dyn StorageEngine>,
