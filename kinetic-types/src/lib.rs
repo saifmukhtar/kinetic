@@ -1,6 +1,6 @@
 //! Canonical data types, schemas, and cryptographic serialization for the Kinetic network.
 //!
-//! `kinetic-types` serves as the Layer 2 data schema hub for the entire
+//! `kinetic-types` serves as the Layer 3 data schema hub for the entire
 //! Kinetic workspace. It defines the core data contracts, wire serialization formats,
 //! and cryptographic structures needed by nodes, clients, browser extensions, wallets,
 //! and offline toolchains without pulling in heavy consensus or networking engines.

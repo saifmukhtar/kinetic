@@ -1,8 +1,8 @@
-//! # kinetic-daemon (Layer 5: Heavy User Engine)
+//! # kinetic-daemon (Layer 8: System Daemons & Services)
 //!
 //! The primary user-facing Kinetic daemon executable (`kinetic-daemon`).
 //!
-//! ## Layer 5 Architecture: The All-In-One Node
+//! ## Layer 8 Architecture: The All-In-One Node
 //! Unlike `kinetic-node` (headless cloud router) or `kinetic-host` (headless payload seeder), 
 //! the `kinetic-daemon` is designed to be installed on a user's personal laptop (macOS, Windows, Linux).
 //! It is the central coordinator of the entire Kinetic stack.

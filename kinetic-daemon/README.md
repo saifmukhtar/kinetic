@@ -17,4 +17,4 @@ Because end-users require a seamless Web3 experience within their standard Web2 
 - `src/main.rs`: The massive orchestrator boot sequence.
 
 ## 4. Taxonomy
-This crate is a **Layer 5 Executable**. See [`./LAYER_5.md`](./LAYER_5.md) for architectural constraints.
+This crate is a **Layer 8 System Daemon**. See [`./LAYER_8.md`](./LAYER_8.md) for architectural constraints.

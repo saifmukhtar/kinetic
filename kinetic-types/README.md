@@ -1,7 +1,7 @@
 # kinetic-types
 
 ## 1. Overview
-The `kinetic-types` crate serves as the canonical Layer 2 data schema hub for the Kinetic workspace. It provides the core data contracts, wire serialization formats, and cryptographic payload structures needed by nodes, clients, and proxies.
+The `kinetic-types` crate serves as the canonical Layer 3 data schema hub for the Kinetic workspace. It provides the core data contracts, wire serialization formats, and cryptographic payload structures needed by nodes, clients, and proxies.
 
 ## 2. Usage & Integration
 This crate is the backbone for any application or subsystem that needs to generate, parse, or verify Kinetic network data. 
@@ -43,4 +43,4 @@ Do not read this crate top-to-bottom. It is a flat map of specialized payloads.
 8. `lib.rs` - The overarching schema hub.
 
 ## 5. Taxonomy & Links
-* **Taxonomy:** This crate belongs to Layer 2. Please read [`./LAYER_2.md`](./LAYER_2.md) to understand the strict architectural constraints of this layer.
+* **Taxonomy:** This crate belongs to Layer 3. Please read [`./LAYER_3.md`](./LAYER_3.md) to understand the strict architectural constraints of this layer.

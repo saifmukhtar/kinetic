@@ -1,7 +1,7 @@
-# Layer 2: Domain Data & Serialization
+# Layer 3: Network Data Shapes & Domain Binding
 
 ## 1. The Hook (Taxonomy)
-The `kinetic-types` crate is part of **Layer 2: Domain Data & Types**. It serves as the canonical schema and serialization hub for the entire Kinetic network.
+The `kinetic-types` crate is part of **Layer 3: Network Data Shapes & Domain Binding**. It serves as the canonical schema and serialization hub for the entire Kinetic network.
 
 ## 2. The Core Architectural Rule (The Invariant)
 **No external dependency or network logic.**

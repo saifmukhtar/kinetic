@@ -34,5 +34,5 @@ Do not read this crate top-to-bottom. Read it in this order:
 3. `lib.rs` - The overarching module exports and epoch constants.
 
 ## 5. Taxonomy & Links
-* **Taxonomy:** This crate belongs to Layer 3. Please read [`./LAYER_3.md`](./LAYER_3.md) to understand the strict architectural constraints of this layer.
+* **Taxonomy:** This crate belongs to Layer 4. Please read [`./LAYER_4.md`](./LAYER_4.md) to understand the strict architectural constraints of this layer.
 * **Repository:** [Kinetic Network](https://github.com/saifmukhtar/kinetic)

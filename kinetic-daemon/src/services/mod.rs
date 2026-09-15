@@ -1,6 +1,6 @@
 //! Daemon background services for Gossipsub processing, name heartbeats, and network loops.
 //!
-//! ## Layer 5 Architecture: Asynchronous Workers
+//! ## Layer 8 Architecture: Asynchronous Workers
 //! The `kinetic-daemon` is fundamentally divided into two halves: the synchronous HTTP REST API 
 //! (which handles explicit user commands) and these Asynchronous Workers (which maintain network 
 //! liveness in the background).

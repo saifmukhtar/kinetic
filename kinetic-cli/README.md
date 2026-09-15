@@ -18,4 +18,4 @@ When a user types `kinetic name register myname`, the CLI:
 - `src/utils.rs`: Contains the HTTP client wrapper that injects the `X-Kinetic-Token` header.
 
 ## 4. Taxonomy
-This crate is a **Layer 5 Executable**. See [`./LAYER_5.md`](./LAYER_5.md) for architectural constraints.
+This crate is a **Layer 9 Executable**. See [`./LAYER_9.md`](./LAYER_9.md) for architectural constraints.

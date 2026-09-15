@@ -1,11 +1,11 @@
-# Layer 5: Executables (Headless Cloud Node)
+# Layer 8: System Daemons & Services (Headless Cloud Node)
 
 ## 1. Taxonomy
-This crate (`kinetic-node`) belongs to **Layer 5**, the topmost execution layer of the workspace. 
+This crate (`kinetic-node`) belongs to **Layer 8**, the topmost execution layer of the workspace. 
 It strictly consumes the lower layers (`kinetic-network`, `kinetic-storage`, `kinetic-core`) and acts as a headless, always-on infrastructure process.
 
 ## 2. Abstraction Rules
-As a Layer 5 executable:
+As a Layer 8 executable:
 1. **No Core Protocol Logic:** This crate must *never* perform cryptographic math, write generic network structs, or define DHT routing logic. It merely instantiates the `NetworkClient` and `KineticStorage` and ties them together.
 2. **Domain Boundaries:** It only interacts with HTTP load balancers and the Gossipsub mesh. It does not speak to user interfaces or DNS.
 

@@ -1,6 +1,6 @@
 //! HTTP REST API handlers for the Kinetic Name Registration System (NRS).
 //!
-//! ## Layer 5 Architecture: The Registration Gateway
+//! ## Layer 8 Architecture: The Registration Gateway
 //! This file is the primary ingress point for the local Desktop UI to interact with the global 
 //! Kademlia DHT. It handles the highly complex multi-stage cryptographic flow of domain 
 //! registration (Commit, Reveal, Verify).

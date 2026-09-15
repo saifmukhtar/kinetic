@@ -1,11 +1,11 @@
-# Layer 5: Executables (Payload Seeder)
+# Layer 8: System Daemons & Services (Payload Seeder)
 
 ## 1. Taxonomy
-This crate (`kinetic-host`) belongs to **Layer 5**, the topmost execution layer of the workspace. 
+This crate (`kinetic-host`) belongs to **Layer 8**, the topmost execution layer of the workspace. 
 It strictly consumes the lower layers (`kinetic-network`, `kinetic-storage`, `kinetic-core`) and acts as an autonomous background daemon.
 
 ## 2. Abstraction Rules
-As a Layer 5 executable:
+As a Layer 8 executable:
 1. **No Core Protocol Logic:** This crate must *never* perform cryptographic math, write generic network structs, or define DHT routing logic. It merely instantiates the `NetworkClient` and `KineticStorage` and ties them together.
 2. **Domain Boundaries:** It only interacts with incoming P2P Proxy Requests and routes them to local backend HTTP servers. It does not speak to user interfaces, does not interact with the local DNS daemon, and does not parse user CLI commands.
 

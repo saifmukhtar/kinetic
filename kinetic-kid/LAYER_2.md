@@ -1,7 +1,7 @@
-# Layer 2: Domain Data (Identity Subsystem)
+# Layer 2: Pure Identity & W3C Documents
 
 ## 1. The Hook (Taxonomy)
-This crate represents the Identity Subsystem. It sits at **Layer 2: Domain Data & Types** in the Kinetic 5-Layer Taxonomy.
+This crate represents the Identity Subsystem. It sits at **Layer 2: Pure Identity & W3C Documents** in the Kinetic 9-Layer Taxonomy.
 
 ## 2. The Core Architectural Rule (The Invariant)
 **This crate is a Pure Mathematical Sandbox.** 

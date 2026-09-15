@@ -1,16 +1,17 @@
 #![allow(rustdoc::redundant_explicit_links)]
-//! # kinetic-network (Layer 4 Trunk)
+//! # kinetic-network (Layer 7 Trunk)
 //!
-//! The heavy P2P networking layer for the Kinetic sovereign naming network.
+//! The massive P2P networking trunk of the Kinetic workspace.
 //!
-//! This crate is the absolute Trunk of Layer 4. It owns everything related to peer-to-peer 
-//! communication. It wraps the highly complex `libp2p` state machines into a clean, channel-based 
-//! API so that the Layer 5 executables (`kinetic-daemon`, `kinetic-node`, `kinetic-host`) can 
-//! interact with the network without needing to know anything about Swarm internals.
+//! This crate is the absolute Trunk of Layer 7. It owns everything related to peer-to-peer 
+//! connections, Kademlia DHT state, and Gossipsub message flooding. It encapsulates the 
+//! `libp2p::Swarm` within a dedicated Tokio task and exposes a thread-safe `NetworkClient` 
+//! API so that the Layer 8 executables (`kinetic-daemon`, `kinetic-node`, `kinetic-host`) can 
+//! safely drive network operations without lock contention.
 //!
-//! ## Layer 4 Architecture
+//! ## Layer 7 Architecture
 //! ```text
-//!                              [ Layer 5 Executables ]
+//!                              [ Layer 8 Executables ]
 //!                                         |
 //!                                  (mpsc channel)
 //!                                         v

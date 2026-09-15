@@ -2,7 +2,7 @@
 //!
 //! Highly privileged OS network configurator and PAC (Proxy Auto-Configuration) daemon.
 //!
-//! ## Layer 5 Architecture: OS Environment Hijacker
+//! ## Layer 8 Architecture: OS Environment Hijacker
 //! Unlike the pure mathematical crates in lower layers, `kinetic-pac` is a dangerous, 
 //! highly privileged binary. It actively mutates the host operating system's global 
 //! networking environment. It enumerates active network adapters, modifies registry keys, 

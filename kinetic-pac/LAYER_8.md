@@ -1,7 +1,7 @@
-# Layer 5: Executables / Application Shell
+# Layer 8: System Daemons & Services
 
 ## 1. The Hook (Taxonomy)
-This crate (`kinetic-pac`) belongs to **Layer 5: Executables**. It produces a highly privileged, standalone binary that actively mutates the host operating system's networking environment.
+This crate (`kinetic-pac`) belongs to **Layer 8: System Daemons & Services**. It produces a highly privileged, standalone binary that actively mutates the host operating system's networking environment.
 
 ## 2. The Core Architectural Rule (The Invariant)
 **Binaries execute configuration and logic; they do not define rules. However, they possess the highest level of destructive system access.**

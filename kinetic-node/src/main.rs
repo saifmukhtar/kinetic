@@ -1,8 +1,8 @@
-//! # kinetic-node (Layer 5: Public Infrastructure)
+//! # kinetic-node (Layer 8: Public Infrastructure)
 //!
 //! The Kinetic public infrastructure node executable (`kinetic-node`).
 //!
-//! ## Layer 5 Architecture: The Headless Router
+//! ## Layer 8 Architecture: The Headless Router
 //! `kinetic-node` is a highly privileged, headless server process designed exclusively 
 //! to run on cloud infrastructure (e.g. AWS, DigitalOcean). 
 //! 

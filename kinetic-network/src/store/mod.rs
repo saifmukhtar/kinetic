@@ -2,8 +2,8 @@
 //!
 //! Custom Kademlia record store for Kinetic apex state, reveals, commitments, and verification rules.
 //!
-//! ## Layer 4 Architecture: The Cryptographic Gatekeeper
-//! This module acts as the strict boundary between the untrusted P2P swarm (Layer 4 Trunk) 
+//! ## Layer 7 Architecture: The Cryptographic Gatekeeper
+//! This module acts as the strict boundary between the untrusted P2P swarm (Layer 7 Trunk) 
 //! and the trusted local disk (`kinetic-storage`). Standard libp2p Kademlia implementations 
 //! blindly write incoming network records to memory. The `KineticRecordStore` aggressively 
 //! intercepts the `libp2p::kad::store::RecordStore` trait methods to run incoming payloads 

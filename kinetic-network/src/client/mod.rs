@@ -1,6 +1,6 @@
 //! Thread-safe network client handle, command channel definitions, and configuration types.
 //!
-//! ## Layer 4 Architecture: The Thread-Safe Boundary
+//! ## Layer 7 Architecture: The Thread-Safe Boundary
 //! Because the `kinetic-network` Event Loop is locked to a single thread (`tokio::select!`), 
 //! the rest of the application (e.g. `kinetic-daemon` API handlers or background synchronizers) 
 //! cannot directly interact with the `libp2p::Swarm`. 

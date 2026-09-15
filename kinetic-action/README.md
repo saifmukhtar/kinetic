@@ -1,6 +1,6 @@
 # kinetic-action
 
-**Layer 2: Network Action and State Evolution**
+**Layer 4: Verification & Domain Rules**
 
 `kinetic-action` is the core library responsible for managing the global configuration state of the Kinetic network. It tracks Sovereign keys, name mappings, and paused network timelines without interacting with the filesystem or asynchronous P2P network.
 
@@ -46,4 +46,4 @@ cargo test -p kinetic-action --doc
 
 ## Architecture
 
-For more information on the strict abstraction boundaries and rules governing this crate, please read [LAYER_2.md](./LAYER_2.md).
+For more information on the strict abstraction boundaries and rules governing this crate, please read [LAYER_4.md](./LAYER_4.md).

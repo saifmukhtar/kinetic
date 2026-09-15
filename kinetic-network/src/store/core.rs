@@ -1,6 +1,6 @@
 //! Custom Kademlia `RecordStore` implementation managing persistent database storage, LRU caching, and validation dispatching.
 //!
-//! ## Layer 4 Architecture: The Kademlia Interceptor
+//! ## Layer 7 Architecture: The Kademlia Interceptor
 //! This module defines the [`KineticRecordStore`]. It implements libp2p's
 //! [`RecordStore`](libp2p::kad::store::RecordStore) trait, but acts as a hostile 
 //! interceptor. Standard libp2p nodes accept `put` requests blindly into an in-memory 

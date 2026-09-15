@@ -35,5 +35,5 @@ Read this crate in the following order:
 2. `src/main.rs` - Read the `build_pac_script()` function to see how the proxy Javascript is dynamically constructed (and safely merged with pre-existing scripts), followed by the `axum` HTTP server initialization.
 
 ## 5. Taxonomy & Links
-* **Taxonomy:** This crate belongs to Layer 5. Please read [`./LAYER_5.md`](./LAYER_5.md) to understand the strict architectural constraints of this layer.
+* **Taxonomy:** This crate belongs to Layer 8. Please read [`./LAYER_8.md`](./LAYER_8.md) to understand the strict architectural constraints of this layer.
 * **Repository:** [https://github.com/saifmukhtar/kinetic](https://github.com/saifmukhtar/kinetic)

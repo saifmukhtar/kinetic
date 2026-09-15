@@ -1,6 +1,6 @@
 //! HTTP REST API endpoints and background task workers for VDF generation workflows.
 //!
-//! ## Layer 5 Architecture: Asynchronous UI Task Management
+//! ## Layer 8 Architecture: Asynchronous UI Task Management
 //! Because generating a Verifiable Delay Function (VDF) for a Standard Domain Registration 
 //! takes significant wall-clock time (potentially hours depending on the difficulty), the 
 //! UI cannot simply block on an HTTP request.

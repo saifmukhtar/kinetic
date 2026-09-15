@@ -1,6 +1,6 @@
 //! Periodic name heartbeat generator and KYN Time Oracle synchronization worker loop.
 //!
-//! ## Layer 5 Architecture: The Liveness Engine
+//! ## Layer 8 Architecture: The Liveness Engine
 //! Domains on the Kinetic network require periodic "heartbeats" to prove liveness and 
 //! remain discoverable. This background worker constantly queries the local Storage engine 
 //! for locally owned `.kin` names, calculates the current cryptographic KYN epoch, and 

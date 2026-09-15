@@ -1,6 +1,6 @@
 //! Internal event handlers for `NetworkEventLoop`.
 //!
-//! ## Layer 4 Architecture: The Event Handlers
+//! ## Layer 7 Architecture: The Event Handlers
 //! To prevent `event_loop/core.rs` from growing into an unmaintainable monolith, all 
 //! `libp2p::SwarmEvent` logic is delegated to specific sub-handlers here.
 //!

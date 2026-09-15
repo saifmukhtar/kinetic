@@ -1,7 +1,7 @@
-# Layer 3: Core Architecture
+# Layer 5: The Core Engine
 
 ## 1. The Hook (Taxonomy)
-This crate (`kinetic-core`) is the absolute nexus of the Kinetic workspace. It belongs to **Layer 3: Core Architecture**.
+This crate (`kinetic-core`) is the absolute nexus of the Kinetic workspace. It belongs to **Layer 5: The Core Engine**.
 
 ## 2. The Core Architectural Rule (The Invariant)
 **This crate defines the rules of the network, but it never executes them.** 
@@ -12,9 +12,9 @@ This crate (`kinetic-core`) is the absolute nexus of the Kinetic workspace. It b
 This crate exclusively owns the central abstractions and rules engine of the Kinetic network. It acts as the grand orchestrator and shared vocabulary.
 
 * **It exclusively owns:** The protocol constants, the deterministic consensus math (difficulty scaling, fee pricing), the network configuration structures, the unified `What/Why/Fix` error taxonomy, and the abstract trait boundaries.
-* **It explicitly ignores:** Concrete infrastructural implementations (database engines, physical networking, disk I/O, heavy cryptography). All of these are pushed down to Layer 4 (`kinetic-storage`, `kinetic-network`, `kinetic-vdf`).
+* **It explicitly ignores:** Concrete infrastructural implementations (database engines, physical networking, disk I/O, heavy cryptography). All of these are pushed up to Layer 6 and Layer 7 (`kinetic-storage`, `kinetic-vdf`, `kinetic-network`).
 
 ## 4. Why This Exists (Abstraction Defense)
-By isolating the core definitions and traits in Layer 3, we achieve a perfectly decoupled architecture. If we need to swap out our underlying database engine from `redb` to `rocksdb`, or if we upgrade our P2P networking stack, `kinetic-core` remains untouched. 
+By isolating the core definitions and traits in Layer 5, we achieve a perfectly decoupled architecture. If we need to swap out our underlying database engine from `redb` to `rocksdb`, or if we upgrade our P2P networking stack, `kinetic-core` remains untouched. 
 
 It guarantees that all binaries (`kinetic-daemon`, `kinetic-node`, `kinetic-host`) share the exact same underlying rules, data models, and error behaviors without inadvertently inheriting heavy, unneeded infrastructural dependencies.

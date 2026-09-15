@@ -1,6 +1,6 @@
 //! Background pub/sub gossip message processor for action updates and KYN Time Oracle pulses.
 //!
-//! ## Layer 5 Architecture: The Global State Interceptor
+//! ## Layer 8 Architecture: The Global State Interceptor
 //! This background worker connects the local OS Action State to the decentralized Gossipsub 
 //! mesh. It listens for cryptographically signed network commands (like `Pause`, `Upgrade`, 
 //! or `DisablePow`) and immediately persists them to the local `kinetic-local::action` file, 

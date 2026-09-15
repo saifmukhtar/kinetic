@@ -1,6 +1,6 @@
 //! Local HTTP/HTTPS MITM proxy server and P2P routing engine for `.kin` domain resolution.
 //!
-//! ## Layer 5 Architecture: The Network Interceptor
+//! ## Layer 8 Architecture: The Network Interceptor
 //! This module contains the core `.kin` routing engine. When the user types a `http://name.kin` 
 //! URL into their standard web browser (like Chrome or Firefox), the OS-level DNS hijacks the 
 //! request and routes it to this proxy server running on `127.0.0.1:16000`.

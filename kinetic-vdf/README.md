@@ -35,5 +35,5 @@ Do not read this crate top-to-bottom. Read it in this order:
 3. `src/lib.rs` - The `RsaVdfEngine` struct that stitches the math together into the `VdfEngine` trait implementation.
 
 ## 5. Taxonomy & Links
-* **Taxonomy:** This crate belongs to Layer 4. Please read [`./LAYER_4.md`](./LAYER_4.md) to understand the strict architectural constraints of this layer.
+* **Taxonomy:** This crate belongs to Layer 6. Please read [`./LAYER_6.md`](./LAYER_6.md) to understand the strict architectural constraints of this layer.
 * **Repository:** [https://github.com/saifmukhtar/kinetic](https://github.com/saifmukhtar/kinetic)

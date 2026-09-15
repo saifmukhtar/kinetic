@@ -1,7 +1,7 @@
 # kinetic-host
 
 ## 1. Overview
-`kinetic-host` is a headless Layer 5 payload seeding executable. It is designed to be run via `systemd` or Docker by users who want to host `.kin` domains and serve content 24/7 without needing the heavy interactive UI of the `kinetic-daemon`.
+`kinetic-host` is a headless Layer 8 payload seeding executable. It is designed to be run via `systemd` or Docker by users who want to host `.kin` domains and serve content 24/7 without needing the heavy interactive UI of the `kinetic-daemon`.
 
 ## 2. Architecture & Responsibilities
 1. **Dynamic Sybil Resistance (`epoch.rs`):** To prevent DHT spam, the network enforces that all routing nodes complete a heavy Proof-of-Work bound to the current time epoch. As time advances, the PoW expires. `kinetic-host` runs a background heartbeat that preemptively mines the *next* epoch's PoW, and seamlessly hot-swaps the underlying Libp2p Swarm identity without terminating active user connections.
@@ -15,4 +15,4 @@
 - `src/gossip.rs`: Intercepts emergency network pauses and halts the seeding if required.
 
 ## 4. Taxonomy
-This crate is a **Layer 5 Executable**. See [`./LAYER_5.md`](./LAYER_5.md) for architectural constraints.
+This crate is a **Layer 8 Executable**. See [`./LAYER_8.md`](./LAYER_8.md) for architectural constraints.

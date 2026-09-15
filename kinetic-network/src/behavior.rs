@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 //! Libp2p `NetworkBehaviour` aggregator.
-//! ## Layer 4 Architecture: The Network Compositor
+//! ## Layer 7 Architecture: The Network Compositor
 //! This module defines the `KineticBehavior` struct, which acts as the supreme 
 //! router for all P2P sub-protocols. Because Kinetic does not rely on a global 
 //! blockchain ledger, it requires a highly specific composition of decentralized 

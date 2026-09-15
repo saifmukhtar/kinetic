@@ -41,5 +41,5 @@ Because this crate relies heavily on conditional compilation for cross-platform 
 2. `src/lib.rs (mod wasm)` - Read the WASM implementation second to see how OPFS filesystem handles are managed synchronously in the browser.
 
 ## 5. Taxonomy & Links
-* **Taxonomy:** This crate belongs to Layer 4. Please read [`./LAYER_4.md`](./LAYER_4.md) to understand the strict architectural constraints of this layer.
+* **Taxonomy:** This crate belongs to Layer 6. Please read [`./LAYER_6.md`](./LAYER_6.md) to understand the strict architectural constraints of this layer.
 * **Repository:** [https://github.com/saifmukhtar/kinetic](https://github.com/saifmukhtar/kinetic)

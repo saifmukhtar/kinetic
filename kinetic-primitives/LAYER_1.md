@@ -1,7 +1,7 @@
 # Layer 1: Fundamental / Primitives
 
 ## 1. The Hook (Taxonomy)
-This crate is the absolute foundation of the workspace. It sits at **Layer 1: Fundamental / Primitives** in the Kinetic 5-Layer Taxonomy.
+This crate is the absolute foundation of the workspace. It sits at **Layer 1: Fundamental / Primitives** in the Kinetic 9-Layer Taxonomy.
 
 ## 2. The Core Architectural Rule (The Invariant)
 **This is the ONLY crate in the entire Kinetic workspace allowed to know about specific cryptographic algorithms.** 

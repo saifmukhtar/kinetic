@@ -1,6 +1,6 @@
 //! HTTP REST API router, authentication middleware, state management, and server bootstrap.
 //!
-//! ## Layer 5 Architecture: The Desktop/CLI Bridge
+//! ## Layer 8 Architecture: The Desktop/CLI Bridge
 //! This module represents the absolute edge of the Kinetic workspace. It is a synchronous 
 //! `axum` HTTP server designed explicitly to receive commands from the local Electron Desktop UI 
 //! and the local `kinetic-cli`.

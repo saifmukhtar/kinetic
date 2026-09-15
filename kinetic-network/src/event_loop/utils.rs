@@ -1,6 +1,6 @@
 //! Utility data structures, async task spawners, and the XOR distance tie-breaker conflict resolver.
 //!
-//! ## Layer 4 Architecture: The Consensus Tie-Breaker
+//! ## Layer 7 Architecture: The Consensus Tie-Breaker
 //! While `kinetic-network/src/store/verification.rs` handles the hard mathematical rejection 
 //! of invalid records, `utils.rs` handles the soft *consensus resolution* when multiple valid 
 //! records compete for the same namespace simultaneously.

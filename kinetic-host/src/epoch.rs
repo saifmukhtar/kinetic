@@ -1,6 +1,6 @@
 //! Dynamic DHT routing record publisher and KYN Epoch PoW hot-swapping heartbeat.
 //!
-//! ## Layer 5 Architecture: The Seamless Hot-Swap
+//! ## Layer 8 Architecture: The Seamless Hot-Swap
 //! The Kinetic network aggressively protects its DHT from Sybil attacks by enforcing that 
 //! every node's Kademlia `PeerId` (which is derived from an Ed25519 public key) satisfies a 
 //! Proof-of-Work threshold bound to the *current* network time epoch (the KYN).

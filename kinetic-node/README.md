@@ -1,7 +1,7 @@
 # kinetic-node
 
 ## 1. Overview
-`kinetic-node` is a headless Layer 5 public infrastructure executable. It acts as the backbone for the Kinetic network, providing Kademlia DHT bootstrap stability and time oracle ingestion.
+`kinetic-node` is a headless Layer 8 public infrastructure executable. It acts as the backbone for the Kinetic network, providing Kademlia DHT bootstrap stability and time oracle ingestion.
 
 **This is NOT a blockchain validator.** It does not mine blocks or construct a global ledger. 
 
@@ -17,4 +17,4 @@
 - `src/api.rs`: The `/health` HTTP routes.
 
 ## 4. Taxonomy
-This crate is a **Layer 5 Executable**. See [`./LAYER_5.md`](./LAYER_5.md) for architectural constraints.
+This crate is a **Layer 8 Executable**. See [`./LAYER_8.md`](./LAYER_8.md) for architectural constraints.

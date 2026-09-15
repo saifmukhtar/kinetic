@@ -1,6 +1,6 @@
 //! CLI subcommands for interacting with the Kinetic Name Registration System (NRS).
 //!
-//! ## Layer 5 Architecture: NRS Dispatcher
+//! ## Layer 9 Architecture: NRS Dispatcher
 //! This module acts as the CLI wrapper for domain operations. It does not perform any 
 //! cryptographic VDF generation or Ed25519 signature signing itself. Instead, it serializes 
 //! the user's terminal arguments (e.g., `kinetic name register myname --iterations 1000`) 

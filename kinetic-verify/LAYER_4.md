@@ -1,7 +1,7 @@
-# Layer 3: Core Architecture (Validation & Rules Engine)
+# Layer 4: Verification & Domain Rules
 
 ## 1. The Hook (Taxonomy)
-This crate is part of **Layer 3: Core Architecture** within the Kinetic 5-Layer Taxonomy. It acts as the strict mathematical rules engine for the network.
+This crate is part of **Layer 4: Verification & Domain Rules** within the Kinetic 9-Layer Taxonomy. It acts as the strict mathematical rules engine for the network.
 
 ## 2. The Core Architectural Rule (The Invariant)
 This crate dictates the strict consensus and validation rules of the network, but it must perform **zero I/O execution**. It is a `no_std`-compatible validation sandbox. It must never import `tokio`, `std::fs`, `libp2p`, or any external networking libraries.

@@ -4,7 +4,7 @@
 //! `redb` (a pure-Rust embedded database) on native platforms, and an
 //! OPFS-backed `BTreeMap` on WASM platforms.
 //!
-//! ## Layer 4 Architecture: Infrastructure Adapter
+//! ## Layer 6 Architecture: Infrastructure Adapter
 //! This crate operates strictly as an isolated infrastructural implementor. It does not 
 //! parse network payloads, it does not understand identity rules, and it does not execute 
 //! cryptographic logic. It exclusively implements the abstract `StorageEngine` trait from 

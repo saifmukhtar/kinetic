@@ -1,6 +1,6 @@
 //! HTTP REST API handlers for managing Cryptographic Kinetic Identities (KIDs).
 //!
-//! ## Layer 5 Architecture: The Identity Manager
+//! ## Layer 8 Architecture: The Identity Manager
 //! A Kinetic Identity (KID) is a serialized Sovereign keypair that proves ownership 
 //! of specific namespaces. This module handles all local operations relating to 
 //! identity management: derivation from seed phrases, exporting to disk, and 

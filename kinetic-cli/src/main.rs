@@ -1,8 +1,8 @@
-//! # kinetic-cli (Layer 5: User Interface)
+//! # kinetic-cli (Layer 9: User Interface)
 //!
 //! The command-line interface for the Kinetic workspace (`kinetic`).
 //!
-//! ## Layer 5 Architecture: The Stateless Client
+//! ## Layer 9 Architecture: The Stateless Client
 //! This executable is extremely thin. It acts purely as a stateless REST client.
 //! It does not perform cryptographic hashing, it does not hold network state, and it 
 //! does not write to the redb database.

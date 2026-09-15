@@ -1,7 +1,7 @@
-# Layer 4: Infrastructure / Implementors
+# Layer 6: Core Infrastructure & Adapters
 
 ## 1. The Hook (Taxonomy)
-This crate (`kinetic-local`) belongs to **Layer 4: Infrastructure**. It serves as the single abstraction boundary for all local OS interactions, file system operations, and keystore management.
+This crate (`kinetic-local`) belongs to **Layer 6: Core Infrastructure & Adapters**. It serves as the single abstraction boundary for all local OS interactions, file system operations, and keystore management.
 
 ## 2. The Core Architectural Rule (The Invariant)
 **This crate must safely abstract the host operating system from the Kinetic daemon. The core consensus and logic crates must NEVER perform native disk I/O themselves.**

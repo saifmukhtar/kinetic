@@ -1,9 +1,9 @@
 #![deny(missing_docs)]
-//! # kinetic-host (Layer 5: Payload Seeder)
+//! # kinetic-host (Layer 8: Payload Seeder)
 //!
 //! The headless Kinetic content-hosting executable (`kinetic-host`).
 //!
-//! ## Layer 5 Architecture: The Headless Seeder
+//! ## Layer 8 Architecture: The Headless Seeder
 //! A host is a `.kin` domain owner that publicly serves content 24/7. It acts simultaneously 
 //! as a full P2P node and as an ingress reverse proxy. Incoming P2P privacy-routed requests 
 //! for a registered domain are intercepted by this binary and transparently forwarded to a 

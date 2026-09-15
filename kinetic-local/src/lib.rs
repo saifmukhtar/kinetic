@@ -2,7 +2,7 @@
 //!
 //! Local file system and OS environment abstractions for the Kinetic Network.
 //!
-//! ## Layer 4 Architecture: OS & Disk Orchestration
+//! ## Layer 6 Architecture: OS & Disk Orchestration
 //! This crate operates as the isolated file system boundary. It orchestrates the loading 
 //! of TOML configurations, the secure serialization of cryptographic keypairs to disk, 
 //! the management of `.kin` identity documents, and OS-level shutdown signals. 

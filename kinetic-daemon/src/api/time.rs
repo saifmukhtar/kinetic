@@ -1,6 +1,6 @@
 //! HTTP REST API endpoints for resolving canonical network time.
 //!
-//! ## Layer 5 Architecture: Time Oracle Interface
+//! ## Layer 8 Architecture: Time Oracle Interface
 //! This module exposes a fast, synchronous endpoint for the Desktop UI to fetch 
 //! the current Time Oracle epoch (KYN). Because fetching directly from the network 
 //! requires an asynchronous mesh query, this endpoint strictly returns the 

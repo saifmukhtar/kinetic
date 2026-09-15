@@ -1,6 +1,6 @@
 //! Core `NetworkEventLoop` definition and main event loop execution thread.
 //!
-//! ## Layer 4 Architecture: The P2P Engine
+//! ## Layer 7 Architecture: The P2P Engine
 //! This module houses the primary asynchronous reactor (`NetworkEventLoop`) for the entire 
 //! Kinetic P2P network. Because `libp2p` Swarms are fundamentally not thread-safe (they require 
 //! exclusive mutable access to poll events), this module isolates the Swarm inside a single, 

@@ -1,6 +1,6 @@
 //! Background network loops for dynamic PoW identity rotation and periodic DHT name republishing.
 //!
-//! ## Layer 5 Architecture: Client Identity Rotation
+//! ## Layer 8 Architecture: Client Identity Rotation
 //! Just like the `kinetic-host` payload seeder, the `kinetic-daemon` must maintain Sybil 
 //! resistance to interact with the Kademlia DHT. It achieves this by continuously calculating 
 //! a Proof-of-Work threshold bound to the current KYN epoch. When the time oracle pulses a 

@@ -1,10 +1,10 @@
 # kinetic-network
 
 ## 1. Overview
-`kinetic-network` is the massive Layer 4 infrastructural trunk that drives the Kinetic sovereign naming network. It houses the entire `libp2p` P2P mesh, managing Distributed Hash Table (DHT) state, high-speed Gossipsub floods, AutoNAT traversals, and cryptographic record verification.
+`kinetic-network` is the massive Layer 7 infrastructural trunk that drives the Kinetic sovereign naming network. It houses the entire `libp2p` P2P mesh, managing Distributed Hash Table (DHT) state, high-speed Gossipsub floods, AutoNAT traversals, and cryptographic record verification.
 
 ## 2. Usage & Integration
-Layer 5 executables (`kinetic-daemon`, `kinetic-node`) do not interact with the Swarm directly. They construct a `NetworkClient` handle and pass messages to the background event loop.
+Layer 8 executables (`kinetic-daemon`, `kinetic-node`) do not interact with the Swarm directly. They construct a `NetworkClient` handle and pass messages to the background event loop.
 
 ```rust
 // Example Integration
@@ -56,5 +56,5 @@ Read this crate in the following order to build understanding from the bottom up
 7. `src/event_loop/core.rs` - Finally, read the massive `NetworkEventLoop::run` loop that ties the entire network together.
 
 ## 5. Taxonomy & Links
-* **Taxonomy:** This crate belongs to Layer 4 (Trunk). Please read [`./LAYER_4.md`](./LAYER_4.md) to understand the strict architectural constraints of this layer.
+* **Taxonomy:** This crate belongs to Layer 7 (Trunk). Please read [`./LAYER_7.md`](./LAYER_7.md) to understand the strict architectural constraints of this layer.
 * **Repository:** [https://github.com/saifmukhtar/kinetic](https://github.com/saifmukhtar/kinetic)
