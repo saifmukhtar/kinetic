@@ -50,7 +50,7 @@ pub struct Manifest {
     /// Ordered list of service endpoints this DID owner is advertising.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_50")]
     pub services: Vec<Service>,
-    /// Base64url-encoded `KineticKeypair` signature over the JCS-canonical manifest (excluding this field).
+    /// Base64url-encoded `ControllerPrivKey` signature over the JCS-canonical manifest (excluding this field).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
 }

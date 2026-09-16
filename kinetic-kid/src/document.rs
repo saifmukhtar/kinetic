@@ -35,7 +35,7 @@ pub struct ManifestPointer {
 
 /// A Kinetic Identity Document (KID) — the W3C DID-compatible root of identity.
 ///
-/// Identifies a Kinetic user and binds their `KineticKeypair` public keys to a
+/// Identifies a Kinetic user and binds their `ControllerPrivKey` public keys to a
 /// decentralized identifier. The document is signed with the controller key.
 ///
 /// # Security Architecture (Hot vs Cold Keys)
@@ -100,7 +100,7 @@ impl Document {
     /// - Returns [`Error::StringLengthExceeded`] if any identifier or url string is too long.
     /// - Returns [`Error::MissingSignature`] if the signature field is absent.
     /// - Returns [`Error::Base64Error`] if signature base64url decoding fails.
-    /// - Returns [`Error::InvalidSignature`] if no listed key produces a valid `KineticKeypair` signature.
+    /// - Returns [`Error::InvalidSignature`] if no listed key produces a valid cryptographic signature.
     ///
     /// # Examples
     /// ```rust

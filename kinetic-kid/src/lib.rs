@@ -19,7 +19,7 @@
 //!   is the SHA-256 hash of the controller's primary public key.
 //! - **[`Document`]** — The identity document that binds a DID to one or
 //!   more [`ControllerKey`]s. It enforces a strict security separation between Hot 
-//!   (Controller) and Cold (Revocation) keys, and is signed with `KineticKeypair` 
+//!   (Controller) and Cold (Revocation) keys, and is signed with `ControllerPrivKey` 
 //!   post-quantum signatures.
 //! - **[`Manifest`]** — An optional extension signed by the
 //!   controller that lists services (websites, APIs, etc.) associated with
