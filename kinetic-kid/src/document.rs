@@ -288,7 +288,8 @@ impl Document {
         let mut msg_bytes = b"kinetic-kid-v1\0".to_vec();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
-        previous_doc.controller_keys.iter().any(|ck| {
+        // Normal path: check if signed by an existing hot key
+        let mut authorized = previous_doc.controller_keys.iter().any(|ck| {
             if !ck.key_type.eq_ignore_ascii_case("MlDsa65")
                 && !ck.key_type.eq_ignore_ascii_case("ML-DSA-65")
             {
@@ -299,7 +300,20 @@ impl Document {
                     .is_ok();
             }
             false
-        })
+        });
+
+        // Revocation path: If not authorized by a hot key, and the incoming update
+        // explicitly sets deactivated = true, check if authorized by a cold key.
+        if !authorized && self.deactivated {
+            authorized = previous_doc.revocation_keys.iter().any(|rk_b64| {
+                if let Ok(pubkey_bytes) = b64_url.decode(rk_b64) {
+                    return kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok();
+                }
+                false
+            });
+        }
+
+        authorized
     }
 
     /// Signs the document with an ML-DSA-65 signing keypair and populates the Base64url signature field.
@@ -317,5 +331,73 @@ impl Document {
         let signature_bytes = keypair.sign(&msg_bytes);
         self.signature = Some(b64_url.encode(signature_bytes));
         Ok(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kinetic_primitives::keys::KineticKeypair;
+
+    #[test]
+    fn test_document_cold_key_revocation_authorization() {
+        let controller_key = KineticKeypair::generate();
+        let revocation_key = KineticKeypair::generate();
+
+        let controller_pub_b64 = b64_url.encode(controller_key.pubkey_bytes());
+        let revocation_pub_b64 = b64_url.encode(revocation_key.pubkey_bytes());
+
+        let hash = kinetic_primitives::sha256_hash(&controller_key.pubkey_bytes());
+        let mut hex_hash = String::new();
+        for byte in hash {
+            use std::fmt::Write;
+            let _ = write!(&mut hex_hash, "{:02x}", byte);
+        }
+        let did_str = format!("did:kin:{}", hex_hash);
+
+        let doc = Document {
+            doc_type: "kinetic.kid.v1".to_string(),
+            kid: crate::did::Did::new(&did_str).unwrap(),
+            created_at: 1000,
+            controller_keys: vec![ControllerKey {
+                id: format!("{}#key-1", did_str),
+                key_type: "ML-DSA-65".to_string(),
+                public_key: controller_pub_b64.clone(),
+            }],
+            manifest: None,
+            revocation_keys: vec![revocation_pub_b64.clone()],
+            deactivated: false,
+            signature: None,
+        };
+
+        let signed_genesis = doc.sign(&controller_key).unwrap();
+        assert!(signed_genesis.verify().is_ok(), "Genesis document verification failed");
+
+        let mut deactivation_update = signed_genesis.clone();
+        deactivation_update.deactivated = true;
+        deactivation_update.signature = None;
+        
+        let signed_deactivation = deactivation_update.sign(&revocation_key).unwrap();
+
+        assert!(
+            signed_deactivation.verify().is_ok(),
+            "Deactivated document failed internal verification when signed by revocation key"
+        );
+
+        assert!(
+            signed_deactivation.is_authorized(&signed_genesis),
+            "Network authorization failed for revocation update signed by revocation key"
+        );
+
+        let unauthorized_key = KineticKeypair::generate();
+        let mut unauthorized_update = signed_genesis.clone();
+        unauthorized_update.deactivated = true;
+        unauthorized_update.signature = None;
+        let signed_unauthorized = unauthorized_update.sign(&unauthorized_key).unwrap();
+        
+        assert!(
+            !signed_unauthorized.is_authorized(&signed_genesis),
+            "Network authorized a deactivation from an unknown key"
+        );
     }
 }
