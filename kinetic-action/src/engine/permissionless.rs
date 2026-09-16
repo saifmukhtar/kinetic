@@ -1,19 +1,19 @@
-//! Permissionless (development) protocol engine driver.
+//! Permissionless network action engine driver.
 //!
 //! Used for local testing and simulation where the network runs without any central
-//! action or update authorities. All privileged actions are universally rejected.
+//! authority. All privileged network actions are universally rejected.
 
 use crate::error::ActionError;
 use crate::traits::ActionEngine;
 use crate::types::{ActionConfig, ActionEffect, ActionState, SignedActionMessage};
 
-/// Development-only engine driver where all action modifications are rejected.
+/// Development-only engine driver where all modifications are rejected.
 ///
-/// Represents a pure decentralized state with no Root or Council keys.
+/// Represents a pure decentralized state where the Sovereign key has no administrative authority.
 pub struct PermissionlessEngine;
 
 impl ActionEngine for PermissionlessEngine {
-    /// Universally rejects all action actions.
+    /// Universally rejects all network actions.
     ///
     /// # Errors
     ///
@@ -26,7 +26,7 @@ impl ActionEngine for PermissionlessEngine {
         _config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
         // In Permissionless mode, the network is perfectly immutable.
-        // No action actions (updates, name revocations) are allowed.
+        // No network actions (updates, name unmappings) are allowed.
         Err(ActionError::ActionDisabled)
     }
 
@@ -37,6 +37,6 @@ impl ActionEngine for PermissionlessEngine {
         _current_kyn: kinetic_types::clock::Kyn,
         _config: &ActionConfig,
     ) -> Option<ActionEffect> {
-        unreachable!("Action execution is permanently disabled in Permissionless mode")
+        unreachable!("Network action execution is permanently disabled in Permissionless mode")
     }
 }

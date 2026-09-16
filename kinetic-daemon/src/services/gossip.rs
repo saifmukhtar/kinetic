@@ -1,7 +1,26 @@
-//! Backgkyn pub/sub gossip message processor for action updates and Drand time kyns.
+//! Background pub/sub gossip message processor for action updates and KYN Time Oracle pulses.
+//!
+//! ## Layer 8 Architecture: The Global State Interceptor
+//! This background worker connects the local OS Action State to the decentralized Gossipsub 
+//! mesh. It listens for cryptographically signed network commands (like `Pause`, `Upgrade`, 
+//! or `DisablePow`) and immediately persists them to the local `kinetic-local::action` file, 
+//! forcing the local daemon to obey the sovereign consensus.
 
 use kinetic_core::traits::KynProvider;
-/// Starts the backgkyn task that processes incoming pubsub gossip messages.
+/// Initiates the Gossipsub Action Interceptor.
+///
+/// > [!WARNING]
+/// > This function is highly privileged. It possesses the capability to alter the local 
+/// > configuration state of the user's daemon based on unverified network mesh floods.
+///
+/// Because Libp2p Gossipsub is "push-based" (messages are flooded dynamically without request), 
+/// this asynchronous worker sits in a tight loop blocking on `gossip_rx.recv()`. When it detects 
+/// an incoming raw byte payload, it attempts to match it against `NetworkOpcode::ActionMessage`.
+///
+/// If matched, it passes the payload to `kinetic_action::process_action_message()`, which 
+/// cryptographically verifies the Sovereign ML-DSA-65 signatures. If the signatures are valid, 
+/// the Global Action State (e.g., Network Halt, PoW Disable) is persisted to disk, and the daemon 
+/// dynamically adjusts its runtime behavior.
 pub fn start_gossip_processor(
     network_client: kinetic_network::NetworkClient,
     mut gossip_rx: tokio::sync::broadcast::Receiver<(
@@ -217,7 +236,7 @@ pub fn start_gossip_processor(
                                 if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                                     tracing::error!(
                                         error_code = e.code(),
-                                        "Failed to cache drand kyn in gossip handler: {}",
+                                        "Failed to cache KYN Provider time in gossip handler: {}",
                                         e
                                     );
                                 }

@@ -1,21 +1,19 @@
-//! Category 2 reserved network protocol names and heartbeat exemption rules.
+//! Infrastructure protocol names and heartbeat exemption rules.
 //!
 //! Protocol names (`seed`, `node`, `docs`, `status`, `api`, `blog`, `rpc`, `foundation`, `metrics`)
-//! are permanently reserved and can only be allocated by the Kinetic Council via action
-//! proposal. Unlike user-owned names, protocol names:
+//! are permanently reserved and can only be allocated via Sovereign network actions.
+//! Unlike user-owned names, protocol names:
 //!
 //! - **Cannot be mined** (registration will be rejected as [`NamesError::ProtocolName`](`crate::error::NamesError::ProtocolName`))
 //! - **Are exempt from heartbeat requirements** — they never expire from inactivity
 //! - **Are exempt from thermodynamic pruning** — they cannot be taken over by idle-name takeover
 //!
-//! Contrast with Category 1 reserved names (RFC 2606/6761: `localhost`, `test`, `example`)
+//! Contrast with RFC reserved public utility names (RFC 2606/6761: `localhost`, `test`, `example`)
 //! which are handled by [`NamesError::ReservedName`](`crate::error::NamesError::ReservedName`).
 
-/// Category 2: Kinetic Protocol Names.
-///
 pub use kinetic_types::protocol::PROTOCOL_NAMES;
 
-/// Checks if a given name is classified as a Category 2 network protocol name.
+/// Checks if a given name is classified as an infrastructure network protocol name.
 ///
 /// The name is normalized and the apex label is extracted before checking against
 /// [`PROTOCOL_NAMES`]. For example, `"seed.kin"` → apex `"seed.kin"` → label `"seed"` → `true`.

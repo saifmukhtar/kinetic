@@ -140,7 +140,7 @@ impl super::core::NetworkEventLoop {
 
                 if self.current_kyn == 0 && !is_bootstrap && !self.disable_pow {
                     tracing::debug!(
-                        "Peer {} connected during uninitialized drand kyn, disconnecting",
+                        "Peer {} connected during uninitialized KYN Provider time, disconnecting",
                         peer_id
                     );
                     let _ = self.swarm.disconnect_peer_id(peer_id);

@@ -1,4 +1,4 @@
-//! CLI commands for Kinetic Identity Document (KID) creation, post-quantum key rotation, revocation, and DHT publishing.
+//! CLI commands for Kinetic Identity Document (KID) creation, Sovereign key rotation, revocation, and DHT publishing.
 //! Now utilizes the secure Kinetic Daemon API for wallet management.
 
 use clap::Subcommand;

@@ -202,13 +202,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_publish_drand_staleness() {
+    async fn test_publish_kyn_staleness() {
         let _ = tracing_subscriber::fmt()
             .with_max_level(tracing::Level::DEBUG)
             .try_init();
         let (app, _, storage) = setup_test_app().await;
 
-        // Mock current drand kyn to 10_000_000 (must be > RESQUARING_EPOCH_KYNS)
+        // Mock current KYN Time Oracle epoch to 10_000_000 (must be > RESQUARING_EPOCH_KYNS)
         let mock_kyn = kinetic_core::drand::RawKyn {
             kyn: 10_000_000,
             randomness: "0".repeat(192),

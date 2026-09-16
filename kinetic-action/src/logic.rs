@@ -1,4 +1,4 @@
-//! Core action state transitions and message signature aggregation.
+//! Core network action state transitions and signature aggregation.
 //!
 //! Implements the `ActionState` mutating operations that are called by the
 //! engine (Sovereign or Permissionless) during execution.
@@ -6,7 +6,7 @@
 //! - [`ActionState::new`] — genesis state initialization
 //! - [`ActionState::hash_action`] — deterministic SHA-256 action hash derivation
 //! - [`ActionState::prune`] — stale proposal pruning
-//! - [`ActionState::get_sovereign_key`] — root verification key retrieval
+//! - [`ActionState::get_sovereign_key`] — Sovereign verification key retrieval
 //! - [`ActionState::verify_action`] — engine action verification
 //! - [`ActionState::execute_action`] — engine action execution
 
@@ -17,11 +17,11 @@ use crate::types::{
     ActionConfig, ActionEffect, ActionState, Hash256, PublicKeyBytes, SignedActionMessage,
 };
 
-/// Validates that the static cryptographic keys required for action have been correctly initialized.
+/// Validates that the static cryptographic keys required for network actions have been correctly initialized.
 ///
 /// # Errors
 ///
-/// - Returns [`ActionError::MissingSovereignKey`] if the root key hex string is unconfigured or invalid.
+/// - Returns [`ActionError::MissingSovereignKey`] if the Sovereign key hex string is unconfigured or invalid.
 /// - Returns [`ActionError::KeyLengthMismatch`] if a public key is not exactly 1,952 bytes.
 pub fn validate_keys_initialized(
     sovereign_key_hex: &str,
@@ -47,8 +47,7 @@ pub fn validate_keys_initialized(
 impl ActionState {
     /// Initializes a new [`ActionState`] at network genesis.
     ///
-    /// The state starts in `ActionMode::Founder` with an empty council,
-    /// no pending updates, and no prime mappings.
+    /// The state starts with no pending updates and no active mappings.
     ///
     /// # Returns
     ///
@@ -73,6 +72,12 @@ impl ActionState {
     /// The hash is derived from `SHA-256(msg.to_bytes())` and is used as the
     /// stable key for all subsequent state operations (timelock map, partial proposal map).
     ///
+    /// # Examples
+    /// ```rust,ignore
+    /// use kinetic_action::logic::ActionState;
+    /// // let hash = ActionState::hash_action(&signed_msg);
+    /// ```
+    ///
     /// # Returns
     ///
     /// A deterministic 32-byte `[u8; 32]` SHA-256 hash of the canonical message bytes.
@@ -91,11 +96,11 @@ impl ActionState {
             .retain(|_, exec_kyn| current_kyn.0 <= exec_kyn.0 + max_age_kyns);
     }
 
-    /// Retrieves the static root verifying key.
+    /// Retrieves the static Sovereign verifying key.
     ///
     /// # Errors
     ///
-    /// Returns a `ActionError` if the key is missing, invalid, or has the wrong length.
+    /// Returns an [`ActionError`] if the key is missing, invalid, or has the wrong length.
     pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<PublicKeyBytes, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
             return Ok(key.clone());
@@ -109,11 +114,11 @@ impl ActionState {
         Ok(bytes)
     }
 
-    /// Verifies whether a signed action message meets the quorum and validity rules to be executed.
+    /// Verifies whether a signed action message meets validity rules to be executed.
     ///
     /// # Errors
     ///
-    /// Returns a `ActionError` if the message is stale, signatures are insufficient, timelocks are not met, or other invariants are violated.
+    /// Returns an [`ActionError`] if the message is stale, the signature is missing, or invariants are violated.
     pub fn verify_action(
         &mut self,
         msg: &SignedActionMessage,
@@ -128,7 +133,7 @@ impl ActionState {
         )
     }
 
-    /// Executes a verified action action, applying its state changes and returning any resulting effects.
+    /// Executes a verified network action, applying its state changes and returning any resulting effects.
     pub fn execute_action(
         &mut self,
         msg: &SignedActionMessage,
@@ -144,11 +149,11 @@ impl ActionState {
     }
 }
 
-/// Processes an incoming action message, merging its signatures and executing the action if quorum is met.
+/// Processes an incoming action message, executing the action if it is valid.
 ///
 /// # Errors
 ///
-/// Returns a `ActionError` if the action fails verification or execution rules.
+/// Returns an [`ActionError`] if the action fails verification or execution rules.
 pub fn process_action_message(
     state: &mut ActionState,
     msg: &SignedActionMessage,

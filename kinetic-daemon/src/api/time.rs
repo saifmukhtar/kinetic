@@ -1,3 +1,12 @@
+//! HTTP REST API endpoints for resolving canonical network time.
+//!
+//! ## Layer 8 Architecture: Time Oracle Interface
+//! This module exposes a fast, synchronous endpoint for the Desktop UI to fetch 
+//! the current Time Oracle epoch (KYN). Because fetching directly from the network 
+//! requires an asynchronous mesh query, this endpoint strictly returns the 
+//! `kinetic-storage` cached value, which is continuously kept fresh by the 
+//! daemon's background Heartbeat worker.
+
 use crate::api::ApiState;
 use axum::{Json, extract::State};
 use kinetic_core::traits::KynProvider;
@@ -24,7 +33,7 @@ pub async fn handle_get_time(
         Err(e) => {
             tracing::error!(
                 error_code = e.code(),
-                "Failed to read cached Drand kyn for /api/v1/micro/time/current: {}",
+                "Failed to read cached Time Oracle kyn for /api/v1/micro/time/current: {}",
                 e
             );
             // If offline, we could fallback mathematically here as well,

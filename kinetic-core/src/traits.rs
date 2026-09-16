@@ -18,7 +18,7 @@ use crate::types::{Commitment, VdfProof};
 ///
 /// The canonical implementation wraps a Wesolowski
 /// VDF library. The challenge is always a 32-byte SHA-256 hash derived from
-/// `NETWORK_SALT || name || salt || drand_signature_hex`.
+/// `NETWORK_SALT || name || salt || network_time_signature_hex`.
 pub trait VdfEngine: Send + Sync {
     /// Evaluates the VDF sequentially for the given number of iterations.
     ///
@@ -115,8 +115,8 @@ use async_trait::async_trait;
 
 /// Abstract interface for fetching and validating the network's consensus clock (Kyn).
 ///
-/// The canonical implementation is `kinetic_network::client::drand::DrandProvider` which fetches cryptographic
-/// randomness beacons from the League of Entropy's Quicknet.
+/// The canonical implementation fetches cryptographic
+/// randomness from the global KYN Provider infrastructure.
 #[async_trait]
 pub trait KynProvider: Send + Sync {
     /// Fetches the latest cryptographically verifiable kyn from the network.

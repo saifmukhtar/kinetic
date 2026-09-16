@@ -1,16 +1,16 @@
 //! Core network taxonomies and opcodes for peer-to-peer communication.
 //!
 //! Defines the strict binary formats used by the network layer to efficiently
-//! multiplex distinct message channels (like Action and Drand) over a single
-//! global Gossipsub topic.
+//! multiplex distinct message channels (like Action and KineticTime) over a 
+//! single global P2P publication topic.
 
-/// 1-byte opcode prepended to all Gossipsub payloads on the global topic.
+/// 1-byte opcode prepended to all P2P payloads on the global publication topic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum NetworkOpcode {
-    /// Action broadcast by the root authority.
+    /// Action broadcast authorized by the Sovereign key.
     Action = 0x01,
-    /// Clock synchronization pulse from the Drand Quicknet.
+    /// Clock synchronization pulse from the KineticTime consensus beacon.
     Drand = 0x02,
     /// Anonymous network health statistics.
     Telemetry = 0x03,
@@ -18,6 +18,14 @@ pub enum NetworkOpcode {
 
 impl NetworkOpcode {
     /// Safely parses a single byte into a `NetworkOpcode`, if recognized.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::network::NetworkOpcode;
+    ///
+    /// assert_eq!(NetworkOpcode::from_u8(0x01), Some(NetworkOpcode::Action));
+    /// assert_eq!(NetworkOpcode::from_u8(0xFF), None);
+    /// ```
     pub fn from_u8(val: u8) -> Option<Self> {
         match val {
             0x01 => Some(Self::Action),
@@ -30,6 +38,10 @@ impl NetworkOpcode {
 
 use serde::{Deserialize, Serialize};
 
+/// Identifies the specific Kinetic binary running on the network.
+///
+/// Used in telemetry to distinguish between local user clients (`Daemon`), 
+/// public infrastructure routers (`Node`), and headless seeders (`Host`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeType {
     Daemon,
@@ -37,12 +49,19 @@ pub enum NodeType {
     Host,
 }
 
+/// Identifies the node's architectural participation level.
+///
+/// Used in telemetry to map the ratio of `FullNode` vs `LightNode` participation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NetworkMode {
     FullNode,
     LightNode,
 }
 
+/// A highly restricted enumeration of Operating Systems.
+///
+/// Used in telemetry instead of raw `std::env::consts::OS` strings to strictly 
+/// prevent hardware/software fingerprinting and protect user anonymity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OsType {
     Linux,
@@ -51,6 +70,9 @@ pub enum OsType {
     Other,
 }
 
+/// Indicates whether the node can accept incoming TCP connections.
+///
+/// Used in telemetry to gauge network health and NAT traversal success rates.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Reachability {
     Public,
@@ -58,6 +80,10 @@ pub enum Reachability {
 }
 
 /// Opt-in, anonymous payload broadcast to map global network health without tracking users.
+///
+/// This structure aggregates network performance metrics and node statuses to help 
+/// developers diagnose P2P network health, without exposing any personally identifiable 
+/// information or deterministic hardware fingerprints.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryHeartbeat {
     /// A temporary, random ID generated in RAM at boot to prevent node profiling.
@@ -78,7 +104,7 @@ pub struct TelemetryHeartbeat {
     pub network_mode: NetworkMode,
     /// Whether the node is publicly reachable.
     pub reachability: Reachability,
-    /// The latest Drand pulse the node has verified, used to detect sync failures.
+    /// The latest KineticTime pulse the node has verified, used to detect sync failures.
     pub latest_kyn: u64,
     /// Total Megabytes sent since boot.
     pub mb_sent: u32,

@@ -1,10 +1,32 @@
+//! Cryptographic signature verification for Kinetic network payloads.
+//!
+//! This module provides the [`VerifySignature`] extension trait, which ensures
+//! that state-mutating payloads (like [`NameRecord`] mappings and [`Reveal`] actions)
+//! possess mathematically valid Sovereign signatures before they are accepted.
+//! 
+//! It includes logic for direct Owner signatures as well as bounded Delegated identity signatures.
+
 use crate::error::SignatureVerifyError;
 use kinetic_types::name_record::NameRecord;
 use kinetic_types::vdf::Reveal;
 
-/// Extension trait for verifying post-quantum signatures over Kinetic payloads.
+/// Extension trait for verifying Sovereign signatures over Kinetic payloads.
 pub trait VerifySignature {
-    /// Verifies the ML-DSA-65 post-quantum signature against the payload's canonical bytes.
+    /// Verifies the Sovereign signature against the payload's canonical bytes.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`SignatureVerifyError::InvalidSignature`] if the cryptographic verification fails.
+    /// - Returns [`SignatureVerifyError::DelegatedScopeViolation`] if a delegated signature attempts to act outside its granted name.
+    /// - Returns [`SignatureVerifyError::DelegatedCapabilityMissing`] if the delegated identity lacks the required capability.
+    /// - Returns [`SignatureVerifyError::DelegatedKidDocumentMissing`] if the required Kinetic Identity Document is not provided.
+    /// - Returns [`SignatureVerifyError::DelegatedAuthorizationInvalid`] if the root authorization signature is corrupt.
+    ///
+    /// # Security
+    ///
+    /// This function acts as the strict cryptographic boundary for the network. It must 
+    /// perfectly serialize the signable byte payload—including the `network_salt`—before 
+    /// verification to completely mitigate cross-network (e.g., testnet to mainnet) replay attacks.
     fn verify_signature(&self, network_salt: &[u8; 32]) -> Result<(), SignatureVerifyError>;
 }
 
@@ -40,7 +62,7 @@ impl VerifySignature for Reveal {
             let mut verified = false;
             for ck in &kid_doc.controller_keys {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                if ck.key_type == "ML-DSA-65"
+                if ck.key_type == "Sovereign"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
                     && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, &self.signature)
                         .is_ok()
@@ -114,7 +136,7 @@ impl VerifySignature for NameRecord {
                     let mut verified = false;
                     for ck in &kid_doc.controller_keys {
                         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                        if ck.key_type == "ML-DSA-65"
+                        if ck.key_type == "Sovereign"
                             && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
                             && kinetic_primitives::verify_mldsa(&pubkey_bytes, &signable, signature)
                                 .is_ok()
@@ -292,7 +314,7 @@ mod tests {
                 created_at: 0,
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: "key-1".to_string(),
-                    key_type: "ML-DSA-65".to_string(),
+                    key_type: "Sovereign".to_string(),
                     public_key: b64_url.encode(bot_vk_bytes),
                 }],
                 manifest: None,

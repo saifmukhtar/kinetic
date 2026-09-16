@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     let current_kyn = fetch_kyn().await;
-    println!("Fetched current Drand kyn: {}", current_kyn);
+    println!("Fetched current KYN Provider time: {}", current_kyn);
 
     println!("Mining PoW to satisfy kinetic-host anti-spam...");
     let key = kinetic_network::pow::mine_p2p_keypair(

@@ -9,53 +9,62 @@
 //!
 //! | Opcode | Action Variant | Description |
 //! |---|---|---|
-//! | `0x0A` | [`NetworkAction::MapPrime`] | Grant a 1-character prime name (Root key only) |
-//! | `0x0B` | [`NetworkAction::RotateRootKey`] | Rotate network authority to a new ML-DSA-65 key |
+//! | `0x0A` | [`NetworkAction::MapPrime`] | Grant a 1-character prime name (Sovereign key only) |
+//! | `0x0B` | [`NetworkAction::RotateRootKey`] | Rotate network authority to a new Sovereign key |
 //! | `0x0C` | [`NetworkAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
 //! | `0x0D` | [`NetworkAction::EmergencyResume`] | Resume registrations and advance pause offset |
 //! | `0x0E` | [`NetworkAction::UnmapPrime`] | Revoke a previously granted 1-character prime name |
-//! | `0x0F` | [`NetworkAction::MapInfra`] | Grant a Category 2 infrastructure name (Root key only) |
-//! | `0x10` | [`NetworkAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Root key only) |
+//! | `0x0F` | [`NetworkAction::MapInfra`] | Grant a Category 2 infrastructure name (Sovereign key only) |
+//! | `0x10` | [`NetworkAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Sovereign key only) |
 
 use thiserror::Error;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
 pub type Hash256 = [u8; 32];
-/// Raw ML-DSA-65 public key bytes (typically 1952 bytes for ML-DSA-65).
+
+/// Raw Sovereign key public key bytes.
+///
+/// # Security
+/// The binary parser currently strictly enforces a 1952-byte length bound 
+/// on this payload to prevent memory exhaustion during P2P propagation.
 pub type PublicKeyBytes = Vec<u8>;
-/// Raw ML-DSA-65 signature bytes (typically 3309 bytes for ML-DSA-65).
+/// Raw Sovereign key signature bytes.
+///
+/// # Security
+/// The network currently strictly expects the 3309-byte signature output 
+/// of the underlying Sovereign key algorithm.
 pub type SignatureBytes = Vec<u8>;
 
 /// Enumerates privileged protocol actions managed by the network action system.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum NetworkAction {
-    /// Grant a 1-character premium name (Root key only).
+    /// Grant a 1-character premium name (Sovereign key only).
     MapPrime {
         /// Target 1-character name label.
         name: String,
         /// Recipient's ML-DSA-65 public key.
         target_pubkey: PublicKeyBytes,
     },
-    /// Revoke a 1-character premium name (Root key only).
+    /// Revoke a 1-character premium name (Sovereign key only).
     UnmapPrime {
         /// Target 1-character name label.
         name: String,
     },
-    /// Grant a Category 2 network infrastructure name (Root key only).
+    /// Grant a Category 2 network infrastructure name (Sovereign key only).
     MapInfra {
         /// Target infrastructure name label (e.g., "seed", "api").
         name: String,
         /// Recipient's ML-DSA-65 public key.
         target_pubkey: PublicKeyBytes,
     },
-    /// Revoke a Category 2 network infrastructure name (Root key only).
+    /// Revoke a Category 2 network infrastructure name (Sovereign key only).
     UnmapInfra {
         /// Target infrastructure name label.
         name: String,
     },
-    /// Permanently delegates root authority to a new ML-DSA-65 public key.
+    /// Permanently delegates Sovereign authority to a new Sovereign public key.
     RotateRootKey {
-        /// The new ML-DSA-65 root public key.
+        /// The new Sovereign public key bytes.
         new_key: PublicKeyBytes,
     },
     /// Emergency pause for network registration and renewals.
@@ -173,6 +182,28 @@ impl NetworkAction {
     /// - 1 byte opcode
     /// - Opcode-specific variable-length payload
     /// - 8 bytes timestamp (`u64` big-endian) at the very end
+    ///
+    /// # Security
+    /// This parser is fuzz-tested to ensure it never panics on malformed P2P network input.
+    /// It enforces strict bounds checking (e.g., public keys must be exactly 1952 bytes).
+    ///
+    /// # Errors
+    /// - Returns [`ActionTypeError::BufferTooSmall`] if the buffer is under 9 bytes.
+    /// - Returns [`ActionTypeError::UnknownOpcode`] if the action variant is unrecognized.
+    /// - Returns [`ActionTypeError::InvalidPubkeyLength`] if a parsed key does not meet strict byte bounds.
+    /// - Returns [`ActionTypeError::InvalidUtf8`] if string allocations fail.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::action::{NetworkAction, ActionTypeError};
+    /// 
+    /// // A buffer that is too small (8 bytes total)
+    /// let bad_buf = vec![0x0A, 0, 0, 0, 0, 0, 0, 0];
+    /// assert_eq!(
+    ///     NetworkAction::parse_payload(&bad_buf),
+    ///     Err(ActionTypeError::BufferTooSmall)
+    /// );
+    /// ```
     pub fn parse_payload(bytes: &[u8]) -> Result<(Self, u64), ActionTypeError> {
         if bytes.len() < 9 {
             // At least 1 byte opcode + 8 bytes timestamp

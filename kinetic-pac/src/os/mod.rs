@@ -1,4 +1,9 @@
-//! Operating system-specific proxy configurator modules for Linux, macOS, and Windows.
+//! Operating system-specific proxy configurator modules.
+//!
+//! This module contains the highly privileged system integrations required to mutate 
+//! the host machine's networking environment. It leverages PowerShell on Windows, 
+//! `networksetup` on macOS, and `gsettings`/`kwriteconfig5` on Linux to forcibly 
+//! inject the `.kin` Proxy Auto-Configuration (PAC) script.
 
 /// Linux proxy configuration implementation.
 pub mod linux;

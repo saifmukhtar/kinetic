@@ -6,6 +6,19 @@ use reqwest::Client;
 use serde_json::json;
 use std::time::Duration;
 
+/// Initiates the standard `.kin` domain registration workflow.
+///
+/// > [!IMPORTANT]
+/// > Standard domain registration on the Kinetic network is computationally expensive by design.
+/// > To prevent Sybil squatting, registering a name requires computing a Verifiable Delay Function (VDF).
+///
+/// ### Execution Flow
+/// 1. **Normalization**: Forces the name to lowercase and ensures the `.kin` suffix.
+/// 2. **Difficulty Prediction**: Calculates the required `iterations` based on the namespace length 
+///    and queries the Daemon's `micro/consensus/difficulty` endpoint to estimate the wall-clock time required.
+/// 3. **UI Warning**: Displays a stark terminal warning to the user if the registration will take hours.
+/// 4. **Macro API Dispatch**: Dispatches an HTTP POST to the Daemon's `macro/nrs/register` endpoint.
+/// 5. **Async Polling**: Enters a loop, polling the Daemon for the `task_id` progress, rendering a live terminal progress bar.
 pub async fn handle_name_register(
     name: String,
     iterations: u64,

@@ -68,9 +68,33 @@ where
 /// Used for protecting high-risk cryptographic arrays (like `controller_keys` and
 /// `revocation_keys`) against deserialization memory exhaustion attacks.
 ///
-/// # Errors
+/// # Security
+/// This acts as an explicit trust boundary during network payload ingestion. By enforcing 
+/// stream-level sequence bounds, the node is protected against malicious JSON payloads 
+/// attempting to trigger Out-Of-Memory (OOM) panics.
 ///
+/// # Errors
 /// Returns a Serde deserialization error if the input array contains more than 20 items.
+///
+/// # Examples
+/// ```rust
+/// use serde::Deserialize;
+/// use kinetic_kid::bounded::deserialize_max_20;
+///
+/// #[derive(Deserialize)]
+/// struct Payload {
+///     #[serde(deserialize_with = "deserialize_max_20")]
+///     keys: Vec<u8>,
+/// }
+///
+/// // A payload with exactly 20 items parses successfully
+/// let valid_json = format!("{{\"keys\": {}}}", format!("{:?}", vec![1_u8; 20]));
+/// assert!(serde_json::from_str::<Payload>(&valid_json).is_ok());
+///
+/// // A payload with 21 items instantly triggers the boundary abort
+/// let attack_json = format!("{{\"keys\": {}}}", format!("{:?}", vec![1_u8; 21]));
+/// assert!(serde_json::from_str::<Payload>(&attack_json).is_err());
+/// ```
 pub fn deserialize_max_20<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -83,9 +107,33 @@ where
 ///
 /// Used for protecting manifest `services` arrays against deserialization memory exhaustion attacks.
 ///
-/// # Errors
+/// # Security
+/// This acts as an explicit trust boundary during network payload ingestion. By enforcing 
+/// stream-level sequence bounds, the node is protected against malicious JSON payloads 
+/// attempting to trigger Out-Of-Memory (OOM) panics.
 ///
+/// # Errors
 /// Returns a Serde deserialization error if the input array contains more than 50 items.
+///
+/// # Examples
+/// ```rust
+/// use serde::Deserialize;
+/// use kinetic_kid::bounded::deserialize_max_50;
+///
+/// #[derive(Deserialize)]
+/// struct Payload {
+///     #[serde(deserialize_with = "deserialize_max_50")]
+///     services: Vec<u8>,
+/// }
+///
+/// // A payload with exactly 50 items parses successfully
+/// let valid_json = format!("{{\"services\": {}}}", format!("{:?}", vec![1_u8; 50]));
+/// assert!(serde_json::from_str::<Payload>(&valid_json).is_ok());
+///
+/// // A payload with 51 items instantly triggers the boundary abort
+/// let attack_json = format!("{{\"services\": {}}}", format!("{:?}", vec![1_u8; 51]));
+/// assert!(serde_json::from_str::<Payload>(&attack_json).is_err());
+/// ```
 pub fn deserialize_max_50<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,

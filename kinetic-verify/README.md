@@ -1,15 +1,38 @@
-# Kinetic Verify
+# kinetic-verify
 
-`kinetic-verify` provides lightweight cryptographic verification logic for the Kinetic Network. 
+## 1. Overview
+`kinetic-verify` is a lightweight, `no_std`-compatible cryptographic verification library for the Kinetic network. It acts as the strict rules engine for validating state-mutating payloads, ensuring they possess mathematically valid Sovereign signatures and Proof of Patience (VDF) claims before they are ever allowed to mutate node state.
 
-## Architecture
+## 2. Usage & Integration
+This crate provides the `VerifySignature` trait, which extends Kinetic's core data models (like `NameRecord` and `Reveal`) with mathematically pure validation logic. Higher-level crates call this validation prior to accepting data from peers.
 
-This crate acts as a stateless verification pipeline. Its core philosophy is to remain completely detached from storage, networking, or consensus logic. 
+```rust
+use kinetic_verify::signatures::VerifySignature;
+use kinetic_types::name_record::NameRecord;
 
-**Workflow:**
-1. It receives pure data structures (like `Reveal` or `AuthorizedManifest`) from the `kinetic-types` crate.
-2. It parses and decodes the embedded URL-safe Base64 Post-Quantum Public Keys (`ML-DSA-65`) from the JSON documents into raw bytes.
-3. It hands those raw bytes down to the `kinetic-primitives` sandbox to execute the actual cryptographic math.
-4. It returns standard results mapping to `thiserror` domain errors.
+// Attempt to verify a payload received over the network
+match record.verify_signature(&network_salt) {
+    Ok(_) => println!("Signature is mathematically valid!"),
+    Err(e) => eprintln!("Validation failed: {}", e.user_message()),
+}
+```
 
-By isolating the verification flow into its own crate, we ensure that higher-level components (like the P2P networking layer or local node daemon) can verify signatures seamlessly without accidentally coupling themselves to lower-level cryptographic implementations.
+## 3. Internal Architecture
+This crate does not implement cryptographic algorithms directly (that is handled by Layer 1 `kinetic-primitives`). Instead, it acts as the semantic bridge, enforcing how those primitives are applied to Kinetic-specific data structures like identity delegations, manifest capability checks, and Name System mappings.
+
+## 4. Reading Guide
+
+### Prerequisites
+Before reading this crate, you must understand:
+* **`kinetic-primitives`**: You must understand how `KineticKeypair` and cryptographic primitives function.
+* **`kinetic-types`**: You must be familiar with the `NameRecord` and `Reveal` data structures, as this crate exclusively operates on them.
+
+### File Traversal (Leaf-First)
+Do not read this crate top-to-bottom. Read it in this order:
+1. `error.rs` - Understands the semantic boundary and the `SignatureVerifyError` taxonomy.
+2. `signatures.rs` - The core logic implementing `VerifySignature` for data structures and managing delegated identity scope.
+3. `lib.rs` - The overarching module exports and epoch constants.
+
+## 5. Taxonomy & Links
+* **Taxonomy:** This crate belongs to Layer 4. Please read [`./LAYER_4.md`](./LAYER_4.md) to understand the strict architectural constraints of this layer.
+* **Repository:** [Kinetic Network](https://github.com/saifmukhtar/kinetic)

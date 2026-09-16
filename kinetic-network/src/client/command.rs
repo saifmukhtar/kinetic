@@ -8,7 +8,7 @@ use tokio::sync::oneshot;
 /// Represents commands sent from the client task to the network event loop.
 #[derive(Debug)]
 pub enum Command {
-    /// Get the current drand kyn kyn from the event loop state.
+    /// Get the current KYN Provider time from the event loop state.
     GetCurrentKyn {
         /// Channel to return the kyn.
         responder: oneshot::Sender<u64>,

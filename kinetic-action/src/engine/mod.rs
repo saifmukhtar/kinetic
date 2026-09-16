@@ -1,18 +1,18 @@
-//! Action engine trait drivers for different network decision-making models.
+//! Network action engine trait drivers for different decision-making models.
 //!
-//! Provides concrete implementations of the [`ActionEngine`](crate::traits::ActionEngine)
-//! trait, which define the signature thresholds for protocol actions.
+//! Provides concrete implementations of the [`ActionEngine`] trait, 
+//! which define the signature thresholds for network actions.
 
 pub mod permissionless;
 pub mod sovereign;
 
 use crate::traits::ActionEngine;
 
-/// Returns the active action engine driver based on the configuration.
+/// Returns the active network action engine driver based on the configuration.
 ///
 /// # Returns
 ///
-/// A boxed instance of the selected [`ActionEngine`](crate::traits::ActionEngine).
+/// A boxed instance of the selected [`ActionEngine`].
 ///
 /// # Panics
 ///

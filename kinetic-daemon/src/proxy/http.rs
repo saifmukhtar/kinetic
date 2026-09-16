@@ -2,7 +2,21 @@
 
 use super::*;
 use kinetic_core::types::NrsZoneExt;
-/// Handles an incoming HTTP or HTTPS (CONNECT) proxy request, determining how to route it.
+/// The primary ingress router for all `.kin` HTTP proxy traffic.
+///
+/// > [!IMPORTANT]
+/// > Browsers send traffic to this proxy in two distinct ways:
+/// > 1. **Cleartext HTTP**: Sends a standard `GET http://example.kin/` payload.
+/// > 2. **HTTPS CONNECT**: Sends an HTTP `CONNECT example.kin:443` request to establish a raw TCP tunnel for TLS.
+///
+/// This function acts as the traffic cop. 
+/// If it receives a `CONNECT` request, it intercepts it via `tokio::spawn`, generates a forged SSL 
+/// certificate using the local Root CA, performs the TLS handshake locally, and then recursively 
+/// feeds the decrypted inner HTTP request back into this exact same router.
+///
+/// If it receives a standard HTTP `GET/POST` request, it inspects the `Host` header, queries the 
+/// Kademlia DHT for the `NameRecord`, and forwards the traffic to the resolved Web2 CNAME, IPFS hash, 
+/// or Libp2p `PeerId`.
 pub async fn handle_proxy_request(
     req: Request<Incoming>,
     client: NetworkClient,

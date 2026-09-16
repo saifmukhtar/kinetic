@@ -1,4 +1,18 @@
-//! Dynamic DHT routing record publisher and Drand epoch PoW hot-swapping heartbeat.
+//! Dynamic DHT routing record publisher and KYN Epoch PoW hot-swapping heartbeat.
+//!
+//! ## Layer 8 Architecture: The Seamless Hot-Swap
+//! The Kinetic network aggressively protects its DHT from Sybil attacks by enforcing that 
+//! every node's Kademlia `PeerId` (which is derived from an Ed25519 public key) satisfies a 
+//! Proof-of-Work threshold bound to the *current* network time epoch (the KYN).
+//!
+//! Because time advances, a PoW identity eventually expires. If a headless server goes offline, 
+//! the hosted `.kin` zone becomes unreachable. To ensure 24/7 uptime, this module runs the 
+//! `start_drand_heartbeat` loop (Note: functionally acting as a generic KYN Time Oracle).
+//!
+//! When the loop detects that the network epoch is about to advance, it preemptively spins up 
+//! a background thread to calculate a *new* Proof-of-Work identity for the upcoming time epoch. 
+//! Once the network epoch rolls over, it hot-swaps the underlying Swarm identity seamlessly, 
+//! rebroadcasting the payload without dropping connections.
 
 use kinetic_core::traits::KynProvider;
 use kinetic_network::{NetworkClient, NetworkConfig, NetworkEventLoop};
@@ -61,7 +75,7 @@ pub async fn start_routing_publisher(
     }
 }
 
-/// Starts a continuous heartbeat loop that monitors the Drand randomness beacon and hot-swaps the ephemeral PoW identity when the epoch advances.
+/// Starts a continuous heartbeat loop that monitors the KYN Provider time oracle and hot-swaps the ephemeral PoW identity when the epoch advances.
 ///
 /// This function listens for new kyns and uses them to verify the validity of the current PoW identity.
 /// If the identity is found to be expired based on the staggered epoch progression, it terminates the existing

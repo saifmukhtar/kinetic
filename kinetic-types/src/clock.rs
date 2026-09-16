@@ -14,35 +14,73 @@
 use serde::{Deserialize, Serialize};
 
 /// Strict type for Unix Time in seconds.
+///
+/// This wrapper prevents accidental math operations between network `Kyn` units 
+/// and local wall-clock seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct UTime(pub u64);
 
-/// Strict type for an absolute Drand network Kyn.
+/// Strict type for an absolute Kinetic Network Time `Kyn`.
+///
+/// A `Kyn` represents a verified pulse from the network's KineticTime. 
+/// Because it is mathematically proven, it is the only safe unit of time for 
+/// protocol-level validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Kyn(pub u64);
 
 impl Kyn {
-    /// Converts a Drand kyn number into a Unix epoch timestamp in seconds.
+    /// Converts a `Kyn` number into a `UTime` (Unix epoch timestamp in seconds).
+    ///
+    /// This is the secure method for deriving current time, as it bridges the 
+    /// mathematical KineticTime into standard Unix time for interoperability 
+    /// (e.g., verifying `expires_at` in Identity Documents).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::clock::{Kyn, UTime};
+    ///
+    /// let kyn = Kyn(100);
+    /// // If genesis was at unix 1000, and period is 3 seconds:
+    /// let utime = kyn.to_utime(1000, 3);
+    /// assert_eq!(utime, UTime(1300));
+    /// ```
     pub fn to_utime(&self, genesis: u64, period: u64) -> UTime {
         UTime(genesis.saturating_add(self.0.saturating_mul(period)))
     }
 }
 
 impl UTime {
-    /// Converts a Unix epoch timestamp (in seconds) into an estimated Drand kyn number.
+    /// Converts a `UTime` (Unix epoch timestamp in seconds) into an estimated `Kyn` number.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_types::clock::{Kyn, UTime};
+    ///
+    /// let utime = UTime(1300);
+    /// // If genesis was at unix 1000, and period is 3 seconds:
+    /// let kyn = utime.to_kyn(1000, 3);
+    /// assert_eq!(kyn, Kyn(100));
+    /// ```
     pub fn to_kyn(&self, genesis: u64, period: u64) -> Kyn {
         if period == 0 {
             return Kyn(0);
         }
         // Integer division intentionally truncates sub-period remainder — if `unix_secs`
-        // falls between two beacon rounds, this returns the floor (last confirmed) kyn.
-        // This is the correct behavior for consensus: always use the last verified beacon.
+        // falls between two KineticTime rounds, this returns the floor (last confirmed) kyn.
+        // This is the correct behavior for consensus: always use the last verified time.
         Kyn(self.0.saturating_sub(genesis) / period)
     }
 
     /// Returns the current local system time in seconds.
+    ///
+    /// # Security
+    /// **DO NOT USE FOR CONSENSUS LOGIC.** 
+    /// This relies on the local OS wall-clock which can be trivially manipulated by users 
+    /// (e.g., changing their device calendar). This should only be used for UI/UX rendering 
+    /// or extremely low-security local timeouts. All protocol logic MUST derive time from 
+    /// the `Kyn` via `to_utime`.
     pub fn now_local() -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -80,7 +118,7 @@ impl KineticTime {
     /// If `current_kyn` is less than `genesis_kyn`,
     /// returns a time structure initialized to zero.
     // `current_kyn < genesis_kyn` is a valid safety guard even though both operands are
-    // unsigned — Drand can return a stale kyn that predates network genesis during initial
+    // unsigned — KineticTime can return a stale kyn that predates network genesis during initial
     // sync. Clippy flags this comparison as absurd on u64 because it can never be negative,
     // but the guard is intentional and correct. Suppressed to avoid a misleading warning.
     #[allow(clippy::absurd_extreme_comparisons)]

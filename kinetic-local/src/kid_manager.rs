@@ -98,7 +98,7 @@ pub fn get_kids_dir() -> PathBuf {
 
 /// Returns the current network-anchored Unix timestamp (seconds).
 ///
-/// Derives the network time by mapping the estimated Drand kyn to exact Unix
+/// Derives the network time by mapping the estimated KYN Provider network time to exact Unix
 /// seconds aligned to 3-second network heartbeats using network constants.
 pub fn unix_time() -> kinetic_types::clock::UTime {
     use kinetic_core::types::clock::KynNetworkExt;
@@ -290,7 +290,7 @@ pub fn get_or_create_kid_for_name(
         created_at: now_ts,
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", did_str),
-            key_type: "MlDsa65".to_string(),
+            key_type: "Sovereign".to_string(),
             public_key: pub_key_b64,
         }],
         manifest: None,
@@ -369,7 +369,7 @@ pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid,
     let primary_id = format!("{}#primary", doc.kid);
     doc.controller_keys = vec![ControllerKey {
         id: primary_id,
-        key_type: "MlDsa65".to_string(),
+        key_type: "Sovereign".to_string(),
         public_key: new_pub_b64,
     }];
     doc.signature = None;

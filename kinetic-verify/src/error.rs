@@ -1,44 +1,53 @@
-//! Error types for the kinetic-verify crate.
+//! Signature verification error taxonomy (`KIN-VER-NNN`).
+//!
+//! Provides the [`SignatureVerifyError`] enumeration which maps cryptographic
+//! payload failures to semantic domain errors for the Kinetic network.
 
 use kinetic_types::error::Severity;
 use thiserror::Error;
 
-/// Errors arising from ML-DSA-65 post-quantum signature verification on VDF reveal and name payloads.
+/// Errors arising from Sovereign signature verification on VDF reveal and name payloads.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum SignatureVerifyError {
-    /// Malformed Public Key. The provided byte array is not a valid ML-DSA-65 public key.
-    /// The public key may be truncated, corrupted, or formatted for a different cryptographic scheme.
-    /// Ensure the key is exactly the length required by ML-DSA-65 and generated correctly.
-    #[error("Malformed ML-DSA-65 public key")]
+    /// **What**: The provided byte array is not a valid Sovereign public key.
+    /// **Why**: The public key may be truncated, corrupted, or formatted for a different cryptographic scheme.
+    /// **Fix**: Ensure the key is exactly the byte length required by Sovereign keys.
+    #[error("Malformed Sovereign public key")]
     MalformedPublicKey,
-    /// Malformed Signature. The signature byte slice does not conform to the ML-DSA-65 signature structure.
-    /// The signature may have been truncated during network transmission or storage.
-    /// Ensure the signature is exactly the length required by ML-DSA-65.
-    #[error("Malformed ML-DSA-65 signature bytes")]
+
+    /// **What**: The signature byte slice does not conform to the Sovereign signature structure.
+    /// **Why**: The signature may have been truncated during network transmission or storage.
+    /// **Fix**: Ensure the signature is exactly the byte length required by Sovereign signatures.
+    #[error("Malformed Sovereign signature bytes")]
     MalformedSignature,
-    /// Invalid Signature. Cryptographic verification failed over the canonical signable bytes.
-    /// The payload was either tampered with in transit, or it was signed with the wrong private key.
-    /// Ensure you are signing the exact canonical JSON payload with the correct identity key.
-    #[error("Invalid ML-DSA-65 post-quantum signature")]
+
+    /// **What**: Cryptographic verification failed over the canonical signable bytes.
+    /// **Why**: The payload was either tampered with in transit, or it was signed with the wrong private key.
+    /// **Fix**: Ensure you are signing the exact canonical JSON payload with the correct identity key.
+    #[error("Invalid Sovereign signature")]
     InvalidSignature,
-    /// Delegated Capability Missing. The delegated manifest does not grant the required capability.
-    /// An entity attempted an action (like publishing a record) without the correct capability listed in the manifest.
-    /// The apex owner must update the manifest to explicitly grant this capability.
+
+    /// **What**: The delegated manifest does not grant the required capability.
+    /// **Why**: An entity attempted an action (like publishing a record) without the correct capability listed in the manifest.
+    /// **Fix**: The apex owner must update the manifest to explicitly grant this capability.
     #[error("Delegated capability missing from authorized manifest")]
     DelegatedCapabilityMissing,
-    /// Delegated Authorization Invalid. The delegated authorization proof is structurally invalid or fails signature check.
-    /// The proof chain linking the delegate to the apex owner is broken or cryptographically forged.
-    /// Ensure the delegate was actually authorized by the current apex owner.
+
+    /// **What**: The delegated authorization proof is structurally invalid or fails signature check.
+    /// **Why**: The proof chain linking the delegate to the apex owner is broken or cryptographically forged.
+    /// **Fix**: Ensure the delegate was actually authorized by the current apex owner.
     #[error("Delegated authorization proof is invalid")]
     DelegatedAuthorizationInvalid,
-    /// Delegated Scope Violation. The delegated manifest name scope does not match the target name.
-    /// A delegate attempted to perform an action on a name they are not authorized to manage.
-    /// Double check the domain name in the manifest matches the target resource exactly.
+
+    /// **What**: The delegated manifest name scope does not match the target name.
+    /// **Why**: A delegate attempted to perform an action on a name they are not authorized to manage.
+    /// **Fix**: Double check the domain name in the manifest matches the target resource exactly.
     #[error("Delegated manifest name scope does not match the target name")]
     DelegatedScopeViolation,
-    /// Delegated KID Document Missing. The delegated manifest is missing the required KID document.
-    /// In order to verify the delegation chain, the apex owner's identity document must be included.
-    /// Include the full, signed KID document in the delegated request.
+
+    /// **What**: The delegated manifest is missing the required KID document.
+    /// **Why**: In order to verify the delegation chain, the apex owner's identity document must be included.
+    /// **Fix**: Include the full, signed KID document in the delegated request.
     #[error("Delegated manifest is missing the required KID document")]
     DelegatedKidDocumentMissing,
 }
@@ -78,11 +87,11 @@ impl SignatureVerifyError {
     pub fn user_message(&self) -> String {
         match self {
             Self::MalformedPublicKey => {
-                "The name owner's ML-DSA-65 public key is corrupted or invalid.".to_string()
+                "The name owner's Sovereign public key is corrupted or invalid.".to_string()
             }
-            Self::MalformedSignature => "The ML-DSA-65 signature format is malformed.".to_string(),
+            Self::MalformedSignature => "The Sovereign signature format is malformed.".to_string(),
             Self::InvalidSignature => {
-                "The post-quantum ownership signature failed cryptographic verification."
+                "The Sovereign ownership signature failed cryptographic verification."
                     .to_string()
             }
             Self::DelegatedCapabilityMissing => {
@@ -106,7 +115,7 @@ impl SignatureVerifyError {
 
     /// RFC 7807 problem details type URI.
     pub fn error_type_uri(&self) -> String {
-        format!("https://kinetic.network/errors/{}", self.code())
+        format!("https://docs.kinetic.network/errors/{}", self.code())
     }
 }
 

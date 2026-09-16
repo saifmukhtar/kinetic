@@ -1,8 +1,34 @@
 //! # kinetic-storage
 //!
-//! Persistent key-value storage for the Kinetic daemon, backed by
-//! [`redb`](https://docs.rs/redb) — a pure-Rust embedded database on native,
-//! and an in-memory BTreeMap on Wasm.
+//! Persistent key-value storage for the Kinetic network, backed by
+//! `redb` (a pure-Rust embedded database) on native platforms, and an
+//! OPFS-backed `BTreeMap` on WASM platforms.
+//!
+//! ## Layer 6 Architecture: Infrastructure Adapter
+//! This crate operates strictly as an isolated infrastructural implementor. It does not 
+//! parse network payloads, it does not understand identity rules, and it does not execute 
+//! cryptographic logic. It exclusively implements the abstract `StorageEngine` trait from 
+//! `kinetic-core` to provide raw byte-level persistence.
+//!
+//! ## Security & Safety Guarantees
+//! - **Concurrency Isolation:** `redb` provides strictly serialized ACID transactions. Readers never block writers.
+//! - **Filesystem Locks:** The engine aggressively locks the `.redb` file. If another `kinetic-daemon` process attempts to mount the same database, it will cleanly reject with `StorageError::DatabaseLocked` (`KIN-DBE-001`) rather than corrupting state.
+//! - **WASM Quotas:** In browser environments without OPFS, the in-memory fallback engine enforces a strict 10,000-key quota to prevent sandbox memory exhaustion attacks.
+//!
+//! ## Architecture Context
+//! ```text
+//! [kinetic-daemon (State Sync)]
+//!            |
+//!            v
+//! [kinetic-core::traits::StorageEngine]
+//!            |
+//!            v
+//! [kinetic-storage::KineticStorage]
+//!            |
+//!      +-----+-----+
+//!      |           |
+//! [redb Native] [WASM OPFS]
+//! ```
 
 #![deny(missing_docs)]
 

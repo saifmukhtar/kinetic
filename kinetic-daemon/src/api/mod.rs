@@ -1,4 +1,20 @@
 //! HTTP REST API router, authentication middleware, state management, and server bootstrap.
+//!
+//! ## Layer 8 Architecture: The Desktop/CLI Bridge
+//! This module represents the absolute edge of the Kinetic workspace. It is a synchronous 
+//! `axum` HTTP server designed explicitly to receive commands from the local Electron Desktop UI 
+//! and the local `kinetic-cli`.
+//!
+//! ### The Data Flow
+//! The API strictly follows a **Request-Validate-Queue-Respond** pattern:
+//! 1. Receives JSON from localhost (usually port `16001`).
+//! 2. Validates payloads strictly using `kinetic_core::types`.
+//! 3. Queues outbound operations into the asynchronous `NetworkClient` (MPSC bounded channels).
+//! 4. Returns JSON via synchronous HTTP response.
+//!
+//! ### Security Boundaries
+//! This API is **strictly local**. It binds exclusively to `127.0.0.1`. If external network interfaces 
+//! are specified, the daemon enforces JWT Bearer authentication on every route except `/api/v1/ping`.
 
 use axum::{Router, extract::State, http::StatusCode, routing::post};
 use kinetic_core::traits::{KynProvider, StorageEngine};

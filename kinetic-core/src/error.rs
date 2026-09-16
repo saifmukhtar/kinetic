@@ -56,7 +56,7 @@ pub mod dht;
 pub mod gateway;
 /// Node identity and key management error types.
 pub mod identity;
-/// Drand random beacon error types.
+/// Network time provider error types.
 pub mod kyn_provider;
 /// Name validation error types.
 pub mod names;
@@ -122,10 +122,10 @@ pub enum KineticError {
     #[error("Invalid Name: {0}")]
     InvalidName(#[from] NamesError),
 
-    /// An Ed25519 or ML-DSA-65 signature failed verification.
+    /// An Ed25519 or Sovereign signature failed verification.
     ///
     /// Ed25519 signatures are used for Libp2p transport identity and routing records.
-    /// ML-DSA-65 signatures are used for the daemon identity and payload authorization (NameRecord/Reveal).
+    /// Sovereign signatures are used for the daemon identity and payload authorization (NameRecord/Reveal).
     #[error("Signature verification failed")]
     InvalidSignature,
 
@@ -137,11 +137,11 @@ pub enum KineticError {
     #[error("Hash commitment mismatch: revealed data does not match commitment")]
     CommitmentMismatch,
 
-    /// A drand kyn was rejected as invalid.
+    /// A network kyn was rejected as invalid.
     ///
-    /// Raised when the kyn kyn number is wrong, the hex encoding is malformed,
-    /// or the BLS signature does not verify against the Quicknet chain public key.
-    #[error("Invalid Drand kyn: {0}")]
+    /// Raised when the kyn number is wrong, the hex encoding is malformed,
+    /// or the BLS signature does not verify against the provider network public key.
+    #[error("Invalid network kyn: {0}")]
     InvalidDrandRound(String),
 
     /// A storage operation in the embedded database failed.

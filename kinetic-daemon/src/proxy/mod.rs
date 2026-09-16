@@ -1,4 +1,19 @@
 //! Local HTTP/HTTPS MITM proxy server and P2P routing engine for `.kin` domain resolution.
+//!
+//! ## Layer 8 Architecture: The Network Interceptor
+//! This module contains the core `.kin` routing engine. When the user types a `http://name.kin` 
+//! URL into their standard web browser (like Chrome or Firefox), the OS-level DNS hijacks the 
+//! request and routes it to this proxy server running on `127.0.0.1:16000`.
+//!
+//! ### The MITM Flow (TLS Interception)
+//! 1. **Certificate Generation**: Uses `crate::ca` to dynamically generate a spoofed SSL/TLS 
+//!    certificate for `name.kin` signed by the user's local `Kinetic Root CA`.
+//! 2. **Request Decryption**: Intercepts the HTTPS traffic, decrypts it locally.
+//! 3. **P2P Tunneling**: Serializes the HTTP request into a `kinetic_network::ProxyRequest` 
+//!    and pushes it through the Libp2p Swarm (`NetworkClient`) directly to the `.kin` domain 
+//!    owner's underlying `kinetic-host` node.
+//! 4. **Response Re-encryption**: Receives the P2P response, re-encrypts it, and returns it 
+//!    to the local browser.
 
 pub mod dns_cache;
 

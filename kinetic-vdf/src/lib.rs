@@ -1,7 +1,38 @@
-//! # kinetic-vdf-rsa
+//! # kinetic-vdf (RSA)
 //!
 //! A pure Rust implementation of an RSA-based Verifiable Delay Function
 //! with Wesolowski's proof of exponentiation, using Blockwise Checkpointing.
+//!
+//! ## Layer 6 Architecture: Isolated Infrastructure
+//! This crate operates strictly as an isolated infrastructure implementor. It does not
+//! know what the Kinetic network is, it does not perform network I/O, and it does not
+//! interact with local storage. It exclusively consumes the abstract `VdfEngine` trait 
+//! from `kinetic-core` and executes the heavy RSA cryptographic math to satisfy it.
+//!
+//! ## Security & Consensus Guarantees
+//! The VDF engine enforces mathematically rigorous checks to guarantee network consensus:
+//! - **Deterministic Proofs:** Identical inputs strictly generate bit-identical proof bytes. A non-deterministic prover would cause the network to split.
+//! - **Degenerate Inputs:** Zero-hashes (`x = 0`) are proactively rejected to prevent trivial zero-output squaring bypasses.
+//! - **Fiat-Shamir Soundness:** The quotient divisor prime (`l`) is deterministically generated from both the challenge (`x`) and output (`y`) via `hash_to_prime`, preventing prover malleability.
+//!
+//! ## Architecture Context
+//! ```text
+//! [kinetic-daemon (Mining Loop)]
+//!            |
+//!            v
+//! [kinetic-core::traits::VdfEngine]
+//!            |
+//!            v
+//! [kinetic-vdf::RsaVdfEngine]
+//! ```
+//!
+//! ## Module Map
+//!
+//! - **[`constants`]** — The hardcoded 1991 RSA-2048 Challenge modulus.
+//! - **[`hash_to_prime`]** — Fiat-Shamir prime generation for proofs.
+//! - **[`RsaVdfEngine`]** — The concrete implementation of `VdfEngine`.
+
+#![deny(missing_docs)]
 
 pub mod constants;
 pub mod hash_to_prime;

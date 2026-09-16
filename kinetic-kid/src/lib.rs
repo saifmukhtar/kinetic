@@ -7,12 +7,20 @@
 //! naming network. This crate defines how identities are created, signed,
 //! verified, and extended with capability manifests.
 //!
+//! ## Layer 2 Architecture: Pure Mathematical Sandbox
+//! This crate operates strictly as an isolated mathematical sandbox. It does not perform 
+//! network I/O, and it explicitly does not access the local operating system clock. 
+//! All external states (such as verifying expiration against the consensus network `Kyn`) 
+//! must be injected by the outer `kinetic-daemon` layer.
+//!
 //! ## Core concepts
 //!
 //! - **[`Did`]** — A validated `did:kin:<hex>` string. The hex suffix
 //!   is the SHA-256 hash of the controller's primary public key.
 //! - **[`Document`]** — The identity document that binds a DID to one or
-//!   more [`ControllerKey`]s. It is signed with ML-DSA-65 post-quantum signatures.
+//!   more [`ControllerKey`]s. It enforces a strict security separation between Hot 
+//!   (Controller) and Cold (Revocation) keys, and is signed with `KineticKeypair` 
+//!   post-quantum signatures.
 //! - **[`Manifest`]** — An optional extension signed by the
 //!   controller that lists services (websites, APIs, etc.) associated with
 //!   the identity.

@@ -27,7 +27,7 @@ pub fn normalize_name(name: &str) -> String {
     norm
 }
 
-/// Checks whether a given name is a Category 1 reserved public utility name.
+/// Checks whether a given name is a RFC reserved public utility name.
 ///
 /// Hardcoded reserved names (e.g. `localhost`, `test`, `example`) are permanently
 /// locked and cannot be registered under any NSP instance.
@@ -39,7 +39,7 @@ pub fn is_reserved_name(name: &str) -> bool {
         .any(|&r| format!("{}{}", r, nsp) == name_lower)
 }
 
-/// Category 1: Public Utility Names (Based on RFC 2606 & RFC 6761).
+/// RFC Reserved Public Utility Names (Based on RFC 2606 & RFC 6761).
 ///
 /// These names are permanently locked across the network to prevent collisions.
 pub const RESERVED_NAMES: &[&str] = &[
@@ -104,12 +104,12 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
         return Err(crate::error::NamesError::NotAnApexName);
     }
 
-    // Ensure the registered label is not a Category 1 reserved public utility name.
+    // Ensure the registered label is not a RFC reserved public utility name.
     if is_reserved_name(&norm) {
         return Err(crate::error::NamesError::ReservedName);
     }
 
-    // Category 2: Protocol Names (Locked until Phase 2)
+    // Infrastructure Names (Locked protocols)
     if crate::types::protocol::is_protocol_name(&norm) {
         return Err(crate::error::NamesError::ProtocolName);
     }
@@ -239,7 +239,7 @@ mod tests {
             Err(crate::error::NamesError::InvalidHyphenPlacement)
         );
 
-        // Test RFC Category 1 Reserved Names
+        // Test RFC Reserved Names
         assert_eq!(
             is_valid_apex_name(&format!("test{}", crate::constants::NSP_SUFFIX)),
             Err(crate::error::NamesError::ReservedName)
@@ -289,7 +289,7 @@ mod names_tests {
 
     #[test]
     fn test_lock_protocol_names() {
-        // These should be rejected because they are locked Category 2
+        // These should be rejected because they are locked Infrastructure Names
         assert_eq!(
             is_valid_apex_name("docs.kin"),
             Err(crate::error::NamesError::ProtocolName)
@@ -303,7 +303,7 @@ mod names_tests {
             Err(crate::error::NamesError::NotAnApexName)
         );
 
-        // These should be accepted (Category 3/normal names)
+        // These should be accepted (standard names)
         assert!(is_valid_apex_name("satoshi.kin").is_ok());
         assert!(is_valid_apex_name("myname.kin").is_ok());
     }

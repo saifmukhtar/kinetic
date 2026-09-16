@@ -1,4 +1,5 @@
 //! Data structures and serialized action types for network action.
+//! Network action payloads and state models.
 //!
 //! Defines the complete set of [`NetworkAction`] variants, the persistent [`ActionState`],
 //! the [`SignedActionMessage`] proposal envelope, and canonical byte serialization.
@@ -6,62 +7,73 @@
 //! ## Protocol Context
 //!
 //! All action state changes follow a two-phase commit protocol:
-//! 1. A [`SignedActionMessage`] is broadcast with one or more ML-DSA-65 signatures.
+//! 1. A [`SignedActionMessage`] is broadcast with a single cryptographic signature.
 //! 2. Threshold verification by the active [`ActionEngine`](crate::traits::ActionEngine)
 //!    determines whether the action is immediately executed or enters a timelock queue.
 //!
-//! In **Sovereign mode**, the Root key acts as a single-signer authority.
+//! In **Sovereign mode**, the Sovereign key acts as a single-signer authority.
 use std::collections::HashMap;
 
 pub use kinetic_types::action::{
     Hash256, NetworkAction, PublicKeyBytes, SignatureBytes, SignedActionMessage,
 };
 
-/// Verifies an ML-DSA-65 post-quantum signature over a message byte slice.
+/// Verifies a Sovereign signature over a message byte slice.
 ///
 /// # Security
 ///
 /// Returns `true` if the signature is cryptographically valid for `pubkey`; `false` if key decoding,
 /// signature parsing, or verification fails.
+/// 
+/// # Examples
+/// ```rust,no_run
+/// use kinetic_action::types::verify_signature;
+/// 
+/// let pubkey = vec![0; 32];
+/// let msg = b"hello";
+/// let sig = vec![0; 64];
+/// // Returns true only if the Sovereign signature strictly matches the pubkey and msg.
+/// let is_valid = verify_signature(&pubkey, msg, &sig);
+/// ```
 pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
     kinetic_primitives::verify_mldsa(pubkey, msg, sig).is_ok()
 }
 
-/// Side effects produced when a action action is executed.
+/// Side effects produced when a network action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ActionEffect {
     /// Inform node subsystems of a prime name mapping.
     PrimeMapped {
-        /// Granted 1-character name.
+        /// Mapped 1-character name.
         name: String,
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
     /// Inform node subsystems of a prime name unmapping.
     PrimeUnmapped {
-        /// Revoked 1-character name.
+        /// Unmapped 1-character name.
         name: String,
     },
-    /// Inform node subsystems of an infrastructure name grant.
+    /// Inform node subsystems of an infrastructure name mapping.
     InfraMapped {
-        /// Granted Category 2 name.
+        /// Mapped infrastructure name.
         name: String,
         /// Recipient public key.
         target_pubkey: PublicKeyBytes,
     },
-    /// Inform node subsystems of an infrastructure name revocation.
+    /// Inform node subsystems of an infrastructure name unmapping.
     InfraUnmapped {
-        /// Revoked Category 2 name.
+        /// Unmapped infrastructure name.
         name: String,
     },
-    /// The Sovereign Root key was successfully rotated.
+    /// The Sovereign key was successfully rotated.
     RootKeyRotated {
-        /// The new Root public key.
+        /// The new Sovereign public key.
         new_key: PublicKeyBytes,
     },
-    /// The network has been emergency halted by the Root key.
+    /// The network has been emergency halted by the Sovereign key.
     NetworkHalted,
-    /// The network has been resumed by the Root key.
+    /// The network has been resumed by the Sovereign key.
     NetworkResumed,
 }
 
@@ -70,7 +82,7 @@ pub enum ActionEffect {
 pub struct ActionState {
     /// Genesis Kyn when action tracking started.
     pub genesis_kyn: kinetic_types::clock::Kyn,
-    /// Active ML-DSA-65 root public key controlling the network.
+    /// Active Sovereign public key controlling the network.
     pub active_sovereign_key: Option<PublicKeyBytes>,
     /// Master boolean flag if the network is currently paused.
     #[serde(default)]
@@ -78,7 +90,7 @@ pub struct ActionState {
     /// The exact Kyn when the network was halted (if currently halted).
     #[serde(default)]
     pub halt_start_kyn: Option<kinetic_types::clock::Kyn>,
-    /// Total number of drand kyns the network has been paused for since genesis.
+    /// Total number of KineticTime kyns the network has been paused for since genesis.
     #[serde(default)]
     pub total_paused_kyns: u64,
     /// Historical timeline of all network pauses (start_kyn, end_kyn).
@@ -90,16 +102,42 @@ pub struct ActionState {
     #[serde(default)]
     /// Append-only log of all executed signed action messages (used for P2P state syncing).
     pub action_log: Vec<kinetic_types::action::SignedActionMessage>,
-    /// Active 1-character prime names and their associated ML-DSA-65 public keys.
+    /// Active 1-character prime names and their associated owner public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
-    /// Active infrastructure names and their associated ML-DSA-65 public keys.
+    /// Active infrastructure names and their associated owner public keys.
     #[serde(default)]
     pub mapped_infra_names: HashMap<String, PublicKeyBytes>,
 }
 
 impl ActionState {
     /// Calculates the exact number of paused kyns that occurred *after* a specific target kyn.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use kinetic_action::types::ActionState;
+    /// use kinetic_types::clock::Kyn;
+    /// use std::collections::HashMap;
+    /// 
+    /// let mut state = ActionState {
+    ///     genesis_kyn: Kyn(0),
+    ///     active_sovereign_key: None,
+    ///     is_halted: false,
+    ///     halt_start_kyn: None,
+    ///     total_paused_kyns: 0,
+    ///     pause_history: vec![(Kyn(100), Kyn(200))], // Paused for 100 kyns
+    ///     executed_hashes: HashMap::new(),
+    ///     action_log: vec![],
+    ///     mapped_prime_names: HashMap::new(),
+    ///     mapped_infra_names: HashMap::new(),
+    /// };
+    /// 
+    /// // If an event happened at kyn 50, it experienced all 100 paused kyns.
+    /// assert_eq!(state.paused_kyns_since(Kyn(50)), 100);
+    /// 
+    /// // If an event happened at kyn 150, it only experienced the last 50 paused kyns.
+    /// assert_eq!(state.paused_kyns_since(Kyn(150)), 50);
+    /// ```
     pub fn paused_kyns_since(&self, target_kyn: kinetic_types::clock::Kyn) -> u64 {
         let mut total = 0;
         for &(start, end) in &self.pause_history {

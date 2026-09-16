@@ -1,26 +1,31 @@
 #![deny(missing_docs)]
-//! # kinetic-host
+//! # kinetic-host (Layer 8: Payload Seeder)
 //!
-//! The Kinetic host binary (`kinetic-host`).
+//! The headless Kinetic content-hosting executable (`kinetic-host`).
 //!
-//! A host is a `.kin` domain owner that publicly serves content or services
-//! through the Kinetic network. It acts simultaneously as a full P2P node and
-//! as a reverse proxy — incoming P2P proxy requests for a registered domain are
-//! transparently forwarded to a backend HTTP server running on the same machine.
+//! ## Layer 8 Architecture: The Headless Seeder
+//! A host is a `.kin` domain owner that publicly serves content 24/7. It acts simultaneously 
+//! as a full P2P node and as an ingress reverse proxy. Incoming P2P privacy-routed requests 
+//! for a registered domain are intercepted by this binary and transparently forwarded to a 
+//! backend HTTP server running locally on the same machine.
+//!
+//! Unlike `kinetic-daemon` (which requires interactive CLI inputs, UI access, and heavily 
+//! caches user activity), this executable is designed to be run via `systemd` or Docker 
+//! in the background to ensure data availability.
 //!
 //! ## Key responsibilities
 //!
-//! - **Dynamic identity**: Unlike the infrastructure node, the host uses an
-//!   epoch-bound PoW keypair (via S/Kademlia) that is automatically rotated
-//!   each drand beacon epoch, providing Sybil resistance.
+//! - **Dynamic identity**: Unlike the cloud infrastructure node (`kinetic-node`), the host 
+//!   must fight DHT spam via an epoch-bound PoW keypair (S/Kademlia). It is automatically 
+//!   rotated each KYN Provider epoch, providing mathematical Sybil resistance.
 //! - **Static host identity**: A separate, long-lived Ed25519 keypair
 //!   (`host.key`) uniquely identifies this host across epochs.
 //!   It is used to sign [`HostRoutingRecord`](kinetic_core::types::HostRoutingRecord)s
 //!   that are published to the DHT so clients can always locate the current
 //!   ephemeral peer ID.
-//! - **Hot-swap network loop**: When the drand epoch advances, the host
+//! - **Hot-swap network loop**: When the time oracle epoch advances, the host
 //!   automatically aborts the old network loop, mines a new PoW keypair, and
-//!   restarts the loop without any downtime.
+//!   restarts the loop without terminating the proxy connections.
 //! - **Health API**: Exposed on port 16004.
 
 use kinetic_core::traits::KynProvider;
@@ -28,7 +33,7 @@ use kinetic_core::traits::KynProvider;
 pub mod api;
 /// Configuration for the host proxy backend.
 pub mod config;
-/// Drand epoch manager and dynamic routing publisher.
+/// KYN epoch manager and dynamic routing publisher.
 pub mod epoch;
 /// P2P Gossipsub network handlers.
 pub mod gossip;
@@ -136,13 +141,13 @@ async fn run_host() -> Result<()> {
     let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
     info!("Storage engine initialized at {:?}", storage_path);
 
-    // 3. Initialize Drand client for PoW validation of ephemeral clients
+    // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
     let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
 
-    // 6. Enforce Drand beacon availability on boot (unless in dev mode, which loads a mock cache)
+    // 6. Enforce Time Oracle beacon availability on boot (unless in dev mode, which loads a mock cache)
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("Drand beacon connected — kyn #{}", kyn.kyn);
+            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
             kyn
         }
         Err(e) => {
