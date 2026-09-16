@@ -5,7 +5,7 @@ This crate is the absolute foundation of the workspace. It sits at **Layer 1: Fu
 
 ## 2. The Core Architectural Rule (The Invariant)
 **This is the ONLY crate in the entire Kinetic workspace allowed to know about specific cryptographic algorithms.** 
-No other crate is permitted to import external cryptographic libraries or hardcode algorithm names (e.g., ML-DSA-65 or SHA-256). All other crates must consume the abstracted domain terminology (e.g., `KineticKeypair` and `verify_mldsa`) exposed exclusively by this crate.
+No other crate is permitted to import external cryptographic libraries or hardcode algorithm names (e.g., ML-DSA-65 or SHA-256). All other crates must consume the abstracted domain terminology (e.g., `KineticKeypair`, `verify_keypair`, and taxonomy wrappers like `IdentityPrivKey`) exposed exclusively by this crate.
 
 ## 3. The Horizontal Boundary
 This crate exclusively owns **Pure Mathematics and Cryptography**. 
