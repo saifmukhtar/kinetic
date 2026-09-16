@@ -55,10 +55,10 @@ pub use manifest::{Manifest, Service};
 mod tests {
     use super::*;
     use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-    use kinetic_primitives::keys::KineticKeypair;
+    use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
 
-    fn generate_keypair() -> KineticKeypair {
-        KineticKeypair::generate()
+    fn generate_keypair() -> ControllerPrivKey {
+        ControllerPrivKey::generate()
     }
 
     #[test]
@@ -99,9 +99,9 @@ mod tests {
     #[test]
     fn test_document_signing_and_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.pubkey_bytes());
+        let pub_key_b64 = b64_url.encode(keypair.to_pubkey().0);
 
-        let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
+        let hash = kinetic_primitives::sha256_hash(&keypair.to_pubkey().0);
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -124,7 +124,7 @@ mod tests {
             signature: None,
         };
 
-        let signed_doc = doc.sign(&keypair).unwrap();
+        let signed_doc = doc.sign_with_controller(&keypair).unwrap();
         assert!(signed_doc.signature.is_some());
 
         assert!(signed_doc.verify().is_ok());
@@ -138,9 +138,9 @@ mod tests {
     #[test]
     fn test_manifest_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.pubkey_bytes());
+        let pub_key_b64 = b64_url.encode(keypair.to_pubkey().0);
 
-        let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
+        let hash = kinetic_primitives::sha256_hash(&keypair.to_pubkey().0);
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -179,7 +179,7 @@ mod tests {
             signature: None,
         };
 
-        let signed_manifest = manifest.clone().sign(&keypair).unwrap();
+        let signed_manifest = manifest.clone().sign_with_controller(&keypair).unwrap();
 
         assert!(signed_manifest.verify_at_time(&doc, 2000).is_ok());
 
@@ -192,7 +192,7 @@ mod tests {
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#bad", "b".repeat(64)),
                 key_type: "MlDsa65".to_string(),
-                public_key: b64_url.encode(bad_keypair.pubkey_bytes()),
+                public_key: b64_url.encode(bad_keypair.to_pubkey().0),
             }],
             manifest: None,
             revocation_keys: vec![],
@@ -218,7 +218,7 @@ mod tests {
         // Manifest with expiration
         let mut expiring_manifest = manifest.clone();
         expiring_manifest.expires_at = Some(2000);
-        let signed_expiring = expiring_manifest.sign(&keypair).unwrap();
+        let signed_expiring = expiring_manifest.sign_with_controller(&keypair).unwrap();
         assert!(signed_expiring.verify_at_time(&doc, 1500).is_ok());
         assert!(matches!(
             signed_expiring.verify_at_time(&doc, 2000),

@@ -1,16 +1,16 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 use kinetic_kid::{ControllerKey, Did, Document, Error, Manifest};
-use kinetic_primitives::keys::KineticKeypair;
+use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
 
-fn generate_keypair() -> KineticKeypair {
-    KineticKeypair::generate()
+fn generate_keypair() -> ControllerPrivKey {
+    ControllerPrivKey::generate()
 }
 
-fn create_valid_doc_and_key() -> (Document, KineticKeypair) {
+fn create_valid_doc_and_key() -> (Document, ControllerPrivKey) {
     let keypair = generate_keypair();
-    let pub_key_b64 = b64_url.encode(keypair.pubkey_bytes());
+    let pub_key_b64 = b64_url.encode(keypair.to_pubkey().0);
 
-    let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
+    let hash = kinetic_primitives::sha256_hash(&keypair.to_pubkey().0);
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;
@@ -76,7 +76,7 @@ fn test_doc_verify_invalid_signature_bytes() {
 fn test_doc_verify_no_controller_keys() {
     let (mut doc, key) = create_valid_doc_and_key();
     doc.controller_keys.clear();
-    let signed = doc.sign(&key).unwrap();
+    let signed = doc.sign_with_controller(&key).unwrap();
     // Verify will fail to find a matching key
     assert!(matches!(signed.verify(), Err(Error::InvalidSignature)));
 }
@@ -85,7 +85,7 @@ fn test_doc_verify_no_controller_keys() {
 fn test_doc_verify_unknown_key_type() {
     let (mut doc, key) = create_valid_doc_and_key();
     doc.controller_keys[0].key_type = "RSA".to_string();
-    let signed = doc.sign(&key).unwrap();
+    let signed = doc.sign_with_controller(&key).unwrap();
     assert!(matches!(signed.verify(), Err(Error::InvalidSignature)));
 }
 
@@ -113,7 +113,7 @@ fn test_manifest_verify_kid_mismatch() {
 #[test]
 fn test_manifest_verify_missing_signature() {
     let (doc, key) = create_valid_doc_and_key();
-    let signed_doc = doc.clone().sign(&key).unwrap();
+    let signed_doc = doc.clone().sign_with_controller(&key).unwrap();
     let manifest = Manifest {
         doc_type: "kinetic.manifest.v1".to_string(),
         kid: doc.kid.clone(),
@@ -132,7 +132,7 @@ fn test_manifest_verify_missing_signature() {
 #[test]
 fn test_manifest_verify_invalid_signature() {
     let (doc, key) = create_valid_doc_and_key();
-    let signed_doc = doc.clone().sign(&key).unwrap();
+    let signed_doc = doc.clone().sign_with_controller(&key).unwrap();
     let manifest = Manifest {
         doc_type: "kinetic.manifest.v1".to_string(),
         kid: doc.kid.clone(),
@@ -142,7 +142,7 @@ fn test_manifest_verify_invalid_signature() {
         services: vec![],
         signature: None,
     };
-    let mut signed_manifest = manifest.sign(&key).unwrap();
+    let mut signed_manifest = manifest.sign_with_controller(&key).unwrap();
     signed_manifest.signature = Some(b64_url.encode([0u8; 3309])); // Invalid signature bytes
     assert!(matches!(
         signed_manifest.verify_at_time(&signed_doc, 2000),
@@ -153,7 +153,7 @@ fn test_manifest_verify_invalid_signature() {
 #[test]
 fn test_manifest_verify_short_signature() {
     let (doc, key) = create_valid_doc_and_key();
-    let signed_doc = doc.clone().sign(&key).unwrap();
+    let signed_doc = doc.clone().sign_with_controller(&key).unwrap();
     let manifest = Manifest {
         doc_type: "kinetic.manifest.v1".to_string(),
         kid: doc.kid.clone(),
@@ -163,7 +163,7 @@ fn test_manifest_verify_short_signature() {
         services: vec![],
         signature: None,
     };
-    let mut signed_manifest = manifest.sign(&key).unwrap();
+    let mut signed_manifest = manifest.sign_with_controller(&key).unwrap();
     signed_manifest.signature = Some(b64_url.encode(b"short")); // Short signature
     assert!(matches!(
         signed_manifest.verify_at_time(&signed_doc, 2000),
@@ -174,7 +174,7 @@ fn test_manifest_verify_short_signature() {
 #[test]
 fn test_manifest_verify_no_matching_key() {
     let (doc, key) = create_valid_doc_and_key();
-    let signed_doc = doc.clone().sign(&key).unwrap();
+    let signed_doc = doc.clone().sign_with_controller(&key).unwrap();
 
     let (_, other_key) = create_valid_doc_and_key();
 
@@ -187,7 +187,7 @@ fn test_manifest_verify_no_matching_key() {
         services: vec![],
         signature: None,
     };
-    let signed_manifest = manifest.sign(&other_key).unwrap(); // Signed with wrong key
+    let signed_manifest = manifest.sign_with_controller(&other_key).unwrap(); // Signed with wrong key
     assert!(matches!(
         signed_manifest.verify_at_time(&signed_doc, 2000),
         Err(Error::UnauthorizedManifestSignature)
