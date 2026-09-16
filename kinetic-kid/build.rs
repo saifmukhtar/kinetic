@@ -27,6 +27,7 @@ fn main() {
         .expect("network.nsp missing");
     let did_prefix = format!("did:{}:", nsp);
 
+    println!("cargo:rustc-env=KINETIC_NSP={}", nsp);
     println!("cargo:rustc-env=KINETIC_DID_PREFIX={}", did_prefix);
 
     let max_public_key = parsed["advanced"]["limits"]["kid_max_public_key_bytes"]
