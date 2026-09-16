@@ -185,7 +185,12 @@ impl Manifest {
         let sig_bytes = b64_url.decode(sig_b64)?;
 
         let msg_str = self.canonicalize()?;
-        let mut msg_bytes = b"kinetic-manifest-v1\0".to_vec();
+        // ARCHITECTURE NOTE: We intentionally inject the namespace prefix (NSP) as the domain
+        // separator rather than the 32-byte `NETWORK_SALT`. KIDs are Layer 2 identities and 
+        // are meant to be seamlessly portable between Mainnet and Testnet (which share the same NSP).
+        // Using the NSP ensures identity signatures remain portable, while mathematically isolating 
+        // them from completely different network forks (e.g. if a private network uses nsp "corp").
+        let mut msg_bytes = format!("{}-manifest-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
         for key in &kid_document.controller_keys {
@@ -210,7 +215,9 @@ impl Manifest {
         keypair: &kinetic_primitives::keys::KineticKeypair,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
-        let mut msg_bytes = b"kinetic-manifest-v1\0".to_vec();
+        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
+        // identity portability between Mainnet/Testnet while isolating private forks.
+        let mut msg_bytes = format!("{}-manifest-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
         let signature_bytes = keypair.sign(&msg_bytes);
         self.signature = Some(b64_url.encode(signature_bytes));
