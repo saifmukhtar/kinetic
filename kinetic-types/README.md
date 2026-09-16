@@ -28,7 +28,7 @@ To fully understand this crate, we recommend reading it in the following Bottom-
 
 ### Prerequisites
 Before reading this crate, you must understand:
-* **kinetic-primitives:** You must understand how `KineticKeypair` and basic hashing works.
+* **kinetic-primitives:** You must understand how the `kinetic_keypair` taxonomy (Identity, Controller, Revoke, etc.) and basic hashing works.
 * **kinetic-kid:** You must understand the formatting of a Kinetic Identity Document (KID).
 
 ### File Traversal (Leaf-First)

@@ -10,7 +10,7 @@
 //!    mapped directly by the Sovereign key.
 //!
 //! To maintain active routing and prove name liveness, owners periodically publish [`Heartbeat`]
-//! proofs signed with their `KineticKeypair`s.
+//! proofs signed with their `DelegatedPrivKey`s (or `ControllerPrivKey`s).
 
 #![allow(clippy::collapsible_if)]
 use serde::{Deserialize, Serialize};
