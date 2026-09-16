@@ -11,7 +11,7 @@ pub enum NetworkOpcode {
     /// Action broadcast authorized by the Sovereign key.
     Action = 0x01,
     /// Clock synchronization pulse from the KineticTime consensus beacon.
-    Drand = 0x02,
+    KynTime = 0x02,
     /// Anonymous network health statistics.
     Telemetry = 0x03,
 }
@@ -29,7 +29,7 @@ impl NetworkOpcode {
     pub fn from_u8(val: u8) -> Option<Self> {
         match val {
             0x01 => Some(Self::Action),
-            0x02 => Some(Self::Drand),
+            0x02 => Some(Self::KynTime),
             0x03 => Some(Self::Telemetry),
             _ => None,
         }
@@ -121,7 +121,7 @@ mod tests {
     fn test_network_opcode_parsing() {
         // Valid OpCodes
         assert_eq!(NetworkOpcode::from_u8(0x01), Some(NetworkOpcode::Action));
-        assert_eq!(NetworkOpcode::from_u8(0x02), Some(NetworkOpcode::Drand));
+        assert_eq!(NetworkOpcode::from_u8(0x02), Some(NetworkOpcode::KynTime));
         assert_eq!(NetworkOpcode::from_u8(0x03), Some(NetworkOpcode::Telemetry));
 
         // Invalid OpCodes

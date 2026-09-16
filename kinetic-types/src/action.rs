@@ -10,13 +10,14 @@
 //! | Opcode | Action Variant | Description |
 //! |---|---|---|
 //! | `0x0A` | [`NetworkAction::MapPrime`] | Grant a 1-character prime name (Sovereign key only) |
-//! | `0x0B` | [`NetworkAction::RotateRootKey`] | Rotate network authority to a new Sovereign key |
+//! | `0x0B` | [`NetworkAction::RotateSovereignKey`] | Rotate network authority to a new Sovereign key |
 //! | `0x0C` | [`NetworkAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
 //! | `0x0D` | [`NetworkAction::EmergencyResume`] | Resume registrations and advance pause offset |
 //! | `0x0E` | [`NetworkAction::UnmapPrime`] | Revoke a previously granted 1-character prime name |
 //! | `0x0F` | [`NetworkAction::MapInfra`] | Grant a Category 2 infrastructure name (Sovereign key only) |
 //! | `0x10` | [`NetworkAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Sovereign key only) |
 
+use kinetic_primitives::kinetic_keypair::{IdentityPubKey, SovereignPubKey};
 use thiserror::Error;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
@@ -43,7 +44,8 @@ pub enum NetworkAction {
         /// Target 1-character name label.
         name: String,
         /// Recipient's ML-DSA-65 public key.
-        target_pubkey: PublicKeyBytes,
+        #[serde(with = "crate::pubkey_serde::identity_serde")]
+        target_pubkey: IdentityPubKey,
     },
     /// Revoke a 1-character premium name (Sovereign key only).
     UnmapPrime {
@@ -55,7 +57,8 @@ pub enum NetworkAction {
         /// Target infrastructure name label (e.g., "seed", "api").
         name: String,
         /// Recipient's ML-DSA-65 public key.
-        target_pubkey: PublicKeyBytes,
+        #[serde(with = "crate::pubkey_serde::identity_serde")]
+        target_pubkey: IdentityPubKey,
     },
     /// Revoke a Category 2 network infrastructure name (Sovereign key only).
     UnmapInfra {
@@ -63,9 +66,10 @@ pub enum NetworkAction {
         name: String,
     },
     /// Permanently delegates Sovereign authority to a new Sovereign public key.
-    RotateRootKey {
+    RotateSovereignKey {
         /// The new Sovereign public key bytes.
-        new_key: PublicKeyBytes,
+        #[serde(with = "crate::pubkey_serde::sovereign_serde")]
+        new_key: SovereignPubKey,
     },
     /// Emergency pause for network registration and renewals.
     EmergencyHalt,
@@ -78,10 +82,10 @@ pub enum NetworkAction {
 pub struct SignedActionMessage {
     /// Target action action payload.
     pub action: NetworkAction,
-    /// Unix timestamp in drand kyns when the proposal was signed.
+    /// Unix timestamp in KynTime kyns when the proposal was signed.
     pub timestamp_kyn: u64,
-    /// Array of ML-DSA-65 signatures.
-    pub signatures: Vec<SignatureBytes>,
+    /// The Sovereign signatures authorizing this action.
+    pub sovereign_signatures: Vec<SignatureBytes>,
 }
 
 impl SignedActionMessage {
@@ -92,7 +96,7 @@ impl SignedActionMessage {
     /// | Opcode | Action Variant |
     /// |---|---|
     /// | `0x0A` | `MapPrime` |
-    /// | `0x0B` | `RotateRootKey` |
+    /// | `0x0B` | `RotateSovereignKey` |
     /// | `0x0C` | `EmergencyHalt` |
     /// | `0x0D` | `EmergencyResume` |
     /// | `0x0E` | `UnmapPrime` |
@@ -117,7 +121,7 @@ impl SignedActionMessage {
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
-                buf.extend_from_slice(target_pubkey.as_slice());
+                buf.extend_from_slice(target_pubkey.0.as_slice());
             }
             NetworkAction::UnmapPrime { name } => {
                 buf.push(0x0E);
@@ -133,7 +137,7 @@ impl SignedActionMessage {
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
-                buf.extend_from_slice(target_pubkey.as_slice());
+                buf.extend_from_slice(target_pubkey.0.as_slice());
             }
             NetworkAction::UnmapInfra { name } => {
                 buf.push(0x10);
@@ -141,9 +145,9 @@ impl SignedActionMessage {
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
             }
-            NetworkAction::RotateRootKey { new_key } => {
+            NetworkAction::RotateSovereignKey { new_key } => {
                 buf.push(0x0B);
-                buf.extend_from_slice(new_key.as_slice());
+                buf.extend_from_slice(new_key.0.as_slice());
             }
             NetworkAction::EmergencyHalt => {
                 buf.push(0x0C);
@@ -239,16 +243,16 @@ impl NetworkAction {
                 }
                 NetworkAction::MapPrime {
                     name,
-                    target_pubkey: pubkey_bytes.to_vec(),
+                    target_pubkey: IdentityPubKey(pubkey_bytes.to_vec()),
                 }
             }
             0x0B => {
-                // RotateRootKey
+                // RotateSovereignKey
                 if action_data.len() != 1952 {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
-                NetworkAction::RotateRootKey {
-                    new_key: action_data.to_vec(),
+                NetworkAction::RotateSovereignKey {
+                    new_key: SovereignPubKey(action_data.to_vec()),
                 }
             }
             0x0C => {
@@ -291,7 +295,7 @@ impl NetworkAction {
                 }
                 NetworkAction::MapInfra {
                     name,
-                    target_pubkey: pubkey_bytes.to_vec(),
+                    target_pubkey: IdentityPubKey(pubkey_bytes.to_vec()),
                 }
             }
             0x10 => {
@@ -377,12 +381,12 @@ mod tests {
     fn test_roundtrip_valid_map_prime() {
         let action = NetworkAction::MapPrime {
             name: "x".to_string(),
-            target_pubkey: vec![42; 1952],
+            target_pubkey: IdentityPubKey(vec![42; 1952]),
         };
         let msg = SignedActionMessage {
             action: action.clone(),
             timestamp_kyn: 123456,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
 
         let buf = msg.to_bytes();
