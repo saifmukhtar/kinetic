@@ -82,7 +82,7 @@ pub enum NetworkAction {
 pub struct SignedActionMessage {
     /// Target action action payload.
     pub action: NetworkAction,
-    /// Unix timestamp in KynTime kyns when the proposal was signed.
+    /// Unix timestamp in drand kyns when the proposal was signed.
     pub timestamp_kyn: u64,
     /// The Sovereign signatures authorizing this action.
     pub sovereign_signatures: Vec<SignatureBytes>,

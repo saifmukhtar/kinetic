@@ -3,7 +3,7 @@
 //! Provides the core wire types for the Kinetic two-phase name registration protocol:
 //!
 //! 1. **Phase 1 (Commitment)**: Submitting a blind SHA-256 [`Commitment`] hash to claim registration priority.
-//! 2. **Phase 2 (Reveal)**: Revealing name metadata, salt, KynTime randomness, and the computed
+//! 2. **Phase 2 (Reveal)**: Revealing name metadata, salt, drand randomness, and the computed
 //!    [`VdfProof`] inside a [`Reveal`] structure verified with post-quantum ML-DSA-65 signatures.
 
 #![allow(clippy::collapsible_if)]
@@ -27,26 +27,26 @@ impl Commitment {
     ///
     /// This is the SINGLE source of truth for generating VDF challenges across
     /// the Kinetic network. It cryptographically binds the network salt, the target
-    /// name, the user's random salt, the compressed KynTime randomness, and the
+    /// name, the user's random salt, the compressed Drand randomness, and the
     /// user's public key.
     pub fn derive(
         network_salt: &[u8; 32],
         name: &str,
         user_salt: &[u8; 32],
-        kyntime_signature_bytes: &[u8],
+        drand_signature_bytes: &[u8],
         pubkey: &IdentityPubKey,
     ) -> Self {
-        // Compress the 96-byte BLS12-381 G2 KynTime signature into a 32-byte hash
-        let kyntime_rand = kinetic_primitives::sha256_hash(kyntime_signature_bytes);
+        // Compress the 96-byte BLS12-381 G2 Drand signature into a 32-byte hash
+        let drand_rand = kinetic_primitives::sha256_hash(drand_signature_bytes);
 
         // Construct the unified VDF challenge
         let mut data = Vec::with_capacity(
-            network_salt.len() + name.len() + user_salt.len() + kyntime_rand.len() + pubkey.0.len(),
+            network_salt.len() + name.len() + user_salt.len() + drand_rand.len() + pubkey.0.len(),
         );
         data.extend_from_slice(network_salt);
         data.extend_from_slice(name.as_bytes());
         data.extend_from_slice(user_salt);
-        data.extend_from_slice(&kyntime_rand);
+        data.extend_from_slice(&drand_rand);
         data.extend_from_slice(&pubkey.0);
 
         Self {
@@ -80,7 +80,7 @@ pub struct PreviousProof {
     /// Associated KineticTime kyn number from prior registration.
     pub kyn: u64,
     /// Hex-encoded KineticTime BLS12-381 G2 signature from prior registration.
-    pub kyntime_signature: String,
+    pub drand_signature: String,
     /// Number of VDF iterations completed in prior registration.
     pub iterations: u64,
     /// Embedded VDF proof bytes.
@@ -97,7 +97,7 @@ impl PreviousProof {
             + prefix.len()
             + 32 // salt
             + 8 // kyn
-            + 4 + self.kyntime_signature.len()
+            + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
             + 4 + self.identity_signature.len();
@@ -108,8 +108,8 @@ impl PreviousProof {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.kyn.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.kyntime_signature.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.kyntime_signature.as_bytes());
+        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.drand_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 
@@ -136,7 +136,7 @@ impl PreviousProof {
     /// let prev = PreviousProof {
     ///     salt: [0u8; 32],
     ///     kyn: 12345,
-    ///     kyntime_signature: "abcd".to_string(),
+    ///     drand_signature: "abcd".to_string(),
     ///     iterations: 1000,
     ///     vdf_proof: VdfProof { proof_bytes: vec![] },
     ///     signature: vec![],
@@ -151,7 +151,7 @@ impl PreviousProof {
             + prefix.len()
             + 32 // salt
             + 8 // kyn
-            + 4 + self.kyntime_signature.len()
+            + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len();
 
@@ -161,8 +161,8 @@ impl PreviousProof {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.kyn.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.kyntime_signature.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.kyntime_signature.as_bytes());
+        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.drand_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 
@@ -188,7 +188,7 @@ pub struct Reveal {
     /// Associated KineticTime kyn number.
     pub kyn: u64,
     /// Hex-encoded KineticTime BLS12-381 G2 signature.
-    pub kyntime_signature: String,
+    pub drand_signature: String,
     /// Number of VDF iterations completed.
     pub iterations: u64,
     /// Evaluated VDF proof.
@@ -223,7 +223,7 @@ impl Reveal {
     ///     payload: vec![],
     ///     salt: [0u8; 32],
     ///     kyn: 12345,
-    ///     kyntime_signature: "abcd".to_string(),
+    ///     drand_signature: "abcd".to_string(),
     ///     iterations: 1000,
     ///     vdf_proof: VdfProof { proof_bytes: vec![] },
     ///     pubkey: vec![],
@@ -250,7 +250,7 @@ impl Reveal {
             + 4 + self.payload.len()
             + 32 // salt
             + 8 // kyn
-            + 4 + self.kyntime_signature.len()
+            + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
             + 4 + self.pubkey.0.len()
@@ -274,8 +274,8 @@ impl Reveal {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.kyn.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.kyntime_signature.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.kyntime_signature.as_bytes());
+        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.drand_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 
@@ -306,7 +306,7 @@ mod tests {
         let prev = PreviousProof {
             salt: [2u8; 32],
             kyn: 12345,
-            kyntime_signature: "deadbeef".to_string(),
+            drand_signature: "deadbeef".to_string(),
             iterations: 1000,
             vdf_proof: VdfProof {
                 proof_bytes: vec![1, 2, 3, 4],
