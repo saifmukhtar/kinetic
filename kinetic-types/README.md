@@ -14,7 +14,14 @@ let time = Kyn::new(150000);
 let timestamp = time.to_utime();
 ```
 
-## 3. Internal Architecture
+## 3. Key Taxonomy & Signatures
+Following the **Strict Key Taxonomy** pattern, `kinetic-types` NEVER relies on underlying algorithmic details (like ML-DSA). It strictly uses the abstracted wrappers from Layer 1 (`kinetic-primitives`):
+
+- **`IdentityPubKey` / `IdentityPrivKey`**: Used for mapping domain names and verifying heartbeats.
+- **`SovereignPubKey` / `SovereignPrivKey`**: Used for network-wide administrative actions and emergency halts.
+- **Signatures**: Fields are explicitly named for the key that generated them (e.g., `identity_signature`, `owner_signature`, `sovereign_signatures`) rather than just `signature`.
+
+## 4. Internal Architecture
 `kinetic-types` defines multiple isolated domains:
 - **Registration**: Proof of Patience proofs (`vdf.rs`) and Canonical Zones (`nrs.rs`).
 - **P2P Networking**: Multiplexing payloads (`network.rs`, `cdn.rs`, `action.rs`).
@@ -23,7 +30,7 @@ let timestamp = time.to_utime();
 
 All structures implement strict Serde serialization to guarantee deterministic byte representation across the network.
 
-## 4. Reading Guide
+## 5. Reading Guide
 To fully understand this crate, we recommend reading it in the following Bottom-Up (Leaf-First) order:
 
 ### Prerequisites
@@ -42,5 +49,5 @@ Do not read this crate top-to-bottom. It is a flat map of specialized payloads.
 7. `proxy.rs` - IPC proxy payloads.
 8. `lib.rs` - The overarching schema hub.
 
-## 5. Taxonomy & Links
+## 6. Taxonomy & Links
 * **Taxonomy:** This crate belongs to Layer 3. Please read [`./LAYER_3.md`](./LAYER_3.md) to understand the strict architectural constraints of this layer.

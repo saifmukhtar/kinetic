@@ -43,7 +43,7 @@ pub enum NetworkAction {
     MapPrime {
         /// Target 1-character name label.
         name: String,
-        /// Recipient's ML-DSA-65 public key.
+        /// Recipient's Identity public key.
         #[serde(with = "crate::pubkey_serde::identity_serde")]
         target_pubkey: IdentityPubKey,
     },
@@ -56,7 +56,7 @@ pub enum NetworkAction {
     MapInfra {
         /// Target infrastructure name label (e.g., "seed", "api").
         name: String,
-        /// Recipient's ML-DSA-65 public key.
+        /// Recipient's Identity public key.
         #[serde(with = "crate::pubkey_serde::identity_serde")]
         target_pubkey: IdentityPubKey,
     },
@@ -67,7 +67,7 @@ pub enum NetworkAction {
     },
     /// Permanently delegates Sovereign authority to a new Sovereign public key.
     RotateSovereignKey {
-        /// The new Sovereign public key bytes.
+        /// The new strictly-typed Sovereign public key.
         #[serde(with = "crate::pubkey_serde::sovereign_serde")]
         new_key: SovereignPubKey,
     },
@@ -80,7 +80,7 @@ pub enum NetworkAction {
 /// Proposal message container with signatures from authorized council members.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SignedActionMessage {
-    /// Target action action payload.
+    /// Target network action payload.
     pub action: NetworkAction,
     /// Unix timestamp in drand kyns when the proposal was signed.
     pub timestamp_kyn: u64,
@@ -89,7 +89,7 @@ pub struct SignedActionMessage {
 }
 
 impl SignedActionMessage {
-    /// Serializes the action message into a canonical byte vector for SHA-256 hashing and ML-DSA-65 signature verification.
+    /// Serializes the action message into a canonical byte vector for SHA-256 hashing and Sovereign signature verification.
     ///
     /// Each [`NetworkAction`] variant is prefixed with a 1-byte opcode:
     ///
@@ -109,7 +109,7 @@ impl SignedActionMessage {
     /// # Returns
     ///
     /// A deterministic `Vec<u8>` suitable for SHA-256 hashing to derive the action hash,
-    /// or for ML-DSA-65 signature verification.
+    /// or for Sovereign signature verification.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
@@ -174,8 +174,8 @@ pub enum ActionTypeError {
     /// Name string field contains invalid UTF-8 bytes.
     #[error("Invalid UTF-8 sequence in premium name string")]
     InvalidUtf8,
-    /// Provided public key length does not match expected ML-DSA-65 parameter size.
-    #[error("Invalid public key length, expected 1952 bytes for ML-DSA-65")]
+    /// Provided public key length does not match expected parameter size.
+    #[error("Invalid public key length, expected 1952 bytes")]
     InvalidPubkeyLength,
 }
 

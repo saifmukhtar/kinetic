@@ -49,7 +49,7 @@ impl Heartbeat {
     /// let hb = Heartbeat {
     ///     name: "example".to_string(),
     ///     latest_kyn: 12345,
-    ///     signature: vec![],
+    ///     owner_signature: vec![],
     ///     authorization: None,
     /// };
     /// let salt = [0x42; 32];
@@ -91,14 +91,14 @@ pub enum NameRecord {
     Prime {
         /// The name.
         name: String,
-        /// The public key bytes of the name owner.
+        /// The Identity public key of the name owner.
         #[serde(with = "crate::pubkey_serde::identity_serde")]
         pubkey: IdentityPubKey,
         /// The network kyn when this mapping was approved.
         kyn: u64,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
-        /// The owner's signature authorizing the payload.
+        /// The Identity signature authorizing the payload.
         owner_signature: Vec<u8>,
         /// Optional delegated authorization proof for NRS zone updates.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -108,14 +108,14 @@ pub enum NameRecord {
     Infra {
         /// The name.
         name: String,
-        /// The public key bytes of the name owner.
+        /// The Identity public key of the name owner.
         #[serde(with = "crate::pubkey_serde::identity_serde")]
         pubkey: IdentityPubKey,
         /// The network kyn when this mapping was approved.
         kyn: u64,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
-        /// The owner's signature authorizing the payload.
+        /// The Identity signature authorizing the payload.
         owner_signature: Vec<u8>,
         /// Optional delegated authorization proof for NRS zone updates.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -148,7 +148,7 @@ impl NameRecord {
         }
     }
 
-    /// Returns the owner's signature over the payload.
+    /// Returns the Identity signature over the payload.
     pub fn signature(&self) -> &[u8] {
         match self {
             Self::Standard(r) => &r.identity_signature,

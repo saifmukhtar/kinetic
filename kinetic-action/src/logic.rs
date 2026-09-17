@@ -70,11 +70,11 @@ impl ActionState {
     /// Computes the SHA-256 action hash for a signed action message.
     ///
     /// The hash is derived from `SHA-256(msg.to_bytes())` and is used as the
-    /// stable key for all subsequent state operations (timelock map, partial proposal map).
+    /// stable key for all subsequent state operations (e.g. deduplicating executed actions).
     ///
     /// # Examples
     /// ```rust,ignore
-    /// use kinetic_action::logic::ActionState;
+    /// use kinetic_action::types::ActionState;
     /// // let hash = ActionState::hash_action(&signed_msg);
     /// ```
     ///
@@ -101,9 +101,9 @@ impl ActionState {
     /// # Errors
     ///
     /// Returns an [`ActionError`] if the key is missing, invalid, or has the wrong length.
-    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<PublicKeyBytes, ActionError> {
+    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<kinetic_primitives::kinetic_keypair::SovereignPubKey, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
-            return Ok(key.clone());
+            return Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(key.clone()));
         }
 
         let bytes = hex::decode(&config.sovereign_key_hex)
@@ -111,7 +111,7 @@ impl ActionState {
         if bytes.len() != 1952 {
             return Err(ActionError::KeyLengthMismatch);
         }
-        Ok(bytes)
+        Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(bytes))
     }
 
     /// Verifies whether a signed action message meets validity rules to be executed.

@@ -9,19 +9,18 @@ use crate::types::{ActionEffect, ActionState, SignedActionMessage};
 
 /// Pluggable evaluator for signed network actions.
 pub trait ActionEngine: Send + Sync {
-    /// Verifies whether a signed network action meets threshold and timelock requirements.
+    /// Verifies whether a signed network action meets all validity rules.
     ///
     /// Does **not** mutate `state` on its own — state changes only happen in
     /// [`execute_action`](Self::execute_action).
     ///
     /// # Returns
     ///
-    /// - `Ok(Some(effect))` if the message is valid and immediately executable (no timelock).
-    /// - `Ok(None)` if the message is valid but waiting in a timelock queue.
+    /// - `Ok(Some(effect))` if the message is valid and executable.
     ///
     /// # Errors
     ///
-    /// - Returns [`ActionError::InvalidSignature`] (`KIN-ACN-007`) if required signatures or threshold are not met.
+    /// - Returns [`ActionError::InvalidSignature`] (`KIN-ACN-007`) if the required Sovereign signature is not met.
     /// - Returns [`ActionError::StaleProposal`] (`KIN-ACN-005`) if the proposal timestamp is outside the replay window.
     /// - Returns [`ActionError::ActionDisabled`] (`KIN-ACN-003`) if network actions are disabled in this mode.
     /// - Returns [`ActionError::KeyLengthMismatch`] (`KIN-ACN-004`) if a key length is invalid.
@@ -37,12 +36,10 @@ pub trait ActionEngine: Send + Sync {
     /// Executes a previously verified network action, applying state changes.
     ///
     /// Must only be called after [`verify_action`](Self::verify_action) returns `Ok(_)`.
-    /// The `wait_time` parameter is the remaining timelock seconds to apply for deferred effects.
     ///
     /// # Returns
     ///
     /// `Some(effect)` if a state-changing side effect was produced (e.g. key rotation).
-    /// `None` if the action was enqueued for a future timelock.
     fn execute_action(
         &self,
         state: &mut ActionState,

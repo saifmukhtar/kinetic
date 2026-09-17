@@ -5,29 +5,29 @@ mod tests {
     use super::super::types::{
         ActionEffect, ActionState, NetworkAction, PublicKeyBytes, SignedActionMessage,
     };
-    use kinetic_primitives::keys::KineticKeypair;
+    use kinetic_primitives::kinetic_keypair::{SovereignPrivKey, SovereignPubKey};
     use kinetic_types::clock::Kyn;
-    fn get_root_sk() -> KineticKeypair {
+    fn get_root_sk() -> SovereignPrivKey {
         let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
             .unwrap();
-        KineticKeypair::from_seed(bytes.as_slice().try_into().unwrap())
+        SovereignPrivKey::from_seed(bytes.as_slice().try_into().unwrap())
     }
 
-    fn generate_key(seed: u8) -> (KineticKeypair, PublicKeyBytes) {
+    fn generate_key(seed: u8) -> (SovereignPrivKey, Vec<u8>) {
         let bytes = [seed; 32];
-        let signing_key = KineticKeypair::from_seed(&bytes);
-        let verifying_key = signing_key.pubkey_bytes();
+        let signing_key = SovereignPrivKey::from_seed(&bytes);
+        let verifying_key = signing_key.to_pubkey().0; // Extract raw bytes for test usage
         (signing_key, verifying_key)
     }
 
-    fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
+    fn sign_action(msg: &SignedActionMessage, signer: &SovereignPrivKey) -> Vec<u8> {
         let serialized = msg.to_bytes();
         signer.sign(&serialized)
     }
 
     fn get_test_config() -> super::super::types::ActionConfig {
         super::super::types::ActionConfig {
-            sovereign_key_hex: hex::encode(get_root_sk().pubkey_bytes()),
+            sovereign_key_hex: hex::encode(get_root_sk().to_pubkey().0),
             max_age_kyns: 100,
             is_dev_mode: false,
             action_model: "sovereign".to_string(),
@@ -49,13 +49,13 @@ mod tests {
         let mut msg_invalid_len = SignedActionMessage {
             action: NetworkAction::MapPrime {
                 name: "ab".to_string(),
-                target_pubkey: target_pubkey.clone(),
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
             },
             timestamp_kyn: current_kyn,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
         msg_invalid_len
-            .signatures
+            .sovereign_signatures
             .push(sign_action(&msg_invalid_len, &root_sk));
 
         let err = process_action_message(
@@ -77,12 +77,12 @@ mod tests {
             let mut msg = SignedActionMessage {
                 action: NetworkAction::MapPrime {
                     name: name.to_string(),
-                    target_pubkey: target_pubkey.clone(),
+                    target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
                 },
                 timestamp_kyn: current_kyn,
-                signatures: vec![],
+                sovereign_signatures: vec![],
             };
-            msg.signatures.push(sign_action(&msg, &root_sk));
+            msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
             let effect = process_action_message(
                 &mut state,
                 &msg,
@@ -103,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rotate_root_key() {
+    fn test_rotate_sovereign_key() {
         let root_sk = get_root_sk();
         let current_kyn = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -111,19 +111,19 @@ mod tests {
             .as_secs();
         let mut state = ActionState::new(Kyn(current_kyn));
 
-        // Generate a new Root Key
+        // Generate a new Sovereign Key
         let (new_root_sk, new_root_pubkey) = generate_key(123);
 
-        // Action 1: Rotate to the new Root Key (signed by current genesis root key)
+        // Action 1: Rotate to the new Sovereign Key (signed by current genesis Sovereign key)
         let mut rotate_msg = SignedActionMessage {
-            action: NetworkAction::RotateRootKey {
-                new_key: new_root_pubkey.clone(),
+            action: NetworkAction::RotateSovereignKey {
+                new_key: kinetic_primitives::kinetic_keypair::SovereignPubKey(new_root_pubkey.clone()),
             },
             timestamp_kyn: current_kyn,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
         rotate_msg
-            .signatures
+            .sovereign_signatures
             .push(sign_action(&rotate_msg, &root_sk));
 
         let effect = process_action_message(
@@ -133,24 +133,24 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(ActionEffect::RootKeyRotated { .. })));
+        assert!(matches!(effect, Some(ActionEffect::SovereignKeyRotated { .. })));
 
-        // The state should now have the new root key
+        // The state should now have the new Sovereign key
         assert_eq!(
             state.get_sovereign_key(&get_test_config()).unwrap(),
-            new_root_pubkey
+            kinetic_primitives::kinetic_keypair::SovereignPubKey(new_root_pubkey.clone())
         );
 
-        // Action 2: Try mapping a name using the OLD root key (should fail)
+        // Action 2: Try mapping a name using the OLD Sovereign key (should fail)
         let mut map_msg = SignedActionMessage {
             action: NetworkAction::MapPrime {
                 name: "b".to_string(),
-                target_pubkey: new_root_pubkey.clone(), // Doesn't matter
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(new_root_pubkey.clone()), // Doesn't matter
             },
             timestamp_kyn: current_kyn + 1, // Advance time so hash is different
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
-        map_msg.signatures.push(sign_action(&map_msg, &root_sk)); // signed with old key
+        map_msg.sovereign_signatures.push(sign_action(&map_msg, &root_sk)); // signed with old key
 
         let err = process_action_message(
             &mut state,
@@ -161,9 +161,9 @@ mod tests {
         .unwrap_err();
         assert!(matches!(err, crate::error::ActionError::InvalidSignature));
 
-        // Action 3: Map a name using the NEW root key (should succeed)
-        map_msg.signatures.clear();
-        map_msg.signatures.push(sign_action(&map_msg, &new_root_sk)); // signed with NEW key
+        // Action 3: Map a name using the NEW Sovereign key (should succeed)
+        map_msg.sovereign_signatures.clear();
+        map_msg.sovereign_signatures.push(sign_action(&map_msg, &new_root_sk)); // signed with NEW key
 
         let effect = process_action_message(
             &mut state,
@@ -187,13 +187,13 @@ mod tests {
             let (_, target_pubkey) = generate_key(99);
             let action = NetworkAction::MapPrime {
                 name,
-                target_pubkey,
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey),
             };
 
             let msg = SignedActionMessage {
                 action: action.clone(),
                 timestamp_kyn: timestamp,
-                signatures: vec![], // Signatures aren't part of canonical hash
+                sovereign_signatures: vec![], // Signatures aren't part of canonical hash
             };
 
             // Ensure we don't panic on serialization of randomized but valid structure
@@ -227,9 +227,9 @@ mod tests {
         let mut halt_msg = SignedActionMessage {
             action: NetworkAction::EmergencyHalt,
             timestamp_kyn: current_kyn,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
-        halt_msg.signatures.push(sign_action(&halt_msg, &root_sk));
+        halt_msg.sovereign_signatures.push(sign_action(&halt_msg, &root_sk));
 
         let effect = process_action_message(
             &mut state,
@@ -244,10 +244,10 @@ mod tests {
         let mut resume_msg = SignedActionMessage {
             action: NetworkAction::EmergencyResume,
             timestamp_kyn: current_kyn + 1000,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
         resume_msg
-            .signatures
+            .sovereign_signatures
             .push(sign_action(&resume_msg, &root_sk));
 
         let effect = process_action_message(
@@ -279,9 +279,9 @@ mod tests {
                 name: "ab".to_string(),
             },
             timestamp_kyn: current_kyn,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
-        fail_msg.signatures.push(sign_action(&fail_msg, &root_sk));
+        fail_msg.sovereign_signatures.push(sign_action(&fail_msg, &root_sk));
 
         let err = process_action_message(
             &mut state,
@@ -296,12 +296,12 @@ mod tests {
         let mut map_msg = SignedActionMessage {
             action: NetworkAction::MapPrime {
                 name: "a".to_string(),
-                target_pubkey: vec![0; 1952],
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; 1952]),
             },
             timestamp_kyn: current_kyn + 1,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
-        map_msg.signatures.push(sign_action(&map_msg, &root_sk));
+        map_msg.sovereign_signatures.push(sign_action(&map_msg, &root_sk));
         let _ = process_action_message(
             &mut state,
             &map_msg,
@@ -316,10 +316,10 @@ mod tests {
                 name: "a".to_string(),
             },
             timestamp_kyn: current_kyn + 2,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
         success_msg
-            .signatures
+            .sovereign_signatures
             .push(sign_action(&success_msg, &root_sk));
 
         let effect = process_action_message(
@@ -346,9 +346,9 @@ mod tests {
         let mut msg = SignedActionMessage {
             action: NetworkAction::EmergencyHalt,
             timestamp_kyn: current_kyn,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
-        msg.signatures.push(sign_action(&msg, &root_sk));
+        msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
         // First submission succeeds
         let effect =
@@ -381,13 +381,13 @@ mod tests {
         let mut msg_invalid = SignedActionMessage {
             action: NetworkAction::MapInfra {
                 name: "invalidname".to_string(),
-                target_pubkey: target_pubkey.clone(),
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
             },
             timestamp_kyn: current_kyn,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
         msg_invalid
-            .signatures
+            .sovereign_signatures
             .push(sign_action(&msg_invalid, &root_sk));
 
         let err = process_action_message(
@@ -406,12 +406,12 @@ mod tests {
         let mut msg_valid = SignedActionMessage {
             action: NetworkAction::MapInfra {
                 name: "seed".to_string(),
-                target_pubkey: target_pubkey.clone(),
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
             },
             timestamp_kyn: current_kyn,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
-        msg_valid.signatures.push(sign_action(&msg_valid, &root_sk));
+        msg_valid.sovereign_signatures.push(sign_action(&msg_valid, &root_sk));
         let effect = process_action_message(
             &mut state,
             &msg_valid,
@@ -437,9 +437,9 @@ mod tests {
         let mut msg = SignedActionMessage {
             action: NetworkAction::EmergencyHalt,
             timestamp_kyn: stale_kyn,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
-        msg.signatures.push(sign_action(&msg, &root_sk));
+        msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
         let err = process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
             .unwrap_err();
