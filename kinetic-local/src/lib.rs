@@ -1,6 +1,7 @@
 //! # kinetic-local
 //!
 //! Local file system and OS environment abstractions for the Kinetic Network.
+pub mod os_clock;
 //!
 //! ## Layer 6 Architecture: OS & Disk Orchestration
 //! This crate operates as the isolated file system boundary. It orchestrates the loading 
