@@ -30,7 +30,7 @@ pub use kinetic_types::action::{
 /// use kinetic_action::types::verify_signature;
 /// use kinetic_primitives::kinetic_keypair::SovereignPubKey;
 /// 
-/// let pubkey = SovereignPubKey(vec![0; 1952]);
+/// let pubkey = SovereignPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]);
 /// let msg = b"hello";
 /// let sig = vec![0; 64];
 /// // Returns true only if the Sovereign signature strictly matches the pubkey and msg.

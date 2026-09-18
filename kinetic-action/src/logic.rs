@@ -37,7 +37,7 @@ pub fn validate_keys_initialized(
     // Attempt to decode the hex just to validate its format.
     let bytes = hex::decode(sovereign_key_hex).map_err(|_| ActionError::MalformedSovereignKey)?;
 
-    if bytes.len() != 1952 {
+    if bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
         return Err(ActionError::KeyLengthMismatch);
     }
 
@@ -108,7 +108,7 @@ impl ActionState {
 
         let bytes = hex::decode(&config.sovereign_key_hex)
             .map_err(|_| ActionError::MalformedSovereignKey)?;
-        if bytes.len() != 1952 {
+        if bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
             return Err(ActionError::KeyLengthMismatch);
         }
         Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(bytes))

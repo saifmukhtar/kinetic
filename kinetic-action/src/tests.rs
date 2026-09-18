@@ -296,7 +296,7 @@ mod tests {
         let mut map_msg = SignedActionMessage {
             action: NetworkAction::MapPrime {
                 name: "a".to_string(),
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; 1952]),
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
             },
             timestamp_kyn: current_kyn + 1,
             sovereign_signatures: vec![],

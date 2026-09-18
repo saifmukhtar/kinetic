@@ -26,7 +26,7 @@ pub type Hash256 = [u8; 32];
 /// Raw Sovereign key public key bytes.
 ///
 /// # Security
-/// The binary parser currently strictly enforces a 1952-byte length bound 
+/// The binary parser currently strictly enforces a `KINETIC_PUBKEY_LENGTH` byte bound 
 /// on this payload to prevent memory exhaustion during P2P propagation.
 pub type PublicKeyBytes = Vec<u8>;
 /// Raw Sovereign key signature bytes.
@@ -175,7 +175,7 @@ pub enum ActionTypeError {
     #[error("Invalid UTF-8 sequence in premium name string")]
     InvalidUtf8,
     /// Provided public key length does not match expected parameter size.
-    #[error("Invalid public key length, expected 1952 bytes")]
+    #[error("Invalid public key length, expected KINETIC_PUBKEY_LENGTH bytes")]
     InvalidPubkeyLength,
 }
 
@@ -189,7 +189,7 @@ impl NetworkAction {
     ///
     /// # Security
     /// This parser is fuzz-tested to ensure it never panics on malformed P2P network input.
-    /// It enforces strict bounds checking (e.g., public keys must be exactly 1952 bytes).
+    /// It enforces strict bounds checking (e.g., public keys must be exactly KINETIC_PUBKEY_LENGTH bytes).
     ///
     /// # Errors
     /// - Returns [`ActionTypeError::BufferTooSmall`] if the buffer is under 9 bytes.
@@ -238,7 +238,7 @@ impl NetworkAction {
                     .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
-                if pubkey_bytes.len() != 1952 {
+                if pubkey_bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
                 NetworkAction::MapPrime {
@@ -248,7 +248,7 @@ impl NetworkAction {
             }
             0x0B => {
                 // RotateSovereignKey
-                if action_data.len() != 1952 {
+                if action_data.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
                 NetworkAction::RotateSovereignKey {
@@ -290,7 +290,7 @@ impl NetworkAction {
                     .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
-                if pubkey_bytes.len() != 1952 {
+                if pubkey_bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
                 NetworkAction::MapInfra {
@@ -370,7 +370,7 @@ mod tests {
         let bad_name: &[u8] = &[0xFF, 0xFE]; // Invalid UTF-8
         buf.extend_from_slice(&(bad_name.len() as u32).to_be_bytes());
         buf.extend_from_slice(bad_name);
-        buf.extend_from_slice(&[0; 1952]); // Valid pubkey length
+        buf.extend_from_slice(&vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]); // Valid pubkey length
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
         let result = NetworkAction::parse_payload(&buf);
@@ -381,7 +381,7 @@ mod tests {
     fn test_roundtrip_valid_map_prime() {
         let action = NetworkAction::MapPrime {
             name: "x".to_string(),
-            target_pubkey: IdentityPubKey(vec![42; 1952]),
+            target_pubkey: IdentityPubKey(vec![42; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
         };
         let msg = SignedActionMessage {
             action: action.clone(),

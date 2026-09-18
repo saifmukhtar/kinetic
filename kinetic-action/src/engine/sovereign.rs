@@ -55,7 +55,7 @@ impl ActionEngine for SovereignEngine {
                     {
                         return Err(ActionError::UnnormalizedName);
                     }
-                    if target_pubkey.len() != 1952 {
+                    if target_pubkey.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                         return Err(ActionError::KeyLengthMismatch);
                     }
                     if state.mapped_prime_names.contains_key(name) {
@@ -88,7 +88,7 @@ impl ActionEngine for SovereignEngine {
                     if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
                         return Err(ActionError::InvalidProtocolName);
                     }
-                    if target_pubkey.len() != 1952 {
+                    if target_pubkey.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                         return Err(ActionError::KeyLengthMismatch);
                     }
                     if state.mapped_infra_names.contains_key(name) {
@@ -109,7 +109,7 @@ impl ActionEngine for SovereignEngine {
                     ActionEffect::InfraUnmapped { name: name.clone() }
                 }
                 NetworkAction::RotateSovereignKey { new_key } => {
-                    if new_key.len() != 1952 {
+                    if new_key.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                         return Err(ActionError::KeyLengthMismatch);
                     }
                     ActionEffect::SovereignKeyRotated {
