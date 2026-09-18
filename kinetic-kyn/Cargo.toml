@@ -1,10 +1,11 @@
 [package]
 name = "kinetic-kyn"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-authors.workspace = true
-repository.workspace = true
-homepage.workspace = true
+version = "0.2.0"
+edition = "2024"
 
 [dependencies]
+serde = { workspace = true, features = ["derive"] }
+drand-verify = { workspace = true }
+
+[build-dependencies]
+serde_json = { workspace = true }
