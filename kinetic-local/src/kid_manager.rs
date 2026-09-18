@@ -182,14 +182,14 @@ fn write_json_document(path: &Path, json_str: &str) -> Result<(), IdentityError>
 /// Loads a raw ML-DSA-65 signing key from disk.
 fn load_raw_signing_key(
     path: &Path,
-) -> Result<kinetic_primitives::keys::KineticKeypair, IdentityError> {
+) -> Result<kinetic_primitives::kinetic_keypair::ControllerPrivKey, IdentityError> {
     if !path.exists() {
         return Err(IdentityError::KidPrivateKeyNotFound(
             path.to_string_lossy().to_string(),
         ));
     }
     let bytes = fs::read(path)?;
-    kinetic_primitives::keys::KineticKeypair::from_slice(&bytes).map_err(|_| {
+    kinetic_primitives::kinetic_keypair::ControllerPrivKey::from_slice(&bytes).map_err(|_| {
         IdentityError::CorruptedIdentityFile(format!("Invalid key bytes in {:?}", path))
     })
 }
@@ -270,8 +270,8 @@ pub fn get_or_create_kid_for_name(
     }
 
     // 1. Generate new ML-DSA-65 keypair
-    let keypair = kinetic_primitives::keys::KineticKeypair::generate();
-    let pub_key_bytes = keypair.pubkey_bytes();
+    let keypair = kinetic_primitives::kinetic_keypair::ControllerPrivKey::generate();
+    let pub_key_bytes = keypair.to_pubkey().as_bytes().to_vec();
     let pub_key_b64 = b64_url.encode(&pub_key_bytes);
 
     // 2. Derive deterministic DID string: did:kin:<SHA256(PublicKey)>
@@ -290,7 +290,7 @@ pub fn get_or_create_kid_for_name(
         created_at: now_ts,
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", did_str),
-            key_type: "Sovereign".to_string(),
+            key_type: "Controller".to_string(),
             public_key: pub_key_b64,
         }],
         manifest: None,
@@ -301,14 +301,14 @@ pub fn get_or_create_kid_for_name(
 
     // 3. Self-sign the Document with the new keypair
     let signed_doc = doc
-        .sign(&keypair)
+        .sign_with_controller(&keypair)
         .map_err(|e| IdentityError::KidSigningFailed(format!("{}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
         .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
 
     // 4. Securely persist files
-    write_private_key_securely(&key_path, &keypair.to_bytes())?;
+    write_private_key_securely(&key_path, &keypair.to_secret_bytes())?;
     write_json_document(&doc_path, &json_data)?;
 
     // 5. Wrap and sign with master identity.key
@@ -362,28 +362,28 @@ pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid,
     let old_key = load_raw_signing_key(&key_path)?;
 
     // 2. Generate new keypair
-    let new_keypair = kinetic_primitives::keys::KineticKeypair::generate();
-    let new_pub_bytes = new_keypair.pubkey_bytes();
+    let new_keypair = kinetic_primitives::kinetic_keypair::ControllerPrivKey::generate();
+    let new_pub_bytes = new_keypair.to_pubkey().as_bytes().to_vec();
     let new_pub_b64 = b64_url.encode(&new_pub_bytes);
 
     let primary_id = format!("{}#primary", doc.kid);
     doc.controller_keys = vec![ControllerKey {
         id: primary_id,
-        key_type: "Sovereign".to_string(),
+        key_type: "Controller".to_string(),
         public_key: new_pub_b64,
     }];
     doc.signature = None;
 
     // 3. Sign the updated document with the OLD key for valid chain of custody
     let signed_doc = doc
-        .sign(&old_key)
+        .sign_with_controller(&old_key)
         .map_err(|e| IdentityError::KidSigningFailed(format!("Rotation signing failed: {}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
         .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
 
     // 4. Atomically persist updated files
-    write_private_key_securely(&key_path, &new_keypair.to_bytes())?;
+    write_private_key_securely(&key_path, &new_keypair.to_secret_bytes())?;
     write_json_document(&doc_path, &json_data)?;
 
     // 5. Wrap in AuthorizedKid signed by identity.key
@@ -496,7 +496,7 @@ pub fn revoke_local_kid(name: &str) -> Result<Document, IdentityError> {
     doc.signature = None;
 
     let signed_doc = doc
-        .sign(&key)
+        .sign_with_controller(&key)
         .map_err(|e| IdentityError::KidSigningFailed(format!("{}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
@@ -587,7 +587,7 @@ pub fn save_and_sign_local_manifest(
     };
 
     let signed_manifest = manifest
-        .sign(&signing_key)
+        .sign_with_controller(&signing_key)
         .map_err(|e| IdentityError::ManifestSigningFailed(format!("{}", e)))?;
 
     // Persist manifest

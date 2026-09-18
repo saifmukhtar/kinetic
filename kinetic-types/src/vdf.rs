@@ -41,13 +41,13 @@ impl Commitment {
 
         // Construct the unified VDF challenge
         let mut data = Vec::with_capacity(
-            network_salt.len() + name.len() + user_salt.len() + drand_rand.len() + pubkey.0.len(),
+            network_salt.len() + name.len() + user_salt.len() + drand_rand.len() + pubkey.len(),
         );
         data.extend_from_slice(network_salt);
         data.extend_from_slice(name.as_bytes());
         data.extend_from_slice(user_salt);
         data.extend_from_slice(&drand_rand);
-        data.extend_from_slice(&pubkey.0);
+        data.extend_from_slice(pubkey.as_bytes());
 
         Self {
             hash: kinetic_primitives::sha256_hash(&data),
@@ -253,7 +253,7 @@ impl Reveal {
             + 4 + self.drand_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
-            + 4 + self.pubkey.0.len()
+            + 4 + self.pubkey.len()
             + 1; // previous_proof option flag
 
         if self.previous_proof.is_some() {
@@ -282,8 +282,8 @@ impl Reveal {
         bytes.extend_from_slice(&(self.vdf_proof.proof_bytes.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&self.vdf_proof.proof_bytes);
 
-        bytes.extend_from_slice(&(self.pubkey.0.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(&self.pubkey.0);
+        bytes.extend_from_slice(&(self.pubkey.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.pubkey.as_bytes());
 
         if self.previous_proof.is_some() {
             bytes.push(1);

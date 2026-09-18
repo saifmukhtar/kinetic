@@ -95,6 +95,18 @@ macro_rules! impl_taxonomy_key {
             pub fn verify(&self, msg: &[u8], signature: &[u8]) -> Result<(), crate::SignatureError> {
                 crate::verify_keypair(&self.0, msg, signature)
             }
+
+            pub fn len(&self) -> usize {
+                self.0.len()
+            }
+
+            pub fn is_empty(&self) -> bool {
+                self.0.is_empty()
+            }
+
+            pub fn as_bytes(&self) -> &[u8] {
+                &self.0
+            }
         }
     };
 }

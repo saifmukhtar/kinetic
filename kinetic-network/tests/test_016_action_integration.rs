@@ -39,7 +39,7 @@ async fn test_action_integration_halt() {
     // Try to inject a forged reveal
     let forged_reveal = kinetic_core::types::Reveal {
         name: "test".to_string(),
-        pubkey: vec![1; 32],
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; 32]),
         salt: [0; 32],
         drand_signature: "0000".to_string(), // invalid but will be rejected by halt first
         kyn: 1000,
@@ -48,7 +48,7 @@ async fn test_action_integration_halt() {
             proof_bytes: vec![],
         },
         previous_proof: None,
-        signature: vec![],
+        identity_signature: vec![],
         payload: vec![],
         protocol_version: 2,
         authorization: None,
@@ -97,10 +97,10 @@ async fn test_action_integration_premium() {
     // Create a premium record
     let domain_record = NameRecord::Prime {
         name: "test_premium".to_string(),
-        pubkey: vec![1; 32],
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; 32]),
         kyn: 0,
         payload: vec![],
-        signature: vec![],
+        owner_signature: vec![],
         authorization: None,
     };
 

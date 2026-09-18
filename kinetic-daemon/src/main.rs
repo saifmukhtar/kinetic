@@ -330,7 +330,7 @@ async fn run_daemon() -> Result<()> {
     };
     info!(
         "Daemon identity loaded: {:?}",
-        hex::encode(daemon_keypair.pubkey_bytes())
+        hex::encode(daemon_keypair.to_pubkey().0)
     );
 
     let kyn_provider: Arc<dyn KynProvider> = Arc::new(

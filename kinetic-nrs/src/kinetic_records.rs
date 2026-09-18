@@ -167,7 +167,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 {
                                                     let mut matched = false;
                                                     use base64::Engine;
-                                                    let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(name_record.pubkey());
+                                                    let expected_pubkey = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&name_record.pubkey().0);
 
                                                     if let Some(keys) =
                                                         kid_json["kid_document"]["controller_keys"]

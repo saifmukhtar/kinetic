@@ -98,7 +98,7 @@ pub fn start_gossip_processor(
                                                     pubkey: target_pubkey.clone(),
                                                     kyn: signed_msg.timestamp_kyn,
                                                     payload: Vec::new(),
-                                                    signature: Vec::new(),
+                                                    owner_signature: Vec::new(),
                                                     authorization: None,
                                                 };
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
@@ -129,7 +129,7 @@ pub fn start_gossip_processor(
                                                     pubkey: target_pubkey.clone(),
                                                     kyn: signed_msg.timestamp_kyn,
                                                     payload: Vec::new(),
-                                                    signature: Vec::new(),
+                                                    owner_signature: Vec::new(),
                                                     authorization: None,
                                                 };
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);

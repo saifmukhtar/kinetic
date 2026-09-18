@@ -361,8 +361,7 @@ pub async fn handle_publish_kid(
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                kinetic_primitives::verify_mldsa(
-                    record.pubkey(),
+                record.pubkey().verify(
                     &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
                     &auth_kid.owner_signature,
                 )
@@ -438,8 +437,7 @@ pub async fn handle_publish_manifest(
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                kinetic_primitives::verify_mldsa(
-                    record.pubkey(),
+                record.pubkey().verify(
                     &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
                     &auth_manifest.owner_signature,
                 )

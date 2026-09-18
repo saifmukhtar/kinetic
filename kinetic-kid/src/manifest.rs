@@ -111,7 +111,7 @@ impl Manifest {
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
     /// 
     /// let controller_key = ControllerPrivKey::generate();
-    /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().0);
+    /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
     /// let did = Did::new(&format!("did:kin:{}", "0".repeat(64))).unwrap();
     ///
     /// let doc = Document {

@@ -55,7 +55,7 @@ impl ActionEngine for SovereignEngine {
                     {
                         return Err(ActionError::UnnormalizedName);
                     }
-                    if target_pubkey.0.len() != 1952 {
+                    if target_pubkey.len() != 1952 {
                         return Err(ActionError::KeyLengthMismatch);
                     }
                     if state.mapped_prime_names.contains_key(name) {
@@ -88,7 +88,7 @@ impl ActionEngine for SovereignEngine {
                     if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
                         return Err(ActionError::InvalidProtocolName);
                     }
-                    if target_pubkey.0.len() != 1952 {
+                    if target_pubkey.len() != 1952 {
                         return Err(ActionError::KeyLengthMismatch);
                     }
                     if state.mapped_infra_names.contains_key(name) {
@@ -109,7 +109,7 @@ impl ActionEngine for SovereignEngine {
                     ActionEffect::InfraUnmapped { name: name.clone() }
                 }
                 NetworkAction::RotateSovereignKey { new_key } => {
-                    if new_key.0.len() != 1952 {
+                    if new_key.len() != 1952 {
                         return Err(ActionError::KeyLengthMismatch);
                     }
                     ActionEffect::SovereignKeyRotated {
@@ -145,7 +145,7 @@ impl ActionEngine for SovereignEngine {
             } => {
                 state
                     .mapped_prime_names
-                    .insert(name.clone(), target_pubkey.0.clone());
+                    .insert(name.clone(), target_pubkey.as_bytes().to_vec());
                 Some(ActionEffect::PrimeMapped {
                     name: name.clone(),
                     target_pubkey: target_pubkey.clone(),
@@ -161,7 +161,7 @@ impl ActionEngine for SovereignEngine {
             } => {
                 state
                     .mapped_infra_names
-                    .insert(name.clone(), target_pubkey.0.clone());
+                    .insert(name.clone(), target_pubkey.as_bytes().to_vec());
                 Some(ActionEffect::InfraMapped {
                     name: name.clone(),
                     target_pubkey: target_pubkey.clone(),
@@ -172,7 +172,7 @@ impl ActionEngine for SovereignEngine {
                 Some(ActionEffect::InfraUnmapped { name: name.clone() })
             }
             NetworkAction::RotateSovereignKey { new_key } => {
-                state.active_sovereign_key = Some(new_key.0.clone());
+                state.active_sovereign_key = Some(new_key.as_bytes().to_vec());
                 Some(ActionEffect::SovereignKeyRotated {
                     new_key: new_key.clone(),
                 })

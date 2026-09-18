@@ -34,7 +34,7 @@ pub fn start_heartbeat_loop(
     hb_kyn_provider: Arc<dyn KynProvider>,
     p2p_only: bool,
     initial_kyn: u64,
-    daemon_keypair_hb: kinetic_primitives::keys::KineticKeypair,
+    daemon_keypair_hb: kinetic_primitives::kinetic_keypair::IdentityPrivKey,
     kyn_tx_hb: tokio::sync::watch::Sender<u64>,
 ) -> tokio::task::JoinHandle<()> {
     let last_known_live_kyn = Arc::new(AtomicU64::new(initial_kyn));
@@ -123,7 +123,7 @@ pub fn start_heartbeat_loop(
                     let mut heartbeat = Heartbeat {
                         name: name.clone(),
                         latest_kyn: kyn.kyn,
-                        signature: vec![],
+                        owner_signature: vec![],
                         authorization: None,
                     };
 
@@ -135,7 +135,7 @@ pub fn start_heartbeat_loop(
                             .await
                             .unwrap();
 
-                    heartbeat.signature = sig_bytes;
+                    heartbeat.owner_signature = sig_bytes;
 
                     let name_clone = name.clone();
                     let hb_network_clone = hb_network.clone();

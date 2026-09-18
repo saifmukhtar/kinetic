@@ -20,7 +20,7 @@ To fully understand this crate, we recommend reading it in the following order:
 
 ### Prerequisites
 Before reading this crate, you must understand:
-* **kinetic-types:** You must be familiar with the foundational network payloads (`NrsRecord`, `Commitment`, `VdfProof`) and the Sovereign actions which form the raw data operated on by this core kernel.
+* **kinetic-types:** You must be familiar with the foundational network payloads (`NrsRecord`, `Commitment`, `VdfProof`) and the Network Actions which form the raw data operated on by this core kernel.
 
 ### File Traversal (Leaf-First)
 Do not read this crate top-to-bottom. Read it in this order:
@@ -28,7 +28,7 @@ Do not read this crate top-to-bottom. Read it in this order:
 2. `src/error.rs` - Establishes the unified error taxonomy and severity classifications.
 3. `src/traits.rs` - Defines the strict Layer 5 boundaries (`StorageEngine`, `VdfEngine`, `KynProvider`) that Layer 6 must implement.
 4. `src/consensus_math.rs` - The pure deterministic math driving network pricing and VDF targets.
-5. `src/drand.rs` & `src/action.rs` - The internal logic adapters for handling abstract concepts like network time and sovereign actions.
+5. `src/drand.rs` & `src/action.rs` - The internal logic adapters for handling abstract concepts like network time and network actions.
 6. `src/config.rs` - The daemon and node configuration structures.
 7. `src/lib.rs` - The final module layout and exported orchestration layer.
 

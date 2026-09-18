@@ -53,10 +53,10 @@ impl RevealExt for Reveal {
             ));
         }
 
-        if self.signature.len() != 4627 {
+        if self.identity_signature.len() != 4627 {
             return Err(RevealValidationError::InvalidSignatureLength(
                 4627,
-                self.signature.len(),
+                self.identity_signature.len(),
             ));
         }
 
@@ -77,9 +77,9 @@ mod tests {
     fn valid_reveal() -> Reveal {
         Reveal {
             name: format!("{}{}", "satoshi", crate::constants::NSP_SUFFIX),
-            pubkey: vec![0u8; 1952],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0u8; 1952]),
             payload: vec![0u8; 100],
-            signature: vec![0u8; 4627],
+            identity_signature: vec![0u8; 4627],
             previous_proof: None,
             iterations: 1000,
             vdf_proof: VdfProof {
@@ -153,14 +153,14 @@ mod tests {
         let mut reveal = valid_reveal();
 
         // Too short
-        reveal.pubkey = vec![0u8; 1951];
+        reveal.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0u8; 1951]);
         assert!(matches!(
             reveal.validate().unwrap_err(),
             RevealValidationError::InvalidPubkeyLength(1952, 1951)
         ));
 
         // Too long
-        reveal.pubkey = vec![0u8; 1953];
+        reveal.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0u8; 1953]);
         assert!(matches!(
             reveal.validate().unwrap_err(),
             RevealValidationError::InvalidPubkeyLength(1952, 1953)
@@ -172,14 +172,14 @@ mod tests {
         let mut reveal = valid_reveal();
 
         // Too short
-        reveal.signature = vec![0u8; 4626];
+        reveal.identity_signature = vec![0u8; 4626];
         assert!(matches!(
             reveal.validate().unwrap_err(),
             RevealValidationError::InvalidSignatureLength(4627, 4626)
         ));
 
         // Too long
-        reveal.signature = vec![0u8; 4628];
+        reveal.identity_signature = vec![0u8; 4628];
         assert!(matches!(
             reveal.validate().unwrap_err(),
             RevealValidationError::InvalidSignatureLength(4627, 4628)

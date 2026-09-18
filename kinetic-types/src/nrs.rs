@@ -51,12 +51,12 @@ pub struct HostRoutingRecord {
     pub current_peer_id: String,
     /// The KineticTime kyn number when this record was created.
     pub kyn: u64,
-    /// Owner signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
-    pub signature: Vec<u8>,
+    /// Host signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
+    pub host_signature: Vec<u8>,
 }
 
 impl HostRoutingRecord {
-    /// Serializes the host routing record into a canonical byte string for owner signature verification.
+    /// Serializes the host routing record into a canonical byte string for host signature verification.
     ///
     /// The byte layout is:
     /// `network_salt` (32 bytes) + `b"-nrs-routing-v1"` + `u32_be(host_id.len())` + `host_bytes` + `u32_be(peer_id.len())` + `peer_bytes` + `u64_be(kyn)`
@@ -74,7 +74,7 @@ impl HostRoutingRecord {
     ///     host_id: "host-123".to_string(),
     ///     current_peer_id: "12D3KooW...".to_string(),
     ///     kyn: 150000,
-    ///     signature: vec![],
+    ///     host_signature: vec![],
     /// };
     /// 
     /// let salt = [0x42; 32];

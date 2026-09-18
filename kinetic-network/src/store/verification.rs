@@ -77,7 +77,7 @@ pub(crate) fn verify_host_routing_record(
     let verifying_key =
         VerifyingKey::from_bytes(&pubkey_bytes).map_err(|_| KineticStoreError::InvalidPublicKey)?;
 
-    let sig = Signature::from_slice(&record.signature)
+    let sig = Signature::from_slice(&record.host_signature)
         .map_err(|_| KineticStoreError::MalformedSignature)?;
 
     let signable = record.signable_bytes(kinetic_core::constants::NETWORK_SALT);
@@ -476,8 +476,7 @@ pub(crate) fn verify_authorized_kid(
         err
     })?;
 
-    if kinetic_primitives::verify_mldsa(
-        record.pubkey(),
+    if record.pubkey().verify(
         &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
         auth_kid.owner_signature.as_slice(),
     )
@@ -564,8 +563,7 @@ pub(crate) fn verify_authorized_manifest(
         err
     })?;
 
-    if kinetic_primitives::verify_mldsa(
-        record.pubkey(),
+    if record.pubkey().verify(
         &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
         auth_manifest.owner_signature.as_slice(),
     )

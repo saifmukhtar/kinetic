@@ -20,7 +20,7 @@ use thiserror::Error;
 pub enum RecordRejectReason {
     /// The record's cryptographic signature did not verify against the public key.
     /// This happens if the payload was tampered with, or signed with the wrong key.
-    /// Verify that the record is generated using the authorized identity key (Sovereign) or transport key (Ed25519).
+    /// Verify that the record is generated using the authorized identity key (Identity) or transport key (Ed25519).
     #[error("invalid signature")]
     InvalidSignature,
     /// The embedded VDF proof failed cryptographic verification.

@@ -8,9 +8,9 @@ fn generate_keypair() -> ControllerPrivKey {
 
 fn create_valid_doc_and_key() -> (Document, ControllerPrivKey) {
     let keypair = generate_keypair();
-    let pub_key_b64 = b64_url.encode(keypair.to_pubkey().0);
+    let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-    let hash = kinetic_primitives::sha256_hash(&keypair.to_pubkey().0);
+    let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;

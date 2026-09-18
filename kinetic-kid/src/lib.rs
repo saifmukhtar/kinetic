@@ -99,9 +99,9 @@ mod tests {
     #[test]
     fn test_document_signing_and_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.to_pubkey().0);
+        let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(&keypair.to_pubkey().0);
+        let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -138,9 +138,9 @@ mod tests {
     #[test]
     fn test_manifest_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.to_pubkey().0);
+        let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(&keypair.to_pubkey().0);
+        let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -192,7 +192,7 @@ mod tests {
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#bad", "b".repeat(64)),
                 key_type: "MlDsa65".to_string(),
-                public_key: b64_url.encode(bad_keypair.to_pubkey().0),
+                public_key: b64_url.encode(bad_keypair.to_pubkey().as_bytes()),
             }],
             manifest: None,
             revocation_keys: vec![],

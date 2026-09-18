@@ -652,8 +652,8 @@ pub async fn handle_publish_zone(
             })?
             .map_err(crate::api::error::AppError::from)?;
 
-    let pubkey_bytes = keypair.pubkey_bytes();
-    if record.pubkey() != pubkey_bytes.as_slice() {
+    let pubkey_bytes = keypair.to_pubkey().0;
+    if record.pubkey().0 != pubkey_bytes.as_slice() {
         return Err(crate::api::error::AppError::from(
             kinetic_core::error::IdentityError::PubkeyMismatch(
                 "The daemon key does not match the owner key for this name registration."
@@ -672,18 +672,18 @@ pub async fn handle_publish_zone(
         kinetic_core::types::NameRecord::Standard(r) => {
             r.payload = payload;
             let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            r.signature = keypair.sign(&signable);
+            r.identity_signature = keypair.sign(&signable);
         }
         kinetic_core::types::NameRecord::Prime {
             name,
             payload: p,
-            signature: s,
+            owner_signature: s,
             ..
         }
         | kinetic_core::types::NameRecord::Infra {
             name,
             payload: p,
-            signature: s,
+            owner_signature: s,
             ..
         } => {
             *p = payload.clone();
@@ -903,7 +903,7 @@ pub async fn handle_publish_fat_zone(
         )))
     })?;
     let keypair =
-        kinetic_primitives::keys::KineticKeypair::from_slice(&hot_key_bytes).map_err(|e| {
+        kinetic_primitives::kinetic_keypair::IdentityPrivKey::from_slice(&hot_key_bytes).map_err(|e| {
             crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
                 format!("Invalid ML-DSA keypair: {}", e),
             ))
@@ -948,7 +948,7 @@ pub async fn handle_publish_fat_zone(
             reveal.payload = payload_bytes;
             reveal.authorization = Some(Box::new(req.authorized_manifest));
             let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            reveal.signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
+            reveal.identity_signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
                 .await
                 .unwrap();
         }
@@ -956,14 +956,14 @@ pub async fn handle_publish_fat_zone(
             name,
             payload,
             authorization,
-            signature,
+            owner_signature,
             ..
         }
         | kinetic_core::types::NameRecord::Infra {
             name,
             payload,
             authorization,
-            signature,
+            owner_signature,
             ..
         } => {
             *payload = payload_bytes;
@@ -976,7 +976,7 @@ pub async fn handle_publish_fat_zone(
             signable.extend_from_slice(payload);
             signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
 
-            *signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
+            *owner_signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
                 .await
                 .unwrap();
         }

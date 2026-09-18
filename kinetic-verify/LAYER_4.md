@@ -7,7 +7,7 @@ This crate is part of **Layer 4: Verification & Domain Rules** within the Kineti
 This crate dictates the strict consensus and validation rules of the network, but it must perform **zero I/O execution**. It is a `no_std`-compatible validation sandbox. It must never import `tokio`, `std::fs`, `libp2p`, or any external networking libraries.
 
 ## 3. The Horizontal Boundary
-This crate exclusively owns the mathematical validation logic for network claims, specifically verifying **Sovereign signatures**, delegated identity claims, and Proof of Patience (VDF) claims. 
+This crate exclusively owns the mathematical validation logic for network claims, specifically verifying **Identity and Delegated signatures**, capability authorizations, and Proof of Patience (VDF) claims. 
 
 It explicitly ignores how these payloads are serialized over the wire, how they are retrieved from peers, or how they are persisted to local storage. It only answers one question: *Is this data cryptographically valid?*
 

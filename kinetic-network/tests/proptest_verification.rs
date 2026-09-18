@@ -53,15 +53,15 @@ proptest! {
             drand_signature: "abcd".to_string(),
             iterations: 1000,
             vdf_proof: VdfProof { proof_bytes: vec![] },
-            pubkey: vec![0u8; 32],
-            signature: vec![0u8; 64],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0u8; 32]),
+            identity_signature: vec![0u8; 64],
             previous_proof: Some(PreviousProof {
                 salt: [0u8; 32],
                 kyn: prev_pulse,
                 drand_signature: "abcd".to_string(),
                 iterations: prev_iterations,
                 vdf_proof: VdfProof { proof_bytes: vec![] },
-                signature: vec![0u8; 64],
+                identity_signature: vec![0u8; 64],
             }),
             authorization: None,
         };

@@ -109,10 +109,10 @@ impl Document {
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
     /// 
     /// let controller_key = ControllerPrivKey::generate();
-    /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().0);
+    /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
     /// 
     /// // Generate genesis DID
-    /// let hash = kinetic_primitives::sha256_hash(&controller_key.to_pubkey().0);
+    /// let hash = kinetic_primitives::sha256_hash(controller_key.to_pubkey().as_bytes());
     /// let hex_hash = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
     /// let did = Did::new(&format!("did:kin:{}", hex_hash)).unwrap();
     ///
@@ -370,10 +370,10 @@ mod tests {
         let controller_key = ControllerPrivKey::generate();
         let revocation_key = RevokePrivKey::generate();
 
-        let controller_pub_b64 = b64_url.encode(controller_key.to_pubkey().0);
-        let revocation_pub_b64 = b64_url.encode(revocation_key.to_pubkey().0);
+        let controller_pub_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
+        let revocation_pub_b64 = b64_url.encode(revocation_key.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(&controller_key.to_pubkey().0);
+        let hash = kinetic_primitives::sha256_hash(controller_key.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;

@@ -6,8 +6,8 @@ use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
 fn test_013_kid_takeover() {
     // 1. Victim generates their identity
     let victim_key = ControllerPrivKey::generate();
-    let victim_pub_b64 = b64_url.encode(victim_key.to_pubkey().0);
-    let hash = kinetic_primitives::sha256_hash(&victim_key.to_pubkey().0);
+    let victim_pub_b64 = b64_url.encode(victim_key.to_pubkey().as_bytes());
+    let hash = kinetic_primitives::sha256_hash(victim_key.to_pubkey().as_bytes());
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;
@@ -34,7 +34,7 @@ fn test_013_kid_takeover() {
 
     // 2. Attacker generates a random key and attempts a DID takeover of the victim's DID
     let attacker_key = ControllerPrivKey::generate();
-    let attacker_pub_b64 = b64_url.encode(attacker_key.to_pubkey().0);
+    let attacker_pub_b64 = b64_url.encode(attacker_key.to_pubkey().as_bytes());
 
     let forged_doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),

@@ -47,7 +47,7 @@ pub fn handle_action_gossip(
                                 pubkey: target_pubkey.clone(),
                                 kyn: signed_msg.timestamp_kyn,
                                 payload: Vec::new(),
-                                signature: Vec::new(),
+                                owner_signature: Vec::new(),
                                 authorization: None,
                             };
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
@@ -73,7 +73,7 @@ pub fn handle_action_gossip(
                                 pubkey: target_pubkey.clone(),
                                 kyn: signed_msg.timestamp_kyn,
                                 payload: Vec::new(),
-                                signature: Vec::new(),
+                                owner_signature: Vec::new(),
                                 authorization: None,
                             };
                             let key = format!("{}{}", DB_PREFIX_REVEAL, name);
@@ -186,10 +186,10 @@ mod tests {
         let msg = SignedActionMessage {
             action: NetworkAction::MapPrime {
                 name: "x".to_string(),
-                target_pubkey: vec![],
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
             },
             timestamp_kyn: 0,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
         let payload = serde_json::to_vec(&msg).unwrap();
 
@@ -243,10 +243,10 @@ mod tests {
         let msg = SignedActionMessage {
             action: NetworkAction::MapPrime {
                 name: "x".to_string(),
-                target_pubkey: vec![],
+                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
             },
             timestamp_kyn: 0,
-            signatures: vec![],
+            sovereign_signatures: vec![],
         };
         let payload = serde_json::to_vec(&msg).unwrap();
 

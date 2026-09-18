@@ -121,7 +121,7 @@ impl SignedActionMessage {
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
-                buf.extend_from_slice(target_pubkey.0.as_slice());
+                buf.extend_from_slice(target_pubkey.as_bytes());
             }
             NetworkAction::UnmapPrime { name } => {
                 buf.push(0x0E);
@@ -137,7 +137,7 @@ impl SignedActionMessage {
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
-                buf.extend_from_slice(target_pubkey.0.as_slice());
+                buf.extend_from_slice(target_pubkey.as_bytes());
             }
             NetworkAction::UnmapInfra { name } => {
                 buf.push(0x10);
@@ -147,7 +147,7 @@ impl SignedActionMessage {
             }
             NetworkAction::RotateSovereignKey { new_key } => {
                 buf.push(0x0B);
-                buf.extend_from_slice(new_key.0.as_slice());
+                buf.extend_from_slice(new_key.as_bytes());
             }
             NetworkAction::EmergencyHalt => {
                 buf.push(0x0C);

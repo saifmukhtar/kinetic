@@ -122,10 +122,10 @@ pub enum KineticError {
     #[error("Invalid Name: {0}")]
     InvalidName(#[from] NamesError),
 
-    /// An Ed25519 or Sovereign signature failed verification.
+    /// An Ed25519 or Identity signature failed verification.
     ///
     /// Ed25519 signatures are used for Libp2p transport identity and routing records.
-    /// Sovereign signatures are used for the daemon identity and payload authorization (NameRecord/Reveal).
+    /// Identity signatures are used for the daemon identity and payload authorization (NameRecord/Reveal).
     #[error("Signature verification failed")]
     InvalidSignature,
 
@@ -169,8 +169,8 @@ pub enum KineticError {
     ///
     /// Covers hashing, key derivation, discriminant generation, and other
     /// operations that are not covered by [`InvalidSignature`](Self::InvalidSignature).
-    #[error("Cryptographic operation failed: {0}")]
-    CryptoError(String),
+    #[error("Signature operation failed: {0}")]
+    SignatureError(String),
 
     /// A P2P network interaction failed.
     ///
