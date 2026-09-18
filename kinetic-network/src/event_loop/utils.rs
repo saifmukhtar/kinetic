@@ -434,8 +434,8 @@ mod tests {
             drand_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; 1952]),
-            identity_signature: vec![0; 4627],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
             authorization: None,
         };

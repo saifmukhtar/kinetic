@@ -32,7 +32,7 @@ pub type PublicKeyBytes = Vec<u8>;
 /// Raw Sovereign key signature bytes.
 ///
 /// # Security
-/// The network currently strictly expects the 3309-byte signature output 
+/// The network currently strictly expects the ML-DSA-65 signature output 
 /// of the underlying Sovereign key algorithm.
 pub type SignatureBytes = Vec<u8>;
 
@@ -103,7 +103,7 @@ impl SignedActionMessage {
     /// | `0x0F` | `MapInfra` |
     /// | `0x10` | `UnmapInfra` |
     ///
-    /// After the action payload, length-prefixed signatures (using a simple 1-byte count + N x 3309 bytes arrays) are written.
+    /// After the action payload, length-prefixed signatures (using a simple 1-byte count + N x KINETIC_SIGNATURE_LENGTH bytes arrays) are written.
     /// The message closes with `u64_be(timestamp_kyn)`.
     ///
     /// # Returns

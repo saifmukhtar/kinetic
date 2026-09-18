@@ -24,6 +24,17 @@ use thiserror::Error;
 pub mod keys;
 pub mod kinetic_keypair;
 
+/// The exact byte length of a Kinetic Network post-quantum public key (ML-DSA-65).
+pub const KINETIC_PUBKEY_LENGTH: usize = 1952;
+
+/// The exact byte length of a Kinetic Network post-quantum signature (ML-DSA-65).
+/// Note: This was previously hardcoded as 4627 in some places, which was the length for ML-DSA-87. 
+/// ML-DSA-65 signatures are exactly 3309 bytes.
+pub const KINETIC_SIGNATURE_LENGTH: usize = 3309;
+
+/// The exact byte length of a serialized Kinetic Network private key (the 32-byte seed).
+pub const KINETIC_PRIVKEY_LENGTH: usize = 32;
+
 /// Centralized error type for cryptographic primitive operations.
 #[derive(Debug, Error)]
 pub enum SignatureError {

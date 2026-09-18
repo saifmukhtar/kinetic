@@ -14,8 +14,8 @@ fn test_reveal_invalid_names() {
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; 1952]),
-        identity_signature: vec![0; 4627],
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+        identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
         previous_proof: None,
         authorization: None,
     };

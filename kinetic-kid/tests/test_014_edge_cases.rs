@@ -143,7 +143,7 @@ fn test_manifest_verify_invalid_signature() {
         signature: None,
     };
     let mut signed_manifest = manifest.sign_with_controller(&key).unwrap();
-    signed_manifest.signature = Some(b64_url.encode([0u8; 3309])); // Invalid signature bytes
+    signed_manifest.signature = Some(b64_url.encode([0u8; kinetic_primitives::KINETIC_SIGNATURE_LENGTH])); // Invalid signature bytes
     assert!(matches!(
         signed_manifest.verify_at_time(&signed_doc, 2000),
         Err(Error::UnauthorizedManifestSignature)

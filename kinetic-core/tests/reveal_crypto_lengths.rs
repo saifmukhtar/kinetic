@@ -14,8 +14,8 @@ fn test_reveal_crypto_lengths() {
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; 1952]),    // ML-DSA-65 exact len
-        identity_signature: vec![0; 4627], // ML-DSA-65 exact len
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),    // ML-DSA-65 exact len
+        identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH], // ML-DSA-65 exact len
         previous_proof: None,
         authorization: None,
     };

@@ -143,8 +143,8 @@ mod tests {
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -181,8 +181,8 @@ mod tests {
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -236,8 +236,8 @@ mod tests {
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -277,8 +277,8 @@ mod tests {
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; 1952]),
-            identity_signature: vec![2; 4627],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            identity_signature: vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
             authorization: None,
         };
