@@ -5,7 +5,7 @@ members = [
     "kinetic-core",
     "kinetic-daemon",
     "kinetic-host",
-    "kinetic-kid",
+    "kinetic-kid", "kinetic-kyn",
     "kinetic-local",
     "kinetic-network",
     "kinetic-node",
