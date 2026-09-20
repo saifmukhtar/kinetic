@@ -31,61 +31,7 @@ fn get_test_config() -> ActionConfig {
     }
 }
 
-#[test]
-fn test_infra_mappings() {
-    let root_sk = get_root_sk();
-    let current_kyn = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let mut state = ActionState::new(Kyn(current_kyn));
-    let (_, target_pubkey) = generate_key(99);
 
-    // Test invalid infra name
-    let mut msg_invalid = SignedActionMessage {
-        action: NetworkAction::MapInfra {
-            name: "invalidname".to_string(),
-            target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
-        },
-        timestamp_kyn: Kyn(current_kyn),
-        sovereign_signatures: vec![],
-    };
-    msg_invalid
-        .sovereign_signatures
-        .push(sign_action(&msg_invalid, &root_sk));
-
-    let err = process_action_message(
-        &mut state,
-        &msg_invalid,
-        msg_invalid.timestamp_kyn,
-        &get_test_config(),
-    )
-    .unwrap_err();
-    assert!(matches!(
-        err,
-        crate::error::ActionError::InvalidProtocolName
-    ));
-
-    // Test valid infra name
-    let mut msg_valid = SignedActionMessage {
-        action: NetworkAction::MapInfra {
-            name: "seed".to_string(),
-            target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
-        },
-        timestamp_kyn: Kyn(current_kyn),
-        sovereign_signatures: vec![],
-    };
-    msg_valid.sovereign_signatures.push(sign_action(&msg_valid, &root_sk));
-
-    let effect = process_action_message(
-        &mut state,
-        &msg_valid,
-        msg_valid.timestamp_kyn,
-        &get_test_config(),
-    )
-    .unwrap();
-    assert!(matches!(effect, Some(ActionEffect::InfraMapped { .. })));
-}
 
 #[test]
 fn test_action_stale_rejection() {

@@ -144,30 +144,7 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_immutable_name_tie_broken() {
-        let (mut store, _storage) = setup_store(100);
-        let name = "action.kin".to_string();
 
-        let existing = kinetic_core::types::NameRecord::Prime {
-            name: name.clone(),
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1, 2, 3]),
-            kyn: kinetic_kyn::types::Kyn(0),
-            payload: vec![],
-            owner_signature: vec![],
-            authorization: None,
-        };
-        store.reveals_by_name.put(name.clone(), existing);
-
-        let new_reveal =
-            kinetic_core::types::NameRecord::Standard(Box::new(mock_reveal(&name, 100)));
-        let result = store.handle_put_record(&new_reveal, true);
-
-        assert!(matches!(
-            result.unwrap_err(),
-            crate::error::KineticStoreError::ImmutableName
-        ));
-    }
 
     #[test]
     fn test_future_heartbeat() {

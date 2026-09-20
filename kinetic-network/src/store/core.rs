@@ -143,11 +143,6 @@ impl KineticRecordStore {
                                 }
                             }
                         }
-                        kinetic_core::types::NameRecord::Prime { .. }
-                        | kinetic_core::types::NameRecord::Infra { .. } => {
-                            // Domains injected by action are implicitly valid.
-                            is_valid = true;
-                        }
                     }
 
                     if is_valid {
@@ -278,30 +273,9 @@ impl KineticRecordStore {
                         .unwrap_or(reveal.kyn.0);
                     let hb_age = current_kyn.saturating_sub(last_hb);
 
-                    if !kinetic_core::types::protocol::requires_heartbeat(name) {
-                        continue;
-                    }
-
                     if hb_age > idle_timeout {
                         expired_names.push(name.clone());
                     }
-                }
-                kinetic_core::types::NameRecord::Prime { kyn, .. } => {
-                    let grant_kyn = *kyn;
-                    let last_hb = self
-                        .last_heartbeats_by_name
-                        .get(name)
-                        .copied()
-                        .unwrap_or(grant_kyn.0);
-                    let hb_age = current_kyn.saturating_sub(last_hb);
-
-                    if hb_age > idle_timeout {
-                        expired_names.push(name.clone());
-                    }
-                }
-                kinetic_core::types::NameRecord::Infra { .. } => {
-                    // Infrastructure names are fully immortal and do not expire.
-                    continue;
                 }
             }
         }
@@ -653,15 +627,21 @@ mod tests {
             vdf_engine,
         );
 
-        let name = "a.kin"; // Prime name, requires heartbeats
-        let record = kinetic_core::types::NameRecord::Prime {
+        let name = "a.kin"; // Standard name, requires heartbeats
+        let record = kinetic_core::types::NameRecord::Standard(Box::new(kinetic_types::vdf::Reveal {
+            protocol_version: 1,
             name: name.to_string(),
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-            kyn: kinetic_kyn::types::Kyn(0),
             payload: vec![],
-            owner_signature: vec![],
+            salt: [0; 32],
+            kyn: kinetic_kyn::types::Kyn(0),
+            beacon_signature: String::new(),
+            iterations: 1,
+            vdf_proof: kinetic_types::vdf::VdfProof { proof_bytes: vec![] },
+            previous_proof: None,
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+            identity_signature: vec![],
             authorization: None,
-        };
+        }));
 
         let record_bytes = serde_json::to_vec(&record).unwrap();
         let derived_keys =
@@ -688,52 +668,7 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_pruning_exempt_names() {
-        let dir = tempdir().unwrap();
-        let db_storage = Arc::new(KineticStorage::new(dir.path().join("state.db")).unwrap());
-        let keypair = Keypair::generate_ed25519();
-        let peer_id = PeerId::from(keypair.public());
-        let vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine> =
-            std::sync::Arc::new(kinetic_vdf::RsaVdfEngine::new());
 
-        let mut store = KineticRecordStore::new(
-            peer_id,
-            db_storage.clone(),
-            1000000,
-            NonZeroUsize::new(100).unwrap(),
-            100,
-            vdf_engine,
-        );
-
-        let name = "seed.kin"; // Exempt protocol name
-        let record = kinetic_core::types::NameRecord::Infra {
-            name: name.to_string(),
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-            kyn: kinetic_kyn::types::Kyn(0),
-            payload: vec![],
-            owner_signature: vec![],
-            authorization: None,
-        };
-
-        let record_bytes = serde_json::to_vec(&record).unwrap();
-        let derived_keys =
-            kinetic_core::types::derive_storage_keys(name, kinetic_core::constants::NETWORK_SALT);
-        let kad_key = kad::RecordKey::new(&derived_keys[0]);
-
-        let kad_record = kad::Record::new(kad_key.clone(), record_bytes);
-        store.put_record_internal(kad_record, true).unwrap();
-
-        assert!(store.get_fallback(name).is_some());
-
-        store.current_kyn += 300000;
-        store.prune();
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-
-        // It should NOT be pruned!
-        assert!(store.get_fallback(name).is_some());
-    }
 
     #[tokio::test]
     async fn test_unreferenced_heartbeat_cleanup_on_boot() {
@@ -792,14 +727,19 @@ mod tests {
         );
 
         let large_payload = vec![0u8; 34000];
-        let record = kinetic_core::types::NameRecord::Prime {
+        let record = kinetic_core::types::NameRecord::Standard(Box::new(kinetic_core::types::vdf::Reveal {
+            protocol_version: 1,
             name: "large.kin".to_string(),
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-            kyn: kinetic_kyn::types::Kyn(0),
             payload: large_payload,
-            owner_signature: vec![],
+            salt: [0; 32],
+            kyn: kinetic_kyn::types::Kyn(0),
+            beacon_signature: String::new(),
+            iterations: 1,
+            vdf_proof: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+            identity_signature: vec![],
             authorization: None,
-        };
+        }));
 
         let record_bytes = serde_json::to_vec(&record).unwrap();
         let key = libp2p::kad::RecordKey::new(&"dummy");

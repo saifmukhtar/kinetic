@@ -43,30 +43,8 @@ pub fn verify_signature(pubkey: &kinetic_primitives::kinetic_keypair::SovereignP
 /// Side effects produced when a network action is executed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ActionEffect {
-    /// Inform node subsystems of a prime name mapping.
-    PrimeMapped {
-        /// Mapped 1-character name.
-        name: String,
-        /// Recipient Identity public key.
-        target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey,
-    },
-    /// Inform node subsystems of a prime name unmapping.
-    PrimeUnmapped {
-        /// Unmapped 1-character name.
-        name: String,
-    },
-    /// Inform node subsystems of an infrastructure name mapping.
-    InfraMapped {
-        /// Mapped infrastructure name.
-        name: String,
-        /// Recipient Identity public key.
-        target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey,
-    },
-    /// Inform node subsystems of an infrastructure name unmapping.
-    InfraUnmapped {
-        /// Unmapped infrastructure name.
-        name: String,
-    },
+
+
     /// The Sovereign key was successfully rotated.
     SovereignKeyRotated {
         /// The new Sovereign public key.
@@ -103,12 +81,7 @@ pub struct ActionState {
     #[serde(default)]
     /// Append-only log of all executed signed action messages (used for P2P state syncing).
     pub action_log: Vec<kinetic_types::action::SignedActionMessage>,
-    /// Active 1-character prime names and their associated Identity public keys.
-    #[serde(default)]
-    pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
-    /// Active infrastructure names and their associated Identity public keys.
-    #[serde(default)]
-    pub mapped_infra_names: HashMap<String, PublicKeyBytes>,
+
 }
 
 impl ActionState {
@@ -129,8 +102,7 @@ impl ActionState {
     ///     pause_history: vec![(Kyn(100), Kyn(200))], // Paused for 100 kyns
     ///     executed_hashes: HashMap::new(),
     ///     action_log: vec![],
-    ///     mapped_prime_names: HashMap::new(),
-    ///     mapped_infra_names: HashMap::new(),
+
     /// };
     /// 
     /// // If an event happened at kyn 50, it experienced all 100 paused kyns.
@@ -174,8 +146,7 @@ mod tests {
             pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
             action_log: Vec::new(),
-            mapped_prime_names: HashMap::new(),
-            mapped_infra_names: HashMap::new(),
+
         }
     }
 

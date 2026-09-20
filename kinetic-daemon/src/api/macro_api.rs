@@ -493,18 +493,7 @@ pub async fn handle_macro_renew_name(
                 return;
             }
         };
-        let old_reveal = match old_record {
-            kinetic_core::types::NameRecord::Standard(r) => r,
-            kinetic_core::types::NameRecord::Prime { .. }
-            | kinetic_core::types::NameRecord::Infra { .. } => {
-                update_task_error(
-                    &tasks_clone,
-                    &task_id_clone,
-                    "Prime/Infra names do not require VDF resquaring".to_string(),
-                );
-                return;
-            }
-        };
+        let kinetic_core::types::NameRecord::Standard(old_reveal) = old_record;
 
         // Step 2: KYN Time Oracle
         update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);

@@ -167,10 +167,8 @@ pub enum KineticStoreError {
     #[error("heartbeat timestamp is too far in the future")]
     FutureHeartbeat,
     /// The name type is classified as strictly immutable.
-    /// Prime names and Infrastructure identities cannot be forcefully taken over via PoW.
-    /// You must choose a standard kinetic apex name for registration.
-    #[error("Prime and Infra names are immutable and cannot be forcefully taken over")]
-    ImmutableName,
+    /// Infrastructure identities cannot be forcefully taken over via PoW.
+
 
     // ==========================================
     // KIN-QRY Error Codes
@@ -235,7 +233,7 @@ impl KineticStoreError {
             Self::ManifestVersionRollback => "KIN-DHT-029",
             Self::ManifestVerificationFailed => "KIN-DHT-030",
             Self::FutureHeartbeat => "KIN-DHT-031",
-            Self::ImmutableName => "KIN-DHT-032",
+
 
             Self::RevealNotFound => "KIN-QRY-007",
             Self::MissingCommitment { .. } => "KIN-QRY-008",
@@ -304,9 +302,7 @@ impl KineticStoreError {
             }
             Self::ManifestVerificationFailed => "Manifest failed local verification".to_string(),
             Self::FutureHeartbeat => "Heartbeat timestamp is from the future".to_string(),
-            Self::ImmutableName => {
-                "This name type is immortal and cannot be transferred via PoW".to_string()
-            }
+
 
             Self::RevealNotFound => "No reveal record found for name".to_string(),
             Self::MissingCommitment { .. } => {
@@ -353,7 +349,7 @@ impl KineticStoreError {
             | Self::ManifestVersionRollback
             | Self::ManifestVerificationFailed
             | Self::FutureHeartbeat
-            | Self::ImmutableName
+
             | Self::MissingKidDocument
             | Self::MalformedJson
             | Self::SchemaValidationError

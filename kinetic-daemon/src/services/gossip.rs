@@ -32,7 +32,7 @@ pub fn start_gossip_processor(
     gossip_action_path: std::sync::Arc<std::path::PathBuf>,
     kyn_provider_gossip: std::sync::Arc<dyn KynProvider>,
     kyn_tx_gossip: tokio::sync::watch::Sender<u64>,
-    storage: Option<std::sync::Arc<dyn kinetic_core::traits::StorageEngine>>,
+    _storage: Option<std::sync::Arc<dyn kinetic_core::traits::StorageEngine>>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         loop {
@@ -83,77 +83,7 @@ pub fn start_gossip_processor(
                                         effect
                                     );
 
-                                    if let Some(storage) = &storage {
-                                        use kinetic_core::action::types::ActionEffect;
-                                        use kinetic_core::constants::DB_PREFIX_REVEAL;
-                                        use kinetic_core::types::NameRecord;
 
-                                        match &effect {
-                                            ActionEffect::PrimeMapped {
-                                                name,
-                                                target_pubkey,
-                                            } => {
-                                                let record = NameRecord::Prime {
-                                                    name: name.clone(),
-                                                    pubkey: target_pubkey.clone(),
-                                                    kyn: signed_msg.timestamp_kyn,
-                                                    payload: Vec::new(),
-                                                    owner_signature: Vec::new(),
-                                                    authorization: None,
-                                                };
-                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                                if let Ok(json_bytes) = serde_json::to_vec(&record)
-                                                {
-                                                    let _ =
-                                                        storage.put(key.as_bytes(), &json_bytes);
-                                                    tracing::info!(
-                                                        "Injected NameRecord::Prime into storage for {}",
-                                                        name
-                                                    );
-                                                }
-                                            }
-                                            ActionEffect::PrimeUnmapped { name } => {
-                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                                let _ = storage.delete(key.as_bytes());
-                                                tracing::info!(
-                                                    "Revoked NameRecord::Prime from storage for {}",
-                                                    name
-                                                );
-                                            }
-                                            ActionEffect::InfraMapped {
-                                                name,
-                                                target_pubkey,
-                                            } => {
-                                                let record = NameRecord::Infra {
-                                                    name: name.clone(),
-                                                    pubkey: target_pubkey.clone(),
-                                                    kyn: signed_msg.timestamp_kyn,
-                                                    payload: Vec::new(),
-                                                    owner_signature: Vec::new(),
-                                                    authorization: None,
-                                                };
-                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                                if let Ok(json_bytes) = serde_json::to_vec(&record)
-                                                {
-                                                    let _ =
-                                                        storage.put(key.as_bytes(), &json_bytes);
-                                                    tracing::info!(
-                                                        "Injected NameRecord::Infra into storage for {}",
-                                                        name
-                                                    );
-                                                }
-                                            }
-                                            ActionEffect::InfraUnmapped { name } => {
-                                                let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                                                let _ = storage.delete(key.as_bytes());
-                                                tracing::info!(
-                                                    "Revoked NameRecord::Infra from storage for {}",
-                                                    name
-                                                );
-                                            }
-                                            _ => {}
-                                        }
-                                    }
                                     if let Err(e) = kinetic_local::action::save_action_to_disk(
                                         &state,
                                         &gossip_action_path,

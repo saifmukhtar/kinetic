@@ -16,8 +16,7 @@ pub enum ActionCommands {
     },
     /// View the status of the current active network action proposal
     Status,
-    /// List the Prime Names authorized to vote on network actions
-    Names,
+
 }
 
 /// Dispatches action-related CLI subcommands.
@@ -68,17 +67,7 @@ pub async fn handle_action_command(
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);
         }
-        ActionCommands::Names => {
-            let url = format!("{}/api/v1/micro/action/names", base_url);
-            let resp = client.get(&url).send().await?;
-            if !resp.status().is_success() {
-                let status = resp.status();
-                let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
-            }
-            let json: serde_json::Value = resp.json().await?;
-            println!("{}", serde_json::to_string_pretty(&json)?);
-        }
+
     }
 
     Ok(())

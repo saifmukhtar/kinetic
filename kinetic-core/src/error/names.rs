@@ -7,7 +7,6 @@
 //! - **Length limits**: total ≤253 chars; each label ≤63 chars (RFC 1035).
 //! - **Apex-only**: subnames are managed by the apex owner, not the DHT directly.
 //! - **RFC reserved** (RFC 2606/6761): `localhost`, `test`, `example`, etc.
-//! - **Infrastructure protocol names**: `seed`, `explorer`, `docs`, etc. locked by Network Action rules.
 use super::Severity;
 use thiserror::Error;
 
@@ -52,11 +51,7 @@ pub enum NamesError {
     #[error("name is an RFC reserved public utility name")]
     ReservedName,
 
-    /// The name is an official Kinetic infrastructure protocol name (e.g. `seed`, `docs`).
-    /// These infrastructure protocol names are locked by the core protocol to ensure official network infrastructure remains secure.
-    /// Only a Network Action can allocate this name.
-    #[error("Name is a protected infrastructure protocol name")]
-    ProtocolName,
+
 
     /// An operation was attempted on a subname (e.g., `sub.example.kin`), but the operation strictly requires an apex name.
     /// The core Kinetic DHT only manages apex names (`example.kin`) to prevent state bloat.
@@ -75,7 +70,7 @@ impl NamesError {
             Self::InvalidCharacter => "KIN-NAM-004",
             Self::InvalidHyphenPlacement => "KIN-NAM-005",
             Self::ReservedName => "KIN-NAM-006",
-            Self::ProtocolName => "KIN-NAM-007",
+
             Self::NotAnApexName => "KIN-NAM-008",
         }
     }
@@ -116,9 +111,7 @@ impl NamesError {
             Self::ReservedName => {
                 "This name is a permanently protected public utility name.".to_string()
             }
-            Self::ProtocolName => {
-                "This name is reserved for critical network protocol functionality.".to_string()
-            }
+
             Self::NotAnApexName => {
                 "Only apex names (e.g. 'example.kin') can be registered directly.".to_string()
             }

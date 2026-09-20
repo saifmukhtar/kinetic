@@ -4,7 +4,7 @@ use axum::Json;
 
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 use serde::Serialize;
-use std::collections::HashMap;
+
 
 /// A period of time when the network was halted.
 #[derive(Serialize)]
@@ -18,10 +18,7 @@ pub struct PausePeriod {
 /// High-level metrics summarizing the action state.
 #[derive(Serialize)]
 pub struct ActionMetrics {
-    /// Count of mapped prime names (e.g., .kin).
-    pub total_prime_names: usize,
-    /// Count of mapped infrastructure root names.
-    pub total_infra_names: usize,
+
     /// Total number of action/action commands executed since genesis.
     pub total_executed_actions: usize,
 }
@@ -98,8 +95,6 @@ pub async fn handle_get_action_status(
         });
 
     let metrics = ActionMetrics {
-        total_prime_names: action_state.mapped_prime_names.len(),
-        total_infra_names: action_state.mapped_infra_names.len(),
         total_executed_actions: action_state.executed_hashes.len(),
     };
 
@@ -116,51 +111,7 @@ pub async fn handle_get_action_status(
     }))
 }
 
-/// Aggregated response containing both prime and infrastructure name mappings.
-#[derive(Serialize)]
-pub struct ActionNamesResponse {
-    /// Mapped 1-character prime names (e.g., 'a', '7').
-    pub primes: HashMap<String, String>,
-    /// Mapped protocol infrastructure names (e.g., 'seed', 'node', 'api').
-    pub infras: HashMap<String, String>,
-}
 
-/// Handles requests to retrieve all mapped Action names (primes and infras) in a single call.
-pub async fn handle_get_action_names()
--> Result<Json<ActionNamesResponse>, crate::api::error::AppError> {
-    let action_state = GLOBAL_ACTION_STATE.lock().map_err(|e| {
-        let sys_err = kinetic_core::error::SystemError::MutexPoisoned(e.to_string());
-        crate::api::error::AppError(kinetic_rpc::ApiError {
-            error_type: format!(
-                "{}/errors/{}",
-                kinetic_core::constants::DOCS_URL,
-                sys_err.code()
-            ),
-            title: "Internal Server Error".to_string(),
-            status: 500,
-            detail: sys_err.user_message(),
-            instance: None,
-            code: sys_err.code().to_string(),
-            retryable: sys_err.is_retryable(),
-            details: serde_json::Value::Null,
-            request_id: "".to_string(),
-        })
-    })?;
-
-    let primes = action_state
-        .mapped_prime_names
-        .iter()
-        .map(|(name, pubkey)| (name.clone(), hex::encode(pubkey)))
-        .collect::<HashMap<String, String>>();
-
-    let infras = action_state
-        .mapped_infra_names
-        .iter()
-        .map(|(name, pubkey)| (name.clone(), hex::encode(pubkey)))
-        .collect::<HashMap<String, String>>();
-
-    Ok(Json(ActionNamesResponse { primes, infras }))
-}
 
 use crate::api::ApiState;
 use crate::api::PublishResponse;

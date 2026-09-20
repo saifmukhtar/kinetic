@@ -10,7 +10,7 @@ It is entirely responsible for tracking and transitioning the network's global c
 
 ## Core Responsibilities
 
-1. **State Evolution (`ActionState`)**: Tracking active Sovereign keys, mapped Prime (1-character) names, and infrastructure protocol names.
+1. **State Evolution (`ActionState`)**: Tracking active Sovereign keys and infrastructure protocol names.
 2. **Timeline Management**: Tracking network pauses and calculating time-delay offsets (`paused_kyns_since`) caused by `EmergencyHalt` actions.
 3. **Deterministic Verification**: Hashing network actions via SHA-256 and validating Sovereign cryptographic signatures before allowing state mutation.
 4. **Pluggable Engines**: Implementing distinct verification rulesets (`SovereignEngine`, `PermissionlessEngine`) that can be swapped depending on the local `network.json` configuration.

@@ -31,8 +31,6 @@ impl KineticRecordStore {
     ) -> Result<(), KineticStoreError> {
         let reveal_ref = match record {
             kinetic_core::types::NameRecord::Standard(r) => Some(r),
-            kinetic_core::types::NameRecord::Prime { .. }
-            | kinetic_core::types::NameRecord::Infra { .. } => None,
         };
 
         if let Some(reveal) = reveal_ref {
@@ -78,17 +76,8 @@ impl KineticRecordStore {
 
                 let hb_age = self.current_kyn.saturating_sub(last_hb_kyn);
 
-                let (existing_reveal, new_reveal) = match (existing_record, record) {
-                    (
-                        kinetic_core::types::NameRecord::Standard(existing),
-                        kinetic_core::types::NameRecord::Standard(new),
-                    ) => (existing, new),
-                    _ => {
-                        let err = KineticStoreError::ImmutableName;
-                        err.log_warning(record.name(), "Rejecting Takeover:");
-                        return Err(err);
-                    }
-                };
+                let (kinetic_core::types::NameRecord::Standard(existing_reveal),
+                     kinetic_core::types::NameRecord::Standard(new_reveal)) = (existing_record, record);
 
                 let base_diff = consensus_math.iterations(&new_reveal.name);
                 let takeover_threshold = consensus_math.takeover_diff(base_diff, hb_age);
@@ -171,13 +160,9 @@ impl KineticRecordStore {
             } else {
                 let existing_pulse = match &existing_record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
-                    kinetic_core::types::NameRecord::Prime { kyn, .. } => *kyn,
-                    kinetic_core::types::NameRecord::Infra { .. } => kinetic_kyn::types::Kyn(0),
                 };
                 let new_pulse = match &record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
-                    kinetic_core::types::NameRecord::Prime { kyn, .. } => *kyn,
-                    kinetic_core::types::NameRecord::Infra { .. } => kinetic_kyn::types::Kyn(0),
                 };
 
                 if new_pulse < existing_pulse {

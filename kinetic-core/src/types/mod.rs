@@ -17,7 +17,6 @@ pub mod identity;
 pub mod name_record;
 pub mod names;
 pub mod nrs;
-pub mod protocol;
 pub mod vdf;
 
 pub use identity::*;
@@ -25,5 +24,4 @@ pub use identity::*;
 pub use name_record::*;
 pub use names::*;
 pub use nrs::*;
-pub use protocol::*;
 pub use vdf::*;

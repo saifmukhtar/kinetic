@@ -1335,20 +1335,7 @@ paths:
                     nullable: true
                   total_paused_kyns:
                     type: integer
-  /api/v1/micro/action/names:
-    get:
-      operationId: getPrimeNames
-      summary: JSON list of 1-character prime names and controllers [Public]
-      tags: [Action]
-      responses:
-        '200':
-          description: Map of prime names to controller hex pubkeys
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  type: string
+
   /api/v1/micro/network/nat:
     get:
       operationId: getNetworkNat
