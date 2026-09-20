@@ -105,7 +105,7 @@ pub struct TelemetryHeartbeat {
     /// Whether the node is publicly reachable.
     pub reachability: Reachability,
     /// The latest KineticTime pulse the node has verified, used to detect sync failures.
-    pub latest_kyn: u64,
+    pub latest_kyn: kinetic_kyn::types::Kyn,
     /// Total Megabytes sent since boot.
     pub mb_sent: u32,
     /// Total Megabytes received since boot.
@@ -141,7 +141,7 @@ mod tests {
             node_type: NodeType::Daemon,
             network_mode: NetworkMode::LightNode,
             reachability: Reachability::Public,
-            latest_kyn: 123456,
+            latest_kyn: kinetic_kyn::types::Kyn(123456),
             mb_sent: 15,
             mb_received: 30,
         };
@@ -159,6 +159,6 @@ mod tests {
 
         assert_eq!(deserialized.session_id, "uuid-1234");
         assert_eq!(deserialized.connected_peers, 42);
-        assert_eq!(deserialized.latest_kyn, 123456);
+        assert_eq!(deserialized.latest_kyn, kinetic_kyn::types::Kyn(123456));
     }
 }

@@ -98,7 +98,7 @@ async fn test_chaos_routing_partition() {
             name: test_key.to_string(),
             payload: vec![],
             salt: [0; 32],
-            kyn: 1000,
+            kyn: kinetic_kyn::types::Kyn(1000),
             drand_signature: "0".repeat(192),
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![0; 100],

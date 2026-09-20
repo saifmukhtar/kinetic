@@ -19,6 +19,7 @@ hickory-resolver = { workspace = true, features = ["dns-over-https-rustls", "web
 hickory-server.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 kinetic-local = { path = "../kinetic-local" }
+kinetic-kyn = { path = "../kinetic-kyn" }
 kinetic-verify = { path = "../kinetic-verify" }
 moka = { workspace = true, features = ["future"] }
 reqwest = { workspace = true, features = ["json"] }

@@ -502,7 +502,7 @@ impl NetworkClient {
                 let record =
                     serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&bytes)
                         .map_err(|e| NetworkClientError::Other(e.to_string()))?;
-                crate::store::verification::verify_host_routing_record(&record, current_kyn)
+                crate::store::verification::verify_host_routing_record(&record, kinetic_kyn::types::Kyn(current_kyn))
                     .map_err(|e| NetworkClientError::Other(e.to_string()))?;
                 Ok(Some(record))
             }

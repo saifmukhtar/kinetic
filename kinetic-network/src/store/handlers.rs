@@ -37,14 +37,14 @@ impl KineticRecordStore {
 
         if let Some(reveal) = reveal_ref {
             let paused_kyns = if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
-                state.paused_kyns_since(kinetic_core::types::Kyn(reveal.kyn))
+                state.paused_kyns_since(reveal.kyn)
             } else {
                 0
             };
 
             let effective_age = self
                 .current_kyn
-                .saturating_sub(reveal.kyn)
+                .saturating_sub(reveal.kyn.0)
                 .saturating_sub(paused_kyns);
 
             if effective_age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
@@ -74,7 +74,7 @@ impl KineticRecordStore {
                     .last_heartbeats_by_name
                     .get(record.name())
                     .copied()
-                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.kyn));
+                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.kyn.0));
 
                 let hb_age = self.current_kyn.saturating_sub(last_hb_kyn);
 
@@ -172,12 +172,12 @@ impl KineticRecordStore {
                 let existing_pulse = match &existing_record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
                     kinetic_core::types::NameRecord::Prime { kyn, .. } => *kyn,
-                    kinetic_core::types::NameRecord::Infra { .. } => 0,
+                    kinetic_core::types::NameRecord::Infra { .. } => kinetic_kyn::types::Kyn(0),
                 };
                 let new_pulse = match &record {
                     kinetic_core::types::NameRecord::Standard(r) => r.kyn,
                     kinetic_core::types::NameRecord::Prime { kyn, .. } => *kyn,
-                    kinetic_core::types::NameRecord::Infra { .. } => 0,
+                    kinetic_core::types::NameRecord::Infra { .. } => kinetic_kyn::types::Kyn(0),
                 };
 
                 if new_pulse < existing_pulse {
@@ -314,7 +314,7 @@ impl KineticRecordStore {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        let current_kyn = std::cmp::max(self.current_kyn, reveal_ref.map_or(0, |r| r.kyn));
+        let current_kyn = std::cmp::max(self.current_kyn, reveal_ref.map_or(0, |r| r.kyn.0));
         self.last_heartbeats_by_name
             .insert(name.to_string(), current_kyn);
         let hb_key = [KRS_HB_PREFIX, name.as_bytes()].concat();
@@ -346,12 +346,12 @@ impl KineticRecordStore {
             .copied()
             .unwrap_or(0);
 
-        if heartbeat.latest_kyn == existing_pulse {
+        if heartbeat.latest_kyn.0 == existing_pulse {
             // Normal duplicate via DHT gossip, ignore it silently to prevent log spam and CPU waste
             return Ok(());
         }
 
-        if heartbeat.latest_kyn < existing_pulse {
+        if heartbeat.latest_kyn.0 < existing_pulse {
             let err = KineticStoreError::StaleHeartbeat;
             err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
             return Err(err);
@@ -399,16 +399,14 @@ impl KineticRecordStore {
             let mut verified = false;
             for ck in &kid_doc.controller_keys {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-                if ck.key_type == "ML-DSA-65"
+                if ck.key_type == "Delegated"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                    && kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey_bytes).verify(
-                        &signable,
-                        &heartbeat.owner_signature,
-                    )
-                    .is_ok()
                 {
-                    verified = true;
-                    break;
+                    let temp_pubkey = kinetic_primitives::kinetic_keypair::DelegatedPubKey(pubkey_bytes);
+                    if temp_pubkey.verify(&signable, &heartbeat.owner_signature).is_ok() {
+                        verified = true;
+                        break;
+                    }
                 }
             }
             verified
@@ -426,7 +424,7 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        if heartbeat.latest_kyn > self.current_kyn + 2 {
+        if heartbeat.latest_kyn.0 > self.current_kyn + 2 {
             let err = KineticStoreError::FutureHeartbeat;
             err.log_warning(&heartbeat.name, "Rejecting Heartbeat: future-dated:");
             return Err(err);
@@ -435,9 +433,9 @@ impl KineticRecordStore {
         // Monotonicity check already performed at the top of the function.
 
         self.last_heartbeats_by_name
-            .insert(heartbeat.name.clone(), heartbeat.latest_kyn);
+            .insert(heartbeat.name.clone(), heartbeat.latest_kyn.0);
         let hb_key = [KRS_HB_PREFIX, heartbeat.name.as_bytes()].concat();
-        let hb_val = heartbeat.latest_kyn.to_be_bytes().to_vec();
+        let hb_val = heartbeat.latest_kyn.0.to_be_bytes().to_vec();
 
         let storage = self.storage.clone();
         crate::event_loop::utils::spawn(async move {

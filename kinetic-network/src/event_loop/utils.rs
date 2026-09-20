@@ -173,10 +173,10 @@ impl super::core::NetworkEventLoop {
         }
 
         if is_kid {
-            let current_time = web_time::SystemTime::now()
-                .duration_since(web_time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
+            let current_time = kinetic_kyn::types::Kyn(current_kyn).to_utime(
+                kinetic_core::constants::DRAND_GENESIS_TIME,
+                kinetic_core::constants::DRAND_PERIOD,
+            ).0;
 
             parsed
                 .into_iter()
@@ -188,15 +188,15 @@ impl super::core::NetworkEventLoop {
                         }
 
                         // Reject future-dated documents (allowing 300s clock drift)
-                        if doc.created_at > current_time + 300 {
+                        if doc.created_at.0 > current_time + 300 {
                             let err = kinetic_core::error::IdentityError::MalformedDocument(
-                                format!("created_at ({}) is in the future", doc.created_at),
+                                format!("created_at ({}) is in the future", doc.created_at.0),
                             );
                             tracing::warn!(error_code = err.code(), "Rejecting Document: {}", err);
                             return None;
                         }
 
-                        Some((p, u64::MAX - doc.created_at)) // Sort by newest created_at
+                        Some((p, u64::MAX - doc.created_at.0)) // Sort by newest created_at
                     } else {
                         None
                     }
@@ -210,13 +210,13 @@ impl super::core::NetworkEventLoop {
                     if let ParsedPayload::HostRouting(record) = parsed_payload {
                         if crate::store::verification::verify_host_routing_record(
                             &record,
-                            current_kyn,
+                            kinetic_kyn::types::Kyn(current_kyn),
                         )
                         .is_err()
                         {
                             return None;
                         }
-                        Some((p, u64::MAX - record.kyn)) // Sort by newest kyn
+                        Some((p, u64::MAX - record.kyn.0)) // Sort by newest kyn
                     } else {
                         None
                     }
@@ -300,7 +300,7 @@ impl super::core::NetworkEventLoop {
                         };
 
                         if !pubkey
-                            .verify(reveal.kyn, &[], &drand_sig_bytes)
+                            .verify(reveal.kyn.0, &[], &drand_sig_bytes)
                             .unwrap_or(false)
                         {
                             tracing::warn!(
@@ -320,7 +320,7 @@ impl super::core::NetworkEventLoop {
                         &reveal.pubkey.0,
                     ]);
 
-                    if current_kyn.saturating_sub(reveal.kyn)
+                    if current_kyn.saturating_sub(reveal.kyn.0)
                         > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
@@ -430,7 +430,7 @@ mod tests {
             name: "dummy.kin".to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            kyn: 0,
+            kyn: kinetic_kyn::types::Kyn(0),
             drand_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,

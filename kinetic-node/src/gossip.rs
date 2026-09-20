@@ -24,7 +24,7 @@ pub fn handle_action_gossip(
             let result = process_action_message(
                 &mut state,
                 &signed_msg,
-                kinetic_types::clock::Kyn(current_kyn),
+                kinetic_kyn::types::Kyn(current_kyn),
             );
             (state.clone(), result)
         };
@@ -188,7 +188,7 @@ mod tests {
                 name: "x".to_string(),
                 target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
             },
-            timestamp_kyn: 0,
+            timestamp_kyn: kinetic_kyn::types::Kyn(0),
             sovereign_signatures: vec![],
         };
         let payload = serde_json::to_vec(&msg).unwrap();
@@ -245,7 +245,7 @@ mod tests {
                 name: "x".to_string(),
                 target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
             },
-            timestamp_kyn: 0,
+            timestamp_kyn: kinetic_kyn::types::Kyn(0),
             sovereign_signatures: vec![],
         };
         let payload = serde_json::to_vec(&msg).unwrap();

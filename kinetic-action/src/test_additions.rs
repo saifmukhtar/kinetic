@@ -1,8 +1,8 @@
 use crate::logic::process_action_message;
-use crate::types::{ActionConfig, ActionEffect, ActionState, NetworkAction, PublicKeyBytes, SignedActionMessage};
+use crate::types::{ActionConfig, ActionEffect, ActionState, NetworkAction, SignedActionMessage};
 
 use kinetic_primitives::kinetic_keypair::SovereignPrivKey;
-use kinetic_types::clock::Kyn;
+use kinetic_kyn::types::Kyn;
 
 fn get_root_sk() -> SovereignPrivKey {
     let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
@@ -47,7 +47,7 @@ fn test_infra_mappings() {
             name: "invalidname".to_string(),
             target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
         },
-        timestamp_kyn: current_kyn,
+        timestamp_kyn: Kyn(current_kyn),
         sovereign_signatures: vec![],
     };
     msg_invalid
@@ -57,7 +57,7 @@ fn test_infra_mappings() {
     let err = process_action_message(
         &mut state,
         &msg_invalid,
-        Kyn(msg_invalid.timestamp_kyn),
+        msg_invalid.timestamp_kyn,
         &get_test_config(),
     )
     .unwrap_err();
@@ -72,7 +72,7 @@ fn test_infra_mappings() {
             name: "seed".to_string(),
             target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
         },
-        timestamp_kyn: current_kyn,
+        timestamp_kyn: Kyn(current_kyn),
         sovereign_signatures: vec![],
     };
     msg_valid.sovereign_signatures.push(sign_action(&msg_valid, &root_sk));
@@ -80,7 +80,7 @@ fn test_infra_mappings() {
     let effect = process_action_message(
         &mut state,
         &msg_valid,
-        Kyn(msg_valid.timestamp_kyn),
+        msg_valid.timestamp_kyn,
         &get_test_config(),
     )
     .unwrap();
@@ -101,7 +101,7 @@ fn test_action_stale_rejection() {
 
     let mut msg = SignedActionMessage {
         action: NetworkAction::EmergencyHalt,
-        timestamp_kyn: stale_kyn,
+        timestamp_kyn: Kyn(stale_kyn),
         sovereign_signatures: vec![],
     };
     msg.sovereign_signatures.push(sign_action(&msg, &root_sk));

@@ -36,7 +36,7 @@ fn compute_pow_hash(argon2: &Argon2, peer_bytes: &[u8], epoch: u64) -> Option<[u
 }
 
 /// Computes a peer-specific epoch to stagger identity churn across the network.
-pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: kinetic_types::clock::Kyn) -> u64 {
+pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: kinetic_kyn::types::Kyn) -> u64 {
     let mut offset_bytes = [0u8; 8];
     let len = peer_bytes.len();
     if len >= 8 {
@@ -52,7 +52,7 @@ pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: kinetic_types::clock::Kyn) ->
 /// Validates if a PeerId has sufficient proof-of-work for the current or previous epoch.
 pub fn verify_p2p_pow(
     peer_id: &PeerId,
-    current_kyn: kinetic_types::clock::Kyn,
+    current_kyn: kinetic_kyn::types::Kyn,
     difficulty: u32,
 ) -> bool {
     if kinetic_core::config::is_dev_mode() {
@@ -91,7 +91,7 @@ pub fn verify_p2p_pow(
 /// Grinds an Ed25519 keypair whose PeerId satisfies the PoW for the current epoch.
 /// WARNING: This is a blocking, CPU-bound operation. If calling from an async context,
 /// ensure it is wrapped in `tokio::task::spawn_blocking` to prevent executor starvation.
-pub fn mine_p2p_keypair(current_kyn: kinetic_types::clock::Kyn, difficulty: u32) -> Keypair {
+pub fn mine_p2p_keypair(current_kyn: kinetic_kyn::types::Kyn, difficulty: u32) -> Keypair {
     if current_kyn.0 == 0 && !kinetic_core::config::is_dev_mode() {
         panic!("Cannot generate PoW against kyn 0 (KYN Provider uninitialized)");
     }
@@ -144,13 +144,13 @@ mod tests {
     fn test_pow_mining_and_validation() {
         let kyn = 10_000_000;
         let difficulty = 8; // Low difficulty for fast test
-        let kp = mine_p2p_keypair(kinetic_types::clock::Kyn(kyn), difficulty);
+        let kp = mine_p2p_keypair(kinetic_kyn::types::Kyn(kyn), difficulty);
         let peer_id = PeerId::from(kp.public());
 
         // Should be valid for current kyn
         assert!(verify_p2p_pow(
             &peer_id,
-            kinetic_types::clock::Kyn(kyn),
+            kinetic_kyn::types::Kyn(kyn),
             difficulty
         ));
 
@@ -158,7 +158,7 @@ mod tests {
         let end_of_epoch_kyn = (kyn / EPOCH_KYNS) * EPOCH_KYNS + EPOCH_KYNS - 1;
         assert!(verify_p2p_pow(
             &peer_id,
-            kinetic_types::clock::Kyn(end_of_epoch_kyn),
+            kinetic_kyn::types::Kyn(end_of_epoch_kyn),
             difficulty
         ));
 
@@ -166,7 +166,7 @@ mod tests {
         let next_epoch_kyn = kyn + EPOCH_KYNS;
         assert!(verify_p2p_pow(
             &peer_id,
-            kinetic_types::clock::Kyn(next_epoch_kyn),
+            kinetic_kyn::types::Kyn(next_epoch_kyn),
             difficulty
         ));
 
@@ -174,14 +174,14 @@ mod tests {
         let two_epochs_away = kyn + (2 * EPOCH_KYNS);
         if verify_p2p_pow(
             &peer_id,
-            kinetic_types::clock::Kyn(two_epochs_away),
+            kinetic_kyn::types::Kyn(two_epochs_away),
             difficulty,
         ) {
             println!("Random collision for two_epochs_away - skipping assert");
         } else {
             assert!(!verify_p2p_pow(
                 &peer_id,
-                kinetic_types::clock::Kyn(two_epochs_away),
+                kinetic_kyn::types::Kyn(two_epochs_away),
                 difficulty
             ));
         }
@@ -191,14 +191,14 @@ mod tests {
             let prev_epoch_kyn = kyn - EPOCH_KYNS;
             if verify_p2p_pow(
                 &peer_id,
-                kinetic_types::clock::Kyn(prev_epoch_kyn),
+                kinetic_kyn::types::Kyn(prev_epoch_kyn),
                 difficulty,
             ) {
                 println!("Random collision for prev_epoch_kyn - skipping assert");
             } else {
                 assert!(!verify_p2p_pow(
                     &peer_id,
-                    kinetic_types::clock::Kyn(prev_epoch_kyn),
+                    kinetic_kyn::types::Kyn(prev_epoch_kyn),
                     difficulty
                 ));
             }

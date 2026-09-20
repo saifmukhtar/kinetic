@@ -8,7 +8,7 @@ fn test_reveal_crypto_lengths() {
         name: format!("{}{}", "valid", kinetic_core::constants::NSP_SUFFIX),
         payload: vec![],
         salt: [0; 32],
-        kyn: 1000,
+        kyn: kinetic_kyn::types::Kyn(1000),
         drand_signature: "0".repeat(192), // 192 hex chars for BLS
         iterations: 1000,
         vdf_proof: VdfProof {

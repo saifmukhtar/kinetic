@@ -15,6 +15,7 @@ axum.workspace = true
 clap = { workspace = true, features = ["derive"] }
 kinetic-core = { path = "../kinetic-core" }
 kinetic-local = { path = "../kinetic-local" }
+kinetic-kyn = { path = "../kinetic-kyn" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-storage = { path = "../kinetic-storage" }
 kinetic-types = { path = "../kinetic-types" }

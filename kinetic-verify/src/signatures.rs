@@ -229,7 +229,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes),
-            kyn: 1000,
+            kyn: kinetic_kyn::types::Kyn(1000),
             payload: payload.to_vec(),
             owner_signature: sig,
             authorization: None,
@@ -254,7 +254,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes),
-            kyn: 1000,
+            kyn: kinetic_kyn::types::Kyn(1000),
             payload: payload.to_vec(),
             owner_signature: sig,
             authorization: None,
@@ -278,7 +278,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes),
-            kyn: 1000,
+            kyn: kinetic_kyn::types::Kyn(1000),
             payload: payload.to_vec(),
             owner_signature: sig,
             authorization: None,
@@ -307,7 +307,7 @@ mod tests {
                 doc_type: "kinetic.manifest.v1".to_string(),
                 kid: mock_did.clone(),
                 version: 1,
-                valid_from: 0,
+                valid_from: kinetic_kyn::types::UTime(0),
                 expires_at: None,
                 services: vec![kinetic_kid::manifest::Service {
                     id: "updater".to_string(),
@@ -320,7 +320,7 @@ mod tests {
             kid_doc: Some(kinetic_kid::document::Document {
                 doc_type: "kinetic.kid.v1".to_string(),
                 kid: mock_did,
-                created_at: 0,
+                created_at: kinetic_kyn::types::UTime(0),
                 controller_keys: vec![kinetic_kid::document::ControllerKey {
                     id: "key-1".to_string(),
                     key_type: "Delegated".to_string(),
@@ -363,7 +363,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes),
-            kyn: 1000,
+            kyn: kinetic_kyn::types::Kyn(1000),
             payload: payload.to_vec(),
             owner_signature: sig,
             authorization: Some(Box::new(auth)),
@@ -397,7 +397,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes),
-            kyn: 1000,
+            kyn: kinetic_kyn::types::Kyn(1000),
             payload: payload.to_vec(),
             owner_signature: sig,
             authorization: Some(Box::new(auth)),
@@ -435,7 +435,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes),
-            kyn: 1000,
+            kyn: kinetic_kyn::types::Kyn(1000),
             payload: payload.to_vec(),
             owner_signature: sig,
             authorization: Some(Box::new(auth)),
@@ -477,7 +477,7 @@ mod tests {
         let record = NameRecord::Prime {
             name: name.to_string(),
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes), // Owner's pubkey
-            kyn: 1000,
+            kyn: kinetic_kyn::types::Kyn(1000),
             payload: payload.to_vec(),
             owner_signature: sig,
             authorization: Some(Box::new(auth)), // Bot attaches the valid auth for "test-domain"
@@ -503,7 +503,7 @@ mod tests {
             let record = NameRecord::Prime {
                 name,
                 pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey),
-                kyn: 1234,
+                kyn: kinetic_kyn::types::Kyn(1234),
                 payload,
                 owner_signature: sig,
                 authorization: None,
@@ -525,7 +525,7 @@ mod tests {
             name: "isolated-test.kin".to_string(),
             payload: vec![10, 20, 30],
             salt: [3u8; 32],
-            kyn: 9999,
+            kyn: kinetic_kyn::types::Kyn(9999),
             drand_signature: "aabbcc".to_string(),
             iterations: 500,
             vdf_proof: VdfProof {

@@ -13,7 +13,7 @@ fn test_003_oom_payload_exhaustion() {
         name: format!("{}{}", "malicious", kinetic_core::constants::NSP_SUFFIX),
         payload: oversized_payload,
         salt: [0u8; 32],
-        kyn: 100,
+        kyn: kinetic_kyn::types::Kyn(100),
         drand_signature: "random".to_string(),
         iterations: 1000,
         vdf_proof: VdfProof {

@@ -59,9 +59,9 @@ pub enum KynProviderError {
     #[error("Stale kyn: expected kyn ~{expected}, but got {got}")]
     StaleKyn {
         /// The expected network kyn based on the local system clock.
-        expected: u64,
+        expected: kinetic_kyn::types::Kyn,
         /// The actual kyn returned by the endpoint.
-        got: u64,
+        got: kinetic_kyn::types::Kyn,
     },
     /// A network stream reading error occurred.
     /// The connection to the endpoint dropped mid-download while reading the beacon payload.

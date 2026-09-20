@@ -82,8 +82,8 @@ pub enum NetworkAction {
 pub struct SignedActionMessage {
     /// Target network action payload.
     pub action: NetworkAction,
-    /// Unix timestamp in drand kyns when the proposal was signed.
-    pub timestamp_kyn: u64,
+    /// Network timestamp in drand kyns when the proposal was signed.
+    pub timestamp_kyn: kinetic_kyn::types::Kyn,
     /// The Sovereign signatures authorizing this action.
     pub sovereign_signatures: Vec<SignatureBytes>,
 }
@@ -208,14 +208,14 @@ impl NetworkAction {
     ///     Err(ActionTypeError::BufferTooSmall)
     /// );
     /// ```
-    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, u64), ActionTypeError> {
+    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, kinetic_kyn::types::Kyn), ActionTypeError> {
         if bytes.len() < 9 {
             // At least 1 byte opcode + 8 bytes timestamp
             return Err(ActionTypeError::BufferTooSmall);
         }
 
         let timestamp_bytes = &bytes[bytes.len() - 8..];
-        let timestamp_kyn = u64::from_be_bytes(timestamp_bytes.try_into().unwrap());
+        let timestamp_kyn = kinetic_kyn::types::Kyn::from_be_bytes(timestamp_bytes.try_into().unwrap());
         let payload = &bytes[0..bytes.len() - 8];
         if payload.is_empty() {
             return Err(ActionTypeError::BufferTooSmall);
@@ -385,7 +385,7 @@ mod tests {
         };
         let msg = SignedActionMessage {
             action: action.clone(),
-            timestamp_kyn: 123456,
+            timestamp_kyn: kinetic_kyn::types::Kyn(123456),
             sovereign_signatures: vec![],
         };
 
@@ -393,7 +393,7 @@ mod tests {
         let (parsed_action, parsed_time) = NetworkAction::parse_payload(&buf).unwrap();
 
         assert_eq!(parsed_action, action);
-        assert_eq!(parsed_time, 123456);
+        assert_eq!(parsed_time, kinetic_kyn::types::Kyn(123456));
     }
 
     proptest! {
@@ -410,8 +410,8 @@ mod tests {
 /// Request to sync historical action actions.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionSyncRequest {
-    /// The local node's current Kyn. Unused currently, but useful for filtering later.
-    pub from_kyn: u64,
+    /// Request missed action messages starting from this Kyn index.
+    pub from_kyn: kinetic_kyn::types::Kyn,
 }
 
 /// Response containing historical action actions.

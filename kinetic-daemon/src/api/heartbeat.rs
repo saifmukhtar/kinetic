@@ -6,7 +6,7 @@ use axum::{
     extract::{Path, State},
 };
 use kinetic_core::constants;
-use kinetic_core::types::{Heartbeat, KynNetworkExt};
+use kinetic_core::types::Heartbeat;
 use serde::Serialize;
 
 /// Represents the DHT heartbeat status of a locally owned name.
@@ -49,7 +49,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> u64 {
     use kinetic_core::traits::KynProvider;
     match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => kyn.kyn,
-        _ => kinetic_core::types::Kyn::now_local().0,
+        _ => kinetic_kyn::types::Kyn::now_local().0,
     }
 }
 
@@ -89,7 +89,7 @@ pub async fn handle_get_heartbeats(
             match network_res {
                 Ok(bytes) => {
                     if let Ok(hb) = serde_json::from_slice::<Heartbeat>(&bytes) {
-                        let age = current_kyn.saturating_sub(hb.latest_kyn);
+                        let age = current_kyn.saturating_sub(hb.latest_kyn.0);
                         let status = if age <= ACTIVE_HEARTBEAT_MAX_KYNS {
                             "Active"
                         } else if age <= STALE_HEARTBEAT_MAX_KYNS {
@@ -100,7 +100,7 @@ pub async fn handle_get_heartbeats(
                         statuses.push(HeartbeatStatusResponse {
                             name,
                             status: status.to_string(),
-                            latest_kyn: hb.latest_kyn,
+                            latest_kyn: hb.latest_kyn.0,
                             kyns_idle: age,
                         });
                     } else {
@@ -151,7 +151,7 @@ pub async fn handle_post_heartbeat(
 
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
-        latest_kyn: current_kyn,
+        latest_kyn: kinetic_kyn::types::Kyn(current_kyn),
         owner_signature: vec![],
         authorization: None,
     };
@@ -255,7 +255,7 @@ pub async fn handle_post_fat_heartbeat(
 
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
-        latest_kyn: current_kyn,
+        latest_kyn: kinetic_kyn::types::Kyn(current_kyn),
         owner_signature: vec![],
         authorization: Some(Box::new(req.authorized_manifest)),
     };

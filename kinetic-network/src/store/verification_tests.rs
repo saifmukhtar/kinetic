@@ -15,12 +15,12 @@ mod tests {
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            kyn: stale_pulse,
+            kyn: kinetic_kyn::types::Kyn(stale_pulse),
             host_signature: vec![],
         };
 
         // Even with a bad signature, it should fail on freshness first
-        let res = verify_host_routing_record(&record, current_drand_round);
+        let res = verify_host_routing_record(&record, kinetic_kyn::types::Kyn(current_drand_round));
         assert!(matches!(
             res.unwrap_err(),
             KineticStoreError::InvalidHostRouteSignature
@@ -40,11 +40,11 @@ mod tests {
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            kyn: recent_pulse,
+            kyn: kinetic_kyn::types::Kyn(recent_pulse),
             host_signature: vec![],
         };
 
-        let res = verify_host_routing_record(&record, current_drand_round);
+        let res = verify_host_routing_record(&record, kinetic_kyn::types::Kyn(current_drand_round));
         // Should safely return InvalidPublicKey instead of panicking
         assert!(matches!(
             res.unwrap_err(),
@@ -66,7 +66,7 @@ mod tests {
             name: "test.kinetic".to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            kyn: 100,
+            kyn: kinetic_kyn::types::Kyn(100),
             drand_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
@@ -97,14 +97,14 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,
-            created_at: 1234567890,
+            created_at: kinetic_kyn::types::UTime(1234567890),
             controller_keys: vec![kinetic_kid::document::ControllerKey {
                 id: format!(
                     "{}{}#primary",
                     kinetic_core::constants::DID_PREFIX,
                     hex_hash
                 ),
-                key_type: "MlDsa65".to_string(),
+                key_type: "Controller".to_string(),
                 public_key: pub_key_b64,
             }],
             manifest: None,

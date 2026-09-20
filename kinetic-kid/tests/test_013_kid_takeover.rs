@@ -18,10 +18,10 @@ fn test_013_kid_takeover() {
     let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: Did::new(&victim_did).unwrap(),
-        created_at: 1000,
+        created_at: kinetic_kyn::types::UTime(1000),
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
-            key_type: "MlDsa65".to_string(),
+            key_type: "Controller".to_string(),
             public_key: victim_pub_b64,
         }],
         manifest: None,
@@ -39,10 +39,10 @@ fn test_013_kid_takeover() {
     let forged_doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: Did::new(&victim_did).unwrap(), // Claiming victim's DID!
-        created_at: 2000,
+        created_at: kinetic_kyn::types::UTime(2000),
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
-            key_type: "MlDsa65".to_string(),
+            key_type: "Controller".to_string(),
             public_key: attacker_pub_b64, // Attacker inserts their own public key!
         }],
         manifest: None,

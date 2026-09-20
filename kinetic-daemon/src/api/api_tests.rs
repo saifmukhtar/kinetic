@@ -144,7 +144,7 @@ mod tests {
                     "proof_bytes": vec![4, 5, 6]
                 },
                 "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
-                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
+                "identity_signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -182,7 +182,7 @@ mod tests {
                     "proof_bytes": vec![4, 5, 6]
                 },
                 "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
-                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
+                "identity_signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -237,7 +237,7 @@ mod tests {
                     "proof_bytes": vec![4, 5, 6]
                 },
                 "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
-                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
+                "identity_signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -271,7 +271,7 @@ mod tests {
             name: "validname.kin".to_string(),
             payload: vec![1, 2, 3],
             salt: [0; 32],
-            kyn: 100,
+            kyn: kinetic_kyn::types::Kyn(100),
             drand_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {

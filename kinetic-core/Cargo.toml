@@ -19,6 +19,7 @@ simulation = []
 # --- Workspace & Internal Crates ---
 kinetic-action = { path = "../kinetic-action" }
 kinetic-kid = { path = "../kinetic-kid" }
+kinetic-kyn = { path = "../kinetic-kyn", default-features = false }
 kinetic-primitives = { path = "../kinetic-primitives" }
 kinetic-types = { path = "../kinetic-types" }
 kinetic-verify = { path = "../kinetic-verify" }

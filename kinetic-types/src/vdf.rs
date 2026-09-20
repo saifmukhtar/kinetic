@@ -78,7 +78,7 @@ pub struct PreviousProof {
     /// 32-byte salt used in the previous proof generation.
     pub salt: [u8; 32],
     /// Associated KineticTime kyn number from prior registration.
-    pub kyn: u64,
+    pub kyn: kinetic_kyn::types::Kyn,
     /// Hex-encoded KineticTime BLS12-381 G2 signature from prior registration.
     pub drand_signature: String,
     /// Number of VDF iterations completed in prior registration.
@@ -135,7 +135,7 @@ impl PreviousProof {
     ///
     /// let prev = PreviousProof {
     ///     salt: [0u8; 32],
-    ///     kyn: 12345,
+    ///     kyn: kinetic_kyn::types::Kyn(12345),
     ///     drand_signature: "abcd".to_string(),
     ///     iterations: 1000,
     ///     vdf_proof: VdfProof { proof_bytes: vec![] },
@@ -186,7 +186,7 @@ pub struct Reveal {
     /// 32-byte salt value for commitment blinding.
     pub salt: [u8; 32],
     /// Associated KineticTime kyn number.
-    pub kyn: u64,
+    pub kyn: kinetic_kyn::types::Kyn,
     /// Hex-encoded KineticTime BLS12-381 G2 signature.
     pub drand_signature: String,
     /// Number of VDF iterations completed.
@@ -222,7 +222,7 @@ impl Reveal {
     ///     name: "example".to_string(),
     ///     payload: vec![],
     ///     salt: [0u8; 32],
-    ///     kyn: 12345,
+    ///     kyn: kinetic_kyn::types::Kyn(12345),
     ///     drand_signature: "abcd".to_string(),
     ///     iterations: 1000,
     ///     vdf_proof: VdfProof { proof_bytes: vec![] },
@@ -305,7 +305,7 @@ mod tests {
     fn test_previous_proof_serialization() {
         let prev = PreviousProof {
             salt: [2u8; 32],
-            kyn: 12345,
+            kyn: kinetic_kyn::types::Kyn(12345),
             drand_signature: "deadbeef".to_string(),
             iterations: 1000,
             vdf_proof: VdfProof {

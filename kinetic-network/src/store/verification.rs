@@ -25,31 +25,31 @@ use kinetic_verify::signatures::VerifySignature;
 /// * Returns `KineticStoreError::MalformedSignature` if the signature bytes are structurally invalid.
 pub(crate) fn verify_host_routing_record(
     record: &kinetic_core::types::HostRoutingRecord,
-    current_kyn: u64,
+    current_kyn: kinetic_kyn::types::Kyn,
 ) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
     // Enforce KYN Provider network time freshness — reject records older than 100 kyns (~5 minutes),
     // and reject records from the future to prevent pinning via u64::MAX timestamps.
-    if current_kyn.saturating_sub(record.kyn) > 100 {
+    if current_kyn.0.saturating_sub(record.kyn.0) > 100 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             &record.host_id,
             &format!(
                 "HostRoutingRecord is stale ({} kyns old)",
-                current_kyn.saturating_sub(record.kyn)
+                current_kyn.0.saturating_sub(record.kyn.0)
             ),
         );
         return Err(err);
     }
     // Allow a 2-kyn (~6 seconds) leeway for network clock drift before rejecting future timestamps.
-    if record.kyn > current_kyn + 2 {
+    if record.kyn.0 > current_kyn.0 + 2 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             &record.host_id,
             &format!(
                 "HostRoutingRecord is too far in the future ({} kyns ahead, max 2 allowed)",
-                record.kyn.saturating_sub(current_kyn)
+                record.kyn.0.saturating_sub(current_kyn.0)
             ),
         );
         return Err(err);
@@ -148,7 +148,7 @@ pub(crate) fn compute_required_iterations(
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
         if !pubkey
-            .verify(reveal.kyn, &[], &drand_sig_bytes)
+            .verify(reveal.kyn.0, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
             let err = KineticStoreError::InvalidDrandSignature;
@@ -186,7 +186,7 @@ pub(crate) fn compute_required_iterations(
                 .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
             if !pubkey
-                .verify(prev.kyn, &[], &prev_drand_sig_bytes)
+                .verify(prev.kyn.0, &[], &prev_drand_sig_bytes)
                 .unwrap_or(false)
             {
                 tracing::warn!(
@@ -214,13 +214,13 @@ pub(crate) fn compute_required_iterations(
         let prev_req = consensus_math.iterations(&reveal.name);
 
         let paused_kyns = if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
-            state.paused_kyns_since(kinetic_core::types::Kyn(prev.kyn))
+            state.paused_kyns_since(prev.kyn)
         } else {
             0
         };
 
         let effective_age = current_kyn
-            .saturating_sub(prev.kyn)
+            .saturating_sub(prev.kyn.0)
             .saturating_sub(paused_kyns);
         let is_not_too_old = effective_age <= kinetic_core::types::RESQUARING_EPOCH_KYNS * 2;
 
@@ -340,7 +340,7 @@ pub(crate) fn verify_reveal(
             .map_err(|_| KineticStoreError::InvalidDrandHex)?;
 
         if !pubkey
-            .verify(reveal.kyn, &[], &drand_sig_bytes)
+            .verify(reveal.kyn.0, &[], &drand_sig_bytes)
             .unwrap_or(false)
         {
             let err = KineticStoreError::InvalidDrandSignature;
@@ -553,6 +553,7 @@ pub(crate) fn verify_authorized_manifest(
     auth_manifest: &kinetic_core::types::AuthorizedManifest,
     active_record: Option<&kinetic_core::types::NameRecord>,
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
+    current_kyn: u64,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {
         let err = KineticStoreError::NameNotFound;
@@ -598,14 +599,14 @@ pub(crate) fn verify_authorized_manifest(
         return Err(err);
     }
 
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    let current_time = kinetic_kyn::types::Kyn(current_kyn).to_utime(
+        kinetic_core::constants::DRAND_GENESIS_TIME,
+        kinetic_core::constants::DRAND_PERIOD,
+    ).0;
 
     if auth_manifest
         .manifest
-        .verify_at_time(kid_doc, current_time)
+        .verify_at_time(kid_doc, kinetic_kyn::types::UTime(current_time))
         .is_err()
     {
         let err = KineticStoreError::ManifestVerificationFailed;

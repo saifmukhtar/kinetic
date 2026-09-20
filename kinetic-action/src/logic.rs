@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 use crate::error::ActionError;
 use crate::types::{
-    ActionConfig, ActionEffect, ActionState, Hash256, PublicKeyBytes, SignedActionMessage,
+    ActionConfig, ActionEffect, ActionState, Hash256, SignedActionMessage,
 };
 
 /// Validates that the static cryptographic keys required for network actions have been correctly initialized.
@@ -52,7 +52,7 @@ impl ActionState {
     /// # Returns
     ///
     /// A new `ActionState` ready for genesis block processing.
-    pub fn new(genesis_kyn: kinetic_types::clock::Kyn) -> Self {
+    pub fn new(genesis_kyn: kinetic_kyn::types::Kyn) -> Self {
         Self {
             genesis_kyn,
             active_sovereign_key: None,
@@ -89,7 +89,7 @@ impl ActionState {
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.
-    pub fn prune(&mut self, current_kyn: kinetic_types::clock::Kyn, config: &ActionConfig) {
+    pub fn prune(&mut self, current_kyn: kinetic_kyn::types::Kyn, config: &ActionConfig) {
         // Remove executed hashes older than the max age
         let max_age_kyns = config.max_age_kyns;
         self.executed_hashes
@@ -122,7 +122,7 @@ impl ActionState {
     pub fn verify_action(
         &mut self,
         msg: &SignedActionMessage,
-        current_kyn: kinetic_types::clock::Kyn,
+        current_kyn: kinetic_kyn::types::Kyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
         crate::engine::get_active_engine(&config.action_model).verify_action(
@@ -137,7 +137,7 @@ impl ActionState {
     pub fn execute_action(
         &mut self,
         msg: &SignedActionMessage,
-        current_kyn: kinetic_types::clock::Kyn,
+        current_kyn: kinetic_kyn::types::Kyn,
         config: &ActionConfig,
     ) -> Option<ActionEffect> {
         crate::engine::get_active_engine(&config.action_model).execute_action(
@@ -157,7 +157,7 @@ impl ActionState {
 pub fn process_action_message(
     state: &mut ActionState,
     msg: &SignedActionMessage,
-    current_kyn: kinetic_types::clock::Kyn,
+    current_kyn: kinetic_kyn::types::Kyn,
     config: &ActionConfig,
 ) -> Result<Option<ActionEffect>, ActionError> {
     let effect = state.verify_action(msg, current_kyn, config)?;

@@ -269,13 +269,13 @@ pub async fn handle_macro_register_name(
             let kyn_provider =
                 kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
             use kinetic_core::traits::KynProvider;
-            use kinetic_core::types::clock::KynNetworkExt;
+
             match kyn_provider.load_cached() {
                 Ok(kyn) => kyn.kyn,
-                Err(_) => kinetic_core::types::Kyn::now_local().0,
+                Err(_) => kinetic_kyn::types::Kyn::now_local().0,
             }
         };
-        let current_kyn = kinetic_core::types::Kyn(current_kyn);
+        let current_kyn = kinetic_kyn::types::Kyn(current_kyn);
         let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
 
         let kid_id = match kinetic_local::kid_manager::get_or_create_kid_for_name(
@@ -324,7 +324,7 @@ pub async fn handle_macro_register_name(
             name: fqdn.clone(),
             payload,
             salt,
-            kyn: drand_data.kyn,
+            kyn: kinetic_kyn::types::Kyn(drand_data.kyn),
             drand_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
@@ -664,7 +664,7 @@ pub async fn handle_macro_renew_name(
             name: fqdn.clone(),
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
-            kyn: drand_data.kyn,
+            kyn: kinetic_kyn::types::Kyn(drand_data.kyn),
             drand_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {

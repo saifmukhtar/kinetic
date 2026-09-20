@@ -50,7 +50,7 @@ pub struct HostRoutingRecord {
     /// Currently assigned P2P network peer ID.
     pub current_peer_id: String,
     /// The KineticTime kyn number when this record was created.
-    pub kyn: u64,
+    pub kyn: kinetic_kyn::types::Kyn,
     /// Host signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
     pub host_signature: Vec<u8>,
 }
@@ -73,7 +73,7 @@ impl HostRoutingRecord {
     /// let routing = HostRoutingRecord {
     ///     host_id: "host-123".to_string(),
     ///     current_peer_id: "12D3KooW...".to_string(),
-    ///     kyn: 150000,
+    ///     kyn: kinetic_kyn::types::Kyn(150000),
     ///     host_signature: vec![],
     /// };
     /// 

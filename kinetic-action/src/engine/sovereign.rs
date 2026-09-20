@@ -25,10 +25,10 @@ impl ActionEngine for SovereignEngine {
         &self,
         state: &mut ActionState,
         msg: &SignedActionMessage,
-        current_kyn: kinetic_types::clock::Kyn,
+        current_kyn: kinetic_kyn::types::Kyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
-        if current_kyn.0.abs_diff(msg.timestamp_kyn) > config.max_age_kyns {
+        if current_kyn.0.abs_diff(msg.timestamp_kyn.0) > config.max_age_kyns {
             return Err(ActionError::StaleProposal);
         }
 
@@ -130,13 +130,13 @@ impl ActionEngine for SovereignEngine {
         &self,
         state: &mut ActionState,
         msg: &SignedActionMessage,
-        current_kyn: kinetic_types::clock::Kyn,
+        current_kyn: kinetic_kyn::types::Kyn,
         _config: &ActionConfig,
     ) -> Option<ActionEffect> {
         let action_hash = ActionState::hash_action(msg);
         state
             .executed_hashes
-            .insert(action_hash, kinetic_types::clock::Kyn(msg.timestamp_kyn));
+            .insert(action_hash, msg.timestamp_kyn);
 
         match &msg.action {
             NetworkAction::MapPrime {

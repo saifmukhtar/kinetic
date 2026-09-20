@@ -5,7 +5,7 @@ use std::time::SystemTime;
 
 lazy_static! {
     pub static ref GLOBAL_ACTION_STATE: Mutex<ActionState> = Mutex::new(ActionState::new(
-        kinetic_core::types::clock::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN)
+        kinetic_kyn::types::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN)
     ));
 }
 
@@ -49,7 +49,7 @@ pub fn load_action_from_disk(path: &std::path::Path) -> ActionState {
             }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => ActionState::new(
-            kinetic_core::types::clock::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
+            kinetic_kyn::types::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
         ),
         Err(e) => {
             let err = kinetic_action::error::ActionError::StateReadFailed;

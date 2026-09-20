@@ -2649,6 +2649,7 @@ dependencies = [
  "anyhow",
  "criterion",
  "hex",
+ "kinetic-kyn",
  "kinetic-primitives",
  "kinetic-types",
  "proptest",
@@ -2675,6 +2676,7 @@ dependencies = [
  "indicatif",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-kyn",
  "kinetic-local",
  "kinetic-network",
  "kinetic-primitives",
@@ -2704,6 +2706,7 @@ dependencies = [
  "hex",
  "kinetic-action",
  "kinetic-kid",
+ "kinetic-kyn",
  "kinetic-primitives",
  "kinetic-types",
  "kinetic-verify",
@@ -2741,6 +2744,7 @@ dependencies = [
  "keyring",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-kyn",
  "kinetic-local",
  "kinetic-network",
  "kinetic-nrs",
@@ -2790,6 +2794,7 @@ dependencies = [
  "futures-util",
  "http-body-util",
  "kinetic-core",
+ "kinetic-kyn",
  "kinetic-local",
  "kinetic-network",
  "kinetic-storage",
@@ -2812,6 +2817,7 @@ name = "kinetic-kid"
 version = "0.2.0"
 dependencies = [
  "base64 0.23.1",
+ "kinetic-kyn",
  "kinetic-primitives",
  "proptest",
  "rand_core 0.6.4",
@@ -2819,6 +2825,17 @@ dependencies = [
  "serde_jcs",
  "serde_json",
  "thiserror 2.0.20",
+]
+
+[[package]]
+name = "kinetic-kyn"
+version = "0.2.0"
+dependencies = [
+ "drand-verify",
+ "hex",
+ "kinetic-primitives",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2833,6 +2850,7 @@ dependencies = [
  "kinetic-action",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-kyn",
  "kinetic-primitives",
  "kinetic-types",
  "lazy_static",
@@ -2868,6 +2886,7 @@ dependencies = [
  "hickory-resolver 0.24.4",
  "kinetic-core",
  "kinetic-kid",
+ "kinetic-kyn",
  "kinetic-local",
  "kinetic-primitives",
  "kinetic-storage",
@@ -2904,6 +2923,7 @@ dependencies = [
  "clap",
  "http-body-util",
  "kinetic-core",
+ "kinetic-kyn",
  "kinetic-local",
  "kinetic-network",
  "kinetic-primitives",
@@ -2936,6 +2956,7 @@ dependencies = [
  "hickory-resolver 0.24.4",
  "hickory-server",
  "kinetic-core",
+ "kinetic-kyn",
  "kinetic-local",
  "kinetic-primitives",
  "kinetic-verify",
@@ -3018,6 +3039,7 @@ dependencies = [
  "hickory-proto 0.24.4",
  "hickory-server",
  "kinetic-core",
+ "kinetic-kyn",
  "kinetic-network",
  "kinetic-nrs",
  "kinetic-primitives",
@@ -3039,6 +3061,7 @@ version = "0.2.0"
 dependencies = [
  "bytes",
  "kinetic-kid",
+ "kinetic-kyn",
  "kinetic-primitives",
  "proptest",
  "rand 0.8.7",
@@ -3065,6 +3088,7 @@ version = "0.2.0"
 dependencies = [
  "base64 0.23.1",
  "kinetic-kid",
+ "kinetic-kyn",
  "kinetic-primitives",
  "kinetic-types",
  "proptest",

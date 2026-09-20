@@ -15,7 +15,7 @@ pub struct ControllerKey {
     /// A fragment URI identifying this key within the DID document (e.g. `did:kin:…#key-0`).
     pub id: String,
     #[serde(rename = "type")]
-    /// The key algorithm; always `"ML-DSA-65"` in v1.
+    /// The key algorithm identifier; `"Controller"` for the primary ML-DSA-65 signing key.
     pub key_type: String,
     /// The Base64url-encoded raw public key bytes.
     pub public_key: String,
@@ -51,7 +51,7 @@ pub struct Document {
     /// The `did:kin:<hash>` identifier for this document.
     pub kid: Did,
     /// Unix timestamp (seconds) when this document was created.
-    pub created_at: u64,
+    pub created_at: kinetic_kyn::types::UTime,
     /// Ordered list of ML-DSA-65 verification keys that control this DID.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_20")]
     pub controller_keys: Vec<ControllerKey>,
@@ -119,10 +119,10 @@ impl Document {
     /// let doc = Document {
     ///     doc_type: "kinetic.kid.v1".to_string(),
     ///     kid: did.clone(),
-    ///     created_at: 1000,
+    ///     created_at: kinetic_kyn::types::UTime(1000),
     ///     controller_keys: vec![ControllerKey {
     ///         id: format!("{}#primary", did.as_str()),
-    ///         key_type: "MlDsa65".to_string(),
+    ///         key_type: "Controller".to_string(),
     ///         public_key: pubkey_b64,
     ///     }],
     ///     manifest: None,
@@ -213,8 +213,7 @@ impl Document {
         } else {
             // Document is active, the signature MUST be from a controller key
             for key in &self.controller_keys {
-                if (key.key_type.eq_ignore_ascii_case("MlDsa65")
-                    || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
+                if key.key_type.eq_ignore_ascii_case("Controller")
                     && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
                     && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes)
                         .is_ok()
@@ -298,9 +297,7 @@ impl Document {
 
         // Normal path: check if signed by an existing hot key
         let mut authorized = previous_doc.controller_keys.iter().any(|ck| {
-            if !ck.key_type.eq_ignore_ascii_case("MlDsa65")
-                && !ck.key_type.eq_ignore_ascii_case("ML-DSA-65")
-            {
+            if !ck.key_type.eq_ignore_ascii_case("Controller") {
                 return false;
             }
             if let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key) {
@@ -385,10 +382,10 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: Did::new(&did_str).unwrap(),
-            created_at: 1000,
+            created_at: kinetic_kyn::types::UTime(1000),
             controller_keys: vec![ControllerKey {
                 id: format!("{}#primary", did_str),
-                key_type: "MlDsa65".to_string(),
+                key_type: "Controller".to_string(),
                 public_key: controller_pub_b64,
             }],
             manifest: None,

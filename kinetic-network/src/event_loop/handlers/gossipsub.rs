@@ -51,7 +51,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                         if let Ok(kyn) =
                             serde_json::from_slice::<kinetic_core::drand::RawKyn>(actual_payload)
                         {
-                            return kyn.verify();
+                            return kyn.verify_beacon(kinetic_core::config::is_dev_mode());
                         }
                         return false;
                     } else if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {

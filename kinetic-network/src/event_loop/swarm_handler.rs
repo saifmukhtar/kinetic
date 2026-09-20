@@ -15,7 +15,7 @@ impl super::core::NetworkEventLoop {
         self.current_kyn > 0
             && crate::pow::verify_p2p_pow(
                 peer_id,
-                kinetic_types::clock::Kyn(self.current_kyn),
+                kinetic_kyn::types::Kyn(self.current_kyn),
                 difficulty,
             )
     }
@@ -161,7 +161,7 @@ impl super::core::NetworkEventLoop {
                         let _permit = pow_semaphore.acquire().await;
                         let (valid_server, valid_client) =
                             crate::event_loop::utils::spawn_blocking(move || {
-                                let kyn = kinetic_types::clock::Kyn(current_kyn);
+                                let kyn = kinetic_kyn::types::Kyn(current_kyn);
                                 let server = crate::pow::verify_p2p_pow(
                                     &peer_id_clone,
                                     kyn,

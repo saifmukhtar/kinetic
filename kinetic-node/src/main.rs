@@ -338,7 +338,7 @@ pub async fn run_node() -> Result<()> {
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: 0 },
+                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
                             )
                             .await
                         && !resp.actions.is_empty()
@@ -356,7 +356,7 @@ pub async fn run_node() -> Result<()> {
                                 if let Err(e) = kinetic_core::action::process_action_message(
                                     &mut action_state,
                                     msg,
-                                    kinetic_types::clock::Kyn(0),
+                                    kinetic_kyn::types::Kyn(0),
                                 ) {
                                     tracing::error!("Failed to apply synced action: {}", e);
                                 }
@@ -406,10 +406,10 @@ pub async fn run_node() -> Result<()> {
                 let actual_payload = &payload[1..];
 
                 if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
-                    use kinetic_core::types::clock::KynNetworkExt;
+
                     let current_kyn = match kyn_provider_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_core::types::Kyn::now_local().0,
+                        Err(_) => kinetic_kyn::types::Kyn::now_local().0,
                     };
                     gossip::handle_action_gossip(
                         actual_payload,
@@ -420,7 +420,7 @@ pub async fn run_node() -> Result<()> {
                     );
                 } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
-                    && kyn.verify()
+                    && kyn.verify_beacon(kinetic_core::config::is_dev_mode())
                 {
                     let latest_kyn = match kyn_provider_gossip.load_cached() {
                         Ok(latest) => {

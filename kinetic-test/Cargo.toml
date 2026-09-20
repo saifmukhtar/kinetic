@@ -9,6 +9,7 @@ kinetic-core = { path = "../kinetic-core" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-vdf = { path = "../kinetic-vdf" }
 kinetic-storage = { path = "../kinetic-storage" }
+kinetic-kyn = { path = "../kinetic-kyn" }
 libp2p = { workspace = true, features = ["tokio", "tcp", "noise", "yamux", "dns", "kad", "request-response", "macros", "gossipsub"] }
 tokio.workspace = true
 anyhow.workspace = true

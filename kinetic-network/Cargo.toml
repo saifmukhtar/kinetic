@@ -18,6 +18,7 @@ ed25519-dalek.workspace = true
 hex.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 kinetic-kid = { path = "../kinetic-kid" }
+kinetic-kyn = { path = "../kinetic-kyn" }
 kinetic-local = { path = "../kinetic-local" }
 kinetic-primitives = { path = "../kinetic-primitives" }
 kinetic-storage = { path = "../kinetic-storage" }

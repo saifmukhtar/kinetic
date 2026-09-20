@@ -26,7 +26,7 @@ use axum::{
 };
 use kinetic_core::traits::KynProvider;
 use kinetic_core::types::RevealExt;
-use kinetic_core::types::clock::KynNetworkExt;
+
 use kinetic_verify::signatures::VerifySignature;
 
 /// Resolves the canonical current network time epoch (KYN) with high availability.
@@ -39,18 +39,18 @@ use kinetic_verify::signatures::VerifySignature;
 /// 1. Tries to query the live Libp2p swarm for the absolute freshest time.
 /// 2. If the swarm is offline, falls back to the local `kinetic-storage` Time Oracle cache.
 /// 3. If the cache is empty (genesis boot), it estimates the time mathematically using the local clock.
-async fn get_safe_current_kyn(state: &ApiState) -> kinetic_core::types::Kyn {
+async fn get_safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::Kyn {
     if let Ok(kyn) = state.network.get_current_kyn().await
         && kyn > 0
     {
-        return kinetic_core::types::Kyn(kyn);
+        return kinetic_kyn::types::Kyn(kyn);
     }
 
     let kyn_provider =
         kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
     match kyn_provider.load_cached() {
-        Ok(kyn) if kyn.kyn > 0 => kinetic_core::types::Kyn(kyn.kyn),
-        _ => kinetic_core::types::Kyn::now_local(),
+        Ok(kyn) if kyn.kyn > 0 => kinetic_kyn::types::Kyn(kyn.kyn),
+        _ => kinetic_kyn::types::Kyn::now_local(),
     }
 }
 
@@ -108,7 +108,7 @@ pub async fn handle_publish_record(
             ));
         }
         is_standard = true;
-        kyn = reveal.kyn;
+        kyn = reveal.kyn.0;
     }
 
     // Enforce Time Oracle staleness — reject Reveals whose VDF kyn is older

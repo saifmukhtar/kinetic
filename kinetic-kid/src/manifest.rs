@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::did::Did;
 use crate::document::Document;
 use crate::error::Error;
+use kinetic_kyn::types::UTime;
 
 /// A single service endpoint published in a [`Manifest`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -40,13 +41,13 @@ pub struct Manifest {
     /// Verified against the network's consensus clock (e.g., Drand beacon timestamps)
     /// to prevent malicious forward-dating. The network permits a maximum 300-second
     /// (5-minute) clock skew allowance.
-    pub valid_from: u64,
+    pub valid_from: UTime,
     /// Optional Unix timestamp (seconds) dictating when this manifest expires.
     ///
     /// If provided, network nodes will reject or drop this manifest once the consensus
     /// clock passes this time, forcing the controller to publish a fresh manifest.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<u64>,
+    pub expires_at: Option<UTime>,
     /// Ordered list of service endpoints this DID owner is advertising.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_50")]
     pub services: Vec<Service>,
@@ -117,10 +118,10 @@ impl Manifest {
     /// let doc = Document {
     ///     doc_type: "kinetic.kid.v1".to_string(),
     ///     kid: did.clone(),
-    ///     created_at: 1000,
+    ///     created_at: kinetic_kyn::types::UTime(1000),
     ///     controller_keys: vec![ControllerKey {
     ///         id: format!("{}#primary", did.as_str()),
-    ///         key_type: "MlDsa65".to_string(),
+    ///         key_type: "Controller".to_string(),
     ///         public_key: pubkey_b64,
     ///     }],
     ///     manifest: None,
@@ -133,7 +134,7 @@ impl Manifest {
     ///     doc_type: "kinetic.manifest.v1".to_string(),
     ///     kid: did,
     ///     version: 1,
-    ///     valid_from: 1000,
+    ///     valid_from: kinetic_kyn::types::UTime(1000),
     ///     expires_at: None,
     ///     services: vec![],
     ///     signature: None,
@@ -142,9 +143,9 @@ impl Manifest {
     /// let signed_manifest = manifest.sign_with_controller(&controller_key).unwrap();
     /// 
     /// // Verify at Unix timestamp 1005 (valid since it is >= valid_from)
-    /// assert!(signed_manifest.verify_at_time(&doc, 1005).is_ok());
+    /// assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(1005)).is_ok());
     /// ```
-    pub fn verify_at_time(&self, kid_document: &Document, unix_time: u64) -> Result<(), Error> {
+    pub fn verify_at_time(&self, kid_document: &Document, unix_time: UTime) -> Result<(), Error> {
         if kid_document.controller_keys.len() > 20 {
             return Err(Error::KeyLimitExceeded);
         }
@@ -153,11 +154,11 @@ impl Manifest {
             return Err(Error::UnauthorizedManifestSignature);
         }
 
-        if self.valid_from > unix_time + 300 {
+        if self.valid_from.0 > unix_time.0 + 300 {
             return Err(Error::InvalidValidFrom);
         }
         if let Some(expires) = self.expires_at
-            && unix_time >= expires
+            && unix_time.0 >= expires.0
         {
             return Err(Error::ManifestExpired);
         }
@@ -194,8 +195,7 @@ impl Manifest {
         msg_bytes.extend_from_slice(msg_str.as_bytes());
 
         for key in &kid_document.controller_keys {
-            if (key.key_type.eq_ignore_ascii_case("MlDsa65")
-                || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
+            if key.key_type.eq_ignore_ascii_case("Controller")
                 && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
                 && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
             {

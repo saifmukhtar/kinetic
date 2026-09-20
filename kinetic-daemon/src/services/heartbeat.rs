@@ -106,7 +106,7 @@ pub fn start_heartbeat_loop(
             }
 
             let current_live = lklr.load(Ordering::Relaxed);
-            if !kyn.can_heartbeat(kinetic_types::clock::Kyn(current_live)) {
+            if !kyn.can_heartbeat(kinetic_kyn::types::Kyn(current_live)) {
                 continue;
             }
 
@@ -122,7 +122,7 @@ pub fn start_heartbeat_loop(
                 for name in names {
                     let mut heartbeat = Heartbeat {
                         name: name.clone(),
-                        latest_kyn: kyn.kyn,
+                        latest_kyn: kinetic_kyn::types::Kyn(kyn.kyn),
                         owner_signature: vec![],
                         authorization: None,
                     };

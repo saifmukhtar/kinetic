@@ -12,8 +12,8 @@ use axum::{
     extract::{Extension, Path, State},
 };
 use kinetic_core::traits::KynProvider;
-use kinetic_core::types::Kyn;
-use kinetic_core::types::clock::KynNetworkExt;
+use kinetic_kyn::types::Kyn;
+
 use serde::Deserialize;
 
 /// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
@@ -482,7 +482,7 @@ pub async fn handle_publish_manifest(
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time = get_safe_current_kyn(&state).await.to_network_utime().0;
+    let current_network_time = get_safe_current_kyn(&state).await.to_utime(kinetic_core::constants::DRAND_GENESIS_TIME, kinetic_core::constants::DRAND_PERIOD);
     if let Err(e) = auth_manifest
         .manifest
         .verify_at_time(&kid_doc, current_network_time)

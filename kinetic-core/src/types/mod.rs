@@ -12,7 +12,6 @@
 //! | `names` | validation fns | LDH domain name parsing and normalization |
 //! | `vdf` | `VdfProof`, `Commitment` | VDF proof and commitment wire types |
 
-pub mod clock;
 pub mod identity;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod name_record;
@@ -21,7 +20,6 @@ pub mod nrs;
 pub mod protocol;
 pub mod vdf;
 
-pub use clock::*;
 pub use identity::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use name_record::*;

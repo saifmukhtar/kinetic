@@ -82,7 +82,7 @@ pub enum ActionEffect {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionState {
     /// Genesis Kyn when action tracking started.
-    pub genesis_kyn: kinetic_types::clock::Kyn,
+    pub genesis_kyn: kinetic_kyn::types::Kyn,
     /// Active Sovereign public key controlling the network.
     pub active_sovereign_key: Option<PublicKeyBytes>,
     /// Master boolean flag if the network is currently paused.
@@ -90,16 +90,16 @@ pub struct ActionState {
     pub is_halted: bool,
     /// The exact Kyn when the network was halted (if currently halted).
     #[serde(default)]
-    pub halt_start_kyn: Option<kinetic_types::clock::Kyn>,
+    pub halt_start_kyn: Option<kinetic_kyn::types::Kyn>,
     /// Total number of KineticTime kyns the network has been paused for since genesis.
     #[serde(default)]
     pub total_paused_kyns: u64,
     /// Historical timeline of all network pauses (start_kyn, end_kyn).
     #[serde(default)]
-    pub pause_history: Vec<(kinetic_types::clock::Kyn, kinetic_types::clock::Kyn)>,
+    pub pause_history: Vec<(kinetic_kyn::types::Kyn, kinetic_kyn::types::Kyn)>,
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
-    pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
+    pub executed_hashes: HashMap<Hash256, kinetic_kyn::types::Kyn>,
     #[serde(default)]
     /// Append-only log of all executed signed action messages (used for P2P state syncing).
     pub action_log: Vec<kinetic_types::action::SignedActionMessage>,
@@ -117,7 +117,7 @@ impl ActionState {
     /// # Examples
     /// ```rust
     /// use kinetic_action::types::ActionState;
-    /// use kinetic_types::clock::Kyn;
+    /// use kinetic_kyn::types::Kyn;
     /// use std::collections::HashMap;
     /// 
     /// let mut state = ActionState {
@@ -139,7 +139,7 @@ impl ActionState {
     /// // If an event happened at kyn 150, it only experienced the last 50 paused kyns.
     /// assert_eq!(state.paused_kyns_since(Kyn(150)), 50);
     /// ```
-    pub fn paused_kyns_since(&self, target_kyn: kinetic_types::clock::Kyn) -> u64 {
+    pub fn paused_kyns_since(&self, target_kyn: kinetic_kyn::types::Kyn) -> u64 {
         let mut total = 0;
         for &(start, end) in &self.pause_history {
             if end <= target_kyn {
@@ -161,7 +161,7 @@ impl ActionState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_types::clock::Kyn;
+    use kinetic_kyn::types::Kyn;
     use std::collections::HashMap;
 
     fn mock_state() -> ActionState {

@@ -82,7 +82,7 @@ pub struct LocalKidSummary {
     /// The W3C DID string.
     pub did: String,
     /// UNIX timestamp when the document was created.
-    pub created_at: u64,
+    pub created_at: kinetic_kyn::types::UTime,
     /// Path to the JSON document file.
     pub doc_path: PathBuf,
     /// Whether the corresponding private key exists locally.
@@ -96,14 +96,7 @@ pub fn get_kids_dir() -> PathBuf {
     crate::config::get_base_dir().join("kids")
 }
 
-/// Returns the current network-anchored Unix timestamp (seconds).
-///
-/// Derives the network time by mapping the estimated KYN Provider network time to exact Unix
-/// seconds aligned to 3-second network heartbeats using network constants.
-pub fn unix_time() -> kinetic_types::clock::UTime {
-    use kinetic_core::types::clock::KynNetworkExt;
-    kinetic_types::clock::Kyn::now_local().to_network_utime()
-}
+
 
 pub struct KidPaths {
     pub did_path: PathBuf,
@@ -231,7 +224,7 @@ pub fn get_or_create_kid_for_name(
     name: &str,
     inherit_subname: bool,
     force: bool,
-    current_kyn: kinetic_types::clock::Kyn,
+    current_kyn: kinetic_kyn::types::Kyn,
     master_key_path: &Path,
 ) -> Result<GeneratedKid, IdentityError> {
     let fqdn = normalize_name(name);
@@ -281,8 +274,10 @@ pub fn get_or_create_kid_for_name(
     let kid_did = Did::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
-    use kinetic_core::types::clock::KynNetworkExt;
-    let now_ts = current_kyn.to_network_utime().0;
+    let now_ts = current_kyn.to_utime(
+        kinetic_core::constants::DRAND_GENESIS_TIME,
+        kinetic_core::constants::DRAND_PERIOD,
+    );
 
     let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
@@ -539,7 +534,7 @@ pub fn load_local_manifest(name: &str) -> Result<Option<Manifest>, IdentityError
 pub fn save_and_sign_local_manifest(
     name: &str,
     services: Vec<Service>,
-    current_kyn: kinetic_types::clock::Kyn,
+    current_kyn: kinetic_kyn::types::Kyn,
     master_key_path: &Path,
 ) -> Result<(Manifest, AuthorizedManifest), IdentityError> {
     let fqdn = normalize_name(name);
@@ -573,8 +568,10 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    use kinetic_core::types::clock::KynNetworkExt;
-    let current_time = current_kyn.to_network_utime().0;
+    let current_time = current_kyn.to_utime(
+        kinetic_core::constants::DRAND_GENESIS_TIME,
+        kinetic_core::constants::DRAND_PERIOD,
+    );
 
     let manifest = Manifest {
         doc_type: "kinetic.manifest.v1".to_string(),
@@ -614,7 +611,7 @@ pub fn save_and_sign_local_manifest(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_core::types::{Kyn, KynNetworkExt};
+    use kinetic_kyn::types::Kyn;
     use lazy_static::lazy_static;
     use std::sync::Mutex;
     use tempfile::tempdir;
@@ -671,7 +668,7 @@ mod tests {
         assert!(apex.did.starts_with(DID_PREFIX));
         assert!(apex.doc_path.exists());
         assert!(apex.key_path.as_ref().unwrap().exists());
-        assert!(apex.kid_doc.verify().is_ok());
+        apex.kid_doc.verify().unwrap();
         assert!(apex.kid_doc.verify_genesis().is_ok());
 
         // Test Overwrite Guard (KIN-IDN-006)
@@ -774,7 +771,7 @@ mod tests {
         assert_eq!(saved_manifest.services.len(), 1);
         assert!(
             saved_manifest
-                .verify_at_time(&apex.kid_doc, Kyn(100).to_network_utime().0)
+                .verify_at_time(&apex.kid_doc, Kyn(100).to_utime(1692803367, 3))
                 .is_ok()
         );
         assert_eq!(auth_manifest.name, "saif.kin");

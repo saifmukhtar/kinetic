@@ -14,7 +14,7 @@ mod tests {
             name: name.to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            kyn,
+            kyn: kinetic_kyn::types::Kyn(kyn),
             drand_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
@@ -129,7 +129,7 @@ mod tests {
 
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
-            latest_kyn: 49,
+            latest_kyn: kinetic_kyn::types::Kyn(49),
             owner_signature: vec![],
             authorization: None,
         };
@@ -152,7 +152,7 @@ mod tests {
         let existing = kinetic_core::types::NameRecord::Prime {
             name: name.clone(),
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1, 2, 3]),
-            kyn: 0,
+            kyn: kinetic_kyn::types::Kyn(0),
             payload: vec![],
             owner_signature: vec![],
             authorization: None,
@@ -186,7 +186,7 @@ mod tests {
 
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
-            latest_kyn: 105,
+            latest_kyn: kinetic_kyn::types::Kyn(105),
             owner_signature: vec![],
             authorization: None,
         };

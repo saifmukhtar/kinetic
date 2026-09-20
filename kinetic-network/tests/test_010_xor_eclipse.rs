@@ -35,7 +35,7 @@ fn test_xor_eclipse_routing() {
         name: name.to_string(),
         salt: [0u8; 32],
         drand_signature: drand_signature.clone(),
-        kyn,
+        kyn: kinetic_kyn::types::Kyn(kyn),
         iterations,
         vdf_proof: real_vdf_proof,
         pubkey: pubkey.clone(),

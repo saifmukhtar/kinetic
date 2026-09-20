@@ -1,7 +1,7 @@
 //! HTTP REST API handlers for querying the Action transparency layer.
 
 use axum::Json;
-use kinetic_core::types::KynNetworkExt;
+
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -81,7 +81,7 @@ pub async fn handle_get_action_status(
         use kinetic_core::traits::KynProvider;
         match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn,
-            Err(_) => kinetic_core::types::Kyn::now_local().0, // Fallback to OS clock if DB is completely empty (genesis)
+            Err(_) => kinetic_kyn::types::Kyn::now_local().0, // Fallback to OS clock if DB is completely empty (genesis)
         }
     };
 
@@ -186,12 +186,12 @@ pub async fn handle_publish_action(
     let _current_kyn = {
         let kyn_provider =
             kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
-        use kinetic_core::types::clock::KynNetworkExt;
+
         match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn,
             Err(_) => match kyn_provider.fetch_latest().await {
                 Ok(kyn) => kyn.kyn,
-                Err(_) => kinetic_core::types::Kyn::now_local().0,
+                Err(_) => kinetic_kyn::types::Kyn::now_local().0,
             },
         }
     };
@@ -201,7 +201,7 @@ pub async fn handle_publish_action(
         let res = kinetic_core::action::process_action_message(
             &mut action_state,
             &msg,
-            kinetic_types::clock::Kyn(0), // Doesn't matter because it relies on signed_timestamp anyway
+            kinetic_kyn::types::Kyn(0), // Doesn't matter because it relies on signed_timestamp anyway
         );
         match res {
             Ok(_) => {

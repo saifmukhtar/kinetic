@@ -56,7 +56,7 @@ pub async fn start_routing_publisher(
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            kyn,
+            kyn: kinetic_kyn::types::Kyn(kyn),
             host_signature: vec![],
         };
 
@@ -115,7 +115,7 @@ pub async fn start_drand_heartbeat(
 
             let current_epoch = kinetic_network::pow::get_staggered_epoch(
                 &hb_local_peer_id.to_bytes(),
-                kinetic_types::clock::Kyn(kyn.kyn),
+                kinetic_kyn::types::Kyn(kyn.kyn),
             );
 
             let needs_validation = match last_verified_epoch {
@@ -129,7 +129,7 @@ pub async fn start_drand_heartbeat(
                 let pow_valid = tokio::task::spawn_blocking(move || {
                     kinetic_network::pow::verify_p2p_pow(
                         &peer_id_clone,
-                        kinetic_types::clock::Kyn(kyn_round),
+                        kinetic_kyn::types::Kyn(kyn_round),
                         kinetic_core::constants::POW_DIFFICULTY_BITS,
                     )
                 })
@@ -142,7 +142,7 @@ pub async fn start_drand_heartbeat(
                     );
                     let current_local_key = tokio::task::spawn_blocking(move || {
                         kinetic_network::pow::mine_p2p_keypair(
-                            kinetic_types::clock::Kyn(kyn_round),
+                            kinetic_kyn::types::Kyn(kyn_round),
                             kinetic_core::constants::POW_DIFFICULTY_BITS,
                         )
                     })

@@ -29,7 +29,7 @@ pub trait ActionEngine: Send + Sync {
         &self,
         state: &mut ActionState,
         msg: &SignedActionMessage,
-        current_kyn: kinetic_types::clock::Kyn,
+        current_kyn: kinetic_kyn::types::Kyn,
         config: &crate::types::ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError>;
 
@@ -44,7 +44,7 @@ pub trait ActionEngine: Send + Sync {
         &self,
         state: &mut ActionState,
         msg: &SignedActionMessage,
-        current_kyn: kinetic_types::clock::Kyn,
+        current_kyn: kinetic_kyn::types::Kyn,
         config: &crate::types::ActionConfig,
     ) -> Option<ActionEffect>;
 }

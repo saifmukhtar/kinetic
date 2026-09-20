@@ -26,7 +26,7 @@ pub struct Heartbeat {
     /// Name associated with this heartbeat.
     pub name: String,
     /// Latest KineticTime kyn number proving heartbeat recency.
-    pub latest_kyn: u64,
+    pub latest_kyn: kinetic_kyn::types::Kyn,
     /// Owner's cryptographic signature over [`signable_bytes`](Heartbeat::signable_bytes).
     pub owner_signature: Vec<u8>,
     /// Optional delegated authorization proof (Fat Heartbeat).
@@ -35,11 +35,9 @@ pub struct Heartbeat {
 }
 
 impl Heartbeat {
-    /// Serializes this heartbeat payload into a canonical byte string for owner signature verification.
+    /// Generates the canonical byte representation of the heartbeat for signing.
     ///
-    /// # Security
-    /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte 
-    /// `network_salt` and the literal `b"-heartbeat-v1"`, a heartbeat signed for 
+    /// By deliberately binding the signature to both the `network_salt` and the literal `b"-heartbeat-v1"`, a heartbeat signed for 
     /// the `.kin` network cannot be maliciously replayed on other networks.
     ///
     /// # Examples
@@ -48,7 +46,7 @@ impl Heartbeat {
     ///
     /// let hb = Heartbeat {
     ///     name: "example".to_string(),
-    ///     latest_kyn: 12345,
+    ///     latest_kyn: kinetic_kyn::types::Kyn(12345),
     ///     owner_signature: vec![],
     ///     authorization: None,
     /// };
@@ -95,7 +93,7 @@ pub enum NameRecord {
         #[serde(with = "crate::pubkey_serde::identity_serde")]
         pubkey: IdentityPubKey,
         /// The network kyn when this mapping was approved.
-        kyn: u64,
+        kyn: kinetic_kyn::types::Kyn,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
         /// The Identity signature authorizing the payload.
@@ -112,7 +110,7 @@ pub enum NameRecord {
         #[serde(with = "crate::pubkey_serde::identity_serde")]
         pubkey: IdentityPubKey,
         /// The network kyn when this mapping was approved.
-        kyn: u64,
+        kyn: kinetic_kyn::types::Kyn,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
         /// The Identity signature authorizing the payload.

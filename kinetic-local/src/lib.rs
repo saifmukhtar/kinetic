@@ -36,7 +36,6 @@
 //! - **[`secure_fs`]** — OS-level file permission hardening.
 //! - **[`shutdown`]** — Cross-platform graceful termination signals (SIGINT/SIGTERM).
 
-
 pub mod action;
 pub mod config;
 pub mod identity;
