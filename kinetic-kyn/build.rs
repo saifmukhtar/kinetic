@@ -14,18 +14,18 @@ fn main() {
         let parsed: Value = serde_json::from_str(&content)
             .expect("Failed to parse network.json");
 
-        if let Some(drand) = parsed.get("drand") {
-            if let Some(genesis_time) = drand.get("drand_genesis_time").and_then(|v| v.as_u64()) {
-                println!("cargo:rustc-env=DRAND_GENESIS_TIME={}", genesis_time);
+        if let Some(oracle) = parsed.get("time_oracle") {
+            if let Some(genesis_time) = oracle.get("kyn_genesis_time").and_then(|v| v.as_u64()) {
+                println!("cargo:rustc-env=KYN_GENESIS_TIME={}", genesis_time);
             }
-            if let Some(period) = drand.get("drand_period").and_then(|v| v.as_u64()) {
-                println!("cargo:rustc-env=DRAND_PERIOD={}", period);
+            if let Some(period) = oracle.get("kyn_period").and_then(|v| v.as_u64()) {
+                println!("cargo:rustc-env=KYN_PERIOD={}", period);
             }
-            if let Some(kinetic_genesis_kyn) = drand.get("kinetic_genesis_kyn").and_then(|v| v.as_u64()) {
+            if let Some(kinetic_genesis_kyn) = oracle.get("kinetic_genesis_kyn").and_then(|v| v.as_u64()) {
                 println!("cargo:rustc-env=KINETIC_GENESIS_KYN={}", kinetic_genesis_kyn);
             }
-            if let Some(public_key) = drand.get("drand_public_key").and_then(|v| v.as_str()) {
-                println!("cargo:rustc-env=DRAND_PUBLIC_KEY={}", public_key);
+            if let Some(public_key) = oracle.get("beacon_public_key").and_then(|v| v.as_str()) {
+                println!("cargo:rustc-env=BEACON_PUBLIC_KEY={}", public_key);
             }
         }
 

@@ -275,8 +275,8 @@ pub fn get_or_create_kid_for_name(
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
     let now_ts = current_kyn.to_utime(
-        kinetic_core::constants::DRAND_GENESIS_TIME,
-        kinetic_core::constants::DRAND_PERIOD,
+        kinetic_core::constants::KYN_GENESIS_TIME,
+        kinetic_core::constants::KYN_PERIOD,
     );
 
     let doc = Document {
@@ -569,8 +569,8 @@ pub fn save_and_sign_local_manifest(
     };
 
     let current_time = current_kyn.to_utime(
-        kinetic_core::constants::DRAND_GENESIS_TIME,
-        kinetic_core::constants::DRAND_PERIOD,
+        kinetic_core::constants::KYN_GENESIS_TIME,
+        kinetic_core::constants::KYN_PERIOD,
     );
 
     let manifest = Manifest {

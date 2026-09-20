@@ -25,7 +25,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> Kyn {
     }
 
     let kyn_provider =
-        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
     match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => Kyn(kyn.kyn),
         _ => Kyn::now_local(),
@@ -482,7 +482,7 @@ pub async fn handle_publish_manifest(
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time = get_safe_current_kyn(&state).await.to_utime(kinetic_core::constants::DRAND_GENESIS_TIME, kinetic_core::constants::DRAND_PERIOD);
+    let current_network_time = get_safe_current_kyn(&state).await.to_utime(kinetic_core::constants::KYN_GENESIS_TIME, kinetic_core::constants::KYN_PERIOD);
     if let Err(e) = auth_manifest
         .manifest
         .verify_at_time(&kid_doc, current_network_time)

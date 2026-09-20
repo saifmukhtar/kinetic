@@ -37,7 +37,7 @@ struct LimitsConfig {
     kid_max_public_key_bytes: usize,
     kid_max_location_bytes: usize,
     kid_max_endpoint_bytes: usize,
-    drand_max_response_bytes: usize,
+    beacon_max_response_bytes: usize,
     lru_cache_size: usize,
 }
 
@@ -62,12 +62,12 @@ struct NetworkSection {
 }
 
 #[derive(Deserialize)]
-struct DrandSection {
-    drand_genesis_time: u64,
-    drand_period: u64,
+struct TimeOracleSection {
+    kyn_genesis_time: u64,
+    kyn_period: u64,
     kinetic_genesis_kyn: u64,
-    drand_public_key: String,
-    drand_http_endpoints: Vec<String>,
+    beacon_public_key: String,
+    beacon_endpoints: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -90,7 +90,7 @@ struct AdvancedSection {
 #[derive(Deserialize)]
 struct NetworkConfig {
     network: NetworkSection,
-    drand: DrandSection,
+    time_oracle: TimeOracleSection,
     #[serde(alias = "action")]
     action: ActionSection,
     consensus: ConsensusConfig,
@@ -208,23 +208,23 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Unix timestamp of the Drand chain's genesis.\npub const DRAND_GENESIS_TIME: u64 = {};\n\n",
-        config.drand.drand_genesis_time
+        "/// Unix timestamp of the time oracle beacon's genesis.\npub const KYN_GENESIS_TIME: u64 = {};\n\n",
+        config.time_oracle.kyn_genesis_time
     ));
 
     out.push_str(&format!(
-        "/// Duration in seconds of each Drand kyn.\npub const DRAND_PERIOD: u64 = {};\n\n",
-        config.drand.drand_period
+        "/// Duration in seconds of each time oracle kyn.\npub const KYN_PERIOD: u64 = {};\n\n",
+        config.time_oracle.kyn_period
     ));
 
     out.push_str(&format!(
-        "/// The absolute Drand kyn at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Epoch/Cycle/Kyn).\npub const KINETIC_GENESIS_KYN: u64 = {};\n\n",
-        config.drand.kinetic_genesis_kyn
+        "/// The absolute oracle kyn at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Epoch/Cycle/Kyn).\npub const KINETIC_GENESIS_KYN: u64 = {};\n\n",
+        config.time_oracle.kinetic_genesis_kyn
     ));
 
     out.push_str(&format!(
         "/// The absolute Unix timestamp (in seconds) of the Kinetic network genesis.\npub const KINETIC_GENESIS_TIME: u64 = {};\n\n",
-        config.drand.drand_genesis_time + (config.drand.kinetic_genesis_kyn * config.drand.drand_period)
+        config.time_oracle.kyn_genesis_time + (config.time_oracle.kinetic_genesis_kyn * config.time_oracle.kyn_period)
     ));
 
     // Expose NSP as compile-time env vars so constants.rs can use env!() for
@@ -236,12 +236,12 @@ fn main() {
     );
 
     out.push_str(&format!(
-        "/// The League of Entropy public key for the Quicknet chain (or custom beacon).\npub const DRAND_PUBLIC_KEY: &str = \"{}\";\n\n",
-        config.drand.drand_public_key
+        "/// The public key for the time oracle beacon.\npub const BEACON_PUBLIC_KEY: &str = \"{}\";\n\n",
+        config.time_oracle.beacon_public_key
     ));
 
-    out.push_str("/// The set of Drand HTTP endpoints tried in order.\npub const DRAND_HTTP_ENDPOINTS: &[&str] = &[\n");
-    for endpoint in config.drand.drand_http_endpoints {
+    out.push_str("/// The set of time oracle HTTP endpoints tried in order.\npub const BEACON_ENDPOINTS: &[&str] = &[\n");
+    for endpoint in config.time_oracle.beacon_endpoints {
         out.push_str(&format!("    \"{}\",\n", endpoint));
     }
     out.push_str("];\n\n");
@@ -339,7 +339,7 @@ fn main() {
         "/// Maximum KID endpoint bytes\npub const LIMITS_KID_MAX_ENDPOINT_BYTES: usize = {};\n",
         config.advanced.limits.kid_max_endpoint_bytes
     ));
-    out.push_str(&format!("/// Maximum Drand response bytes\npub const LIMITS_DRAND_MAX_RESPONSE_BYTES: usize = {};\n", config.advanced.limits.drand_max_response_bytes));
+    out.push_str(&format!("/// Maximum time oracle response bytes\npub const LIMITS_BEACON_MAX_RESPONSE_BYTES: usize = {};\n", config.advanced.limits.beacon_max_response_bytes));
     out.push_str(&format!(
         "/// Size of LRU caches\npub const LIMITS_LRU_CACHE_SIZE: usize = {};\n\n",
         config.advanced.limits.lru_cache_size
@@ -367,22 +367,22 @@ fn main() {
     let prod_key = extract_root_key(&constants_src, "prod_keys");
     let test_key = extract_root_key(&constants_src, "test_keys");
 
-    // Compute the PROD salt (ROOT_KEY + DRAND_KEY + GENESIS_TIME)
+    // Compute the PROD salt (ROOT_KEY + BEACON_KEY + GENESIS_TIME)
     let mut hasher = Sha256::new();
     hasher.update(prod_key.as_bytes());
-    hasher.update(config.drand.drand_public_key.as_bytes());
-    hasher.update(config.drand.drand_genesis_time.to_be_bytes());
+    hasher.update(config.time_oracle.beacon_public_key.as_bytes());
+    hasher.update(config.time_oracle.kyn_genesis_time.to_be_bytes());
     let prod_salt = hasher.finalize();
 
-    // Compute the TEST salt (ROOT_KEY + DRAND_KEY + GENESIS_TIME)
+    // Compute the TEST salt (ROOT_KEY + BEACON_KEY + GENESIS_TIME)
     let mut hasher_test = Sha256::new();
     hasher_test.update(test_key.as_bytes());
-    hasher_test.update(config.drand.drand_public_key.as_bytes());
-    hasher_test.update(config.drand.drand_genesis_time.to_be_bytes());
+    hasher_test.update(config.time_oracle.beacon_public_key.as_bytes());
+    hasher_test.update(config.time_oracle.kyn_genesis_time.to_be_bytes());
     let test_salt = hasher_test.finalize();
 
     out.push_str(&format!(
-        "/// The mathematical network salt for production, derived from ROOT_PUBLIC_KEY + DRAND_PUBLIC_KEY + DRAND_GENESIS_TIME.\n\
+        "/// The mathematical network salt for production, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + KYN_GENESIS_TIME.\n\
          pub const NETWORK_SALT_PROD: [u8; 32] = {:?};\n\n",
         prod_salt.as_slice()
     ));
@@ -402,7 +402,7 @@ fn main() {
     );
 
     out.push_str(&format!(
-        "/// The mathematical network salt for testing, derived from ROOT_PUBLIC_KEY + DRAND_PUBLIC_KEY + DRAND_GENESIS_TIME.\n\
+        "/// The mathematical network salt for testing, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + KYN_GENESIS_TIME.\n\
          pub const NETWORK_SALT_TEST: [u8; 32] = {:?};\n\n",
         test_salt.as_slice()
     ));

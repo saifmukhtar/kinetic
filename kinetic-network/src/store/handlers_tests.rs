@@ -15,7 +15,7 @@ mod tests {
             payload: vec![],
             salt: [0u8; 32],
             kyn: kinetic_kyn::types::Kyn(kyn),
-            drand_signature: String::new(),
+            beacon_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
                 proof_bytes: vec![],

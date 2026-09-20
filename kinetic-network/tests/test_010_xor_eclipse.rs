@@ -14,7 +14,7 @@ fn test_xor_eclipse_routing() {
     let mut kyn_bytes = [0u8; 32];
     kyn_bytes[..8].copy_from_slice(&kyn.to_be_bytes());
 
-    let drand_signature = hex::encode(kyn_bytes);
+    let beacon_signature = hex::encode(kyn_bytes);
 
     let name = "thisisaverylongnamethatisverycheap.kin";
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
@@ -34,7 +34,7 @@ fn test_xor_eclipse_routing() {
     let mut real_reveal = Reveal {
         name: name.to_string(),
         salt: [0u8; 32],
-        drand_signature: drand_signature.clone(),
+        beacon_signature: beacon_signature.clone(),
         kyn: kinetic_kyn::types::Kyn(kyn),
         iterations,
         vdf_proof: real_vdf_proof,

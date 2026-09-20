@@ -7,7 +7,7 @@
 //!
 //! Because time advances, a PoW identity eventually expires. If a headless server goes offline, 
 //! the hosted `.kin` zone becomes unreachable. To ensure 24/7 uptime, this module runs the 
-//! `start_drand_heartbeat` loop (Note: functionally acting as a generic KYN Time Oracle).
+//! `start_time_oracle_heartbeat` loop (Note: functionally acting as a generic KYN Time Oracle).
 //!
 //! When the loop detects that the network epoch is about to advance, it preemptively spins up 
 //! a background thread to calculate a *new* Proof-of-Work identity for the upcoming time epoch. 
@@ -81,14 +81,14 @@ pub async fn start_routing_publisher(
 /// If the identity is found to be expired based on the staggered epoch progression, it terminates the existing
 /// network loop, mines a new identity, and restarts the P2P swarm asynchronously to ensure seamless connectivity.
 #[allow(clippy::too_many_arguments)]
-pub async fn start_drand_heartbeat(
+pub async fn start_time_oracle_heartbeat(
     hb_kyn_provider: Arc<dyn KynProvider>,
     kyn_tx: watch::Sender<u64>,
     mut hb_local_peer_id: libp2p::PeerId,
     shared_peer_id: Arc<RwLock<String>>,
     loop_handle_ref: Arc<tokio::sync::Mutex<tokio::task::JoinHandle<()>>>,
     hc_client: NetworkClient,
-    hc_drand_rx: watch::Receiver<u64>,
+    kyn_rx: watch::Receiver<u64>,
     hc_config: NetworkConfig,
     hc_storage: Arc<dyn kinetic_core::traits::StorageEngine>,
     hc_inc_tx: tokio::sync::mpsc::Sender<(
@@ -172,7 +172,7 @@ pub async fn start_drand_heartbeat(
                             hc_config.clone(),
                             current_local_key.clone(),
                             hc_storage.clone(),
-                            hc_drand_rx.clone(),
+                            kyn_rx.clone(),
                             Some(hc_inc_tx.clone()),
                             Some(hc_gossip_tx.clone()),
                             hc_vdf_engine.clone(),

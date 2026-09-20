@@ -142,7 +142,7 @@ pub enum KineticError {
     /// Raised when the kyn number is wrong, the hex encoding is malformed,
     /// or the BLS signature does not verify against the provider network public key.
     #[error("Invalid network kyn: {0}")]
-    InvalidDrandRound(String),
+    InvalidBeaconRound(String),
 
     /// A storage operation in the embedded database failed.
     ///

@@ -13,7 +13,7 @@ fn test_subdomain_escalation_validation() {
         payload: vec![],
         salt: [0; 32],
         kyn: kinetic_kyn::types::Kyn(1000),
-        drand_signature: "0".repeat(192),
+        beacon_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],
@@ -35,7 +35,7 @@ fn test_subdomain_escalation_validation() {
         payload: vec![],
         salt: [0; 32],
         kyn: kinetic_kyn::types::Kyn(1000),
-        drand_signature: "0".repeat(192),
+        beacon_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],

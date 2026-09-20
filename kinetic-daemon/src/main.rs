@@ -334,7 +334,7 @@ async fn run_daemon() -> Result<()> {
     );
 
     let kyn_provider: Arc<dyn KynProvider> = Arc::new(
-        kinetic_network::client::drand::DrandProvider::new(Some(storage.clone())),
+        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage.clone())),
     );
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
@@ -658,7 +658,7 @@ async fn run_daemon() -> Result<()> {
         storage.clone(),
         network_client.clone(),
         kyn_provider.clone(),
-        config.drand.p2p_only,
+        config.time_oracle.p2p_only,
         initial_kyn,
         daemon_keypair.clone(),
         kyn_tx.clone(),

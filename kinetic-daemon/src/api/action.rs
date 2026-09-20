@@ -77,7 +77,7 @@ pub async fn handle_get_action_status(
     // Fetch verified Kyn from the node's constantly updating local cache
     let current_kyn = {
         let kyn_provider =
-            kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
         use kinetic_core::traits::KynProvider;
         match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn,
@@ -185,7 +185,7 @@ pub async fn handle_publish_action(
 
     let _current_kyn = {
         let kyn_provider =
-            kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
 
         match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn,

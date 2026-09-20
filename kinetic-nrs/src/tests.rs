@@ -47,7 +47,7 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         payload,
         salt: [0u8; 32],
         kyn: kinetic_kyn::types::Kyn(0),
-        drand_signature: "".to_string(),
+        beacon_signature: "".to_string(),
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: vec![],
         },

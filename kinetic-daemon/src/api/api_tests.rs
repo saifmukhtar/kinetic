@@ -138,7 +138,7 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100,
-                "drand_signature": "0".repeat(192),
+                "beacon_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
@@ -176,7 +176,7 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100,
-                "drand_signature": "0".repeat(192),
+                "beacon_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
@@ -218,7 +218,7 @@ mod tests {
         };
         storage
             .put(
-                kinetic_core::constants::DB_PREFIX_LAST_DRAND,
+                kinetic_core::constants::DB_PREFIX_LAST_KYN,
                 &serde_json::to_vec(&mock_kyn).unwrap(),
             )
             .unwrap();
@@ -231,7 +231,7 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100, // Very old
-                "drand_signature": "0".repeat(192),
+                "beacon_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
@@ -272,7 +272,7 @@ mod tests {
             payload: vec![1, 2, 3],
             salt: [0; 32],
             kyn: kinetic_kyn::types::Kyn(100),
-            drand_signature: "0".repeat(192),
+            beacon_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],

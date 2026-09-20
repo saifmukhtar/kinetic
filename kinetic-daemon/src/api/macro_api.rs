@@ -18,7 +18,6 @@ use axum::{
     Json,
     extract::{Extension, Path, State},
 };
-use kinetic_core::traits::KynProvider;
 
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -114,7 +113,7 @@ pub async fn handle_macro_register_name(
         // Step 1: KYN Time Oracle
         update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);
         let kyn_provider: std::sync::Arc<dyn kinetic_core::traits::KynProvider> = std::sync::Arc::new(
-            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone())),
+            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage_clone.clone())),
         );
         let drand_data = match kyn_provider.load_cached() {
             Ok(data) => data,
@@ -251,7 +250,7 @@ pub async fn handle_macro_register_name(
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
         let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
-            * kinetic_core::constants::DRAND_PERIOD)
+            * kinetic_core::constants::KYN_PERIOD)
             + 2;
         update_task_status(
             &tasks_clone,
@@ -267,7 +266,7 @@ pub async fn handle_macro_register_name(
         update_task_status(&tasks_clone, &task_id_clone, "Injecting Identity (KID)", 92);
         let current_kyn = {
             let kyn_provider =
-                kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
+                kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage_clone.clone()));
             use kinetic_core::traits::KynProvider;
 
             match kyn_provider.load_cached() {
@@ -325,7 +324,7 @@ pub async fn handle_macro_register_name(
             payload,
             salt,
             kyn: kinetic_kyn::types::Kyn(drand_data.kyn),
-            drand_signature: drand_data.signature.clone(),
+            beacon_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
@@ -510,7 +509,7 @@ pub async fn handle_macro_renew_name(
         // Step 2: KYN Time Oracle
         update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);
         let kyn_provider: std::sync::Arc<dyn kinetic_core::traits::KynProvider> = std::sync::Arc::new(
-            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone())),
+            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage_clone.clone())),
         );
         let drand_data = match kyn_provider.load_cached() {
             Ok(d) => d,
@@ -638,7 +637,7 @@ pub async fn handle_macro_renew_name(
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
         let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
-            * kinetic_core::constants::DRAND_PERIOD)
+            * kinetic_core::constants::KYN_PERIOD)
             + 2;
         update_task_status(
             &tasks_clone,
@@ -653,7 +652,7 @@ pub async fn handle_macro_renew_name(
         let previous_proof = kinetic_core::types::PreviousProof {
             salt: old_reveal.salt,
             kyn: old_reveal.kyn,
-            drand_signature: old_reveal.drand_signature.clone(),
+            beacon_signature: old_reveal.beacon_signature.clone(),
             iterations: old_reveal.iterations,
             vdf_proof: old_reveal.vdf_proof.clone(),
             identity_signature: old_reveal.identity_signature.clone(),
@@ -665,7 +664,7 @@ pub async fn handle_macro_renew_name(
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
             kyn: kinetic_kyn::types::Kyn(drand_data.kyn),
-            drand_signature: drand_data.signature.clone(),
+            beacon_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,

@@ -174,8 +174,8 @@ impl super::core::NetworkEventLoop {
 
         if is_kid {
             let current_time = kinetic_kyn::types::Kyn(current_kyn).to_utime(
-                kinetic_core::constants::DRAND_GENESIS_TIME,
-                kinetic_core::constants::DRAND_PERIOD,
+                kinetic_core::constants::KYN_GENESIS_TIME,
+                kinetic_core::constants::KYN_PERIOD,
             ).0;
 
             parsed
@@ -268,47 +268,27 @@ impl super::core::NetworkEventLoop {
                         continue;
                     }
 
-                    use drand_verify::Pubkey;
                     use kinetic_core::traits::VdfEngine;
                     use kinetic_vdf::RsaVdfEngine;
 
-                    let drand_sig_bytes = match hex::decode(&reveal.drand_signature) {
+                    let drand_sig_bytes = match hex::decode(&reveal.beacon_signature) {
                         Ok(b) => b,
                         Err(e) => {
                             tracing::warn!(
-                                error = ?kinetic_core::error::RecordRejectReason::InvalidDrandHex,
-                                "Skipping candidate: invalid drand_signature hex: {}",
+                                error = ?kinetic_core::error::RecordRejectReason::InvalidBeaconHex,
+                                "Skipping candidate: invalid beacon_signature hex: {}",
                                 e
                             );
                             continue;
                         }
                     };
 
-                    if !dev_mode {
-                        let pubkey_bytes: [u8; 96] =
-                            match hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY) {
-                                Ok(b) => match b.try_into() {
-                                    Ok(arr) => arr,
-                                    Err(_) => continue,
-                                },
-                                Err(_) => continue,
-                            };
-
-                        let pubkey = match drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes) {
-                            Ok(p) => p,
-                            Err(_) => continue,
-                        };
-
-                        if !pubkey
-                            .verify(reveal.kyn.0, &[], &drand_sig_bytes)
-                            .unwrap_or(false)
-                        {
-                            tracing::warn!(
-                                error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
-                                "Skipping candidate: invalid drand BLS signature"
-                            );
-                            continue;
-                        }
+                    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.0, &reveal.beacon_signature, dev_mode) {
+                        tracing::warn!(
+                            error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
+                            "Skipping candidate: Invalid beacon_signature in tie-breaker"
+                        );
+                        continue;
                     }
 
                     let drand_bytes = kinetic_primitives::sha256_hash(&drand_sig_bytes);
@@ -431,7 +411,7 @@ mod tests {
             payload: vec![],
             salt: [0u8; 32],
             kyn: kinetic_kyn::types::Kyn(0),
-            drand_signature: "0".repeat(192),
+            beacon_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,
             pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),

@@ -41,7 +41,7 @@ async fn test_action_integration_halt() {
         name: "test".to_string(),
         pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; 32]),
         salt: [0; 32],
-        drand_signature: "0000".to_string(), // invalid but will be rejected by halt first
+        beacon_signature: "0000".to_string(), // invalid but will be rejected by halt first
         kyn: kinetic_kyn::types::Kyn(1000),
         iterations: 1000,
         vdf_proof: kinetic_core::types::VdfProof {

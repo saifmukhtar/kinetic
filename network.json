@@ -7,12 +7,12 @@
     "local_bind_ip": "127.0.0.2",
     "bootstrap_nodes": []
   },
-  "drand": {
-    "drand_genesis_time": 1692803367,
-    "drand_period": 3,
+  "time_oracle": {
+    "kyn_genesis_time": 1692803367,
+    "kyn_period": 3,
     "kinetic_genesis_kyn": 30579969,
-    "drand_public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
-    "drand_http_endpoints": [
+    "beacon_public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
+    "beacon_endpoints": [
       "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
       "https://drand.cloudflare.com/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
       "https://api.drand.secureweb3.com:6875/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
@@ -57,7 +57,7 @@
       "kid_max_public_key_bytes": 8192,
       "kid_max_location_bytes": 2048,
       "kid_max_endpoint_bytes": 256,
-      "drand_max_response_bytes": 65536,
+      "beacon_max_response_bytes": 65536,
       "lru_cache_size": 100000
     },
     "timeouts": {

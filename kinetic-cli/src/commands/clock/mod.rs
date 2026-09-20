@@ -2,7 +2,7 @@
 
 use clap::Args;
 use kinetic_core::config::KineticConfig;
-use kinetic_core::constants::{DRAND_GENESIS_TIME, DRAND_PERIOD};
+use kinetic_core::constants::{KYN_GENESIS_TIME, KYN_PERIOD};
 use kinetic_kyn::types::KineticTime;
 use std::time::SystemTime;
 
@@ -73,8 +73,8 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
                 .unwrap_or_default()
                 .as_secs();
 
-            let current_kyn = if now > DRAND_GENESIS_TIME {
-                (now - DRAND_GENESIS_TIME) / DRAND_PERIOD
+            let current_kyn = if now > KYN_GENESIS_TIME {
+                (now - KYN_GENESIS_TIME) / KYN_PERIOD
             } else {
                 0
             };

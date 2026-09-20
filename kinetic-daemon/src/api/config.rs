@@ -210,7 +210,7 @@ pub async fn handle_get_health(
     // Check if storage is accessible by reading a known key
     let storage_ok = state
         .storage
-        .get(kinetic_core::constants::DB_PREFIX_LAST_DRAND)
+        .get(kinetic_core::constants::DB_PREFIX_LAST_KYN)
         .is_ok();
 
     if network_ok && storage_ok {

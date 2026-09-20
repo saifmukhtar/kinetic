@@ -53,8 +53,8 @@ pub fn start_heartbeat_loop(
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                    let expected_kyn = (now - kinetic_core::constants::DRAND_GENESIS_TIME)
-                        / kinetic_core::constants::DRAND_PERIOD;
+                    let expected_kyn = (now - kinetic_core::constants::KYN_GENESIS_TIME)
+                        / kinetic_core::constants::KYN_PERIOD;
 
                     if expected_kyn > latest.kyn + 5 {
                         let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
@@ -75,7 +75,7 @@ pub fn start_heartbeat_loop(
                             let _ = kyn_tx_hb.send(p.kyn);
                             if !p2p_only && let Ok(payload) = serde_json::to_vec(&p) {
                                 let mut envelope =
-                                    vec![kinetic_types::network::NetworkOpcode::Drand as u8];
+                                    vec![kinetic_types::network::NetworkOpcode::KineticTime as u8];
                                 envelope.extend(payload);
                                 let _ = hb_network
                                     .broadcast_gossip(

@@ -39,10 +39,10 @@ impl RevealExt for Reveal {
             ));
         }
 
-        if self.drand_signature.len() != 192 {
-            return Err(RevealValidationError::InvalidDrandSignatureLength(
+        if self.beacon_signature.len() != 192 {
+            return Err(RevealValidationError::InvalidBeaconSignatureLength(
                 192,
-                self.drand_signature.len(),
+                self.beacon_signature.len(),
             ));
         }
 
@@ -86,7 +86,7 @@ mod tests {
                 proof_bytes: vec![0u8; 100],
             },
             kyn: kinetic_kyn::types::Kyn(1000),
-            drand_signature: "a".repeat(192),
+            beacon_signature: "a".repeat(192),
             salt: [0u8; 32],
             protocol_version: 1,
             authorization: None,
@@ -130,21 +130,21 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_drand_signature_length() {
+    fn test_invalid_beacon_signature_length() {
         let mut reveal = valid_reveal();
 
         // Too short
-        reveal.drand_signature = "a".repeat(191);
+        reveal.beacon_signature = "a".repeat(191);
         assert!(matches!(
             reveal.validate().unwrap_err(),
-            RevealValidationError::InvalidDrandSignatureLength(192, 191)
+            RevealValidationError::InvalidBeaconSignatureLength(192, 191)
         ));
 
         // Too long
-        reveal.drand_signature = "a".repeat(193);
+        reveal.beacon_signature = "a".repeat(193);
         assert!(matches!(
             reveal.validate().unwrap_err(),
-            RevealValidationError::InvalidDrandSignatureLength(192, 193)
+            RevealValidationError::InvalidBeaconSignatureLength(192, 193)
         ));
     }
 

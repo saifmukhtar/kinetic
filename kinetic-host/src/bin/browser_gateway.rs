@@ -15,7 +15,7 @@ use tokio::sync::watch;
 
 async fn fetch_kyn() -> u64 {
     let client = reqwest::Client::new();
-    let ping_endpoint = kinetic_core::constants::DRAND_HTTP_ENDPOINTS
+    let ping_endpoint = kinetic_core::constants::BEACON_ENDPOINTS
         .first()
         .unwrap_or(&"");
     if let Ok(res) = client.get(*ping_endpoint).send().await

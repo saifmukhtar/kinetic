@@ -40,7 +40,7 @@ use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::drand::RawKyn;
 use kinetic_core::traits::KynProvider;
-use kinetic_network::client::drand::DrandProvider;
+use kinetic_network::client::time_oracle::TimeOracleProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -199,7 +199,7 @@ pub async fn run_node() -> Result<()> {
     info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
-    let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
+    let kyn_provider: Arc<dyn KynProvider> = Arc::new(TimeOracleProvider::new(Some(storage.clone())));
 
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
@@ -418,7 +418,7 @@ pub async fn run_node() -> Result<()> {
                         Some(gossip_storage.clone()),
                         current_kyn,
                     );
-                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8
+                } else if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
                     && kyn.verify_beacon(kinetic_core::config::is_dev_mode())
                 {
@@ -460,7 +460,7 @@ pub async fn run_node() -> Result<()> {
     // 6. Start Time Oracle Heartbeat
     let hb_kyn_provider = kyn_provider.clone();
     let hb_network = network_client.clone();
-    let p2p_only = config.drand.p2p_only;
+    let p2p_only = config.time_oracle.p2p_only;
     tokio::spawn(async move {
         // Quicknet produces a block every 3 seconds.
         let mut interval = tokio::time::interval(Duration::from_secs(3));
@@ -476,8 +476,8 @@ pub async fn run_node() -> Result<()> {
                         .unwrap_or_default()
                         .as_secs();
                     let estimated_kyn = now
-                        .saturating_sub(kinetic_core::constants::DRAND_GENESIS_TIME)
-                        / kinetic_core::constants::DRAND_PERIOD;
+                        .saturating_sub(kinetic_core::constants::KYN_GENESIS_TIME)
+                        / kinetic_core::constants::KYN_PERIOD;
 
                     if estimated_kyn > latest.kyn + 5 {
                         let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
@@ -499,7 +499,7 @@ pub async fn run_node() -> Result<()> {
                 let _ = kyn_tx.send(kyn.kyn);
                 // Broadcast to P2P network if we are fetching HTTP
                 if !p2p_only && let Ok(payload) = serde_json::to_vec(&kyn) {
-                    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Drand as u8];
+                    let mut envelope = vec![kinetic_types::network::NetworkOpcode::KineticTime as u8];
                     envelope.extend(payload);
                     let _ = hb_network
                         .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL, envelope)

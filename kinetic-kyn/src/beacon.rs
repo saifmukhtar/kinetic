@@ -24,6 +24,37 @@ pub struct RawKyn {
     pub is_unavailable: bool,
 }
 
+/// Abstract cryptographic verifier for time beacon signatures.
+/// 
+/// Confirms that the `signature_hex` is a valid BLS12-381 G2 signature produced by the 
+/// globally trusted time beacon for the provided `kyn` round.
+pub fn verify_beacon_signature(kyn: u64, signature_hex: &str, bypass_signature: bool) -> bool {
+    if bypass_signature {
+        return true;
+    }
+
+    let beacon_public_key = env!("BEACON_PUBLIC_KEY");
+    let pubkey_bytes: [u8; 96] = match hex::decode(beacon_public_key)
+        .ok()
+        .and_then(|b| b.try_into().ok())
+    {
+        Some(b) => b,
+        None => return false,
+    };
+
+    let pubkey = match G2PubkeyRfc::from_fixed(pubkey_bytes) {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+
+    let sig_bytes = match hex::decode(signature_hex) {
+        Ok(b) => b,
+        Err(_) => return false,
+    };
+
+    pubkey.verify(kyn, &[], &sig_bytes).unwrap_or(false)
+}
+
 impl RawKyn {
     /// Returns a sentinel [`RawKyn`] representing an unavailable beacon state.
     pub fn unavailable() -> Self {
@@ -70,29 +101,14 @@ impl RawKyn {
             return true;
         }
 
-        let drand_public_key = env!("DRAND_PUBLIC_KEY");
-        let pubkey_bytes: [u8; 96] = match hex::decode(drand_public_key)
-            .ok()
-            .and_then(|b| b.try_into().ok())
-        {
-            Some(b) => b,
-            None => return false,
-        };
-
-        let pubkey = match G2PubkeyRfc::from_fixed(pubkey_bytes) {
-            Ok(p) => p,
-            Err(_) => return false,
-        };
+        if !verify_beacon_signature(self.kyn, &self.signature, false) {
+            return false;
+        }
 
         let sig_bytes = match hex::decode(&self.signature) {
             Ok(b) => b,
             Err(_) => return false,
         };
-
-        // 1. Verify BLS signature over the kyn (Quicknet is unchained, so previous_signature is empty array)
-        if !pubkey.verify(self.kyn, &[], &sig_bytes).unwrap_or(false) {
-            return false;
-        }
 
         // 2. Bind the randomness to the signature: randomness MUST equal SHA-256(signature).
         // Since sha256_hash is in kinetic-primitives, we need to import it or use sha2 directly.

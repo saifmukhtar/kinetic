@@ -33,11 +33,11 @@ impl Commitment {
         network_salt: &[u8; 32],
         name: &str,
         user_salt: &[u8; 32],
-        drand_signature_bytes: &[u8],
+        beacon_signature_bytes: &[u8],
         pubkey: &IdentityPubKey,
     ) -> Self {
         // Compress the 96-byte BLS12-381 G2 Drand signature into a 32-byte hash
-        let drand_rand = kinetic_primitives::sha256_hash(drand_signature_bytes);
+        let drand_rand = kinetic_primitives::sha256_hash(beacon_signature_bytes);
 
         // Construct the unified VDF challenge
         let mut data = Vec::with_capacity(
@@ -80,7 +80,7 @@ pub struct PreviousProof {
     /// Associated KineticTime kyn number from prior registration.
     pub kyn: kinetic_kyn::types::Kyn,
     /// Hex-encoded KineticTime BLS12-381 G2 signature from prior registration.
-    pub drand_signature: String,
+    pub beacon_signature: String,
     /// Number of VDF iterations completed in prior registration.
     pub iterations: u64,
     /// Embedded VDF proof bytes.
@@ -97,7 +97,7 @@ impl PreviousProof {
             + prefix.len()
             + 32 // salt
             + 8 // kyn
-            + 4 + self.drand_signature.len()
+            + 4 + self.beacon_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
             + 4 + self.identity_signature.len();
@@ -108,8 +108,8 @@ impl PreviousProof {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.kyn.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.drand_signature.as_bytes());
+        bytes.extend_from_slice(&(self.beacon_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.beacon_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 
@@ -136,7 +136,7 @@ impl PreviousProof {
     /// let prev = PreviousProof {
     ///     salt: [0u8; 32],
     ///     kyn: kinetic_kyn::types::Kyn(12345),
-    ///     drand_signature: "abcd".to_string(),
+    ///     beacon_signature: "abcd".to_string(),
     ///     iterations: 1000,
     ///     vdf_proof: VdfProof { proof_bytes: vec![] },
     ///     identity_signature: vec![],
@@ -151,7 +151,7 @@ impl PreviousProof {
             + prefix.len()
             + 32 // salt
             + 8 // kyn
-            + 4 + self.drand_signature.len()
+            + 4 + self.beacon_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len();
 
@@ -161,8 +161,8 @@ impl PreviousProof {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.kyn.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.drand_signature.as_bytes());
+        bytes.extend_from_slice(&(self.beacon_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.beacon_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 
@@ -188,7 +188,7 @@ pub struct Reveal {
     /// Associated KineticTime kyn number.
     pub kyn: kinetic_kyn::types::Kyn,
     /// Hex-encoded KineticTime BLS12-381 G2 signature.
-    pub drand_signature: String,
+    pub beacon_signature: String,
     /// Number of VDF iterations completed.
     pub iterations: u64,
     /// Evaluated VDF proof.
@@ -223,7 +223,7 @@ impl Reveal {
     ///     payload: vec![],
     ///     salt: [0u8; 32],
     ///     kyn: kinetic_kyn::types::Kyn(12345),
-    ///     drand_signature: "abcd".to_string(),
+    ///     beacon_signature: "abcd".to_string(),
     ///     iterations: 1000,
     ///     vdf_proof: VdfProof { proof_bytes: vec![] },
     ///     pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
@@ -250,7 +250,7 @@ impl Reveal {
             + 4 + self.payload.len()
             + 32 // salt
             + 8 // kyn
-            + 4 + self.drand_signature.len()
+            + 4 + self.beacon_signature.len()
             + 8 // iterations
             + 4 + self.vdf_proof.proof_bytes.len()
             + 4 + self.pubkey.len()
@@ -274,8 +274,8 @@ impl Reveal {
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.kyn.to_be_bytes());
 
-        bytes.extend_from_slice(&(self.drand_signature.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(self.drand_signature.as_bytes());
+        bytes.extend_from_slice(&(self.beacon_signature.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(self.beacon_signature.as_bytes());
 
         bytes.extend_from_slice(&self.iterations.to_be_bytes());
 
@@ -306,7 +306,7 @@ mod tests {
         let prev = PreviousProof {
             salt: [2u8; 32],
             kyn: kinetic_kyn::types::Kyn(12345),
-            drand_signature: "deadbeef".to_string(),
+            beacon_signature: "deadbeef".to_string(),
             iterations: 1000,
             vdf_proof: VdfProof {
                 proof_bytes: vec![1, 2, 3, 4],

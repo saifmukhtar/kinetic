@@ -112,7 +112,7 @@ impl KineticRecordStore {
                                         .verify_signature(kinetic_core::constants::NETWORK_SALT)
                                         .is_ok()
                                 {
-                                    let drand_sig_bytes = hex::decode(&reveal.drand_signature)
+                                    let drand_sig_bytes = hex::decode(&reveal.beacon_signature)
                                         .unwrap_or_else(|_| vec![0u8; 32]);
                                     let challenge = kinetic_core::types::Commitment::derive(
                                         kinetic_core::constants::NETWORK_SALT,

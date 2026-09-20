@@ -9,7 +9,7 @@ fn test_reveal_crypto_lengths() {
         payload: vec![],
         salt: [0; 32],
         kyn: kinetic_kyn::types::Kyn(1000),
-        drand_signature: "0".repeat(192), // 192 hex chars for BLS
+        beacon_signature: "0".repeat(192), // 192 hex chars for BLS
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],
@@ -24,7 +24,7 @@ fn test_reveal_crypto_lengths() {
 
     // 1. Drand signature too short
     let mut short_drand = base_reveal.clone();
-    short_drand.drand_signature = "0".repeat(191);
+    short_drand.beacon_signature = "0".repeat(191);
     assert!(short_drand.validate().is_err());
 
     // 2. Pubkey wrong length

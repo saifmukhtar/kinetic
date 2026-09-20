@@ -526,7 +526,7 @@ mod tests {
             payload: vec![10, 20, 30],
             salt: [3u8; 32],
             kyn: kinetic_kyn::types::Kyn(9999),
-            drand_signature: "aabbcc".to_string(),
+            beacon_signature: "aabbcc".to_string(),
             iterations: 500,
             vdf_proof: VdfProof {
                 proof_bytes: vec![0, 0, 0],

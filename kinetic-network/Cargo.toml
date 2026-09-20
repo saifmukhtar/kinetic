@@ -13,7 +13,6 @@ async-trait.workspace = true
 base64.workspace = true
 bincode.workspace = true
 bytes = { workspace = true, features = ["serde"] }
-drand-verify.workspace = true
 ed25519-dalek.workspace = true
 hex.workspace = true
 kinetic-core = { path = "../kinetic-core" }

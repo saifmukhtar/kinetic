@@ -110,7 +110,7 @@ fn get_u64_from_db(
 /// # Errors
 ///
 /// * Returns `KineticStoreError::InvalidName` if the apex name is malformed.
-/// * Returns `KineticStoreError::InvalidDrandHex` if the KYN Provider randomness is not valid hex.
+/// * Returns `KineticStoreError::InvalidBeaconHex` if the KYN Provider randomness is not valid hex.
 pub(crate) fn compute_required_iterations(
     reveal: &kinetic_core::types::Reveal,
     current_kyn: u64,
@@ -125,50 +125,27 @@ pub(crate) fn compute_required_iterations(
         return Err(err);
     }
 
-    use drand_verify::Pubkey;
-
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
 
-    let drand_sig_bytes = hex::decode(&reveal.drand_signature).map_err(|_| {
-        let err = KineticStoreError::InvalidDrandHex;
+    let dev_mode = kinetic_core::config::is_dev_mode();
+    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.0, &reveal.beacon_signature, dev_mode) {
+        let err = KineticStoreError::InvalidBeaconSignature;
         err.log_warning(
             &reveal.name,
-            "Rejecting Kademlia Reveal: Invalid Drand signature hex",
+            "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
         );
-        err
-    })?;
-
-    if !kinetic_core::config::is_dev_mode() {
-        let pubkey_bytes: [u8; 96] = hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY)
-            .map_err(|_| KineticStoreError::InvalidDrandHex)?
-            .try_into()
-            .map_err(|_| KineticStoreError::InvalidDrandHex)?;
-
-        let pubkey = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
-            .map_err(|_| KineticStoreError::InvalidDrandHex)?;
-
-        if !pubkey
-            .verify(reveal.kyn.0, &[], &drand_sig_bytes)
-            .unwrap_or(false)
-        {
-            let err = KineticStoreError::InvalidDrandSignature;
-            err.log_warning(
-                &reveal.name,
-                "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
-            );
-            return Err(err);
-        }
+        return Err(err);
     }
 
     let base_required_iterations = consensus_math.iterations(&reveal.name);
     let required_iterations = if let Some(prev) = &reveal.previous_proof {
         // Verify previous proof
         // Verify previous proof
-        let prev_drand_sig_bytes = match hex::decode(&prev.drand_signature) {
+        let prev_drand_sig_bytes = match hex::decode(&prev.beacon_signature) {
             Ok(bytes) => bytes,
             Err(_) => {
                 tracing::warn!(
-                    error = ?kinetic_core::error::RecordRejectReason::InvalidDrandHex,
+                    error = ?kinetic_core::error::RecordRejectReason::InvalidBeaconHex,
                     "Invalid PreviousProof attached for {}: Invalid Drand signature hex. Falling back to full difficulty.",
                     reveal.name
                 );
@@ -176,26 +153,12 @@ pub(crate) fn compute_required_iterations(
             }
         };
 
-        if !kinetic_core::config::is_dev_mode() {
-            let pubkey_bytes: [u8; 96] = hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY)
-                .map_err(|_| KineticStoreError::InvalidDrandHex)?
-                .try_into()
-                .map_err(|_| KineticStoreError::InvalidDrandHex)?;
-
-            let pubkey = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
-                .map_err(|_| KineticStoreError::InvalidDrandHex)?;
-
-            if !pubkey
-                .verify(prev.kyn.0, &[], &prev_drand_sig_bytes)
-                .unwrap_or(false)
-            {
-                tracing::warn!(
-                    error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
-                    "Invalid PreviousProof attached for {}: Invalid Drand BLS signature. Falling back to full difficulty.",
-                    reveal.name
-                );
-                return Ok(base_required_iterations);
-            }
+        if !kinetic_kyn::beacon::verify_beacon_signature(prev.kyn.0, &prev.beacon_signature, dev_mode) {
+            tracing::warn!(
+                "Invalid PreviousProof attached for {}: Invalid Drand BLS signature. Falling back to full difficulty.",
+                reveal.name
+            );
+            return Ok(base_required_iterations);
         }
 
         let prev_challenge = kinetic_core::types::Commitment::derive(
@@ -304,8 +267,6 @@ pub(crate) fn verify_reveal(
         return Err(err);
     }
 
-    use drand_verify::Pubkey;
-
     let dev_mode = kinetic_core::config::is_dev_mode();
 
     if !dev_mode
@@ -321,36 +282,23 @@ pub(crate) fn verify_reveal(
         return Err(err);
     }
 
-    let drand_sig_bytes = hex::decode(&reveal.drand_signature).map_err(|_| {
-        let err = KineticStoreError::InvalidDrandHex;
+    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.0, &reveal.beacon_signature, dev_mode) {
+        let err = KineticStoreError::InvalidBeaconSignature;
+        err.log_warning(
+            &reveal.name,
+            "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
+        );
+        return Err(err);
+    }
+
+    let drand_sig_bytes = hex::decode(&reveal.beacon_signature).map_err(|_| {
+        let err = KineticStoreError::InvalidBeaconHex;
         err.log_warning(
             &reveal.name,
             "Rejecting Kademlia Reveal: Invalid Drand Signature Hex",
         );
         err
     })?;
-
-    if !dev_mode {
-        let pubkey_bytes: [u8; 96] = hex::decode(kinetic_core::constants::DRAND_PUBLIC_KEY)
-            .map_err(|_| KineticStoreError::InvalidDrandHex)?
-            .try_into()
-            .map_err(|_| KineticStoreError::InvalidDrandHex)?;
-
-        let pubkey = drand_verify::G2PubkeyRfc::from_fixed(pubkey_bytes)
-            .map_err(|_| KineticStoreError::InvalidDrandHex)?;
-
-        if !pubkey
-            .verify(reveal.kyn.0, &[], &drand_sig_bytes)
-            .unwrap_or(false)
-        {
-            let err = KineticStoreError::InvalidDrandSignature;
-            err.log_warning(
-                &reveal.name,
-                "Rejecting Kademlia Reveal: Invalid Drand BLS signature",
-            );
-            return Err(err);
-        }
-    }
 
     let challenge = kinetic_core::types::Commitment::derive(
         kinetic_core::constants::NETWORK_SALT,
@@ -600,8 +548,8 @@ pub(crate) fn verify_authorized_manifest(
     }
 
     let current_time = kinetic_kyn::types::Kyn(current_kyn).to_utime(
-        kinetic_core::constants::DRAND_GENESIS_TIME,
-        kinetic_core::constants::DRAND_PERIOD,
+        kinetic_core::constants::KYN_GENESIS_TIME,
+        kinetic_core::constants::KYN_PERIOD,
     ).0;
 
     if auth_manifest

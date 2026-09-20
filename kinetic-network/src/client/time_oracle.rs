@@ -10,18 +10,18 @@ use hickory_resolver::config::*;
 
 const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200;
 
-/// HTTP and DNS-backed client for fetching and caching Drand Quicknet randomness kyns.
-pub struct DrandProvider {
+/// HTTP and DNS-backed client for fetching and caching Time Oracle randomness kyns.
+pub struct TimeOracleProvider {
     http: reqwest::Client,
     storage: Option<Arc<dyn StorageEngine>>,
     endpoints: Vec<String>,
-    drand_domain: Vec<String>,
+    beacon_seed_domain: Vec<String>,
     #[cfg(not(target_arch = "wasm32"))]
     resolver: hickory_resolver::TokioAsyncResolver,
 }
 
-impl DrandProvider {
-    /// Creates a new [`DrandProvider`].
+impl TimeOracleProvider {
+    /// Creates a new [`TimeOracleProvider`].
     ///
     /// Accepts an optional [`StorageEngine`] handle to cache successfully fetched kyns on disk.
     pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
@@ -35,8 +35,8 @@ impl DrandProvider {
             #[cfg(target_arch = "wasm32")]
             http: reqwest::Client::new(),
             storage,
-            endpoints: config.drand.endpoints,
-            drand_domain: config.drand.drand_domain,
+            endpoints: config.time_oracle.endpoints,
+            beacon_seed_domain: config.time_oracle.beacon_seed_domain,
             #[cfg(not(target_arch = "wasm32"))]
             resolver: hickory_resolver::TokioAsyncResolver::tokio(
                 ResolverConfig::default(),
@@ -79,7 +79,7 @@ impl DrandProvider {
                             .bytes()
                             .await
                             .map_err(|e| KynProviderError::HttpClient(e.to_string()))?;
-                        if bytes.len() > kinetic_core::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES {
+                        if bytes.len() > kinetic_core::constants::LIMITS_BEACON_MAX_RESPONSE_BYTES {
                             return Err(KynProviderError::ResponseTooLarge(bytes.len()));
                         }
                         return Ok(serde_json::from_slice::<RawKyn>(&bytes)?);
@@ -93,7 +93,7 @@ impl DrandProvider {
                             .map_err(|e| KynProviderError::StreamReadFailed(e.to_string()))?
                         {
                             body.extend_from_slice(&chunk);
-                            if body.len() > kinetic_core::constants::LIMITS_DRAND_MAX_RESPONSE_BYTES
+                            if body.len() > kinetic_core::constants::LIMITS_BEACON_MAX_RESPONSE_BYTES
                             {
                                 return Err(KynProviderError::ResponseTooLarge(body.len()));
                             }
@@ -126,7 +126,7 @@ impl DrandProvider {
 }
 
 #[async_trait::async_trait]
-impl KynProvider for DrandProvider {
+impl KynProvider for TimeOracleProvider {
     /// Fetches the latest available kyn by racing HTTP endpoints and DNS records.
     ///
     /// # Errors
@@ -148,7 +148,7 @@ impl KynProvider for DrandProvider {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut injected_count = 0;
-            for domain in &self.drand_domain {
+            for domain in &self.beacon_seed_domain {
                 if injected_count >= 5 {
                     break;
                 }
@@ -186,8 +186,8 @@ impl KynProvider for DrandProvider {
                         .unwrap_or_default()
                         .as_secs();
                     let estimated_kyn = (now
-                        .saturating_sub(kinetic_core::constants::DRAND_GENESIS_TIME))
-                        / kinetic_core::constants::DRAND_PERIOD;
+                        .saturating_sub(kinetic_core::constants::KYN_GENESIS_TIME))
+                        / kinetic_core::constants::KYN_PERIOD;
                     let age = estimated_kyn.saturating_sub(kyn.kyn);
 
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
@@ -234,7 +234,7 @@ impl KynProvider for DrandProvider {
             && let Ok(bytes) = serde_json::to_vec(kyn)
         {
             storage
-                .put(kinetic_core::constants::DB_PREFIX_LAST_DRAND, &bytes)
+                .put(kinetic_core::constants::DB_PREFIX_LAST_KYN, &bytes)
                 .map_err(KynProviderError::Storage)?;
         }
         Ok(())
@@ -242,10 +242,10 @@ impl KynProvider for DrandProvider {
 
     fn load_cached(&self) -> Result<RawKyn, KynProviderError> {
         if let Some(storage) = &self.storage
-            && let Some(bytes) = storage
-                .get(kinetic_core::constants::DB_PREFIX_LAST_DRAND)
+            && let Some(cached_data) = storage
+                .get(kinetic_core::constants::DB_PREFIX_LAST_KYN)
                 .map_err(KynProviderError::Storage)?
-            && let Ok(mut kyn) = serde_json::from_slice::<RawKyn>(&bytes)
+            && let Ok(mut kyn) = serde_json::from_slice::<RawKyn>(&cached_data)
         {
             kyn.is_from_cache = true;
             return Ok(kyn);

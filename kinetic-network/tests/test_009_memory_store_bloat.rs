@@ -31,7 +31,7 @@ fn test_memory_store_bloat() {
             kinetic_core::types::NameRecord::Standard(Box::new(Reveal {
                 name,
                 salt: [0; 32],
-                drand_signature: String::new(),
+                beacon_signature: String::new(),
                 kyn: kinetic_kyn::types::Kyn(100),
                 iterations: 100,
                 vdf_proof: kinetic_core::types::VdfProof {

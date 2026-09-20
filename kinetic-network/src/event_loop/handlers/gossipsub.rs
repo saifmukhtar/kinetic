@@ -47,7 +47,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                     let opcode = payload_clone[0];
                     let actual_payload = &payload_clone[1..];
 
-                    if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
+                    if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8 {
                         if let Ok(kyn) =
                             serde_json::from_slice::<kinetic_core::drand::RawKyn>(actual_payload)
                         {
