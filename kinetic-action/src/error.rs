@@ -2,7 +2,7 @@
 //!
 //! [`ActionError`] is returned by the active [`ActionEngine`](crate::traits::ActionEngine)
 //! when a [`SignedActionMessage`](crate::types::SignedActionMessage) fails
-//! signature verification, threshold checks, or timelock constraints.
+//! signature verification or engine constraints.
 //!
 //! ## Protocol Context
 //!

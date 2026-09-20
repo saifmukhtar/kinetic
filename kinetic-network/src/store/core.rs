@@ -655,10 +655,10 @@ mod tests {
         let name = "a.kin"; // Prime name, requires heartbeats
         let record = kinetic_core::types::NameRecord::Prime {
             name: name.to_string(),
-            pubkey: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
             kyn: 0,
             payload: vec![],
-            signature: vec![],
+            owner_signature: vec![],
             authorization: None,
         };
 
@@ -708,10 +708,10 @@ mod tests {
         let name = "seed.kin"; // Exempt protocol name
         let record = kinetic_core::types::NameRecord::Infra {
             name: name.to_string(),
-            pubkey: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
             kyn: 0,
             payload: vec![],
-            signature: vec![],
+            owner_signature: vec![],
             authorization: None,
         };
 
@@ -793,10 +793,10 @@ mod tests {
         let large_payload = vec![0u8; 34000];
         let record = kinetic_core::types::NameRecord::Prime {
             name: "large.kin".to_string(),
-            pubkey: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
             kyn: 0,
             payload: large_payload,
-            signature: vec![],
+            owner_signature: vec![],
             authorization: None,
         };
 

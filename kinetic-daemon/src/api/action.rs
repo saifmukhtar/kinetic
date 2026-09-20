@@ -150,13 +150,13 @@ pub async fn handle_get_action_names()
     let primes = action_state
         .mapped_prime_names
         .iter()
-        .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
+        .map(|(name, pubkey)| (name.clone(), hex::encode(pubkey)))
         .collect::<HashMap<String, String>>();
 
     let infras = action_state
         .mapped_infra_names
         .iter()
-        .map(|(name, pubkey_bytes)| (name.clone(), hex::encode(pubkey_bytes)))
+        .map(|(name, pubkey)| (name.clone(), hex::encode(pubkey)))
         .collect::<HashMap<String, String>>();
 
     Ok(Json(ActionNamesResponse { primes, infras }))

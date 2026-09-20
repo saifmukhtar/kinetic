@@ -46,7 +46,7 @@ pub enum Error {
     #[error("Failed to canonicalize JSON (JCS): {0}")]
     CanonicalizationError(String),
 
-    /// The `KineticKeypair` signature bytes on the Identity Document are invalid or do not verify.
+    /// The cryptographic signature bytes on the Identity Document are invalid or do not verify.
     /// The payload was either tampered with in transit or signed by an incorrect private key.
     /// Ensure you are cryptographically signing the exact JCS-canonicalized bytes of the document.
     #[error("Invalid signature")]
@@ -54,7 +54,7 @@ pub enum Error {
 
     /// The Identity Document or capability manifest is missing a required `proof` signature field.
     /// By protocol design, all identity mutations and manifests must be cryptographically authenticated by the controller.
-    /// You must attach a valid `KineticKeypair` signature proof to the document before publishing.
+    /// You must attach a valid cryptographic signature proof to the document before publishing.
     #[error("Missing signature in document")]
     MissingSignature,
 

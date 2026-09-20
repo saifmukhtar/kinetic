@@ -1,29 +1,30 @@
 use crate::logic::process_action_message;
-use crate::types::{ActionEffect, ActionState, NetworkAction, PublicKeyBytes, SignedActionMessage};
-use kinetic_primitives::keys::KineticKeypair;
+use crate::types::{ActionConfig, ActionEffect, ActionState, NetworkAction, PublicKeyBytes, SignedActionMessage};
+
+use kinetic_primitives::kinetic_keypair::SovereignPrivKey;
 use kinetic_types::clock::Kyn;
 
-fn get_root_sk() -> KineticKeypair {
-    let bytes =
-        hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
-    KineticKeypair::from_seed(bytes.as_slice().try_into().unwrap())
+fn get_root_sk() -> SovereignPrivKey {
+    let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+        .unwrap();
+    SovereignPrivKey::from_seed(bytes.as_slice().try_into().unwrap())
 }
 
-fn generate_key(seed: u8) -> (KineticKeypair, PublicKeyBytes) {
+fn generate_key(seed: u8) -> (SovereignPrivKey, Vec<u8>) {
     let bytes = [seed; 32];
-    let signing_key = KineticKeypair::from_seed(&bytes);
-    let verifying_key = signing_key.pubkey_bytes();
+    let signing_key = SovereignPrivKey::from_seed(&bytes);
+    let verifying_key = signing_key.to_pubkey().0; // Extract raw bytes
     (signing_key, verifying_key)
 }
 
-fn sign_action(msg: &SignedActionMessage, signer: &KineticKeypair) -> Vec<u8> {
+fn sign_action(msg: &SignedActionMessage, signer: &SovereignPrivKey) -> Vec<u8> {
     let serialized = msg.to_bytes();
     signer.sign(&serialized)
 }
 
-fn get_test_config() -> crate::types::ActionConfig {
-    crate::types::ActionConfig {
-        sovereign_key_hex: hex::encode(get_root_sk().pubkey_bytes()),
+fn get_test_config() -> ActionConfig {
+    ActionConfig {
+        sovereign_key_hex: hex::encode(get_root_sk().to_pubkey().0),
         max_age_kyns: 100,
         is_dev_mode: false,
         action_model: "sovereign".to_string(),
@@ -44,13 +45,13 @@ fn test_infra_mappings() {
     let mut msg_invalid = SignedActionMessage {
         action: NetworkAction::MapInfra {
             name: "invalidname".to_string(),
-            target_pubkey: target_pubkey.clone(),
+            target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
         },
         timestamp_kyn: current_kyn,
-        signatures: vec![],
+        sovereign_signatures: vec![],
     };
     msg_invalid
-        .signatures
+        .sovereign_signatures
         .push(sign_action(&msg_invalid, &root_sk));
 
     let err = process_action_message(
@@ -69,12 +70,12 @@ fn test_infra_mappings() {
     let mut msg_valid = SignedActionMessage {
         action: NetworkAction::MapInfra {
             name: "seed".to_string(),
-            target_pubkey: target_pubkey.clone(),
+            target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
         },
         timestamp_kyn: current_kyn,
-        signatures: vec![],
+        sovereign_signatures: vec![],
     };
-    msg_valid.signatures.push(sign_action(&msg_valid, &root_sk));
+    msg_valid.sovereign_signatures.push(sign_action(&msg_valid, &root_sk));
 
     let effect = process_action_message(
         &mut state,
@@ -101,9 +102,9 @@ fn test_action_stale_rejection() {
     let mut msg = SignedActionMessage {
         action: NetworkAction::EmergencyHalt,
         timestamp_kyn: stale_kyn,
-        signatures: vec![],
+        sovereign_signatures: vec![],
     };
-    msg.signatures.push(sign_action(&msg, &root_sk));
+    msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
     let err =
         process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config()).unwrap_err();

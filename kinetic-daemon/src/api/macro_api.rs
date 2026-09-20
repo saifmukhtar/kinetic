@@ -148,7 +148,7 @@ pub async fn handle_macro_register_name(
                 return;
             }
         };
-        let pubkey = keypair.pubkey_bytes();
+        let pubkey = keypair.to_pubkey().0;
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -175,7 +175,7 @@ pub async fn handle_macro_register_name(
             &fqdn,
             &salt,
             &sig_bytes,
-            &pubkey,
+            &kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey.to_vec()),
         );
 
         // Step 3: VDF Evaluation (Blocking)
@@ -330,14 +330,14 @@ pub async fn handle_macro_register_name(
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
             },
-            pubkey: pubkey.to_vec(),
-            signature: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey.to_vec()),
+            identity_signature: vec![],
             authorization: None,
             previous_proof: None,
         };
 
         let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-        reveal.signature = keypair.sign(&signable);
+        reveal.identity_signature = keypair.sign(&signable);
 
         // Publish to Network
         let reveal_bytes = match serde_json::to_vec(&reveal) {
@@ -534,7 +534,7 @@ pub async fn handle_macro_renew_name(
                 return;
             }
         };
-        let pubkey_bytes = keypair.pubkey_bytes();
+        let pubkey_bytes = keypair.to_pubkey().0;
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -561,7 +561,7 @@ pub async fn handle_macro_renew_name(
             &fqdn,
             &salt,
             &sig_bytes,
-            &pubkey_bytes,
+            &kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey_bytes.to_vec()),
         );
 
         // Step 4: VDF Evaluation (Blocking)
@@ -656,7 +656,7 @@ pub async fn handle_macro_renew_name(
             drand_signature: old_reveal.drand_signature.clone(),
             iterations: old_reveal.iterations,
             vdf_proof: old_reveal.vdf_proof.clone(),
-            signature: old_reveal.signature.clone(),
+            identity_signature: old_reveal.identity_signature.clone(),
         };
 
         let mut new_reveal = kinetic_core::types::Reveal {
@@ -670,14 +670,14 @@ pub async fn handle_macro_renew_name(
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
             },
-            pubkey: pubkey_bytes.to_vec(),
-            signature: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey_bytes.to_vec()),
+            identity_signature: vec![],
             authorization: None,
             previous_proof: Some(previous_proof),
         };
 
         let signable = new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-        new_reveal.signature = keypair.sign(&signable);
+        new_reveal.identity_signature = keypair.sign(&signable);
 
         let reveal_bytes = match serde_json::to_vec(&new_reveal) {
             Ok(b) => b,

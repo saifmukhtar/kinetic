@@ -32,3 +32,4 @@ http-body-util.workspace = true
 proptest.workspace = true
 tempfile.workspace = true
 tower = { workspace = true, features = ["util"] }
+kinetic-primitives = { path = "../kinetic-primitives" }

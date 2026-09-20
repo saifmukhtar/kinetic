@@ -97,7 +97,7 @@ impl KineticRecordStore {
                 if new_reveal.iterations == existing_reveal.iterations && hb_age < 100 {
                     let dist_new: Vec<u8> = new_reveal
                         .pubkey
-                        .iter()
+                        .0.iter()
                         .zip(
                             new_reveal
                                 .vdf_proof
@@ -111,7 +111,7 @@ impl KineticRecordStore {
 
                     let dist_existing: Vec<u8> = existing_reveal
                         .pubkey
-                        .iter()
+                        .0.iter()
                         .zip(
                             existing_reveal
                                 .vdf_proof
@@ -368,8 +368,7 @@ impl KineticRecordStore {
 
         let signable = heartbeat.signable_bytes(kinetic_core::constants::NETWORK_SALT);
         let is_valid_signature = if let Some(auth) = &heartbeat.authorization {
-            if kinetic_primitives::verify_mldsa(
-                existing_record.pubkey(),
+            if existing_record.pubkey().verify(
                 &auth.signable_bytes(kinetic_core::constants::NETWORK_SALT),
                 &auth.owner_signature,
             )
@@ -402,10 +401,9 @@ impl KineticRecordStore {
                 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
                 if ck.key_type == "ML-DSA-65"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
-                    && kinetic_primitives::verify_mldsa(
-                        &pubkey_bytes,
+                    && kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey_bytes).verify(
                         &signable,
-                        &heartbeat.signature,
+                        &heartbeat.owner_signature,
                     )
                     .is_ok()
                 {
@@ -415,10 +413,9 @@ impl KineticRecordStore {
             }
             verified
         } else {
-            kinetic_primitives::verify_mldsa(
-                existing_record.pubkey(),
+            existing_record.pubkey().verify(
                 &signable,
-                &heartbeat.signature,
+                &heartbeat.owner_signature,
             )
             .is_ok()
         };

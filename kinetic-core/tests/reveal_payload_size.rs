@@ -19,8 +19,8 @@ fn test_003_oom_payload_exhaustion() {
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: vec![],
-        signature: vec![],
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+        identity_signature: vec![],
         previous_proof: None,
         authorization: None,
     };

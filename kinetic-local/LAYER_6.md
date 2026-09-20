@@ -6,7 +6,7 @@ This crate (`kinetic-local`) belongs to **Layer 6: Core Infrastructure & Adapter
 ## 2. The Core Architectural Rule (The Invariant)
 **This crate must safely abstract the host operating system from the Kinetic daemon. The core consensus and logic crates must NEVER perform native disk I/O themselves.**
 
-As an infrastructure module, `kinetic-local` owns the serialization and parsing of disk states (`config.toml`, identity keypairs, sovereign actions). It injects this configuration upward into the executing daemons.
+As an infrastructure module, `kinetic-local` owns the serialization and parsing of disk states (`config.toml`, identity keypairs, network actions). It injects this configuration upward into the executing daemons.
 
 ## 3. The Horizontal Boundary
 This crate explicitly owns local disk state. 

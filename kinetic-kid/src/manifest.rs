@@ -50,7 +50,7 @@ pub struct Manifest {
     /// Ordered list of service endpoints this DID owner is advertising.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_50")]
     pub services: Vec<Service>,
-    /// Base64url-encoded `KineticKeypair` signature over the JCS-canonical manifest (excluding this field).
+    /// Base64url-encoded `ControllerPrivKey` signature over the JCS-canonical manifest (excluding this field).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
 }
@@ -107,11 +107,11 @@ impl Manifest {
     /// # Examples
     /// ```rust
     /// use kinetic_kid::{Document, Did, ControllerKey, Manifest, Service};
-    /// use kinetic_primitives::keys::KineticKeypair;
+    /// use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
     /// 
-    /// let keypair = KineticKeypair::generate();
-    /// let pubkey_b64 = b64_url.encode(keypair.pubkey_bytes());
+    /// let controller_key = ControllerPrivKey::generate();
+    /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
     /// let did = Did::new(&format!("did:kin:{}", "0".repeat(64))).unwrap();
     ///
     /// let doc = Document {
@@ -139,7 +139,7 @@ impl Manifest {
     ///     signature: None,
     /// };
     /// 
-    /// let signed_manifest = manifest.sign(&keypair).unwrap();
+    /// let signed_manifest = manifest.sign_with_controller(&controller_key).unwrap();
     /// 
     /// // Verify at Unix timestamp 1005 (valid since it is >= valid_from)
     /// assert!(signed_manifest.verify_at_time(&doc, 1005).is_ok());
@@ -197,7 +197,7 @@ impl Manifest {
             if (key.key_type.eq_ignore_ascii_case("MlDsa65")
                 || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
                 && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
+                && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
             {
                 return Ok(());
             }
@@ -206,20 +206,20 @@ impl Manifest {
         Err(Error::UnauthorizedManifestSignature)
     }
 
-    /// Helper to sign the manifest with a `KineticKeypair` and return the signed manifest.
+    /// Helper to sign the manifest with a `ControllerPrivKey` and return the signed manifest.
     ///
     /// # Errors
     /// - Returns [`Error::CanonicalizationError`] if JCS canonicalization fails.
-    pub fn sign(
+    pub fn sign_with_controller(
         mut self,
-        keypair: &kinetic_primitives::keys::KineticKeypair,
+        key: &kinetic_primitives::kinetic_keypair::ControllerPrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
         // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
         // identity portability between Mainnet/Testnet while isolating private forks.
         let mut msg_bytes = format!("{}-manifest-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
-        let signature_bytes = keypair.sign(&msg_bytes);
+        let signature_bytes = key.sign(&msg_bytes);
         self.signature = Some(b64_url.encode(signature_bytes));
         Ok(self)
     }

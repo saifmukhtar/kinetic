@@ -6,25 +6,25 @@
 use kinetic_types::error::Severity;
 use thiserror::Error;
 
-/// Errors arising from Sovereign signature verification on VDF reveal and name payloads.
+/// Errors arising from Identity signature verification on VDF reveal and name payloads.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum SignatureVerifyError {
-    /// **What**: The provided byte array is not a valid Sovereign public key.
+    /// **What**: The provided byte array is not a valid Identity public key.
     /// **Why**: The public key may be truncated, corrupted, or formatted for a different cryptographic scheme.
-    /// **Fix**: Ensure the key is exactly the byte length required by Sovereign keys.
-    #[error("Malformed Sovereign public key")]
+    /// **Fix**: Ensure the key is exactly the byte length required by Identity keys.
+    #[error("Malformed Identity public key")]
     MalformedPublicKey,
 
-    /// **What**: The signature byte slice does not conform to the Sovereign signature structure.
+    /// **What**: The signature byte slice does not conform to the expected signature structure.
     /// **Why**: The signature may have been truncated during network transmission or storage.
-    /// **Fix**: Ensure the signature is exactly the byte length required by Sovereign signatures.
-    #[error("Malformed Sovereign signature bytes")]
+    /// **Fix**: Ensure the signature is exactly the byte length required by ML-DSA signatures.
+    #[error("Malformed signature bytes")]
     MalformedSignature,
 
     /// **What**: Cryptographic verification failed over the canonical signable bytes.
     /// **Why**: The payload was either tampered with in transit, or it was signed with the wrong private key.
     /// **Fix**: Ensure you are signing the exact canonical JSON payload with the correct identity key.
-    #[error("Invalid Sovereign signature")]
+    #[error("Invalid identity signature")]
     InvalidSignature,
 
     /// **What**: The delegated manifest does not grant the required capability.
@@ -87,11 +87,11 @@ impl SignatureVerifyError {
     pub fn user_message(&self) -> String {
         match self {
             Self::MalformedPublicKey => {
-                "The name owner's Sovereign public key is corrupted or invalid.".to_string()
+                "The name owner's Identity public key is corrupted or invalid.".to_string()
             }
-            Self::MalformedSignature => "The Sovereign signature format is malformed.".to_string(),
+            Self::MalformedSignature => "The signature format is malformed.".to_string(),
             Self::InvalidSignature => {
-                "The Sovereign ownership signature failed cryptographic verification."
+                "The ownership signature failed cryptographic verification."
                     .to_string()
             }
             Self::DelegatedCapabilityMissing => {

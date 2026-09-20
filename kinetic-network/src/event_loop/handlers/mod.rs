@@ -9,7 +9,7 @@
 //!   (like Time Oracle pulses or Global Action states). Note that it explicitly ignores 
 //!   standard namespace Reveals, which are routed exclusively through the DHT.
 //! - **`kademlia`**: The DHT navigator. It manages the `RecordStore` interactions, peer 
-//!   discovery, and the `put_record` flows for sovereign `.kin` domains.
+//!   discovery, and the `put_record` flows for identity `.kin` domains.
 //! - **`action_sync`**: The consensus upgrade state machine. It handles requests to pause 
 //!   or resume the network, ensuring the global `kinetic-local::action` state remains synced 
 //!   across the swarm.

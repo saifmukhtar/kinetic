@@ -1,4 +1,4 @@
-//! Cryptographic identity, Kinetic Identity Document (KID) documents, and Sovereign key management.
+//! Cryptographic identity, Kinetic Identity Document (KID) documents, and Identity key management.
 //!
 //! This module provides the core identity types for the network. It strictly isolates the 
 //! abstract identity structures from any local disk I/O or filesystem paths.

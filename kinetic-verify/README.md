@@ -1,7 +1,7 @@
 # kinetic-verify
 
 ## 1. Overview
-`kinetic-verify` is a lightweight, `no_std`-compatible cryptographic verification library for the Kinetic network. It acts as the strict rules engine for validating state-mutating payloads, ensuring they possess mathematically valid Sovereign signatures and Proof of Patience (VDF) claims before they are ever allowed to mutate node state.
+`kinetic-verify` is a lightweight, `no_std`-compatible cryptographic verification library for the Kinetic network. It acts as the strict rules engine for validating state-mutating payloads, ensuring they possess mathematically valid Identity and Delegated signatures and Proof of Patience (VDF) claims before they are ever allowed to mutate node state.
 
 ## 2. Usage & Integration
 This crate provides the `VerifySignature` trait, which extends Kinetic's core data models (like `NameRecord` and `Reveal`) with mathematically pure validation logic. Higher-level crates call this validation prior to accepting data from peers.
@@ -18,13 +18,13 @@ match record.verify_signature(&network_salt) {
 ```
 
 ## 3. Internal Architecture
-This crate does not implement cryptographic algorithms directly (that is handled by Layer 1 `kinetic-primitives`). Instead, it acts as the semantic bridge, enforcing how those primitives are applied to Kinetic-specific data structures like identity delegations, manifest capability checks, and Name System mappings.
+This crate does not implement cryptographic algorithms directly (that is handled by Layer 1 `kinetic-primitives`). Instead, it acts as the semantic bridge, enforcing how those strictly-typed taxonomy wrappers (like `IdentityPubKey` and `DelegatedPubKey`) are applied to Kinetic-specific data structures like identity delegations, manifest capability checks, and Name System mappings.
 
 ## 4. Reading Guide
 
 ### Prerequisites
 Before reading this crate, you must understand:
-* **`kinetic-primitives`**: You must understand how `KineticKeypair` and cryptographic primitives function.
+* **`kinetic-primitives`**: You must understand how the strict key taxonomy wrappers function, avoiding raw bytes and raw keypairs.
 * **`kinetic-types`**: You must be familiar with the `NameRecord` and `Reveal` data structures, as this crate exclusively operates on them.
 
 ### File Traversal (Leaf-First)

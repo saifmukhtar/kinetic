@@ -7,7 +7,7 @@
 //! - **Length limits**: total ≤253 chars; each label ≤63 chars (RFC 1035).
 //! - **Apex-only**: subnames are managed by the apex owner, not the DHT directly.
 //! - **RFC reserved** (RFC 2606/6761): `localhost`, `test`, `example`, etc.
-//! - **Infrastructure protocol names**: `seed`, `explorer`, `docs`, etc. locked by Sovereign protocol rules.
+//! - **Infrastructure protocol names**: `seed`, `explorer`, `docs`, etc. locked by Network Action rules.
 use super::Severity;
 use thiserror::Error;
 
@@ -54,7 +54,7 @@ pub enum NamesError {
 
     /// The name is an official Kinetic infrastructure protocol name (e.g. `seed`, `docs`).
     /// These infrastructure protocol names are locked by the core protocol to ensure official network infrastructure remains secure.
-    /// Only a Sovereign network action can allocate this name.
+    /// Only a Network Action can allocate this name.
     #[error("Name is a protected infrastructure protocol name")]
     ProtocolName,
 

@@ -16,7 +16,7 @@ mod tests {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
             kyn: stale_pulse,
-            signature: vec![],
+            host_signature: vec![],
         };
 
         // Even with a bad signature, it should fail on freshness first
@@ -41,7 +41,7 @@ mod tests {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
             kyn: recent_pulse,
-            signature: vec![],
+            host_signature: vec![],
         };
 
         let res = verify_host_routing_record(&record, current_drand_round);
@@ -58,8 +58,8 @@ mod tests {
         use crate::store::verification::verify_authorized_kid;
         use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
         use kinetic_kid::document::Document;
-        let ml_kp = kinetic_primitives::keys::KineticKeypair::generate();
-        let ml_pub_bytes = ml_kp.pubkey_bytes();
+        let ml_kp = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+        let ml_pub_bytes = ml_kp.to_pubkey().as_bytes().to_vec();
 
         let reveal = Reveal {
             protocol_version: 1,
@@ -72,8 +72,8 @@ mod tests {
             vdf_proof: VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: ml_pub_bytes.clone(),
-            signature: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(ml_pub_bytes.clone()),
+            identity_signature: vec![],
             previous_proof: None,
             authorization: None,
         };
@@ -112,7 +112,8 @@ mod tests {
             deactivated: false,
             signature: None,
         };
-        let did_doc = doc.sign(&ml_kp).unwrap();
+        let controller_kp = kinetic_primitives::kinetic_keypair::ControllerPrivKey::from_slice(&ml_kp.to_secret_bytes()).unwrap();
+        let did_doc = doc.sign_with_controller(&controller_kp).unwrap();
 
         let mut auth_kid = AuthorizedKid {
             name: "test.kinetic".to_string(),

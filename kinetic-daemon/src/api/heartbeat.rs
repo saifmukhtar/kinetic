@@ -152,7 +152,7 @@ pub async fn handle_post_heartbeat(
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
         latest_kyn: current_kyn,
-        signature: vec![],
+        owner_signature: vec![],
         authorization: None,
     };
 
@@ -175,7 +175,7 @@ pub async fn handle_post_heartbeat(
                 request_id: "".to_string(),
             })
         })?;
-    heartbeat.signature = sig_bytes;
+    heartbeat.owner_signature = sig_bytes;
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
@@ -245,7 +245,7 @@ pub async fn handle_post_fat_heartbeat(
         )))
     })?;
     let keypair =
-        kinetic_primitives::keys::KineticKeypair::from_slice(&hot_key_bytes).map_err(|e| {
+        kinetic_primitives::kinetic_keypair::IdentityPrivKey::from_slice(&hot_key_bytes).map_err(|e| {
             crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
                 format!("Invalid ML-DSA keypair: {}", e),
             ))
@@ -256,7 +256,7 @@ pub async fn handle_post_fat_heartbeat(
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
         latest_kyn: current_kyn,
-        signature: vec![],
+        owner_signature: vec![],
         authorization: Some(Box::new(req.authorized_manifest)),
     };
 
@@ -278,7 +278,7 @@ pub async fn handle_post_fat_heartbeat(
                 request_id: "".to_string(),
             })
         })?;
-    heartbeat.signature = sig_bytes;
+    heartbeat.owner_signature = sig_bytes;
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(

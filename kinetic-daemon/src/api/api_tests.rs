@@ -31,7 +31,7 @@ mod tests {
             gossip_tx,
             storage: storage.clone(),
             host_speed_ips: 100_000,
-            daemon_keypair: kinetic_primitives::keys::KineticKeypair::generate(),
+            daemon_keypair: kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate(),
             dns_cache: std::sync::Arc::new(tokio::sync::Mutex::new(
                 crate::proxy::dns_cache::DnsCache::new(100, 300),
             )),
@@ -143,8 +143,8 @@ mod tests {
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -181,8 +181,8 @@ mod tests {
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -236,8 +236,8 @@ mod tests {
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -277,8 +277,8 @@ mod tests {
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: vec![1; 1952],
-            signature: vec![2; 4627],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            identity_signature: vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
             authorization: None,
         };
