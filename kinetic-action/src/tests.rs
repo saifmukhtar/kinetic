@@ -74,9 +74,9 @@ mod tests {
             kinetic_primitives::kinetic_keypair::SovereignPubKey(new_root_pubkey.clone())
         );
 
-        // Action 2: Try mapping a name using the OLD Sovereign key (should fail)
+        // Action 2: Try halting the network using the OLD Sovereign key (should fail)
         let mut map_msg = SignedActionMessage {
-            action: NetworkAction::EmergencyPause,
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: Kyn(current_kyn + 1), // Advance time so hash is different
             sovereign_signatures: vec![],
         };
@@ -91,7 +91,7 @@ mod tests {
         .unwrap_err();
         assert!(matches!(err, crate::error::ActionError::InvalidSignature));
 
-        // Action 3: Map a name using the NEW Sovereign key (should succeed)
+        // Action 3: Halt the network using the NEW Sovereign key (should succeed)
         map_msg.sovereign_signatures.clear();
         map_msg.sovereign_signatures.push(sign_action(&map_msg, &new_root_sk)); // signed with NEW key
 
@@ -102,7 +102,7 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(ActionEffect::InfraMapped { .. })));
+        assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
     }
 
     use proptest::prelude::*;
@@ -114,7 +114,7 @@ mod tests {
             name in string_regex("[a-z0-9_-]{1,63}").unwrap(),
             timestamp in any::<u64>(),
         ) {
-            let action = NetworkAction::EmergencyPause;
+            let action = NetworkAction::EmergencyHalt;
 
             let msg = SignedActionMessage {
                 action: action.clone(),
