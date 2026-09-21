@@ -27,12 +27,12 @@ pub async fn start_gossip_listener(
                     kinetic_core::action::SignedActionMessage,
                 >(actual_payload)
             {
-                use kinetic_core::types::clock::KynNetworkExt;
+
                 let current_kyn = match kyn_provider.load_cached() {
                     Ok(kyn) => kyn.kyn,
                     Err(_) => match kyn_provider.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_core::types::Kyn::now_local().0,
+                        Err(_) => kinetic_kyn::types::Kyn::now_local().0,
                     },
                 };
 
@@ -48,7 +48,7 @@ pub async fn start_gossip_listener(
                     match kinetic_core::action::process_action_message(
                         &mut state,
                         &signed_msg,
-                        kinetic_types::clock::Kyn(current_kyn),
+                        kinetic_kyn::types::Kyn(current_kyn),
                     ) {
                         Ok(Some(effect)) => {
                             tracing::info!("Action state updated via gossip. Effect: {:?}", effect);

@@ -121,7 +121,7 @@ pub const DB_PREFIX_BANNED_PEER: &str = concat!(
 );
 
 /// Storage key for persisting the latest processed network kyn number.
-pub const DB_PREFIX_LAST_DRAND: &[u8] = concat!(
+pub const DB_PREFIX_LAST_KYN: &[u8] = concat!(
     env!("KINETIC_NSP"),
     "-",
     env!("KINETIC_SALT_PREFIX"),

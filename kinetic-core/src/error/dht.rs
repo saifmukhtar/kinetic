@@ -20,7 +20,7 @@ use thiserror::Error;
 pub enum RecordRejectReason {
     /// The record's cryptographic signature did not verify against the public key.
     /// This happens if the payload was tampered with, or signed with the wrong key.
-    /// Verify that the record is generated using the authorized identity key (Sovereign) or transport key (Ed25519).
+    /// Verify that the record is generated using the authorized identity key (Identity) or transport key (Ed25519).
     #[error("invalid signature")]
     InvalidSignature,
     /// The embedded VDF proof failed cryptographic verification.
@@ -54,10 +54,10 @@ pub enum RecordRejectReason {
     /// The publish flow requires the reveal payload to perfectly hash to the commitment.
     #[error("commitment mismatch")]
     CommitmentMismatch,
-    /// The `drand_signature` field contains non-hex characters.
+    /// The `beacon_signature` field contains non-hex characters.
     /// All signature proofs must be strictly hex-encoded strings.
-    #[error("drand_signature contains invalid hex")]
-    InvalidDrandHex,
+    #[error("beacon_signature contains invalid hex")]
+    InvalidBeaconHex,
     /// The public key bytes could not be parsed as a valid cryptographic key.
     /// The key is either the wrong length or cryptographically invalid (e.g. malformed Ed25519 or ML-DSA-65 key).
     #[error("public key bytes are malformed")]

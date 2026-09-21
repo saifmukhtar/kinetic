@@ -79,8 +79,8 @@ pub enum KineticStoreError {
     /// The hex-encoded KYN Provider randomness could not be decoded.
     /// The string is likely malformed, truncated, or contains non-hex characters.
     /// Ensure the oracle signature is a valid 96-byte BLS signature encoded as a 192-character hex string.
-    #[error("drand_signature field contains invalid hex")]
-    InvalidDrandHex,
+    #[error("beacon_signature field contains invalid hex")]
+    InvalidBeaconHex,
     /// The heartbeat kyn is not strictly greater than the stored value (Finding 8).
     /// Heartbeats must strictly advance the kyn round to prevent replay attacks of old heartbeat packets.
     /// Wait for the next KYN Provider pulse before broadcasting a new heartbeat.
@@ -130,7 +130,7 @@ pub enum KineticStoreError {
     /// The randomness injected into the PoW is forged or belongs to a different network/round.
     /// Ensure you are querying the correct time oracle network beacon.
     #[error("drand signature failed BLS verification")]
-    InvalidDrandSignature,
+    InvalidBeaconSignature,
     /// The raw payload bytes could not be parsed as JSON.
     /// The data is corrupted, encrypted, or improperly serialized.
     /// Ensure the payload is valid UTF-8 JSON.
@@ -217,7 +217,7 @@ impl KineticStoreError {
             Self::InvalidKidSignature => "KIN-DHT-011",
             Self::InvalidManifestSignature => "KIN-DHT-012",
             Self::UnknownRecordType => "KIN-DHT-013",
-            Self::InvalidDrandHex => "KIN-DHT-014",
+            Self::InvalidBeaconHex => "KIN-DHT-014",
             Self::StaleHeartbeat => "KIN-DHT-015",
             Self::InvalidHostRouteSignature => "KIN-DHT-016",
             Self::RateLimited => "KIN-DHT-017",
@@ -227,7 +227,7 @@ impl KineticStoreError {
             Self::NetworkHalted => "KIN-DHT-021",
             Self::DelegatedCapabilityMissing => "KIN-DHT-022",
             Self::DelegatedAuthorizationInvalid => "KIN-DHT-023",
-            Self::InvalidDrandSignature => "KIN-DHT-024",
+            Self::InvalidBeaconSignature => "KIN-DHT-024",
             Self::MalformedJson => "KIN-DHT-025",
             Self::InvalidKidDocument => "KIN-DHT-026",
             Self::GenesisBindingFailed => "KIN-DHT-027",
@@ -274,7 +274,7 @@ impl KineticStoreError {
             Self::InvalidKidSignature => "KID document signature verification failed".to_string(),
             Self::InvalidManifestSignature => "Manifest signature verification failed".to_string(),
             Self::UnknownRecordType => "Record payload prefix is unrecognized".to_string(),
-            Self::InvalidDrandHex => "Drand randomness hex string is invalid".to_string(),
+            Self::InvalidBeaconHex => "Drand randomness hex string is invalid".to_string(),
             Self::StaleHeartbeat => "Heartbeat kyn is not newer than stored record".to_string(),
             Self::InvalidHostRouteSignature => {
                 "Host routing record signature verification failed".to_string()
@@ -292,7 +292,7 @@ impl KineticStoreError {
                 "The delegated authorization proof could not be verified against the master key."
                     .to_string()
             }
-            Self::InvalidDrandSignature => "Drand signature math verification failed".to_string(),
+            Self::InvalidBeaconSignature => "Drand signature math verification failed".to_string(),
             Self::MalformedJson => "Failed to parse raw bytes as JSON".to_string(),
             Self::InvalidKidDocument => "KID document failed self-verification".to_string(),
             Self::GenesisBindingFailed => "KID genesis binding failed on first publish".to_string(),
@@ -337,7 +337,7 @@ impl KineticStoreError {
             | Self::VdfEngineError(_)
             | Self::InvalidKidSignature
             | Self::InvalidManifestSignature
-            | Self::InvalidDrandHex
+            | Self::InvalidBeaconHex
             | Self::StaleHeartbeat
             | Self::InvalidHostRouteSignature
             | Self::StaleReveal
@@ -346,7 +346,7 @@ impl KineticStoreError {
             | Self::NetworkHalted
             | Self::DelegatedCapabilityMissing
             | Self::DelegatedAuthorizationInvalid
-            | Self::InvalidDrandSignature
+            | Self::InvalidBeaconSignature
             | Self::InvalidKidDocument
             | Self::GenesisBindingFailed
             | Self::UnauthorizedUpdate

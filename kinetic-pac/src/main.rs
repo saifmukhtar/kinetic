@@ -169,6 +169,7 @@ impl PacManager {
     }
 
     #[cfg(test)]
+    /// Create a new instance for testing.
     pub fn new_for_test(
         config_dir: &std::path::Path,
         configurator: Box<dyn ProxyConfigurator>,

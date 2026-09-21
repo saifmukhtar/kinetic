@@ -330,11 +330,11 @@ async fn run_daemon() -> Result<()> {
     };
     info!(
         "Daemon identity loaded: {:?}",
-        hex::encode(daemon_keypair.pubkey_bytes())
+        hex::encode(daemon_keypair.to_pubkey().0)
     );
 
     let kyn_provider: Arc<dyn KynProvider> = Arc::new(
-        kinetic_network::client::drand::DrandProvider::new(Some(storage.clone())),
+        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage.clone())),
     );
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
@@ -363,7 +363,7 @@ async fn run_daemon() -> Result<()> {
 
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
     let local_key = kinetic_network::pow::mine_p2p_keypair(
-        kinetic_types::clock::Kyn(initial_kyn),
+        kinetic_kyn::types::Kyn(initial_kyn),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
@@ -504,7 +504,7 @@ async fn run_daemon() -> Result<()> {
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: 0 },
+                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
                             )
                             .await
                         && !resp.actions.is_empty()
@@ -521,7 +521,7 @@ async fn run_daemon() -> Result<()> {
                                 if let Err(e) = kinetic_core::action::process_action_message(
                                     &mut action_state,
                                     msg,
-                                    kinetic_types::clock::Kyn(0),
+                                    kinetic_kyn::types::Kyn(0),
                                 ) {
                                     tracing::error!("Failed to apply synced action: {}", e);
                                 }
@@ -658,7 +658,7 @@ async fn run_daemon() -> Result<()> {
         storage.clone(),
         network_client.clone(),
         kyn_provider.clone(),
-        config.drand.p2p_only,
+        config.time_oracle.p2p_only,
         initial_kyn,
         daemon_keypair.clone(),
         kyn_tx.clone(),

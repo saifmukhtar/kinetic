@@ -38,6 +38,7 @@ hyper-util = { workspace = true, features = ["full"] }
 keyring.workspace = true
 kinetic-core = { path = "../kinetic-core" }
 kinetic-kid = { path = "../kinetic-kid" }
+kinetic-kyn = { path = "../kinetic-kyn" }
 kinetic-local = { path = "../kinetic-local" }
 kinetic-network = { path = "../kinetic-network" }
 kinetic-nrs = { path = "../kinetic-nrs" }

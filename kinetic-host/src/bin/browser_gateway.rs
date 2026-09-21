@@ -15,7 +15,7 @@ use tokio::sync::watch;
 
 async fn fetch_kyn() -> u64 {
     let client = reqwest::Client::new();
-    let ping_endpoint = kinetic_core::constants::DRAND_HTTP_ENDPOINTS
+    let ping_endpoint = kinetic_core::constants::BEACON_ENDPOINTS
         .first()
         .unwrap_or(&"");
     if let Ok(res) = client.get(*ping_endpoint).send().await
@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let current_pulse = fetch_kyn().await;
     println!("Mining PoW to satisfy kinetic-host anti-spam...");
     let key = kinetic_network::pow::mine_p2p_keypair(
-        kinetic_types::clock::Kyn(current_pulse),
+        kinetic_kyn::types::Kyn(current_pulse),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     let storage = Arc::new(KineticStorage::new("./kinetic_gateway_db")?);

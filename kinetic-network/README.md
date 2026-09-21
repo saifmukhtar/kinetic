@@ -1,7 +1,7 @@
 # kinetic-network
 
 ## 1. Overview
-`kinetic-network` is the massive Layer 7 infrastructural trunk that drives the Kinetic sovereign naming network. It houses the entire `libp2p` P2P mesh, managing Distributed Hash Table (DHT) state, high-speed Gossipsub floods, AutoNAT traversals, and cryptographic record verification.
+`kinetic-network` is the massive Layer 7 infrastructural trunk that drives the Kinetic identity naming network. It houses the entire `libp2p` P2P mesh, managing Distributed Hash Table (DHT) state, high-speed Gossipsub floods, AutoNAT traversals, and cryptographic record verification.
 
 ## 2. Usage & Integration
 Layer 8 executables (`kinetic-daemon`, `kinetic-node`) do not interact with the Swarm directly. They construct a `NetworkClient` handle and pass messages to the background event loop.
@@ -43,7 +43,7 @@ To fully understand this crate, we recommend reading it in the following order:
 ### Prerequisites
 * **kinetic-core:** You must understand `NrsZone`, `Kyn`, and `NameRecord` structures.
 * **kinetic-local:** You should understand `GLOBAL_ACTION_STATE` (which dictates emergency network pauses).
-* **kinetic-verify:** You must understand how sovereign signatures are validated.
+* **kinetic-verify:** You must understand how identity signatures are validated.
 
 ### File Traversal (Leaf-First)
 Read this crate in the following order to build understanding from the bottom up:

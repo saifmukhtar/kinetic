@@ -1,34 +1,4 @@
-//! Kinetic Network Timekeeping & Branded Time Units.
-//!
-//! Provides branded time tracking for frontends, explorers, and node monitoring.
-//! The underlying consensus engine uses absolute network beacons, which this module
-//! translates into the official Kinetic time hierarchy (The Crystal Lexicon):
-//!
-//! - **1 Kyn** = 3 seconds (The atomic heartbeat)
-//! - **1 Facet** = 1,200 Kyns (1 Hour)
-//! - **1 Prism** = 28,800 Kyns (1 Day / 24 Hours)
-//!
-//! Higher-order units (Matrix, Lattice, Aeon) are derivable from `prism` by the
-//! caller and are intentionally omitted from this type to keep it a pure data contract.
-
-use serde::{Deserialize, Serialize};
-
-/// Strict type for Unix Time in seconds.
-///
-/// This wrapper prevents accidental math operations between network `Kyn` units 
-/// and local wall-clock seconds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct UTime(pub u64);
-
-/// Strict type for an absolute Kinetic Network Time `Kyn`.
-///
-/// A `Kyn` represents a verified pulse from the network's KineticTime. 
-/// Because it is mathematically proven, it is the only safe unit of time for 
-/// protocol-level validation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct Kyn(pub u64);
+use crate::types::{Kyn, UTime, KineticTime};
 
 impl Kyn {
     /// Converts a `Kyn` number into a `UTime` (Unix epoch timestamp in seconds).
@@ -39,7 +9,7 @@ impl Kyn {
     ///
     /// # Examples
     /// ```rust
-    /// use kinetic_types::clock::{Kyn, UTime};
+    /// use kinetic_kyn::types::{Kyn, UTime};
     ///
     /// let kyn = Kyn(100);
     /// // If genesis was at unix 1000, and period is 3 seconds:
@@ -49,6 +19,27 @@ impl Kyn {
     pub fn to_utime(&self, genesis: u64, period: u64) -> UTime {
         UTime(genesis.saturating_add(self.0.saturating_mul(period)))
     }
+
+    /// Serializes the Kyn as an 8-byte array.
+    pub fn to_be_bytes(&self) -> [u8; 8] {
+        self.0.to_be_bytes()
+    }
+
+    /// Deserializes the Kyn from an 8-byte array.
+    pub fn from_be_bytes(bytes: [u8; 8]) -> Self {
+        Self(u64::from_be_bytes(bytes))
+    }
+
+    /// Derives the current estimated Kyn purely from the local OS clock.
+    /// This should only be used as a fallback during genesis/initial sync when no Drand data is available.
+    pub fn now_local() -> Self {
+        let now_sec = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        // Fallback assumes QUICKNET constants
+        UTime(now_sec).to_kyn(1692803367, 3)
+    }
 }
 
 impl UTime {
@@ -56,7 +47,7 @@ impl UTime {
     ///
     /// # Examples
     /// ```rust
-    /// use kinetic_types::clock::{Kyn, UTime};
+    /// use kinetic_kyn::types::{Kyn, UTime};
     ///
     /// let utime = UTime(1300);
     /// // If genesis was at unix 1000, and period is 3 seconds:
@@ -73,43 +64,15 @@ impl UTime {
         Kyn(self.0.saturating_sub(genesis) / period)
     }
 
-    /// Returns the current local system time in seconds.
-    ///
-    /// # Security
-    /// **DO NOT USE FOR CONSENSUS LOGIC.** 
-    /// This relies on the local OS wall-clock which can be trivially manipulated by users 
-    /// (e.g., changing their device calendar). This should only be used for UI/UX rendering 
-    /// or extremely low-security local timeouts. All protocol logic MUST derive time from 
-    /// the `Kyn` via `to_utime`.
-    pub fn now_local() -> Self {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        UTime(now)
+    /// Serializes the UTime as an 8-byte array.
+    pub fn to_be_bytes(&self) -> [u8; 8] {
+        self.0.to_be_bytes()
     }
-}
 
-/// Represents a specific point in time on the Kinetic network using branded units.
-///
-/// # Time Hierarchy
-///
-/// - **Kyn**: 3 seconds
-/// - **Facet**: 1,200 Kyns (1 Hour)
-/// - **Prism**: 28,800 Kyns (1 Day)
-///
-/// Higher-order units (Matrix = 7 Prisms, Lattice = 30 Prisms, Aeon = 365 Prisms)
-/// are intentionally not provided as methods — callers derive them from `prism` directly.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct KineticTime {
-    /// Number of completed 24-hour network Prisms (28,800 kyns each).
-    pub prism: u64,
-    /// Number of completed 1-hour network Facets within the current Prism (1,200 kyns each, 0..23).
-    pub facet: u64,
-    /// Number of completed 3-second Kyns within the current Facet (0..1199).
-    pub kyn: u64,
-    /// Total number of kyns elapsed since network genesis.
-    pub total_kyns: u64,
+    /// Deserializes the UTime from an 8-byte array.
+    pub fn from_be_bytes(bytes: [u8; 8]) -> Self {
+        Self(u64::from_be_bytes(bytes))
+    }
 }
 
 impl KineticTime {
@@ -157,6 +120,7 @@ impl KineticTime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{Kyn, UTime, KineticTime};
 
     #[test]
     fn test_kyn_unix_conversion_roundtrip() {
@@ -226,5 +190,54 @@ mod tests {
         // 1 Aeon = 365 Prisms = 365 × 28,800 = 10,512,000 kyns
         let t_aeon = KineticTime::from_kyn(Kyn(10_512_000), genesis);
         assert_eq!(t_aeon.prism / 365, 1);
+    }
+
+    #[test]
+    fn test_kinetic_time_zero() {
+        let genesis_kyn = 30579969;
+        let genesis = Kyn(genesis_kyn);
+        let time = KineticTime::from_kyn(genesis, genesis);
+        assert_eq!(time.prism, 0);
+        assert_eq!(time.facet, 0);
+        assert_eq!(time.kyn, 0);
+        assert_eq!(time.total_kyns, 0);
+    }
+
+    #[test]
+    fn test_kinetic_time_pre_genesis() {
+        let genesis_kyn = 30579969;
+        let time =
+            KineticTime::from_kyn(Kyn(genesis_kyn - 1), Kyn(genesis_kyn));
+        assert_eq!(time.total_kyns, 0);
+    }
+
+    #[test]
+    fn test_kinetic_time_complex() {
+        let genesis_kyn = 30579969;
+        let genesis = Kyn(genesis_kyn);
+
+        // 1 day (28,800) + 2 hours (2,400) + 45 kyns = 31,245 total kyns
+        let target_kyn = Kyn(genesis_kyn + 31_245);
+        let time = KineticTime::from_kyn(target_kyn, genesis);
+
+        assert_eq!(time.prism, 1);
+        assert_eq!(time.facet, 2);
+        assert_eq!(time.kyn, 45);
+        assert_eq!(time.total_kyns, 31_245);
+    }
+
+    #[test]
+    fn test_network_kyn_unix_conversion() {
+        let kyn = Kyn(30_579_969);
+        let drand_genesis = 1692803367;
+        let drand_period = 3;
+        
+        let unix_secs = kyn.to_utime(drand_genesis, drand_period);
+        assert_eq!(
+            unix_secs,
+            UTime(drand_genesis + (kyn.0 * drand_period))
+        );
+        let recovered = unix_secs.to_kyn(drand_genesis, drand_period);
+        assert_eq!(recovered, kyn);
     }
 }

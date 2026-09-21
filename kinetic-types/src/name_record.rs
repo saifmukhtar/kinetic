@@ -10,9 +10,10 @@
 //!    mapped directly by the Sovereign key.
 //!
 //! To maintain active routing and prove name liveness, owners periodically publish [`Heartbeat`]
-//! proofs signed with their `KineticKeypair`s.
+//! proofs signed with their `DelegatedPrivKey`s (or `ControllerPrivKey`s).
 
 #![allow(clippy::collapsible_if)]
+use kinetic_primitives::kinetic_keypair::IdentityPubKey;
 use serde::{Deserialize, Serialize};
 
 /// Represents a heartbeat proof indicating that a `.kin` name is actively maintained by its owner.
@@ -25,20 +26,18 @@ pub struct Heartbeat {
     /// Name associated with this heartbeat.
     pub name: String,
     /// Latest KineticTime kyn number proving heartbeat recency.
-    pub latest_kyn: u64,
+    pub latest_kyn: kinetic_kyn::types::Kyn,
     /// Owner's cryptographic signature over [`signable_bytes`](Heartbeat::signable_bytes).
-    pub signature: Vec<u8>,
+    pub owner_signature: Vec<u8>,
     /// Optional delegated authorization proof (Fat Heartbeat).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization: Option<Box<crate::identity::AuthorizedManifest>>,
 }
 
 impl Heartbeat {
-    /// Serializes this heartbeat payload into a canonical byte string for owner signature verification.
+    /// Generates the canonical byte representation of the heartbeat for signing.
     ///
-    /// # Security
-    /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte 
-    /// `network_salt` and the literal `b"-heartbeat-v1"`, a heartbeat signed for 
+    /// By deliberately binding the signature to both the `network_salt` and the literal `b"-heartbeat-v1"`, a heartbeat signed for 
     /// the `.kin` network cannot be maliciously replayed on other networks.
     ///
     /// # Examples
@@ -47,8 +46,8 @@ impl Heartbeat {
     ///
     /// let hb = Heartbeat {
     ///     name: "example".to_string(),
-    ///     latest_kyn: 12345,
-    ///     signature: vec![],
+    ///     latest_kyn: kinetic_kyn::types::Kyn(12345),
+    ///     owner_signature: vec![],
     ///     authorization: None,
     /// };
     /// let salt = [0x42; 32];
@@ -90,14 +89,15 @@ pub enum NameRecord {
     Prime {
         /// The name.
         name: String,
-        /// The public key bytes of the name owner.
-        pubkey: Vec<u8>,
+        /// The Identity public key of the name owner.
+        #[serde(with = "crate::pubkey_serde::identity_serde")]
+        pubkey: IdentityPubKey,
         /// The network kyn when this mapping was approved.
-        kyn: u64,
+        kyn: kinetic_kyn::types::Kyn,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
-        /// The owner's signature authorizing the payload.
-        signature: Vec<u8>,
+        /// The Identity signature authorizing the payload.
+        owner_signature: Vec<u8>,
         /// Optional delegated authorization proof for NRS zone updates.
         #[serde(skip_serializing_if = "Option::is_none")]
         authorization: Option<Box<crate::identity::AuthorizedManifest>>,
@@ -106,14 +106,15 @@ pub enum NameRecord {
     Infra {
         /// The name.
         name: String,
-        /// The public key bytes of the name owner.
-        pubkey: Vec<u8>,
+        /// The Identity public key of the name owner.
+        #[serde(with = "crate::pubkey_serde::identity_serde")]
+        pubkey: IdentityPubKey,
         /// The network kyn when this mapping was approved.
-        kyn: u64,
+        kyn: kinetic_kyn::types::Kyn,
         /// The zone payload associated with the name.
         payload: Vec<u8>,
-        /// The owner's signature authorizing the payload.
-        signature: Vec<u8>,
+        /// The Identity signature authorizing the payload.
+        owner_signature: Vec<u8>,
         /// Optional delegated authorization proof for NRS zone updates.
         #[serde(skip_serializing_if = "Option::is_none")]
         authorization: Option<Box<crate::identity::AuthorizedManifest>>,
@@ -130,7 +131,7 @@ impl NameRecord {
     }
 
     /// Returns the public key of the owner.
-    pub fn pubkey(&self) -> &[u8] {
+    pub fn pubkey(&self) -> &IdentityPubKey {
         match self {
             Self::Standard(r) => &r.pubkey,
             Self::Prime { pubkey, .. } | Self::Infra { pubkey, .. } => pubkey,
@@ -145,11 +146,11 @@ impl NameRecord {
         }
     }
 
-    /// Returns the cryptographic signature.
+    /// Returns the Identity signature over the payload.
     pub fn signature(&self) -> &[u8] {
         match self {
-            Self::Standard(r) => &r.signature,
-            Self::Prime { signature, .. } | Self::Infra { signature, .. } => signature,
+            Self::Standard(r) => &r.identity_signature,
+            Self::Prime { owner_signature, .. } | Self::Infra { owner_signature, .. } => owner_signature,
         }
     }
 

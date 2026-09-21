@@ -17,6 +17,7 @@ categories = ["os", "filesystem"]
 kinetic-action = { path = "../kinetic-action" }
 kinetic-core = { path = "../kinetic-core" }
 kinetic-kid = { path = "../kinetic-kid" }
+kinetic-kyn = { path = "../kinetic-kyn", default-features = false }
 kinetic-primitives = { path = "../kinetic-primitives" }
 kinetic-types = { path = "../kinetic-types" }
 

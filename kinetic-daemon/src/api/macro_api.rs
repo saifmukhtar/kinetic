@@ -18,7 +18,6 @@ use axum::{
     Json,
     extract::{Extension, Path, State},
 };
-use kinetic_core::traits::KynProvider;
 
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -114,7 +113,7 @@ pub async fn handle_macro_register_name(
         // Step 1: KYN Time Oracle
         update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);
         let kyn_provider: std::sync::Arc<dyn kinetic_core::traits::KynProvider> = std::sync::Arc::new(
-            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone())),
+            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage_clone.clone())),
         );
         let drand_data = match kyn_provider.load_cached() {
             Ok(data) => data,
@@ -148,7 +147,7 @@ pub async fn handle_macro_register_name(
                 return;
             }
         };
-        let pubkey = keypair.pubkey_bytes();
+        let pubkey = keypair.to_pubkey().0;
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -175,7 +174,7 @@ pub async fn handle_macro_register_name(
             &fqdn,
             &salt,
             &sig_bytes,
-            &pubkey,
+            &kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey.to_vec()),
         );
 
         // Step 3: VDF Evaluation (Blocking)
@@ -251,7 +250,7 @@ pub async fn handle_macro_register_name(
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
         let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
-            * kinetic_core::constants::DRAND_PERIOD)
+            * kinetic_core::constants::KYN_PERIOD)
             + 2;
         update_task_status(
             &tasks_clone,
@@ -267,15 +266,15 @@ pub async fn handle_macro_register_name(
         update_task_status(&tasks_clone, &task_id_clone, "Injecting Identity (KID)", 92);
         let current_kyn = {
             let kyn_provider =
-                kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone()));
+                kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage_clone.clone()));
             use kinetic_core::traits::KynProvider;
-            use kinetic_core::types::clock::KynNetworkExt;
+
             match kyn_provider.load_cached() {
                 Ok(kyn) => kyn.kyn,
-                Err(_) => kinetic_core::types::Kyn::now_local().0,
+                Err(_) => kinetic_kyn::types::Kyn::now_local().0,
             }
         };
-        let current_kyn = kinetic_core::types::Kyn(current_kyn);
+        let current_kyn = kinetic_kyn::types::Kyn(current_kyn);
         let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
 
         let kid_id = match kinetic_local::kid_manager::get_or_create_kid_for_name(
@@ -324,20 +323,20 @@ pub async fn handle_macro_register_name(
             name: fqdn.clone(),
             payload,
             salt,
-            kyn: drand_data.kyn,
-            drand_signature: drand_data.signature.clone(),
+            kyn: kinetic_kyn::types::Kyn(drand_data.kyn),
+            beacon_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
             },
-            pubkey: pubkey.to_vec(),
-            signature: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey.to_vec()),
+            identity_signature: vec![],
             authorization: None,
             previous_proof: None,
         };
 
         let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-        reveal.signature = keypair.sign(&signable);
+        reveal.identity_signature = keypair.sign(&signable);
 
         // Publish to Network
         let reveal_bytes = match serde_json::to_vec(&reveal) {
@@ -510,7 +509,7 @@ pub async fn handle_macro_renew_name(
         // Step 2: KYN Time Oracle
         update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);
         let kyn_provider: std::sync::Arc<dyn kinetic_core::traits::KynProvider> = std::sync::Arc::new(
-            kinetic_network::client::drand::DrandProvider::new(Some(storage_clone.clone())),
+            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage_clone.clone())),
         );
         let drand_data = match kyn_provider.load_cached() {
             Ok(d) => d,
@@ -534,7 +533,7 @@ pub async fn handle_macro_renew_name(
                 return;
             }
         };
-        let pubkey_bytes = keypair.pubkey_bytes();
+        let pubkey_bytes = keypair.to_pubkey().0;
         let mut salt = [0u8; 32];
         if let Err(e) = getrandom::fill(&mut salt) {
             update_task_error(
@@ -561,7 +560,7 @@ pub async fn handle_macro_renew_name(
             &fqdn,
             &salt,
             &sig_bytes,
-            &pubkey_bytes,
+            &kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey_bytes.to_vec()),
         );
 
         // Step 4: VDF Evaluation (Blocking)
@@ -638,7 +637,7 @@ pub async fn handle_macro_renew_name(
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
         let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
-            * kinetic_core::constants::DRAND_PERIOD)
+            * kinetic_core::constants::KYN_PERIOD)
             + 2;
         update_task_status(
             &tasks_clone,
@@ -653,10 +652,10 @@ pub async fn handle_macro_renew_name(
         let previous_proof = kinetic_core::types::PreviousProof {
             salt: old_reveal.salt,
             kyn: old_reveal.kyn,
-            drand_signature: old_reveal.drand_signature.clone(),
+            beacon_signature: old_reveal.beacon_signature.clone(),
             iterations: old_reveal.iterations,
             vdf_proof: old_reveal.vdf_proof.clone(),
-            signature: old_reveal.signature.clone(),
+            identity_signature: old_reveal.identity_signature.clone(),
         };
 
         let mut new_reveal = kinetic_core::types::Reveal {
@@ -664,20 +663,20 @@ pub async fn handle_macro_renew_name(
             name: fqdn.clone(),
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
-            kyn: drand_data.kyn,
-            drand_signature: drand_data.signature.clone(),
+            kyn: kinetic_kyn::types::Kyn(drand_data.kyn),
+            beacon_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
             },
-            pubkey: pubkey_bytes.to_vec(),
-            signature: vec![],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey_bytes.to_vec()),
+            identity_signature: vec![],
             authorization: None,
             previous_proof: Some(previous_proof),
         };
 
         let signable = new_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-        new_reveal.signature = keypair.sign(&signable);
+        new_reveal.identity_signature = keypair.sign(&signable);
 
         let reveal_bytes = match serde_json::to_vec(&new_reveal) {
             Ok(b) => b,

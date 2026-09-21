@@ -82,7 +82,7 @@ pub struct LocalKidSummary {
     /// The W3C DID string.
     pub did: String,
     /// UNIX timestamp when the document was created.
-    pub created_at: u64,
+    pub created_at: kinetic_kyn::types::UTime,
     /// Path to the JSON document file.
     pub doc_path: PathBuf,
     /// Whether the corresponding private key exists locally.
@@ -96,14 +96,7 @@ pub fn get_kids_dir() -> PathBuf {
     crate::config::get_base_dir().join("kids")
 }
 
-/// Returns the current network-anchored Unix timestamp (seconds).
-///
-/// Derives the network time by mapping the estimated KYN Provider network time to exact Unix
-/// seconds aligned to 3-second network heartbeats using network constants.
-pub fn unix_time() -> kinetic_types::clock::UTime {
-    use kinetic_core::types::clock::KynNetworkExt;
-    kinetic_types::clock::Kyn::now_local().to_network_utime()
-}
+
 
 pub struct KidPaths {
     pub did_path: PathBuf,
@@ -182,14 +175,14 @@ fn write_json_document(path: &Path, json_str: &str) -> Result<(), IdentityError>
 /// Loads a raw ML-DSA-65 signing key from disk.
 fn load_raw_signing_key(
     path: &Path,
-) -> Result<kinetic_primitives::keys::KineticKeypair, IdentityError> {
+) -> Result<kinetic_primitives::kinetic_keypair::ControllerPrivKey, IdentityError> {
     if !path.exists() {
         return Err(IdentityError::KidPrivateKeyNotFound(
             path.to_string_lossy().to_string(),
         ));
     }
     let bytes = fs::read(path)?;
-    kinetic_primitives::keys::KineticKeypair::from_slice(&bytes).map_err(|_| {
+    kinetic_primitives::kinetic_keypair::ControllerPrivKey::from_slice(&bytes).map_err(|_| {
         IdentityError::CorruptedIdentityFile(format!("Invalid key bytes in {:?}", path))
     })
 }
@@ -231,7 +224,7 @@ pub fn get_or_create_kid_for_name(
     name: &str,
     inherit_subname: bool,
     force: bool,
-    current_kyn: kinetic_types::clock::Kyn,
+    current_kyn: kinetic_kyn::types::Kyn,
     master_key_path: &Path,
 ) -> Result<GeneratedKid, IdentityError> {
     let fqdn = normalize_name(name);
@@ -270,8 +263,8 @@ pub fn get_or_create_kid_for_name(
     }
 
     // 1. Generate new ML-DSA-65 keypair
-    let keypair = kinetic_primitives::keys::KineticKeypair::generate();
-    let pub_key_bytes = keypair.pubkey_bytes();
+    let keypair = kinetic_primitives::kinetic_keypair::ControllerPrivKey::generate();
+    let pub_key_bytes = keypair.to_pubkey().as_bytes().to_vec();
     let pub_key_b64 = b64_url.encode(&pub_key_bytes);
 
     // 2. Derive deterministic DID string: did:kin:<SHA256(PublicKey)>
@@ -281,8 +274,10 @@ pub fn get_or_create_kid_for_name(
     let kid_did = Did::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
-    use kinetic_core::types::clock::KynNetworkExt;
-    let now_ts = current_kyn.to_network_utime().0;
+    let now_ts = current_kyn.to_utime(
+        kinetic_core::constants::KYN_GENESIS_TIME,
+        kinetic_core::constants::KYN_PERIOD,
+    );
 
     let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
@@ -290,7 +285,7 @@ pub fn get_or_create_kid_for_name(
         created_at: now_ts,
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", did_str),
-            key_type: "Sovereign".to_string(),
+            key_type: "Controller".to_string(),
             public_key: pub_key_b64,
         }],
         manifest: None,
@@ -301,14 +296,14 @@ pub fn get_or_create_kid_for_name(
 
     // 3. Self-sign the Document with the new keypair
     let signed_doc = doc
-        .sign(&keypair)
+        .sign_with_controller(&keypair)
         .map_err(|e| IdentityError::KidSigningFailed(format!("{}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
         .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
 
     // 4. Securely persist files
-    write_private_key_securely(&key_path, &keypair.to_bytes())?;
+    write_private_key_securely(&key_path, &keypair.to_secret_bytes())?;
     write_json_document(&doc_path, &json_data)?;
 
     // 5. Wrap and sign with master identity.key
@@ -362,28 +357,28 @@ pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid,
     let old_key = load_raw_signing_key(&key_path)?;
 
     // 2. Generate new keypair
-    let new_keypair = kinetic_primitives::keys::KineticKeypair::generate();
-    let new_pub_bytes = new_keypair.pubkey_bytes();
+    let new_keypair = kinetic_primitives::kinetic_keypair::ControllerPrivKey::generate();
+    let new_pub_bytes = new_keypair.to_pubkey().as_bytes().to_vec();
     let new_pub_b64 = b64_url.encode(&new_pub_bytes);
 
     let primary_id = format!("{}#primary", doc.kid);
     doc.controller_keys = vec![ControllerKey {
         id: primary_id,
-        key_type: "Sovereign".to_string(),
+        key_type: "Controller".to_string(),
         public_key: new_pub_b64,
     }];
     doc.signature = None;
 
     // 3. Sign the updated document with the OLD key for valid chain of custody
     let signed_doc = doc
-        .sign(&old_key)
+        .sign_with_controller(&old_key)
         .map_err(|e| IdentityError::KidSigningFailed(format!("Rotation signing failed: {}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
         .map_err(|e| IdentityError::SerializationFailed(format!("{}", e)))?;
 
     // 4. Atomically persist updated files
-    write_private_key_securely(&key_path, &new_keypair.to_bytes())?;
+    write_private_key_securely(&key_path, &new_keypair.to_secret_bytes())?;
     write_json_document(&doc_path, &json_data)?;
 
     // 5. Wrap in AuthorizedKid signed by identity.key
@@ -496,7 +491,7 @@ pub fn revoke_local_kid(name: &str) -> Result<Document, IdentityError> {
     doc.signature = None;
 
     let signed_doc = doc
-        .sign(&key)
+        .sign_with_controller(&key)
         .map_err(|e| IdentityError::KidSigningFailed(format!("{}", e)))?;
 
     let json_data = serde_json::to_string_pretty(&signed_doc)
@@ -539,7 +534,7 @@ pub fn load_local_manifest(name: &str) -> Result<Option<Manifest>, IdentityError
 pub fn save_and_sign_local_manifest(
     name: &str,
     services: Vec<Service>,
-    current_kyn: kinetic_types::clock::Kyn,
+    current_kyn: kinetic_kyn::types::Kyn,
     master_key_path: &Path,
 ) -> Result<(Manifest, AuthorizedManifest), IdentityError> {
     let fqdn = normalize_name(name);
@@ -573,8 +568,10 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    use kinetic_core::types::clock::KynNetworkExt;
-    let current_time = current_kyn.to_network_utime().0;
+    let current_time = current_kyn.to_utime(
+        kinetic_core::constants::KYN_GENESIS_TIME,
+        kinetic_core::constants::KYN_PERIOD,
+    );
 
     let manifest = Manifest {
         doc_type: "kinetic.manifest.v1".to_string(),
@@ -587,7 +584,7 @@ pub fn save_and_sign_local_manifest(
     };
 
     let signed_manifest = manifest
-        .sign(&signing_key)
+        .sign_with_controller(&signing_key)
         .map_err(|e| IdentityError::ManifestSigningFailed(format!("{}", e)))?;
 
     // Persist manifest
@@ -614,7 +611,7 @@ pub fn save_and_sign_local_manifest(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_core::types::{Kyn, KynNetworkExt};
+    use kinetic_kyn::types::Kyn;
     use lazy_static::lazy_static;
     use std::sync::Mutex;
     use tempfile::tempdir;
@@ -671,7 +668,7 @@ mod tests {
         assert!(apex.did.starts_with(DID_PREFIX));
         assert!(apex.doc_path.exists());
         assert!(apex.key_path.as_ref().unwrap().exists());
-        assert!(apex.kid_doc.verify().is_ok());
+        apex.kid_doc.verify().unwrap();
         assert!(apex.kid_doc.verify_genesis().is_ok());
 
         // Test Overwrite Guard (KIN-IDN-006)
@@ -774,7 +771,7 @@ mod tests {
         assert_eq!(saved_manifest.services.len(), 1);
         assert!(
             saved_manifest
-                .verify_at_time(&apex.kid_doc, Kyn(100).to_network_utime().0)
+                .verify_at_time(&apex.kid_doc, Kyn(100).to_utime(1692803367, 3))
                 .is_ok()
         );
         assert_eq!(auth_manifest.name, "saif.kin");

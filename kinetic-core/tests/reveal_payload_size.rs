@@ -13,14 +13,14 @@ fn test_003_oom_payload_exhaustion() {
         name: format!("{}{}", "malicious", kinetic_core::constants::NSP_SUFFIX),
         payload: oversized_payload,
         salt: [0u8; 32],
-        kyn: 100,
-        drand_signature: "random".to_string(),
+        kyn: kinetic_kyn::types::Kyn(100),
+        beacon_signature: "random".to_string(),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: vec![],
-        signature: vec![],
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+        identity_signature: vec![],
         previous_proof: None,
         authorization: None,
     };

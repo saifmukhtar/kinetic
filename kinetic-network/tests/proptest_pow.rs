@@ -1,5 +1,5 @@
 use kinetic_network::pow::verify_p2p_pow;
-use kinetic_types::clock::Kyn;
+use kinetic_kyn::types::Kyn;
 use libp2p::PeerId;
 use proptest::prelude::*;
 

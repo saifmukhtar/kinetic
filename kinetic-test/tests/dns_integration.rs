@@ -35,20 +35,20 @@ mod tests {
                 name: "testdns.kin".to_string(),
                 payload,
                 salt: [0u8; 32],
-                kyn: 1000,
-                drand_signature: "".to_string(),
+                kyn: kinetic_kyn::types::Kyn(1000),
+                beacon_signature: "".to_string(),
                 iterations: 100000,
                 vdf_proof: VdfProof {
                     proof_bytes: vec![],
                 },
-                pubkey: key_a.public().encode_protobuf(),
-                signature: vec![],
+                pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+                identity_signature: vec![],
                 previous_proof: None,
                 authorization: None,
             };
-            let keypair = kinetic_primitives::keys::KineticKeypair::generate();
-            reveal.pubkey = keypair.pubkey_bytes();
-            reveal.signature =
+            let keypair = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+            reveal.pubkey = keypair.to_pubkey();
+            reveal.identity_signature =
                 keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
             Ok(Json(kinetic_core::types::NameRecord::Standard(Box::new(
                 reveal,

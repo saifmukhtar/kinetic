@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 use crate::error::ActionError;
 use crate::types::{
-    ActionConfig, ActionEffect, ActionState, Hash256, PublicKeyBytes, SignedActionMessage,
+    ActionConfig, ActionEffect, ActionState, Hash256, SignedActionMessage,
 };
 
 /// Validates that the static cryptographic keys required for network actions have been correctly initialized.
@@ -37,7 +37,7 @@ pub fn validate_keys_initialized(
     // Attempt to decode the hex just to validate its format.
     let bytes = hex::decode(sovereign_key_hex).map_err(|_| ActionError::MalformedSovereignKey)?;
 
-    if bytes.len() != 1952 {
+    if bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
         return Err(ActionError::KeyLengthMismatch);
     }
 
@@ -52,7 +52,7 @@ impl ActionState {
     /// # Returns
     ///
     /// A new `ActionState` ready for genesis block processing.
-    pub fn new(genesis_kyn: kinetic_types::clock::Kyn) -> Self {
+    pub fn new(genesis_kyn: kinetic_kyn::types::Kyn) -> Self {
         Self {
             genesis_kyn,
             active_sovereign_key: None,
@@ -70,11 +70,11 @@ impl ActionState {
     /// Computes the SHA-256 action hash for a signed action message.
     ///
     /// The hash is derived from `SHA-256(msg.to_bytes())` and is used as the
-    /// stable key for all subsequent state operations (timelock map, partial proposal map).
+    /// stable key for all subsequent state operations (e.g. deduplicating executed actions).
     ///
     /// # Examples
     /// ```rust,ignore
-    /// use kinetic_action::logic::ActionState;
+    /// use kinetic_action::types::ActionState;
     /// // let hash = ActionState::hash_action(&signed_msg);
     /// ```
     ///
@@ -89,7 +89,7 @@ impl ActionState {
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.
-    pub fn prune(&mut self, current_kyn: kinetic_types::clock::Kyn, config: &ActionConfig) {
+    pub fn prune(&mut self, current_kyn: kinetic_kyn::types::Kyn, config: &ActionConfig) {
         // Remove executed hashes older than the max age
         let max_age_kyns = config.max_age_kyns;
         self.executed_hashes
@@ -101,17 +101,17 @@ impl ActionState {
     /// # Errors
     ///
     /// Returns an [`ActionError`] if the key is missing, invalid, or has the wrong length.
-    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<PublicKeyBytes, ActionError> {
+    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<kinetic_primitives::kinetic_keypair::SovereignPubKey, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
-            return Ok(key.clone());
+            return Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(key.clone()));
         }
 
         let bytes = hex::decode(&config.sovereign_key_hex)
             .map_err(|_| ActionError::MalformedSovereignKey)?;
-        if bytes.len() != 1952 {
+        if bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
             return Err(ActionError::KeyLengthMismatch);
         }
-        Ok(bytes)
+        Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(bytes))
     }
 
     /// Verifies whether a signed action message meets validity rules to be executed.
@@ -122,7 +122,7 @@ impl ActionState {
     pub fn verify_action(
         &mut self,
         msg: &SignedActionMessage,
-        current_kyn: kinetic_types::clock::Kyn,
+        current_kyn: kinetic_kyn::types::Kyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
         crate::engine::get_active_engine(&config.action_model).verify_action(
@@ -137,7 +137,7 @@ impl ActionState {
     pub fn execute_action(
         &mut self,
         msg: &SignedActionMessage,
-        current_kyn: kinetic_types::clock::Kyn,
+        current_kyn: kinetic_kyn::types::Kyn,
         config: &ActionConfig,
     ) -> Option<ActionEffect> {
         crate::engine::get_active_engine(&config.action_model).execute_action(
@@ -157,7 +157,7 @@ impl ActionState {
 pub fn process_action_message(
     state: &mut ActionState,
     msg: &SignedActionMessage,
-    current_kyn: kinetic_types::clock::Kyn,
+    current_kyn: kinetic_kyn::types::Kyn,
     config: &ActionConfig,
 ) -> Result<Option<ActionEffect>, ActionError> {
     let effect = state.verify_action(msg, current_kyn, config)?;

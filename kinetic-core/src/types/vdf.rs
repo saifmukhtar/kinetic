@@ -39,24 +39,24 @@ impl RevealExt for Reveal {
             ));
         }
 
-        if self.drand_signature.len() != 192 {
-            return Err(RevealValidationError::InvalidDrandSignatureLength(
+        if self.beacon_signature.len() != 192 {
+            return Err(RevealValidationError::InvalidBeaconSignatureLength(
                 192,
-                self.drand_signature.len(),
+                self.beacon_signature.len(),
             ));
         }
 
-        if self.pubkey.len() != 1952 {
+        if self.pubkey.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
             return Err(RevealValidationError::InvalidPubkeyLength(
-                1952,
+                kinetic_primitives::KINETIC_PUBKEY_LENGTH,
                 self.pubkey.len(),
             ));
         }
 
-        if self.signature.len() != 4627 {
+        if self.identity_signature.len() != kinetic_primitives::KINETIC_SIGNATURE_LENGTH {
             return Err(RevealValidationError::InvalidSignatureLength(
-                4627,
-                self.signature.len(),
+                kinetic_primitives::KINETIC_SIGNATURE_LENGTH,
+                self.identity_signature.len(),
             ));
         }
 
@@ -77,16 +77,16 @@ mod tests {
     fn valid_reveal() -> Reveal {
         Reveal {
             name: format!("{}{}", "satoshi", crate::constants::NSP_SUFFIX),
-            pubkey: vec![0u8; 1952],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0u8; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
             payload: vec![0u8; 100],
-            signature: vec![0u8; 4627],
+            identity_signature: vec![0u8; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
             iterations: 1000,
             vdf_proof: VdfProof {
                 proof_bytes: vec![0u8; 100],
             },
-            kyn: 1000,
-            drand_signature: "a".repeat(192),
+            kyn: kinetic_kyn::types::Kyn(1000),
+            beacon_signature: "a".repeat(192),
             salt: [0u8; 32],
             protocol_version: 1,
             authorization: None,
@@ -130,21 +130,21 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_drand_signature_length() {
+    fn test_invalid_beacon_signature_length() {
         let mut reveal = valid_reveal();
 
         // Too short
-        reveal.drand_signature = "a".repeat(191);
+        reveal.beacon_signature = "a".repeat(191);
         assert!(matches!(
             reveal.validate().unwrap_err(),
-            RevealValidationError::InvalidDrandSignatureLength(192, 191)
+            RevealValidationError::InvalidBeaconSignatureLength(192, 191)
         ));
 
         // Too long
-        reveal.drand_signature = "a".repeat(193);
+        reveal.beacon_signature = "a".repeat(193);
         assert!(matches!(
             reveal.validate().unwrap_err(),
-            RevealValidationError::InvalidDrandSignatureLength(192, 193)
+            RevealValidationError::InvalidBeaconSignatureLength(192, 193)
         ));
     }
 
@@ -153,18 +153,32 @@ mod tests {
         let mut reveal = valid_reveal();
 
         // Too short
-        reveal.pubkey = vec![0u8; 1951];
-        assert!(matches!(
-            reveal.validate().unwrap_err(),
-            RevealValidationError::InvalidPubkeyLength(1952, 1951)
-        ));
+        reveal.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![
+            0u8;
+            kinetic_primitives::KINETIC_PUBKEY_LENGTH - 1
+        ]);
+        let err = reveal.validate().unwrap_err();
+        assert_eq!(
+            err,
+            RevealValidationError::InvalidPubkeyLength(
+                kinetic_primitives::KINETIC_PUBKEY_LENGTH,
+                kinetic_primitives::KINETIC_PUBKEY_LENGTH - 1
+            )
+        );
 
-        // Too long
-        reveal.pubkey = vec![0u8; 1953];
-        assert!(matches!(
-            reveal.validate().unwrap_err(),
-            RevealValidationError::InvalidPubkeyLength(1952, 1953)
-        ));
+        let mut invalid_reveal2 = reveal.clone();
+        invalid_reveal2.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![
+            0u8;
+            kinetic_primitives::KINETIC_PUBKEY_LENGTH + 1
+        ]);
+        let err2 = invalid_reveal2.validate().unwrap_err();
+        assert_eq!(
+            err2,
+            RevealValidationError::InvalidPubkeyLength(
+                kinetic_primitives::KINETIC_PUBKEY_LENGTH,
+                kinetic_primitives::KINETIC_PUBKEY_LENGTH + 1
+            )
+        );
     }
 
     #[test]
@@ -172,18 +186,32 @@ mod tests {
         let mut reveal = valid_reveal();
 
         // Too short
-        reveal.signature = vec![0u8; 4626];
-        assert!(matches!(
-            reveal.validate().unwrap_err(),
-            RevealValidationError::InvalidSignatureLength(4627, 4626)
-        ));
+        reveal.identity_signature = vec![
+            0u8;
+            kinetic_primitives::KINETIC_SIGNATURE_LENGTH - 1
+        ];
+        let err = reveal.validate().unwrap_err();
+        assert_eq!(
+            err,
+            RevealValidationError::InvalidSignatureLength(
+                kinetic_primitives::KINETIC_SIGNATURE_LENGTH,
+                kinetic_primitives::KINETIC_SIGNATURE_LENGTH - 1
+            )
+        );
 
-        // Too long
-        reveal.signature = vec![0u8; 4628];
-        assert!(matches!(
-            reveal.validate().unwrap_err(),
-            RevealValidationError::InvalidSignatureLength(4627, 4628)
-        ));
+        let mut invalid_reveal2 = reveal.clone();
+        invalid_reveal2.identity_signature = vec![
+            0u8;
+            kinetic_primitives::KINETIC_SIGNATURE_LENGTH + 1
+        ];
+        let err2 = invalid_reveal2.validate().unwrap_err();
+        assert_eq!(
+            err2,
+            RevealValidationError::InvalidSignatureLength(
+                kinetic_primitives::KINETIC_SIGNATURE_LENGTH,
+                kinetic_primitives::KINETIC_SIGNATURE_LENGTH + 1
+            )
+        );
     }
 
     #[test]

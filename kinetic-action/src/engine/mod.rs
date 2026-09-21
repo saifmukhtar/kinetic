@@ -1,7 +1,7 @@
 //! Network action engine trait drivers for different decision-making models.
 //!
 //! Provides concrete implementations of the [`ActionEngine`] trait, 
-//! which define the signature thresholds for network actions.
+//! which define the signature rules for network actions.
 
 pub mod permissionless;
 pub mod sovereign;

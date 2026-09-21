@@ -39,7 +39,7 @@ pub fn get_action_config() -> ActionConfig {
 pub fn process_action_message(
     state: &mut ActionState,
     msg: &SignedActionMessage,
-    current_kyn: kinetic_types::clock::Kyn,
+    current_kyn: kinetic_kyn::types::Kyn,
 ) -> Result<Option<ActionEffect>, ActionError> {
     kinetic_action::logic::process_action_message(state, msg, current_kyn, &get_action_config())
 }

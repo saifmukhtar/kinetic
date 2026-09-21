@@ -11,7 +11,7 @@
 //!
 //! Kinetic uses a Wesolowski VDF where
 //! the challenge is derived from Drand randomness at commitment time:
-//! `challenge = SHA-256(NETWORK_SALT || name || salt || drand_signature_hex)`.
+//! `challenge = SHA-256(NETWORK_SALT || name || salt || beacon_signature_hex)`.
 //!
 //! The Prover uses Boneh-Bünz-Fisch Blockwise Checkpointing to bound memory
 //! usage to ~100MB regardless of iteration count.
@@ -33,8 +33,8 @@ pub enum RevealValidationError {
     #[error("Payload size {0} exceeds MAX_PAYLOAD_SIZE {1}")]
     PayloadTooLarge(usize, usize),
     /// The Drand signature length is incorrect.
-    #[error("Invalid drand_signature length: expected {0}, got {1}")]
-    InvalidDrandSignatureLength(usize, usize),
+    #[error("Invalid beacon_signature length: expected {0}, got {1}")]
+    InvalidBeaconSignatureLength(usize, usize),
     /// The ML-DSA public key length is incorrect.
     #[error("Invalid pubkey length: expected {0}, got {1}")]
     InvalidPubkeyLength(usize, usize),
@@ -53,7 +53,7 @@ impl RevealValidationError {
             Self::InvalidProtocolVersion(_) => "KIN-RVL-001",
             Self::InvalidName(err) => err.code(),
             Self::PayloadTooLarge(_, _) => "KIN-RVL-002",
-            Self::InvalidDrandSignatureLength(_, _) => "KIN-RVL-003",
+            Self::InvalidBeaconSignatureLength(_, _) => "KIN-RVL-003",
             Self::InvalidPubkeyLength(_, _) => "KIN-RVL-004",
             Self::InvalidSignatureLength(_, _) => "KIN-RVL-005",
             Self::VdfProofTooLarge(_, _) => "KIN-RVL-006",
@@ -88,7 +88,7 @@ impl RevealValidationError {
             Self::PayloadTooLarge(_, _) => {
                 "The data payload exceeds the maximum allowed size.".to_string()
             }
-            Self::InvalidDrandSignatureLength(_, _) => {
+            Self::InvalidBeaconSignatureLength(_, _) => {
                 "The embedded randomness signature is the wrong size.".to_string()
             }
             Self::InvalidPubkeyLength(_, _) => {

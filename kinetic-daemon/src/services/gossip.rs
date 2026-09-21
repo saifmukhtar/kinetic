@@ -55,10 +55,10 @@ pub fn start_gossip_processor(
                         kinetic_core::action::SignedActionMessage,
                     >(actual_payload)
                     {
-                        use kinetic_core::types::clock::KynNetworkExt;
+
                         let current_kyn = match kyn_provider_gossip.load_cached() {
                             Ok(kyn) => kyn.kyn,
-                            Err(_) => kinetic_core::types::Kyn::now_local().0,
+                            Err(_) => kinetic_kyn::types::Kyn::now_local().0,
                         };
                         let (should_update_log, log) = {
                             let Ok(mut state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()
@@ -74,7 +74,7 @@ pub fn start_gossip_processor(
                             match kinetic_core::action::process_action_message(
                                 &mut state,
                                 &signed_msg,
-                                kinetic_types::clock::Kyn(current_kyn),
+                                kinetic_kyn::types::Kyn(current_kyn),
                             ) {
                                 Ok(Some(effect)) => {
                                     is_valid = true;
@@ -98,7 +98,7 @@ pub fn start_gossip_processor(
                                                     pubkey: target_pubkey.clone(),
                                                     kyn: signed_msg.timestamp_kyn,
                                                     payload: Vec::new(),
-                                                    signature: Vec::new(),
+                                                    owner_signature: Vec::new(),
                                                     authorization: None,
                                                 };
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
@@ -129,7 +129,7 @@ pub fn start_gossip_processor(
                                                     pubkey: target_pubkey.clone(),
                                                     kyn: signed_msg.timestamp_kyn,
                                                     payload: Vec::new(),
-                                                    signature: Vec::new(),
+                                                    owner_signature: Vec::new(),
                                                     authorization: None,
                                                 };
                                                 let key = format!("{}{}", DB_PREFIX_REVEAL, name);
@@ -199,13 +199,13 @@ pub fn start_gossip_processor(
                         }
                     }
                     network_client.report_gossip(message_id, propagation_source, is_valid);
-                } else if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
+                } else if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8 {
                     let mut is_valid = false;
                     if let Ok(kyn) =
                         serde_json::from_slice::<kinetic_core::drand::RawKyn>(actual_payload)
                     {
                         let kyn_clone = kyn.clone();
-                        is_valid = tokio::task::spawn_blocking(move || kyn_clone.verify())
+                        is_valid = tokio::task::spawn_blocking(move || kyn_clone.verify_beacon(kinetic_core::config::is_dev_mode()))
                             .await
                             .unwrap_or(false);
                         if is_valid {

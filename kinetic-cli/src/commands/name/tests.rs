@@ -56,7 +56,26 @@ async fn test_name_resolve_mock_api() {
 
 #[tokio::test]
 async fn test_name_publish_no_zone() {
-    let config = KineticConfig::default();
+    let app = axum::Router::new().route(
+        "/api/v1/micro/nrs/zone/{name}/publish",
+        axum::routing::post(|| async move {
+            axum::response::Response::builder()
+                .status(404)
+                .body(axum::body::Body::from("No zone file found"))
+                .unwrap()
+        }),
+    );
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let mut config = KineticConfig::default();
+    config.daemon.api_port = port;
+    config.daemon.bind_ip = "127.0.0.1".to_string();
+
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
     let client = Client::new();
     // Trying to publish a name that we haven't registered
     let cmd = NameCommands::Publish {
@@ -64,5 +83,7 @@ async fn test_name_publish_no_zone() {
     };
     let res = handle_name_command(cmd, &config, &client).await;
     assert!(res.is_err());
-    assert!(res.unwrap_err().to_string().contains("No zone file found"));
+    let err_str = res.unwrap_err().to_string();
+    println!("ACTUAL ERROR WAS: {}", err_str);
+    assert!(err_str.contains("No zone file found"));
 }

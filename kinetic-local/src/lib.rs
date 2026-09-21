@@ -29,13 +29,12 @@
 //!
 //! ## Module Map
 //!
-//! - **[`action`]** — Disk serialization for sovereign network actions.
+//! - **[`action`]** — Disk serialization for identity network actions.
 //! - **[`config`]** — TOML configuration loading and environmental overrides.
 //! - **[`identity`]** — Keypair generation and password-protected keystore files.
 //! - **[`kid_manager`]** — Orchestration of W3C KID document state transitions.
 //! - **[`secure_fs`]** — OS-level file permission hardening.
 //! - **[`shutdown`]** — Cross-platform graceful termination signals (SIGINT/SIGTERM).
-
 
 pub mod action;
 pub mod config;

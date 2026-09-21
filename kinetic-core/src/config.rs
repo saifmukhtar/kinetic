@@ -57,40 +57,42 @@ pub struct KineticConfig {
     pub network: P2pConfig,
     /// Network time provider settings: custom endpoints and DNS seed.
     #[serde(default)]
-    pub drand: DrandConfig,
+    #[serde(alias = "drand")]
+    pub time_oracle: TimeOracleConfig,
 }
 
 /// KYN Provider networking configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DrandConfig {
+pub struct TimeOracleConfig {
     /// KYN Provider HTTP endpoints to query for Quicknet kyns.
-    #[serde(default = "default_drand_endpoints")]
+    #[serde(default = "default_beacon_endpoints")]
     pub endpoints: Vec<String>,
     /// Domains to query via DNS TXT records for dynamic provider endpoints.
-    #[serde(default = "default_drand_seed_domain")]
-    pub drand_domain: Vec<String>,
+    #[serde(default = "default_beacon_seed_domain")]
+    #[serde(alias = "drand_domain")]
+    pub beacon_seed_domain: Vec<String>,
     /// If true, the node will only listen to P2P gossipsub for network kyns
     /// and will not query the internet via HTTP/DNS.
     #[serde(default)]
     pub p2p_only: bool,
 }
 
-fn default_drand_endpoints() -> Vec<String> {
-    crate::constants::DRAND_HTTP_ENDPOINTS
+fn default_beacon_endpoints() -> Vec<String> {
+    crate::constants::BEACON_ENDPOINTS
         .iter()
         .map(|s| s.to_string())
         .collect()
 }
 
-fn default_drand_seed_domain() -> Vec<String> {
-    vec![format!("drand.{}", crate::constants::BASE_DOMAIN)]
+fn default_beacon_seed_domain() -> Vec<String> {
+    vec![format!("beacon.{}", crate::constants::BASE_DOMAIN)]
 }
 
-impl Default for DrandConfig {
+impl Default for TimeOracleConfig {
     fn default() -> Self {
         Self {
-            endpoints: default_drand_endpoints(),
-            drand_domain: default_drand_seed_domain(),
+            endpoints: default_beacon_endpoints(),
+            beacon_seed_domain: default_beacon_seed_domain(),
             p2p_only: false,
         }
     }
@@ -292,7 +294,7 @@ impl Default for KineticConfig {
                 external_address: None,
                 enable_anonymous_telemetry: true,
             },
-            drand: DrandConfig::default(),
+            time_oracle: TimeOracleConfig::default(),
         }
     }
 }

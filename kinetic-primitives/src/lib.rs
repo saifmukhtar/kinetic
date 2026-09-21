@@ -10,7 +10,7 @@
 //! [kinetic-verify (Consensus Rules)]
 //!            |
 //!            v
-//! [kinetic-primitives::verify_mldsa]
+//! [kinetic-primitives::verify_keypair]
 //!            |
 //!            v
 //! [Raw ML-DSA-65 Verification (ml-dsa crate)]
@@ -22,10 +22,22 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 pub mod keys;
+pub mod kinetic_keypair;
+
+/// The exact byte length of a Kinetic Network post-quantum public key (ML-DSA-65).
+pub const KINETIC_PUBKEY_LENGTH: usize = 1952;
+
+/// The exact byte length of a Kinetic Network post-quantum signature (ML-DSA-65).
+/// Note: This was previously hardcoded as 4627 in some places, which was the length for ML-DSA-87. 
+/// ML-DSA-65 signatures are exactly 3309 bytes.
+pub const KINETIC_SIGNATURE_LENGTH: usize = 3309;
+
+/// The exact byte length of a serialized Kinetic Network private key (the 32-byte seed).
+pub const KINETIC_PRIVKEY_LENGTH: usize = 32;
 
 /// Centralized error type for cryptographic primitive operations.
 #[derive(Debug, Error)]
-pub enum CryptoError {
+pub enum SignatureError {
     /// Returned when a signature byte array cannot be decoded or is mathematically invalid.
     #[error("Invalid ML-DSA-65 signature encoding")]
     InvalidSignature,
@@ -91,14 +103,14 @@ pub fn sha256_hash_concat(chunks: &[&[u8]]) -> [u8; 32] {
 /// * `signature_bytes` - The raw ML-DSA-65 signature bytes.
 ///
 /// # Errors
-/// Returns [`CryptoError::InvalidPublicKey`] if the public key bytes are malformed.
-/// Returns [`CryptoError::InvalidSignature`] if the signature bytes are malformed.
-/// Returns [`CryptoError::VerificationFailed`] if the signature is mathematically invalid.
+/// Returns [`SignatureError::InvalidPublicKey`] if the public key bytes are malformed.
+/// Returns [`SignatureError::InvalidSignature`] if the signature bytes are malformed.
+/// Returns [`SignatureError::VerificationFailed`] if the signature is mathematically invalid.
 ///
 /// # Examples
 /// ```rust
 /// use kinetic_primitives::keys::KineticKeypair;
-/// use kinetic_primitives::verify_mldsa;
+/// use kinetic_primitives::verify_keypair;
 ///
 /// let keypair = KineticKeypair::generate();
 /// let message = b"consensus payload";
@@ -106,20 +118,20 @@ pub fn sha256_hash_concat(chunks: &[&[u8]]) -> [u8; 32] {
 /// let pubkey = keypair.pubkey_bytes();
 ///
 /// // Verify the signature
-/// assert!(verify_mldsa(&pubkey, message, &signature).is_ok());
+/// assert!(verify_keypair(&pubkey, message, &signature).is_ok());
 /// ```
-pub fn verify_mldsa(
+pub fn verify_keypair(
     pubkey_bytes: &[u8],
     message: &[u8],
     signature_bytes: &[u8],
-) -> Result<(), CryptoError> {
+) -> Result<(), SignatureError> {
     let pubkey = ml_dsa::VerifyingKey::<MlDsa65>::new_from_slice(pubkey_bytes)
-        .map_err(|_| CryptoError::InvalidPublicKey)?;
+        .map_err(|_| SignatureError::InvalidPublicKey)?;
 
     let sig = ml_dsa::Signature::<MlDsa65>::try_from(signature_bytes)
-        .map_err(|_| CryptoError::InvalidSignature)?;
+        .map_err(|_| SignatureError::InvalidSignature)?;
 
     pubkey
         .verify(message, &sig)
-        .map_err(|_| CryptoError::VerificationFailed)
+        .map_err(|_| SignatureError::VerificationFailed)
 }

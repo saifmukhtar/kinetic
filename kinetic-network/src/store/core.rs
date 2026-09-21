@@ -112,7 +112,7 @@ impl KineticRecordStore {
                                         .verify_signature(kinetic_core::constants::NETWORK_SALT)
                                         .is_ok()
                                 {
-                                    let drand_sig_bytes = hex::decode(&reveal.drand_signature)
+                                    let drand_sig_bytes = hex::decode(&reveal.beacon_signature)
                                         .unwrap_or_else(|_| vec![0u8; 32]);
                                     let challenge = kinetic_core::types::Commitment::derive(
                                         kinetic_core::constants::NETWORK_SALT,
@@ -265,7 +265,7 @@ impl KineticRecordStore {
         for (name, record) in &self.reveals_by_name {
             match record {
                 kinetic_core::types::NameRecord::Standard(reveal) => {
-                    let age = current_kyn.saturating_sub(reveal.kyn);
+                    let age = current_kyn.saturating_sub(reveal.kyn.0);
                     if age > max_age_kyns {
                         expired_names.push(name.clone());
                         continue;
@@ -275,7 +275,7 @@ impl KineticRecordStore {
                         .last_heartbeats_by_name
                         .get(name)
                         .copied()
-                        .unwrap_or(reveal.kyn);
+                        .unwrap_or(reveal.kyn.0);
                     let hb_age = current_kyn.saturating_sub(last_hb);
 
                     if !kinetic_core::types::protocol::requires_heartbeat(name) {
@@ -292,7 +292,7 @@ impl KineticRecordStore {
                         .last_heartbeats_by_name
                         .get(name)
                         .copied()
-                        .unwrap_or(grant_kyn);
+                        .unwrap_or(grant_kyn.0);
                     let hb_age = current_kyn.saturating_sub(last_hb);
 
                     if hb_age > idle_timeout {
@@ -501,6 +501,7 @@ impl KineticRecordStore {
                             &auth_manifest,
                             active_record.as_ref(),
                             existing_record.as_ref(),
+                            self.current_kyn,
                         )?;
                     }
                     Err(e) => {
@@ -514,7 +515,7 @@ impl KineticRecordStore {
                     Ok(host_route) => {
                         match crate::store::verification::verify_host_routing_record(
                             &host_route,
-                            self.current_kyn,
+                            kinetic_kyn::types::Kyn(self.current_kyn),
                         ) {
                             Ok(()) => {
                                 tracing::info!(
@@ -655,10 +656,10 @@ mod tests {
         let name = "a.kin"; // Prime name, requires heartbeats
         let record = kinetic_core::types::NameRecord::Prime {
             name: name.to_string(),
-            pubkey: vec![],
-            kyn: 0,
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+            kyn: kinetic_kyn::types::Kyn(0),
             payload: vec![],
-            signature: vec![],
+            owner_signature: vec![],
             authorization: None,
         };
 
@@ -708,10 +709,10 @@ mod tests {
         let name = "seed.kin"; // Exempt protocol name
         let record = kinetic_core::types::NameRecord::Infra {
             name: name.to_string(),
-            pubkey: vec![],
-            kyn: 0,
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+            kyn: kinetic_kyn::types::Kyn(0),
             payload: vec![],
-            signature: vec![],
+            owner_signature: vec![],
             authorization: None,
         };
 
@@ -793,10 +794,10 @@ mod tests {
         let large_payload = vec![0u8; 34000];
         let record = kinetic_core::types::NameRecord::Prime {
             name: "large.kin".to_string(),
-            pubkey: vec![],
-            kyn: 0,
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+            kyn: kinetic_kyn::types::Kyn(0),
             payload: large_payload,
-            signature: vec![],
+            owner_signature: vec![],
             authorization: None,
         };
 

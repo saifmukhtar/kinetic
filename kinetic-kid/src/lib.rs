@@ -19,7 +19,7 @@
 //!   is the SHA-256 hash of the controller's primary public key.
 //! - **[`Document`]** — The identity document that binds a DID to one or
 //!   more [`ControllerKey`]s. It enforces a strict security separation between Hot 
-//!   (Controller) and Cold (Revocation) keys, and is signed with `KineticKeypair` 
+//!   (Controller) and Cold (Revocation) keys, and is signed with `ControllerPrivKey` 
 //!   post-quantum signatures.
 //! - **[`Manifest`]** — An optional extension signed by the
 //!   controller that lists services (websites, APIs, etc.) associated with
@@ -55,10 +55,10 @@ pub use manifest::{Manifest, Service};
 mod tests {
     use super::*;
     use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-    use kinetic_primitives::keys::KineticKeypair;
+    use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
 
-    fn generate_keypair() -> KineticKeypair {
-        KineticKeypair::generate()
+    fn generate_keypair() -> ControllerPrivKey {
+        ControllerPrivKey::generate()
     }
 
     #[test]
@@ -75,7 +75,7 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
-            created_at: 1000,
+            created_at: kinetic_kyn::types::UTime(1000),
             controller_keys: vec![],
             manifest: None,
             revocation_keys: vec![],
@@ -99,9 +99,9 @@ mod tests {
     #[test]
     fn test_document_signing_and_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.pubkey_bytes());
+        let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
+        let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -112,10 +112,10 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
-            created_at: 1234567890,
+            created_at: kinetic_kyn::types::UTime(1234567890),
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#primary", hex_hash),
-                key_type: "MlDsa65".to_string(),
+                key_type: "Controller".to_string(),
                 public_key: pub_key_b64,
             }],
             manifest: None,
@@ -124,23 +124,23 @@ mod tests {
             signature: None,
         };
 
-        let signed_doc = doc.sign(&keypair).unwrap();
+        let signed_doc = doc.sign_with_controller(&keypair).unwrap();
         assert!(signed_doc.signature.is_some());
 
         assert!(signed_doc.verify().is_ok());
 
         // Tampering with any field must invalidate the signature
         let mut corrupted_doc = signed_doc.clone();
-        corrupted_doc.created_at = 9999999999;
+        corrupted_doc.created_at = kinetic_kyn::types::UTime(9999999999);
         assert!(corrupted_doc.verify().is_err());
     }
 
     #[test]
     fn test_manifest_verification() {
         let keypair = generate_keypair();
-        let pub_key_b64 = b64_url.encode(keypair.pubkey_bytes());
+        let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
+        let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -152,10 +152,10 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
-            created_at: 1000,
+            created_at: kinetic_kyn::types::UTime(1000),
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#primary", hex_hash),
-                key_type: "MlDsa65".to_string(),
+                key_type: "Controller".to_string(),
                 public_key: pub_key_b64,
             }],
             manifest: None,
@@ -168,7 +168,7 @@ mod tests {
             doc_type: "kinetic.manifest.v1".to_string(),
             kid: did,
             version: 1,
-            valid_from: 1000,
+            valid_from: kinetic_kyn::types::UTime(1000),
             expires_at: None,
             services: vec![Service {
                 id: "web".to_string(),
@@ -179,20 +179,20 @@ mod tests {
             signature: None,
         };
 
-        let signed_manifest = manifest.clone().sign(&keypair).unwrap();
+        let signed_manifest = manifest.clone().sign_with_controller(&keypair).unwrap();
 
-        assert!(signed_manifest.verify_at_time(&doc, 2000).is_ok());
+        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(2000)).is_ok());
 
         // A manifest signed by a different key must be rejected
         let bad_keypair = generate_keypair();
         let bad_doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: Did::new(&format!("did:kin:{}", "b".repeat(64))).unwrap(),
-            created_at: 1000,
+            created_at: kinetic_kyn::types::UTime(1000),
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#bad", "b".repeat(64)),
-                key_type: "MlDsa65".to_string(),
-                public_key: b64_url.encode(bad_keypair.pubkey_bytes()),
+                key_type: "Controller".to_string(),
+                public_key: b64_url.encode(bad_keypair.to_pubkey().as_bytes()),
             }],
             manifest: None,
             revocation_keys: vec![],
@@ -201,31 +201,31 @@ mod tests {
         };
 
         assert!(matches!(
-            signed_manifest.verify_at_time(&bad_doc, 2000),
+            signed_manifest.verify_at_time(&bad_doc, kinetic_kyn::types::UTime(2000)),
             Err(Error::UnauthorizedManifestSignature)
         ));
 
         // Test explicit verify_at_time with Drand / explicit timestamps
-        assert!(signed_manifest.verify_at_time(&doc, 1000).is_ok());
-        assert!(signed_manifest.verify_at_time(&doc, 10000).is_ok());
+        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(1000)).is_ok());
+        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(10000)).is_ok());
 
         // Manifest with future valid_from beyond 300s skew must fail
         assert!(matches!(
-            signed_manifest.verify_at_time(&doc, 500),
+            signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(500)),
             Err(Error::InvalidValidFrom)
         ));
 
         // Manifest with expiration
         let mut expiring_manifest = manifest.clone();
-        expiring_manifest.expires_at = Some(2000);
-        let signed_expiring = expiring_manifest.sign(&keypair).unwrap();
-        assert!(signed_expiring.verify_at_time(&doc, 1500).is_ok());
+        expiring_manifest.expires_at = Some(kinetic_kyn::types::UTime(2000));
+        let signed_expiring = expiring_manifest.sign_with_controller(&keypair).unwrap();
+        assert!(signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UTime(1500)).is_ok());
         assert!(matches!(
-            signed_expiring.verify_at_time(&doc, 2000),
+            signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UTime(2000)),
             Err(Error::ManifestExpired)
         ));
         assert!(matches!(
-            signed_expiring.verify_at_time(&doc, 2500),
+            signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UTime(2500)),
             Err(Error::ManifestExpired)
         ));
     }

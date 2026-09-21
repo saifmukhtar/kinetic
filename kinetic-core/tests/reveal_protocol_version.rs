@@ -8,14 +8,14 @@ fn test_protocol_downgrade_prevention() {
         name: format!("{}{}", "saifmukhtar", kinetic_core::constants::NSP_SUFFIX),
         payload: vec![1, 2, 3],
         salt: [0u8; 32],
-        kyn: 100,
-        drand_signature: "0".repeat(192),
+        kyn: kinetic_kyn::types::Kyn(100),
+        beacon_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![4, 5, 6],
         },
-        pubkey: vec![0; 1952],
-        signature: vec![0; 4627],
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+        identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
         previous_proof: None,
         authorization: None,
     };

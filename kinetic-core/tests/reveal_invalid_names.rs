@@ -8,14 +8,14 @@ fn test_reveal_invalid_names() {
         name: String::new(),
         payload: vec![],
         salt: [0; 32],
-        kyn: 1000,
-        drand_signature: "0".repeat(192),
+        kyn: kinetic_kyn::types::Kyn(1000),
+        beacon_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: vec![0; 1952],
-        signature: vec![0; 4627],
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+        identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
         previous_proof: None,
         authorization: None,
     };

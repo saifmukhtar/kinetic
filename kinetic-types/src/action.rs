@@ -10,13 +10,14 @@
 //! | Opcode | Action Variant | Description |
 //! |---|---|---|
 //! | `0x0A` | [`NetworkAction::MapPrime`] | Grant a 1-character prime name (Sovereign key only) |
-//! | `0x0B` | [`NetworkAction::RotateRootKey`] | Rotate network authority to a new Sovereign key |
+//! | `0x0B` | [`NetworkAction::RotateSovereignKey`] | Rotate network authority to a new Sovereign key |
 //! | `0x0C` | [`NetworkAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
 //! | `0x0D` | [`NetworkAction::EmergencyResume`] | Resume registrations and advance pause offset |
 //! | `0x0E` | [`NetworkAction::UnmapPrime`] | Revoke a previously granted 1-character prime name |
 //! | `0x0F` | [`NetworkAction::MapInfra`] | Grant a Category 2 infrastructure name (Sovereign key only) |
 //! | `0x10` | [`NetworkAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Sovereign key only) |
 
+use kinetic_primitives::kinetic_keypair::{IdentityPubKey, SovereignPubKey};
 use thiserror::Error;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
@@ -25,13 +26,13 @@ pub type Hash256 = [u8; 32];
 /// Raw Sovereign key public key bytes.
 ///
 /// # Security
-/// The binary parser currently strictly enforces a 1952-byte length bound 
+/// The binary parser currently strictly enforces a `KINETIC_PUBKEY_LENGTH` byte bound 
 /// on this payload to prevent memory exhaustion during P2P propagation.
 pub type PublicKeyBytes = Vec<u8>;
 /// Raw Sovereign key signature bytes.
 ///
 /// # Security
-/// The network currently strictly expects the 3309-byte signature output 
+/// The network currently strictly expects the ML-DSA-65 signature output 
 /// of the underlying Sovereign key algorithm.
 pub type SignatureBytes = Vec<u8>;
 
@@ -42,8 +43,9 @@ pub enum NetworkAction {
     MapPrime {
         /// Target 1-character name label.
         name: String,
-        /// Recipient's ML-DSA-65 public key.
-        target_pubkey: PublicKeyBytes,
+        /// Recipient's Identity public key.
+        #[serde(with = "crate::pubkey_serde::identity_serde")]
+        target_pubkey: IdentityPubKey,
     },
     /// Revoke a 1-character premium name (Sovereign key only).
     UnmapPrime {
@@ -54,8 +56,9 @@ pub enum NetworkAction {
     MapInfra {
         /// Target infrastructure name label (e.g., "seed", "api").
         name: String,
-        /// Recipient's ML-DSA-65 public key.
-        target_pubkey: PublicKeyBytes,
+        /// Recipient's Identity public key.
+        #[serde(with = "crate::pubkey_serde::identity_serde")]
+        target_pubkey: IdentityPubKey,
     },
     /// Revoke a Category 2 network infrastructure name (Sovereign key only).
     UnmapInfra {
@@ -63,9 +66,10 @@ pub enum NetworkAction {
         name: String,
     },
     /// Permanently delegates Sovereign authority to a new Sovereign public key.
-    RotateRootKey {
-        /// The new Sovereign public key bytes.
-        new_key: PublicKeyBytes,
+    RotateSovereignKey {
+        /// The new strictly-typed Sovereign public key.
+        #[serde(with = "crate::pubkey_serde::sovereign_serde")]
+        new_key: SovereignPubKey,
     },
     /// Emergency pause for network registration and renewals.
     EmergencyHalt,
@@ -76,36 +80,36 @@ pub enum NetworkAction {
 /// Proposal message container with signatures from authorized council members.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SignedActionMessage {
-    /// Target action action payload.
+    /// Target network action payload.
     pub action: NetworkAction,
-    /// Unix timestamp in drand kyns when the proposal was signed.
-    pub timestamp_kyn: u64,
-    /// Array of ML-DSA-65 signatures.
-    pub signatures: Vec<SignatureBytes>,
+    /// Network timestamp in drand kyns when the proposal was signed.
+    pub timestamp_kyn: kinetic_kyn::types::Kyn,
+    /// The Sovereign signatures authorizing this action.
+    pub sovereign_signatures: Vec<SignatureBytes>,
 }
 
 impl SignedActionMessage {
-    /// Serializes the action message into a canonical byte vector for SHA-256 hashing and ML-DSA-65 signature verification.
+    /// Serializes the action message into a canonical byte vector for SHA-256 hashing and Sovereign signature verification.
     ///
     /// Each [`NetworkAction`] variant is prefixed with a 1-byte opcode:
     ///
     /// | Opcode | Action Variant |
     /// |---|---|
     /// | `0x0A` | `MapPrime` |
-    /// | `0x0B` | `RotateRootKey` |
+    /// | `0x0B` | `RotateSovereignKey` |
     /// | `0x0C` | `EmergencyHalt` |
     /// | `0x0D` | `EmergencyResume` |
     /// | `0x0E` | `UnmapPrime` |
     /// | `0x0F` | `MapInfra` |
     /// | `0x10` | `UnmapInfra` |
     ///
-    /// After the action payload, length-prefixed signatures (using a simple 1-byte count + N x 3309 bytes arrays) are written.
+    /// After the action payload, length-prefixed signatures (using a simple 1-byte count + N x KINETIC_SIGNATURE_LENGTH bytes arrays) are written.
     /// The message closes with `u64_be(timestamp_kyn)`.
     ///
     /// # Returns
     ///
     /// A deterministic `Vec<u8>` suitable for SHA-256 hashing to derive the action hash,
-    /// or for ML-DSA-65 signature verification.
+    /// or for Sovereign signature verification.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
@@ -117,7 +121,7 @@ impl SignedActionMessage {
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
-                buf.extend_from_slice(target_pubkey.as_slice());
+                buf.extend_from_slice(target_pubkey.as_bytes());
             }
             NetworkAction::UnmapPrime { name } => {
                 buf.push(0x0E);
@@ -133,7 +137,7 @@ impl SignedActionMessage {
                 let name_bytes = name.as_bytes();
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
-                buf.extend_from_slice(target_pubkey.as_slice());
+                buf.extend_from_slice(target_pubkey.as_bytes());
             }
             NetworkAction::UnmapInfra { name } => {
                 buf.push(0x10);
@@ -141,9 +145,9 @@ impl SignedActionMessage {
                 buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
                 buf.extend_from_slice(name_bytes);
             }
-            NetworkAction::RotateRootKey { new_key } => {
+            NetworkAction::RotateSovereignKey { new_key } => {
                 buf.push(0x0B);
-                buf.extend_from_slice(new_key.as_slice());
+                buf.extend_from_slice(new_key.as_bytes());
             }
             NetworkAction::EmergencyHalt => {
                 buf.push(0x0C);
@@ -170,8 +174,8 @@ pub enum ActionTypeError {
     /// Name string field contains invalid UTF-8 bytes.
     #[error("Invalid UTF-8 sequence in premium name string")]
     InvalidUtf8,
-    /// Provided public key length does not match expected ML-DSA-65 parameter size.
-    #[error("Invalid public key length, expected 1952 bytes for ML-DSA-65")]
+    /// Provided public key length does not match expected parameter size.
+    #[error("Invalid public key length, expected KINETIC_PUBKEY_LENGTH bytes")]
     InvalidPubkeyLength,
 }
 
@@ -185,7 +189,7 @@ impl NetworkAction {
     ///
     /// # Security
     /// This parser is fuzz-tested to ensure it never panics on malformed P2P network input.
-    /// It enforces strict bounds checking (e.g., public keys must be exactly 1952 bytes).
+    /// It enforces strict bounds checking (e.g., public keys must be exactly KINETIC_PUBKEY_LENGTH bytes).
     ///
     /// # Errors
     /// - Returns [`ActionTypeError::BufferTooSmall`] if the buffer is under 9 bytes.
@@ -204,14 +208,14 @@ impl NetworkAction {
     ///     Err(ActionTypeError::BufferTooSmall)
     /// );
     /// ```
-    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, u64), ActionTypeError> {
+    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, kinetic_kyn::types::Kyn), ActionTypeError> {
         if bytes.len() < 9 {
             // At least 1 byte opcode + 8 bytes timestamp
             return Err(ActionTypeError::BufferTooSmall);
         }
 
         let timestamp_bytes = &bytes[bytes.len() - 8..];
-        let timestamp_kyn = u64::from_be_bytes(timestamp_bytes.try_into().unwrap());
+        let timestamp_kyn = kinetic_kyn::types::Kyn::from_be_bytes(timestamp_bytes.try_into().unwrap());
         let payload = &bytes[0..bytes.len() - 8];
         if payload.is_empty() {
             return Err(ActionTypeError::BufferTooSmall);
@@ -234,21 +238,21 @@ impl NetworkAction {
                     .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
-                if pubkey_bytes.len() != 1952 {
+                if pubkey_bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
                 NetworkAction::MapPrime {
                     name,
-                    target_pubkey: pubkey_bytes.to_vec(),
+                    target_pubkey: IdentityPubKey(pubkey_bytes.to_vec()),
                 }
             }
             0x0B => {
-                // RotateRootKey
-                if action_data.len() != 1952 {
+                // RotateSovereignKey
+                if action_data.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
-                NetworkAction::RotateRootKey {
-                    new_key: action_data.to_vec(),
+                NetworkAction::RotateSovereignKey {
+                    new_key: SovereignPubKey(action_data.to_vec()),
                 }
             }
             0x0C => {
@@ -286,12 +290,12 @@ impl NetworkAction {
                     .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
                 let pubkey_bytes = &action_data[4 + name_len..];
-                if pubkey_bytes.len() != 1952 {
+                if pubkey_bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                     return Err(ActionTypeError::InvalidPubkeyLength);
                 }
                 NetworkAction::MapInfra {
                     name,
-                    target_pubkey: pubkey_bytes.to_vec(),
+                    target_pubkey: IdentityPubKey(pubkey_bytes.to_vec()),
                 }
             }
             0x10 => {
@@ -366,7 +370,7 @@ mod tests {
         let bad_name: &[u8] = &[0xFF, 0xFE]; // Invalid UTF-8
         buf.extend_from_slice(&(bad_name.len() as u32).to_be_bytes());
         buf.extend_from_slice(bad_name);
-        buf.extend_from_slice(&[0; 1952]); // Valid pubkey length
+        buf.extend_from_slice(&vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]); // Valid pubkey length
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
         let result = NetworkAction::parse_payload(&buf);
@@ -377,19 +381,19 @@ mod tests {
     fn test_roundtrip_valid_map_prime() {
         let action = NetworkAction::MapPrime {
             name: "x".to_string(),
-            target_pubkey: vec![42; 1952],
+            target_pubkey: IdentityPubKey(vec![42; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
         };
         let msg = SignedActionMessage {
             action: action.clone(),
-            timestamp_kyn: 123456,
-            signatures: vec![],
+            timestamp_kyn: kinetic_kyn::types::Kyn(123456),
+            sovereign_signatures: vec![],
         };
 
         let buf = msg.to_bytes();
         let (parsed_action, parsed_time) = NetworkAction::parse_payload(&buf).unwrap();
 
         assert_eq!(parsed_action, action);
-        assert_eq!(parsed_time, 123456);
+        assert_eq!(parsed_time, kinetic_kyn::types::Kyn(123456));
     }
 
     proptest! {
@@ -406,8 +410,8 @@ mod tests {
 /// Request to sync historical action actions.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionSyncRequest {
-    /// The local node's current Kyn. Unused currently, but useful for filtering later.
-    pub from_kyn: u64,
+    /// Request missed action messages starting from this Kyn index.
+    pub from_kyn: kinetic_kyn::types::Kyn,
 }
 
 /// Response containing historical action actions.

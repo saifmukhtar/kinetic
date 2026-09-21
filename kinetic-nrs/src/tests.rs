@@ -46,20 +46,20 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         name: name.to_string(),
         payload,
         salt: [0u8; 32],
-        kyn: 0,
-        drand_signature: "".to_string(),
+        kyn: kinetic_kyn::types::Kyn(0),
+        beacon_signature: "".to_string(),
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: vec![],
         },
         iterations: 1,
-        pubkey: vec![],
-        signature: vec![],
+        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+        identity_signature: vec![],
         previous_proof: None,
         authorization: None,
     };
-    let keypair = kinetic_primitives::keys::KineticKeypair::generate();
-    reveal.pubkey = keypair.pubkey_bytes();
-    reveal.signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+    let keypair = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+    reveal.pubkey = keypair.to_pubkey();
+    reveal.identity_signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
     reveal
 }
 

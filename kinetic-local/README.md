@@ -15,7 +15,7 @@ use kinetic_local::shutdown::wait_for_shutdown;
 // 1. Boot up: Load the TOML configuration (or generate a default fail-closed one)
 let config = load_config();
 
-// 2. Load the sovereign identity from the secure keystore
+// 2. Load the master identity from the secure keystore
 let keypair = load_keypair(&config.paths.keystore)?;
 
 // 3. Keep the daemon alive until the OS sends SIGINT/SIGTERM
@@ -26,7 +26,7 @@ wait_for_shutdown().await;
 Under the hood, `kinetic-local` enforces multiple local security boundaries:
 *   **Fail-Closed Configuration:** Missing or malformed configurations will aggressively abort node startup rather than failing open with insecure defaults.
 *   **Keystore Hardening:** Uses `secure_fs` to enforce POSIX `0600` file modes (on Unix) to prevent local privilege escalation and key theft by other users on the host machine.
-*   **Action Sandboxing:** The `action.rs` module serializes sovereign action states to disk, ensuring that governance states survive node restarts without manual intervention.
+*   **Action Sandboxing:** The `action.rs` module serializes network action states to disk, ensuring that action states survive node restarts without manual intervention.
 
 ## 4. Reading Guide
 To fully understand this crate, we recommend reading it in the following order:

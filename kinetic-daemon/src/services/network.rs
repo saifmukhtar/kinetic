@@ -18,7 +18,7 @@ use kinetic_core::traits::StorageEngine;
 /// This asynchronous worker operates completely independently from the REST API. It performs 
 /// three critical state transitions:
 ///
-/// 1. **Time Epoch Monitoring**: It blocks on `hc_drand_rx.changed()`, waiting for the Gossipsub 
+/// 1. **Time Epoch Monitoring**: It blocks on `kyn_rx.changed()`, waiting for the Gossipsub 
 ///    mesh to flood a new Time Oracle pulse.
 /// 2. **Preemptive Mining**: When the network time advances, it spins up a heavily threaded 
 ///    background miner (`tokio::task::spawn_blocking`) to calculate a new valid Ed25519 identity 
@@ -28,12 +28,12 @@ use kinetic_core::traits::StorageEngine;
 ///
 /// ### Arguments
 /// * `hc_client`: The thread-safe channel to the running Libp2p event loop.
-/// * `hc_drand_rx`: The reactive receiver for Time Oracle pulses.
+/// * `kyn_rx`: The reactive receiver for Time Oracle pulses.
 /// * `hc_config` & `hc_storage`: Bootstrapping dependencies required to rebuild the Swarm.
 /// * `incoming_tx` & `gossip_tx`: Channels required to reconnect proxy and action routing after the swap.
 pub fn start_pow_miner_loop(
     hc_client: kinetic_network::NetworkClient,
-    hc_drand_rx: tokio::sync::watch::Receiver<u64>,
+    kyn_rx: tokio::sync::watch::Receiver<u64>,
     hc_config: kinetic_network::NetworkConfig,
     hc_storage: std::sync::Arc<dyn StorageEngine>,
     incoming_tx: tokio::sync::mpsc::Sender<(
@@ -51,7 +51,7 @@ pub fn start_pow_miner_loop(
     hc_vdf_engine: std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        let mut rx = hc_drand_rx.clone();
+        let mut rx = kyn_rx.clone();
         let mut last_verified_epoch: Option<u64> = None;
         loop {
             if rx.changed().await.is_err() {
@@ -64,7 +64,7 @@ pub fn start_pow_miner_loop(
             let peer_id = libp2p::PeerId::from_public_key(&current_local_key.public());
             let current_epoch = kinetic_network::pow::get_staggered_epoch(
                 &peer_id.to_bytes(),
-                kinetic_types::clock::Kyn(kyn),
+                kinetic_kyn::types::Kyn(kyn),
             );
 
             let needs_validation = match last_verified_epoch {
@@ -77,7 +77,7 @@ pub fn start_pow_miner_loop(
                 let pow_valid = tokio::task::spawn_blocking(move || {
                     kinetic_network::pow::verify_p2p_pow(
                         &peer_id_clone,
-                        kinetic_types::clock::Kyn(kyn),
+                        kinetic_kyn::types::Kyn(kyn),
                         kinetic_core::constants::POW_DIFFICULTY_BITS,
                     )
                 })
@@ -88,7 +88,7 @@ pub fn start_pow_miner_loop(
                     tracing::info!("PoW epoch expired. Remining identity seamlessly...");
                     current_local_key = tokio::task::spawn_blocking(move || {
                         kinetic_network::pow::mine_p2p_keypair(
-                            kinetic_types::clock::Kyn(kyn),
+                            kinetic_kyn::types::Kyn(kyn),
                             kinetic_core::constants::POW_DIFFICULTY_BITS,
                         )
                     })
@@ -108,7 +108,7 @@ pub fn start_pow_miner_loop(
                             hc_config.clone(),
                             current_local_key.clone(),
                             hc_storage.clone(),
-                            hc_drand_rx.clone(),
+                            kyn_rx.clone(),
                             Some(incoming_tx.clone()),
                             Some(gossip_tx.clone()),
                             hc_vdf_engine.clone(),
@@ -185,12 +185,12 @@ pub fn start_republisher(
                             tokio::time::sleep(std::time::Duration::from_millis(i as u64 * 100))
                                 .await;
 
-                            if let Ok(drand_sig_bytes) = hex::decode(&reveal.drand_signature) {
+                            if let Ok(beacon_sig_bytes) = hex::decode(&reveal.beacon_signature) {
                                 let commitment = kinetic_core::types::Commitment::derive(
                                     kinetic_core::constants::NETWORK_SALT,
                                     &reveal.name,
                                     &reveal.salt,
-                                    &drand_sig_bytes,
+                                    &beacon_sig_bytes,
                                     &reveal.pubkey,
                                 );
 

@@ -25,7 +25,7 @@ struct Args {
 
 async fn fetch_kyn() -> u64 {
     let client = reqwest::Client::new();
-    let ping_endpoint = kinetic_core::constants::DRAND_HTTP_ENDPOINTS
+    let ping_endpoint = kinetic_core::constants::BEACON_ENDPOINTS
         .first()
         .unwrap_or(&"");
     if let Ok(res) = client.get(*ping_endpoint).send().await
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Mining PoW to satisfy kinetic-host anti-spam...");
     let key = kinetic_network::pow::mine_p2p_keypair(
-        kinetic_types::clock::Kyn(current_kyn),
+        kinetic_kyn::types::Kyn(current_kyn),
         kinetic_core::constants::POW_DIFFICULTY_BITS,
     );
     println!("Mined PeerId: {}", key.public().to_peer_id());

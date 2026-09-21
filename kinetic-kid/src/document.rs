@@ -15,7 +15,7 @@ pub struct ControllerKey {
     /// A fragment URI identifying this key within the DID document (e.g. `did:kin:…#key-0`).
     pub id: String,
     #[serde(rename = "type")]
-    /// The key algorithm; always `"ML-DSA-65"` in v1.
+    /// The key algorithm identifier; `"Controller"` for the primary ML-DSA-65 signing key.
     pub key_type: String,
     /// The Base64url-encoded raw public key bytes.
     pub public_key: String,
@@ -35,7 +35,7 @@ pub struct ManifestPointer {
 
 /// A Kinetic Identity Document (KID) — the W3C DID-compatible root of identity.
 ///
-/// Identifies a Kinetic user and binds their `KineticKeypair` public keys to a
+/// Identifies a Kinetic user and binds their `ControllerPrivKey` public keys to a
 /// decentralized identifier. The document is signed with the controller key.
 ///
 /// # Security Architecture (Hot vs Cold Keys)
@@ -51,7 +51,7 @@ pub struct Document {
     /// The `did:kin:<hash>` identifier for this document.
     pub kid: Did,
     /// Unix timestamp (seconds) when this document was created.
-    pub created_at: u64,
+    pub created_at: kinetic_kyn::types::UTime,
     /// Ordered list of ML-DSA-65 verification keys that control this DID.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_20")]
     pub controller_keys: Vec<ControllerKey>,
@@ -100,29 +100,29 @@ impl Document {
     /// - Returns [`Error::StringLengthExceeded`] if any identifier or url string is too long.
     /// - Returns [`Error::MissingSignature`] if the signature field is absent.
     /// - Returns [`Error::Base64Error`] if signature base64url decoding fails.
-    /// - Returns [`Error::InvalidSignature`] if no listed key produces a valid `KineticKeypair` signature.
+    /// - Returns [`Error::InvalidSignature`] if no listed key produces a valid cryptographic signature.
     ///
     /// # Examples
     /// ```rust
     /// use kinetic_kid::{Document, Did, ControllerKey};
-    /// use kinetic_primitives::keys::KineticKeypair;
+    /// use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
     /// 
-    /// let keypair = KineticKeypair::generate();
-    /// let pubkey_b64 = b64_url.encode(keypair.pubkey_bytes());
+    /// let controller_key = ControllerPrivKey::generate();
+    /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
     /// 
     /// // Generate genesis DID
-    /// let hash = kinetic_primitives::sha256_hash(&keypair.pubkey_bytes());
+    /// let hash = kinetic_primitives::sha256_hash(controller_key.to_pubkey().as_bytes());
     /// let hex_hash = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
     /// let did = Did::new(&format!("did:kin:{}", hex_hash)).unwrap();
     ///
     /// let doc = Document {
     ///     doc_type: "kinetic.kid.v1".to_string(),
     ///     kid: did.clone(),
-    ///     created_at: 1000,
+    ///     created_at: kinetic_kyn::types::UTime(1000),
     ///     controller_keys: vec![ControllerKey {
     ///         id: format!("{}#primary", did.as_str()),
-    ///         key_type: "MlDsa65".to_string(),
+    ///         key_type: "Controller".to_string(),
     ///         public_key: pubkey_b64,
     ///     }],
     ///     manifest: None,
@@ -131,7 +131,7 @@ impl Document {
     ///     signature: None,
     /// };
     /// 
-    /// let signed_doc = doc.sign(&keypair).unwrap();
+    /// let signed_doc = doc.sign_with_controller(&controller_key).unwrap();
     /// assert!(signed_doc.verify().is_ok());
     /// assert!(signed_doc.verify_genesis().is_ok());
     /// ```
@@ -204,7 +204,7 @@ impl Document {
             // Document is deactivated (revoked), the signature MUST be from a revocation key
             for rk_b64 in &self.revocation_keys {
                 if let Ok(pubkey_bytes) = b64_url.decode(rk_b64)
-                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                    && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes)
                         .is_ok()
                 {
                     return Ok(());
@@ -213,10 +213,9 @@ impl Document {
         } else {
             // Document is active, the signature MUST be from a controller key
             for key in &self.controller_keys {
-                if (key.key_type.eq_ignore_ascii_case("MlDsa65")
-                    || key.key_type.eq_ignore_ascii_case("ML-DSA-65"))
+                if key.key_type.eq_ignore_ascii_case("Controller")
                     && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                    && kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                    && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes)
                         .is_ok()
                 {
                     return Ok(());
@@ -298,13 +297,11 @@ impl Document {
 
         // Normal path: check if signed by an existing hot key
         let mut authorized = previous_doc.controller_keys.iter().any(|ck| {
-            if !ck.key_type.eq_ignore_ascii_case("MlDsa65")
-                && !ck.key_type.eq_ignore_ascii_case("ML-DSA-65")
-            {
+            if !ck.key_type.eq_ignore_ascii_case("Controller") {
                 return false;
             }
             if let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key) {
-                return kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                return kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes)
                     .is_ok();
             }
             false
@@ -315,7 +312,7 @@ impl Document {
         if !authorized && self.deactivated {
             authorized = previous_doc.revocation_keys.iter().any(|rk_b64| {
                 if let Ok(pubkey_bytes) = b64_url.decode(rk_b64) {
-                    return kinetic_primitives::verify_mldsa(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok();
+                    return kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok();
                 }
                 false
             });
@@ -329,16 +326,32 @@ impl Document {
     /// # Errors
     ///
     /// - Returns [`Error::CanonicalizationError`] if JCS canonicalization fails.
-    pub fn sign(
+    pub fn sign_with_controller(
         mut self,
-        keypair: &kinetic_primitives::keys::KineticKeypair,
+        key: &kinetic_primitives::kinetic_keypair::ControllerPrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
         // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
         // identity portability between Mainnet/Testnet while isolating private forks.
         let mut msg_bytes = format!("{}-kid-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
-        let signature_bytes = keypair.sign(&msg_bytes);
+        let signature_bytes = key.sign(&msg_bytes);
+        self.signature = Some(b64_url.encode(signature_bytes));
+        Ok(self)
+    }
+
+    /// Signs the document with a highly-secure Revocation key.
+    /// Used exclusively when permanently deactivating the document.
+    pub fn sign_with_revoke(
+        mut self,
+        key: &kinetic_primitives::kinetic_keypair::RevokePrivKey,
+    ) -> Result<Self, Error> {
+        let msg_str = self.canonicalize()?;
+        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
+        // identity portability between Mainnet/Testnet while isolating private forks.
+        let mut msg_bytes = format!("{}-kid-v1\0", env!("KINETIC_NSP")).into_bytes();
+        msg_bytes.extend_from_slice(msg_str.as_bytes());
+        let signature_bytes = key.sign(&msg_bytes);
         self.signature = Some(b64_url.encode(signature_bytes));
         Ok(self)
     }
@@ -347,17 +360,17 @@ impl Document {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_primitives::keys::KineticKeypair;
+    use kinetic_primitives::kinetic_keypair::{ControllerPrivKey, RevokePrivKey};
 
     #[test]
-    fn test_document_cold_key_revocation_authorization() {
-        let controller_key = KineticKeypair::generate();
-        let revocation_key = KineticKeypair::generate();
+    fn test_kid_document_lifecycle() {
+        let controller_key = ControllerPrivKey::generate();
+        let revocation_key = RevokePrivKey::generate();
 
-        let controller_pub_b64 = b64_url.encode(controller_key.pubkey_bytes());
-        let revocation_pub_b64 = b64_url.encode(revocation_key.pubkey_bytes());
+        let controller_pub_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
+        let revocation_pub_b64 = b64_url.encode(revocation_key.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(&controller_key.pubkey_bytes());
+        let hash = kinetic_primitives::sha256_hash(controller_key.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -365,29 +378,31 @@ mod tests {
         }
         let did_str = format!("did:kin:{}", hex_hash);
 
+        // 1. Genesis (Create Document)
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
-            kid: crate::did::Did::new(&did_str).unwrap(),
-            created_at: 1000,
+            kid: Did::new(&did_str).unwrap(),
+            created_at: kinetic_kyn::types::UTime(1000),
             controller_keys: vec![ControllerKey {
-                id: format!("{}#key-1", did_str),
-                key_type: "ML-DSA-65".to_string(),
-                public_key: controller_pub_b64.clone(),
+                id: format!("{}#primary", did_str),
+                key_type: "Controller".to_string(),
+                public_key: controller_pub_b64,
             }],
             manifest: None,
-            revocation_keys: vec![revocation_pub_b64.clone()],
+            revocation_keys: vec![revocation_pub_b64],
             deactivated: false,
             signature: None,
         };
 
-        let signed_genesis = doc.sign(&controller_key).unwrap();
+        // Genesis doc is signed by its own primary controller key
+        let signed_genesis = doc.sign_with_controller(&controller_key).unwrap();
         assert!(signed_genesis.verify().is_ok(), "Genesis document verification failed");
 
         let mut deactivation_update = signed_genesis.clone();
         deactivation_update.deactivated = true;
         deactivation_update.signature = None;
         
-        let signed_deactivation = deactivation_update.sign(&revocation_key).unwrap();
+        let signed_deactivation = deactivation_update.sign_with_revoke(&revocation_key).unwrap();
 
         assert!(
             signed_deactivation.verify().is_ok(),
@@ -399,11 +414,11 @@ mod tests {
             "Network authorization failed for revocation update signed by revocation key"
         );
 
-        let unauthorized_key = KineticKeypair::generate();
+        let unauthorized_key = RevokePrivKey::generate();
         let mut unauthorized_update = signed_genesis.clone();
         unauthorized_update.deactivated = true;
         unauthorized_update.signature = None;
-        let signed_unauthorized = unauthorized_update.sign(&unauthorized_key).unwrap();
+        let signed_unauthorized = unauthorized_update.sign_with_revoke(&unauthorized_key).unwrap();
         
         assert!(
             !signed_unauthorized.is_authorized(&signed_genesis),

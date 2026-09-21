@@ -31,7 +31,7 @@ mod tests {
             gossip_tx,
             storage: storage.clone(),
             host_speed_ips: 100_000,
-            daemon_keypair: kinetic_primitives::keys::KineticKeypair::generate(),
+            daemon_keypair: kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate(),
             dns_cache: std::sync::Arc::new(tokio::sync::Mutex::new(
                 crate::proxy::dns_cache::DnsCache::new(100, 300),
             )),
@@ -138,13 +138,13 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100,
-                "drand_signature": "0".repeat(192),
+                "beacon_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "identity_signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -176,13 +176,13 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100,
-                "drand_signature": "0".repeat(192),
+                "beacon_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "identity_signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -218,7 +218,7 @@ mod tests {
         };
         storage
             .put(
-                kinetic_core::constants::DB_PREFIX_LAST_DRAND,
+                kinetic_core::constants::DB_PREFIX_LAST_KYN,
                 &serde_json::to_vec(&mock_kyn).unwrap(),
             )
             .unwrap();
@@ -231,13 +231,13 @@ mod tests {
                 "payload": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100, // Very old
-                "drand_signature": "0".repeat(192),
+                "beacon_signature": "0".repeat(192),
                 "iterations": 1000,
                 "vdf_proof": {
                     "proof_bytes": vec![4, 5, 6]
                 },
-                "pubkey": vec![1; 1952],
-                "signature": vec![2; 4627]
+                "pubkey": vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+                "identity_signature": vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH]
             }
         });
 
@@ -271,14 +271,14 @@ mod tests {
             name: "validname.kin".to_string(),
             payload: vec![1, 2, 3],
             salt: [0; 32],
-            kyn: 100,
-            drand_signature: "0".repeat(192),
+            kyn: kinetic_kyn::types::Kyn(100),
+            beacon_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: vec![1; 1952],
-            signature: vec![2; 4627],
+            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            identity_signature: vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
             authorization: None,
         };

@@ -55,7 +55,7 @@ use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::drand::RawKyn;
-use kinetic_network::client::drand::DrandProvider;
+use kinetic_network::client::time_oracle::TimeOracleProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -142,7 +142,7 @@ async fn run_host() -> Result<()> {
     info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
-    let kyn_provider: Arc<dyn KynProvider> = Arc::new(DrandProvider::new(Some(storage.clone())));
+    let kyn_provider: Arc<dyn KynProvider> = Arc::new(TimeOracleProvider::new(Some(storage.clone())));
 
     // 6. Enforce Time Oracle beacon availability on boot (unless in dev mode, which loads a mock cache)
     let initial_kyn = match kyn_provider.fetch_latest().await {
@@ -170,7 +170,7 @@ async fn run_host() -> Result<()> {
     info!("Mining PoW S/Kademlia identity for current epoch...");
     let local_key = tokio::task::spawn_blocking(move || {
         kinetic_network::pow::mine_p2p_keypair(
-            kinetic_types::clock::Kyn(initial_kyn),
+            kinetic_kyn::types::Kyn(initial_kyn),
             kinetic_core::constants::POW_DIFFICULTY_BITS,
         )
     })
@@ -283,7 +283,7 @@ async fn run_host() -> Result<()> {
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: 0 },
+                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
                             )
                             .await
                         && !resp.actions.is_empty()
@@ -301,7 +301,7 @@ async fn run_host() -> Result<()> {
                                 if let Err(e) = kinetic_core::action::process_action_message(
                                     &mut action_state,
                                     msg,
-                                    kinetic_types::clock::Kyn(0),
+                                    kinetic_kyn::types::Kyn(0),
                                 ) {
                                     tracing::error!("Failed to apply synced action: {}", e);
                                 }
@@ -361,7 +361,7 @@ async fn run_host() -> Result<()> {
         kyn_rx.clone(),
     ));
 
-    tokio::spawn(epoch::start_drand_heartbeat(
+    tokio::spawn(epoch::start_time_oracle_heartbeat(
         kyn_provider.clone(),
         kyn_tx,
         local_peer_id,

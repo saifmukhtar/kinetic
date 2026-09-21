@@ -28,7 +28,7 @@ To fully understand this crate, we recommend reading it in the following order:
 
 ### Prerequisites
 Before reading this crate, you must understand:
-* **`kinetic-primitives`:** You must understand how `KineticKeypair` and cryptographic signatures function as this crate relies entirely on them for verification.
+* **`kinetic-primitives`:** You must understand how `ControllerPrivKey`, `RevokePrivKey`, and cryptographic signatures function as this crate relies entirely on them for verification.
 
 ### File Traversal (Leaf-First)
 Do not read this crate top-to-bottom. Read it in this order:

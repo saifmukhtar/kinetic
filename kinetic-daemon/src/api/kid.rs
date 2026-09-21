@@ -12,8 +12,8 @@ use axum::{
     extract::{Extension, Path, State},
 };
 use kinetic_core::traits::KynProvider;
-use kinetic_core::types::Kyn;
-use kinetic_core::types::clock::KynNetworkExt;
+use kinetic_kyn::types::Kyn;
+
 use serde::Deserialize;
 
 /// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
@@ -25,7 +25,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> Kyn {
     }
 
     let kyn_provider =
-        kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
     match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => Kyn(kyn.kyn),
         _ => Kyn::now_local(),
@@ -361,8 +361,7 @@ pub async fn handle_publish_kid(
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                kinetic_primitives::verify_mldsa(
-                    record.pubkey(),
+                record.pubkey().verify(
                     &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
                     &auth_kid.owner_signature,
                 )
@@ -438,8 +437,7 @@ pub async fn handle_publish_manifest(
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                kinetic_primitives::verify_mldsa(
-                    record.pubkey(),
+                record.pubkey().verify(
                     &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
                     &auth_manifest.owner_signature,
                 )
@@ -484,7 +482,7 @@ pub async fn handle_publish_manifest(
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time = get_safe_current_kyn(&state).await.to_network_utime().0;
+    let current_network_time = get_safe_current_kyn(&state).await.to_utime(kinetic_core::constants::KYN_GENESIS_TIME, kinetic_core::constants::KYN_PERIOD);
     if let Err(e) = auth_manifest
         .manifest
         .verify_at_time(&kid_doc, current_network_time)

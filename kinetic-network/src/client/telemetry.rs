@@ -84,7 +84,7 @@ pub fn start_telemetry_service(
                 node_type: node_type.clone(),
                 network_mode,
                 reachability,
-                latest_kyn,
+                latest_kyn: kinetic_kyn::types::Kyn(latest_kyn),
                 mb_sent: metrics
                     .get("bytes_sent")
                     .and_then(|v| v.as_u64())

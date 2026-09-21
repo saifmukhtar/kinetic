@@ -1,5 +1,5 @@
 use kinetic_network::pow::mine_p2p_keypair;
-use kinetic_types::clock::Kyn;
+use kinetic_kyn::types::Kyn;
 use std::time::Instant;
 
 fn main() {

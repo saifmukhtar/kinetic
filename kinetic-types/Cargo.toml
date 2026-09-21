@@ -7,13 +7,14 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 readme = "README.md"
-description = "Core action primitives and post-quantum (ML-DSA-65) serialization for the Kinetic network."
-keywords = ["kinetic", "action", "ml-dsa", "post-quantum"]
+description = "Core action primitives and cryptographic serialization for the Kinetic network."
+keywords = ["kinetic", "action", "cryptography", "post-quantum"]
 categories = ["cryptography", "data-structures"]
 
 [dependencies]
 # --- Workspace & Internal Crates ---
 kinetic-kid = { path = "../kinetic-kid" }
+kinetic-kyn = { path = "../kinetic-kyn" }
 kinetic-primitives = { path = "../kinetic-primitives" }
 thiserror.workspace = true
 

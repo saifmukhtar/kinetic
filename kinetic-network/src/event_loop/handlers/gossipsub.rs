@@ -47,11 +47,11 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                     let opcode = payload_clone[0];
                     let actual_payload = &payload_clone[1..];
 
-                    if opcode == kinetic_types::network::NetworkOpcode::Drand as u8 {
+                    if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8 {
                         if let Ok(kyn) =
                             serde_json::from_slice::<kinetic_core::drand::RawKyn>(actual_payload)
                         {
-                            return kyn.verify();
+                            return kyn.verify_beacon(kinetic_core::config::is_dev_mode());
                         }
                         return false;
                     } else if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
@@ -69,7 +69,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                             {
                                 drop(action_state);
                                 let action_bytes = signed_msg.to_bytes();
-                                return signed_msg.signatures.iter().any(|sig| {
+                                return signed_msg.sovereign_signatures.iter().any(|sig| {
                                     kinetic_core::action::verify_signature(
                                         &root_key,
                                         &action_bytes,

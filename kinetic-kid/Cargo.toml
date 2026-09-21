@@ -17,6 +17,7 @@ simulation = []
 [dependencies]
 # --- Workspace & Internal Crates ---
 kinetic-primitives = { path = "../kinetic-primitives" }
+kinetic-kyn = { path = "../kinetic-kyn", default-features = false }
 
 # --- External Crates ---
 base64.workspace = true

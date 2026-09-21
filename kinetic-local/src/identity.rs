@@ -1,9 +1,9 @@
 use kinetic_core::error::IdentityError;
-use kinetic_primitives::keys::KineticKeypair;
+use kinetic_primitives::kinetic_keypair::IdentityPrivKey;
 use std::path::Path;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn load_keypair(path: &Path) -> Result<KineticKeypair, IdentityError> {
+pub fn load_keypair(path: &Path) -> Result<IdentityPrivKey, IdentityError> {
     use std::fs;
     let data = fs::read(path)
         .map_err(|e| IdentityError::IdentityNotFound(format!("{}: {:?}", e, path)))?;
@@ -14,7 +14,7 @@ pub fn load_keypair(path: &Path) -> Result<KineticKeypair, IdentityError> {
     }
     let mut seed = [0u8; 32];
     seed.copy_from_slice(&data[..32]);
-    Ok(KineticKeypair::from_seed(&seed))
+    Ok(IdentityPrivKey::from_seed(&seed))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -22,7 +22,7 @@ pub fn save_keypair_from_mnemonic(
     key_path: &Path,
     phrase: &str,
     network_salt: &[u8; 32],
-) -> Result<KineticKeypair, IdentityError> {
+) -> Result<IdentityPrivKey, IdentityError> {
     use bip39::{Language, Mnemonic};
     use pbkdf2::pbkdf2_hmac;
     use sha2::Sha512;
@@ -46,7 +46,7 @@ pub fn save_keypair_from_mnemonic(
 
     pbkdf2_hmac::<Sha512>(&seed, &salt, iterations, &mut derived);
 
-    let signing_key = KineticKeypair::from_seed(&derived);
+    let signing_key = IdentityPrivKey::from_seed(&derived);
 
     seed.zeroize();
     derived.zeroize();
@@ -55,7 +55,7 @@ pub fn save_keypair_from_mnemonic(
         let _ = fs::create_dir_all(parent);
     }
 
-    crate::secure_fs::write_secret(key_path, &signing_key.to_bytes())?;
+    crate::secure_fs::write_secret(key_path, &signing_key.to_secret_bytes())?;
 
     Ok(signing_key)
 }

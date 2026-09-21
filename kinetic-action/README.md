@@ -11,7 +11,7 @@ In the Kinetic network, global state is not managed by a sprawling consensus mec
 This crate provides the `ActionState` structure and the corresponding mathematical pure functions to:
 1. Parse incoming `SignedActionMessage` payloads.
 2. Hash and deduplicate actions to prevent replay attacks.
-3. Validate Sovereign cryptographic signatures against the configured network root key.
+3. Validate Sovereign cryptographic signatures against the configured network Sovereign key.
 4. Transition the network state (mapping infrastructure names, rotating keys, halting the network).
 
 ## Pluggable Engines

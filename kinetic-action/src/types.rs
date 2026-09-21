@@ -6,10 +6,10 @@
 //!
 //! ## Protocol Context
 //!
-//! All action state changes follow a two-phase commit protocol:
+//! All action state changes follow a direct execution protocol:
 //! 1. A [`SignedActionMessage`] is broadcast with a single cryptographic signature.
-//! 2. Threshold verification by the active [`ActionEngine`](crate::traits::ActionEngine)
-//!    determines whether the action is immediately executed or enters a timelock queue.
+//! 2. Verification by the active [`ActionEngine`](crate::traits::ActionEngine)
+//!    determines whether the action is immediately executed or rejected.
 //!
 //! In **Sovereign mode**, the Sovereign key acts as a single-signer authority.
 use std::collections::HashMap;
@@ -28,15 +28,16 @@ pub use kinetic_types::action::{
 /// # Examples
 /// ```rust,no_run
 /// use kinetic_action::types::verify_signature;
+/// use kinetic_primitives::kinetic_keypair::SovereignPubKey;
 /// 
-/// let pubkey = vec![0; 32];
+/// let pubkey = SovereignPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]);
 /// let msg = b"hello";
 /// let sig = vec![0; 64];
 /// // Returns true only if the Sovereign signature strictly matches the pubkey and msg.
 /// let is_valid = verify_signature(&pubkey, msg, &sig);
 /// ```
-pub fn verify_signature(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {
-    kinetic_primitives::verify_mldsa(pubkey, msg, sig).is_ok()
+pub fn verify_signature(pubkey: &kinetic_primitives::kinetic_keypair::SovereignPubKey, msg: &[u8], sig: &[u8]) -> bool {
+    pubkey.verify(msg, sig).is_ok()
 }
 
 /// Side effects produced when a network action is executed.
@@ -46,8 +47,8 @@ pub enum ActionEffect {
     PrimeMapped {
         /// Mapped 1-character name.
         name: String,
-        /// Recipient public key.
-        target_pubkey: PublicKeyBytes,
+        /// Recipient Identity public key.
+        target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey,
     },
     /// Inform node subsystems of a prime name unmapping.
     PrimeUnmapped {
@@ -58,8 +59,8 @@ pub enum ActionEffect {
     InfraMapped {
         /// Mapped infrastructure name.
         name: String,
-        /// Recipient public key.
-        target_pubkey: PublicKeyBytes,
+        /// Recipient Identity public key.
+        target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey,
     },
     /// Inform node subsystems of an infrastructure name unmapping.
     InfraUnmapped {
@@ -67,9 +68,9 @@ pub enum ActionEffect {
         name: String,
     },
     /// The Sovereign key was successfully rotated.
-    RootKeyRotated {
+    SovereignKeyRotated {
         /// The new Sovereign public key.
-        new_key: PublicKeyBytes,
+        new_key: kinetic_primitives::kinetic_keypair::SovereignPubKey,
     },
     /// The network has been emergency halted by the Sovereign key.
     NetworkHalted,
@@ -81,7 +82,7 @@ pub enum ActionEffect {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionState {
     /// Genesis Kyn when action tracking started.
-    pub genesis_kyn: kinetic_types::clock::Kyn,
+    pub genesis_kyn: kinetic_kyn::types::Kyn,
     /// Active Sovereign public key controlling the network.
     pub active_sovereign_key: Option<PublicKeyBytes>,
     /// Master boolean flag if the network is currently paused.
@@ -89,23 +90,23 @@ pub struct ActionState {
     pub is_halted: bool,
     /// The exact Kyn when the network was halted (if currently halted).
     #[serde(default)]
-    pub halt_start_kyn: Option<kinetic_types::clock::Kyn>,
+    pub halt_start_kyn: Option<kinetic_kyn::types::Kyn>,
     /// Total number of KineticTime kyns the network has been paused for since genesis.
     #[serde(default)]
     pub total_paused_kyns: u64,
     /// Historical timeline of all network pauses (start_kyn, end_kyn).
     #[serde(default)]
-    pub pause_history: Vec<(kinetic_types::clock::Kyn, kinetic_types::clock::Kyn)>,
+    pub pause_history: Vec<(kinetic_kyn::types::Kyn, kinetic_kyn::types::Kyn)>,
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
-    pub executed_hashes: HashMap<Hash256, kinetic_types::clock::Kyn>,
+    pub executed_hashes: HashMap<Hash256, kinetic_kyn::types::Kyn>,
     #[serde(default)]
     /// Append-only log of all executed signed action messages (used for P2P state syncing).
     pub action_log: Vec<kinetic_types::action::SignedActionMessage>,
-    /// Active 1-character prime names and their associated owner public keys.
+    /// Active 1-character prime names and their associated Identity public keys.
     #[serde(default)]
     pub mapped_prime_names: HashMap<String, PublicKeyBytes>,
-    /// Active infrastructure names and their associated owner public keys.
+    /// Active infrastructure names and their associated Identity public keys.
     #[serde(default)]
     pub mapped_infra_names: HashMap<String, PublicKeyBytes>,
 }
@@ -116,7 +117,7 @@ impl ActionState {
     /// # Examples
     /// ```rust
     /// use kinetic_action::types::ActionState;
-    /// use kinetic_types::clock::Kyn;
+    /// use kinetic_kyn::types::Kyn;
     /// use std::collections::HashMap;
     /// 
     /// let mut state = ActionState {
@@ -138,7 +139,7 @@ impl ActionState {
     /// // If an event happened at kyn 150, it only experienced the last 50 paused kyns.
     /// assert_eq!(state.paused_kyns_since(Kyn(150)), 50);
     /// ```
-    pub fn paused_kyns_since(&self, target_kyn: kinetic_types::clock::Kyn) -> u64 {
+    pub fn paused_kyns_since(&self, target_kyn: kinetic_kyn::types::Kyn) -> u64 {
         let mut total = 0;
         for &(start, end) in &self.pause_history {
             if end <= target_kyn {
@@ -160,7 +161,7 @@ impl ActionState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_types::clock::Kyn;
+    use kinetic_kyn::types::Kyn;
     use std::collections::HashMap;
 
     fn mock_state() -> ActionState {
@@ -239,11 +240,11 @@ mod tests {
 /// Configuration constants required for action evaluation.
 #[derive(Debug, Clone)]
 pub struct ActionConfig {
-    /// The root public key hex string used to verify actions.
+    /// The Sovereign public key hex string used to verify actions.
     pub sovereign_key_hex: String,
-    /// Maximum age of a proposal in kyns before it is considered stale.
+    /// The maximum age (in kyns) a network action is allowed to be before it is rejected as stale.
     pub max_age_kyns: u64,
-    /// Whether the network is running in dev mode (bypasses root key validation).
+    /// Whether the network is running in dev mode (bypasses Sovereign key validation).
     pub is_dev_mode: bool,
     /// The action model to use ("sovereign" or "permissionless").
     pub action_model: String,

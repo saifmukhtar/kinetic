@@ -25,6 +25,7 @@ base64.workspace = true
 [dev-dependencies]
 # --- Workspace & Internal Crates ---
 kinetic-kid = { path = "../kinetic-kid" }
+kinetic-kyn = { path = "../kinetic-kyn", default-features = false }
 
 # --- External Crates ---
 proptest.workspace = true

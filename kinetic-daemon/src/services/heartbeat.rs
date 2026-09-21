@@ -34,7 +34,7 @@ pub fn start_heartbeat_loop(
     hb_kyn_provider: Arc<dyn KynProvider>,
     p2p_only: bool,
     initial_kyn: u64,
-    daemon_keypair_hb: kinetic_primitives::keys::KineticKeypair,
+    daemon_keypair_hb: kinetic_primitives::kinetic_keypair::IdentityPrivKey,
     kyn_tx_hb: tokio::sync::watch::Sender<u64>,
 ) -> tokio::task::JoinHandle<()> {
     let last_known_live_kyn = Arc::new(AtomicU64::new(initial_kyn));
@@ -53,8 +53,8 @@ pub fn start_heartbeat_loop(
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                    let expected_kyn = (now - kinetic_core::constants::DRAND_GENESIS_TIME)
-                        / kinetic_core::constants::DRAND_PERIOD;
+                    let expected_kyn = (now - kinetic_core::constants::KYN_GENESIS_TIME)
+                        / kinetic_core::constants::KYN_PERIOD;
 
                     if expected_kyn > latest.kyn + 5 {
                         let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
@@ -75,7 +75,7 @@ pub fn start_heartbeat_loop(
                             let _ = kyn_tx_hb.send(p.kyn);
                             if !p2p_only && let Ok(payload) = serde_json::to_vec(&p) {
                                 let mut envelope =
-                                    vec![kinetic_types::network::NetworkOpcode::Drand as u8];
+                                    vec![kinetic_types::network::NetworkOpcode::KineticTime as u8];
                                 envelope.extend(payload);
                                 let _ = hb_network
                                     .broadcast_gossip(
@@ -106,7 +106,7 @@ pub fn start_heartbeat_loop(
             }
 
             let current_live = lklr.load(Ordering::Relaxed);
-            if !kyn.can_heartbeat(kinetic_types::clock::Kyn(current_live)) {
+            if !kyn.can_heartbeat(kinetic_kyn::types::Kyn(current_live)) {
                 continue;
             }
 
@@ -122,8 +122,8 @@ pub fn start_heartbeat_loop(
                 for name in names {
                     let mut heartbeat = Heartbeat {
                         name: name.clone(),
-                        latest_kyn: kyn.kyn,
-                        signature: vec![],
+                        latest_kyn: kinetic_kyn::types::Kyn(kyn.kyn),
+                        owner_signature: vec![],
                         authorization: None,
                     };
 
@@ -135,7 +135,7 @@ pub fn start_heartbeat_loop(
                             .await
                             .unwrap();
 
-                    heartbeat.signature = sig_bytes;
+                    heartbeat.owner_signature = sig_bytes;
 
                     let name_clone = name.clone();
                     let hb_network_clone = hb_network.clone();

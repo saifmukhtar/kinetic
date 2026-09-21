@@ -184,7 +184,7 @@ pub struct ApiState {
     /// Local storage engine interface.
     pub storage: Arc<dyn StorageEngine>,
     /// The daemon's identity keypair (used for signing manual heartbeats).
-    pub daemon_keypair: kinetic_primitives::keys::KineticKeypair,
+    pub daemon_keypair: kinetic_primitives::kinetic_keypair::IdentityPrivKey,
     /// Pre-calibrated host CPU speed for VDF time estimation (Iterations Per Second).
     pub host_speed_ips: u64,
     /// Map of background VDF tasks.
@@ -546,7 +546,7 @@ pub async fn start_server(
     port: u16,
     atlas_nsps: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
     host_speed_ips: u64,
-    daemon_keypair: kinetic_primitives::keys::KineticKeypair,
+    daemon_keypair: kinetic_primitives::kinetic_keypair::IdentityPrivKey,
     dns_cache: Arc<tokio::sync::Mutex<crate::proxy::dns_cache::DnsCache>>,
 ) -> anyhow::Result<()> {
     let tokens = ensure_api_tokens()?;
@@ -819,7 +819,7 @@ async fn auth_middleware(
             {
                 // Verify expiration using cached Kyn
                 let kyn_provider =
-                    kinetic_network::client::drand::DrandProvider::new(Some(state.storage.clone()));
+                    kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
                 let current_kyn = kyn_provider.load_cached().map(|d| d.kyn).unwrap_or(0);
 
                 if current_kyn > 0 && current_kyn > session.expiry_kyn {
