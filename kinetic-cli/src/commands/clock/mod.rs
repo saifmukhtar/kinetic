@@ -3,7 +3,7 @@
 use clap::Args;
 use kinetic_core::config::KineticConfig;
 use kinetic_core::constants::{KYN_GENESIS_TIME, KYN_PERIOD};
-use kinetic_kyn::types::KineticTime;
+use kinetic_kyn::types::CrystallizedKyn;
 use std::time::SystemTime;
 
 #[derive(Args, Debug)]
@@ -58,7 +58,7 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
     );
     if let Ok(resp) = client.get(&api_url).send().await
         && resp.status().is_success()
-        && let Ok(time) = resp.json::<KineticTime>().await
+        && let Ok(time) = resp.json::<CrystallizedKyn>().await
     {
         current_time = Some(time);
         fetched_from_api = true;
@@ -79,7 +79,7 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
                 0
             };
 
-            KineticTime::from_kyn(
+            CrystallizedKyn::from_kyn(
                 kinetic_kyn::types::Kyn(current_kyn),
                 kinetic_kyn::types::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
             )

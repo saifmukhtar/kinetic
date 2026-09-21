@@ -1,4 +1,4 @@
-use crate::types::{Kyn, UTime, KineticTime};
+use crate::types::{Kyn, UTime, CrystallizedKyn};
 
 impl Kyn {
     /// Converts a `Kyn` number into a `UTime` (Unix epoch timestamp in seconds).
@@ -75,7 +75,7 @@ impl UTime {
     }
 }
 
-impl KineticTime {
+impl CrystallizedKyn {
     /// Creates a new [`KineticTime`] instance from an absolute network kyn number and a genesis kyn.
     ///
     /// If `current_kyn` is less than `genesis_kyn`,
@@ -97,16 +97,16 @@ impl KineticTime {
 
         let total_kyns = current_kyn.0 - genesis_kyn.0;
 
-        let prism = total_kyns / 28_800;
-        let remainder_after_prism = total_kyns % 28_800;
+        let prism = total_kyns / 86_400;
+        let remainder_after_prism = total_kyns % 86_400;
 
-        let facet = remainder_after_prism / 1_200;
-        let kyn = remainder_after_prism % 1_200;
+        let facet = remainder_after_prism / 3_600;
+        let kyn = remainder_after_prism % 3_600;
 
         // Safety invariants: integer division guarantees these ranges, but asserting
         // them in debug builds catches any future refactor that breaks the arithmetic.
         debug_assert!(facet < 24, "facet must be in 0..23, got {facet}");
-        debug_assert!(kyn < 1_200, "kyn must be in 0..1199, got {kyn}");
+        debug_assert!(kyn < 3_600, "kyn must be in 0..3599, got {kyn}");
 
         Self {
             prism,
@@ -120,7 +120,7 @@ impl KineticTime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Kyn, UTime, KineticTime};
+    use crate::types::{Kyn, UTime, CrystallizedKyn};
 
     #[test]
     fn test_kyn_unix_conversion_roundtrip() {
@@ -145,33 +145,33 @@ mod tests {
         let genesis = Kyn(1000);
 
         // Before genesis
-        let t1 = KineticTime::from_kyn(Kyn(999), genesis);
+        let t1 = CrystallizedKyn::from_kyn(Kyn(999), genesis);
         assert_eq!(t1.total_kyns, 0);
 
         // Exactly genesis
-        let t2 = KineticTime::from_kyn(Kyn(1000), genesis);
+        let t2 = CrystallizedKyn::from_kyn(Kyn(1000), genesis);
         assert_eq!((t2.prism, t2.facet, t2.kyn, t2.total_kyns), (0, 0, 0, 0));
 
         // 1 Kyn later
-        let t3 = KineticTime::from_kyn(Kyn(1001), genesis);
+        let t3 = CrystallizedKyn::from_kyn(Kyn(1001), genesis);
         assert_eq!((t3.prism, t3.facet, t3.kyn, t3.total_kyns), (0, 0, 1, 1));
 
-        // Exactly 1 Facet (1,200 kyns)
-        let t4 = KineticTime::from_kyn(Kyn(1000 + 1200), genesis);
-        assert_eq!((t4.prism, t4.facet, t4.kyn, t4.total_kyns), (0, 1, 0, 1200));
+        // Exactly 1 Facet (3,600 kyns)
+        let t4 = CrystallizedKyn::from_kyn(Kyn(1000 + 3600), genesis);
+        assert_eq!((t4.prism, t4.facet, t4.kyn, t4.total_kyns), (0, 1, 0, 3600));
 
-        // Exactly 1 Prism (28,800 kyns)
-        let t5 = KineticTime::from_kyn(Kyn(1000 + 28800), genesis);
+        // Exactly 1 Prism (86,400 kyns)
+        let t5 = CrystallizedKyn::from_kyn(Kyn(1000 + 86400), genesis);
         assert_eq!(
             (t5.prism, t5.facet, t5.kyn, t5.total_kyns),
-            (1, 0, 0, 28800)
+            (1, 0, 0, 86400)
         );
 
-        // Complex time: 1 Prism + 2 Facets + 3 Kyns = 28800 + 2400 + 3 = 31203
-        let t6 = KineticTime::from_kyn(Kyn(1000 + 31203), genesis);
+        // Complex time: 1 Prism + 2 Facets + 3 Kyns = 86400 + 7200 + 3 = 93603
+        let t6 = CrystallizedKyn::from_kyn(Kyn(1000 + 93603), genesis);
         assert_eq!(
             (t6.prism, t6.facet, t6.kyn, t6.total_kyns),
-            (1, 2, 3, 31203)
+            (1, 2, 3, 93603)
         );
     }
 
@@ -179,16 +179,16 @@ mod tests {
     fn test_time_large_epochs() {
         let genesis = Kyn(0);
 
-        // 1 Matrix = 7 Prisms = 7 × 28,800 = 201,600 kyns
-        let t_matrix = KineticTime::from_kyn(Kyn(201_600), genesis);
+        // 1 Matrix = 7 Prisms = 7 × 86,400 = 604,800 kyns
+        let t_matrix = CrystallizedKyn::from_kyn(Kyn(604_800), genesis);
         assert_eq!(t_matrix.prism / 7, 1);
 
-        // 1 Lattice = 30 Prisms = 30 × 28,800 = 864,000 kyns
-        let t_lattice = KineticTime::from_kyn(Kyn(864_000), genesis);
+        // 1 Lattice = 30 Prisms = 30 × 86,400 = 2,592,000 kyns
+        let t_lattice = CrystallizedKyn::from_kyn(Kyn(2_592_000), genesis);
         assert_eq!(t_lattice.prism / 30, 1);
 
-        // 1 Aeon = 365 Prisms = 365 × 28,800 = 10,512,000 kyns
-        let t_aeon = KineticTime::from_kyn(Kyn(10_512_000), genesis);
+        // 1 Aeon = 365 Prisms = 365 × 86,400 = 31,536,000 kyns
+        let t_aeon = CrystallizedKyn::from_kyn(Kyn(31_536_000), genesis);
         assert_eq!(t_aeon.prism / 365, 1);
     }
 
@@ -196,7 +196,7 @@ mod tests {
     fn test_kinetic_time_zero() {
         let genesis_kyn = 30579969;
         let genesis = Kyn(genesis_kyn);
-        let time = KineticTime::from_kyn(genesis, genesis);
+        let time = CrystallizedKyn::from_kyn(genesis, genesis);
         assert_eq!(time.prism, 0);
         assert_eq!(time.facet, 0);
         assert_eq!(time.kyn, 0);
@@ -207,7 +207,7 @@ mod tests {
     fn test_kinetic_time_pre_genesis() {
         let genesis_kyn = 30579969;
         let time =
-            KineticTime::from_kyn(Kyn(genesis_kyn - 1), Kyn(genesis_kyn));
+            CrystallizedKyn::from_kyn(Kyn(genesis_kyn - 1), Kyn(genesis_kyn));
         assert_eq!(time.total_kyns, 0);
     }
 
@@ -216,14 +216,14 @@ mod tests {
         let genesis_kyn = 30579969;
         let genesis = Kyn(genesis_kyn);
 
-        // 1 day (28,800) + 2 hours (2,400) + 45 kyns = 31,245 total kyns
-        let target_kyn = Kyn(genesis_kyn + 31_245);
-        let time = KineticTime::from_kyn(target_kyn, genesis);
+        // 1 day (86,400) + 2 hours (7,200) + 45 kyns = 93,645 total kyns
+        let target_kyn = Kyn(genesis_kyn + 93_645);
+        let time = CrystallizedKyn::from_kyn(target_kyn, genesis);
 
         assert_eq!(time.prism, 1);
         assert_eq!(time.facet, 2);
         assert_eq!(time.kyn, 45);
-        assert_eq!(time.total_kyns, 31_245);
+        assert_eq!(time.total_kyns, 93_645);
     }
 
     #[test]

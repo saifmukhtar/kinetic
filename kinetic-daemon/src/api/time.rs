@@ -10,12 +10,12 @@
 use crate::api::ApiState;
 use axum::{Json, extract::State};
 use kinetic_core::traits::KynProvider;
-use kinetic_kyn::types::KineticTime;
+use kinetic_kyn::types::CrystallizedKyn;
 
 /// Returns the current verified Kinetic Time from the daemon's internal state.
 pub async fn handle_get_time(
     State(state): State<ApiState>,
-) -> Result<Json<KineticTime>, crate::api::error::AppError> {
+) -> Result<Json<CrystallizedKyn>, crate::api::error::AppError> {
     let kyn_provider =
         kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
 
@@ -24,7 +24,7 @@ pub async fn handle_get_time(
     // If the cache somehow fails, fallback to local clock estimation.
     match kyn_provider.load_cached() {
         Ok(drand_data) => {
-            let time = KineticTime::from_kyn(
+            let time = CrystallizedKyn::from_kyn(
                 kinetic_kyn::types::Kyn(drand_data.kyn),
                 kinetic_kyn::types::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
             );
