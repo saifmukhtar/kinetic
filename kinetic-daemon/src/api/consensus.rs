@@ -228,8 +228,7 @@ pub async fn handle_takeover_difficulty(
 /// Validates a potential name string according to Kinetic's core naming rules.
 pub async fn handle_validate_name(Json(req): Json<ValidateRequest>) -> Json<ValidateResponse> {
     let normalized = kinetic_core::types::names::normalize_name(&req.name);
-    let is_reserved = kinetic_core::types::names::is_reserved_name(&normalized)
-        || kinetic_core::types::protocol::is_protocol_name(&normalized);
+    let is_reserved = kinetic_core::types::names::is_reserved_name(&normalized);
 
     match kinetic_core::types::names::is_valid_apex_name(&normalized) {
         Ok(_) => Json(ValidateResponse {

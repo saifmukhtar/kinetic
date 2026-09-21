@@ -62,7 +62,7 @@ pub const RESERVED_NAMES: &[&str] = &[
 /// Validates whether a given name is a valid apex name that can be registered.
 ///
 /// Enforces standard DNS LDH (Letters, Digits, Hyphen) rules, total/label length limits,
-/// apex structure, and Category 1/2 reservation checks.
+/// apex structure, and RFC reservation checks.
 ///
 /// # Errors
 ///
@@ -70,8 +70,7 @@ pub const RESERVED_NAMES: &[&str] = &[
 /// - Returns [`crate::error::NamesError::LabelTooLong`] if any individual dot-separated label exceeds 63 characters.
 /// - Returns [`crate::error::NamesError::InvalidCharacter`] if a label contains non-LDH characters or invalid hyphen/digit placements.
 /// - Returns [`crate::error::NamesError::NotAnApexName`] if the input is a subdomain (e.g. `blog.example.kin`) instead of an apex name (`example.kin`).
-/// - Returns [`crate::error::NamesError::ReservedName`] if the label matches a Category 1 public utility name.
-/// - Returns [`crate::error::NamesError::ProtocolName`] if the label is a locked Category 2 network protocol name.
+/// - Returns [`crate::error::NamesError::ReservedName`] if the label matches an RFC public utility name.
 pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
     let norm = normalize_name(name);
 
@@ -109,10 +108,7 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
         return Err(crate::error::NamesError::ReservedName);
     }
 
-    // Infrastructure Names (Locked protocols)
-    if crate::types::protocol::is_protocol_name(&norm) {
-        return Err(crate::error::NamesError::ProtocolName);
-    }
+
 
     Ok(())
 }
@@ -287,26 +283,7 @@ mod tests {
 mod names_tests {
     use super::*;
 
-    #[test]
-    fn test_lock_protocol_names() {
-        // These should be rejected because they are locked Infrastructure Names
-        assert_eq!(
-            is_valid_apex_name("docs.kin"),
-            Err(crate::error::NamesError::ProtocolName)
-        );
-        assert_eq!(
-            is_valid_apex_name("seed.kin"),
-            Err(crate::error::NamesError::ProtocolName)
-        );
-        assert_eq!(
-            is_valid_apex_name("subdomain.explorer.kin"),
-            Err(crate::error::NamesError::NotAnApexName)
-        );
 
-        // These should be accepted (standard names)
-        assert!(is_valid_apex_name("satoshi.kin").is_ok());
-        assert!(is_valid_apex_name("myname.kin").is_ok());
-    }
 }
 
 #[cfg(test)]

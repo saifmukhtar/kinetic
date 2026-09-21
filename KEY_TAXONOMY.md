@@ -50,7 +50,6 @@ To prevent semantic drift, security vulnerabilities, and terminology confusion, 
 * **Role (Global Governance):** The sovereign root keys hardcoded into the network genesis state.
 * **Capabilities:** 
   * Authorizes global network state changes via `NetworkAction` payloads.
-  * Required to map 1-character premium domains (`MapPrime`) and network infrastructure domains (`MapInfra`).
   * Can delegate authority via `RotateRootKey`.
 * **Lifecycle:** Extremely restricted.
 

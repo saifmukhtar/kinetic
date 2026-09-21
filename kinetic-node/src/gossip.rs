@@ -13,7 +13,7 @@ pub fn handle_action_gossip(
     payload: &[u8],
     gossip_action_path: Arc<PathBuf>,
     network_client: Option<kinetic_network::NetworkClient>,
-    storage: Option<Arc<dyn kinetic_core::traits::StorageEngine>>,
+    _storage: Option<Arc<dyn kinetic_core::traits::StorageEngine>>,
     current_kyn: u64,
 ) {
     if let Ok(signed_msg) = serde_json::from_slice::<SignedActionMessage>(payload) {
@@ -32,67 +32,7 @@ pub fn handle_action_gossip(
         match effect_result {
             Ok(Some(effect)) => {
                 tracing::info!("Action state updated via gossip. Effect: {:?}", effect);
-                if let Some(storage) = storage {
-                    use kinetic_core::action::types::ActionEffect;
-                    use kinetic_core::constants::DB_PREFIX_REVEAL;
-                    use kinetic_core::types::NameRecord;
 
-                    match &effect {
-                        ActionEffect::PrimeMapped {
-                            name,
-                            target_pubkey,
-                        } => {
-                            let record = NameRecord::Prime {
-                                name: name.clone(),
-                                pubkey: target_pubkey.clone(),
-                                kyn: signed_msg.timestamp_kyn,
-                                payload: Vec::new(),
-                                owner_signature: Vec::new(),
-                                authorization: None,
-                            };
-                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                            if let Ok(json_bytes) = serde_json::to_vec(&record) {
-                                let _ = storage.put(key.as_bytes(), &json_bytes);
-                                tracing::info!(
-                                    "Injected NameRecord::Prime into storage for {}",
-                                    name
-                                );
-                            }
-                        }
-                        ActionEffect::PrimeUnmapped { name } => {
-                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                            let _ = storage.delete(key.as_bytes());
-                            tracing::info!("Revoked NameRecord::Prime from storage for {}", name);
-                        }
-                        ActionEffect::InfraMapped {
-                            name,
-                            target_pubkey,
-                        } => {
-                            let record = NameRecord::Infra {
-                                name: name.clone(),
-                                pubkey: target_pubkey.clone(),
-                                kyn: signed_msg.timestamp_kyn,
-                                payload: Vec::new(),
-                                owner_signature: Vec::new(),
-                                authorization: None,
-                            };
-                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                            if let Ok(json_bytes) = serde_json::to_vec(&record) {
-                                let _ = storage.put(key.as_bytes(), &json_bytes);
-                                tracing::info!(
-                                    "Injected NameRecord::Infra into storage for {}",
-                                    name
-                                );
-                            }
-                        }
-                        ActionEffect::InfraUnmapped { name } => {
-                            let key = format!("{}{}", DB_PREFIX_REVEAL, name);
-                            let _ = storage.delete(key.as_bytes());
-                            tracing::info!("Revoked NameRecord::Infra from storage for {}", name);
-                        }
-                        _ => {}
-                    }
-                }
                 let client_clone = network_client.clone();
                 let action_log = state_snapshot.action_log.clone();
                 tokio::task::spawn_blocking(move || {
@@ -184,10 +124,7 @@ mod tests {
         let path = Arc::new(dir.path().join("action.bin"));
 
         let msg = SignedActionMessage {
-            action: NetworkAction::MapPrime {
-                name: "x".to_string(),
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-            },
+            action: NetworkAction::EmergencyPause,
             timestamp_kyn: kinetic_kyn::types::Kyn(0),
             sovereign_signatures: vec![],
         };
@@ -227,7 +164,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = Arc::new(dir.path().join("action.bin"));
 
-        let extra_fields = b"{\"action\": {\"MapPrime\": {\"name\": \"x\", \"target_pubkey\": []}}, \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
+        let extra_fields = b"{\"action\": \"EmergencyPause\", \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
         // Should parse and handle or ignore the extra field without panicking
         handle_action_gossip(extra_fields, path, None, None, 100);
@@ -241,10 +178,7 @@ mod tests {
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
         let msg = SignedActionMessage {
-            action: NetworkAction::MapPrime {
-                name: "x".to_string(),
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-            },
+            action: NetworkAction::EmergencyPause,
             timestamp_kyn: kinetic_kyn::types::Kyn(0),
             sovereign_signatures: vec![],
         };

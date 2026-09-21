@@ -60,37 +60,9 @@ pub enum ActionError {
     #[error("Invalid signature")]
     InvalidSignature,
 
-    /// **What**: A prime name mapping or unmapping was attempted on a name that is not exactly 1 character long.
-    /// **Why**: By protocol definition, Prime names (e.g., `a.kin`) are strictly reserved and must be exactly one character.
-    /// **Fix**: Correct your action payload to target a 1-character name.
-    #[error("Prime name mappings must be exactly 1 character long")]
-    InvalidPrimeLength,
 
-    /// **What**: A protocol name mapping was attempted on a name that is not whitelisted in the infrastructure protocols list.
-    /// **Why**: Infrastructure names (e.g., `seed.kin`, `docs.kin`) are strictly defined in the protocol schema.
-    /// **Fix**: Ensure your action payload targets a valid, recognized protocol name.
-    #[error("Protocol name mappings must target a valid infrastructure name")]
-    InvalidProtocolName,
 
-    /// **What**: A network action attempted to map a name that is already currently mapped.
-    /// **Why**: The state transition is invalid. Overwriting an active mapping directly is forbidden to prevent unauthorized reassignment.
-    /// **Fix**: You must explicitly unmap the name first by publishing a revocation action before remapping it.
-    #[error("Name is already mapped, explicitly unmap it first")]
-    AlreadyMapped,
 
-    /// **What**: A network action attempted to revoke or unmap a name that does not exist in the current state.
-    /// **Why**: The state transition is invalid as there is no active mapping to remove.
-    /// **Fix**: Verify the current action state using the local REST API before issuing revocations.
-    #[error("Name is not currently mapped")]
-    NotMapped,
-
-    /// **What**: The name payload in the network action was unnormalized.
-    /// **Why**: Payloads must be strictly normalized (no `.kin` suffix, strictly lowercase) before being signed to ensure deterministic verification.
-    /// **Fix**: Use the `kinetic_types::names::normalize` function before signing your action payload.
-    #[error(
-        "Name payloads in network actions must be strictly normalized (no .kin suffix, lowercase, length checks)"
-    )]
-    UnnormalizedName,
 
     /// **What**: The daemon could not persist the updated action state to disk.
     /// **Why**: The file system may be read-only, or the daemon process lacks necessary write permissions.
@@ -140,11 +112,8 @@ impl ActionError {
             Self::StaleProposal => "KIN-ACN-005",
             Self::AlreadyExecuted => "KIN-ACN-006",
             Self::InvalidSignature => "KIN-ACN-007",
-            Self::InvalidPrimeLength => "KIN-ACN-008",
-            Self::InvalidProtocolName => "KIN-ACN-009",
-            Self::AlreadyMapped => "KIN-ACN-010",
-            Self::NotMapped => "KIN-ACN-011",
-            Self::UnnormalizedName => "KIN-ACN-012",
+
+
             Self::StateSaveFailed => "KIN-ACN-013",
             Self::P2pPublishFailed => "KIN-ACN-014",
             Self::InvalidSeedState => "KIN-ACN-015",
@@ -172,13 +141,8 @@ impl ActionError {
             | Self::StateReadFailed => kinetic_types::error::Severity::Error,
             Self::ActionDisabled
             | Self::InvalidSignature
-            | Self::InvalidPrimeLength
-            | Self::InvalidProtocolName
-            | Self::AlreadyMapped
-            | Self::NotMapped
             | Self::InvalidSeedState
-            | Self::BootstrapFetchFailed
-            | Self::UnnormalizedName => kinetic_types::error::Severity::Warning,
+            | Self::BootstrapFetchFailed => kinetic_types::error::Severity::Warning,
         }
     }
 
@@ -206,11 +170,6 @@ impl ActionError {
             Self::InvalidSignature => {
                 "The message signature does not cryptographically match the configured Sovereign key.".to_string()
             }
-            Self::InvalidPrimeLength => "Prime names managed by this action must be exactly 1 character long.".to_string(),
-            Self::InvalidProtocolName => "Protocol names managed by this action must be valid infrastructure names.".to_string(),
-            Self::AlreadyMapped => "The requested name is already mapped. It must be explicitly unmapped first.".to_string(),
-            Self::NotMapped => "The requested name is not currently mapped.".to_string(),
-            Self::UnnormalizedName => "The name payload must be strictly normalized (no .kin suffix, lowercase).".to_string(),
             Self::StateSaveFailed => "Failed to save the modified action state to disk.".to_string(),
             Self::P2pPublishFailed => "Failed to broadcast the action message to the P2P network.".to_string(),
             Self::InvalidSeedState => "A bootstrap seed node provided an invalid action state.".to_string(),

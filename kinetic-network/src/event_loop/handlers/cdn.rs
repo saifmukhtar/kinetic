@@ -63,19 +63,14 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnReques
                                 true
                             } else {
                                 crate::event_loop::utils::spawn_blocking(move || {
-                                    if let kinetic_core::types::NameRecord::Standard(reveal) =
-                                        &record
-                                    {
-                                        crate::store::verification::verify_reveal(
-                                            reveal,
-                                            &storage,
-                                            current_kyn,
-                                            &engine,
-                                        )
-                                        .is_ok()
-                                    } else {
-                                        true
-                                    }
+                                    let kinetic_core::types::NameRecord::Standard(reveal) = &record;
+                                    crate::store::verification::verify_reveal(
+                                        reveal,
+                                        &storage,
+                                        current_kyn,
+                                        &engine,
+                                    )
+                                    .is_ok()
                                 })
                                 .await
                             };

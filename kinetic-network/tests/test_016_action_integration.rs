@@ -94,9 +94,9 @@ async fn test_action_integration_premium() {
         vdf_engine,
     );
 
-    // Create a premium record
-    let domain_record = NameRecord::Prime {
-        name: "test_premium".to_string(),
+    // Create an infra record
+    let domain_record = NameRecord::Infra {
+        name: "test_infra".to_string(),
         pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; 32]),
         kyn: kinetic_kyn::types::Kyn(0),
         payload: vec![],
@@ -105,7 +105,7 @@ async fn test_action_integration_premium() {
     };
 
     let record_bytes = serde_json::to_vec(&domain_record).unwrap();
-    let record = Record::new(libp2p::kad::RecordKey::new(&"test_premium"), record_bytes);
+    let record = Record::new(libp2p::kad::RecordKey::new(&"test_infra"), record_bytes);
 
     let res = store.put(record);
     assert!(res.is_ok());

@@ -421,10 +421,7 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/action/status",
             axum::routing::get(action::handle_get_action_status),
         )
-        .route(
-            "/v1/micro/action/names",
-            axum::routing::get(action::handle_get_action_names),
-        )
+
         .route(
             "/v1/micro/nrs/zone/{name}",
             axum::routing::get(handle_get_zone),

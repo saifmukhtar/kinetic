@@ -34,73 +34,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_prime_mappings() {
-        let root_sk = get_root_sk();
-        let current_kyn = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut state = ActionState::new(Kyn(current_kyn));
-
-        let (_, target_pubkey) = generate_key(99);
-
-        // Test invalid length
-        let mut msg_invalid_len = SignedActionMessage {
-            action: NetworkAction::MapPrime {
-                name: "ab".to_string(),
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
-            },
-            timestamp_kyn: Kyn(current_kyn),
-            sovereign_signatures: vec![],
-        };
-        msg_invalid_len
-            .sovereign_signatures
-            .push(sign_action(&msg_invalid_len, &root_sk));
-
-        let err = process_action_message(
-            &mut state,
-            &msg_invalid_len,
-            msg_invalid_len.timestamp_kyn,
-            &get_test_config(),
-        )
-        .unwrap_err();
-        assert!(
-            matches!(err, crate::error::ActionError::InvalidPrimeLength),
-            "Got error: {:?}",
-            err
-        );
-
-        // Map 5 valid names
-        for i in 0..5 {
-            let name = (b'a' + i) as char;
-            let mut msg = SignedActionMessage {
-                action: NetworkAction::MapPrime {
-                    name: name.to_string(),
-                    target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
-                },
-                timestamp_kyn: Kyn(current_kyn),
-                sovereign_signatures: vec![],
-            };
-            msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
-            let effect = process_action_message(
-                &mut state,
-                &msg,
-                msg.timestamp_kyn,
-                &get_test_config(),
-            )
-            .unwrap();
-
-            if let Some(ActionEffect::PrimeMapped {
-                name: mapped_name, ..
-            }) = effect
-            {
-                assert_eq!(mapped_name, name.to_string());
-            } else {
-                panic!("Expected PrimeMapped");
-            }
-        }
-    }
 
     #[test]
     fn test_rotate_sovereign_key() {
@@ -143,10 +76,7 @@ mod tests {
 
         // Action 2: Try mapping a name using the OLD Sovereign key (should fail)
         let mut map_msg = SignedActionMessage {
-            action: NetworkAction::MapPrime {
-                name: "b".to_string(),
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(new_root_pubkey.clone()), // Doesn't matter
-            },
+            action: NetworkAction::EmergencyPause,
             timestamp_kyn: Kyn(current_kyn + 1), // Advance time so hash is different
             sovereign_signatures: vec![],
         };
@@ -172,7 +102,7 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(ActionEffect::PrimeMapped { .. })));
+        assert!(matches!(effect, Some(ActionEffect::InfraMapped { .. })));
     }
 
     use proptest::prelude::*;
@@ -184,11 +114,7 @@ mod tests {
             name in string_regex("[a-z0-9_-]{1,63}").unwrap(),
             timestamp in any::<u64>(),
         ) {
-            let (_, target_pubkey) = generate_key(99);
-            let action = NetworkAction::MapPrime {
-                name,
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey),
-            };
+            let action = NetworkAction::EmergencyPause;
 
             let msg = SignedActionMessage {
                 action: action.clone(),
@@ -262,75 +188,7 @@ mod tests {
         assert_eq!(state.total_paused_kyns, 1000);
     }
 
-    #[test]
-    fn test_unmap_prime_name() {
-        let (root_sk, root_pubkey) = generate_key(1);
-        let current_kyn = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
 
-        let mut state = ActionState::new(Kyn(current_kyn));
-        state.active_sovereign_key = Some(root_pubkey);
-
-        // Try to UnmapPrime (should fail)
-        let mut fail_msg = SignedActionMessage {
-            action: NetworkAction::UnmapPrime {
-                name: "ab".to_string(),
-            },
-            timestamp_kyn: Kyn(current_kyn),
-            sovereign_signatures: vec![],
-        };
-        fail_msg.sovereign_signatures.push(sign_action(&fail_msg, &root_sk));
-
-        let err = process_action_message(
-            &mut state,
-            &fail_msg,
-            fail_msg.timestamp_kyn,
-            &get_test_config(),
-        )
-        .unwrap_err();
-        assert!(matches!(err, crate::error::ActionError::InvalidPrimeLength));
-
-        // First, successfully map the name so it exists in state
-        let mut map_msg = SignedActionMessage {
-            action: NetworkAction::MapPrime {
-                name: "a".to_string(),
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-            },
-            timestamp_kyn: Kyn(current_kyn + 1),
-            sovereign_signatures: vec![],
-        };
-        map_msg.sovereign_signatures.push(sign_action(&map_msg, &root_sk));
-        let _ = process_action_message(
-            &mut state,
-            &map_msg,
-            map_msg.timestamp_kyn,
-            &get_test_config(),
-        )
-        .unwrap();
-
-        // Try to revoke a 1-character name (should succeed)
-        let mut success_msg = SignedActionMessage {
-            action: NetworkAction::UnmapPrime {
-                name: "a".to_string(),
-            },
-            timestamp_kyn: Kyn(current_kyn + 2),
-            sovereign_signatures: vec![],
-        };
-        success_msg
-            .sovereign_signatures
-            .push(sign_action(&success_msg, &root_sk));
-
-        let effect = process_action_message(
-            &mut state,
-            &success_msg,
-            success_msg.timestamp_kyn,
-            &get_test_config(),
-        )
-        .unwrap();
-        assert!(matches!(effect, Some(ActionEffect::PrimeUnmapped { .. })));
-    }
 
     #[test]
     fn test_replay_attack_prevention() {
@@ -367,60 +225,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_infra_mappings() {
-        let root_sk = get_root_sk();
-        let current_kyn = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut state = ActionState::new(Kyn(current_kyn));
-        let (_, target_pubkey) = generate_key(99);
 
-        // Test invalid infra name
-        let mut msg_invalid = SignedActionMessage {
-            action: NetworkAction::MapInfra {
-                name: "invalidname".to_string(),
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
-            },
-            timestamp_kyn: Kyn(current_kyn),
-            sovereign_signatures: vec![],
-        };
-        msg_invalid
-            .sovereign_signatures
-            .push(sign_action(&msg_invalid, &root_sk));
-
-        let err = process_action_message(
-            &mut state,
-            &msg_invalid,
-            msg_invalid.timestamp_kyn,
-            &get_test_config(),
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            crate::error::ActionError::InvalidProtocolName
-        ));
-
-        // Test valid infra name
-        let mut msg_valid = SignedActionMessage {
-            action: NetworkAction::MapInfra {
-                name: "seed".to_string(),
-                target_pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(target_pubkey.clone()),
-            },
-            timestamp_kyn: Kyn(current_kyn),
-            sovereign_signatures: vec![],
-        };
-        msg_valid.sovereign_signatures.push(sign_action(&msg_valid, &root_sk));
-        let effect = process_action_message(
-            &mut state,
-            &msg_valid,
-            msg_valid.timestamp_kyn,
-            &get_test_config(),
-        )
-        .unwrap();
-        assert!(matches!(effect, Some(ActionEffect::InfraMapped { .. })));
-    }
 
     #[test]
     fn test_stale_proposal() {

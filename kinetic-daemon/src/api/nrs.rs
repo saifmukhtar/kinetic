@@ -96,40 +96,31 @@ pub async fn handle_publish_record(
 
     let mut name_record = req.record;
 
-    // For Standard names, we need to validate and enforce KYN Time Oracle staleness.
-    // Premium names bypass VDF staleness checks.
-    let mut is_standard = false;
-    let mut kyn = 0;
-    if let kinetic_core::types::NameRecord::Standard(ref mut reveal) = name_record {
-        reveal.name = fqdn.clone();
-        if let Err(e) = reveal.validate() {
-            return Err(crate::api::error::AppError::from(
-                kinetic_core::error::RestApiError::BadRequest(format!("Invalid Reveal: {}", e)),
-            ));
-        }
-        is_standard = true;
-        kyn = reveal.kyn.0;
+    let kinetic_core::types::NameRecord::Standard(ref mut reveal) = name_record;
+    reveal.name = fqdn.clone();
+    if let Err(e) = reveal.validate() {
+        return Err(crate::api::error::AppError::from(
+            kinetic_core::error::RestApiError::BadRequest(format!("Invalid Reveal: {}", e)),
+        ));
     }
-
-    // Enforce Time Oracle staleness — reject Reveals whose VDF kyn is older
     // than RESQUARING_EPOCH_KYNS using the safe cached network Kyn.
     let current_kyn = get_safe_current_kyn(&state).await.0;
 
-    if is_standard && current_kyn > 0 {
-        if kyn > current_kyn {
+    if current_kyn > 0 {
+        if reveal.kyn.0 > current_kyn {
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(format!(
                     "Reveal rejected: VDF kyn {} is in the future (current kyn: {}).",
-                    kyn, current_kyn
+                    reveal.kyn.0, current_kyn
                 )),
             ));
         }
-        let age = current_kyn - kyn;
+        let age = current_kyn - reveal.kyn.0;
         if age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(format!(
                     "Reveal rejected: VDF kyn {} is {} kyns old (max allowed: {}). Please re-compute a fresh VDF proof.",
-                    kyn,
+                    reveal.kyn.0,
                     age,
                     kinetic_core::types::RESQUARING_EPOCH_KYNS
                 )),
@@ -668,35 +659,10 @@ pub async fn handle_publish_zone(
         crate::api::error::AppError::from(err)
     })?;
 
-    match &mut record {
-        kinetic_core::types::NameRecord::Standard(r) => {
-            r.payload = payload;
-            let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            r.identity_signature = keypair.sign(&signable);
-        }
-        kinetic_core::types::NameRecord::Prime {
-            name,
-            payload: p,
-            owner_signature: s,
-            ..
-        }
-        | kinetic_core::types::NameRecord::Infra {
-            name,
-            payload: p,
-            owner_signature: s,
-            ..
-        } => {
-            *p = payload.clone();
-            let mut signable = Vec::new();
-            signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
-            signable.extend_from_slice(name.as_bytes());
-            signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
-            signable.extend_from_slice(&payload);
-            signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
-
-            *s = keypair.sign(&signable);
-        }
-    }
+    let kinetic_core::types::NameRecord::Standard(r) = &mut record;
+    r.payload = payload;
+    let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
+    r.identity_signature = keypair.sign(&signable);
 
     // 4. Update the stored Reveal so future zone publishes reflect the latest payload
     if let Ok(updated_bytes) = serde_json::to_vec(&record) {
@@ -943,44 +909,13 @@ pub async fn handle_publish_fat_zone(
         crate::api::error::AppError::from(err)
     })?;
 
-    match &mut record {
-        kinetic_core::types::NameRecord::Standard(reveal) => {
-            reveal.payload = payload_bytes;
-            reveal.authorization = Some(Box::new(req.authorized_manifest));
-            let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-            reveal.identity_signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
-                .await
-                .unwrap();
-        }
-        kinetic_core::types::NameRecord::Prime {
-            name,
-            payload,
-            authorization,
-            owner_signature,
-            ..
-        }
-        | kinetic_core::types::NameRecord::Infra {
-            name,
-            payload,
-            authorization,
-            owner_signature,
-            ..
-        } => {
-            *payload = payload_bytes;
-            *authorization = Some(Box::new(req.authorized_manifest));
-
-            let mut signable = Vec::new();
-            signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
-            signable.extend_from_slice(name.as_bytes());
-            signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
-            signable.extend_from_slice(payload);
-            signable.extend_from_slice(kinetic_core::constants::NETWORK_SALT);
-
-            *owner_signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
-                .await
-                .unwrap();
-        }
-    }
+    let kinetic_core::types::NameRecord::Standard(reveal) = &mut record;
+    reveal.payload = payload_bytes;
+    reveal.authorization = Some(Box::new(req.authorized_manifest));
+    let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
+    reveal.identity_signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
+        .await
+        .unwrap();
 
     // 5. Save the updated reveal locally so the daemon serves the newest zone on fallback
     let final_bytes = serde_json::to_vec(&record).unwrap();

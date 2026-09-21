@@ -15,7 +15,6 @@
 //! - [`name_record`]: Registration containers ([`NameRecord`](name_record::NameRecord)), active routing liveness proofs ([`Heartbeat`](name_record::Heartbeat)), and DHT key derivation.
 //! - [`network`]: Taxonomies and payload opcodes for P2P publication multiplexing.
 //! - [`nrs`]: Name Resolution System (NRS) zone definitions, routing variants, and decentralized host routing bindings.
-//! - [`protocol`]: Immutable system constants and reserved official `.kin` network names.
 //! - [`proxy`]: High-performance zero-copy IPC proxy payloads for local `kinetic-daemon` browser integration.
 //! - [`vdf`]: Proof of Patience commitments, mathematical evaluation proofs ([`VdfProof`](vdf::VdfProof)), and deterministic registration submissions ([`Reveal`](vdf::Reveal)).
 
@@ -26,7 +25,7 @@ pub mod identity;
 pub mod name_record;
 pub mod network;
 pub mod nrs;
-pub mod protocol;
+
 pub mod proxy;
 pub mod pubkey_serde;
 pub mod vdf;

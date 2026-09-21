@@ -62,8 +62,7 @@ impl ActionState {
             pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
             action_log: Vec::new(),
-            mapped_prime_names: HashMap::new(),
-            mapped_infra_names: HashMap::new(),
+
         }
     }
 

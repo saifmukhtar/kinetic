@@ -9,15 +9,12 @@
 //!
 //! | Opcode | Action Variant | Description |
 //! |---|---|---|
-//! | `0x0A` | [`NetworkAction::MapPrime`] | Grant a 1-character prime name (Sovereign key only) |
 //! | `0x0B` | [`NetworkAction::RotateSovereignKey`] | Rotate network authority to a new Sovereign key |
 //! | `0x0C` | [`NetworkAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
 //! | `0x0D` | [`NetworkAction::EmergencyResume`] | Resume registrations and advance pause offset |
-//! | `0x0E` | [`NetworkAction::UnmapPrime`] | Revoke a previously granted 1-character prime name |
-//! | `0x0F` | [`NetworkAction::MapInfra`] | Grant a Category 2 infrastructure name (Sovereign key only) |
-//! | `0x10` | [`NetworkAction::UnmapInfra`] | Revoke a Category 2 infrastructure name (Sovereign key only) |
 
-use kinetic_primitives::kinetic_keypair::{IdentityPubKey, SovereignPubKey};
+
+use kinetic_primitives::kinetic_keypair::SovereignPubKey;
 use thiserror::Error;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
@@ -39,32 +36,6 @@ pub type SignatureBytes = Vec<u8>;
 /// Enumerates privileged protocol actions managed by the network action system.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum NetworkAction {
-    /// Grant a 1-character premium name (Sovereign key only).
-    MapPrime {
-        /// Target 1-character name label.
-        name: String,
-        /// Recipient's Identity public key.
-        #[serde(with = "crate::pubkey_serde::identity_serde")]
-        target_pubkey: IdentityPubKey,
-    },
-    /// Revoke a 1-character premium name (Sovereign key only).
-    UnmapPrime {
-        /// Target 1-character name label.
-        name: String,
-    },
-    /// Grant a Category 2 network infrastructure name (Sovereign key only).
-    MapInfra {
-        /// Target infrastructure name label (e.g., "seed", "api").
-        name: String,
-        /// Recipient's Identity public key.
-        #[serde(with = "crate::pubkey_serde::identity_serde")]
-        target_pubkey: IdentityPubKey,
-    },
-    /// Revoke a Category 2 network infrastructure name (Sovereign key only).
-    UnmapInfra {
-        /// Target infrastructure name label.
-        name: String,
-    },
     /// Permanently delegates Sovereign authority to a new Sovereign public key.
     RotateSovereignKey {
         /// The new strictly-typed Sovereign public key.
@@ -95,13 +66,10 @@ impl SignedActionMessage {
     ///
     /// | Opcode | Action Variant |
     /// |---|---|
-    /// | `0x0A` | `MapPrime` |
     /// | `0x0B` | `RotateSovereignKey` |
     /// | `0x0C` | `EmergencyHalt` |
     /// | `0x0D` | `EmergencyResume` |
-    /// | `0x0E` | `UnmapPrime` |
-    /// | `0x0F` | `MapInfra` |
-    /// | `0x10` | `UnmapInfra` |
+
     ///
     /// After the action payload, length-prefixed signatures (using a simple 1-byte count + N x KINETIC_SIGNATURE_LENGTH bytes arrays) are written.
     /// The message closes with `u64_be(timestamp_kyn)`.
@@ -113,38 +81,6 @@ impl SignedActionMessage {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.action {
-            NetworkAction::MapPrime {
-                name,
-                target_pubkey,
-            } => {
-                buf.push(0x0A);
-                let name_bytes = name.as_bytes();
-                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
-                buf.extend_from_slice(name_bytes);
-                buf.extend_from_slice(target_pubkey.as_bytes());
-            }
-            NetworkAction::UnmapPrime { name } => {
-                buf.push(0x0E);
-                let name_bytes = name.as_bytes();
-                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
-                buf.extend_from_slice(name_bytes);
-            }
-            NetworkAction::MapInfra {
-                name,
-                target_pubkey,
-            } => {
-                buf.push(0x0F);
-                let name_bytes = name.as_bytes();
-                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
-                buf.extend_from_slice(name_bytes);
-                buf.extend_from_slice(target_pubkey.as_bytes());
-            }
-            NetworkAction::UnmapInfra { name } => {
-                buf.push(0x10);
-                let name_bytes = name.as_bytes();
-                buf.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
-                buf.extend_from_slice(name_bytes);
-            }
             NetworkAction::RotateSovereignKey { new_key } => {
                 buf.push(0x0B);
                 buf.extend_from_slice(new_key.as_bytes());
@@ -202,7 +138,7 @@ impl NetworkAction {
     /// use kinetic_types::action::{NetworkAction, ActionTypeError};
     /// 
     /// // A buffer that is too small (8 bytes total)
-    /// let bad_buf = vec![0x0A, 0, 0, 0, 0, 0, 0, 0];
+    /// let bad_buf = vec![0x0F, 0, 0, 0, 0, 0, 0, 0];
     /// assert_eq!(
     ///     NetworkAction::parse_payload(&bad_buf),
     ///     Err(ActionTypeError::BufferTooSmall)
@@ -225,27 +161,6 @@ impl NetworkAction {
         let action_data = &payload[1..];
 
         let action = match opcode {
-            0x0A => {
-                // MapPrime
-                if action_data.len() < 4 {
-                    return Err(ActionTypeError::BufferTooSmall);
-                }
-                let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
-                if action_data.len() < 4 + name_len {
-                    return Err(ActionTypeError::BufferTooSmall);
-                }
-                let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
-                    .map_err(|_| ActionTypeError::InvalidUtf8)?;
-
-                let pubkey_bytes = &action_data[4 + name_len..];
-                if pubkey_bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
-                    return Err(ActionTypeError::InvalidPubkeyLength);
-                }
-                NetworkAction::MapPrime {
-                    name,
-                    target_pubkey: IdentityPubKey(pubkey_bytes.to_vec()),
-                }
-            }
             0x0B => {
                 // RotateSovereignKey
                 if action_data.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
@@ -263,55 +178,7 @@ impl NetworkAction {
                 // EmergencyResume
                 NetworkAction::EmergencyResume
             }
-            0x0E => {
-                // UnmapPrime
-                if action_data.len() < 4 {
-                    return Err(ActionTypeError::BufferTooSmall);
-                }
-                let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
-                if action_data.len() < 4 + name_len {
-                    return Err(ActionTypeError::BufferTooSmall);
-                }
-                let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
-                    .map_err(|_| ActionTypeError::InvalidUtf8)?;
 
-                NetworkAction::UnmapPrime { name }
-            }
-            0x0F => {
-                // MapInfra
-                if action_data.len() < 4 {
-                    return Err(ActionTypeError::BufferTooSmall);
-                }
-                let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
-                if action_data.len() < 4 + name_len {
-                    return Err(ActionTypeError::BufferTooSmall);
-                }
-                let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
-                    .map_err(|_| ActionTypeError::InvalidUtf8)?;
-
-                let pubkey_bytes = &action_data[4 + name_len..];
-                if pubkey_bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
-                    return Err(ActionTypeError::InvalidPubkeyLength);
-                }
-                NetworkAction::MapInfra {
-                    name,
-                    target_pubkey: IdentityPubKey(pubkey_bytes.to_vec()),
-                }
-            }
-            0x10 => {
-                // UnmapInfra
-                if action_data.len() < 4 {
-                    return Err(ActionTypeError::BufferTooSmall);
-                }
-                let name_len = u32::from_be_bytes(action_data[0..4].try_into().unwrap()) as usize;
-                if action_data.len() < 4 + name_len {
-                    return Err(ActionTypeError::BufferTooSmall);
-                }
-                let name = String::from_utf8(action_data[4..4 + name_len].to_vec())
-                    .map_err(|_| ActionTypeError::InvalidUtf8)?;
-
-                NetworkAction::UnmapInfra { name }
-            }
             _ => return Err(ActionTypeError::UnknownOpcode(opcode)),
         };
 
@@ -336,7 +203,7 @@ mod tests {
     #[test]
     fn test_truncated_buffers() {
         // Buffer < 9 bytes should fail
-        let buf = vec![0x0A, 0, 0, 0, 0, 0, 0, 0]; // 8 bytes
+        let buf = vec![0x0F, 0, 0, 0, 0, 0, 0, 0]; // 8 bytes
         assert_eq!(
             NetworkAction::parse_payload(&buf),
             Err(ActionTypeError::BufferTooSmall)
@@ -352,7 +219,7 @@ mod tests {
     #[test]
     fn test_invalid_pubkey_length() {
         let name = "s";
-        let mut buf = vec![0x0A];
+        let mut buf = vec![0x0F];
         buf.extend_from_slice(&(name.len() as u32).to_be_bytes());
         buf.extend_from_slice(name.as_bytes());
 
@@ -366,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_invalid_utf8_name() {
-        let mut buf = vec![0x0A];
+        let mut buf = vec![0x0F];
         let bad_name: &[u8] = &[0xFF, 0xFE]; // Invalid UTF-8
         buf.extend_from_slice(&(bad_name.len() as u32).to_be_bytes());
         buf.extend_from_slice(bad_name);
@@ -377,24 +244,7 @@ mod tests {
         assert_eq!(result, Err(ActionTypeError::InvalidUtf8));
     }
 
-    #[test]
-    fn test_roundtrip_valid_map_prime() {
-        let action = NetworkAction::MapPrime {
-            name: "x".to_string(),
-            target_pubkey: IdentityPubKey(vec![42; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-        };
-        let msg = SignedActionMessage {
-            action: action.clone(),
-            timestamp_kyn: kinetic_kyn::types::Kyn(123456),
-            sovereign_signatures: vec![],
-        };
 
-        let buf = msg.to_bytes();
-        let (parsed_action, parsed_time) = NetworkAction::parse_payload(&buf).unwrap();
-
-        assert_eq!(parsed_action, action);
-        assert_eq!(parsed_time, kinetic_kyn::types::Kyn(123456));
-    }
 
     proptest! {
         #[test]

@@ -4,12 +4,10 @@
 //!
 //! 1. **Standard Names** ([`NameRecord::Standard`]): Registered trustlessly via Proof of Patience
 //!    and Verifiable Delay Function (VDF) computation. Ownership is proven via the reveal record.
-//! 2. **Prime Names** ([`NameRecord::Prime`]): 1-character prime names mapped directly
-//!    by the Sovereign key.
-//! 3. **Infrastructure Names** ([`NameRecord::Infra`]): Essential network infrastructure names 
-//!    mapped directly by the Sovereign key.
+//! 2. **Infrastructure Names** ([`NameRecord::Infra`]): Immortal protocol names (e.g. `seed.kin`)
+//!    mapped by the Sovereign key. They are exempt from heartbeats and PoW takeover.
 //!
-//! To maintain active routing and prove name liveness, owners periodically publish [`Heartbeat`]
+//! To maintain active routing and prove name liveness, standard owners periodically publish [`Heartbeat`]
 //! proofs signed with their `DelegatedPrivKey`s (or `ControllerPrivKey`s).
 
 #![allow(clippy::collapsible_if)]
@@ -85,40 +83,6 @@ impl Heartbeat {
 pub enum NameRecord {
     /// A standard name registered via Proof of Patience and VDF.
     Standard(Box<crate::vdf::Reveal>),
-    /// A 1-character Prime name mapped directly by the Sovereign key. Requires heartbeats.
-    Prime {
-        /// The name.
-        name: String,
-        /// The Identity public key of the name owner.
-        #[serde(with = "crate::pubkey_serde::identity_serde")]
-        pubkey: IdentityPubKey,
-        /// The network kyn when this mapping was approved.
-        kyn: kinetic_kyn::types::Kyn,
-        /// The zone payload associated with the name.
-        payload: Vec<u8>,
-        /// The Identity signature authorizing the payload.
-        owner_signature: Vec<u8>,
-        /// Optional delegated authorization proof for NRS zone updates.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        authorization: Option<Box<crate::identity::AuthorizedManifest>>,
-    },
-    /// An immortal Infrastructure name mapped directly by the Sovereign key. No heartbeats required.
-    Infra {
-        /// The name.
-        name: String,
-        /// The Identity public key of the name owner.
-        #[serde(with = "crate::pubkey_serde::identity_serde")]
-        pubkey: IdentityPubKey,
-        /// The network kyn when this mapping was approved.
-        kyn: kinetic_kyn::types::Kyn,
-        /// The zone payload associated with the name.
-        payload: Vec<u8>,
-        /// The Identity signature authorizing the payload.
-        owner_signature: Vec<u8>,
-        /// Optional delegated authorization proof for NRS zone updates.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        authorization: Option<Box<crate::identity::AuthorizedManifest>>,
-    },
 }
 
 impl NameRecord {
@@ -126,7 +90,6 @@ impl NameRecord {
     pub fn name(&self) -> &str {
         match self {
             Self::Standard(r) => &r.name,
-            Self::Prime { name, .. } | Self::Infra { name, .. } => name,
         }
     }
 
@@ -134,7 +97,6 @@ impl NameRecord {
     pub fn pubkey(&self) -> &IdentityPubKey {
         match self {
             Self::Standard(r) => &r.pubkey,
-            Self::Prime { pubkey, .. } | Self::Infra { pubkey, .. } => pubkey,
         }
     }
 
@@ -142,7 +104,6 @@ impl NameRecord {
     pub fn payload(&self) -> &[u8] {
         match self {
             Self::Standard(r) => &r.payload,
-            Self::Prime { payload, .. } | Self::Infra { payload, .. } => payload,
         }
     }
 
@@ -150,7 +111,6 @@ impl NameRecord {
     pub fn signature(&self) -> &[u8] {
         match self {
             Self::Standard(r) => &r.identity_signature,
-            Self::Prime { owner_signature, .. } | Self::Infra { owner_signature, .. } => owner_signature,
         }
     }
 
@@ -158,9 +118,6 @@ impl NameRecord {
     pub fn authorization(&self) -> Option<&crate::identity::AuthorizedManifest> {
         match self {
             Self::Standard(r) => r.authorization.as_deref(),
-            Self::Prime { authorization, .. } | Self::Infra { authorization, .. } => {
-                authorization.as_deref()
-            }
         }
     }
 }

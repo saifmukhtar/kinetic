@@ -19,7 +19,7 @@ impl ActionEngine for SovereignEngine {
     /// # Errors
     ///
     /// - Returns [`ActionError::StaleProposal`] if the proposal timestamp exceeds `config.max_age_kyns`.
-    /// - Returns [`ActionError::InvalidPrimeLength`] if a prime name is not 1 character.
+
     /// - Returns [`ActionError::InvalidSignature`] if the Sovereign signature is missing or invalid.
     fn verify_action(
         &self,
@@ -42,72 +42,8 @@ impl ActionEngine for SovereignEngine {
 
         if is_sovereign_signed {
             let effect = match &msg.action {
-                NetworkAction::MapPrime {
-                    name,
-                    target_pubkey,
-                } => {
-                    if name.len() != 1 {
-                        return Err(ActionError::InvalidPrimeLength);
-                    }
-                    if !name
-                        .chars()
-                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
-                    {
-                        return Err(ActionError::UnnormalizedName);
-                    }
-                    if target_pubkey.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
-                        return Err(ActionError::KeyLengthMismatch);
-                    }
-                    if state.mapped_prime_names.contains_key(name) {
-                        return Err(ActionError::AlreadyMapped);
-                    }
-                    ActionEffect::PrimeMapped {
-                        name: name.clone(),
-                        target_pubkey: target_pubkey.clone(),
-                    }
-                }
-                NetworkAction::UnmapPrime { name } => {
-                    if name.len() != 1 {
-                        return Err(ActionError::InvalidPrimeLength);
-                    }
-                    if !name
-                        .chars()
-                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
-                    {
-                        return Err(ActionError::UnnormalizedName);
-                    }
-                    if !state.mapped_prime_names.contains_key(name) {
-                        return Err(ActionError::NotMapped);
-                    }
-                    ActionEffect::PrimeUnmapped { name: name.clone() }
-                }
-                NetworkAction::MapInfra {
-                    name,
-                    target_pubkey,
-                } => {
-                    if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
-                        return Err(ActionError::InvalidProtocolName);
-                    }
-                    if target_pubkey.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
-                        return Err(ActionError::KeyLengthMismatch);
-                    }
-                    if state.mapped_infra_names.contains_key(name) {
-                        return Err(ActionError::AlreadyMapped);
-                    }
-                    ActionEffect::InfraMapped {
-                        name: name.clone(),
-                        target_pubkey: target_pubkey.clone(),
-                    }
-                }
-                NetworkAction::UnmapInfra { name } => {
-                    if !kinetic_types::protocol::PROTOCOL_NAMES.contains(&name.as_str()) {
-                        return Err(ActionError::InvalidProtocolName);
-                    }
-                    if !state.mapped_infra_names.contains_key(name) {
-                        return Err(ActionError::NotMapped);
-                    }
-                    ActionEffect::InfraUnmapped { name: name.clone() }
-                }
+
+
                 NetworkAction::RotateSovereignKey { new_key } => {
                     if new_key.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                         return Err(ActionError::KeyLengthMismatch);
@@ -139,38 +75,8 @@ impl ActionEngine for SovereignEngine {
             .insert(action_hash, msg.timestamp_kyn);
 
         match &msg.action {
-            NetworkAction::MapPrime {
-                name,
-                target_pubkey,
-            } => {
-                state
-                    .mapped_prime_names
-                    .insert(name.clone(), target_pubkey.as_bytes().to_vec());
-                Some(ActionEffect::PrimeMapped {
-                    name: name.clone(),
-                    target_pubkey: target_pubkey.clone(),
-                })
-            }
-            NetworkAction::UnmapPrime { name } => {
-                state.mapped_prime_names.remove(name);
-                Some(ActionEffect::PrimeUnmapped { name: name.clone() })
-            }
-            NetworkAction::MapInfra {
-                name,
-                target_pubkey,
-            } => {
-                state
-                    .mapped_infra_names
-                    .insert(name.clone(), target_pubkey.as_bytes().to_vec());
-                Some(ActionEffect::InfraMapped {
-                    name: name.clone(),
-                    target_pubkey: target_pubkey.clone(),
-                })
-            }
-            NetworkAction::UnmapInfra { name } => {
-                state.mapped_infra_names.remove(name);
-                Some(ActionEffect::InfraUnmapped { name: name.clone() })
-            }
+
+
             NetworkAction::RotateSovereignKey { new_key } => {
                 state.active_sovereign_key = Some(new_key.as_bytes().to_vec());
                 Some(ActionEffect::SovereignKeyRotated {
