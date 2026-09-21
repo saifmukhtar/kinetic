@@ -547,14 +547,13 @@ pub(crate) fn verify_authorized_manifest(
         return Err(err);
     }
 
-    let current_time = kinetic_kyn::types::Kyn(current_kyn).to_utime(
-        kinetic_core::constants::KYN_GENESIS_TIME,
-        kinetic_core::constants::KYN_PERIOD,
+    let current_time = kinetic_kyn::types::Kyn(current_kyn).to_ukyn(
+        kinetic_core::constants::BEACON_GENESIS,
     ).0;
 
     if auth_manifest
         .manifest
-        .verify_at_time(kid_doc, kinetic_kyn::types::UTime(current_time))
+        .verify_at_time(kid_doc, kinetic_kyn::types::UKyn(current_time))
         .is_err()
     {
         let err = KineticStoreError::ManifestVerificationFailed;

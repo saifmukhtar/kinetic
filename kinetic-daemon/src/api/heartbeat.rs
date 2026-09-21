@@ -49,7 +49,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> u64 {
     use kinetic_core::traits::KynProvider;
     match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn > 0 => kyn.kyn,
-        _ => kinetic_kyn::types::Kyn::now_local().0,
+        _ => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
     }
 }
 

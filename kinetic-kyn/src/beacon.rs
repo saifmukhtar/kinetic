@@ -1,5 +1,5 @@
 use crate::types::Kyn;
-use drand_verify::{G2PubkeyRfc, Pubkey};
+use beacon_verify::{G2PubkeyRfc, Pubkey};
 use serde::{Deserialize, Serialize};
 
 // Heartbeat staleness threshold — 10 minutes in network kyns (3s each)

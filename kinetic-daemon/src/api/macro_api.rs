@@ -271,7 +271,7 @@ pub async fn handle_macro_register_name(
 
             match kyn_provider.load_cached() {
                 Ok(kyn) => kyn.kyn,
-                Err(_) => kinetic_kyn::types::Kyn::now_local().0,
+                Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
             }
         };
         let current_kyn = kinetic_kyn::types::Kyn(current_kyn);

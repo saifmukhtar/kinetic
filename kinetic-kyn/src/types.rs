@@ -20,7 +20,7 @@ use std::fmt;
 /// and local wall-clock seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct UTime(pub u64);
+pub struct UKyn(pub u64);
 
 /// Strict type for an absolute Kinetic Network Time `Kyn`.
 ///
@@ -50,10 +50,10 @@ pub struct CrystallizedKyn {
     /// Number of completed 1-second Kyns within the current Facet (0..3599).
     pub kyn: u64,
     /// Total number of kyns elapsed since network genesis.
-    pub total_kyns: u64,
+    pub total: u64,
 }
 
-impl fmt::Display for UTime {
+impl fmt::Display for UKyn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }

@@ -186,7 +186,7 @@ impl KynProvider for TimeOracleProvider {
                         .unwrap_or_default()
                         .as_secs();
                     let estimated_kyn = (now
-                        .saturating_sub(kinetic_core::constants::KYN_GENESIS_TIME))
+                        .saturating_sub(kinetic_core::constants::BEACON_GENESIS))
                         / kinetic_core::constants::KYN_PERIOD;
                     let age = estimated_kyn.saturating_sub(kyn.kyn);
 

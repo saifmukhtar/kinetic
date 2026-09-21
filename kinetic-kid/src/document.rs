@@ -51,7 +51,7 @@ pub struct Document {
     /// The `did:kin:<hash>` identifier for this document.
     pub kid: Did,
     /// Unix timestamp (seconds) when this document was created.
-    pub created_at: kinetic_kyn::types::UTime,
+    pub created_at: kinetic_kyn::types::UKyn,
     /// Ordered list of ML-DSA-65 verification keys that control this DID.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_20")]
     pub controller_keys: Vec<ControllerKey>,
@@ -119,7 +119,7 @@ impl Document {
     /// let doc = Document {
     ///     doc_type: "kinetic.kid.v1".to_string(),
     ///     kid: did.clone(),
-    ///     created_at: kinetic_kyn::types::UTime(1000),
+    ///     created_at: kinetic_kyn::types::UKyn(1000),
     ///     controller_keys: vec![ControllerKey {
     ///         id: format!("{}#primary", did.as_str()),
     ///         key_type: "Controller".to_string(),
@@ -382,7 +382,7 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: Did::new(&did_str).unwrap(),
-            created_at: kinetic_kyn::types::UTime(1000),
+            created_at: kinetic_kyn::types::UKyn(1000),
             controller_keys: vec![ControllerKey {
                 id: format!("{}#primary", did_str),
                 key_type: "Controller".to_string(),

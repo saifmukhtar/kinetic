@@ -97,7 +97,7 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,
-            created_at: kinetic_kyn::types::UTime(1234567890),
+            created_at: kinetic_kyn::types::UKyn(1234567890),
             controller_keys: vec![kinetic_kid::document::ControllerKey {
                 id: format!(
                     "{}{}#primary",

@@ -24,7 +24,7 @@ use std::time::Duration;
 /// This asynchronous loop wakes up every 10 seconds. It performs the following steps:
 /// 1. Queries the local `kinetic-storage` for any locally registered `NameRecord`s.
 /// 2. Derives the *current* network time epoch from the `hb_kyn_provider`.
-/// 3. Computes the required math against `KYN_GENESIS_TIME` and `KYN_PERIOD`.
+/// 3. Computes the required math against `BEACON_GENESIS` and `KYN_PERIOD`.
 /// 4. Generates a signed `Heartbeat` packet containing the Time Oracle's signature.
 /// 5. Injects the packet into the Libp2p Swarm via the `hb_network` client, which floods it 
 ///    to the `_kinetic_domain_liveness` Gossipsub topic.
@@ -53,7 +53,7 @@ pub fn start_heartbeat_loop(
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                    let expected_kyn = (now - kinetic_core::constants::KYN_GENESIS_TIME)
+                    let expected_kyn = (now - kinetic_core::constants::BEACON_GENESIS)
                         / kinetic_core::constants::KYN_PERIOD;
 
                     if expected_kyn > latest.kyn + 5 {

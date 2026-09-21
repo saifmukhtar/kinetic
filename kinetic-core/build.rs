@@ -63,9 +63,9 @@ struct NetworkSection {
 
 #[derive(Deserialize)]
 struct TimeOracleSection {
-    kyn_genesis_time: u64,
+    beacon_genesis: u64,
     kyn_period: u64,
-    kinetic_genesis_kyn: u64,
+    kyn_genesis: u64,
     beacon_public_key: String,
     beacon_endpoints: Vec<String>,
 }
@@ -208,8 +208,8 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Unix timestamp of the time oracle beacon's genesis.\npub const KYN_GENESIS_TIME: u64 = {};\n\n",
-        config.time_oracle.kyn_genesis_time
+        "/// Unix timestamp of the time oracle beacon's genesis.\npub const BEACON_GENESIS: u64 = {};\n\n",
+        config.time_oracle.beacon_genesis
     ));
 
     out.push_str(&format!(
@@ -218,13 +218,13 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The absolute oracle kyn at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Epoch/Cycle/Kyn).\npub const KINETIC_GENESIS_KYN: u64 = {};\n\n",
-        config.time_oracle.kinetic_genesis_kyn
+        "/// The absolute oracle round at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Prism/Facet/Kyn).\npub const KYN_GENESIS: u64 = {};\n\n",
+        config.time_oracle.kyn_genesis
     ));
 
     out.push_str(&format!(
         "/// The absolute Unix timestamp (in seconds) of the Kinetic network genesis.\npub const KINETIC_GENESIS_TIME: u64 = {};\n\n",
-        config.time_oracle.kyn_genesis_time + (config.time_oracle.kinetic_genesis_kyn * config.time_oracle.kyn_period)
+        config.time_oracle.beacon_genesis + (config.time_oracle.kyn_genesis * config.time_oracle.kyn_period)
     ));
 
     // Expose NSP as compile-time env vars so constants.rs can use env!() for
@@ -371,18 +371,18 @@ fn main() {
     let mut hasher = Sha256::new();
     hasher.update(prod_key.as_bytes());
     hasher.update(config.time_oracle.beacon_public_key.as_bytes());
-    hasher.update(config.time_oracle.kyn_genesis_time.to_be_bytes());
+    hasher.update(config.time_oracle.beacon_genesis.to_be_bytes());
     let prod_salt = hasher.finalize();
 
     // Compute the TEST salt (ROOT_KEY + BEACON_KEY + GENESIS_TIME)
     let mut hasher_test = Sha256::new();
     hasher_test.update(test_key.as_bytes());
     hasher_test.update(config.time_oracle.beacon_public_key.as_bytes());
-    hasher_test.update(config.time_oracle.kyn_genesis_time.to_be_bytes());
+    hasher_test.update(config.time_oracle.beacon_genesis.to_be_bytes());
     let test_salt = hasher_test.finalize();
 
     out.push_str(&format!(
-        "/// The mathematical network salt for production, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + KYN_GENESIS_TIME.\n\
+        "/// The mathematical network salt for production, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + BEACON_GENESIS.\n\
          pub const NETWORK_SALT_PROD: [u8; 32] = {:?};\n\n",
         prod_salt.as_slice()
     ));
@@ -402,7 +402,7 @@ fn main() {
     );
 
     out.push_str(&format!(
-        "/// The mathematical network salt for testing, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + KYN_GENESIS_TIME.\n\
+        "/// The mathematical network salt for testing, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + BEACON_GENESIS.\n\
          pub const NETWORK_SALT_TEST: [u8; 32] = {:?};\n\n",
         test_salt.as_slice()
     ));

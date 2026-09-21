@@ -82,7 +82,7 @@ pub struct LocalKidSummary {
     /// The W3C DID string.
     pub did: String,
     /// UNIX timestamp when the document was created.
-    pub created_at: kinetic_kyn::types::UTime,
+    pub created_at: kinetic_kyn::types::UKyn,
     /// Path to the JSON document file.
     pub doc_path: PathBuf,
     /// Whether the corresponding private key exists locally.
@@ -274,9 +274,8 @@ pub fn get_or_create_kid_for_name(
     let kid_did = Did::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
-    let now_ts = current_kyn.to_utime(
-        kinetic_core::constants::KYN_GENESIS_TIME,
-        kinetic_core::constants::KYN_PERIOD,
+    let now_ts = current_kyn.to_ukyn(
+        kinetic_core::constants::BEACON_GENESIS,
     );
 
     let doc = Document {
@@ -568,9 +567,8 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    let current_time = current_kyn.to_utime(
-        kinetic_core::constants::KYN_GENESIS_TIME,
-        kinetic_core::constants::KYN_PERIOD,
+    let current_time = current_kyn.to_ukyn(
+        kinetic_core::constants::BEACON_GENESIS,
     );
 
     let manifest = Manifest {
@@ -771,7 +769,7 @@ mod tests {
         assert_eq!(saved_manifest.services.len(), 1);
         assert!(
             saved_manifest
-                .verify_at_time(&apex.kid_doc, Kyn(100).to_utime(1692803367, 3))
+                .verify_at_time(&apex.kid_doc, Kyn(100).to_ukyn(1692803367))
                 .is_ok()
         );
         assert_eq!(auth_manifest.name, "saif.kin");

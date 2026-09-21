@@ -1,23 +1,23 @@
-use crate::types::{Kyn, UTime, CrystallizedKyn};
+use crate::types::{Kyn, UKyn, CrystallizedKyn};
 
 impl Kyn {
-    /// Converts a `Kyn` number into a `UTime` (Unix epoch timestamp in seconds).
+    /// Converts a `Kyn` number into a `UKyn` (Unix epoch timestamp in seconds).
     ///
     /// This is the secure method for deriving current time, as it bridges the 
-    /// mathematical KineticTime into standard Unix time for interoperability 
+    /// mathematical Kyn into standard Unix time for interoperability 
     /// (e.g., verifying `expires_at` in Identity Documents).
     ///
     /// # Examples
     /// ```rust
-    /// use kinetic_kyn::types::{Kyn, UTime};
+    /// use kinetic_kyn::types::{Kyn, UKyn};
     ///
     /// let kyn = Kyn(100);
-    /// // If genesis was at unix 1000, and period is 3 seconds:
-    /// let utime = kyn.to_utime(1000, 3);
-    /// assert_eq!(utime, UTime(1300));
+    /// // If genesis was at unix 1000
+    /// let ukyn = kyn.to_ukyn(1000);
+    /// assert_eq!(ukyn, UKyn(1100));
     /// ```
-    pub fn to_utime(&self, genesis: u64, period: u64) -> UTime {
-        UTime(genesis.saturating_add(self.0.saturating_mul(period)))
+    pub fn to_ukyn(&self, genesis: u64) -> UKyn {
+        UKyn(genesis.saturating_add(self.0))
     }
 
     /// Serializes the Kyn as an 8-byte array.
@@ -30,58 +30,42 @@ impl Kyn {
         Self(u64::from_be_bytes(bytes))
     }
 
-    /// Derives the current estimated Kyn purely from the local OS clock.
-    /// This should only be used as a fallback during genesis/initial sync when no Drand data is available.
-    pub fn now_local() -> Self {
-        let now_sec = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        // Fallback assumes QUICKNET constants
-        UTime(now_sec).to_kyn(1692803367, 3)
-    }
 }
 
-impl UTime {
-    /// Converts a `UTime` (Unix epoch timestamp in seconds) into an estimated `Kyn` number.
+impl UKyn {
+    /// Converts a `UKyn` (Unix epoch timestamp in seconds) into an estimated `Kyn` number.
     ///
     /// # Examples
     /// ```rust
-    /// use kinetic_kyn::types::{Kyn, UTime};
+    /// use kinetic_kyn::types::{Kyn, UKyn};
     ///
-    /// let utime = UTime(1300);
-    /// // If genesis was at unix 1000, and period is 3 seconds:
-    /// let kyn = utime.to_kyn(1000, 3);
+    /// let ukyn = UKyn(1100);
+    /// // If genesis was at unix 1000:
+    /// let kyn = ukyn.to_kyn(1000);
     /// assert_eq!(kyn, Kyn(100));
     /// ```
-    pub fn to_kyn(&self, genesis: u64, period: u64) -> Kyn {
-        if period == 0 {
-            return Kyn(0);
-        }
-        // Integer division intentionally truncates sub-period remainder — if `unix_secs`
-        // falls between two KineticTime rounds, this returns the floor (last confirmed) kyn.
-        // This is the correct behavior for consensus: always use the last verified time.
-        Kyn(self.0.saturating_sub(genesis) / period)
+    pub fn to_kyn(&self, genesis: u64) -> Kyn {
+        Kyn(self.0.saturating_sub(genesis))
     }
 
-    /// Serializes the UTime as an 8-byte array.
+    /// Serializes the UKyn as an 8-byte array.
     pub fn to_be_bytes(&self) -> [u8; 8] {
         self.0.to_be_bytes()
     }
 
-    /// Deserializes the UTime from an 8-byte array.
+    /// Deserializes the UKyn from an 8-byte array.
     pub fn from_be_bytes(bytes: [u8; 8]) -> Self {
         Self(u64::from_be_bytes(bytes))
     }
 }
 
 impl CrystallizedKyn {
-    /// Creates a new [`KineticTime`] instance from an absolute network kyn number and a genesis kyn.
+    /// Creates a new [`CrystallizedKyn`] instance from an absolute network kyn number and a genesis kyn.
     ///
     /// If `current_kyn` is less than `genesis_kyn`,
     /// returns a time structure initialized to zero.
     // `current_kyn < genesis_kyn` is a valid safety guard even though both operands are
-    // unsigned — KineticTime can return a stale kyn that predates network genesis during initial
+    // unsigned — CrystallizedKyn can return a stale kyn that predates network genesis during initial
     // sync. Clippy flags this comparison as absurd on u64 because it can never be negative,
     // but the guard is intentional and correct. Suppressed to avoid a misleading warning.
     #[allow(clippy::absurd_extreme_comparisons)]
@@ -91,14 +75,14 @@ impl CrystallizedKyn {
                 prism: 0,
                 facet: 0,
                 kyn: 0,
-                total_kyns: 0,
+                total: 0,
             };
         }
 
-        let total_kyns = current_kyn.0 - genesis_kyn.0;
+        let total = current_kyn.0 - genesis_kyn.0;
 
-        let prism = total_kyns / 86_400;
-        let remainder_after_prism = total_kyns % 86_400;
+        let prism = total / 86_400;
+        let remainder_after_prism = total % 86_400;
 
         let facet = remainder_after_prism / 3_600;
         let kyn = remainder_after_prism % 3_600;
@@ -112,32 +96,25 @@ impl CrystallizedKyn {
             prism,
             facet,
             kyn,
-            total_kyns,
+            total,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::types::{Kyn, UTime, CrystallizedKyn};
+    use crate::types::{Kyn, UKyn, CrystallizedKyn};
 
     #[test]
     fn test_kyn_unix_conversion_roundtrip() {
         let genesis_time: u64 = 1_000;
-        let period: u64 = 3;
         let kyn = Kyn(500);
 
-        let unix_secs = kyn.to_utime(genesis_time, period);
-        assert_eq!(unix_secs, UTime(genesis_time + (kyn.0 * period)));
+        let unix_secs = kyn.to_ukyn(genesis_time);
+        assert_eq!(unix_secs, UKyn(genesis_time + kyn.0));
 
-        let recovered_kyn = unix_secs.to_kyn(genesis_time, period);
+        let recovered_kyn = unix_secs.to_kyn(genesis_time);
         assert_eq!(recovered_kyn, kyn);
-    }
-
-    #[test]
-    fn test_unix_time_to_kyn_zero_period() {
-        assert_eq!(UTime(100).to_kyn(50, 0), Kyn(0));
     }
 
     #[test]
@@ -146,31 +123,31 @@ mod tests {
 
         // Before genesis
         let t1 = CrystallizedKyn::from_kyn(Kyn(999), genesis);
-        assert_eq!(t1.total_kyns, 0);
+        assert_eq!(t1.total, 0);
 
         // Exactly genesis
         let t2 = CrystallizedKyn::from_kyn(Kyn(1000), genesis);
-        assert_eq!((t2.prism, t2.facet, t2.kyn, t2.total_kyns), (0, 0, 0, 0));
+        assert_eq!((t2.prism, t2.facet, t2.kyn, t2.total), (0, 0, 0, 0));
 
         // 1 Kyn later
         let t3 = CrystallizedKyn::from_kyn(Kyn(1001), genesis);
-        assert_eq!((t3.prism, t3.facet, t3.kyn, t3.total_kyns), (0, 0, 1, 1));
+        assert_eq!((t3.prism, t3.facet, t3.kyn, t3.total), (0, 0, 1, 1));
 
         // Exactly 1 Facet (3,600 kyns)
         let t4 = CrystallizedKyn::from_kyn(Kyn(1000 + 3600), genesis);
-        assert_eq!((t4.prism, t4.facet, t4.kyn, t4.total_kyns), (0, 1, 0, 3600));
+        assert_eq!((t4.prism, t4.facet, t4.kyn, t4.total), (0, 1, 0, 3600));
 
         // Exactly 1 Prism (86,400 kyns)
         let t5 = CrystallizedKyn::from_kyn(Kyn(1000 + 86400), genesis);
         assert_eq!(
-            (t5.prism, t5.facet, t5.kyn, t5.total_kyns),
+            (t5.prism, t5.facet, t5.kyn, t5.total),
             (1, 0, 0, 86400)
         );
 
         // Complex time: 1 Prism + 2 Facets + 3 Kyns = 86400 + 7200 + 3 = 93603
         let t6 = CrystallizedKyn::from_kyn(Kyn(1000 + 93603), genesis);
         assert_eq!(
-            (t6.prism, t6.facet, t6.kyn, t6.total_kyns),
+            (t6.prism, t6.facet, t6.kyn, t6.total),
             (1, 2, 3, 93603)
         );
     }
@@ -200,7 +177,7 @@ mod tests {
         assert_eq!(time.prism, 0);
         assert_eq!(time.facet, 0);
         assert_eq!(time.kyn, 0);
-        assert_eq!(time.total_kyns, 0);
+        assert_eq!(time.total, 0);
     }
 
     #[test]
@@ -208,7 +185,7 @@ mod tests {
         let genesis_kyn = 30579969;
         let time =
             CrystallizedKyn::from_kyn(Kyn(genesis_kyn - 1), Kyn(genesis_kyn));
-        assert_eq!(time.total_kyns, 0);
+        assert_eq!(time.total, 0);
     }
 
     #[test]
@@ -223,21 +200,20 @@ mod tests {
         assert_eq!(time.prism, 1);
         assert_eq!(time.facet, 2);
         assert_eq!(time.kyn, 45);
-        assert_eq!(time.total_kyns, 93_645);
+        assert_eq!(time.total, 93_645);
     }
 
     #[test]
     fn test_network_kyn_unix_conversion() {
         let kyn = Kyn(30_579_969);
         let drand_genesis = 1692803367;
-        let drand_period = 3;
         
-        let unix_secs = kyn.to_utime(drand_genesis, drand_period);
+        let unix_secs = kyn.to_ukyn(drand_genesis);
         assert_eq!(
             unix_secs,
-            UTime(drand_genesis + (kyn.0 * drand_period))
+            UKyn(drand_genesis + kyn.0)
         );
-        let recovered = unix_secs.to_kyn(drand_genesis, drand_period);
+        let recovered = unix_secs.to_kyn(drand_genesis);
         assert_eq!(recovered, kyn);
     }
 }

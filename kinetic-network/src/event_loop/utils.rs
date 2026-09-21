@@ -173,9 +173,8 @@ impl super::core::NetworkEventLoop {
         }
 
         if is_kid {
-            let current_time = kinetic_kyn::types::Kyn(current_kyn).to_utime(
-                kinetic_core::constants::KYN_GENESIS_TIME,
-                kinetic_core::constants::KYN_PERIOD,
+            let current_time = kinetic_kyn::types::Kyn(current_kyn).to_ukyn(
+                kinetic_core::constants::BEACON_GENESIS,
             ).0;
 
             parsed

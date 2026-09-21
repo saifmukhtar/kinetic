@@ -32,7 +32,7 @@ pub async fn start_gossip_listener(
                     Ok(kyn) => kyn.kyn,
                     Err(_) => match kyn_provider.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_kyn::types::Kyn::now_local().0,
+                        Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
                     },
                 };
 

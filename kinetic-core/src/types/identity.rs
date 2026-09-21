@@ -26,7 +26,7 @@ mod tests {
         let doc = kinetic_kid::document::Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,
-            created_at: kinetic_kyn::types::UTime(0),
+            created_at: kinetic_kyn::types::UKyn(0),
             controller_keys: vec![],
             manifest: None,
             revocation_keys: vec![],
@@ -55,7 +55,7 @@ mod tests {
             doc_type: "kinetic.manifest.v1".to_string(),
             kid,
             version: 1,
-            valid_from: kinetic_kyn::types::UTime(0),
+            valid_from: kinetic_kyn::types::UKyn(0),
             expires_at: None,
             services: vec![],
             signature: None,

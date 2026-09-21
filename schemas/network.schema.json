@@ -42,25 +42,25 @@
         }
       }
     },
-    "drand": {
+    "time_oracle": {
       "type": "object",
-      "required": ["drand_genesis_time", "drand_period", "kinetic_genesis_kyn", "drand_public_key", "drand_http_endpoints"],
+      "required": ["beacon_genesis", "kyn_period", "kyn_genesis", "beacon_public_key", "beacon_endpoints"],
       "properties": {
-        "drand_genesis_time": {
+        "beacon_genesis": {
           "type": "integer"
         },
-        "drand_period": {
+        "kyn_period": {
           "type": "integer",
           "description": "Beacon period in seconds (e.g. 3 for Quicknet)."
         },
-        "kinetic_genesis_kyn": {
+        "kyn_genesis": {
           "type": "integer"
         },
-        "drand_public_key": {
+        "beacon_public_key": {
           "type": "string",
           "pattern": "^[0-9a-fA-F]+$"
         },
-        "drand_http_endpoints": {
+        "beacon_endpoints": {
           "type": "array",
           "items": {
             "type": "string",

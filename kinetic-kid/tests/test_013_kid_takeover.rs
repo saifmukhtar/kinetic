@@ -18,7 +18,7 @@ fn test_013_kid_takeover() {
     let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: Did::new(&victim_did).unwrap(),
-        created_at: kinetic_kyn::types::UTime(1000),
+        created_at: kinetic_kyn::types::UKyn(1000),
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
             key_type: "Controller".to_string(),
@@ -39,7 +39,7 @@ fn test_013_kid_takeover() {
     let forged_doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: Did::new(&victim_did).unwrap(), // Claiming victim's DID!
-        created_at: kinetic_kyn::types::UTime(2000),
+        created_at: kinetic_kyn::types::UKyn(2000),
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
             key_type: "Controller".to_string(),

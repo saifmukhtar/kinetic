@@ -58,7 +58,7 @@ pub fn start_gossip_processor(
 
                         let current_kyn = match kyn_provider_gossip.load_cached() {
                             Ok(kyn) => kyn.kyn,
-                            Err(_) => kinetic_kyn::types::Kyn::now_local().0,
+                            Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
                         };
                         let (should_update_log, log) = {
                             let Ok(mut state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()

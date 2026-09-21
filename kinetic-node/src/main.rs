@@ -409,7 +409,7 @@ pub async fn run_node() -> Result<()> {
 
                     let current_kyn = match kyn_provider_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_kyn::types::Kyn::now_local().0,
+                        Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
                     };
                     gossip::handle_action_gossip(
                         actual_payload,
@@ -476,7 +476,7 @@ pub async fn run_node() -> Result<()> {
                         .unwrap_or_default()
                         .as_secs();
                     let estimated_kyn = now
-                        .saturating_sub(kinetic_core::constants::KYN_GENESIS_TIME)
+                        .saturating_sub(kinetic_core::constants::BEACON_GENESIS)
                         / kinetic_core::constants::KYN_PERIOD;
 
                     if estimated_kyn > latest.kyn + 5 {

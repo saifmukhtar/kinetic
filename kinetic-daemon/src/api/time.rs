@@ -26,7 +26,7 @@ pub async fn handle_get_time(
         Ok(drand_data) => {
             let time = CrystallizedKyn::from_kyn(
                 kinetic_kyn::types::Kyn(drand_data.kyn),
-                kinetic_kyn::types::Kyn(kinetic_core::constants::KINETIC_GENESIS_KYN),
+                kinetic_kyn::types::Kyn(kinetic_core::constants::KYN_GENESIS),
             );
             Ok(Json(time))
         }

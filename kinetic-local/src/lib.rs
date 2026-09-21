@@ -43,3 +43,4 @@ pub mod identity;
 pub mod kid_manager;
 pub mod secure_fs;
 pub mod shutdown;
+pub mod time;
