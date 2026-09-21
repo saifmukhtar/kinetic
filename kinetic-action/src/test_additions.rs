@@ -1,5 +1,5 @@
 use crate::logic::process_action_message;
-use crate::types::{ActionConfig, ActionEffect, ActionState, NetworkAction, SignedActionMessage};
+use crate::types::{ActionConfig, ActionState, NetworkAction, SignedActionMessage};
 
 use kinetic_primitives::kinetic_keypair::SovereignPrivKey;
 use kinetic_kyn::types::Kyn;
