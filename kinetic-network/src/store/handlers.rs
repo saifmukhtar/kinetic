@@ -387,7 +387,7 @@ impl KineticRecordStore {
                 if ck.key_type == "Delegated"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
                 {
-                    let temp_pubkey = kinetic_primitives::kinetic_keypair::DelegatedPubKey(pubkey_bytes);
+                    let temp_pubkey = kinetic_primitives::keypairs::DelegatedPubKey(pubkey_bytes);
                     if temp_pubkey.verify(&signable, &heartbeat.owner_signature).is_ok() {
                         verified = true;
                         break;

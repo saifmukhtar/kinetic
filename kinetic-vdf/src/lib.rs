@@ -235,7 +235,7 @@ mod tests {
     fn test_blockwise_prover_and_verifier() {
         let engine = RsaVdfEngine::new();
 
-        let hash = kinetic_primitives::sha256_hash(b"kinetic-blockwise-test");
+        let hash = kinetic_primitives::sha256(b"kinetic-blockwise-test");
         let challenge = Commitment { hash };
 
         let iterations = 10_000;

@@ -39,7 +39,7 @@ fn test_memory_store_bloat() {
                 },
                 identity_signature: vec![],
                 protocol_version: 1,
-                pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+                pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
                 payload: vec![],
                 previous_proof: None,
                 authorization: None,

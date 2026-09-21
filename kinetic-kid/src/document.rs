@@ -204,7 +204,7 @@ impl Document {
             // Document is deactivated (revoked), the signature MUST be from a revocation key
             for rk_b64 in &self.revocation_keys {
                 if let Ok(pubkey_bytes) = b64_url.decode(rk_b64)
-                    && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                    && kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes)
                         .is_ok()
                 {
                     return Ok(());
@@ -215,7 +215,7 @@ impl Document {
             for key in &self.controller_keys {
                 if key.key_type.eq_ignore_ascii_case("Controller")
                     && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                    && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                    && kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes)
                         .is_ok()
                 {
                     return Ok(());
@@ -250,7 +250,7 @@ impl Document {
             .ok_or(Error::InvalidSignature)?;
 
         let pubkey_bytes = b64_url.decode(&primary_key.public_key)?;
-        let hash = kinetic_primitives::sha256_hash(&pubkey_bytes);
+        let hash = kinetic_primitives::sha256(&pubkey_bytes);
 
         let mut expected_hex = String::with_capacity(64);
         for byte in hash {
@@ -301,7 +301,7 @@ impl Document {
                 return false;
             }
             if let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key) {
-                return kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                return kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes)
                     .is_ok();
             }
             false
@@ -312,7 +312,7 @@ impl Document {
         if !authorized && self.deactivated {
             authorized = previous_doc.revocation_keys.iter().any(|rk_b64| {
                 if let Ok(pubkey_bytes) = b64_url.decode(rk_b64) {
-                    return kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok();
+                    return kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok();
                 }
                 false
             });
@@ -328,7 +328,7 @@ impl Document {
     /// - Returns [`Error::CanonicalizationError`] if JCS canonicalization fails.
     pub fn sign_with_controller(
         mut self,
-        key: &kinetic_primitives::kinetic_keypair::ControllerPrivKey,
+        key: &kinetic_primitives::keypairs::ControllerPrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
         // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
@@ -344,7 +344,7 @@ impl Document {
     /// Used exclusively when permanently deactivating the document.
     pub fn sign_with_revoke(
         mut self,
-        key: &kinetic_primitives::kinetic_keypair::RevokePrivKey,
+        key: &kinetic_primitives::keypairs::RevokePrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
         // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
@@ -360,7 +360,7 @@ impl Document {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_primitives::kinetic_keypair::{ControllerPrivKey, RevokePrivKey};
+    use kinetic_primitives::keypairs::{ControllerPrivKey, RevokePrivKey};
 
     #[test]
     fn test_kid_document_lifecycle() {
@@ -370,7 +370,7 @@ mod tests {
         let controller_pub_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
         let revocation_pub_b64 = b64_url.encode(revocation_key.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(controller_key.to_pubkey().as_bytes());
+        let hash = kinetic_primitives::sha256(controller_key.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;

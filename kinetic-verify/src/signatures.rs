@@ -63,7 +63,7 @@ impl VerifySignature for Reveal {
                 if ck.key_type == "Delegated"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
                 {
-                    let temp_pubkey = kinetic_primitives::kinetic_keypair::DelegatedPubKey(pubkey_bytes);
+                    let temp_pubkey = kinetic_primitives::keypairs::DelegatedPubKey(pubkey_bytes);
                     if temp_pubkey.verify(&signable, &self.identity_signature).is_ok() {
                         verified = true;
                         break;
@@ -104,16 +104,16 @@ mod tests {
     use kinetic_types::name_record::NameRecord;
     use kinetic_types::vdf::{Reveal, VdfProof};
 
-    fn generate_identity_keypair() -> kinetic_primitives::kinetic_keypair::IdentityPrivKey {
-        kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate()
+    fn generate_identity_keypair() -> kinetic_primitives::keypairs::IdentityPrivKey {
+        kinetic_primitives::keypairs::IdentityPrivKey::generate()
     }
 
-    fn generate_delegated_keypair() -> kinetic_primitives::kinetic_keypair::DelegatedPrivKey {
-        kinetic_primitives::kinetic_keypair::DelegatedPrivKey::generate()
+    fn generate_delegated_keypair() -> kinetic_primitives::keypairs::DelegatedPrivKey {
+        kinetic_primitives::keypairs::DelegatedPrivKey::generate()
     }
 
     fn sign_identity_payload(
-        sk: &kinetic_primitives::kinetic_keypair::IdentityPrivKey,
+        sk: &kinetic_primitives::keypairs::IdentityPrivKey,
         name: &str,
         payload: &[u8],
         salt: &[u8],
@@ -128,7 +128,7 @@ mod tests {
     }
 
     fn sign_delegated_payload(
-        sk: &kinetic_primitives::kinetic_keypair::DelegatedPrivKey,
+        sk: &kinetic_primitives::keypairs::DelegatedPrivKey,
         name: &str,
         payload: &[u8],
         salt: &[u8],
@@ -159,7 +159,7 @@ mod tests {
             vdf_proof: VdfProof {
                 proof_bytes: vec![0, 0, 0],
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(identity_vk_bytes),
             identity_signature: vec![],
             authorization: None,
             previous_proof: None,

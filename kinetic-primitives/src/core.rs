@@ -13,7 +13,7 @@ use ml_dsa::{Generate, KeyInit, Keypair, MlDsa65, SigningKey};
 ///
 /// # Examples
 /// ```rust
-/// use kinetic_primitives::keys::KineticKeypair;
+/// use kinetic_primitives::core::KineticKeypair;
 /// 
 /// // Generate a fresh post-quantum keypair
 /// let keypair = KineticKeypair::generate();
@@ -23,7 +23,7 @@ use ml_dsa::{Generate, KeyInit, Keypair, MlDsa65, SigningKey};
 /// let signature = keypair.sign(message);
 /// 
 /// // The public key can be safely exported for verification
-/// let pubkey = keypair.pubkey_bytes();
+/// let pubkey = keypair.to_public_bytes();
 /// assert!(!pubkey.is_empty());
 /// ```
 #[derive(Clone)]
@@ -79,7 +79,7 @@ impl KineticKeypair {
     /// # Security
     /// Public keys are safe to share across the Kinetic network and are typically 
     /// embedded inside a Kinetic Identity Document (KID).
-    pub fn pubkey_bytes(&self) -> Vec<u8> {
+    pub fn to_public_bytes(&self) -> Vec<u8> {
         use ml_dsa::KeyExport;
         self.0.verifying_key().to_bytes().to_vec()
     }
@@ -90,7 +90,7 @@ impl KineticKeypair {
     /// **CRITICAL**: This exports raw, unencrypted private key material. The caller 
     /// is strictly responsible for immediately encrypting or securely wiping this 
     /// byte vector after writing it to storage.
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_secret_bytes(&self) -> Vec<u8> {
         use ml_dsa::KeyExport;
         self.0.to_bytes().to_vec()
     }

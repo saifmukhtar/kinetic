@@ -14,7 +14,7 @@
 //! | `0x0D` | [`NetworkAction::EmergencyResume`] | Resume registrations and advance pause offset |
 
 
-use kinetic_primitives::kinetic_keypair::SovereignPubKey;
+use kinetic_primitives::keypairs::SovereignPubKey;
 use thiserror::Error;
 
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.

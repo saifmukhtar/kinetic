@@ -11,7 +11,7 @@
 //! proofs signed with their `DelegatedPrivKey`s (or `ControllerPrivKey`s).
 
 #![allow(clippy::collapsible_if)]
-use kinetic_primitives::kinetic_keypair::IdentityPubKey;
+use kinetic_primitives::keypairs::IdentityPubKey;
 use serde::{Deserialize, Serialize};
 
 /// Represents a heartbeat proof indicating that a `.kin` name is actively maintained by its owner.
@@ -159,7 +159,7 @@ pub fn derive_storage_keys(name: &str, network_salt: &[u8; 32]) -> Vec<[u8; 32]>
         data.extend_from_slice(normalized.as_bytes());
         data.push(i);
 
-        keys.push(kinetic_primitives::sha256_hash(&data));
+        keys.push(kinetic_primitives::sha256(&data));
     }
     keys
 }
@@ -179,7 +179,7 @@ pub fn derive_heartbeat_keys(name: &str, network_salt: &[u8; 32]) -> Vec<[u8; 32
         data.extend_from_slice(normalized.as_bytes());
         data.push(i);
 
-        keys.push(kinetic_primitives::sha256_hash(&data));
+        keys.push(kinetic_primitives::sha256(&data));
     }
     keys
 }

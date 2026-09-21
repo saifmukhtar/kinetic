@@ -248,7 +248,7 @@ pub async fn handle_update_kid_manifest(
     )?;
 
     // Publish to DHT under hex(sha256(did#manifest))
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+    let manifest_key = hex::encode(kinetic_primitives::sha256(
         format!("{}#manifest", manifest.kid).as_bytes(),
     ));
 
@@ -303,7 +303,7 @@ pub async fn handle_resolve_kid(
         };
 
     // Try to resolve Manifest
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+    let manifest_key = hex::encode(kinetic_primitives::sha256(
         format!("{}#manifest", did).as_bytes(),
     ));
 
@@ -496,7 +496,7 @@ pub async fn handle_publish_manifest(
     }
 
     // 3. Serialize and Publish to DHT under the derived manifest key
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+    let manifest_key = hex::encode(kinetic_primitives::sha256(
         format!("{}#manifest", did_str).as_bytes(),
     ));
 

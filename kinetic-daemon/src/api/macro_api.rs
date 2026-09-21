@@ -174,7 +174,7 @@ pub async fn handle_macro_register_name(
             &fqdn,
             &salt,
             &sig_bytes,
-            &kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey.to_vec()),
+            &kinetic_primitives::keypairs::IdentityPubKey(pubkey.to_vec()),
         );
 
         // Step 3: VDF Evaluation (Blocking)
@@ -329,7 +329,7 @@ pub async fn handle_macro_register_name(
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey.to_vec()),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(pubkey.to_vec()),
             identity_signature: vec![],
             authorization: None,
             previous_proof: None,
@@ -549,7 +549,7 @@ pub async fn handle_macro_renew_name(
             &fqdn,
             &salt,
             &sig_bytes,
-            &kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey_bytes.to_vec()),
+            &kinetic_primitives::keypairs::IdentityPubKey(pubkey_bytes.to_vec()),
         );
 
         // Step 4: VDF Evaluation (Blocking)
@@ -658,7 +658,7 @@ pub async fn handle_macro_renew_name(
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(pubkey_bytes.to_vec()),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(pubkey_bytes.to_vec()),
             identity_signature: vec![],
             authorization: None,
             previous_proof: Some(previous_proof),

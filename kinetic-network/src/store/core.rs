@@ -638,7 +638,7 @@ mod tests {
             iterations: 1,
             vdf_proof: kinetic_types::vdf::VdfProof { proof_bytes: vec![] },
             previous_proof: None,
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
             identity_signature: vec![],
             authorization: None,
         }));
@@ -736,7 +736,7 @@ mod tests {
             beacon_signature: String::new(),
             iterations: 1,
             vdf_proof: vec![],
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
             identity_signature: vec![],
             authorization: None,
         }));

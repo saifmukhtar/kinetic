@@ -34,7 +34,7 @@ pub fn start_heartbeat_loop(
     hb_kyn_provider: Arc<dyn KynProvider>,
     p2p_only: bool,
     initial_kyn: u64,
-    daemon_keypair_hb: kinetic_primitives::kinetic_keypair::IdentityPrivKey,
+    daemon_keypair_hb: kinetic_primitives::keypairs::IdentityPrivKey,
     kyn_tx_hb: tokio::sync::watch::Sender<u64>,
 ) -> tokio::task::JoinHandle<()> {
     let last_known_live_kyn = Arc::new(AtomicU64::new(initial_kyn));

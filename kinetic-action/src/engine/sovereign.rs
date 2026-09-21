@@ -6,7 +6,7 @@
 use crate::error::ActionError;
 use crate::traits::ActionEngine;
 use crate::types::{
-    ActionConfig, ActionEffect, ActionState, NetworkAction, SignedActionMessage, verify_signature,
+    ActionConfig, ActionEffect, ActionState, NetworkAction, SignedActionMessage, verify_sovereign_signature,
 };
 
 /// Single-signer network action engine driver controlled exclusively by the Sovereign key.
@@ -38,7 +38,7 @@ impl ActionEngine for SovereignEngine {
         let is_sovereign_signed = msg
             .sovereign_signatures
             .iter()
-            .any(|sig| verify_signature(&sovereign_key, &action_bytes, sig));
+            .any(|sig| verify_sovereign_signature(&sovereign_key, &action_bytes, sig));
 
         if is_sovereign_signed {
             let effect = match &msg.action {

@@ -41,12 +41,12 @@ mod tests {
                 vdf_proof: VdfProof {
                     proof_bytes: vec![],
                 },
-                pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+                pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
                 identity_signature: vec![],
                 previous_proof: None,
                 authorization: None,
             };
-            let keypair = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+            let keypair = kinetic_primitives::keypairs::IdentityPrivKey::generate();
             reveal.pubkey = keypair.to_pubkey();
             reveal.identity_signature =
                 keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));

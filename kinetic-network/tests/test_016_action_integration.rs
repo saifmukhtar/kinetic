@@ -39,7 +39,7 @@ async fn test_action_integration_halt() {
     // Try to inject a forged reveal
     let forged_reveal = kinetic_core::types::Reveal {
         name: "test".to_string(),
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; 32]),
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![1; 32]),
         salt: [0; 32],
         beacon_signature: "0000".to_string(), // invalid but will be rejected by halt first
         kyn: kinetic_kyn::types::Kyn(1000),
@@ -97,7 +97,7 @@ async fn test_action_integration_premium() {
     // Create an infra record
     let domain_record = NameRecord::Infra {
         name: "test_infra".to_string(),
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; 32]),
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![1; 32]),
         kyn: kinetic_kyn::types::Kyn(0),
         payload: vec![],
         owner_signature: vec![],

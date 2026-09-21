@@ -14,7 +14,7 @@ fn test_reveal_crypto_lengths() {
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),    // ML-DSA-65 exact len
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),    // ML-DSA-65 exact len
         identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH], // ML-DSA-65 exact len
         previous_proof: None,
         authorization: None,
@@ -29,7 +29,7 @@ fn test_reveal_crypto_lengths() {
 
     // 2. Pubkey wrong length
     let mut bad_pubkey = base_reveal.clone();
-    bad_pubkey.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; 1953]);
+    bad_pubkey.pubkey = kinetic_primitives::keypairs::IdentityPubKey(vec![0; 1953]);
     assert!(bad_pubkey.validate().is_err());
 
     // 3. Signature wrong length

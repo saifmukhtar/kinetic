@@ -7,7 +7,7 @@
 //!    [`VdfProof`] inside a [`Reveal`] structure verified with Identity signatures.
 
 #![allow(clippy::collapsible_if)]
-use kinetic_primitives::kinetic_keypair::IdentityPubKey;
+use kinetic_primitives::keypairs::IdentityPubKey;
 use serde::{Deserialize, Serialize};
 
 fn default_protocol_version() -> u8 {
@@ -37,7 +37,7 @@ impl Commitment {
         pubkey: &IdentityPubKey,
     ) -> Self {
         // Compress the 96-byte BLS12-381 G2 Drand signature into a 32-byte hash
-        let drand_rand = kinetic_primitives::sha256_hash(beacon_signature_bytes);
+        let drand_rand = kinetic_primitives::sha256(beacon_signature_bytes);
 
         // Construct the unified VDF challenge
         let mut data = Vec::with_capacity(
@@ -50,7 +50,7 @@ impl Commitment {
         data.extend_from_slice(pubkey.as_bytes());
 
         Self {
-            hash: kinetic_primitives::sha256_hash(&data),
+            hash: kinetic_primitives::sha256(&data),
         }
     }
 }

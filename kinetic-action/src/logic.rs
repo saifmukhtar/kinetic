@@ -81,7 +81,7 @@ impl ActionState {
     ///
     /// A deterministic 32-byte `[u8; 32]` SHA-256 hash of the canonical message bytes.
     pub fn hash_action(msg: &SignedActionMessage) -> Hash256 {
-        kinetic_primitives::sha256_hash(&msg.to_bytes())
+        kinetic_primitives::sha256(&msg.to_bytes())
     }
 
     /// Prunes the `executed_hashes` set.
@@ -100,9 +100,9 @@ impl ActionState {
     /// # Errors
     ///
     /// Returns an [`ActionError`] if the key is missing, invalid, or has the wrong length.
-    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<kinetic_primitives::kinetic_keypair::SovereignPubKey, ActionError> {
+    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<kinetic_primitives::keypairs::SovereignPubKey, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
-            return Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(key.clone()));
+            return Ok(kinetic_primitives::keypairs::SovereignPubKey(key.clone()));
         }
 
         let bytes = hex::decode(&config.sovereign_key_hex)
@@ -110,7 +110,7 @@ impl ActionState {
         if bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
             return Err(ActionError::KeyLengthMismatch);
         }
-        Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(bytes))
+        Ok(kinetic_primitives::keypairs::SovereignPubKey(bytes))
     }
 
     /// Verifies whether a signed action message meets validity rules to be executed.

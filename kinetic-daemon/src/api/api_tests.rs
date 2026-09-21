@@ -31,7 +31,7 @@ mod tests {
             gossip_tx,
             storage: storage.clone(),
             host_speed_ips: 100_000,
-            daemon_keypair: kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate(),
+            daemon_keypair: kinetic_primitives::keypairs::IdentityPrivKey::generate(),
             dns_cache: std::sync::Arc::new(tokio::sync::Mutex::new(
                 crate::proxy::dns_cache::DnsCache::new(100, 300),
             )),
@@ -277,7 +277,7 @@ mod tests {
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
             identity_signature: vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
             authorization: None,

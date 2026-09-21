@@ -7,7 +7,7 @@ use kinetic_vdf::RsaVdfEngine;
 #[test]
 #[ignore = "Slow cryptographic test: takes >60s to compute VDF proof"]
 fn test_xor_eclipse_routing() {
-    let keypair = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+    let keypair = kinetic_primitives::keypairs::IdentityPrivKey::generate();
     let pubkey = keypair.to_pubkey();
 
     let kyn = 50u64;

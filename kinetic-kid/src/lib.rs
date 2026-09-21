@@ -55,7 +55,7 @@ pub use manifest::{Manifest, Service};
 mod tests {
     use super::*;
     use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-    use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
+    use kinetic_primitives::keypairs::ControllerPrivKey;
 
     fn generate_keypair() -> ControllerPrivKey {
         ControllerPrivKey::generate()
@@ -101,7 +101,7 @@ mod tests {
         let keypair = generate_keypair();
         let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
+        let hash = kinetic_primitives::sha256(keypair.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -140,7 +140,7 @@ mod tests {
         let keypair = generate_keypair();
         let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
+        let hash = kinetic_primitives::sha256(keypair.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;

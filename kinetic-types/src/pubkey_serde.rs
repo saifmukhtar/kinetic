@@ -4,7 +4,7 @@
 //! We use a custom adapter pattern here to keep `serde` strictly out of Layer 1, preventing the accidental
 //! serialization of private keys.
 
-use kinetic_primitives::kinetic_keypair::{
+use kinetic_primitives::keypairs::{
     ControllerPubKey, DelegatedPubKey, IdentityPubKey, RevokePubKey, SovereignPubKey,
 };
 

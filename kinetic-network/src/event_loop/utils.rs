@@ -291,9 +291,9 @@ impl super::core::NetworkEventLoop {
                         continue;
                     }
 
-                    let drand_bytes = kinetic_primitives::sha256_hash(&drand_sig_bytes);
+                    let drand_bytes = kinetic_primitives::sha256(&drand_sig_bytes);
 
-                    let hash = kinetic_primitives::sha256_hash_concat(&[
+                    let hash = kinetic_primitives::sha256_concat(&[
                         reveal.name.as_bytes(),
                         &reveal.salt,
                         &drand_bytes,
@@ -414,7 +414,7 @@ mod tests {
             beacon_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
             identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
             authorization: None,

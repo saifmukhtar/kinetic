@@ -197,7 +197,7 @@ impl Manifest {
         for key in &kid_document.controller_keys {
             if key.key_type.eq_ignore_ascii_case("Controller")
                 && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
+                && kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
             {
                 return Ok(());
             }
@@ -212,7 +212,7 @@ impl Manifest {
     /// - Returns [`Error::CanonicalizationError`] if JCS canonicalization fails.
     pub fn sign_with_controller(
         mut self,
-        key: &kinetic_primitives::kinetic_keypair::ControllerPrivKey,
+        key: &kinetic_primitives::keypairs::ControllerPrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
         // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 

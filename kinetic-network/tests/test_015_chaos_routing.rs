@@ -104,7 +104,7 @@ async fn test_chaos_routing_partition() {
                 proof_bytes: vec![0; 100],
             },
             iterations: 1000,
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
             identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
             authorization: None,

@@ -34,9 +34,9 @@ pub use kinetic_types::action::{
 /// let msg = b"hello";
 /// let sig = vec![0; 64];
 /// // Returns true only if the Sovereign signature strictly matches the pubkey and msg.
-/// let is_valid = verify_signature(&pubkey, msg, &sig);
+/// let is_valid = verify_sovereign_signature(&pubkey, msg, &sig);
 /// ```
-pub fn verify_signature(pubkey: &kinetic_primitives::kinetic_keypair::SovereignPubKey, msg: &[u8], sig: &[u8]) -> bool {
+pub fn verify_sovereign_signature(pubkey: &kinetic_primitives::keypairs::SovereignPubKey, msg: &[u8], sig: &[u8]) -> bool {
     pubkey.verify(msg, sig).is_ok()
 }
 
@@ -48,7 +48,7 @@ pub enum ActionEffect {
     /// The Sovereign key was successfully rotated.
     SovereignKeyRotated {
         /// The new Sovereign public key.
-        new_key: kinetic_primitives::kinetic_keypair::SovereignPubKey,
+        new_key: kinetic_primitives::keypairs::SovereignPubKey,
     },
     /// The network has been emergency halted by the Sovereign key.
     NetworkHalted,

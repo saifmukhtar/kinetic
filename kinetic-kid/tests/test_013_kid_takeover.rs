@@ -1,13 +1,13 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 use kinetic_kid::{ControllerKey, Did, Document};
-use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
+use kinetic_primitives::keypairs::ControllerPrivKey;
 
 #[test]
 fn test_013_kid_takeover() {
     // 1. Victim generates their identity
     let victim_key = ControllerPrivKey::generate();
     let victim_pub_b64 = b64_url.encode(victim_key.to_pubkey().as_bytes());
-    let hash = kinetic_primitives::sha256_hash(victim_key.to_pubkey().as_bytes());
+    let hash = kinetic_primitives::sha256(victim_key.to_pubkey().as_bytes());
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;

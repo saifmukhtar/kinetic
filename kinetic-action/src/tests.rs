@@ -5,7 +5,7 @@ mod tests {
     use super::super::types::{
         ActionEffect, ActionState, NetworkAction, SignedActionMessage,
     };
-    use kinetic_primitives::kinetic_keypair::SovereignPrivKey;
+    use kinetic_primitives::keypairs::SovereignPrivKey;
     use kinetic_kyn::types::Kyn;
     fn get_root_sk() -> SovereignPrivKey {
         let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
@@ -50,7 +50,7 @@ mod tests {
         // Action 1: Rotate to the new Sovereign Key (signed by current genesis Sovereign key)
         let mut rotate_msg = SignedActionMessage {
             action: NetworkAction::RotateSovereignKey {
-                new_key: kinetic_primitives::kinetic_keypair::SovereignPubKey(new_root_pubkey.clone()),
+                new_key: kinetic_primitives::keypairs::SovereignPubKey(new_root_pubkey.clone()),
             },
             timestamp_kyn: Kyn(current_kyn),
             sovereign_signatures: vec![],
@@ -71,7 +71,7 @@ mod tests {
         // The state should now have the new Sovereign key
         assert_eq!(
             state.get_sovereign_key(&get_test_config()).unwrap(),
-            kinetic_primitives::kinetic_keypair::SovereignPubKey(new_root_pubkey.clone())
+            kinetic_primitives::keypairs::SovereignPubKey(new_root_pubkey.clone())
         );
 
         // Action 2: Try halting the network using the OLD Sovereign key (should fail)

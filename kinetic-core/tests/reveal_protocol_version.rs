@@ -14,7 +14,7 @@ fn test_protocol_downgrade_prevention() {
         vdf_proof: VdfProof {
             proof_bytes: vec![4, 5, 6],
         },
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
         identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
         previous_proof: None,
         authorization: None,

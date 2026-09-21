@@ -58,7 +58,7 @@ mod tests {
         use crate::store::verification::verify_authorized_kid;
         use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
         use kinetic_kid::document::Document;
-        let ml_kp = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+        let ml_kp = kinetic_primitives::keypairs::IdentityPrivKey::generate();
         let ml_pub_bytes = ml_kp.to_pubkey().as_bytes().to_vec();
 
         let reveal = Reveal {
@@ -72,7 +72,7 @@ mod tests {
             vdf_proof: VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(ml_pub_bytes.clone()),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(ml_pub_bytes.clone()),
             identity_signature: vec![],
             previous_proof: None,
             authorization: None,
@@ -81,7 +81,7 @@ mod tests {
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
         let pub_key_b64 = b64_url.encode(&ml_pub_bytes);
 
-        let hash = kinetic_primitives::sha256_hash(&ml_pub_bytes);
+        let hash = kinetic_primitives::sha256(&ml_pub_bytes);
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -112,7 +112,7 @@ mod tests {
             deactivated: false,
             signature: None,
         };
-        let controller_kp = kinetic_primitives::kinetic_keypair::ControllerPrivKey::from_slice(&ml_kp.to_secret_bytes()).unwrap();
+        let controller_kp = kinetic_primitives::keypairs::ControllerPrivKey::from_slice(&ml_kp.to_secret_bytes()).unwrap();
         let did_doc = doc.sign_with_controller(&controller_kp).unwrap();
 
         let mut auth_kid = AuthorizedKid {

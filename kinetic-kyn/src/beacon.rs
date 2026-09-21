@@ -115,7 +115,7 @@ impl RawKyn {
         // Wait, does kinetic-kyn depend on kinetic-primitives? Let's check.
         // Let's just use sha2 directly because kinetic-kyn shouldn't depend on kinetic-primitives if possible, or maybe it does?
         // Actually, kinetic_primitives is what provides sha256_hash.
-        let expected = kinetic_primitives::sha256_hash(&sig_bytes);
+        let expected = kinetic_primitives::sha256(&sig_bytes);
         match hex::decode(&self.randomness) {
             Ok(r) => r.as_slice() == expected.as_slice(),
             Err(_) => false,

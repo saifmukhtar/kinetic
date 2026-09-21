@@ -70,7 +70,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                                 drop(action_state);
                                 let action_bytes = signed_msg.to_bytes();
                                 return signed_msg.sovereign_signatures.iter().any(|sig| {
-                                    kinetic_core::action::verify_signature(
+                                    kinetic_core::action::verify_sovereign_signature(
                                         &root_key,
                                         &action_bytes,
                                         sig,

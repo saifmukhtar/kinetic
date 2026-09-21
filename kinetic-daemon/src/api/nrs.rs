@@ -869,7 +869,7 @@ pub async fn handle_publish_fat_zone(
         )))
     })?;
     let keypair =
-        kinetic_primitives::kinetic_keypair::IdentityPrivKey::from_slice(&hot_key_bytes).map_err(|e| {
+        kinetic_primitives::keypairs::IdentityPrivKey::from_slice(&hot_key_bytes).map_err(|e| {
             crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
                 format!("Invalid ML-DSA keypair: {}", e),
             ))

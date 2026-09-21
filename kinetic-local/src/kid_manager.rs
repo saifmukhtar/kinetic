@@ -175,14 +175,14 @@ fn write_json_document(path: &Path, json_str: &str) -> Result<(), IdentityError>
 /// Loads a raw ML-DSA-65 signing key from disk.
 fn load_raw_signing_key(
     path: &Path,
-) -> Result<kinetic_primitives::kinetic_keypair::ControllerPrivKey, IdentityError> {
+) -> Result<kinetic_primitives::keypairs::ControllerPrivKey, IdentityError> {
     if !path.exists() {
         return Err(IdentityError::KidPrivateKeyNotFound(
             path.to_string_lossy().to_string(),
         ));
     }
     let bytes = fs::read(path)?;
-    kinetic_primitives::kinetic_keypair::ControllerPrivKey::from_slice(&bytes).map_err(|_| {
+    kinetic_primitives::keypairs::ControllerPrivKey::from_slice(&bytes).map_err(|_| {
         IdentityError::CorruptedIdentityFile(format!("Invalid key bytes in {:?}", path))
     })
 }
@@ -263,12 +263,12 @@ pub fn get_or_create_kid_for_name(
     }
 
     // 1. Generate new ML-DSA-65 keypair
-    let keypair = kinetic_primitives::kinetic_keypair::ControllerPrivKey::generate();
+    let keypair = kinetic_primitives::keypairs::ControllerPrivKey::generate();
     let pub_key_bytes = keypair.to_pubkey().as_bytes().to_vec();
     let pub_key_b64 = b64_url.encode(&pub_key_bytes);
 
     // 2. Derive deterministic DID string: did:kin:<SHA256(PublicKey)>
-    let hash = kinetic_primitives::sha256_hash(&pub_key_bytes);
+    let hash = kinetic_primitives::sha256(&pub_key_bytes);
     let did_str = format!("{}{}", DID_PREFIX, hex::encode(hash));
 
     let kid_did = Did::new(&did_str)
@@ -357,7 +357,7 @@ pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid,
     let old_key = load_raw_signing_key(&key_path)?;
 
     // 2. Generate new keypair
-    let new_keypair = kinetic_primitives::kinetic_keypair::ControllerPrivKey::generate();
+    let new_keypair = kinetic_primitives::keypairs::ControllerPrivKey::generate();
     let new_pub_bytes = new_keypair.to_pubkey().as_bytes().to_vec();
     let new_pub_b64 = b64_url.encode(&new_pub_bytes);
 

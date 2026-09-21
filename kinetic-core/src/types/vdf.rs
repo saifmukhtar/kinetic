@@ -77,7 +77,7 @@ mod tests {
     fn valid_reveal() -> Reveal {
         Reveal {
             name: format!("{}{}", "satoshi", crate::constants::NSP_SUFFIX),
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0u8; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0u8; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
             payload: vec![0u8; 100],
             identity_signature: vec![0u8; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             previous_proof: None,
@@ -153,7 +153,7 @@ mod tests {
         let mut reveal = valid_reveal();
 
         // Too short
-        reveal.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![
+        reveal.pubkey = kinetic_primitives::keypairs::IdentityPubKey(vec![
             0u8;
             kinetic_primitives::KINETIC_PUBKEY_LENGTH - 1
         ]);
@@ -167,7 +167,7 @@ mod tests {
         );
 
         let mut invalid_reveal2 = reveal.clone();
-        invalid_reveal2.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![
+        invalid_reveal2.pubkey = kinetic_primitives::keypairs::IdentityPubKey(vec![
             0u8;
             kinetic_primitives::KINETIC_PUBKEY_LENGTH + 1
         ]);
