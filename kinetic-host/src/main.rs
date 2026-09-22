@@ -188,7 +188,7 @@ async fn run_host() -> Result<()> {
         .unwrap_or(config.network.host_port);
 
     let network_config = NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: NetworkMode::Core,
         listen_addrs: vec![
             format!("/ip4/0.0.0.0/tcp/{}", p2p_port).parse().unwrap(),
             format!("/ip6/::/tcp/{}", p2p_port).parse().unwrap(),
@@ -327,7 +327,7 @@ async fn run_host() -> Result<()> {
         network_client.clone(),
         kyn_provider.clone(),
         config.clone(),
-        kinetic_types::network::NodeType::Host,
+        kinetic_types::network::PeerType::Host,
     );
 
     tokio::spawn(gossip::start_gossip_listener(

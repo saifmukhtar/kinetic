@@ -93,7 +93,7 @@ pub struct NetworkEventLoop {
             >,
         >,
     >,
-    pub(crate) action_log: Vec<kinetic_types::action::SignedActionMessage>,
+    pub(crate) action_log: Vec<kinetic_types::action::SignedNetworkAction>,
     pub(crate) peer_registry: crate::peer_registry::PeerRegistry,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(

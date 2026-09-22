@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 use crate::error::ActionError;
 use crate::types::{
-    ActionConfig, ActionEffect, ActionState, Hash256, SignedActionMessage,
+    ActionConfig, ActionEffect, ActionState, Hash256, SignedNetworkAction,
 };
 
 /// Validates that the static cryptographic keys required for network actions have been correctly initialized.
@@ -80,7 +80,7 @@ impl ActionState {
     /// # Returns
     ///
     /// A deterministic 32-byte `[u8; 32]` SHA-256 hash of the canonical message bytes.
-    pub fn hash_action(msg: &SignedActionMessage) -> Hash256 {
+    pub fn hash_action(msg: &SignedNetworkAction) -> Hash256 {
         kinetic_primitives::sha256(&msg.to_bytes())
     }
 
@@ -120,7 +120,7 @@ impl ActionState {
     /// Returns an [`ActionError`] if the message is stale, the signature is missing, or invariants are violated.
     pub fn verify_action(
         &mut self,
-        msg: &SignedActionMessage,
+        msg: &SignedNetworkAction,
         current_kyn: kinetic_kyn::types::Kyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
@@ -135,7 +135,7 @@ impl ActionState {
     /// Executes a verified network action, applying its state changes and returning any resulting effects.
     pub fn execute_action(
         &mut self,
-        msg: &SignedActionMessage,
+        msg: &SignedNetworkAction,
         current_kyn: kinetic_kyn::types::Kyn,
         config: &ActionConfig,
     ) -> Option<ActionEffect> {
@@ -155,7 +155,7 @@ impl ActionState {
 /// Returns an [`ActionError`] if the action fails verification or execution rules.
 pub fn process_action_message(
     state: &mut ActionState,
-    msg: &SignedActionMessage,
+    msg: &SignedNetworkAction,
     current_kyn: kinetic_kyn::types::Kyn,
     config: &ActionConfig,
 ) -> Result<Option<ActionEffect>, ActionError> {

@@ -20,18 +20,12 @@ use thiserror::Error;
 /// 32-byte SHA-256 hash, used as action keys, veto targets, and proposal identifiers.
 pub type Hash256 = [u8; 32];
 
-/// Raw Sovereign key public key bytes.
-///
-/// # Security
-/// The binary parser currently strictly enforces a `KINETIC_PUBKEY_LENGTH` byte bound 
-/// on this payload to prevent memory exhaustion during P2P propagation.
-pub type PublicKeyBytes = Vec<u8>;
 /// Raw Sovereign key signature bytes.
 ///
 /// # Security
 /// The network currently strictly expects the ML-DSA-65 signature output 
 /// of the underlying Sovereign key algorithm.
-pub type SignatureBytes = Vec<u8>;
+pub type SovereignSignature = Vec<u8>;
 
 /// Enumerates privileged protocol actions managed by the network action system.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -50,16 +44,16 @@ pub enum NetworkAction {
 
 /// Proposal message container with signatures from authorized council members.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct SignedActionMessage {
+pub struct SignedNetworkAction {
     /// Target network action payload.
     pub action: NetworkAction,
     /// Network timestamp in drand kyns when the proposal was signed.
     pub timestamp_kyn: kinetic_kyn::types::Kyn,
     /// The Sovereign signatures authorizing this action.
-    pub sovereign_signatures: Vec<SignatureBytes>,
+    pub sovereign_signatures: Vec<SovereignSignature>,
 }
 
-impl SignedActionMessage {
+impl SignedNetworkAction {
     /// Serializes the action message into a canonical byte vector for SHA-256 hashing and Sovereign signature verification.
     ///
     /// Each [`NetworkAction`] variant is prefixed with a 1-byte opcode:
@@ -100,16 +94,14 @@ impl SignedActionMessage {
 
 /// Errors arising from canonical action message parsing and validation.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
-pub enum ActionTypeError {
+pub enum ActionParseError {
     /// Provided byte slice is shorter than the minimum expected header or field size.
     #[error("Buffer too small for parsing action payload")]
     BufferTooSmall,
     /// Opcode byte does not match any recognized action action.
     #[error("Unknown action opcode: 0x{0:02X}")]
     UnknownOpcode(u8),
-    /// Name string field contains invalid UTF-8 bytes.
-    #[error("Invalid UTF-8 sequence in premium name string")]
-    InvalidUtf8,
+
     /// Provided public key length does not match expected parameter size.
     #[error("Invalid public key length, expected KINETIC_PUBKEY_LENGTH bytes")]
     InvalidPubkeyLength,
@@ -128,33 +120,32 @@ impl NetworkAction {
     /// It enforces strict bounds checking (e.g., public keys must be exactly KINETIC_PUBKEY_LENGTH bytes).
     ///
     /// # Errors
-    /// - Returns [`ActionTypeError::BufferTooSmall`] if the buffer is under 9 bytes.
-    /// - Returns [`ActionTypeError::UnknownOpcode`] if the action variant is unrecognized.
-    /// - Returns [`ActionTypeError::InvalidPubkeyLength`] if a parsed key does not meet strict byte bounds.
-    /// - Returns [`ActionTypeError::InvalidUtf8`] if string allocations fail.
+    /// - Returns [`ActionParseError::BufferTooSmall`] if the buffer is under 9 bytes.
+    /// - Returns [`ActionParseError::UnknownOpcode`] if the action variant is unrecognized.
+    /// - Returns [`ActionParseError::InvalidPubkeyLength`] if a parsed key does not meet strict byte bounds.
     ///
     /// # Examples
     /// ```rust
-    /// use kinetic_types::action::{NetworkAction, ActionTypeError};
+    /// use kinetic_types::action::{NetworkAction, ActionParseError};
     /// 
     /// // A buffer that is too small (8 bytes total)
     /// let bad_buf = vec![0x0F, 0, 0, 0, 0, 0, 0, 0];
     /// assert_eq!(
     ///     NetworkAction::parse_payload(&bad_buf),
-    ///     Err(ActionTypeError::BufferTooSmall)
+    ///     Err(ActionParseError::BufferTooSmall)
     /// );
     /// ```
-    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, kinetic_kyn::types::Kyn), ActionTypeError> {
+    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, kinetic_kyn::types::Kyn), ActionParseError> {
         if bytes.len() < 9 {
             // At least 1 byte opcode + 8 bytes timestamp
-            return Err(ActionTypeError::BufferTooSmall);
+            return Err(ActionParseError::BufferTooSmall);
         }
 
         let timestamp_bytes = &bytes[bytes.len() - 8..];
         let timestamp_kyn = kinetic_kyn::types::Kyn::from_be_bytes(timestamp_bytes.try_into().unwrap());
         let payload = &bytes[0..bytes.len() - 8];
         if payload.is_empty() {
-            return Err(ActionTypeError::BufferTooSmall);
+            return Err(ActionParseError::BufferTooSmall);
         }
 
         let opcode = payload[0];
@@ -164,7 +155,7 @@ impl NetworkAction {
             0x0B => {
                 // RotateSovereignKey
                 if action_data.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
-                    return Err(ActionTypeError::InvalidPubkeyLength);
+                    return Err(ActionParseError::InvalidPubkeyLength);
                 }
                 NetworkAction::RotateSovereignKey {
                     new_key: SovereignPubKey(action_data.to_vec()),
@@ -179,7 +170,7 @@ impl NetworkAction {
                 NetworkAction::EmergencyResume
             }
 
-            _ => return Err(ActionTypeError::UnknownOpcode(opcode)),
+            _ => return Err(ActionParseError::UnknownOpcode(opcode)),
         };
 
         Ok((action, timestamp_kyn))
@@ -197,7 +188,7 @@ mod tests {
         let mut buf = vec![0xFF];
         buf.extend_from_slice(&[0; 8]); // Placeholder timestamp
         let result = NetworkAction::parse_payload(&buf);
-        assert_eq!(result, Err(ActionTypeError::UnknownOpcode(0xFF)));
+        assert_eq!(result, Err(ActionParseError::UnknownOpcode(0xFF)));
     }
 
     #[test]
@@ -206,43 +197,28 @@ mod tests {
         let buf = vec![0x0F, 0, 0, 0, 0, 0, 0, 0]; // 8 bytes
         assert_eq!(
             NetworkAction::parse_payload(&buf),
-            Err(ActionTypeError::BufferTooSmall)
+            Err(ActionParseError::BufferTooSmall)
         );
     }
 
     #[test]
     fn test_parse_empty_payload_too_small() {
         let result = NetworkAction::parse_payload(&[]);
-        assert_eq!(result, Err(ActionTypeError::BufferTooSmall));
+        assert_eq!(result, Err(ActionParseError::BufferTooSmall));
     }
 
     #[test]
     fn test_invalid_pubkey_length() {
-        let name = "s";
-        let mut buf = vec![0x0F];
-        buf.extend_from_slice(&(name.len() as u32).to_be_bytes());
-        buf.extend_from_slice(name.as_bytes());
-
+        let mut buf = vec![0x0B];
         // 3-byte public key (invalid)
         buf.extend_from_slice(&[1, 2, 3]);
         buf.extend_from_slice(&[0; 8]); // Timestamp
 
         let result = NetworkAction::parse_payload(&buf);
-        assert_eq!(result, Err(ActionTypeError::InvalidPubkeyLength));
+        assert_eq!(result, Err(ActionParseError::InvalidPubkeyLength));
     }
 
-    #[test]
-    fn test_invalid_utf8_name() {
-        let mut buf = vec![0x0F];
-        let bad_name: &[u8] = &[0xFF, 0xFE]; // Invalid UTF-8
-        buf.extend_from_slice(&(bad_name.len() as u32).to_be_bytes());
-        buf.extend_from_slice(bad_name);
-        buf.extend_from_slice(&vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]); // Valid pubkey length
-        buf.extend_from_slice(&[0; 8]); // Timestamp
 
-        let result = NetworkAction::parse_payload(&buf);
-        assert_eq!(result, Err(ActionTypeError::InvalidUtf8));
-    }
 
 
 
@@ -268,5 +244,5 @@ pub struct ActionSyncRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionSyncResponse {
     /// The append-only log of all executed signed action messages.
-    pub actions: Vec<SignedActionMessage>,
+    pub actions: Vec<SignedNetworkAction>,
 }

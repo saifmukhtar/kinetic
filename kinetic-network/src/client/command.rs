@@ -134,6 +134,6 @@ pub enum Command {
     /// Update the local cache of the action log.
     UpdateActionLog {
         /// The latest list of executed action actions.
-        actions: Vec<kinetic_types::action::SignedActionMessage>,
+        actions: Vec<kinetic_types::action::SignedNetworkAction>,
     },
 }

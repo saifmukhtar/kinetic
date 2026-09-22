@@ -57,7 +57,7 @@ enum Commands {
     Install,
     /// Uninstall the node system service
     Uninstall,
-    /// Start the node (foregkyn)
+    /// Start the node (foreground)
     Run,
     /// Start the node service (background)
     Start,
@@ -228,7 +228,7 @@ pub async fn run_node() -> Result<()> {
 
     // 5. Initialize P2P Network
     let network_config = NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: NetworkMode::Core,
         listen_addrs: vec![
             format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port)
                 .parse()
@@ -387,7 +387,7 @@ pub async fn run_node() -> Result<()> {
         network_client.clone(),
         kyn_provider.clone(),
         config.clone(),
-        kinetic_types::network::NodeType::Node,
+        kinetic_types::network::PeerType::Node,
     );
 
     let gossip_network_client = network_client.clone();
@@ -418,7 +418,7 @@ pub async fn run_node() -> Result<()> {
                         Some(gossip_storage.clone()),
                         current_kyn,
                     );
-                } else if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8
+                } else if opcode == kinetic_types::network::NetworkOpcode::Kyn as u8
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
                     && kyn.verify_beacon(kinetic_core::config::is_dev_mode())
                 {
@@ -475,9 +475,7 @@ pub async fn run_node() -> Result<()> {
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    let estimated_kyn = now
-                        .saturating_sub(kinetic_core::constants::BEACON_GENESIS)
-                        / kinetic_core::constants::KYN_PERIOD;
+                    let estimated_kyn = now.saturating_sub(kinetic_core::constants::BEACON_GENESIS);
 
                     if estimated_kyn > latest.kyn + 5 {
                         let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
@@ -499,7 +497,7 @@ pub async fn run_node() -> Result<()> {
                 let _ = kyn_tx.send(kyn.kyn);
                 // Broadcast to P2P network if we are fetching HTTP
                 if !p2p_only && let Ok(payload) = serde_json::to_vec(&kyn) {
-                    let mut envelope = vec![kinetic_types::network::NetworkOpcode::KineticTime as u8];
+                    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Kyn as u8];
                     envelope.extend(payload);
                     let _ = hb_network
                         .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL, envelope)

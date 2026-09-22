@@ -24,7 +24,7 @@ pub async fn start_gossip_listener(
 
             if opcode == kinetic_types::network::NetworkOpcode::Action as u8
                 && let Ok(signed_msg) = serde_json::from_slice::<
-                    kinetic_core::action::SignedActionMessage,
+                    kinetic_core::action::SignedNetworkAction,
                 >(actual_payload)
             {
 
@@ -99,7 +99,7 @@ mod proptests {
         fn test_gossip_malformed_payloads(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
             // Guarantee that receiving malformed payloads over the P2P gossip network
             // will never cause a deserialization panic.
-            let _ = serde_json::from_slice::<kinetic_core::action::SignedActionMessage>(&payload);
+            let _ = serde_json::from_slice::<kinetic_core::action::SignedNetworkAction>(&payload);
         }
     }
 }

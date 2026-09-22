@@ -152,7 +152,7 @@ impl NetworkClient {
     /// Updates the background event loop's cache of the action log.
     pub async fn update_action_log(
         &self,
-        actions: Vec<kinetic_types::action::SignedActionMessage>,
+        actions: Vec<kinetic_types::action::SignedNetworkAction>,
     ) -> std::result::Result<(), NetworkClientError> {
         let sender_clone = self
             .sender

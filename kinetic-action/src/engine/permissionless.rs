@@ -5,7 +5,7 @@
 
 use crate::error::ActionError;
 use crate::traits::ActionEngine;
-use crate::types::{ActionConfig, ActionEffect, ActionState, SignedActionMessage};
+use crate::types::{ActionConfig, ActionEffect, ActionState, SignedNetworkAction};
 
 /// Development-only engine driver where all modifications are rejected.
 ///
@@ -21,7 +21,7 @@ impl ActionEngine for PermissionlessEngine {
     fn verify_action(
         &self,
         _state: &mut ActionState,
-        _msg: &SignedActionMessage,
+        _msg: &SignedNetworkAction,
         _current_kyn: kinetic_kyn::types::Kyn,
         _config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
@@ -33,7 +33,7 @@ impl ActionEngine for PermissionlessEngine {
     fn execute_action(
         &self,
         _state: &mut ActionState,
-        _msg: &SignedActionMessage,
+        _msg: &SignedNetworkAction,
         _current_kyn: kinetic_kyn::types::Kyn,
         _config: &ActionConfig,
     ) -> Option<ActionEffect> {

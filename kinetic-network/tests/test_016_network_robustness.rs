@@ -13,7 +13,7 @@ use tokio::sync::watch;
 
 fn create_base_config() -> NetworkConfig {
     NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: NetworkMode::Core,
         listen_addrs: vec!["/ip4/127.0.0.1/tcp/0".parse().unwrap()],
         quic_listen_addrs: vec![],
         bootstrap_nodes: vec![],
@@ -58,7 +58,7 @@ async fn test_fullnode_initialization() {
 #[tokio::test]
 async fn test_lightnode_initialization() {
     let mut config = create_base_config();
-    config.mode = NetworkMode::LightNode;
+    config.mode = NetworkMode::Edge;
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();
     let result = NetworkEventLoop::new(

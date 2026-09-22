@@ -249,9 +249,7 @@ pub async fn handle_macro_register_name(
         }
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
-        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
-            * kinetic_core::constants::KYN_PERIOD)
-            + 2;
+        let wait_secs = kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,
@@ -625,9 +623,7 @@ pub async fn handle_macro_renew_name(
         }
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
-        let wait_secs = (kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
-            * kinetic_core::constants::KYN_PERIOD)
-            + 2;
+        let wait_secs = kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,

@@ -49,6 +49,8 @@ pub struct Document {
     /// Schema type tag; always `"kinetic.kid.v1"` for v1 documents.
     pub doc_type: String,
     /// The `did:kin:<hash>` identifier for this document.
+    /// Serialized as "id" to maintain strict W3C DID Specification compliance.
+    #[serde(rename = "id")]
     pub kid: Did,
     /// Unix timestamp (seconds) when this document was created.
     pub created_at: kinetic_kyn::types::UKyn,
@@ -105,14 +107,14 @@ impl Document {
     /// # Examples
     /// ```rust
     /// use kinetic_kid::{Document, Did, ControllerKey};
-    /// use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
+    /// use kinetic_primitives::keypairs::ControllerPrivKey;
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
     /// 
     /// let controller_key = ControllerPrivKey::generate();
     /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
     /// 
     /// // Generate genesis DID
-    /// let hash = kinetic_primitives::sha256_hash(controller_key.to_pubkey().as_bytes());
+    /// let hash = kinetic_primitives::sha256(controller_key.to_pubkey().as_bytes());
     /// let hex_hash = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
     /// let did = Did::new(&format!("did:kin:{}", hex_hash)).unwrap();
     ///

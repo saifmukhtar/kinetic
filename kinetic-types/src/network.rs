@@ -1,7 +1,7 @@
 //! Core network taxonomies and opcodes for peer-to-peer communication.
 //!
 //! Defines the strict binary formats used by the network layer to efficiently
-//! multiplex distinct message channels (like Action and KineticTime) over a 
+//! multiplex distinct message channels (like Action and Kyn) over a 
 //! single global P2P publication topic.
 
 /// 1-byte opcode prepended to all P2P payloads on the global publication topic.
@@ -10,8 +10,8 @@
 pub enum NetworkOpcode {
     /// Action broadcast authorized by the Sovereign key.
     Action = 0x01,
-    /// Clock synchronization pulse from the KineticTime consensus beacon.
-    KineticTime = 0x02,
+    /// Clock synchronization pulse from the Drand beacon.
+    Kyn = 0x02,
     /// Anonymous network health statistics.
     Telemetry = 0x03,
 }
@@ -29,7 +29,7 @@ impl NetworkOpcode {
     pub fn from_u8(val: u8) -> Option<Self> {
         match val {
             0x01 => Some(Self::Action),
-            0x02 => Some(Self::KineticTime),
+            0x02 => Some(Self::Kyn),
             0x03 => Some(Self::Telemetry),
             _ => None,
         }
@@ -43,7 +43,7 @@ use serde::{Deserialize, Serialize};
 /// Used in telemetry to distinguish between local user clients (`Daemon`), 
 /// public infrastructure routers (`Node`), and headless seeders (`Host`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum NodeType {
+pub enum PeerType {
     Daemon,
     Node,
     Host,
@@ -54,8 +54,8 @@ pub enum NodeType {
 /// Used in telemetry to map the ratio of `FullNode` vs `LightNode` participation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NetworkMode {
-    FullNode,
-    LightNode,
+    Core,
+    Edge,
 }
 
 /// A highly restricted enumeration of Operating Systems.
@@ -99,12 +99,12 @@ pub struct TelemetryHeartbeat {
 
     // --- Rich Metrics ---
     /// The binary running this node.
-    pub node_type: NodeType,
+    pub peer_type: PeerType,
     /// Mode the node is running in ("FullNode" or "LightNode").
     pub network_mode: NetworkMode,
     /// Whether the node is publicly reachable.
     pub reachability: Reachability,
-    /// The latest KineticTime pulse the node has verified, used to detect sync failures.
+    /// The latest Kyn pulse the node has verified, used to detect sync failures.
     pub latest_kyn: kinetic_kyn::types::Kyn,
     /// Total Megabytes sent since boot.
     pub mb_sent: u32,
@@ -121,7 +121,7 @@ mod tests {
     fn test_network_opcode_parsing() {
         // Valid OpCodes
         assert_eq!(NetworkOpcode::from_u8(0x01), Some(NetworkOpcode::Action));
-        assert_eq!(NetworkOpcode::from_u8(0x02), Some(NetworkOpcode::KineticTime));
+        assert_eq!(NetworkOpcode::from_u8(0x02), Some(NetworkOpcode::Kyn));
         assert_eq!(NetworkOpcode::from_u8(0x03), Some(NetworkOpcode::Telemetry));
 
         // Invalid OpCodes
@@ -138,8 +138,8 @@ mod tests {
             os: OsType::Linux,
             connected_peers: 42,
             uptime_seconds: 3600,
-            node_type: NodeType::Daemon,
-            network_mode: NetworkMode::LightNode,
+            peer_type: PeerType::Daemon,
+            network_mode: NetworkMode::Edge,
             reachability: Reachability::Public,
             latest_kyn: kinetic_kyn::types::Kyn(123456),
             mb_sent: 15,

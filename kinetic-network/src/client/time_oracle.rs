@@ -185,9 +185,7 @@ impl KynProvider for TimeOracleProvider {
                         .duration_since(web_time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    let estimated_kyn = (now
-                        .saturating_sub(kinetic_core::constants::BEACON_GENESIS))
-                        / kinetic_core::constants::KYN_PERIOD;
+                    let estimated_kyn = now.saturating_sub(kinetic_core::constants::BEACON_GENESIS);
                     let age = estimated_kyn.saturating_sub(kyn.kyn);
 
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {

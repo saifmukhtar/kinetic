@@ -7,7 +7,7 @@ pub use kinetic_action::error::ActionError;
 pub use kinetic_action::traits::ActionEngine;
 pub use kinetic_action::types;
 pub use kinetic_action::types::{
-    ActionEffect, ActionState, NetworkAction, SignedActionMessage, verify_sovereign_signature,
+    ActionEffect, ActionState, NetworkAction, SignedNetworkAction, verify_sovereign_signature,
 };
 
 /// Wraps logic bindings that require configurations.
@@ -38,7 +38,7 @@ pub fn get_action_config() -> ActionConfig {
 /// Processes a action message by passing the network configurations automatically.
 pub fn process_action_message(
     state: &mut ActionState,
-    msg: &SignedActionMessage,
+    msg: &SignedNetworkAction,
     current_kyn: kinetic_kyn::types::Kyn,
 ) -> Result<Option<ActionEffect>, ActionError> {
     kinetic_action::logic::process_action_message(state, msg, current_kyn, &get_action_config())

@@ -3,7 +3,7 @@
 mod tests {
     use super::super::logic::process_action_message;
     use super::super::types::{
-        ActionEffect, ActionState, NetworkAction, SignedActionMessage,
+        ActionEffect, ActionState, NetworkAction, SignedNetworkAction,
     };
     use kinetic_primitives::keypairs::SovereignPrivKey;
     use kinetic_kyn::types::Kyn;
@@ -20,7 +20,7 @@ mod tests {
         (signing_key, verifying_key)
     }
 
-    fn sign_action(msg: &SignedActionMessage, signer: &SovereignPrivKey) -> Vec<u8> {
+    fn sign_action(msg: &SignedNetworkAction, signer: &SovereignPrivKey) -> Vec<u8> {
         let serialized = msg.to_bytes();
         signer.sign(&serialized)
     }
@@ -48,7 +48,7 @@ mod tests {
         let (new_root_sk, new_root_pubkey) = generate_key(123);
 
         // Action 1: Rotate to the new Sovereign Key (signed by current genesis Sovereign key)
-        let mut rotate_msg = SignedActionMessage {
+        let mut rotate_msg = SignedNetworkAction {
             action: NetworkAction::RotateSovereignKey {
                 new_key: kinetic_primitives::keypairs::SovereignPubKey(new_root_pubkey.clone()),
             },
@@ -75,7 +75,7 @@ mod tests {
         );
 
         // Action 2: Try halting the network using the OLD Sovereign key (should fail)
-        let mut map_msg = SignedActionMessage {
+        let mut map_msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
             timestamp_kyn: Kyn(current_kyn + 1), // Advance time so hash is different
             sovereign_signatures: vec![],
@@ -116,7 +116,7 @@ mod tests {
         ) {
             let action = NetworkAction::EmergencyHalt;
 
-            let msg = SignedActionMessage {
+            let msg = SignedNetworkAction {
                 action: action.clone(),
                 timestamp_kyn: Kyn(timestamp),
                 sovereign_signatures: vec![], // Signatures aren't part of canonical hash
@@ -150,7 +150,7 @@ mod tests {
         assert!(!state.is_halted);
         assert_eq!(state.total_paused_kyns, 0);
 
-        let mut halt_msg = SignedActionMessage {
+        let mut halt_msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
             timestamp_kyn: Kyn(current_kyn),
             sovereign_signatures: vec![],
@@ -167,7 +167,7 @@ mod tests {
         assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
         assert!(state.is_halted);
 
-        let mut resume_msg = SignedActionMessage {
+        let mut resume_msg = SignedNetworkAction {
             action: NetworkAction::EmergencyResume,
             timestamp_kyn: Kyn(current_kyn + 1000),
             sovereign_signatures: vec![],
@@ -201,7 +201,7 @@ mod tests {
         let mut state = ActionState::new(Kyn(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
-        let mut msg = SignedActionMessage {
+        let mut msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
             timestamp_kyn: Kyn(current_kyn),
             sovereign_signatures: vec![],
@@ -239,7 +239,7 @@ mod tests {
         // Create a message that is exactly MAX_AGE_KYNS + 1 old
         let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
-        let mut msg = SignedActionMessage {
+        let mut msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
             timestamp_kyn: Kyn(stale_kyn),
             sovereign_signatures: vec![],

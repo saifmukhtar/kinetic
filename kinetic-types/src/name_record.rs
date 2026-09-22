@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 pub struct Heartbeat {
     /// Name associated with this heartbeat.
     pub name: String,
-    /// Latest KineticTime kyn number proving heartbeat recency.
+    /// Latest Kyn number proving heartbeat recency.
     pub latest_kyn: kinetic_kyn::types::Kyn,
     /// Owner's cryptographic signature over [`signable_bytes`](Heartbeat::signable_bytes).
     pub owner_signature: Vec<u8>,

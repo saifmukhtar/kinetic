@@ -1,6 +1,6 @@
 //! Action gossip message handler, state update processor, and disk persistence engine.
 
-use kinetic_core::action::{SignedActionMessage, process_action_message};
+use kinetic_core::action::{SignedNetworkAction, process_action_message};
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -16,7 +16,7 @@ pub fn handle_action_gossip(
     _storage: Option<Arc<dyn kinetic_core::traits::StorageEngine>>,
     current_kyn: u64,
 ) {
-    if let Ok(signed_msg) = serde_json::from_slice::<SignedActionMessage>(payload) {
+    if let Ok(signed_msg) = serde_json::from_slice::<SignedNetworkAction>(payload) {
         let (state_snapshot, effect_result) = {
             let mut state = GLOBAL_ACTION_STATE
                 .lock()
@@ -104,7 +104,7 @@ pub fn handle_action_gossip(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_core::action::{NetworkAction, SignedActionMessage};
+    use kinetic_core::action::{NetworkAction, SignedNetworkAction};
     use tempfile::tempdir;
 
     #[test]
@@ -123,7 +123,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = Arc::new(dir.path().join("action.bin"));
 
-        let msg = SignedActionMessage {
+        let msg = SignedNetworkAction {
             action: NetworkAction::EmergencyPause,
             timestamp_kyn: kinetic_kyn::types::Kyn(0),
             sovereign_signatures: vec![],
@@ -177,7 +177,7 @@ mod tests {
         let path = Arc::new(dir.path().to_path_buf());
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
-        let msg = SignedActionMessage {
+        let msg = SignedNetworkAction {
             action: NetworkAction::EmergencyPause,
             timestamp_kyn: kinetic_kyn::types::Kyn(0),
             sovereign_signatures: vec![],

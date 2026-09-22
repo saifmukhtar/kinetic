@@ -6,7 +6,7 @@
 use crate::error::ActionError;
 use crate::traits::ActionEngine;
 use crate::types::{
-    ActionConfig, ActionEffect, ActionState, NetworkAction, SignedActionMessage, verify_sovereign_signature,
+    ActionConfig, ActionEffect, ActionState, NetworkAction, SignedNetworkAction, verify_sovereign_signature,
 };
 
 /// Single-signer network action engine driver controlled exclusively by the Sovereign key.
@@ -24,7 +24,7 @@ impl ActionEngine for SovereignEngine {
     fn verify_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedActionMessage,
+        msg: &SignedNetworkAction,
         current_kyn: kinetic_kyn::types::Kyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
@@ -65,7 +65,7 @@ impl ActionEngine for SovereignEngine {
     fn execute_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedActionMessage,
+        msg: &SignedNetworkAction,
         current_kyn: kinetic_kyn::types::Kyn,
         _config: &ActionConfig,
     ) -> Option<ActionEffect> {

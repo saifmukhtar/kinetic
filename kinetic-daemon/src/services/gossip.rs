@@ -52,7 +52,7 @@ pub fn start_gossip_processor(
                 if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
                     let mut is_valid = false;
                     if let Ok(signed_msg) = serde_json::from_slice::<
-                        kinetic_core::action::SignedActionMessage,
+                        kinetic_core::action::SignedNetworkAction,
                     >(actual_payload)
                     {
 
@@ -129,7 +129,7 @@ pub fn start_gossip_processor(
                         }
                     }
                     network_client.report_gossip(message_id, propagation_source, is_valid);
-                } else if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8 {
+                } else if opcode == kinetic_types::network::NetworkOpcode::Kyn as u8 {
                     let mut is_valid = false;
                     if let Ok(kyn) =
                         serde_json::from_slice::<kinetic_core::drand::RawKyn>(actual_payload)

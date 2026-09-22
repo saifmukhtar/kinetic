@@ -64,7 +64,7 @@ struct NetworkSection {
 #[derive(Deserialize)]
 struct TimeOracleSection {
     beacon_genesis: u64,
-    kyn_period: u64,
+
     kyn_genesis: u64,
     beacon_public_key: String,
     beacon_endpoints: Vec<String>,
@@ -213,19 +213,11 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Duration in seconds of each time oracle kyn.\npub const KYN_PERIOD: u64 = {};\n\n",
-        config.time_oracle.kyn_period
-    ));
-
-    out.push_str(&format!(
         "/// The absolute oracle round at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Prism/Facet/Kyn).\npub const KYN_GENESIS: u64 = {};\n\n",
         config.time_oracle.kyn_genesis
     ));
 
-    out.push_str(&format!(
-        "/// The absolute Unix timestamp (in seconds) of the Kinetic network genesis.\npub const KINETIC_GENESIS_TIME: u64 = {};\n\n",
-        config.time_oracle.beacon_genesis + (config.time_oracle.kyn_genesis * config.time_oracle.kyn_period)
-    ));
+
 
     // Expose NSP as compile-time env vars so constants.rs can use env!() for
     // fork-isolated gossip topics and DB key prefixes without requiring a generated file.

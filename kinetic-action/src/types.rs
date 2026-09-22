@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 
 pub use kinetic_types::action::{
-    Hash256, NetworkAction, PublicKeyBytes, SignatureBytes, SignedActionMessage,
+    Hash256, NetworkAction, SovereignSignature, SignedNetworkAction,
 };
 
 /// Verifies a Sovereign signature over a message byte slice.
@@ -62,7 +62,7 @@ pub struct ActionState {
     /// Genesis Kyn when action tracking started.
     pub genesis_kyn: kinetic_kyn::types::Kyn,
     /// Active Sovereign public key controlling the network.
-    pub active_sovereign_key: Option<PublicKeyBytes>,
+    pub active_sovereign_key: Option<Vec<u8>>,
     /// Master boolean flag if the network is currently paused.
     #[serde(default)]
     pub is_halted: bool,
@@ -80,7 +80,7 @@ pub struct ActionState {
     pub executed_hashes: HashMap<Hash256, kinetic_kyn::types::Kyn>,
     #[serde(default)]
     /// Append-only log of all executed signed action messages (used for P2P state syncing).
-    pub action_log: Vec<kinetic_types::action::SignedActionMessage>,
+    pub action_log: Vec<kinetic_types::action::SignedNetworkAction>,
 
 }
 

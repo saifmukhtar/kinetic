@@ -127,7 +127,7 @@ use kinetic_core::traits::KynProvider;
 pub async fn handle_publish_action(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
-    Json(msg): Json<kinetic_core::action::SignedActionMessage>,
+    Json(msg): Json<kinetic_core::action::SignedNetworkAction>,
 ) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_action() {
         return Err(kinetic_core::error::RestApiError::InsufficientPrivileges.into());

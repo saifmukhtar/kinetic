@@ -32,7 +32,7 @@ impl super::core::NetworkEventLoop {
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
         let (tx, rx) = mpsc::channel(32);
 
-        let (mut swarm, client) = if config.mode == NetworkMode::LightNode {
+        let (mut swarm, client) = if config.mode == NetworkMode::Edge {
             lightnode::build_light_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         } else {
             #[cfg(target_arch = "wasm32")]

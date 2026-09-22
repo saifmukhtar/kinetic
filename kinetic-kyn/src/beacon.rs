@@ -1,15 +1,26 @@
 use crate::types::Kyn;
 use beacon_verify::{G2PubkeyRfc, Pubkey};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
-// Heartbeat staleness threshold — 10 minutes in network kyns (3s each)
-const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200; // 10min * 20 kyns/min
+// Heartbeat staleness threshold — 10 minutes (600 seconds/kyns)
+const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 600;
+
+/// Intercepts the Drand round during deserialization and instantly multiplies it 
+/// by KYN_PERIOD so the rest of the Engine only ever deals with 1-Second Kyns.
+fn deserialize_drand_round_to_kyn<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let round = u64::deserialize(deserializer)?;
+    let period: u64 = env!("KYN_PERIOD").parse().unwrap_or(3);
+    Ok(round * period)
+}
 
 /// A single network time kyn from the global provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawKyn {
-    /// Monotonically increasing kyn number.
-    #[serde(alias = "round")]
+    /// The monotonically increasing Engine Kyn number (1 Kyn = 1 Second).
+    #[serde(alias = "round", deserialize_with = "deserialize_drand_round_to_kyn")]
     pub kyn: u64,
     /// Hex-encoded SHA-256 randomness output string.
     pub randomness: String,
@@ -101,7 +112,11 @@ impl RawKyn {
             return true;
         }
 
-        if !verify_beacon_signature(self.kyn, &self.signature, false) {
+        // We temporarily reverse the kyn back to a round ONLY to verify Drand's signature
+        let period: u64 = env!("KYN_PERIOD").parse().unwrap_or(3);
+        let original_round = self.kyn / period;
+
+        if !verify_beacon_signature(original_round, &self.signature, false) {
             return false;
         }
 
@@ -129,9 +144,10 @@ mod tests {
 
     #[test]
     fn test_valid_quicknet_kyn_verification() {
+        let period: u64 = env!("KYN_PERIOD").parse().unwrap_or(3);
         // Known valid kyn from Quicknet (Kyn 30290678)
         let kyn = RawKyn {
-            kyn: 30290678,
+            kyn: 30290678 * period,
             randomness: "bd5f53ad61578f2566860e3792d01513b817e34c7de92f4781aa76b53ddef0ea".to_string(),
             signature: "ac8313d3ad1f95fe1b380ab6124aade0d4de5919fd60dc846746025ac9aa9d3c434b9dc94c0b75c4efd81aec9e2ef0b9".to_string(),
             is_from_cache: false,
@@ -144,9 +160,10 @@ mod tests {
 
     #[test]
     fn test_invalid_quicknet_kyn_verification() {
+        let period: u64 = env!("KYN_PERIOD").parse().unwrap_or(3);
         // Corrupted kyn (tampered signature)
         let kyn = RawKyn {
-            kyn: 30290678,
+            kyn: 30290678 * period,
             randomness: "bd5f53ad61578f2566860e3792d01513b817e34c7de92f4781aa76b53ddef0ea".to_string(),
             signature: "bc8313d3ad1f95fe1b380ab6124aade0d4de5919fd60dc846746025ac9aa9d3c434b9dc94c0b75c4efd81aec9e2ef0b9".to_string(), // flipped first char
             is_from_cache: false,

@@ -1,7 +1,7 @@
 //! CLI commands for submitting, signing, and managing Sovereign Kinetic network action proposals.
 
 use clap::Subcommand;
-use kinetic_core::action::SignedActionMessage;
+use kinetic_core::action::SignedNetworkAction;
 use kinetic_core::config::KineticConfig;
 use reqwest::Client;
 use std::path::PathBuf;
@@ -33,7 +33,7 @@ pub async fn handle_action_command(
             let msg_str = std::fs::read_to_string(&file).map_err(|e| {
                 anyhow::anyhow!("Failed to read action file {}: {}", file.display(), e)
             })?;
-            let msg: SignedActionMessage = serde_json::from_str(&msg_str)
+            let msg: SignedNetworkAction = serde_json::from_str(&msg_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse action JSON: {}", e))?;
 
             let publish_url = format!("{}/api/v1/micro/action/publish", base_url);

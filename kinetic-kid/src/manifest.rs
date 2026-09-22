@@ -108,7 +108,7 @@ impl Manifest {
     /// # Examples
     /// ```rust
     /// use kinetic_kid::{Document, Did, ControllerKey, Manifest, Service};
-    /// use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
+    /// use kinetic_primitives::keypairs::ControllerPrivKey;
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
     /// 
     /// let controller_key = ControllerPrivKey::generate();

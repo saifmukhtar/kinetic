@@ -1,5 +1,5 @@
 use crate::logic::process_action_message;
-use crate::types::{ActionConfig, ActionState, NetworkAction, SignedActionMessage};
+use crate::types::{ActionConfig, ActionState, NetworkAction, SignedNetworkAction};
 
 use kinetic_primitives::keypairs::SovereignPrivKey;
 use kinetic_kyn::types::Kyn;
@@ -17,7 +17,7 @@ fn generate_key(seed: u8) -> (SovereignPrivKey, Vec<u8>) {
     (signing_key, verifying_key)
 }
 
-fn sign_action(msg: &SignedActionMessage, signer: &SovereignPrivKey) -> Vec<u8> {
+fn sign_action(msg: &SignedNetworkAction, signer: &SovereignPrivKey) -> Vec<u8> {
     let serialized = msg.to_bytes();
     signer.sign(&serialized)
 }
@@ -45,7 +45,7 @@ fn test_action_stale_rejection() {
     // Create a message that is exactly MAX_AGE_KYNS + 1 old
     let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
-    let mut msg = SignedActionMessage {
+    let mut msg = SignedNetworkAction {
         action: NetworkAction::EmergencyHalt,
         timestamp_kyn: Kyn(stale_kyn),
         sovereign_signatures: vec![],

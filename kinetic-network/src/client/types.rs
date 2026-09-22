@@ -31,15 +31,15 @@ pub use kinetic_types::proxy::{ProxyRequest, ProxyResponse, serde_bytes_wrapper}
 #[derive(Debug, Clone, PartialEq)]
 pub enum NetworkMode {
     /// Fully participates in the DHT and gossip protocols.
-    FullNode,
+    Core,
     /// Client-only mode; issues requests but does not store DHT records.
-    LightNode,
+    Edge,
 }
 
 /// Configuration settings for instantiating the network swarm.
 #[derive(Debug, Clone)]
 pub struct NetworkConfig {
-    /// Operating mode (FullNode or LightNode).
+    /// Operating mode (Core or Edge).
     pub mode: NetworkMode,
     /// The multiaddrs to listen on for TCP/IP traffic.
     pub listen_addrs: Vec<libp2p::Multiaddr>,

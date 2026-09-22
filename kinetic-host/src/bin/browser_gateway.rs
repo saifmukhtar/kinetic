@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let storage = Arc::new(KineticStorage::new("./kinetic_gateway_db")?);
 
     let config = NetworkConfig {
-        mode: NetworkMode::LightNode,
+        mode: NetworkMode::Edge,
         listen_addrs: vec![
             "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
             "/ip6/::/tcp/0".parse().unwrap(),

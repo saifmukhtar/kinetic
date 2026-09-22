@@ -2,7 +2,7 @@
 
 use clap::Args;
 use kinetic_core::config::KineticConfig;
-use kinetic_core::constants::{BEACON_GENESIS, KYN_PERIOD};
+use kinetic_core::constants::BEACON_GENESIS;
 use kinetic_kyn::types::CrystallizedKyn;
 use std::time::SystemTime;
 
@@ -21,10 +21,9 @@ pub struct ClockArgs {
 ///
 /// ### Execution Flow
 /// 1. Initiates an HTTP GET request to the Daemon's `/api/v1/micro/time/current` endpoint.
-/// 2. If the daemon is online, displays the verified `KineticTime` (including the exact KYN epoch).
+/// 2. If the daemon is online, displays the verified Kyn (including the exact KYN epoch).
 /// 3. If the daemon is offline (Connection Refused), the CLI executes a mathematical fallback 
-///    by locally checking the machine's `SystemTime`, subtracting `BEACON_GENESIS`, and 
-///    dividing by `KYN_PERIOD` to provide an unverified estimate.
+///    by locally checking the machine's `SystemTime` and subtracting `BEACON_GENESIS`
 /// 4. If the `--listen` flag is provided, loops the CLI terminal output infinitely like a digital clock.
 ///
 /// # Errors
@@ -74,7 +73,7 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
                 .as_secs();
 
             let current_kyn = if now > BEACON_GENESIS {
-                (now - BEACON_GENESIS) / KYN_PERIOD
+                now - BEACON_GENESIS
             } else {
                 0
             };

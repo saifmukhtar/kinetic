@@ -77,9 +77,9 @@ pub struct CommitRequest {
 pub struct PreviousProof {
     /// 32-byte salt used in the previous proof generation.
     pub salt: [u8; 32],
-    /// Associated KineticTime kyn number from prior registration.
+    /// Kyn from prior registration.
     pub kyn: kinetic_kyn::types::Kyn,
-    /// Hex-encoded KineticTime BLS12-381 G2 signature from prior registration.
+    /// Hex-encoded BLS12-381 G2 beacon signature from prior registration.
     pub beacon_signature: String,
     /// Number of VDF iterations completed in prior registration.
     pub iterations: u64,
@@ -185,9 +185,9 @@ pub struct Reveal {
     pub payload: Vec<u8>,
     /// 32-byte salt value for commitment blinding.
     pub salt: [u8; 32],
-    /// Associated KineticTime kyn number.
+    /// Kyn at time of reveal.
     pub kyn: kinetic_kyn::types::Kyn,
-    /// Hex-encoded KineticTime BLS12-381 G2 signature.
+    /// Hex-encoded BLS12-381 G2 beacon signature.
     pub beacon_signature: String,
     /// Number of VDF iterations completed.
     pub iterations: u64,
@@ -226,7 +226,7 @@ impl Reveal {
     ///     beacon_signature: "abcd".to_string(),
     ///     iterations: 1000,
     ///     vdf_proof: VdfProof { proof_bytes: vec![] },
-    ///     pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
+    ///     pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
     ///     identity_signature: vec![],
     ///     authorization: None,
     ///     previous_proof: None,

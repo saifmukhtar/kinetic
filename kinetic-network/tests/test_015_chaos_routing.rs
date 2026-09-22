@@ -25,7 +25,7 @@ async fn spawn_test_node(
     let listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap();
 
     let config = NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: NetworkMode::Core,
         listen_addrs: vec![listen_addr.clone()],
         quic_listen_addrs: vec![],
         bootstrap_nodes,

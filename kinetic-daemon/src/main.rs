@@ -66,7 +66,7 @@ enum Commands {
     },
     /// Uninstall the daemon system service
     Uninstall,
-    /// Start the daemon (foregkyn)
+    /// Start the daemon (foreground)
     Run,
     /// Start the daemon service (background)
     Start,
@@ -370,8 +370,8 @@ async fn run_daemon() -> Result<()> {
     tracing::info!("Daemon starting with Peer ID: {}", local_peer_id);
 
     let mode = match config.daemon.network_mode.as_str() {
-        "LightNode" => NetworkMode::LightNode,
-        _ => NetworkMode::FullNode,
+        "Edge" => NetworkMode::Edge,
+        _ => NetworkMode::Core,
     };
     let network_config = NetworkConfig {
         mode,
@@ -567,7 +567,7 @@ async fn run_daemon() -> Result<()> {
         network_client.clone(),
         kyn_provider.clone(),
         config.clone(),
-        kinetic_types::network::NodeType::Daemon,
+        kinetic_types::network::PeerType::Daemon,
     );
 
     let base_config_dir = kinetic_local::config::get_base_dir();

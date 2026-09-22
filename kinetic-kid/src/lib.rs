@@ -90,7 +90,7 @@ mod tests {
 
         // Fields must be in lexicographical order per JCS
         let expected = format!(
-            r#"{{"controller_keys":[],"created_at":1000,"deactivated":false,"kid":"did:kin:{}","type":"kinetic.kid.v1"}}"#,
+            r#"{{"controller_keys":[],"created_at":1000,"deactivated":false,"id":"did:kin:{}","type":"kinetic.kid.v1"}}"#,
             "a".repeat(64)
         );
         assert_eq!(jcs_str, expected);

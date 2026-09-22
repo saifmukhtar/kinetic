@@ -5,7 +5,7 @@
 //! incoming network actions.
 
 use crate::error::ActionError;
-use crate::types::{ActionEffect, ActionState, SignedActionMessage};
+use crate::types::{ActionEffect, ActionState, SignedNetworkAction};
 
 /// Pluggable evaluator for signed network actions.
 pub trait ActionEngine: Send + Sync {
@@ -28,7 +28,7 @@ pub trait ActionEngine: Send + Sync {
     fn verify_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedActionMessage,
+        msg: &SignedNetworkAction,
         current_kyn: kinetic_kyn::types::Kyn,
         config: &crate::types::ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError>;
@@ -43,7 +43,7 @@ pub trait ActionEngine: Send + Sync {
     fn execute_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedActionMessage,
+        msg: &SignedNetworkAction,
         current_kyn: kinetic_kyn::types::Kyn,
         config: &crate::types::ActionConfig,
     ) -> Option<ActionEffect>;
