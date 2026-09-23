@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect(),
         seed_domain: vec![],
         enable_mdns: false,
-        initial_kyn: 0,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(0),
         external_address: None,
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)

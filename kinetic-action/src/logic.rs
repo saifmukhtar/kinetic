@@ -52,7 +52,7 @@ impl ActionState {
     /// # Returns
     ///
     /// A new `ActionState` ready for genesis block processing.
-    pub fn new(genesis_kyn: kinetic_kyn::types::Kyn) -> Self {
+    pub fn new(genesis_kyn: kinetic_kyn::types::GenesisKyn) -> Self {
         Self {
             genesis_kyn,
             active_sovereign_key: None,
@@ -88,11 +88,11 @@ impl ActionState {
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.
-    pub fn prune(&mut self, current_kyn: kinetic_kyn::types::Kyn, config: &ActionConfig) {
+    pub fn prune(&mut self, current_kyn: kinetic_kyn::types::CurrentKyn, config: &ActionConfig) {
         // Remove executed hashes older than the max age
         let max_age_kyns = config.max_age_kyns;
         self.executed_hashes
-            .retain(|_, exec_kyn| current_kyn.0 <= exec_kyn.0 + max_age_kyns);
+            .retain(|_, exec_kyn| current_kyn.as_u64() <= exec_kyn.0 + max_age_kyns);
     }
 
     /// Retrieves the static Sovereign verifying key.
@@ -121,7 +121,7 @@ impl ActionState {
     pub fn verify_action(
         &mut self,
         msg: &SignedNetworkAction,
-        current_kyn: kinetic_kyn::types::Kyn,
+        current_kyn: kinetic_kyn::types::CurrentKyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
         crate::engine::get_active_engine(&config.action_model).verify_action(
@@ -136,7 +136,7 @@ impl ActionState {
     pub fn execute_action(
         &mut self,
         msg: &SignedNetworkAction,
-        current_kyn: kinetic_kyn::types::Kyn,
+        current_kyn: kinetic_kyn::types::CurrentKyn,
         config: &ActionConfig,
     ) -> Option<ActionEffect> {
         crate::engine::get_active_engine(&config.action_model).execute_action(
@@ -156,7 +156,7 @@ impl ActionState {
 pub fn process_action_message(
     state: &mut ActionState,
     msg: &SignedNetworkAction,
-    current_kyn: kinetic_kyn::types::Kyn,
+    current_kyn: kinetic_kyn::types::CurrentKyn,
     config: &ActionConfig,
 ) -> Result<Option<ActionEffect>, ActionError> {
     let effect = state.verify_action(msg, current_kyn, config)?;

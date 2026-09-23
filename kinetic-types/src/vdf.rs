@@ -78,7 +78,7 @@ pub struct PreviousProof {
     /// 32-byte salt used in the previous proof generation.
     pub salt: [u8; 32],
     /// Kyn from prior registration.
-    pub kyn: kinetic_kyn::types::Kyn,
+    pub kyn: kinetic_kyn::types::TargetKyn,
     /// Hex-encoded BLS12-381 G2 beacon signature from prior registration.
     pub beacon_signature: String,
     /// Number of VDF iterations completed in prior registration.
@@ -186,7 +186,7 @@ pub struct Reveal {
     /// 32-byte salt value for commitment blinding.
     pub salt: [u8; 32],
     /// Kyn at time of reveal.
-    pub kyn: kinetic_kyn::types::Kyn,
+    pub kyn: kinetic_kyn::types::TargetKyn,
     /// Hex-encoded BLS12-381 G2 beacon signature.
     pub beacon_signature: String,
     /// Number of VDF iterations completed.
@@ -305,7 +305,7 @@ mod tests {
     fn test_previous_proof_serialization() {
         let prev = PreviousProof {
             salt: [2u8; 32],
-            kyn: kinetic_kyn::types::Kyn(12345),
+            kyn: kinetic_kyn::types::TargetKyn::from(12345),
             beacon_signature: "deadbeef".to_string(),
             iterations: 1000,
             vdf_proof: VdfProof {

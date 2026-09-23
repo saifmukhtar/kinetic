@@ -29,7 +29,7 @@ mod tests {
                 .into_iter()
                 .map(|s| s.parse().unwrap())
                 .collect(),
-            initial_kyn: 1000,
+            initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),
             mode: kinetic_network::NetworkMode::Core,
             enable_mdns: false,
             enable_relay_server: false,
@@ -172,7 +172,7 @@ mod tests {
             disable_pow: false,
             test_mode: false,
             bootstrap_nodes: vec![],
-            initial_kyn: 1000,
+            initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),
             mode: kinetic_network::NetworkMode::Core,
             enable_mdns: false,
             enable_relay_server: false,
@@ -236,7 +236,7 @@ mod tests {
             disable_pow: false,
             test_mode: false,
             bootstrap_nodes: vec![],
-            initial_kyn: 1000,
+            initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),
             mode: kinetic_network::NetworkMode::Core,
             enable_mdns: false,
             enable_relay_server: false,

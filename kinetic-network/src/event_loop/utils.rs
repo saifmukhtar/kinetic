@@ -124,14 +124,14 @@ impl super::core::NetworkEventLoop {
     pub fn xor_tie_breaker(
         query_name: &str,
         payloads: Vec<Vec<u8>>,
-        current_kyn: u64,
+        current_kyn: kinetic_kyn::types::CurrentKyn,
     ) -> Option<Vec<u8>> {
         if payloads.is_empty() {
             return None;
         }
 
         let mut kyn_bytes = [0u8; 32];
-        kyn_bytes[..8].copy_from_slice(&current_kyn.to_be_bytes());
+        kyn_bytes[..8].copy_from_slice(&current_kyn.as_u64().to_be_bytes());
 
         // Deduplicate payloads in-place
         let mut unique_payloads = payloads;
@@ -173,7 +173,7 @@ impl super::core::NetworkEventLoop {
         }
 
         if is_kid {
-            let current_time = kinetic_kyn::types::Kyn(current_kyn).to_ukyn(
+            let current_time = kinetic_kyn::types::Kyn(current_kyn.as_u64()).to_ukyn(
                 kinetic_core::constants::BEACON_GENESIS,
             ).0;
 
@@ -209,13 +209,13 @@ impl super::core::NetworkEventLoop {
                     if let ParsedPayload::HostRouting(record) = parsed_payload {
                         if crate::store::verification::verify_host_routing_record(
                             &record,
-                            kinetic_kyn::types::Kyn(current_kyn),
+                            *current_kyn,
                         )
                         .is_err()
                         {
                             return None;
                         }
-                        Some((p, u64::MAX - record.kyn.0)) // Sort by newest kyn
+                        Some((p, u64::MAX - record.kyn.as_u64())) // Sort by newest kyn
                     } else {
                         None
                     }
@@ -282,7 +282,7 @@ impl super::core::NetworkEventLoop {
                         }
                     };
 
-                    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.0, &reveal.beacon_signature, dev_mode) {
+                    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.as_u64(), &reveal.beacon_signature, dev_mode) {
                         tracing::warn!(
                             error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
                             "Skipping candidate: Invalid beacon_signature in tie-breaker"
@@ -299,7 +299,7 @@ impl super::core::NetworkEventLoop {
                         &reveal.pubkey.0,
                     ]);
 
-                    if current_kyn.saturating_sub(reveal.kyn.0)
+                    if current_kyn.as_u64().saturating_sub(reveal.kyn.as_u64())
                         > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
@@ -409,7 +409,7 @@ mod tests {
             name: "dummy.kin".to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            kyn: kinetic_kyn::types::Kyn(0),
+            kyn: kinetic_kyn::types::TargetKyn::from(0),
             beacon_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,
@@ -429,7 +429,7 @@ mod tests {
         let winner = NetworkEventLoop::xor_tie_breaker(
             "dummy.kin",
             vec![payload_a.clone(), payload_b.clone()],
-            0,
+            kinetic_kyn::types::CurrentKyn::from(0),
         );
         assert_eq!(winner.unwrap(), payload_b);
 
@@ -437,7 +437,7 @@ mod tests {
         let winner2 = NetworkEventLoop::xor_tie_breaker(
             "dummy.kin",
             vec![payload_a.clone(), payload_b.clone()],
-            kyn,
+            kinetic_kyn::types::CurrentKyn::from(kyn),
         );
         assert_eq!(winner2.unwrap(), payload_a);
     }

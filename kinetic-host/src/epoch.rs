@@ -56,7 +56,7 @@ pub async fn start_routing_publisher(
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            kyn: kinetic_kyn::types::Kyn(kyn),
+            kyn: kinetic_kyn::types::TargetKyn::from(kyn),
             host_signature: vec![],
         };
 

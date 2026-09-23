@@ -819,7 +819,7 @@ async fn auth_middleware(
                     kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
                 let current_kyn = kyn_provider.load_cached().map(|d| d.kyn()).unwrap_or(0);
 
-                if current_kyn > 0 && current_kyn > session.expiry_kyn {
+                if current_kyn > 0 && current_kyn > session.expiry_kyn.as_u64() {
                     tracing::warn!("Rejecting API request: Session token expired");
                     return Err(StatusCode::UNAUTHORIZED);
                 }

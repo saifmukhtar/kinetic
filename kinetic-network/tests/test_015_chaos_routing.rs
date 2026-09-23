@@ -30,7 +30,7 @@ async fn spawn_test_node(
         quic_listen_addrs: vec![],
         bootstrap_nodes,
         external_address: None,
-        initial_kyn: 1000,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),
         enable_mdns: false,
         enable_relay_server: false,
         enable_upnp: false,
@@ -98,7 +98,7 @@ async fn test_chaos_routing_partition() {
             name: test_key.to_string(),
             payload: vec![],
             salt: [0; 32],
-            kyn: kinetic_kyn::types::Kyn(1000),
+            kyn: kinetic_kyn::types::TargetKyn::from(1000),
             beacon_signature: "0".repeat(192),
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![0; 100],

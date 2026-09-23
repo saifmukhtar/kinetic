@@ -12,10 +12,10 @@ impl super::core::NetworkEventLoop {
         if self.disable_pow {
             return true;
         }
-        self.current_kyn > 0
+        self.current_kyn.as_u64() > 0
             && crate::pow::verify_p2p_pow(
                 peer_id,
-                kinetic_kyn::types::Kyn(self.current_kyn),
+                kinetic_kyn::types::Kyn(self.current_kyn.as_u64()),
                 difficulty,
             )
     }
@@ -118,7 +118,7 @@ impl super::core::NetworkEventLoop {
                 // Update LRU recency immediately
                 self.peer_registry.mark_connected(&peer_id);
                 if let Some(&expire_time) = self.banned_peers.peek(&peer_id) {
-                    if expire_time > self.current_kyn {
+                    if expire_time > self.current_kyn.as_u64() {
                         let err = kinetic_core::error::P2pError::BannedPeerConnectionAttempt(
                             peer_id.to_string(),
                         );
@@ -138,7 +138,7 @@ impl super::core::NetworkEventLoop {
                         .insert(peer_id, web_time::Instant::now());
                 }
 
-                if self.current_kyn == 0 && !is_bootstrap && !self.disable_pow {
+                if self.current_kyn.as_u64() == 0 && !is_bootstrap && !self.disable_pow {
                     tracing::debug!(
                         "Peer {} connected during uninitialized KYN Provider time, disconnecting",
                         peer_id
@@ -161,7 +161,7 @@ impl super::core::NetworkEventLoop {
                         let _permit = pow_semaphore.acquire().await;
                         let (valid_server, valid_client) =
                             crate::event_loop::utils::spawn_blocking(move || {
-                                let kyn = kinetic_kyn::types::Kyn(current_kyn);
+                                let kyn = kinetic_kyn::types::Kyn(current_kyn.as_u64());
                                 let server = crate::pow::verify_p2p_pow(
                                     &peer_id_clone,
                                     kyn,

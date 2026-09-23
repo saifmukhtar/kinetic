@@ -31,25 +31,25 @@ pub(crate) fn verify_host_routing_record(
 
     // Enforce KYN Provider network time freshness — reject records older than 100 kyns (~5 minutes),
     // and reject records from the future to prevent pinning via u64::MAX timestamps.
-    if current_kyn.0.saturating_sub(record.kyn.0) > 100 {
+    if current_kyn.0.saturating_sub(record.kyn.as_u64()) > 100 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             &record.host_id,
             &format!(
                 "HostRoutingRecord is stale ({} kyns old)",
-                current_kyn.0.saturating_sub(record.kyn.0)
+                current_kyn.0.saturating_sub(record.kyn.as_u64())
             ),
         );
         return Err(err);
     }
     // Allow a 2-kyn (~6 seconds) leeway for network clock drift before rejecting future timestamps.
-    if record.kyn.0 > current_kyn.0 + 2 {
+    if record.kyn.as_u64() > current_kyn.0 + 2 {
         let err = KineticStoreError::InvalidHostRouteSignature;
         err.log_warning(
             &record.host_id,
             &format!(
                 "HostRoutingRecord is too far in the future ({} kyns ahead, max 2 allowed)",
-                record.kyn.0.saturating_sub(current_kyn.0)
+                record.kyn.as_u64().saturating_sub(current_kyn.0)
             ),
         );
         return Err(err);
@@ -113,7 +113,7 @@ fn get_u64_from_db(
 /// * Returns `KineticStoreError::InvalidBeaconHex` if the KYN Provider randomness is not valid hex.
 pub(crate) fn compute_required_iterations(
     reveal: &kinetic_core::types::Reveal,
-    current_kyn: u64,
+    current_kyn: kinetic_kyn::types::CurrentKyn,
     engine: &dyn kinetic_core::traits::VdfEngine,
 ) -> Result<u64, KineticStoreError> {
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&reveal.name) {
@@ -128,7 +128,7 @@ pub(crate) fn compute_required_iterations(
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
 
     let dev_mode = kinetic_core::config::is_dev_mode();
-    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.0, &reveal.beacon_signature, dev_mode) {
+    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.as_u64(), &reveal.beacon_signature, dev_mode) {
         let err = KineticStoreError::InvalidBeaconSignature;
         err.log_warning(
             &reveal.name,
@@ -153,7 +153,7 @@ pub(crate) fn compute_required_iterations(
             }
         };
 
-        if !kinetic_kyn::beacon::verify_beacon_signature(prev.kyn.0, &prev.beacon_signature, dev_mode) {
+        if !kinetic_kyn::beacon::verify_beacon_signature(prev.kyn.as_u64(), &prev.beacon_signature, dev_mode) {
             tracing::warn!(
                 "Invalid PreviousProof attached for {}: Invalid Drand BLS signature. Falling back to full difficulty.",
                 reveal.name
@@ -177,13 +177,13 @@ pub(crate) fn compute_required_iterations(
         let prev_req = consensus_math.iterations(&reveal.name);
 
         let paused_kyns = if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
-            state.paused_kyns_since(prev.kyn)
+            state.paused_kyns_since(*prev.kyn)
         } else {
             0
         };
 
-        let effective_age = current_kyn
-            .saturating_sub(prev.kyn.0)
+        let effective_age = current_kyn.as_u64()
+            .saturating_sub(prev.kyn.as_u64())
             .saturating_sub(paused_kyns);
         let is_not_too_old = effective_age <= kinetic_core::types::RESQUARING_EPOCH_KYNS * 2;
 
@@ -250,7 +250,7 @@ pub(crate) fn compute_required_iterations(
 pub(crate) fn verify_reveal(
     reveal: &kinetic_core::types::Reveal,
     storage: &std::sync::Arc<dyn kinetic_core::traits::StorageEngine>,
-    current_kyn: u64,
+    current_kyn: kinetic_kyn::types::CurrentKyn,
     engine: &std::sync::Arc<dyn kinetic_core::traits::VdfEngine>,
 ) -> Result<(), KineticStoreError> {
     if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()
@@ -282,7 +282,7 @@ pub(crate) fn verify_reveal(
         return Err(err);
     }
 
-    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.0, &reveal.beacon_signature, dev_mode) {
+    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.as_u64(), &reveal.beacon_signature, dev_mode) {
         let err = KineticStoreError::InvalidBeaconSignature;
         err.log_warning(
             &reveal.name,
@@ -317,7 +317,7 @@ pub(crate) fn verify_reveal(
 
     if let Some(commit_kyn) = commit_kyn {
         if !dev_mode
-            && current_kyn.saturating_sub(commit_kyn)
+            && current_kyn.as_u64().saturating_sub(commit_kyn)
                 < kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
         {
             let err = KineticStoreError::StaleReveal;
@@ -501,7 +501,7 @@ pub(crate) fn verify_authorized_manifest(
     auth_manifest: &kinetic_core::types::AuthorizedManifest,
     active_record: Option<&kinetic_core::types::NameRecord>,
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
-    current_kyn: u64,
+    current_kyn: kinetic_kyn::types::CurrentKyn,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {
         let err = KineticStoreError::NameNotFound;
@@ -547,7 +547,7 @@ pub(crate) fn verify_authorized_manifest(
         return Err(err);
     }
 
-    let current_time = kinetic_kyn::types::Kyn(current_kyn).to_ukyn(
+    let current_time = kinetic_kyn::types::Kyn(current_kyn.as_u64()).to_ukyn(
         kinetic_core::constants::BEACON_GENESIS,
     ).0;
 

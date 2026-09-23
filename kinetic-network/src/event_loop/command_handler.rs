@@ -97,7 +97,7 @@ impl super::core::NetworkEventLoop {
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
             Command::GetCurrentKyn { responder } => {
-                let _ = responder.send(self.current_kyn);
+                let _ = responder.send(self.current_kyn.as_u64());
             }
             Command::PublishRedundant {
                 name,

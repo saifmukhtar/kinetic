@@ -410,7 +410,7 @@ async fn run_daemon() -> Result<()> {
         enable_mdns: config.network.enable_mdns,
         enable_upnp: config.network.enable_upnp,
         enable_relay_server: config.network.enable_relay_server,
-        initial_kyn,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(initial_kyn),
         external_address: config
             .network
             .external_address
@@ -521,7 +521,7 @@ async fn run_daemon() -> Result<()> {
                                 if let Err(e) = kinetic_core::action::process_action_message(
                                     &mut action_state,
                                     msg,
-                                    kinetic_kyn::types::Kyn(0),
+                                    kinetic_kyn::types::CurrentKyn::from(0),
                                 ) {
                                     tracing::error!("Failed to apply synced action: {}", e);
                                 }

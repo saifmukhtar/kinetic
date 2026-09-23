@@ -24,7 +24,7 @@ async fn test_action_integration_halt() {
     let mut store = KineticRecordStore::new(
         local_peer_id,
         storage,
-        1000,
+        kinetic_kyn::types::InitialKyn::from(1000),
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
@@ -42,7 +42,7 @@ async fn test_action_integration_halt() {
         pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![1; 32]),
         salt: [0; 32],
         beacon_signature: "0000".to_string(), // invalid but will be rejected by halt first
-        kyn: kinetic_kyn::types::Kyn(1000),
+        kyn: kinetic_kyn::types::TargetKyn::from(1000),
         iterations: 1000,
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: vec![],

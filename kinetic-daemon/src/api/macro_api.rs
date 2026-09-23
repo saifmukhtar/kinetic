@@ -321,7 +321,7 @@ pub async fn handle_macro_register_name(
             name: fqdn.clone(),
             payload,
             salt,
-            kyn: kinetic_kyn::types::Kyn(drand_data.kyn()),
+            kyn: kinetic_kyn::types::TargetKyn::from(drand_data.kyn()),
             beacon_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
@@ -648,7 +648,7 @@ pub async fn handle_macro_renew_name(
             name: fqdn.clone(),
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
-            kyn: kinetic_kyn::types::Kyn(drand_data.kyn()),
+            kyn: kinetic_kyn::types::TargetKyn::from(drand_data.kyn()),
             beacon_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {

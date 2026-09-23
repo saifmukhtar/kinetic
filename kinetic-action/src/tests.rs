@@ -42,7 +42,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = ActionState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(kinetic_kyn::types::GenesisKyn::from(current_kyn));
 
         // Generate a new Sovereign Key
         let (new_root_sk, new_root_pubkey) = generate_key(123);
@@ -52,7 +52,7 @@ mod tests {
             action: NetworkAction::RotateSovereignKey {
                 new_key: kinetic_primitives::keypairs::SovereignPubKey(new_root_pubkey.clone()),
             },
-            timestamp_kyn: Kyn(current_kyn),
+            timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(current_kyn),
             sovereign_signatures: vec![],
         };
         rotate_msg
@@ -62,7 +62,7 @@ mod tests {
         let effect = process_action_message(
             &mut state,
             &rotate_msg,
-            rotate_msg.timestamp_kyn,
+            kinetic_kyn::types::CurrentKyn::from(*rotate_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
@@ -77,7 +77,7 @@ mod tests {
         // Action 2: Try halting the network using the OLD Sovereign key (should fail)
         let mut map_msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
-            timestamp_kyn: Kyn(current_kyn + 1), // Advance time so hash is different
+            timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(current_kyn + 1), // Advance time so hash is different
             sovereign_signatures: vec![],
         };
         map_msg.sovereign_signatures.push(sign_action(&map_msg, &root_sk)); // signed with old key
@@ -85,7 +85,7 @@ mod tests {
         let err = process_action_message(
             &mut state,
             &map_msg,
-            map_msg.timestamp_kyn,
+            kinetic_kyn::types::CurrentKyn::from(*map_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap_err();
@@ -98,7 +98,7 @@ mod tests {
         let effect = process_action_message(
             &mut state,
             &map_msg,
-            map_msg.timestamp_kyn,
+            kinetic_kyn::types::CurrentKyn::from(*map_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
@@ -118,7 +118,7 @@ mod tests {
 
             let msg = SignedNetworkAction {
                 action: action.clone(),
-                timestamp_kyn: Kyn(timestamp),
+                timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(timestamp),
                 sovereign_signatures: vec![], // Signatures aren't part of canonical hash
             };
 
@@ -144,7 +144,7 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = ActionState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(kinetic_kyn::types::GenesisKyn::from(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
         assert!(!state.is_halted);
@@ -152,7 +152,7 @@ mod tests {
 
         let mut halt_msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
-            timestamp_kyn: Kyn(current_kyn),
+            timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(current_kyn),
             sovereign_signatures: vec![],
         };
         halt_msg.sovereign_signatures.push(sign_action(&halt_msg, &root_sk));
@@ -160,7 +160,7 @@ mod tests {
         let effect = process_action_message(
             &mut state,
             &halt_msg,
-            halt_msg.timestamp_kyn,
+            kinetic_kyn::types::CurrentKyn::from(*halt_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
@@ -169,7 +169,7 @@ mod tests {
 
         let mut resume_msg = SignedNetworkAction {
             action: NetworkAction::EmergencyResume,
-            timestamp_kyn: Kyn(current_kyn + 1000),
+            timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(current_kyn + 1000),
             sovereign_signatures: vec![],
         };
         resume_msg
@@ -179,7 +179,7 @@ mod tests {
         let effect = process_action_message(
             &mut state,
             &resume_msg,
-            resume_msg.timestamp_kyn,
+            kinetic_kyn::types::CurrentKyn::from(*resume_msg.timestamp_kyn),
             &get_test_config(),
         )
         .unwrap();
@@ -198,25 +198,25 @@ mod tests {
             .unwrap()
             .as_secs();
 
-        let mut state = ActionState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(kinetic_kyn::types::GenesisKyn::from(current_kyn));
         state.active_sovereign_key = Some(root_pubkey);
 
         let mut msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
-            timestamp_kyn: Kyn(current_kyn),
+            timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(current_kyn),
             sovereign_signatures: vec![],
         };
         msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
         // First submission succeeds
         let effect =
-            process_action_message(&mut state, &msg, msg.timestamp_kyn, &get_test_config())
+            process_action_message(&mut state, &msg, kinetic_kyn::types::CurrentKyn::from(*msg.timestamp_kyn), &get_test_config())
                 .unwrap();
         assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
 
         // Resubmitting the exact same message triggers the new AlreadyExecuted taxonomy error
         let err =
-            process_action_message(&mut state, &msg, msg.timestamp_kyn, &get_test_config())
+            process_action_message(&mut state, &msg, kinetic_kyn::types::CurrentKyn::from(*msg.timestamp_kyn), &get_test_config())
                 .unwrap_err();
         assert!(
             matches!(err, crate::error::ActionError::AlreadyExecuted),
@@ -234,19 +234,19 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let mut state = ActionState::new(Kyn(current_kyn));
+        let mut state = ActionState::new(kinetic_kyn::types::GenesisKyn::from(current_kyn));
 
         // Create a message that is exactly MAX_AGE_KYNS + 1 old
         let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
         let mut msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
-            timestamp_kyn: Kyn(stale_kyn),
+            timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(stale_kyn),
             sovereign_signatures: vec![],
         };
         msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
-        let err = process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config())
+        let err = process_action_message(&mut state, &msg, kinetic_kyn::types::CurrentKyn::from(current_kyn), &get_test_config())
             .unwrap_err();
         assert!(matches!(err, crate::error::ActionError::StaleProposal));
     }

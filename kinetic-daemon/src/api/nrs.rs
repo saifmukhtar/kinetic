@@ -107,20 +107,20 @@ pub async fn handle_publish_record(
     let current_kyn = get_safe_current_kyn(&state).await.0;
 
     if current_kyn > 0 {
-        if reveal.kyn.0 > current_kyn {
+        if reveal.kyn.as_u64() > current_kyn {
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(format!(
                     "Reveal rejected: VDF kyn {} is in the future (current kyn: {}).",
-                    reveal.kyn.0, current_kyn
+                    reveal.kyn.as_u64(), current_kyn
                 )),
             ));
         }
-        let age = current_kyn - reveal.kyn.0;
+        let age = current_kyn - reveal.kyn.as_u64();
         if age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(format!(
                     "Reveal rejected: VDF kyn {} is {} kyns old (max allowed: {}). Please re-compute a fresh VDF proof.",
-                    reveal.kyn.0,
+                    reveal.kyn.as_u64(),
                     age,
                     kinetic_core::types::RESQUARING_EPOCH_KYNS
                 )),

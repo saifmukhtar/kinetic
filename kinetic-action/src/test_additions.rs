@@ -40,19 +40,19 @@ fn test_action_stale_rejection() {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let mut state = ActionState::new(Kyn(current_kyn));
+    let mut state = ActionState::new(kinetic_kyn::types::GenesisKyn::from(current_kyn));
 
     // Create a message that is exactly MAX_AGE_KYNS + 1 old
     let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
 
     let mut msg = SignedNetworkAction {
         action: NetworkAction::EmergencyHalt,
-        timestamp_kyn: Kyn(stale_kyn),
+        timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(stale_kyn),
         sovereign_signatures: vec![],
     };
     msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
     let err =
-        process_action_message(&mut state, &msg, Kyn(current_kyn), &get_test_config()).unwrap_err();
+        process_action_message(&mut state, &msg, kinetic_kyn::types::CurrentKyn::from(current_kyn), &get_test_config()).unwrap_err();
     assert!(matches!(err, crate::error::ActionError::StaleProposal));
 }

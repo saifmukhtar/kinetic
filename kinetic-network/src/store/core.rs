@@ -50,7 +50,7 @@ pub struct KineticRecordStore {
     pub accepted_reveals_timestamps:
         LruCache<String, std::collections::VecDeque<web_time::Instant>>,
     /// The current observed Drand kyn kyn.
-    pub current_kyn: u64,
+    pub current_kyn: kinetic_kyn::types::CurrentKyn,
     /// Configuration for rate limiting reveals
     pub max_reveals_per_hour: usize,
 }
@@ -77,7 +77,7 @@ impl KineticRecordStore {
     pub fn new(
         local_peer_id: PeerId,
         storage: Arc<dyn StorageEngine>,
-        initial_kyn: u64,
+        initial_kyn: kinetic_kyn::types::InitialKyn,
         lru_cache_size: NonZeroUsize,
         max_reveals_per_hour: usize,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
@@ -102,7 +102,7 @@ impl KineticRecordStore {
                         kinetic_core::types::NameRecord::Standard(reveal) => {
                             if let Ok(req) = super::verification::compute_required_iterations(
                                 reveal,
-                                initial_kyn,
+                                kinetic_kyn::types::CurrentKyn::from(initial_kyn.as_u64()),
                                 vdf_engine.as_ref(),
                             ) && reveal.iterations >= req
                             {
@@ -217,7 +217,7 @@ impl KineticRecordStore {
             reveals_by_name,
             last_heartbeats_by_name,
             accepted_reveals_timestamps: LruCache::new(lru_cache_size),
-            current_kyn: initial_kyn,
+            current_kyn: kinetic_kyn::types::CurrentKyn::from(initial_kyn.as_u64()),
             max_reveals_per_hour,
         }
     }
@@ -227,7 +227,7 @@ impl KineticRecordStore {
     /// `Reveal` records older than the resquaring epoch, and idle heartbeats
     /// older than 7 days (where applicable for infrastructure).
     pub fn prune(&mut self) {
-        let current_kyn = self.current_kyn;
+        let current_kyn = self.current_kyn.as_u64();
         let mut keys_to_delete = Vec::new();
 
         // 1. Scan and Prune Commitments from storage
@@ -260,7 +260,7 @@ impl KineticRecordStore {
         for (name, record) in &self.reveals_by_name {
             match record {
                 kinetic_core::types::NameRecord::Standard(reveal) => {
-                    let age = current_kyn.saturating_sub(reveal.kyn.0);
+                    let age = current_kyn.saturating_sub(reveal.kyn.as_u64());
                     if age > max_age_kyns {
                         expired_names.push(name.clone());
                         continue;
@@ -270,7 +270,7 @@ impl KineticRecordStore {
                         .last_heartbeats_by_name
                         .get(name)
                         .copied()
-                        .unwrap_or(reveal.kyn.0);
+                        .unwrap_or(reveal.kyn.as_u64());
                     let hb_age = current_kyn.saturating_sub(last_hb);
 
                     if hb_age > idle_timeout {
@@ -407,7 +407,7 @@ impl KineticRecordStore {
                         let mut key = Vec::with_capacity(KRS_COMMIT_PREFIX.len() + 32);
                         key.extend_from_slice(KRS_COMMIT_PREFIX);
                         key.extend_from_slice(&commitment.hash);
-                        let _ = self.storage.put(&key, &self.current_kyn.to_be_bytes());
+                        let _ = self.storage.put(&key, &self.current_kyn.as_u64().to_be_bytes());
                         return self
                             .inner
                             .put(r)
@@ -489,7 +489,7 @@ impl KineticRecordStore {
                     Ok(host_route) => {
                         match crate::store::verification::verify_host_routing_record(
                             &host_route,
-                            kinetic_kyn::types::Kyn(self.current_kyn),
+                            *self.current_kyn,
                         ) {
                             Ok(()) => {
                                 tracing::info!(
@@ -595,7 +595,7 @@ mod tests {
         let mut store = KineticRecordStore::new(
             peer_id,
             db_storage,
-            0,
+            0.into(),
             NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
@@ -621,7 +621,7 @@ mod tests {
         let mut store = KineticRecordStore::new(
             peer_id,
             db_storage.clone(),
-            1000000, // Very high drand kyn
+            1000000.into(), // Very high drand kyn
             NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
@@ -633,7 +633,7 @@ mod tests {
             name: name.to_string(),
             payload: vec![],
             salt: [0; 32],
-            kyn: kinetic_kyn::types::Kyn(0),
+            kyn: kinetic_kyn::types::TargetKyn::from(0),
             beacon_signature: String::new(),
             iterations: 1,
             vdf_proof: kinetic_types::vdf::VdfProof { proof_bytes: vec![] },
@@ -653,7 +653,7 @@ mod tests {
 
         assert!(store.get_fallback(name).is_some());
 
-        store.current_kyn += 300000;
+        store.current_kyn = kinetic_kyn::types::CurrentKyn::from(store.current_kyn.as_u64() + 300000);
         store.prune();
 
         // Wait for async deletion task to run
@@ -692,7 +692,7 @@ mod tests {
         let store = KineticRecordStore::new(
             peer_id,
             storage.clone(),
-            1000,
+            1000.into(),
             std::num::NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
@@ -720,7 +720,7 @@ mod tests {
         let mut store = KineticRecordStore::new(
             peer_id,
             storage,
-            1000,
+            1000.into(),
             std::num::NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
@@ -732,7 +732,7 @@ mod tests {
             name: "large.kin".to_string(),
             payload: large_payload,
             salt: [0; 32],
-            kyn: kinetic_kyn::types::Kyn(0),
+            kyn: kinetic_kyn::types::TargetKyn::from(0),
             beacon_signature: String::new(),
             iterations: 1,
             vdf_proof: kinetic_core::types::vdf::VdfProof { proof_bytes: vec![] },
@@ -762,7 +762,7 @@ mod tests {
         let mut store = KineticRecordStore::new(
             peer_id,
             storage,
-            100,
+            100.into(),
             std::num::NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,

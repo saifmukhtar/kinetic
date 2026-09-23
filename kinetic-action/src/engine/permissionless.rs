@@ -22,7 +22,7 @@ impl ActionEngine for PermissionlessEngine {
         &self,
         _state: &mut ActionState,
         _msg: &SignedNetworkAction,
-        _current_kyn: kinetic_kyn::types::Kyn,
+        _current_kyn: kinetic_kyn::types::CurrentKyn,
         _config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
         // In Permissionless mode, the network is perfectly immutable.
@@ -34,7 +34,7 @@ impl ActionEngine for PermissionlessEngine {
         &self,
         _state: &mut ActionState,
         _msg: &SignedNetworkAction,
-        _current_kyn: kinetic_kyn::types::Kyn,
+        _current_kyn: kinetic_kyn::types::CurrentKyn,
         _config: &ActionConfig,
     ) -> Option<ActionEffect> {
         unreachable!("Network action execution is permanently disabled in Permissionless mode")

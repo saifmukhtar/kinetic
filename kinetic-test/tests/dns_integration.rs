@@ -35,7 +35,7 @@ mod tests {
                 name: "testdns.kin".to_string(),
                 payload,
                 salt: [0u8; 32],
-                kyn: kinetic_kyn::types::Kyn(1000),
+                kyn: kinetic_kyn::types::TargetKyn::from(1000),
                 beacon_signature: "".to_string(),
                 iterations: 100000,
                 vdf_proof: VdfProof {

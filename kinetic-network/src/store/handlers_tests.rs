@@ -14,7 +14,7 @@ mod tests {
             name: name.to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            kyn: kinetic_kyn::types::Kyn(kyn),
+            kyn: kinetic_kyn::types::TargetKyn::from(kyn),
             beacon_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
@@ -42,7 +42,7 @@ mod tests {
         let store = KineticRecordStore::new(
             peer_id,
             storage.clone(),
-            100, // initial drand kyn
+            100.into(), // initial drand kyn
             std::num::NonZeroUsize::new(100).unwrap(),
             max_reveals,
             vdf_engine,

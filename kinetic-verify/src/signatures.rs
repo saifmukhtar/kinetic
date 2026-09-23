@@ -153,7 +153,7 @@ mod tests {
             name: "isolated-test.kin".to_string(),
             payload: vec![10, 20, 30],
             salt: [3u8; 32],
-            kyn: kinetic_kyn::types::Kyn(9999),
+            kyn: kinetic_kyn::types::TargetKyn::from(9999),
             beacon_signature: "aabbcc".to_string(),
             iterations: 500,
             vdf_proof: VdfProof {

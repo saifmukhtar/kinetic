@@ -10,9 +10,9 @@ use serde::Serialize;
 #[derive(Serialize)]
 pub struct PausePeriod {
     /// The exact Kyn when the network was halted.
-    pub start_kyn: u64,
+    pub start_kyn: kinetic_kyn::types::StartKyn,
     /// The exact Kyn when the network was resumed.
-    pub end_kyn: u64,
+    pub end_kyn: kinetic_kyn::types::EndKyn,
 }
 
 /// High-level metrics summarizing the action state.
@@ -27,9 +27,9 @@ pub struct ActionMetrics {
 #[derive(Serialize)]
 pub struct ActionStatusResponse {
     /// Genesis Kyn when action tracking started.
-    pub genesis_kyn: u64,
+    pub genesis_kyn: kinetic_kyn::types::GenesisKyn,
     /// The current exact network Kyn.
-    pub current_kyn: u64,
+    pub current_kyn: kinetic_kyn::types::CurrentKyn,
     /// The mathematically verified uptime age of the network in kyns.
     pub active_kyn_age: u64,
     /// Active ML-DSA-65 root public key controlling the network (hex encoded).
@@ -37,7 +37,7 @@ pub struct ActionStatusResponse {
     /// Master boolean flag if the network is currently paused.
     pub is_halted: bool,
     /// The exact Kyn when the network was halted (if currently halted).
-    pub halt_start_kyn: Option<u64>,
+    pub halt_start_kyn: Option<kinetic_kyn::types::HaltStartKyn>,
     /// Total number of drand kyns the network has been paused for since genesis.
     pub total_paused_kyns: u64,
     /// The last time the network was paused (if ever).
@@ -83,15 +83,15 @@ pub async fn handle_get_action_status(
     };
 
     let active_kyn_age = current_kyn
-        .saturating_sub(action_state.genesis_kyn.0)
+        .saturating_sub(action_state.genesis_kyn.as_u64())
         .saturating_sub(action_state.total_paused_kyns);
 
     let last_pause = action_state
         .pause_history
         .last()
         .map(|(start, end)| PausePeriod {
-            start_kyn: start.0,
-            end_kyn: end.0,
+            start_kyn: *start,
+            end_kyn: *end,
         });
 
     let metrics = ActionMetrics {
@@ -99,12 +99,12 @@ pub async fn handle_get_action_status(
     };
 
     Ok(Json(ActionStatusResponse {
-        genesis_kyn: action_state.genesis_kyn.0,
-        current_kyn,
+        genesis_kyn: action_state.genesis_kyn,
+        current_kyn: current_kyn.into(),
         active_kyn_age,
         active_sovereign_key_hex: active_key_hex,
         is_halted: action_state.is_halted,
-        halt_start_kyn: action_state.halt_start_kyn.map(|k| k.0),
+        halt_start_kyn: action_state.halt_start_kyn,
         total_paused_kyns: action_state.total_paused_kyns,
         last_pause,
         metrics,
@@ -152,7 +152,7 @@ pub async fn handle_publish_action(
         let res = kinetic_core::action::process_action_message(
             &mut action_state,
             &msg,
-            kinetic_kyn::types::Kyn(0), // Doesn't matter because it relies on signed_timestamp anyway
+            kinetic_kyn::types::CurrentKyn::from(0), // Doesn't matter because it relies on signed_timestamp anyway
         );
         match res {
             Ok(_) => {

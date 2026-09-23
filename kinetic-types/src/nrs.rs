@@ -50,7 +50,7 @@ pub struct HostRoutingRecord {
     /// Currently assigned P2P network peer ID.
     pub current_peer_id: String,
     /// The Kyn when this record was created.
-    pub kyn: kinetic_kyn::types::Kyn,
+    pub kyn: kinetic_kyn::types::TargetKyn,
     /// Host signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
     pub host_signature: Vec<u8>,
 }

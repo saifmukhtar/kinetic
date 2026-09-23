@@ -31,6 +31,73 @@ pub struct UKyn(pub u64);
 #[serde(transparent)]
 pub struct Kyn(pub u64);
 
+macro_rules! define_nested_kyns {
+    ( $(
+        $(#[$meta:meta])*
+        $type_name:ident
+    ),* ) => {
+        $(
+            $(#[$meta])*
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+            #[serde(transparent)]
+            pub struct $type_name(pub Kyn);
+
+            impl $type_name {
+                /// Extracts the raw u64 network tick directly.
+                pub fn as_u64(&self) -> u64 {
+                    (self.0).0
+                }
+            }
+
+            impl std::ops::Deref for $type_name {
+                type Target = Kyn;
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
+
+            impl From<Kyn> for $type_name {
+                fn from(kyn: Kyn) -> Self {
+                    Self(kyn)
+                }
+            }
+            
+            impl From<u64> for $type_name {
+                fn from(val: u64) -> Self {
+                    Self(Kyn(val))
+                }
+            }
+
+            impl fmt::Display for $type_name {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    write!(f, "{}", (self.0).0)
+                }
+            }
+        )*
+    };
+}
+
+define_nested_kyns! {
+    /// A cryptographic target or mathematical seed bound to a specific Kyn.
+    TargetKyn,
+    /// A point-in-time timestamp representing when an action occurred.
+    TimestampKyn,
+    /// The absolute genesis point of the network.
+    GenesisKyn,
+    /// A timestamp marking when an emergency network halt began.
+    HaltStartKyn,
+    /// The current Kyn of the local network state (merged with LatestKyn).
+    CurrentKyn,
+    /// A deadline or expiration threshold.
+    ExpiryKyn,
+    /// The starting Kyn of a specific operational window (merged with FromKyn).
+    StartKyn,
+    /// The ending Kyn of a specific operational window.
+    EndKyn,
+    /// The Kyn representing a session's initialization.
+    InitialKyn
+}
+
 /// Represents a specific point in time on the Kinetic network using branded units.
 ///
 /// # Time Hierarchy

@@ -261,7 +261,7 @@ pub async fn run_node() -> Result<()> {
         enable_mdns: config.network.enable_mdns,
         enable_upnp: config.network.enable_upnp,
         enable_relay_server: config.network.enable_relay_server,
-        initial_kyn,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(initial_kyn),
         external_address: config
             .network
             .external_address
@@ -356,7 +356,7 @@ pub async fn run_node() -> Result<()> {
                                 if let Err(e) = kinetic_core::action::process_action_message(
                                     &mut action_state,
                                     msg,
-                                    kinetic_kyn::types::Kyn(0),
+                                    kinetic_kyn::types::CurrentKyn::from(0),
                                 ) {
                                     tracing::error!("Failed to apply synced action: {}", e);
                                 }
@@ -416,7 +416,7 @@ pub async fn run_node() -> Result<()> {
                         gossip_action_path.clone(),
                         Some(gossip_network_client.clone()),
                         Some(gossip_storage.clone()),
-                        current_kyn,
+                        kinetic_kyn::types::CurrentKyn::from(current_kyn),
                     );
                 } else if opcode == kinetic_types::network::NetworkOpcode::Kyn as u8
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)

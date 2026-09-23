@@ -83,7 +83,7 @@ impl super::core::NetworkEventLoop {
             incoming_proxy_tx,
             gossip_tx,
             bad_vdf_counts: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
-            current_kyn: config.initial_kyn,
+            current_kyn: kinetic_kyn::types::CurrentKyn::from(config.initial_kyn.as_u64()),
             kyn_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers,
@@ -104,7 +104,7 @@ impl super::core::NetworkEventLoop {
                         {
                             let expire =
                                 u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
-                            let now = config.initial_kyn;
+                            let now = config.initial_kyn.as_u64();
                             if expire > now {
                                 peers.put(peer_id, expire);
                             } else {

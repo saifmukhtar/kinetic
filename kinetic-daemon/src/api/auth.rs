@@ -13,7 +13,7 @@ pub struct CreateSessionRequest {
     /// The requested scopes for the session (e.g., ["Publish", "Vdf"]).
     pub scopes: Vec<String>,
     /// The Kinetic Network Time (Kyn) when this token expires.
-    pub expiry_kyn: u64,
+    pub expiry_kyn: kinetic_kyn::types::ExpiryKyn,
 }
 
 /// Represents a persistent session token for an application.
@@ -30,7 +30,7 @@ pub struct AppSession {
     /// Unix timestamp of when the session was created.
     pub created_at: u64,
     /// The Kinetic Network Time (Kyn) when this token expires.
-    pub expiry_kyn: u64,
+    pub expiry_kyn: kinetic_kyn::types::ExpiryKyn,
 }
 
 /// Response payload for listing all active sessions.

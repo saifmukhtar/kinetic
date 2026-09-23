@@ -17,7 +17,7 @@ fn test_memory_store_bloat() {
     let mut store = KineticRecordStore::new(
         peer_id,
         storage,
-        0,
+        kinetic_kyn::types::InitialKyn::from(0),
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
@@ -32,7 +32,7 @@ fn test_memory_store_bloat() {
                 name,
                 salt: [0; 32],
                 beacon_signature: String::new(),
-                kyn: kinetic_kyn::types::Kyn(100),
+                kyn: kinetic_kyn::types::TargetKyn::from(100),
                 iterations: 100,
                 vdf_proof: kinetic_core::types::VdfProof {
                     proof_bytes: vec![],

@@ -8,7 +8,7 @@ fn test_reveal_invalid_names() {
         name: String::new(),
         payload: vec![],
         salt: [0; 32],
-        kyn: kinetic_kyn::types::Kyn(1000),
+        kyn: kinetic_kyn::types::TargetKyn::from(1000),
         beacon_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {

@@ -48,7 +48,7 @@ pub struct SignedNetworkAction {
     /// Target network action payload.
     pub action: NetworkAction,
     /// Network timestamp in drand kyns when the proposal was signed.
-    pub timestamp_kyn: kinetic_kyn::types::Kyn,
+    pub timestamp_kyn: kinetic_kyn::types::TimestampKyn,
     /// The Sovereign signatures authorizing this action.
     pub sovereign_signatures: Vec<SovereignSignature>,
 }

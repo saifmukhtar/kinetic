@@ -15,7 +15,7 @@ mod tests {
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            kyn: kinetic_kyn::types::Kyn(stale_pulse),
+            kyn: kinetic_kyn::types::TargetKyn::from(stale_pulse),
             host_signature: vec![],
         };
 
@@ -40,7 +40,7 @@ mod tests {
         let record = HostRoutingRecord {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            kyn: kinetic_kyn::types::Kyn(recent_pulse),
+            kyn: kinetic_kyn::types::TargetKyn::from(recent_pulse),
             host_signature: vec![],
         };
 
@@ -66,7 +66,7 @@ mod tests {
             name: "test.kinetic".to_string(),
             payload: vec![],
             salt: [0u8; 32],
-            kyn: kinetic_kyn::types::Kyn(100),
+            kyn: kinetic_kyn::types::TargetKyn::from(100),
             beacon_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {

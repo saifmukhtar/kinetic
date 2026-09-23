@@ -271,7 +271,7 @@ mod tests {
             name: "validname.kin".to_string(),
             payload: vec![1, 2, 3],
             salt: [0; 32],
-            kyn: kinetic_kyn::types::Kyn(100),
+            kyn: kinetic_kyn::types::TargetKyn::from(100),
             beacon_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {

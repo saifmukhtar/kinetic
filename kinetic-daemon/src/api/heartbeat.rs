@@ -17,7 +17,7 @@ pub struct HeartbeatStatusResponse {
     /// The calculated status (Active, Stale, Idle).
     pub status: String,
     /// The Kyn number of the last accepted heartbeat on the DHT.
-    pub latest_kyn: u64,
+    pub latest_kyn: kinetic_kyn::types::CurrentKyn,
     /// The number of Kyns this name has been idle.
     pub kyns_idle: u64,
 }
@@ -26,7 +26,7 @@ pub struct HeartbeatStatusResponse {
 #[derive(Serialize)]
 pub struct HeartbeatsResponse {
     /// The current network Kyn.
-    pub current_kyn: u64,
+    pub current_kyn: kinetic_kyn::types::CurrentKyn,
     /// Status of each locally owned name.
     pub names: Vec<HeartbeatStatusResponse>,
 }
@@ -37,19 +37,19 @@ const ACTIVE_HEARTBEAT_MAX_KYNS: u64 = 200;
 const STALE_HEARTBEAT_MAX_KYNS: u64 = 28_800;
 
 /// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
-async fn get_safe_current_kyn(state: &ApiState) -> u64 {
+async fn get_safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::CurrentKyn {
     if let Ok(kyn) = state.network.get_current_kyn().await
         && kyn > 0
     {
-        return kyn;
+        return kinetic_kyn::types::CurrentKyn::from(kyn);
     }
 
     let kyn_provider =
         kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
     use kinetic_core::traits::KynProvider;
     match kyn_provider.load_cached() {
-        Ok(kyn) if kyn.kyn() > 0 => kyn.kyn(),
-        _ => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
+        Ok(kyn) if kyn.kyn() > 0 => kinetic_kyn::types::CurrentKyn::from(kyn.kyn()),
+        _ => kinetic_kyn::types::CurrentKyn::from(kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0),
     }
 }
 
@@ -89,7 +89,7 @@ pub async fn handle_get_heartbeats(
             match network_res {
                 Ok(bytes) => {
                     if let Ok(hb) = serde_json::from_slice::<Heartbeat>(&bytes) {
-                        let age = current_kyn.saturating_sub(hb.latest_kyn.0);
+                        let age = current_kyn.as_u64().saturating_sub(hb.latest_kyn.0);
                         let status = if age <= ACTIVE_HEARTBEAT_MAX_KYNS {
                             "Active"
                         } else if age <= STALE_HEARTBEAT_MAX_KYNS {
@@ -100,14 +100,14 @@ pub async fn handle_get_heartbeats(
                         statuses.push(HeartbeatStatusResponse {
                             name,
                             status: status.to_string(),
-                            latest_kyn: hb.latest_kyn.0,
+                            latest_kyn: kinetic_kyn::types::CurrentKyn::from(hb.latest_kyn.0),
                             kyns_idle: age,
                         });
                     } else {
                         statuses.push(HeartbeatStatusResponse {
                             name,
                             status: "Unknown (Parse Error)".to_string(),
-                            latest_kyn: 0,
+                            latest_kyn: kinetic_kyn::types::CurrentKyn::from(0),
                             kyns_idle: 0,
                         });
                     }
@@ -116,7 +116,7 @@ pub async fn handle_get_heartbeats(
                     statuses.push(HeartbeatStatusResponse {
                         name,
                         status: "Idle (Not Found on DHT)".to_string(),
-                        latest_kyn: 0,
+                        latest_kyn: kinetic_kyn::types::CurrentKyn::from(0),
                         kyns_idle: 0,
                     });
                 }
@@ -151,7 +151,7 @@ pub async fn handle_post_heartbeat(
 
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
-        latest_kyn: kinetic_kyn::types::Kyn(current_kyn),
+        latest_kyn: kinetic_kyn::types::Kyn(current_kyn.as_u64()),
         owner_signature: vec![],
         authorization: None,
     };
@@ -255,7 +255,7 @@ pub async fn handle_post_fat_heartbeat(
 
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
-        latest_kyn: kinetic_kyn::types::Kyn(current_kyn),
+        latest_kyn: kinetic_kyn::types::Kyn(current_kyn.as_u64()),
         owner_signature: vec![],
         authorization: Some(Box::new(req.authorized_manifest)),
     };

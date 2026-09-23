@@ -18,7 +18,7 @@ fn create_base_config() -> NetworkConfig {
         quic_listen_addrs: vec![],
         bootstrap_nodes: vec![],
         external_address: None,
-        initial_kyn: 0,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(0),
         enable_mdns: false,
         enable_relay_server: false,
         enable_upnp: false,

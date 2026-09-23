@@ -60,7 +60,7 @@ pub enum ActionEffect {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActionState {
     /// Genesis Kyn when action tracking started.
-    pub genesis_kyn: kinetic_kyn::types::Kyn,
+    pub genesis_kyn: kinetic_kyn::types::GenesisKyn,
     /// Active Sovereign public key controlling the network.
     pub active_sovereign_key: Option<Vec<u8>>,
     /// Master boolean flag if the network is currently paused.
@@ -68,13 +68,13 @@ pub struct ActionState {
     pub is_halted: bool,
     /// The exact Kyn when the network was halted (if currently halted).
     #[serde(default)]
-    pub halt_start_kyn: Option<kinetic_kyn::types::Kyn>,
+    pub halt_start_kyn: Option<kinetic_kyn::types::HaltStartKyn>,
     /// Total number of KineticTime kyns the network has been paused for since genesis.
     #[serde(default)]
     pub total_paused_kyns: u64,
     /// Historical timeline of all network pauses (start_kyn, end_kyn).
     #[serde(default)]
-    pub pause_history: Vec<(kinetic_kyn::types::Kyn, kinetic_kyn::types::Kyn)>,
+    pub pause_history: Vec<(kinetic_kyn::types::StartKyn, kinetic_kyn::types::EndKyn)>,
     #[serde(default)]
     /// Actions that have already been executed (and their execution timestamps).
     pub executed_hashes: HashMap<Hash256, kinetic_kyn::types::Kyn>,
@@ -114,16 +114,16 @@ impl ActionState {
     pub fn paused_kyns_since(&self, target_kyn: kinetic_kyn::types::Kyn) -> u64 {
         let mut total = 0;
         for &(start, end) in &self.pause_history {
-            if end <= target_kyn {
+            if end.as_u64() <= target_kyn.0 {
                 // Pause happened entirely before the target kyn, ignore.
                 continue;
             }
-            if start >= target_kyn {
+            if start.as_u64() >= target_kyn.0 {
                 // Pause happened entirely after the target kyn, add full duration.
-                total += end.0.saturating_sub(start.0);
+                total += end.as_u64().saturating_sub(start.as_u64());
             } else {
                 // Pause started before target kyn, but ended after. Only add the overlapping part.
-                total += end.0.saturating_sub(target_kyn.0);
+                total += end.as_u64().saturating_sub(target_kyn.0);
             }
         }
         total
@@ -138,7 +138,7 @@ mod tests {
 
     fn mock_state() -> ActionState {
         ActionState {
-            genesis_kyn: Kyn(0),
+            genesis_kyn: kinetic_kyn::types::GenesisKyn::from(0),
             active_sovereign_key: None,
             is_halted: false,
             halt_start_kyn: None,
@@ -154,7 +154,7 @@ mod tests {
     fn test_pause_history_double_mapping_flaw() {
         let mut state = mock_state();
         // Pause happens between kyns 1000 and 1100 (100 kyns)
-        state.pause_history.push((Kyn(1000), Kyn(1100)));
+        state.pause_history.push((kinetic_kyn::types::StartKyn::from(1000), kinetic_kyn::types::EndKyn::from(1100)));
 
         // Name is registered AFTER the pause, at kyn 2000
         let target_kyn = 2000;
@@ -167,9 +167,9 @@ mod tests {
     fn test_pause_history_renewal_in_the_middle() {
         let mut state = mock_state();
         // Pause 1: kyns 1000 to 1100 (100 kyns)
-        state.pause_history.push((Kyn(1000), Kyn(1100)));
+        state.pause_history.push((kinetic_kyn::types::StartKyn::from(1000), kinetic_kyn::types::EndKyn::from(1100)));
         // Pause 2: kyns 3000 to 3100 (100 kyns)
-        state.pause_history.push((Kyn(3000), Kyn(3100)));
+        state.pause_history.push((kinetic_kyn::types::StartKyn::from(3000), kinetic_kyn::types::EndKyn::from(3100)));
 
         // User renewed the name at kyn 2000
         // (After pause 1, but before pause 2)
@@ -183,9 +183,9 @@ mod tests {
     fn test_pause_history_back_to_back_pauses() {
         let mut state = mock_state();
         // Pause 1: kyns 1000 to 1100 (100 kyns)
-        state.pause_history.push((Kyn(1000), Kyn(1100)));
+        state.pause_history.push((kinetic_kyn::types::StartKyn::from(1000), kinetic_kyn::types::EndKyn::from(1100)));
         // Pause 2: kyns 3000 to 3100 (100 kyns)
-        state.pause_history.push((Kyn(3000), Kyn(3100)));
+        state.pause_history.push((kinetic_kyn::types::StartKyn::from(3000), kinetic_kyn::types::EndKyn::from(3100)));
 
         // Name was registered before BOTH pauses, at kyn 500
         let target_pulse = 500;
@@ -198,7 +198,7 @@ mod tests {
     fn test_pause_history_overlapping_pause() {
         let mut state = mock_state();
         // Pause: kyns 1000 to 1100 (100 kyns)
-        state.pause_history.push((Kyn(1000), Kyn(1100)));
+        state.pause_history.push((kinetic_kyn::types::StartKyn::from(1000), kinetic_kyn::types::EndKyn::from(1100)));
 
         // Name was registered *during* the pause, at kyn 1050
         let target_pulse = 1050;

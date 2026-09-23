@@ -35,7 +35,7 @@ fn test_xor_eclipse_routing() {
         name: name.to_string(),
         salt: [0u8; 32],
         beacon_signature: beacon_signature.clone(),
-        kyn: kinetic_kyn::types::Kyn(kyn),
+        kyn: kinetic_kyn::types::TargetKyn::from(kyn),
         iterations,
         vdf_proof: real_vdf_proof,
         pubkey: pubkey.clone(),
@@ -62,7 +62,7 @@ fn test_xor_eclipse_routing() {
     let winner = NetworkEventLoop::xor_tie_breaker(
         name,
         vec![real_bytes.clone(), adversarial_bytes.clone()],
-        kyn,
+        kyn.into(),
     );
 
     // The tie breaker should pick the REAL bytes, because the adversarial bytes fail VDF verification.

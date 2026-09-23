@@ -30,7 +30,7 @@ async fn setup_node_with_proxy(
             .into_iter()
             .map(|s| s.parse().unwrap())
             .collect(),
-        initial_kyn: 1000,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),
         mode: kinetic_network::NetworkMode::Core,
 
         seed_domain: vec![],

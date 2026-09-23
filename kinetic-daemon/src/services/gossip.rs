@@ -74,7 +74,7 @@ pub fn start_gossip_processor(
                             match kinetic_core::action::process_action_message(
                                 &mut state,
                                 &signed_msg,
-                                kinetic_kyn::types::Kyn(current_kyn),
+                                kinetic_kyn::types::CurrentKyn::from(current_kyn),
                             ) {
                                 Ok(Some(effect)) => {
                                     is_valid = true;

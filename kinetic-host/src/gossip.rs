@@ -48,7 +48,7 @@ pub async fn start_gossip_listener(
                     match kinetic_core::action::process_action_message(
                         &mut state,
                         &signed_msg,
-                        kinetic_kyn::types::Kyn(current_kyn),
+                        kinetic_kyn::types::CurrentKyn::from(current_kyn),
                     ) {
                         Ok(Some(effect)) => {
                             tracing::info!("Action state updated via gossip. Effect: {:?}", effect);
