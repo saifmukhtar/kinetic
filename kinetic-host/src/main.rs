@@ -54,7 +54,7 @@ use tokio::sync::watch;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_core::drand::RawKyn;
+use kinetic_kyn::beacon::RawKyn;
 use kinetic_network::client::time_oracle::TimeOracleProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
@@ -147,7 +147,7 @@ async fn run_host() -> Result<()> {
     // 6. Enforce Time Oracle beacon availability on boot (unless in dev mode, which loads a mock cache)
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
+            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn());
             kyn
         }
         Err(e) => {
@@ -157,7 +157,7 @@ async fn run_host() -> Result<()> {
         }
     };
 
-    let initial_kyn = initial_kyn.kyn;
+    let initial_kyn = initial_kyn.kyn();
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity (The Permanent Host Key)

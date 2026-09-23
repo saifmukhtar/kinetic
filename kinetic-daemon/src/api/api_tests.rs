@@ -209,8 +209,8 @@ mod tests {
         let (app, _, storage) = setup_test_app().await;
 
         // Mock current KYN Time Oracle epoch to 10_000_000 (must be > RESQUARING_EPOCH_KYNS)
-        let mock_kyn = kinetic_core::drand::RawKyn {
-            kyn: 10_000_000,
+        let mock_kyn = kinetic_kyn::beacon::RawKyn {
+            beacon_idx: 10_000_000,
             randomness: "0".repeat(192),
             signature: "0".repeat(192),
             is_from_cache: true,

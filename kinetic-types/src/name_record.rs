@@ -4,8 +4,6 @@
 //!
 //! 1. **Standard Names** ([`NameRecord::Standard`]): Registered trustlessly via Proof of Patience
 //!    and Verifiable Delay Function (VDF) computation. Ownership is proven via the reveal record.
-//! 2. **Infrastructure Names** ([`NameRecord::Infra`]): Immortal protocol names (e.g. `seed.kin`)
-//!    mapped by the Sovereign key. They are exempt from heartbeats and PoW takeover.
 //!
 //! To maintain active routing and prove name liveness, standard owners periodically publish [`Heartbeat`]
 //! proofs signed with their `DelegatedPrivKey`s (or `ControllerPrivKey`s).
@@ -17,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// Represents a heartbeat proof indicating that a `.kin` name is actively maintained by its owner.
 ///
 /// The network requires heartbeats to ensure that abandoned names do not permanently 
-/// pollute the active routing table (except for Infra names, which are immortal and do not require heartbeats).
+/// pollute the active routing table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Heartbeat {

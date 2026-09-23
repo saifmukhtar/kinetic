@@ -268,7 +268,7 @@ pub async fn handle_macro_register_name(
             use kinetic_core::traits::KynProvider;
 
             match kyn_provider.load_cached() {
-                Ok(kyn) => kyn.kyn,
+                Ok(kyn) => kyn.kyn(),
                 Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
             }
         };
@@ -321,7 +321,7 @@ pub async fn handle_macro_register_name(
             name: fqdn.clone(),
             payload,
             salt,
-            kyn: kinetic_kyn::types::Kyn(drand_data.kyn),
+            kyn: kinetic_kyn::types::Kyn(drand_data.kyn()),
             beacon_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
@@ -648,7 +648,7 @@ pub async fn handle_macro_renew_name(
             name: fqdn.clone(),
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
-            kyn: kinetic_kyn::types::Kyn(drand_data.kyn),
+            kyn: kinetic_kyn::types::Kyn(drand_data.kyn()),
             beacon_signature: drand_data.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {

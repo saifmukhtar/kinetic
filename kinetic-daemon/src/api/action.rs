@@ -77,7 +77,7 @@ pub async fn handle_get_action_status(
             kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
         use kinetic_core::traits::KynProvider;
         match kyn_provider.load_cached() {
-            Ok(kyn) => kyn.kyn,
+            Ok(kyn) => kyn.kyn(),
             Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0, // Fallback to OS clock if DB is completely empty (genesis)
         }
     };
@@ -139,9 +139,9 @@ pub async fn handle_publish_action(
             kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
 
         match kyn_provider.load_cached() {
-            Ok(kyn) => kyn.kyn,
+            Ok(kyn) => kyn.kyn(),
             Err(_) => match kyn_provider.fetch_latest().await {
-                Ok(kyn) => kyn.kyn,
+                Ok(kyn) => kyn.kyn(),
                 Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
             },
         }

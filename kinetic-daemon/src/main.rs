@@ -338,7 +338,7 @@ async fn run_daemon() -> Result<()> {
     );
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
+            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn());
             kyn
         }
         Err(e) => {
@@ -346,10 +346,10 @@ async fn run_daemon() -> Result<()> {
             warn!(error_code = err.code(), "{}", err);
             let err2 = kinetic_core::error::KynProviderError::RegistrationDisabled;
             warn!(error_code = err2.code(), "{}", err2);
-            kinetic_core::drand::RawKyn::unavailable()
+            kinetic_kyn::beacon::RawKyn::unavailable()
         }
     };
-    let initial_kyn = initial_kyn.kyn;
+    let initial_kyn = initial_kyn.kyn();
 
     // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately
     // without having to wait for the 30-40 second PoW mining loop to finish.

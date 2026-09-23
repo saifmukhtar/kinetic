@@ -124,7 +124,7 @@ mod tests {
         let path = Arc::new(dir.path().join("action.bin"));
 
         let msg = SignedNetworkAction {
-            action: NetworkAction::EmergencyPause,
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: kinetic_kyn::types::Kyn(0),
             sovereign_signatures: vec![],
         };
@@ -164,7 +164,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = Arc::new(dir.path().join("action.bin"));
 
-        let extra_fields = b"{\"action\": \"EmergencyPause\", \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
+        let extra_fields = b"{\"action\": \"EmergencyHalt\", \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
         // Should parse and handle or ignore the extra field without panicking
         handle_action_gossip(extra_fields, path, None, None, 100);
@@ -178,7 +178,7 @@ mod tests {
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
         let msg = SignedNetworkAction {
-            action: NetworkAction::EmergencyPause,
+            action: NetworkAction::EmergencyHalt,
             timestamp_kyn: kinetic_kyn::types::Kyn(0),
             sovereign_signatures: vec![],
         };

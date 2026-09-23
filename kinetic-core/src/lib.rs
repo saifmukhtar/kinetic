@@ -31,7 +31,7 @@ pub mod consensus_math;
 /// Global protocol constants.
 pub mod constants;
 /// Network time provider client for epoch-bound randomness and Sybil-resistance.
-pub mod drand;
+
 /// Unified error taxonomy: [`KineticError`](error::KineticError), [`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), and [`RegistrationError`](error::RegistrationError).
 pub mod error;
 /// Network security utilities for SSRF prevention.

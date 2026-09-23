@@ -109,7 +109,7 @@ pub trait StorageEngine: Send + Sync {
     ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
 }
 
-use crate::drand::RawKyn;
+use kinetic_kyn::beacon::RawKyn;
 use crate::error::kyn_provider::KynProviderError;
 use async_trait::async_trait;
 

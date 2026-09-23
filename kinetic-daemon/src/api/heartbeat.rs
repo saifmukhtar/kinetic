@@ -48,7 +48,7 @@ async fn get_safe_current_kyn(state: &ApiState) -> u64 {
         kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
     use kinetic_core::traits::KynProvider;
     match kyn_provider.load_cached() {
-        Ok(kyn) if kyn.kyn > 0 => kyn.kyn,
+        Ok(kyn) if kyn.kyn() > 0 => kyn.kyn(),
         _ => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
     }
 }

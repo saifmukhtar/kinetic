@@ -135,7 +135,7 @@ Every error is tagged with a severity level that determines logging and monitori
 | `KIN-DHT-029` | **Error:** `manifest version rollback detected`<br>**What:** A manifest version rollback was detected.<br>**Why:** The network requires Manifest version numbers to be strictly monotonically increasing.<br>**Fix:** Increment the manifest version number and re-sign before publishing. | [error.rs:158](./kinetic-network/src/error.rs#L158) |
 | `KIN-DHT-030` | **Error:** `manifest local verification failed`<br>**What:** The delegated manifest failed its local cryptographic verification.<br>**Why:** The capabilities list, expiration, or signatures are structurally flawed.<br>**Fix:** Regenerate the manifest using the official SDK to ensure correct field formatting. | [error.rs:163](./kinetic-network/src/error.rs#L163) |
 | `KIN-DHT-031` | **Error:** `heartbeat timestamp is too far in the future`<br>**What:** The heartbeat timestamp is set too far in the future.<br>**Why:** A node's clock is severely desynced or a peer is attempting to claim future rounds.<br>**Fix:** Sync your system clock with an NTP server and retry. | [error.rs:168](./kinetic-network/src/error.rs#L168) |
-| `KIN-DHT-032` | **Error:** `Infra names are immutable and cannot be stolen`<br>**What:** The name type is classified as strictly immutable.<br>**Why:** Infrastructure identities cannot be forcefully stolen via PoW.<br>**Fix:** You must choose a standard kinetic apex name for registration. | [error.rs:173](./kinetic-network/src/error.rs#L173) |
+
 
 ---
 

@@ -38,7 +38,7 @@ use tokio::sync::watch;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_core::drand::RawKyn;
+use kinetic_kyn::beacon::RawKyn;
 use kinetic_core::traits::KynProvider;
 use kinetic_network::client::time_oracle::TimeOracleProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
@@ -203,7 +203,7 @@ pub async fn run_node() -> Result<()> {
 
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
+            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn());
             kyn
         }
         Err(e) => {
@@ -213,7 +213,7 @@ pub async fn run_node() -> Result<()> {
         }
     };
 
-    let initial_kyn = initial_kyn.kyn;
+    let initial_kyn = initial_kyn.kyn();
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity
@@ -408,7 +408,7 @@ pub async fn run_node() -> Result<()> {
                 if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
 
                     let current_kyn = match kyn_provider_gossip.fetch_latest().await {
-                        Ok(kyn) => kyn.kyn,
+                        Ok(kyn) => kyn.kyn(),
                         Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
                     };
                     gossip::handle_action_gossip(
@@ -427,7 +427,7 @@ pub async fn run_node() -> Result<()> {
                             if latest.is_unavailable {
                                 0
                             } else {
-                                latest.kyn
+                                latest.kyn()
                             }
                         }
                         Err(e) => {
@@ -442,7 +442,7 @@ pub async fn run_node() -> Result<()> {
                         }
                     };
 
-                    if kyn.kyn > latest_kyn {
+                    if kyn.kyn() > latest_kyn {
                         if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                             tracing::error!(
                                 error_code = e.code(),
@@ -450,7 +450,7 @@ pub async fn run_node() -> Result<()> {
                                 e
                             );
                         }
-                        let _ = kyn_tx_gossip.send(kyn.kyn);
+                        let _ = kyn_tx_gossip.send(kyn.kyn());
                     }
                 }
             }
@@ -477,9 +477,9 @@ pub async fn run_node() -> Result<()> {
                         .as_secs();
                     let estimated_kyn = now.saturating_sub(kinetic_core::constants::BEACON_GENESIS);
 
-                    if estimated_kyn > latest.kyn + 5 {
+                    if estimated_kyn > latest.kyn() + 5 {
                         let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
-                            behind: estimated_kyn.saturating_sub(latest.kyn),
+                            behind: estimated_kyn.saturating_sub(latest.kyn()),
                         };
                         tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
@@ -494,7 +494,7 @@ pub async fn run_node() -> Result<()> {
                 && !kyn.is_unavailable
                 && !kyn.is_from_cache
             {
-                let _ = kyn_tx.send(kyn.kyn);
+                let _ = kyn_tx.send(kyn.kyn());
                 // Broadcast to P2P network if we are fetching HTTP
                 if !p2p_only && let Ok(payload) = serde_json::to_vec(&kyn) {
                     let mut envelope = vec![kinetic_types::network::NetworkOpcode::Kyn as u8];

@@ -1,4 +1,4 @@
-use kinetic_core::drand::RawKyn;
+use kinetic_kyn::beacon::RawKyn;
 use kinetic_core::error::KynProviderError;
 use kinetic_core::traits::{KynProvider, StorageEngine};
 use std::sync::Arc;
@@ -186,18 +186,18 @@ impl KynProvider for TimeOracleProvider {
                         .unwrap_or_default()
                         .as_secs();
                     let estimated_kyn = now.saturating_sub(kinetic_core::constants::BEACON_GENESIS);
-                    let age = estimated_kyn.saturating_sub(kyn.kyn);
+                    let age = estimated_kyn.saturating_sub(kyn.kyn());
 
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
                         let err = KynProviderError::StaleKyn {
                             expected: kinetic_kyn::types::Kyn(estimated_kyn),
-                            got: kinetic_kyn::types::Kyn(kyn.kyn),
+                            got: kinetic_kyn::types::Kyn(kyn.kyn()),
                         };
                         warn!(
                             "{}: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
                             err.code(),
                             endpoint,
-                            kyn.kyn,
+                            kyn.kyn(),
                             estimated_kyn
                         );
                         continue;
@@ -253,7 +253,7 @@ impl KynProvider for TimeOracleProvider {
             let err = KynProviderError::DevModeMockKyn;
             tracing::warn!(error_code = err.code(), "{}", err);
             return Ok(RawKyn {
-                kyn: 5000000,
+                beacon_idx: 1666666,
                 randomness: "mock_randomness".to_string(),
                 signature: String::new(),
                 is_from_cache: true,

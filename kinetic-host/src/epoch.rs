@@ -111,11 +111,11 @@ pub async fn start_time_oracle_heartbeat(
             && !kyn.is_unavailable
             && !kyn.is_from_cache
         {
-            let _ = kyn_tx.send(kyn.kyn);
+            let _ = kyn_tx.send(kyn.kyn());
 
             let current_epoch = kinetic_network::pow::get_staggered_epoch(
                 &hb_local_peer_id.to_bytes(),
-                kinetic_kyn::types::Kyn(kyn.kyn),
+                kinetic_kyn::types::Kyn(kyn.kyn()),
             );
 
             let needs_validation = match last_verified_epoch {
@@ -125,7 +125,7 @@ pub async fn start_time_oracle_heartbeat(
 
             if needs_validation {
                 let peer_id_clone = hb_local_peer_id;
-                let kyn_round = kyn.kyn;
+                let kyn_round = kyn.kyn();
                 let pow_valid = tokio::task::spawn_blocking(move || {
                     kinetic_network::pow::verify_p2p_pow(
                         &peer_id_clone,

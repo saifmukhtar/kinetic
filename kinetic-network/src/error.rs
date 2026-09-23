@@ -166,8 +166,7 @@ pub enum KineticStoreError {
     /// Sync your system clock with an NTP server and retry.
     #[error("heartbeat timestamp is too far in the future")]
     FutureHeartbeat,
-    /// The name type is classified as strictly immutable.
-    /// Infrastructure identities cannot be forcefully taken over via PoW.
+
 
 
     // ==========================================

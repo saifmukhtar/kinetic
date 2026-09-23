@@ -57,7 +57,7 @@ pub fn start_gossip_processor(
                     {
 
                         let current_kyn = match kyn_provider_gossip.load_cached() {
-                            Ok(kyn) => kyn.kyn,
+                            Ok(kyn) => kyn.kyn(),
                             Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
                         };
                         let (should_update_log, log) = {
@@ -132,7 +132,7 @@ pub fn start_gossip_processor(
                 } else if opcode == kinetic_types::network::NetworkOpcode::Kyn as u8 {
                     let mut is_valid = false;
                     if let Ok(kyn) =
-                        serde_json::from_slice::<kinetic_core::drand::RawKyn>(actual_payload)
+                        serde_json::from_slice::<kinetic_kyn::beacon::RawKyn>(actual_payload)
                     {
                         let kyn_clone = kyn.clone();
                         is_valid = tokio::task::spawn_blocking(move || kyn_clone.verify_beacon(kinetic_core::config::is_dev_mode()))
@@ -144,7 +144,7 @@ pub fn start_gossip_processor(
                                     if latest.is_unavailable {
                                         0
                                     } else {
-                                        latest.kyn
+                                        latest.kyn()
                                     }
                                 }
                                 Err(e) => {
@@ -162,7 +162,7 @@ pub fn start_gossip_processor(
                                 }
                             };
 
-                            if kyn.kyn > latest_kyn {
+                            if kyn.kyn() > latest_kyn {
                                 if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                                     tracing::error!(
                                         error_code = e.code(),
@@ -170,7 +170,7 @@ pub fn start_gossip_processor(
                                         e
                                     );
                                 }
-                                let _ = kyn_tx_gossip.send(kyn.kyn);
+                                let _ = kyn_tx_gossip.send(kyn.kyn());
                             }
                         }
                     }

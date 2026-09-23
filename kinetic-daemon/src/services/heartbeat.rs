@@ -55,9 +55,9 @@ pub fn start_heartbeat_loop(
                         .as_secs();
                     let expected_kyn = now - kinetic_core::constants::BEACON_GENESIS;
 
-                    if expected_kyn > latest.kyn + 5 {
+                    if expected_kyn > latest.kyn() + 5 {
                         let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
-                            behind: expected_kyn.saturating_sub(latest.kyn),
+                            behind: expected_kyn.saturating_sub(latest.kyn()),
                         };
                         tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
@@ -71,7 +71,7 @@ pub fn start_heartbeat_loop(
                 match hb_kyn_provider.fetch_latest().await {
                     Ok(p) => {
                         if !p.is_unavailable && !p.is_from_cache {
-                            let _ = kyn_tx_hb.send(p.kyn);
+                            let _ = kyn_tx_hb.send(p.kyn());
                             if !p2p_only && let Ok(payload) = serde_json::to_vec(&p) {
                                 let mut envelope =
                                     vec![kinetic_types::network::NetworkOpcode::Kyn as u8];
@@ -88,20 +88,20 @@ pub fn start_heartbeat_loop(
                     }
                     Err(_) => hb_kyn_provider
                         .load_cached()
-                        .unwrap_or(kinetic_core::drand::RawKyn::unavailable()),
+                        .unwrap_or(kinetic_kyn::beacon::RawKyn::unavailable()),
                 }
             } else {
                 hb_kyn_provider
                     .load_cached()
-                    .unwrap_or(kinetic_core::drand::RawKyn::unavailable())
+                    .unwrap_or(kinetic_kyn::beacon::RawKyn::unavailable())
             };
 
             if kyn.is_unavailable {
                 continue;
             }
 
-            if kyn.kyn > lklr.load(Ordering::Relaxed) {
-                lklr.store(kyn.kyn, Ordering::Relaxed);
+            if kyn.kyn() > lklr.load(Ordering::Relaxed) {
+                lklr.store(kyn.kyn(), Ordering::Relaxed);
             }
 
             let current_live = lklr.load(Ordering::Relaxed);
@@ -121,7 +121,7 @@ pub fn start_heartbeat_loop(
                 for name in names {
                     let mut heartbeat = Heartbeat {
                         name: name.clone(),
-                        latest_kyn: kinetic_kyn::types::Kyn(kyn.kyn),
+                        latest_kyn: kinetic_kyn::types::Kyn(kyn.kyn()),
                         owner_signature: vec![],
                         authorization: None,
                     };
@@ -138,7 +138,7 @@ pub fn start_heartbeat_loop(
 
                     let name_clone = name.clone();
                     let hb_network_clone = hb_network.clone();
-                    let _kyn_kyn = kyn.kyn;
+                    let _kyn_kyn = kyn.kyn();
 
                     tokio::spawn(async move {
                         if let Ok(payload) = serde_json::to_vec(&heartbeat) {
