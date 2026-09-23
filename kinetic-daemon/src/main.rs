@@ -122,7 +122,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     let base_config_dir = if let Some(dir) = config_dir_opt {
         std::path::PathBuf::from(dir)
     } else {
-        kinetic_local::config::get_base_dir()
+        kinetic_local::config::base_dir()
     };
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
@@ -289,7 +289,7 @@ async fn run_daemon() -> Result<()> {
 
     info!("Starting Kinetic Daemon (PID: {})...", std::process::id());
 
-    let base_config_dir = kinetic_local::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::base_dir();
     let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
@@ -424,7 +424,7 @@ async fn run_daemon() -> Result<()> {
         disable_storage_sync: false,
     };
 
-    let base_config_dir = kinetic_local::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::base_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
         tracing::error!(
@@ -498,7 +498,7 @@ async fn run_daemon() -> Result<()> {
         if is_empty {
             tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await; // give it time to connect
-            if let Ok(peers) = network_client.get_connected_peers().await {
+            if let Ok(peers) = network_client.connected_peers().await {
                 for peer_str in peers {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>()
                         && let Ok(resp) = network_client
@@ -572,7 +572,7 @@ async fn run_daemon() -> Result<()> {
         kinetic_types::network::PeerType::Daemon,
     );
 
-    let base_config_dir = kinetic_local::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::base_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
         tracing::error!(

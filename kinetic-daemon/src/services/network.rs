@@ -62,7 +62,7 @@ pub fn start_pow_miner_loop(
                 continue;
             }
             let peer_id = libp2p::PeerId::from_public_key(&current_local_key.public());
-            let current_epoch = kinetic_network::pow::get_staggered_epoch(
+            let current_epoch = kinetic_network::pow::staggered_epoch(
                 &peer_id.to_bytes(),
                 kinetic_kyn::types::Kyn(kyn),
             );
@@ -133,7 +133,7 @@ pub fn start_pow_miner_loop(
                         }
                     };
 
-                    hc_client.update_backend(new_client.get_sender(), new_client.stream_control());
+                    hc_client.update_backend(new_client.sender(), new_client.stream_control());
                     network_loop_handle = tokio::spawn(async move {
                         new_loop.run().await;
                     });

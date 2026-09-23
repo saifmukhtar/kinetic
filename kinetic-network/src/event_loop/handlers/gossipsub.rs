@@ -64,8 +64,8 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                         {
                             let action_state =
                                 kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
-                            if let Ok(root_key) = action_state
-                                .get_sovereign_key(&kinetic_core::action::get_action_config())
+                            if let Ok(root_key) =
+                                action_state.sovereign_key(&kinetic_core::action::action_config())
                             {
                                 drop(action_state);
                                 let action_bytes = signed_msg.to_bytes();

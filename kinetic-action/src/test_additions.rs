@@ -1,7 +1,6 @@
 use crate::logic::process_action_message;
 use crate::types::{ActionConfig, ActionState, NetworkAction, SignedNetworkAction};
 
-use kinetic_kyn::types::Kyn;
 use kinetic_primitives::keypairs::SovereignPrivKey;
 
 fn get_root_sk() -> SovereignPrivKey {
@@ -10,17 +9,7 @@ fn get_root_sk() -> SovereignPrivKey {
     SovereignPrivKey::from_seed(bytes.as_slice().try_into().unwrap())
 }
 
-fn generate_key(
-    seed: u8,
-) -> (
-    SovereignPrivKey,
-    kinetic_primitives::keypairs::SovereignPubKey,
-) {
-    let bytes = [seed; 32];
-    let signing_key = SovereignPrivKey::from_seed(&bytes);
-    let verifying_key = signing_key.to_pubkey();
-    (signing_key, verifying_key)
-}
+
 
 fn sign_action(
     msg: &SignedNetworkAction,
@@ -30,7 +19,7 @@ fn sign_action(
     signer.sign(&serialized)
 }
 
-fn get_test_config() -> ActionConfig {
+fn test_config() -> ActionConfig {
     ActionConfig {
         sovereign_key_hex: hex::encode(get_root_sk().to_pubkey().0),
         max_age_kyns: 100,
@@ -49,7 +38,7 @@ fn test_action_stale_rejection() {
     let mut state = ActionState::new(kinetic_kyn::types::GenesisKyn::from(current_kyn));
 
     // Create a message that is exactly MAX_AGE_KYNS + 1 old
-    let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
+    let stale_kyn = current_kyn - test_config().max_age_kyns - 1;
 
     let mut msg = SignedNetworkAction {
         action: NetworkAction::EmergencyHalt,
@@ -62,7 +51,7 @@ fn test_action_stale_rejection() {
         &mut state,
         &msg,
         kinetic_kyn::types::CurrentKyn::from(current_kyn),
-        &get_test_config(),
+        &test_config(),
     )
     .unwrap_err();
     assert!(matches!(err, crate::error::ActionError::StaleProposal));

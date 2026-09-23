@@ -217,7 +217,7 @@ pub async fn handle_identity_command(
         } => {
             // Retain the existing local signing behavior for Publish until the Daemon
             // exposes a direct `POST /v1/micro/kid/{name}/publish` API.
-            let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+            let identity_path = kinetic_local::config::base_dir().join("identity.key");
             let keypair = kinetic_local::identity::load_keypair(&identity_path)?;
 
             if std::path::Path::new(&kid).exists() {

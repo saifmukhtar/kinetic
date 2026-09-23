@@ -20,7 +20,6 @@ impl ActionEngine for SovereignEngine {
     /// # Errors
     ///
     /// - Returns [`ActionError::StaleProposal`] if the proposal timestamp exceeds `config.max_age_kyns`.
-
     /// - Returns [`ActionError::InvalidSignature`] if the Sovereign signature is missing or invalid.
     fn verify_action(
         &self,
@@ -33,7 +32,7 @@ impl ActionEngine for SovereignEngine {
             return Err(ActionError::StaleProposal);
         }
 
-        let sovereign_key = state.get_sovereign_key(config)?;
+        let sovereign_key = state.sovereign_key(config)?;
         let action_bytes = msg.to_bytes();
 
         let is_sovereign_signed = msg

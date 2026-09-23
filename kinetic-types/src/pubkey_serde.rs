@@ -36,7 +36,7 @@ macro_rules! impl_pubkey_opt_serde {
     ($mod_name:ident, $key_type:ident) => {
         pub mod $mod_name {
             use super::$key_type;
-            use serde::{Deserialize, Deserializer, Serialize, Serializer};
+            use serde::{Deserialize, Deserializer, Serializer};
 
             pub fn serialize<S: Serializer>(
                 key: &Option<$key_type>,

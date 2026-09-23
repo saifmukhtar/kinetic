@@ -3,7 +3,7 @@
 mod tests {
     use super::super::logic::process_action_message;
     use super::super::types::{ActionEffect, ActionState, NetworkAction, SignedNetworkAction};
-    use kinetic_kyn::types::Kyn;
+    
     use kinetic_primitives::keypairs::SovereignPrivKey;
     fn get_root_sk() -> SovereignPrivKey {
         let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
@@ -31,7 +31,7 @@ mod tests {
         signer.sign(&serialized)
     }
 
-    fn get_test_config() -> super::super::types::ActionConfig {
+    fn test_config() -> super::super::types::ActionConfig {
         super::super::types::ActionConfig {
             sovereign_key_hex: hex::encode(get_root_sk().to_pubkey().0),
             max_age_kyns: 100,
@@ -68,7 +68,7 @@ mod tests {
             &mut state,
             &rotate_msg,
             kinetic_kyn::types::CurrentKyn::from(*rotate_msg.timestamp_kyn),
-            &get_test_config(),
+            &test_config(),
         )
         .unwrap();
         assert!(matches!(
@@ -78,7 +78,7 @@ mod tests {
 
         // The state should now have the new Sovereign key
         assert_eq!(
-            state.get_sovereign_key(&get_test_config()).unwrap(),
+            state.sovereign_key(&test_config()).unwrap(),
             new_root_pubkey.clone()
         );
 
@@ -96,7 +96,7 @@ mod tests {
             &mut state,
             &map_msg,
             kinetic_kyn::types::CurrentKyn::from(*map_msg.timestamp_kyn),
-            &get_test_config(),
+            &test_config(),
         )
         .unwrap_err();
         assert!(matches!(err, crate::error::ActionError::InvalidSignature));
@@ -111,7 +111,7 @@ mod tests {
             &mut state,
             &map_msg,
             kinetic_kyn::types::CurrentKyn::from(*map_msg.timestamp_kyn),
-            &get_test_config(),
+            &test_config(),
         )
         .unwrap();
         assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
@@ -123,7 +123,7 @@ mod tests {
     proptest! {
         #[test]
         fn test_fuzz_to_bytes(
-            name in string_regex("[a-z0-9_-]{1,63}").unwrap(),
+            _name in string_regex("[a-z0-9_-]{1,63}").unwrap(),
             timestamp in any::<u64>(),
         ) {
             let action = NetworkAction::EmergencyHalt;
@@ -175,7 +175,7 @@ mod tests {
             &mut state,
             &halt_msg,
             kinetic_kyn::types::CurrentKyn::from(*halt_msg.timestamp_kyn),
-            &get_test_config(),
+            &test_config(),
         )
         .unwrap();
         assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
@@ -194,7 +194,7 @@ mod tests {
             &mut state,
             &resume_msg,
             kinetic_kyn::types::CurrentKyn::from(*resume_msg.timestamp_kyn),
-            &get_test_config(),
+            &test_config(),
         )
         .unwrap();
         assert!(matches!(effect, Some(ActionEffect::NetworkResumed)));
@@ -225,7 +225,7 @@ mod tests {
             &mut state,
             &msg,
             kinetic_kyn::types::CurrentKyn::from(*msg.timestamp_kyn),
-            &get_test_config(),
+            &test_config(),
         )
         .unwrap();
         assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
@@ -235,7 +235,7 @@ mod tests {
             &mut state,
             &msg,
             kinetic_kyn::types::CurrentKyn::from(*msg.timestamp_kyn),
-            &get_test_config(),
+            &test_config(),
         )
         .unwrap_err();
         assert!(
@@ -255,7 +255,7 @@ mod tests {
         let mut state = ActionState::new(kinetic_kyn::types::GenesisKyn::from(current_kyn));
 
         // Create a message that is exactly MAX_AGE_KYNS + 1 old
-        let stale_kyn = current_kyn - get_test_config().max_age_kyns - 1;
+        let stale_kyn = current_kyn - test_config().max_age_kyns - 1;
 
         let mut msg = SignedNetworkAction {
             action: NetworkAction::EmergencyHalt,
@@ -268,7 +268,7 @@ mod tests {
             &mut state,
             &msg,
             kinetic_kyn::types::CurrentKyn::from(current_kyn),
-            &get_test_config(),
+            &test_config(),
         )
         .unwrap_err();
         assert!(matches!(err, crate::error::ActionError::StaleProposal));

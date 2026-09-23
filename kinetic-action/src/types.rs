@@ -103,7 +103,6 @@ impl ActionState {
     ///     pause_history: vec![(Kyn(100), Kyn(200))], // Paused for 100 kyns
     ///     executed_hashes: HashMap::new(),
     ///     action_log: vec![],
-
     /// };
     ///
     /// // If an event happened at kyn 50, it experienced all 100 paused kyns.

@@ -114,7 +114,7 @@ pub async fn start_time_oracle_heartbeat(
         {
             let _ = kyn_tx.send(kyn.kyn());
 
-            let current_epoch = kinetic_network::pow::get_staggered_epoch(
+            let current_epoch = kinetic_network::pow::staggered_epoch(
                 &hb_local_peer_id.to_bytes(),
                 kinetic_kyn::types::Kyn(kyn.kyn()),
             );
@@ -195,10 +195,8 @@ pub async fn start_time_oracle_heartbeat(
 
                     match new_network {
                         Some((new_client, new_loop)) => {
-                            hc_client.update_backend(
-                                new_client.get_sender(),
-                                new_client.stream_control(),
-                            );
+                            hc_client
+                                .update_backend(new_client.sender(), new_client.stream_control());
                             *handle = tokio::spawn(async move {
                                 new_loop.run().await;
                             });

@@ -16,7 +16,7 @@ mod tests {
     ) -> Result<Json<kinetic_core::types::NameRecord>, axum::http::StatusCode> {
         let name = name.trim_end_matches('.');
         if name == "testdns.kin" {
-            let key_a = libp2p::identity::Keypair::generate_ed25519();
+            let _key_a = libp2p::identity::Keypair::generate_ed25519();
             let mut records = HashMap::new();
             records.insert(
                 "@".to_string(),

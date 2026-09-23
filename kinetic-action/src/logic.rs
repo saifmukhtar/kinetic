@@ -97,7 +97,7 @@ impl ActionState {
     /// # Errors
     ///
     /// Returns an [`ActionError`] if the key is missing, invalid, or has the wrong length.
-    pub fn get_sovereign_key(
+    pub fn sovereign_key(
         &self,
         config: &ActionConfig,
     ) -> Result<kinetic_primitives::keypairs::SovereignPubKey, ActionError> {
@@ -124,7 +124,7 @@ impl ActionState {
         current_kyn: kinetic_kyn::types::CurrentKyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
-        crate::engine::get_active_engine(&config.action_model).verify_action(
+        crate::engine::active_engine(&config.action_model).verify_action(
             self,
             msg,
             current_kyn,
@@ -139,7 +139,7 @@ impl ActionState {
         current_kyn: kinetic_kyn::types::CurrentKyn,
         config: &ActionConfig,
     ) -> Option<ActionEffect> {
-        crate::engine::get_active_engine(&config.action_model).execute_action(
+        crate::engine::active_engine(&config.action_model).execute_action(
             self,
             msg,
             current_kyn,

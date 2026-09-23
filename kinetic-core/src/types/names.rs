@@ -279,7 +279,7 @@ mod tests {
 
 #[cfg(test)]
 mod names_tests {
-    use super::*;
+    
 }
 
 #[cfg(test)]

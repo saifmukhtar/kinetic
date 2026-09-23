@@ -72,11 +72,7 @@ async fn print_current_time(config: &KineticConfig, client: &reqwest::Client) {
                 .unwrap_or_default()
                 .as_secs();
 
-            let current_kyn = if now > BEACON_GENESIS {
-                now - BEACON_GENESIS
-            } else {
-                0
-            };
+            let current_kyn = now.saturating_sub(BEACON_GENESIS);
 
             CrystallizedKyn::from_kyn(
                 kinetic_kyn::types::Kyn(current_kyn),

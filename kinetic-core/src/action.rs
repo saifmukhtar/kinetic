@@ -26,7 +26,7 @@ pub mod logic {
 use kinetic_action::types::ActionConfig;
 
 /// Constructs the action configuration based on network constants.
-pub fn get_action_config() -> ActionConfig {
+pub fn action_config() -> ActionConfig {
     ActionConfig {
         sovereign_key_hex: crate::constants::SOVEREIGN_KEY_HEX.to_string(),
         max_age_kyns: crate::constants::MAX_AGE_KYNS,
@@ -41,5 +41,5 @@ pub fn process_action_message(
     msg: &SignedNetworkAction,
     current_kyn: kinetic_kyn::types::CurrentKyn,
 ) -> Result<Option<ActionEffect>, ActionError> {
-    kinetic_action::logic::process_action_message(state, msg, current_kyn, &get_action_config())
+    kinetic_action::logic::process_action_message(state, msg, current_kyn, &action_config())
 }

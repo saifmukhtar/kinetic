@@ -1,7 +1,7 @@
 use comfy_table::{Cell, Color, Table};
 use indicatif::{ProgressBar, ProgressStyle};
 use kinetic_core::config::KineticConfig;
-use kinetic_local::config::get_zones_dir;
+use kinetic_local::config::zones_dir;
 
 pub async fn handle_name_list(
     config: &KineticConfig,
@@ -28,7 +28,7 @@ pub async fn handle_name_list(
         }
         _ => {
             source = "Local Disk (Daemon Offline)";
-            let config_dir = get_zones_dir().join("config");
+            let config_dir = zones_dir().join("config");
             if let Ok(entries) = std::fs::read_dir(&config_dir) {
                 for entry in entries.flatten() {
                     if let Some(name) = entry.file_name().to_str()
@@ -110,7 +110,7 @@ pub async fn handle_name_info(
     }
 
     println!("Daemon unreachable or name not found on DHT. Checking local cache...");
-    let record_path = get_zones_dir()
+    let record_path = zones_dir()
         .join("cache")
         .join(format!("{}.record.json", fqdn));
     if record_path.exists() {

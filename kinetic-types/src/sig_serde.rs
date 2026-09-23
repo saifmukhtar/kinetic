@@ -39,7 +39,7 @@ macro_rules! impl_vec_sig_serde {
             use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
             pub fn serialize<S: Serializer>(
-                sigs: &std::vec::Vec<$sig_type>,
+                sigs: &[$sig_type],
                 s: S,
             ) -> Result<S::Ok, S::Error> {
                 let raw: std::vec::Vec<&std::vec::Vec<u8>> =

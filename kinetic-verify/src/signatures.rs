@@ -116,46 +116,14 @@ impl VerifySignature for NameRecord {
 mod tests {
     use super::*;
     use crate::error::SignatureVerifyError;
-    use kinetic_types::name_record::NameRecord;
+    
     use kinetic_types::vdf::{Reveal, VdfProof};
 
     fn generate_identity_keypair() -> kinetic_primitives::keypairs::IdentityPrivKey {
         kinetic_primitives::keypairs::IdentityPrivKey::generate()
     }
 
-    fn generate_delegated_keypair() -> kinetic_primitives::keypairs::DelegatedPrivKey {
-        kinetic_primitives::keypairs::DelegatedPrivKey::generate()
-    }
 
-    fn sign_identity_payload(
-        sk: &kinetic_primitives::keypairs::IdentityPrivKey,
-        name: &str,
-        payload: &[u8],
-        salt: &[u8],
-    ) -> kinetic_primitives::keypairs::IdentitySignature {
-        let mut signable = Vec::new();
-        signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
-        signable.extend_from_slice(name.as_bytes());
-        signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
-        signable.extend_from_slice(payload);
-        signable.extend_from_slice(salt);
-        sk.sign(&signable)
-    }
-
-    fn sign_delegated_payload(
-        sk: &kinetic_primitives::keypairs::DelegatedPrivKey,
-        name: &str,
-        payload: &[u8],
-        salt: &[u8],
-    ) -> kinetic_primitives::keypairs::DelegatedSignature {
-        let mut signable = Vec::new();
-        signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
-        signable.extend_from_slice(name.as_bytes());
-        signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
-        signable.extend_from_slice(payload);
-        signable.extend_from_slice(salt);
-        sk.sign(&signable)
-    }
 
     #[test]
     fn test_reveal_serialization_and_verification() {

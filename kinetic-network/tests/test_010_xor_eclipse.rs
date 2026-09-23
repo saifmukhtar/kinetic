@@ -1,4 +1,4 @@
-use ed25519_dalek::{Signer, SigningKey};
+
 use kinetic_core::traits::VdfEngine;
 use kinetic_core::types::Reveal;
 use kinetic_network::event_loop::NetworkEventLoop;

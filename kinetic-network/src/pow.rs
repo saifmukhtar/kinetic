@@ -36,7 +36,7 @@ fn compute_pow_hash(argon2: &Argon2, peer_bytes: &[u8], epoch: u64) -> Option<[u
 }
 
 /// Computes a peer-specific epoch to stagger identity churn across the network.
-pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: kinetic_kyn::types::Kyn) -> u64 {
+pub fn staggered_epoch(peer_bytes: &[u8], kyn: kinetic_kyn::types::Kyn) -> u64 {
     let mut offset_bytes = [0u8; 8];
     let len = peer_bytes.len();
     if len >= 8 {
@@ -64,7 +64,7 @@ pub fn verify_p2p_pow(
     }
 
     let peer_bytes = peer_id.to_bytes();
-    let current_epoch = get_staggered_epoch(&peer_bytes, current_kyn);
+    let current_epoch = staggered_epoch(&peer_bytes, current_kyn);
 
     // 16MB memory, 1 iteration, 1 parallelism
     let params = Params::new(16384, 1, 1, None).expect("Valid static Argon2 params");
@@ -118,7 +118,7 @@ pub fn mine_p2p_keypair(current_kyn: kinetic_kyn::types::Kyn, difficulty: u32) -
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let peer_bytes = peer_id.to_bytes();
-        let current_epoch = get_staggered_epoch(&peer_bytes, current_kyn);
+        let current_epoch = staggered_epoch(&peer_bytes, current_kyn);
 
         let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch)
             .expect("Argon2 memory allocation failed during mining");

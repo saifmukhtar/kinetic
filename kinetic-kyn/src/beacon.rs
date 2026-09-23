@@ -1,6 +1,6 @@
 use crate::types::Kyn;
 use beacon_verify::{G2PubkeyRfc, Pubkey};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 // Heartbeat staleness threshold — 10 minutes (600 seconds/kyns)
 const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 600;

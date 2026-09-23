@@ -56,10 +56,7 @@ pub fn start_telemetry_service(
                 _ => NetworkMode::Router,
             };
 
-            let metrics = network_client
-                .get_network_status()
-                .await
-                .unwrap_or_default();
+            let metrics = network_client.network_status().await.unwrap_or_default();
 
             let reachability =
                 if let Some(status_str) = metrics.get("nat_status").and_then(|v| v.as_str()) {

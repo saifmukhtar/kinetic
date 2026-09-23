@@ -644,7 +644,9 @@ mod tests {
                 },
                 previous_proof: None,
                 pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
-                identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                    vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+                ),
                 authorization: None,
             }));
 
@@ -745,7 +747,9 @@ mod tests {
                 },
                 previous_proof: None,
                 pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
-                identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                    vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+                ),
                 authorization: None,
             }));
 

@@ -14,7 +14,7 @@ mod tests {
     use tokio::sync::mpsc;
     use tower::ServiceExt;
 
-    fn get_test_token() -> String {
+    fn test_token() -> String {
         "test-token-123".to_string()
     }
 
@@ -87,7 +87,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -114,7 +114,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -151,7 +151,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -189,7 +189,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -244,7 +244,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -333,7 +333,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/zone/validname.kin/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .body(Body::empty())
             .unwrap();
 
@@ -355,7 +355,7 @@ mod tests {
         let req1 = Request::builder()
             .uri("/api/v1/macro/register")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body_str.clone()))
             .unwrap();
@@ -363,7 +363,7 @@ mod tests {
         let req2 = Request::builder()
             .uri("/api/v1/macro/register")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body_str.clone()))
             .unwrap();
@@ -394,7 +394,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/kid/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();

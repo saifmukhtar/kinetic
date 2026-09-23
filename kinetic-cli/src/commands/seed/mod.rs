@@ -3,7 +3,7 @@
 use bip39::{Language, Mnemonic};
 use clap::Subcommand;
 use getrandom::fill;
-use kinetic_local::config::get_base_dir;
+use kinetic_local::config::base_dir;
 use kinetic_local::identity::save_keypair_from_mnemonic;
 use tracing::{info, warn};
 
@@ -25,7 +25,7 @@ pub enum SeedCommands {
 /// - (Init) Entropy generation fails, the mnemonic cannot be created, or writing the identity to disk fails.
 /// - (Restore) Reading the password interactively fails, or the mnemonic is invalid and fails to restore the identity.
 pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
-    let identity_path = get_base_dir().join("identity.key");
+    let identity_path = base_dir().join("identity.key");
     match cmd {
         SeedCommands::Init => {
             let mut entropy = [0u8; 32];

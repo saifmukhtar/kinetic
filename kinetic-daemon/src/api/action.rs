@@ -161,7 +161,7 @@ pub async fn handle_publish_action(
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|_| {
                         let config = kinetic_local::config::load_config();
-                        kinetic_local::config::get_base_dir()
+                        kinetic_local::config::base_dir()
                             .join(config.daemon.storage_dir)
                             .join("action.db")
                     });

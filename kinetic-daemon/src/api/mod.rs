@@ -507,7 +507,7 @@ fn rotate_token_on_boot(token_path: &std::path::Path) -> anyhow::Result<String> 
 
 /// Ensures all API tokens are generated and returns them.
 pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
-    let tokens_dir = kinetic_local::config::get_api_tokens_dir();
+    let tokens_dir = kinetic_local::config::api_tokens_dir();
 
     Ok(ApiTokens {
         admin: rotate_token_on_boot(&tokens_dir.join("admin.token"))?,

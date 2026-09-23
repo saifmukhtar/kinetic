@@ -37,8 +37,8 @@ const ACTIVE_HEARTBEAT_MAX_KYNS: u64 = 200;
 const STALE_HEARTBEAT_MAX_KYNS: u64 = 28_800;
 
 /// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
-async fn get_safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::CurrentKyn {
-    if let Ok(kyn) = state.network.get_current_kyn().await
+async fn safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::CurrentKyn {
+    if let Ok(kyn) = state.network.current_kyn().await
         && kyn > 0
     {
         return kinetic_kyn::types::CurrentKyn::from(kyn);
@@ -73,7 +73,7 @@ pub async fn handle_get_heartbeats(
         Err(e) => return Err(crate::api::error::AppError::from(e)),
     };
 
-    let current_kyn = get_safe_current_kyn(&state).await;
+    let current_kyn = safe_current_kyn(&state).await;
 
     let mut handles = Vec::new();
     for name in owned_names {
@@ -149,7 +149,7 @@ pub async fn handle_post_heartbeat(
         return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(e)));
     }
 
-    let current_kyn = get_safe_current_kyn(&state).await;
+    let current_kyn = safe_current_kyn(&state).await;
 
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
@@ -253,7 +253,7 @@ pub async fn handle_post_fat_heartbeat(
             ))
         })?;
 
-    let current_kyn = get_safe_current_kyn(&state).await;
+    let current_kyn = safe_current_kyn(&state).await;
 
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),

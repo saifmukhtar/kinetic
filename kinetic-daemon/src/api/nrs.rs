@@ -39,8 +39,8 @@ use kinetic_verify::signatures::VerifySignature;
 /// 1. Tries to query the live Libp2p swarm for the absolute freshest time.
 /// 2. If the swarm is offline, falls back to the local `kinetic-storage` Time Oracle cache.
 /// 3. If the cache is empty (genesis boot), it estimates the time mathematically using the local clock.
-async fn get_safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::Kyn {
-    if let Ok(kyn) = state.network.get_current_kyn().await
+async fn safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::Kyn {
+    if let Ok(kyn) = state.network.current_kyn().await
         && kyn > 0
     {
         return kinetic_kyn::types::Kyn(kyn);
@@ -104,7 +104,7 @@ pub async fn handle_publish_record(
         ));
     }
     // than RESQUARING_EPOCH_KYNS using the safe cached network Kyn.
-    let current_kyn = get_safe_current_kyn(&state).await.0;
+    let current_kyn = safe_current_kyn(&state).await.0;
 
     if current_kyn > 0 {
         if reveal.kyn.as_u64() > current_kyn {
@@ -329,7 +329,7 @@ pub async fn handle_resolve_name(
     if kinetic_core::types::names::is_reserved_name(&fqdn) {
         let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
         let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
-        let local_zone_file = kinetic_local::config::get_zones_dir()
+        let local_zone_file = kinetic_local::config::zones_dir()
             .join("local")
             .join(format!("{}.json", apex_no_tld));
 
@@ -475,7 +475,7 @@ pub struct ReservedNameStatus {
 pub async fn handle_get_reserved_names()
 -> Result<Json<Vec<ReservedNameStatus>>, crate::api::error::AppError> {
     let statuses = tokio::task::spawn_blocking(|| {
-        let local_dir = kinetic_local::config::get_zones_dir().join("local");
+        let local_dir = kinetic_local::config::zones_dir().join("local");
         let mut statuses = Vec::new();
         for r in kinetic_core::types::RESERVED_NAMES {
             let path = local_dir.join(format!("{}.json", r));
@@ -507,7 +507,7 @@ pub async fn handle_get_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
-    let path = kinetic_local::config::get_zones_dir()
+    let path = kinetic_local::config::zones_dir()
         .join("config")
         .join(format!("{}.json", fqdn));
     match tokio::fs::read_to_string(&path).await {
@@ -544,7 +544,7 @@ pub async fn handle_post_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
-    let zones_dir = kinetic_local::config::get_zones_dir().join("config");
+    let zones_dir = kinetic_local::config::zones_dir().join("config");
     let path = zones_dir.join(format!("{}.json", fqdn));
 
     let content = serde_json::to_string_pretty(&zone).map_err(|e| {
@@ -590,7 +590,7 @@ pub async fn handle_publish_zone(
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
     // 1. Read the current zone file asynchronously
-    let zone_path = kinetic_local::config::get_zones_dir()
+    let zone_path = kinetic_local::config::zones_dir()
         .join("config")
         .join(format!("{}.json", fqdn));
     let content = match tokio::fs::read_to_string(&zone_path).await {
@@ -633,7 +633,7 @@ pub async fn handle_publish_zone(
         })?;
 
     // 3. Load the daemon keypair and re-sign with the updated payload
-    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::base_dir().join("identity.key");
     let keypair =
         tokio::task::spawn_blocking(move || kinetic_local::identity::load_keypair(&identity_path))
             .await
@@ -720,7 +720,7 @@ pub async fn handle_post_local_zone(
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
     let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
 
-    let local_dir = kinetic_local::config::get_zones_dir().join("local");
+    let local_dir = kinetic_local::config::zones_dir().join("local");
     tokio::fs::create_dir_all(&local_dir).await.map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::StorageError::WriteFailed(format!(
             "Failed to create local zones directory: {}",
@@ -769,7 +769,7 @@ pub async fn handle_delete_local_zone(
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
     let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
 
-    let path = kinetic_local::config::get_zones_dir()
+    let path = kinetic_local::config::zones_dir()
         .join("local")
         .join(format!("{}.json", apex_no_tld));
 
@@ -802,7 +802,7 @@ pub async fn handle_get_local_zone(
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
     let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
 
-    let path = kinetic_local::config::get_zones_dir()
+    let path = kinetic_local::config::zones_dir()
         .join("local")
         .join(format!("{}.json", apex_no_tld));
 

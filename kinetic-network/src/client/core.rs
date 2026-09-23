@@ -81,7 +81,7 @@ impl NetworkClient {
     }
 
     /// Gets a cloned copy of the command sender.
-    pub fn get_sender(&self) -> mpsc::Sender<Command> {
+    pub fn sender(&self) -> mpsc::Sender<Command> {
         self.sender
             .read()
             .unwrap_or_else(|e| e.into_inner())
@@ -413,7 +413,7 @@ impl NetworkClient {
     /// # Errors
     ///
     /// Returns a `NetworkClientError` if the network channel is closed.
-    pub async fn get_network_status(
+    pub async fn network_status(
         &self,
     ) -> std::result::Result<serde_json::Value, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
@@ -471,7 +471,7 @@ impl NetworkClient {
     /// # Errors
     ///
     /// Returns a `NetworkClientError` if the channel is closed.
-    pub async fn get_current_kyn(&self) -> Result<u64, NetworkClientError> {
+    pub async fn current_kyn(&self) -> Result<u64, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self
             .sender
@@ -479,7 +479,7 @@ impl NetworkClient {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         sender_clone
-            .send(Command::GetCurrentKyn { responder: tx })
+            .send(Command::FetchCurrentKyn { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)
@@ -495,7 +495,7 @@ impl NetworkClient {
         host_id: &str,
     ) -> std::result::Result<Option<kinetic_core::types::HostRoutingRecord>, NetworkClientError>
     {
-        let current_kyn = self.get_current_kyn().await?;
+        let current_kyn = self.current_kyn().await?;
         let key = format!("host_route_{}", host_id);
         match self.resolve_redundant_payload(&key).await {
             Ok(bytes) => {
@@ -589,37 +589,35 @@ impl NetworkClient {
     }
 
     /// Retrieves the list of currently connected Peer IDs.
-    pub async fn get_connected_peers(
-        &self,
-    ) -> std::result::Result<Vec<String>, NetworkClientError> {
+    pub async fn connected_peers(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.get_sender();
+        let sender_clone = self.sender();
         sender_clone
-            .send(Command::GetConnectedPeers { responder: tx })
+            .send(Command::FetchConnectedPeers { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
     }
 
     /// Retrieves the list of active Gossipsub topics.
-    pub async fn get_gossip_topics(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
+    pub async fn gossip_topics(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.get_sender();
+        let sender_clone = self.sender();
         sender_clone
-            .send(Command::GetGossipTopics { responder: tx })
+            .send(Command::FetchGossipTopics { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
     }
 
     /// Retrieves a list of currently banned peers.
-    pub async fn get_banned_peers(
+    pub async fn banned_peers(
         &self,
     ) -> std::result::Result<Vec<(String, u64)>, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.get_sender();
+        let sender_clone = self.sender();
         sender_clone
-            .send(Command::GetBannedPeers { responder: tx })
+            .send(Command::FetchBannedPeers { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)?

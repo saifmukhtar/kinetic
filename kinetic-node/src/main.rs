@@ -190,7 +190,7 @@ pub async fn run_node() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let base_config_dir = kinetic_local::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::base_dir();
     let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
@@ -218,7 +218,7 @@ pub async fn run_node() -> Result<()> {
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity
-    let key_path = kinetic_local::config::get_base_dir().join("node.key");
+    let key_path = kinetic_local::config::base_dir().join("node.key");
     let local_key = node_key::load_or_generate_key(&key_path);
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
@@ -333,7 +333,7 @@ pub async fn run_node() -> Result<()> {
         if is_empty {
             tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            if let Ok(peers) = network_client.get_connected_peers().await {
+            if let Ok(peers) = network_client.connected_peers().await {
                 for peer_str in peers {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>()
                         && let Ok(resp) = network_client
