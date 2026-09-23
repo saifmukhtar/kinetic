@@ -3,8 +3,8 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 
 #[cfg(not(target_arch = "wasm32"))]
-use super::fullnode;
-use super::lightnode;
+use super::router;
+use super::edge;
 
 impl super::core::NetworkEventLoop {
     /// Initializes a new P2P Swarm and returns the client handle and the event loop.
@@ -33,15 +33,15 @@ impl super::core::NetworkEventLoop {
         let (tx, rx) = mpsc::channel(32);
 
         let (mut swarm, client) = if config.mode == NetworkMode::Edge {
-            lightnode::build_light_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
+            edge::build_edge_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         } else {
             #[cfg(target_arch = "wasm32")]
             return Err(anyhow::anyhow!(
-                "FullNode mode is not supported on WebAssembly"
+                "Router mode is not supported on WebAssembly"
             ));
 
             #[cfg(not(target_arch = "wasm32"))]
-            fullnode::build_full_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
+            router::build_router_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         };
 
         let mut bootstrap_peers = rustc_hash::FxHashSet::default();

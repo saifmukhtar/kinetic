@@ -4,10 +4,10 @@
 pub mod command_handler;
 pub mod core;
 /// The core event loop definition.
-pub(crate) mod fullnode;
+pub(crate) mod router;
 /// Specialized handlers.
 pub mod handlers;
-pub(crate) mod lightnode;
+pub(crate) mod edge;
 /// Swarm initialization logic.
 pub mod swarm_builder;
 /// Inbound swarm handlers.

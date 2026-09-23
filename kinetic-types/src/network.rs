@@ -51,10 +51,10 @@ pub enum PeerType {
 
 /// Identifies the node's architectural participation level.
 ///
-/// Used in telemetry to map the ratio of `FullNode` vs `LightNode` participation.
+/// Used in telemetry to map the ratio of `Router` vs `Edge` participation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NetworkMode {
-    Core,
+    Router,
     Edge,
 }
 
@@ -100,7 +100,7 @@ pub struct TelemetryHeartbeat {
     // --- Rich Metrics ---
     /// The binary running this node.
     pub peer_type: PeerType,
-    /// Mode the node is running in ("FullNode" or "LightNode").
+    /// Mode the node is running in ("Router" or "Edge").
     pub network_mode: NetworkMode,
     /// Whether the node is publicly reachable.
     pub reachability: Reachability,
@@ -150,7 +150,7 @@ mod tests {
         let json_str = serde_json::to_string(&heartbeat).expect("Failed to serialize heartbeat");
         assert!(json_str.contains("uuid-1234"));
         assert!(json_str.contains("Linux"));
-        assert!(json_str.contains("LightNode"));
+        assert!(json_str.contains("Edge"));
         assert!(json_str.contains("Public"));
 
         // Ensure it deserializes back perfectly

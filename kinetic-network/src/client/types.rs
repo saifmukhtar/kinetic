@@ -31,7 +31,7 @@ pub use kinetic_types::proxy::{ProxyRequest, ProxyResponse, serde_bytes_wrapper}
 #[derive(Debug, Clone, PartialEq)]
 pub enum NetworkMode {
     /// Fully participates in the DHT and gossip protocols.
-    Core,
+    Router,
     /// Client-only mode; issues requests but does not store DHT records.
     Edge,
 }

@@ -371,7 +371,7 @@ async fn run_daemon() -> Result<()> {
 
     let mode = match config.daemon.network_mode.as_str() {
         "Edge" => NetworkMode::Edge,
-        _ => NetworkMode::Core,
+        _ => NetworkMode::Router,
     };
     let network_config = NetworkConfig {
         mode,

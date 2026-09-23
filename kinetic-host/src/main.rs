@@ -188,7 +188,7 @@ async fn run_host() -> Result<()> {
         .unwrap_or(config.network.host_port);
 
     let network_config = NetworkConfig {
-        mode: NetworkMode::Core,
+        mode: NetworkMode::Router,
         listen_addrs: vec![
             format!("/ip4/0.0.0.0/tcp/{}", p2p_port).parse().unwrap(),
             format!("/ip6/::/tcp/{}", p2p_port).parse().unwrap(),

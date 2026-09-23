@@ -12,9 +12,9 @@ use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
 use kinetic_network::event_loop::NetworkEventLoop;
 use kinetic_storage::KineticStorage;
 
-// 1. Configure the network mode (Full Node serving DHT vs Light Node)
+// 1. Configure the network mode (Router serving DHT vs Edge Node)
 let config = NetworkConfig {
-    mode: NetworkMode::FullNode,
+    mode: NetworkMode::Router,
     listen_addresses: vec!["/ip4/0.0.0.0/tcp/16000".parse().unwrap()],
     ..Default::default()
 };

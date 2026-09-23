@@ -228,7 +228,7 @@ pub async fn run_node() -> Result<()> {
 
     // 5. Initialize P2P Network
     let network_config = NetworkConfig {
-        mode: NetworkMode::Core,
+        mode: NetworkMode::Router,
         listen_addrs: vec![
             format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port)
                 .parse()

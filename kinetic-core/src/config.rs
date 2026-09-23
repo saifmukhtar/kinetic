@@ -125,8 +125,8 @@ pub struct DaemonConfig {
     pub enable_nrs: bool,
     /// Path to the directory where the embedded storage database is persisted.
     pub storage_dir: PathBuf,
-    /// Network operating mode. Supported values: `"FullNode"` (participates in DHT storage & routing)
-    /// or `"LightNode"` (queries network without storing records).
+    /// Network operating mode. Supported values: `"Router"` (participates in DHT storage & routing)
+    /// or `"Edge"` (queries network without storing records).
     #[serde(default = "default_network_mode")]
     pub network_mode: String,
 
@@ -154,7 +154,7 @@ fn default_true() -> bool {
 }
 
 fn default_network_mode() -> String {
-    "FullNode".to_string()
+    "Router".to_string()
 }
 
 fn default_api_port() -> u16 {
@@ -271,7 +271,7 @@ impl Default for KineticConfig {
                 backend_port: ports::BACKEND,
                 enable_nrs: true,
                 storage_dir,
-                network_mode: "FullNode".to_string(),
+                network_mode: "Router".to_string(),
                 pac_port: ports::PAC,
                 ipfs_gateway: crate::constants::IPFS_GATEWAY.to_string(),
                 atlas_port: 34291,

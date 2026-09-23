@@ -53,7 +53,7 @@ pub fn start_telemetry_service(
 
             let network_mode = match config.daemon.network_mode.as_str() {
                 "Edge" => NetworkMode::Edge,
-                _ => NetworkMode::Core,
+                _ => NetworkMode::Router,
             };
 
             let metrics = network_client
