@@ -5,7 +5,6 @@ use axum::Json;
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 use serde::Serialize;
 
-
 /// A period of time when the network was halted.
 #[derive(Serialize)]
 pub struct PausePeriod {
@@ -18,7 +17,6 @@ pub struct PausePeriod {
 /// High-level metrics summarizing the action state.
 #[derive(Serialize)]
 pub struct ActionMetrics {
-
     /// Total number of action/action commands executed since genesis.
     pub total_executed_actions: usize,
 }
@@ -69,12 +67,16 @@ pub async fn handle_get_action_status(
         })
     })?;
 
-    let active_key_hex = action_state.active_sovereign_key.as_ref().map(|k| hex::encode(&k.0));
+    let active_key_hex = action_state
+        .active_sovereign_key
+        .as_ref()
+        .map(|k| hex::encode(&k.0));
 
     // Fetch verified Kyn from the node's constantly updating local cache
     let current_kyn = {
-        let kyn_provider =
-            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+        let kyn_provider = kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(
+            state.storage.clone(),
+        ));
         use kinetic_core::traits::KynProvider;
         match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn(),
@@ -111,8 +113,6 @@ pub async fn handle_get_action_status(
     }))
 }
 
-
-
 use crate::api::ApiState;
 use crate::api::PublishResponse;
 use axum::extract::State;
@@ -135,8 +135,9 @@ pub async fn handle_publish_action(
     tracing::info!("Received API publish request for Action action");
 
     let _current_kyn = {
-        let kyn_provider =
-            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+        let kyn_provider = kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(
+            state.storage.clone(),
+        ));
 
         match kyn_provider.load_cached() {
             Ok(kyn) => kyn.kyn(),

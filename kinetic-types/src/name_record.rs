@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// Represents a heartbeat proof indicating that a `.kin` name is actively maintained by its owner.
 ///
-/// The network requires heartbeats to ensure that abandoned names do not permanently 
+/// The network requires heartbeats to ensure that abandoned names do not permanently
 /// pollute the active routing table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -24,7 +24,8 @@ pub struct Heartbeat {
     /// Latest Kyn number proving heartbeat recency.
     pub latest_kyn: kinetic_kyn::types::Kyn,
     /// Owner's cryptographic signature over [`signable_bytes`](Heartbeat::signable_bytes).
-    pub owner_signature: Vec<u8>,
+    #[serde(with = "crate::sig_serde::identity_sig_serde")]
+    pub owner_signature: kinetic_primitives::keypairs::IdentitySignature,
     /// Optional delegated authorization proof (Fat Heartbeat).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization: Option<Box<crate::identity::AuthorizedManifest>>,
@@ -33,7 +34,7 @@ pub struct Heartbeat {
 impl Heartbeat {
     /// Generates the canonical byte representation of the heartbeat for signing.
     ///
-    /// By deliberately binding the signature to both the `network_salt` and the literal `b"-heartbeat-v1"`, a heartbeat signed for 
+    /// By deliberately binding the signature to both the `network_salt` and the literal `b"-heartbeat-v1"`, a heartbeat signed for
     /// the `.kin` network cannot be maliciously replayed on other networks.
     ///
     /// # Examples
@@ -67,7 +68,7 @@ impl Heartbeat {
         if let Some(auth) = &self.authorization {
             bytes.push(1);
             bytes.extend_from_slice(&(auth.owner_signature.len() as u32).to_be_bytes());
-            bytes.extend_from_slice(&auth.owner_signature);
+            bytes.extend_from_slice(auth.owner_signature.as_bytes());
         } else {
             bytes.push(0);
         }
@@ -108,7 +109,7 @@ impl NameRecord {
     /// Returns the Identity signature over the payload.
     pub fn signature(&self) -> &[u8] {
         match self {
-            Self::Standard(r) => &r.identity_signature,
+            Self::Standard(r) => r.identity_signature.as_bytes(),
         }
     }
 
@@ -124,14 +125,14 @@ impl NameRecord {
 pub const M_REDUNDANCY: u8 = 32;
 
 /// Normalizes a given name string for consistent key derivation.
-/// 
-/// Converts the name to lowercase and strips trailing dots to ensure that 
+///
+/// Converts the name to lowercase and strips trailing dots to ensure that
 /// `Example.kin.` and `example.kin` route to the exact same DHT storage arrays.
 ///
 /// # Examples
 /// ```rust
 /// use kinetic_types::name_record::normalize_name;
-/// 
+///
 /// assert_eq!(normalize_name("EXAmple.kin."), "example.kin");
 /// ```
 pub fn normalize_name(name: &str) -> String {

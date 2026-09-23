@@ -96,8 +96,6 @@ pub fn get_kids_dir() -> PathBuf {
     crate::config::get_base_dir().join("kids")
 }
 
-
-
 pub struct KidPaths {
     pub did_path: PathBuf,
     pub key_path: PathBuf,
@@ -199,7 +197,7 @@ pub fn authorize_kid_document(
     let mut auth_kid = AuthorizedKid {
         name: fqdn,
         kid_doc: doc.clone(),
-        owner_signature: vec![],
+        owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
     };
 
     let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT);
@@ -274,9 +272,7 @@ pub fn get_or_create_kid_for_name(
     let kid_did = Did::new(&did_str)
         .map_err(|e| IdentityError::InvalidDid(format!("Invalid DID derived: {:?}", e)))?;
 
-    let now_ts = current_kyn.to_ukyn(
-        kinetic_core::constants::BEACON_GENESIS,
-    );
+    let now_ts = current_kyn.to_ukyn(kinetic_core::constants::BEACON_GENESIS);
 
     let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
@@ -567,9 +563,7 @@ pub fn save_and_sign_local_manifest(
         None => 1,
     };
 
-    let current_time = current_kyn.to_ukyn(
-        kinetic_core::constants::BEACON_GENESIS,
-    );
+    let current_time = current_kyn.to_ukyn(kinetic_core::constants::BEACON_GENESIS);
 
     let manifest = Manifest {
         doc_type: "kinetic.manifest.v1".to_string(),
@@ -596,7 +590,7 @@ pub fn save_and_sign_local_manifest(
         name: fqdn.clone(),
         manifest: signed_manifest.clone(),
         kid_doc: Some(doc),
-        owner_signature: vec![],
+        owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
     };
 
     let signable = auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT);

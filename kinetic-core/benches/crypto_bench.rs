@@ -36,12 +36,7 @@ fn bench_mldsa65(c: &mut Criterion) {
     let signature = signing_key.sign(message);
 
     group.bench_function("verify", |b| {
-        b.iter(|| {
-            verifying_key.verify(
-                black_box(message),
-                black_box(&signature),
-            )
-        })
+        b.iter(|| verifying_key.verify(black_box(message), black_box(&signature)))
     });
 
     group.finish();

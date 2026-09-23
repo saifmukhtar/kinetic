@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 
 /// High-performance HTTP proxy request container for client IPC forwarding.
 ///
-/// Uses reference-counted `Arc<str>` strings and zero-copy `bytes::Bytes` to 
-/// ensure extremely high throughput when multiplexing thousands of concurrent 
+/// Uses reference-counted `Arc<str>` strings and zero-copy `bytes::Bytes` to
+/// ensure extremely high throughput when multiplexing thousands of concurrent
 /// web assets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProxyRequest {

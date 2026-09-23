@@ -61,7 +61,10 @@ pub async fn handle_auth_command(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
 
             let json: serde_json::Value = resp.json().await?;
@@ -98,7 +101,10 @@ pub async fn handle_auth_command(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
 
             let json: serde_json::Value = resp.json().await?;
@@ -165,7 +171,10 @@ pub async fn handle_auth_command(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
 
             println!("✅ Successfully revoked session: {}", id);

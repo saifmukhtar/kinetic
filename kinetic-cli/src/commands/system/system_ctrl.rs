@@ -4,11 +4,11 @@ use kinetic_core::config::KineticConfig;
 /// Instructs the Kinetic Daemon to execute a graceful restart cycle.
 ///
 /// > [!WARNING]
-/// > Because the daemon orchestrates critical network infrastructure, ripping the process 
+/// > Because the daemon orchestrates critical network infrastructure, ripping the process
 /// > from memory (e.g., `kill -9`) can corrupt the redb storage and abruptly drop proxy connections.
 ///
-/// This CLI command delegates the restart logic to the Daemon via the `/api/v1/micro/system/restart` 
-/// endpoint, ensuring the Daemon gracefully flushes its local Kademlia DHT state to disk and cleanly 
+/// This CLI command delegates the restart logic to the Daemon via the `/api/v1/micro/system/restart`
+/// endpoint, ensuring the Daemon gracefully flushes its local Kademlia DHT state to disk and cleanly
 /// terminates OS-level proxy loops before spinning back up.
 pub async fn handle_restart(
     config: &KineticConfig,
@@ -31,7 +31,10 @@ pub async fn handle_restart(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
     println!("✅ Daemon restart initiated gracefully.");
     Ok(())
@@ -65,7 +68,10 @@ pub async fn handle_shutdown(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
     println!("🛑 Daemon shutdown initiated gracefully.");
     Ok(())
@@ -85,7 +91,10 @@ pub async fn handle_ca_cert(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
     let cert = resp.text().await?;
     println!("{}", cert);

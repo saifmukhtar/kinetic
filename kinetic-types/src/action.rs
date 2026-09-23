@@ -13,7 +13,6 @@
 //! | `0x0C` | [`NetworkAction::EmergencyHalt`] | Emergency pause on registrations/renewals |
 //! | `0x0D` | [`NetworkAction::EmergencyResume`] | Resume registrations and advance pause offset |
 
-
 use kinetic_primitives::keypairs::SovereignPubKey;
 use thiserror::Error;
 
@@ -23,9 +22,9 @@ pub type Hash256 = [u8; 32];
 /// Raw Sovereign key signature bytes.
 ///
 /// # Security
-/// The network currently strictly expects the ML-DSA-65 signature output 
+/// The network currently strictly expects the ML-DSA-65 signature output
 /// of the underlying Sovereign key algorithm.
-pub type SovereignSignature = Vec<u8>;
+use kinetic_primitives::keypairs::SovereignSignature;
 
 /// Enumerates privileged protocol actions managed by the network action system.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -50,6 +49,7 @@ pub struct SignedNetworkAction {
     /// Network timestamp in drand kyns when the proposal was signed.
     pub timestamp_kyn: kinetic_kyn::types::TimestampKyn,
     /// The Sovereign signatures authorizing this action.
+    #[serde(with = "crate::sig_serde::vec_sovereign_sig_serde")]
     pub sovereign_signatures: Vec<SovereignSignature>,
 }
 
@@ -127,7 +127,7 @@ impl NetworkAction {
     /// # Examples
     /// ```rust
     /// use kinetic_types::action::{NetworkAction, ActionParseError};
-    /// 
+    ///
     /// // A buffer that is too small (8 bytes total)
     /// let bad_buf = vec![0x0F, 0, 0, 0, 0, 0, 0, 0];
     /// assert_eq!(
@@ -135,14 +135,17 @@ impl NetworkAction {
     ///     Err(ActionParseError::BufferTooSmall)
     /// );
     /// ```
-    pub fn parse_payload(bytes: &[u8]) -> Result<(Self, kinetic_kyn::types::Kyn), ActionParseError> {
+    pub fn parse_payload(
+        bytes: &[u8],
+    ) -> Result<(Self, kinetic_kyn::types::Kyn), ActionParseError> {
         if bytes.len() < 9 {
             // At least 1 byte opcode + 8 bytes timestamp
             return Err(ActionParseError::BufferTooSmall);
         }
 
         let timestamp_bytes = &bytes[bytes.len() - 8..];
-        let timestamp_kyn = kinetic_kyn::types::Kyn::from_be_bytes(timestamp_bytes.try_into().unwrap());
+        let timestamp_kyn =
+            kinetic_kyn::types::Kyn::from_be_bytes(timestamp_bytes.try_into().unwrap());
         let payload = &bytes[0..bytes.len() - 8];
         if payload.is_empty() {
             return Err(ActionParseError::BufferTooSmall);
@@ -217,10 +220,6 @@ mod tests {
         let result = NetworkAction::parse_payload(&buf);
         assert_eq!(result, Err(ActionParseError::InvalidPubkeyLength));
     }
-
-
-
-
 
     proptest! {
         #[test]

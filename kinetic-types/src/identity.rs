@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 
 /// Authorized Kinetic Identity Document (KID) document bound to a `.kin` name.
 ///
-/// This container is used to securely attach a self-sovereign W3C DID document 
-/// (from Layer 2 `kinetic-kid`) to a specific `.kin` network name. It includes 
-/// the owner's cryptographic signature over the combined payload to prove they 
+/// This container is used to securely attach a self-sovereign W3C DID document
+/// (from Layer 2 `kinetic-kid`) to a specific `.kin` network name. It includes
+/// the owner's cryptographic signature over the combined payload to prove they
 /// authorized the attachment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizedKid {
@@ -29,7 +29,8 @@ pub struct AuthorizedKid {
     /// Embedded KID document containing public keys and controller data.
     pub kid_doc: kinetic_kid::document::Document,
     /// Name owner's signature verifying the KID attachment.
-    pub owner_signature: Vec<u8>,
+    #[serde(with = "crate::sig_serde::identity_sig_serde")]
+    pub owner_signature: kinetic_primitives::keypairs::IdentitySignature,
 }
 
 impl AuthorizedKid {
@@ -39,15 +40,15 @@ impl AuthorizedKid {
     /// `network_salt` (32 bytes) + `b"-auth-kid-v1"` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
     ///
     /// # Security
-    /// The 32-byte `network_salt` prefix guarantees Cross-Network Replay Protection. 
-    /// A signature produced on the production `.kin` network cannot be maliciously 
-    /// replayed on a private `.corp` or test network because the underlying byte 
+    /// The 32-byte `network_salt` prefix guarantees Cross-Network Replay Protection.
+    /// A signature produced on the production `.kin` network cannot be maliciously
+    /// replayed on a private `.corp` or test network because the underlying byte
     /// payload will fundamentally mismatch.
     ///
     /// # Examples
     /// ```rust
     /// use kinetic_types::identity::AuthorizedKid;
-    /// 
+    ///
     /// let kid_json = r#"{
     ///     "type": "kinetic.kid.v1",
     ///     "id": "did:kin:0000000000000000000000000000000000000000000000000000000000000000",
@@ -56,13 +57,13 @@ impl AuthorizedKid {
     ///     "revocation_keys": []
     /// }"#;
     /// let kid_doc = serde_json::from_str(kid_json).unwrap();
-    /// 
+    ///
     /// let auth = AuthorizedKid {
     ///     name: "example.kin".to_string(),
     ///     kid_doc,
     ///     owner_signature: vec![],
     /// };
-    /// 
+    ///
     /// let production_network_salt = [0x42; 32];
     /// let bytes = auth.signable_bytes(&production_network_salt);
     /// assert!(bytes.len() > 32);
@@ -86,8 +87,8 @@ impl AuthorizedKid {
 
 /// Authorized capability manifest bound to a `.kin` name.
 ///
-/// This container is used to securely attach a time-bounded capability manifest 
-/// (e.g., routing hints or service endpoints) to a specific `.kin` network name. 
+/// This container is used to securely attach a time-bounded capability manifest
+/// (e.g., routing hints or service endpoints) to a specific `.kin` network name.
 /// It includes the owner's cryptographic signature to prove authorization.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AuthorizedManifest {
@@ -98,7 +99,8 @@ pub struct AuthorizedManifest {
     /// Optional associated KID document.
     pub kid_doc: Option<kinetic_kid::document::Document>,
     /// Name owner's signature verifying the manifest attachment.
-    pub owner_signature: Vec<u8>,
+    #[serde(with = "crate::sig_serde::identity_sig_serde")]
+    pub owner_signature: kinetic_primitives::keypairs::IdentitySignature,
 }
 
 impl AuthorizedManifest {
@@ -108,13 +110,13 @@ impl AuthorizedManifest {
     /// `network_salt` (32 bytes) + `b"-auth-manifest-v1"` + `u32_be(name.len())` + `name_bytes` + `u32_be(canon_json.len())` + `canon_json_bytes`
     ///
     /// # Security
-    /// Enforces Cross-Network Replay Protection by prepending the network-specific 
+    /// Enforces Cross-Network Replay Protection by prepending the network-specific
     /// 32-byte salt.
     ///
     /// # Examples
     /// ```rust
     /// use kinetic_types::identity::AuthorizedManifest;
-    /// 
+    ///
     /// let manifest_json = r#"{
     ///     "type": "kinetic.manifest.v1",
     ///     "kid": "did:kin:0000000000000000000000000000000000000000000000000000000000000000",
@@ -124,14 +126,14 @@ impl AuthorizedManifest {
     ///     "services": []
     /// }"#;
     /// let manifest = serde_json::from_str(manifest_json).unwrap();
-    /// 
+    ///
     /// let auth = AuthorizedManifest {
     ///     name: "example.kin".to_string(),
     ///     manifest,
     ///     kid_doc: None,
     ///     owner_signature: vec![],
     /// };
-    /// 
+    ///
     /// let test_network_salt = [0xFF; 32];
     /// let bytes = auth.signable_bytes(&test_network_salt);
     /// assert!(bytes.len() > 32);

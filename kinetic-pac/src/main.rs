@@ -3,24 +3,24 @@
 //! Highly privileged OS network configurator and PAC (Proxy Auto-Configuration) daemon.
 //!
 //! ## Layer 8 Architecture: OS Environment Hijacker
-//! Unlike the pure mathematical crates in lower layers, `kinetic-pac` is a dangerous, 
-//! highly privileged binary. It actively mutates the host operating system's global 
-//! networking environment. It enumerates active network adapters, modifies registry keys, 
-//! issues D-Bus calls, and overrides system-wide proxy settings to seamlessly force `.kin` 
+//! Unlike the pure mathematical crates in lower layers, `kinetic-pac` is a dangerous,
+//! highly privileged binary. It actively mutates the host operating system's global
+//! networking environment. It enumerates active network adapters, modifies registry keys,
+//! issues D-Bus calls, and overrides system-wide proxy settings to seamlessly force `.kin`
 //! traffic into the `kinetic-daemon` without requiring browser extensions.
 //!
 //! ## Extreme Security & Safety Guarantees
-//! This crate is capable of permanently breaking a user's internet connection if it fails 
+//! This crate is capable of permanently breaking a user's internet connection if it fails
 //! to clean up after itself. To prevent this, it enforces aggressive fail-safe state machines:
-//! - **State Snapshotting:** Before mutating the host OS, it scrapes all existing proxy 
-//!   configurations (e.g., iterating through every macOS Wi-Fi/Ethernet interface via `networksetup`) 
+//! - **State Snapshotting:** Before mutating the host OS, it scrapes all existing proxy
+//!   configurations (e.g., iterating through every macOS Wi-Fi/Ethernet interface via `networksetup`)
 //!   and serializes the user's original environment to a strict `proxy_active.lock` file.
-//! - **Fail-Safe Restoration:** When the daemon receives a SIGINT/SIGTERM, it executes a 
-//!   mandatory teardown sequence, restoring the exact registry keys and `gsettings` 
-//!   from the lockfile. 
-//! - **PAC Script Merging:** If the host OS already utilizes a corporate PAC script, 
-//!   `kinetic-pac` will download the original script, inject the `.kin` routing table 
-//!   into the AST, and yield back to the original `FindProxyForURL` function for all 
+//! - **Fail-Safe Restoration:** When the daemon receives a SIGINT/SIGTERM, it executes a
+//!   mandatory teardown sequence, restoring the exact registry keys and `gsettings`
+//!   from the lockfile.
+//! - **PAC Script Merging:** If the host OS already utilizes a corporate PAC script,
+//!   `kinetic-pac` will download the original script, inject the `.kin` routing table
+//!   into the AST, and yield back to the original `FindProxyForURL` function for all
 //!   other domains.
 //!
 //! ## Architecture Context
@@ -29,7 +29,7 @@
 //!            | (System networking hooks)
 //!            v
 //! [kinetic-pac::os::*] (Registry/DBus/networksetup mutations)
-//!            | 
+//!            |
 //!            v
 //! [axum PAC HTTP Server] (Serves dynamic proxy.pac)
 //!            | (Intercepts *.kin)
@@ -386,8 +386,8 @@ fn stop_background_service() -> anyhow::Result<()> {
 
 /// Dynamically constructs the PAC (Proxy Auto-Configuration) JavaScript string.
 ///
-/// It scans for configured proxies (e.g. `.kin`, `.uni`), maps them to their 
-/// respective localhost ports, and safely merges any pre-existing original 
+/// It scans for configured proxies (e.g. `.kin`, `.uni`), maps them to their
+/// respective localhost ports, and safely merges any pre-existing original
 /// PAC logic found on the system.
 pub fn build_pac_script(base_dir: &std::path::Path) -> String {
     let mut pac_script = String::from("function FindProxyForURL(url, host) {\n");

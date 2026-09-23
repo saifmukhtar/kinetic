@@ -1,20 +1,20 @@
 //! Thread-safe `NetworkClient` handle for sending commands to the background P2P event loop.
 //!
 //! ## Channel-Based Mutability Defense
-//! Rather than wrapping the `libp2p::Swarm` in an `Arc<RwLock>` and suffering from catastrophic 
-//! lock contention during heavy Kademlia route tables updates, this module defines the 
+//! Rather than wrapping the `libp2p::Swarm` in an `Arc<RwLock>` and suffering from catastrophic
+//! lock contention during heavy Kademlia route tables updates, this module defines the
 //! `NetworkClient`.
 //!
-//! The `NetworkClient` holds an asynchronous `tokio::sync::mpsc::Sender<Command>` pointing 
-//! directly into the `NetworkEventLoop` receiver. This strictly guarantees that all network 
-//! operations (like `put_record` or `publish_reveal`) are serialized sequentially in the exact 
+//! The `NetworkClient` holds an asynchronous `tokio::sync::mpsc::Sender<Command>` pointing
+//! directly into the `NetworkEventLoop` receiver. This strictly guarantees that all network
+//! operations (like `put_record` or `publish_reveal`) are serialized sequentially in the exact
 //! order they arrive.
 //!
-//! ## Responding Back 
-//! To receive data *back* from the network (e.g. querying a `NameRecord` from the DHT), 
-//! the `NetworkClient` methods dynamically construct `tokio::sync::oneshot::channel` instances, 
-//! attach the `Sender` side to the `Command`, and `await` on the `Receiver` side. This allows 
-//! HTTP API handlers in the daemon to wait for DHT responses without stalling the underlying 
+//! ## Responding Back
+//! To receive data *back* from the network (e.g. querying a `NameRecord` from the DHT),
+//! the `NetworkClient` methods dynamically construct `tokio::sync::oneshot::channel` instances,
+//! attach the `Sender` side to the `Command`, and `await` on the `Receiver` side. This allows
+//! HTTP API handlers in the daemon to wait for DHT responses without stalling the underlying
 //! P2P node.
 use crate::client::command::Command;
 use crate::client::types::{ProxyError, ProxyRequest, ProxyResponse};
@@ -502,8 +502,11 @@ impl NetworkClient {
                 let record =
                     serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&bytes)
                         .map_err(|e| NetworkClientError::Other(e.to_string()))?;
-                crate::store::verification::verify_host_routing_record(&record, kinetic_kyn::types::Kyn(current_kyn))
-                    .map_err(|e| NetworkClientError::Other(e.to_string()))?;
+                crate::store::verification::verify_host_routing_record(
+                    &record,
+                    kinetic_kyn::types::Kyn(current_kyn),
+                )
+                .map_err(|e| NetworkClientError::Other(e.to_string()))?;
                 Ok(Some(record))
             }
             Err(ResolutionError::NotFound { .. }) => Ok(None),

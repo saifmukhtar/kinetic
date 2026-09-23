@@ -167,8 +167,6 @@ pub enum KineticStoreError {
     #[error("heartbeat timestamp is too far in the future")]
     FutureHeartbeat,
 
-
-
     // ==========================================
     // KIN-QRY Error Codes
     // ==========================================
@@ -232,7 +230,6 @@ impl KineticStoreError {
             Self::ManifestVersionRollback => "KIN-DHT-029",
             Self::ManifestVerificationFailed => "KIN-DHT-030",
             Self::FutureHeartbeat => "KIN-DHT-031",
-
 
             Self::RevealNotFound => "KIN-QRY-007",
             Self::MissingCommitment { .. } => "KIN-QRY-008",
@@ -302,7 +299,6 @@ impl KineticStoreError {
             Self::ManifestVerificationFailed => "Manifest failed local verification".to_string(),
             Self::FutureHeartbeat => "Heartbeat timestamp is from the future".to_string(),
 
-
             Self::RevealNotFound => "No reveal record found for name".to_string(),
             Self::MissingCommitment { .. } => {
                 "No prior commitment found in DHT for this reveal".to_string()
@@ -348,7 +344,6 @@ impl KineticStoreError {
             | Self::ManifestVersionRollback
             | Self::ManifestVerificationFailed
             | Self::FutureHeartbeat
-
             | Self::MissingKidDocument
             | Self::MalformedJson
             | Self::SchemaValidationError

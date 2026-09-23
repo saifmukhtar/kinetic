@@ -27,12 +27,14 @@ pub async fn start_gossip_listener(
                     kinetic_core::action::SignedNetworkAction,
                 >(actual_payload)
             {
-
                 let current_kyn = match kyn_provider.load_cached() {
                     Ok(kyn) => kyn.kyn(),
                     Err(_) => match kyn_provider.fetch_latest().await {
                         Ok(kyn) => kyn.kyn(),
-                        Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
+                        Err(_) => {
+                            kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS)
+                                .0
+                        }
                     },
                 };
 

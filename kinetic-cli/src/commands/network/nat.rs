@@ -12,11 +12,18 @@ pub async fn handle_nat(config: &KineticConfig, client: &reqwest::Client) -> any
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     let json: serde_json::Value = resp.json().await?;
-    if let Some(nat) = json.get("nat_status").or_else(|| json.get("status")).and_then(|v| v.as_str()) {
+    if let Some(nat) = json
+        .get("nat_status")
+        .or_else(|| json.get("status"))
+        .and_then(|v| v.as_str())
+    {
         use colored::Colorize;
         let formatted = match nat.to_lowercase().as_str() {
             "open" | "public" => format!("🟢 {}", nat.green().bold()),

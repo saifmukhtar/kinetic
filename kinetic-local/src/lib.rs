@@ -3,17 +3,17 @@
 //! Local file system and OS environment abstractions for the Kinetic Network.
 //!
 //! ## Layer 6 Architecture: OS & Disk Orchestration
-//! This crate operates as the isolated file system boundary. It orchestrates the loading 
-//! of TOML configurations, the secure serialization of cryptographic keypairs to disk, 
-//! the management of `.kin` identity documents, and OS-level shutdown signals. 
+//! This crate operates as the isolated file system boundary. It orchestrates the loading
+//! of TOML configurations, the secure serialization of cryptographic keypairs to disk,
+//! the management of `.kin` identity documents, and OS-level shutdown signals.
 //! It strictly abstracts disk I/O away from the core consensus crates.
 //!
 //! ## Security & Safety Guarantees
-//! - **Keystore Sandboxing:** Enforces strict permission boundaries on identity keystores 
+//! - **Keystore Sandboxing:** Enforces strict permission boundaries on identity keystores
 //!   (`secure_fs`) to prevent local privilege escalation attacks (e.g., locking file modes).
-//! - **Fail-Closed Configuration:** If `config.toml` is malformed, the node refuses to start 
+//! - **Fail-Closed Configuration:** If `config.toml` is malformed, the node refuses to start
 //!   rather than failing open to dangerous defaults.
-//! - **TOCTOU Defenses:** Handles Time-of-Check to Time-of-Use race conditions when 
+//! - **TOCTOU Defenses:** Handles Time-of-Check to Time-of-Use race conditions when
 //!   initializing default data directories.
 //!
 //! ## Architecture Context

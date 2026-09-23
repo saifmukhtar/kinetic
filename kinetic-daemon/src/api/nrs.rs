@@ -1,8 +1,8 @@
 //! HTTP REST API handlers for the Kinetic Name Registration System (NRS).
 //!
 //! ## Layer 8 Architecture: The Registration Gateway
-//! This file is the primary ingress point for the local Desktop UI to interact with the global 
-//! Kademlia DHT. It handles the highly complex multi-stage cryptographic flow of domain 
+//! This file is the primary ingress point for the local Desktop UI to interact with the global
+//! Kademlia DHT. It handles the highly complex multi-stage cryptographic flow of domain
 //! registration (Commit, Reveal, Verify).
 //!
 //! ### The Publishing Flow
@@ -32,7 +32,7 @@ use kinetic_verify::signatures::VerifySignature;
 /// Resolves the canonical current network time epoch (KYN) with high availability.
 ///
 /// > [!NOTE]
-/// > Because domain registration is bound to the current time epoch to prevent spam, 
+/// > Because domain registration is bound to the current time epoch to prevent spam,
 /// > we must have absolute certainty of the network time.
 ///
 /// This function executes a cascading fallback strategy:
@@ -57,16 +57,16 @@ async fn get_safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::Kyn {
 /// Injects a fully verified `Reveal` payload into the global Kademlia DHT.
 ///
 /// > [!IMPORTANT]
-/// > This is the final step in the NRS registration flow. A `Reveal` is only accepted if 
+/// > This is the final step in the NRS registration flow. A `Reveal` is only accepted if
 /// > the corresponding `Commit` has successfully matured (>10 epochs) on the network.
 ///
 /// ### Execution Flow
 /// 1. **Classification:** Determines if the domain is Standard (requires PoW) or Premium.
-/// 2. **Staleness Enforcement:** Rejects any Standard `Reveal` if its attached Time Oracle 
+/// 2. **Staleness Enforcement:** Rejects any Standard `Reveal` if its attached Time Oracle
 ///    epoch is older than the `RESQUARING_EPOCH_KYNS` threshold.
 /// 3. **Validation:** Executes the `verify()` trait method to validate the Ed25519 signatures.
 /// 4. **Persistence:** Saves the `Reveal` locally to ensure it survives reboots.
-/// 5. **Network Injection:** Sends the payload to the asynchronous `NetworkClient` to be 
+/// 5. **Network Injection:** Sends the payload to the asynchronous `NetworkClient` to be
 ///    routed to the mathematically closest DHT peers.
 ///
 /// # Errors
@@ -111,7 +111,8 @@ pub async fn handle_publish_record(
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(format!(
                     "Reveal rejected: VDF kyn {} is in the future (current kyn: {}).",
-                    reveal.kyn.as_u64(), current_kyn
+                    reveal.kyn.as_u64(),
+                    current_kyn
                 )),
             ));
         }
@@ -868,8 +869,8 @@ pub async fn handle_publish_fat_zone(
             e
         )))
     })?;
-    let keypair =
-        kinetic_primitives::keypairs::IdentityPrivKey::from_slice(&hot_key_bytes).map_err(|e| {
+    let keypair = kinetic_primitives::keypairs::IdentityPrivKey::from_slice(&hot_key_bytes)
+        .map_err(|e| {
             crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
                 format!("Invalid ML-DSA keypair: {}", e),
             ))

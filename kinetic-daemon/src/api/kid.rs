@@ -1,9 +1,9 @@
 //! HTTP REST API handlers for managing Cryptographic Kinetic Identities (KIDs).
 //!
 //! ## Layer 8 Architecture: The Identity Manager
-//! A Kinetic Identity (KID) is a serialized Sovereign keypair that proves ownership 
-//! of specific namespaces. This module handles all local operations relating to 
-//! identity management: derivation from seed phrases, exporting to disk, and 
+//! A Kinetic Identity (KID) is a serialized Sovereign keypair that proves ownership
+//! of specific namespaces. This module handles all local operations relating to
+//! identity management: derivation from seed phrases, exporting to disk, and
 //! cryptographically signing `AuthorizedKid` payloads to delegate trust on the DHT.
 
 use super::*;
@@ -361,11 +361,13 @@ pub async fn handle_publish_kid(
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                record.pubkey().verify(
-                    &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-                    &auth_kid.owner_signature,
-                )
-                .is_ok()
+                record
+                    .pubkey()
+                    .verify(
+                        &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+                        &auth_kid.owner_signature,
+                    )
+                    .is_ok()
             } else {
                 false
             }
@@ -437,11 +439,13 @@ pub async fn handle_publish_manifest(
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
             if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                record.pubkey().verify(
-                    &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-                    &auth_manifest.owner_signature,
-                )
-                .is_ok()
+                record
+                    .pubkey()
+                    .verify(
+                        &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+                        &auth_manifest.owner_signature,
+                    )
+                    .is_ok()
             } else {
                 false
             }
@@ -482,7 +486,9 @@ pub async fn handle_publish_manifest(
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time = get_safe_current_kyn(&state).await.to_ukyn(kinetic_core::constants::BEACON_GENESIS);
+    let current_network_time = get_safe_current_kyn(&state)
+        .await
+        .to_ukyn(kinetic_core::constants::BEACON_GENESIS);
     if let Err(e) = auth_manifest
         .manifest
         .verify_at_time(&kid_doc, current_network_time)

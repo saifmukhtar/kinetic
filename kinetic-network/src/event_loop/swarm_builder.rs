@@ -2,9 +2,9 @@ use crate::client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, Pro
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 
+use super::edge;
 #[cfg(not(target_arch = "wasm32"))]
 use super::router;
-use super::edge;
 
 impl super::core::NetworkEventLoop {
     /// Initializes a new P2P Swarm and returns the client handle and the event loop.

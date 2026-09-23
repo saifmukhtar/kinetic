@@ -20,7 +20,7 @@ fn test_003_oom_payload_exhaustion() {
             proof_bytes: vec![],
         },
         pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
-        identity_signature: vec![],
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         previous_proof: None,
         authorization: None,
     };

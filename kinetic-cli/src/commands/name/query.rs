@@ -88,11 +88,14 @@ pub async fn handle_name_info(
             Cell::new("Key").fg(Color::Cyan),
             Cell::new("Value").fg(Color::White),
         ]);
-        
+
         if let Some(obj) = json.as_object() {
             for (k, v) in obj {
                 if v.is_object() || v.is_array() {
-                    table.add_row(vec![k.to_string(), serde_json::to_string(v).unwrap_or_default()]);
+                    table.add_row(vec![
+                        k.to_string(),
+                        serde_json::to_string(v).unwrap_or_default(),
+                    ]);
                 } else if let Some(s) = v.as_str() {
                     table.add_row(vec![k.to_string(), s.to_string()]);
                 } else {
@@ -188,7 +191,10 @@ pub async fn handle_name_difficulty(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     let base_json: serde_json::Value = resp.json().await?;
@@ -228,7 +234,10 @@ pub async fn handle_name_validate(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     let json: serde_json::Value = resp.json().await?;

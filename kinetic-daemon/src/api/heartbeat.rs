@@ -49,7 +49,9 @@ async fn get_safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::CurrentKy
     use kinetic_core::traits::KynProvider;
     match kyn_provider.load_cached() {
         Ok(kyn) if kyn.kyn() > 0 => kinetic_kyn::types::CurrentKyn::from(kyn.kyn()),
-        _ => kinetic_kyn::types::CurrentKyn::from(kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0),
+        _ => kinetic_kyn::types::CurrentKyn::from(
+            kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
+        ),
     }
 }
 
@@ -152,7 +154,7 @@ pub async fn handle_post_heartbeat(
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
         latest_kyn: kinetic_kyn::types::Kyn(current_kyn.as_u64()),
-        owner_signature: vec![],
+        owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         authorization: None,
     };
 
@@ -175,7 +177,7 @@ pub async fn handle_post_heartbeat(
                 request_id: "".to_string(),
             })
         })?;
-    heartbeat.owner_signature = sig_bytes;
+    heartbeat.owner_signature = kinetic_primitives::keypairs::IdentitySignature(sig_bytes.0);
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
@@ -244,8 +246,8 @@ pub async fn handle_post_fat_heartbeat(
             e
         )))
     })?;
-    let keypair =
-        kinetic_primitives::keypairs::IdentityPrivKey::from_slice(&hot_key_bytes).map_err(|e| {
+    let keypair = kinetic_primitives::keypairs::IdentityPrivKey::from_slice(&hot_key_bytes)
+        .map_err(|e| {
             crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
                 format!("Invalid ML-DSA keypair: {}", e),
             ))
@@ -256,7 +258,7 @@ pub async fn handle_post_fat_heartbeat(
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
         latest_kyn: kinetic_kyn::types::Kyn(current_kyn.as_u64()),
-        owner_signature: vec![],
+        owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         authorization: Some(Box::new(req.authorized_manifest)),
     };
 
@@ -278,7 +280,7 @@ pub async fn handle_post_fat_heartbeat(
                 request_id: "".to_string(),
             })
         })?;
-    heartbeat.owner_signature = sig_bytes;
+    heartbeat.owner_signature = kinetic_primitives::keypairs::IdentitySignature(sig_bytes.0);
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(

@@ -28,4 +28,5 @@ pub mod nrs;
 
 pub mod proxy;
 pub mod pubkey_serde;
+pub mod sig_serde;
 pub mod vdf;

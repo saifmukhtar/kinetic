@@ -2,9 +2,9 @@
 //!
 //! **Layer 4: Verification & Domain Rules**
 //!
-//! This crate provides the pure, `no_std`-compatible cryptographic verification logic 
-//! for Kinetic network payloads. It strictly isolates the mathematical validation of 
-//! Identity signatures and Proof of Patience (VDF) claims from the asynchronous 
+//! This crate provides the pure, `no_std`-compatible cryptographic verification logic
+//! for Kinetic network payloads. It strictly isolates the mathematical validation of
+//! Identity signatures and Proof of Patience (VDF) claims from the asynchronous
 //! P2P networking stack.
 //!
 //! ## Core Components

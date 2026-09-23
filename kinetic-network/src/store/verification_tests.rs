@@ -16,7 +16,7 @@ mod tests {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
             kyn: kinetic_kyn::types::TargetKyn::from(stale_pulse),
-            host_signature: vec![],
+            host_signature: kinetic_primitives::keypairs::DelegatedSignature(vec![]),
         };
 
         // Even with a bad signature, it should fail on freshness first
@@ -41,7 +41,7 @@ mod tests {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
             kyn: kinetic_kyn::types::TargetKyn::from(recent_pulse),
-            host_signature: vec![],
+            host_signature: kinetic_primitives::keypairs::DelegatedSignature(vec![]),
         };
 
         let res = verify_host_routing_record(&record, kinetic_kyn::types::Kyn(current_drand_round));
@@ -73,7 +73,7 @@ mod tests {
                 proof_bytes: vec![],
             },
             pubkey: kinetic_primitives::keypairs::IdentityPubKey(ml_pub_bytes.clone()),
-            identity_signature: vec![],
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             previous_proof: None,
             authorization: None,
         };
@@ -112,13 +112,15 @@ mod tests {
             deactivated: false,
             signature: None,
         };
-        let controller_kp = kinetic_primitives::keypairs::ControllerPrivKey::from_slice(&ml_kp.to_secret_bytes()).unwrap();
+        let controller_kp =
+            kinetic_primitives::keypairs::ControllerPrivKey::from_slice(&ml_kp.to_secret_bytes())
+                .unwrap();
         let did_doc = doc.sign_with_controller(&controller_kp).unwrap();
 
         let mut auth_kid = AuthorizedKid {
             name: "test.kinetic".to_string(),
             kid_doc: did_doc,
-            owner_signature: vec![],
+            owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         };
 
         // Sign the kid_doc with our ML-DSA key

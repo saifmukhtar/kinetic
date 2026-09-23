@@ -1,23 +1,31 @@
 use crate::logic::process_action_message;
 use crate::types::{ActionConfig, ActionState, NetworkAction, SignedNetworkAction};
 
-use kinetic_primitives::keypairs::SovereignPrivKey;
 use kinetic_kyn::types::Kyn;
+use kinetic_primitives::keypairs::SovereignPrivKey;
 
 fn get_root_sk() -> SovereignPrivKey {
-    let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-        .unwrap();
+    let bytes =
+        hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
     SovereignPrivKey::from_seed(bytes.as_slice().try_into().unwrap())
 }
 
-fn generate_key(seed: u8) -> (SovereignPrivKey, kinetic_primitives::keypairs::SovereignPubKey) {
+fn generate_key(
+    seed: u8,
+) -> (
+    SovereignPrivKey,
+    kinetic_primitives::keypairs::SovereignPubKey,
+) {
     let bytes = [seed; 32];
     let signing_key = SovereignPrivKey::from_seed(&bytes);
     let verifying_key = signing_key.to_pubkey();
     (signing_key, verifying_key)
 }
 
-fn sign_action(msg: &SignedNetworkAction, signer: &SovereignPrivKey) -> Vec<u8> {
+fn sign_action(
+    msg: &SignedNetworkAction,
+    signer: &SovereignPrivKey,
+) -> kinetic_primitives::keypairs::SovereignSignature {
     let serialized = msg.to_bytes();
     signer.sign(&serialized)
 }
@@ -30,8 +38,6 @@ fn get_test_config() -> ActionConfig {
         action_model: "sovereign".to_string(),
     }
 }
-
-
 
 #[test]
 fn test_action_stale_rejection() {
@@ -52,7 +58,12 @@ fn test_action_stale_rejection() {
     };
     msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
-    let err =
-        process_action_message(&mut state, &msg, kinetic_kyn::types::CurrentKyn::from(current_kyn), &get_test_config()).unwrap_err();
+    let err = process_action_message(
+        &mut state,
+        &msg,
+        kinetic_kyn::types::CurrentKyn::from(current_kyn),
+        &get_test_config(),
+    )
+    .unwrap_err();
     assert!(matches!(err, crate::error::ActionError::StaleProposal));
 }

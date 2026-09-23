@@ -8,9 +8,9 @@
 //! verified, and extended with capability manifests.
 //!
 //! ## Layer 2 Architecture: Pure Mathematical Sandbox
-//! This crate operates strictly as an isolated mathematical sandbox. It does not perform 
-//! network I/O, and it explicitly does not access the local operating system clock. 
-//! All external states (such as verifying expiration against the consensus network `Kyn`) 
+//! This crate operates strictly as an isolated mathematical sandbox. It does not perform
+//! network I/O, and it explicitly does not access the local operating system clock.
+//! All external states (such as verifying expiration against the consensus network `Kyn`)
 //! must be injected by the outer `kinetic-daemon` layer.
 //!
 //! ## Core concepts
@@ -18,8 +18,8 @@
 //! - **[`Did`]** — A validated `did:kin:<hex>` string. The hex suffix
 //!   is the SHA-256 hash of the controller's primary public key.
 //! - **[`Document`]** — The identity document that binds a DID to one or
-//!   more [`ControllerKey`]s. It enforces a strict security separation between Hot 
-//!   (Controller) and Cold (Revocation) keys, and is signed with `ControllerPrivKey` 
+//!   more [`ControllerKey`]s. It enforces a strict security separation between Hot
+//!   (Controller) and Cold (Revocation) keys, and is signed with `ControllerPrivKey`
 //!   post-quantum signatures.
 //! - **[`Manifest`]** — An optional extension signed by the
 //!   controller that lists services (websites, APIs, etc.) associated with
@@ -181,7 +181,11 @@ mod tests {
 
         let signed_manifest = manifest.clone().sign_with_controller(&keypair).unwrap();
 
-        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UKyn(2000)).is_ok());
+        assert!(
+            signed_manifest
+                .verify_at_time(&doc, kinetic_kyn::types::UKyn(2000))
+                .is_ok()
+        );
 
         // A manifest signed by a different key must be rejected
         let bad_keypair = generate_keypair();
@@ -206,8 +210,16 @@ mod tests {
         ));
 
         // Test explicit verify_at_time with Drand / explicit timestamps
-        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UKyn(1000)).is_ok());
-        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UKyn(10000)).is_ok());
+        assert!(
+            signed_manifest
+                .verify_at_time(&doc, kinetic_kyn::types::UKyn(1000))
+                .is_ok()
+        );
+        assert!(
+            signed_manifest
+                .verify_at_time(&doc, kinetic_kyn::types::UKyn(10000))
+                .is_ok()
+        );
 
         // Manifest with future valid_from beyond 300s skew must fail
         assert!(matches!(
@@ -219,7 +231,11 @@ mod tests {
         let mut expiring_manifest = manifest.clone();
         expiring_manifest.expires_at = Some(kinetic_kyn::types::UKyn(2000));
         let signed_expiring = expiring_manifest.sign_with_controller(&keypair).unwrap();
-        assert!(signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UKyn(1500)).is_ok());
+        assert!(
+            signed_expiring
+                .verify_at_time(&doc, kinetic_kyn::types::UKyn(1500))
+                .is_ok()
+        );
         assert!(matches!(
             signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UKyn(2000)),
             Err(Error::ManifestExpired)

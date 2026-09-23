@@ -37,7 +37,7 @@ fn test_memory_store_bloat() {
                 vdf_proof: kinetic_core::types::VdfProof {
                     proof_bytes: vec![],
                 },
-                identity_signature: vec![],
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
                 protocol_version: 1,
                 pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
                 payload: vec![],

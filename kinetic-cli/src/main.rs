@@ -4,10 +4,10 @@
 //!
 //! ## Layer 9 Architecture: The Stateless Client
 //! This executable is extremely thin. It acts purely as a stateless REST client.
-//! It does not perform cryptographic hashing, it does not hold network state, and it 
+//! It does not perform cryptographic hashing, it does not hold network state, and it
 //! does not write to the redb database.
-//! 
-//! Instead, it provides an ergonomic terminal interface, serializing user arguments into 
+//!
+//! Instead, it provides an ergonomic terminal interface, serializing user arguments into
 //! JSON, and dispatching them to the authenticated `kinetic-daemon` running on `127.0.0.1:16001`.
 //!
 //! ### Command groups
@@ -29,8 +29,8 @@ use clap::Parser;
 use commands::Commands;
 use tracing_subscriber::FmtSubscriber;
 
-use clap::builder::styling::{AnsiColor, Effects};
 use clap::builder::Styles;
+use clap::builder::styling::{AnsiColor, Effects};
 
 fn cli_styles() -> Styles {
     Styles::styled()

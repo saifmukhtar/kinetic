@@ -16,13 +16,13 @@ pub struct ClockArgs {
 /// Executes the `kinetic clock` command to render the current Network Time Oracle epoch.
 ///
 /// > [!IMPORTANT]
-/// > Kinetic relies heavily on synchronized network time (KYNs) rather than absolute UNIX time 
+/// > Kinetic relies heavily on synchronized network time (KYNs) rather than absolute UNIX time
 /// > for Proof-of-Work staleness and DNS epoch rotation.
 ///
 /// ### Execution Flow
 /// 1. Initiates an HTTP GET request to the Daemon's `/api/v1/micro/time/current` endpoint.
 /// 2. If the daemon is online, displays the verified Kyn (including the exact KYN epoch).
-/// 3. If the daemon is offline (Connection Refused), the CLI executes a mathematical fallback 
+/// 3. If the daemon is offline (Connection Refused), the CLI executes a mathematical fallback
 ///    by locally checking the machine's `SystemTime` and subtracting `BEACON_GENESIS`
 /// 4. If the `--listen` flag is provided, loops the CLI terminal output infinitely like a digital clock.
 ///

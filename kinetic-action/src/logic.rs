@@ -13,9 +13,7 @@
 use std::collections::HashMap;
 
 use crate::error::ActionError;
-use crate::types::{
-    ActionConfig, ActionEffect, ActionState, Hash256, SignedNetworkAction,
-};
+use crate::types::{ActionConfig, ActionEffect, ActionState, Hash256, SignedNetworkAction};
 
 /// Validates that the static cryptographic keys required for network actions have been correctly initialized.
 ///
@@ -62,7 +60,6 @@ impl ActionState {
             pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
             action_log: Vec::new(),
-
         }
     }
 
@@ -100,7 +97,10 @@ impl ActionState {
     /// # Errors
     ///
     /// Returns an [`ActionError`] if the key is missing, invalid, or has the wrong length.
-    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<kinetic_primitives::keypairs::SovereignPubKey, ActionError> {
+    pub fn get_sovereign_key(
+        &self,
+        config: &ActionConfig,
+    ) -> Result<kinetic_primitives::keypairs::SovereignPubKey, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
             return Ok(key.clone());
         }

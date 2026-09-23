@@ -41,7 +41,7 @@ pub struct ManifestPointer {
 /// # Security Architecture (Hot vs Cold Keys)
 /// This document enforces a strict separation of privileges:
 /// - **Controller Keys (Hot):** Used for standard updates, key rotations, and signing manifests.
-/// - **Revocation Keys (Cold):** Kept fully offline. They are cryptographically restricted 
+/// - **Revocation Keys (Cold):** Kept fully offline. They are cryptographically restricted
 ///   to a single action: authorizing a `deactivated: true` document to permanently burn the identity.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Document {
@@ -81,8 +81,8 @@ impl Document {
     /// Returns the canonical JCS (RFC 8785) serialization of the document without the signature field.
     ///
     /// # Security
-    /// JCS Canonicalization is mandatory. It ensures that arbitrary JSON formatting 
-    /// (whitespace, key ordering) by different network peers does not alter the underlying 
+    /// JCS Canonicalization is mandatory. It ensures that arbitrary JSON formatting
+    /// (whitespace, key ordering) by different network peers does not alter the underlying
     /// byte representation, which would otherwise invalidate the cryptographic signature.
     ///
     /// # Errors
@@ -109,10 +109,10 @@ impl Document {
     /// use kinetic_kid::{Document, Did, ControllerKey};
     /// use kinetic_primitives::keypairs::ControllerPrivKey;
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-    /// 
+    ///
     /// let controller_key = ControllerPrivKey::generate();
     /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
-    /// 
+    ///
     /// // Generate genesis DID
     /// let hash = kinetic_primitives::sha256(controller_key.to_pubkey().as_bytes());
     /// let hex_hash = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
@@ -132,7 +132,7 @@ impl Document {
     ///     deactivated: false,
     ///     signature: None,
     /// };
-    /// 
+    ///
     /// let signed_doc = doc.sign_with_controller(&controller_key).unwrap();
     /// assert!(signed_doc.verify().is_ok());
     /// assert!(signed_doc.verify_genesis().is_ok());
@@ -183,11 +183,11 @@ impl Document {
         let sig_bytes = b64_url.decode(sig_b64)?;
 
         let msg_str = self.canonicalize()?;
-        
+
         // ARCHITECTURE NOTE: We intentionally inject the namespace prefix (NSP) as the domain
-        // separator rather than the 32-byte `NETWORK_SALT`. KIDs are Layer 2 identities and 
+        // separator rather than the 32-byte `NETWORK_SALT`. KIDs are Layer 2 identities and
         // are meant to be seamlessly portable between Mainnet and Testnet (which share the same NSP).
-        // Using the NSP ensures identity signatures remain portable, while mathematically isolating 
+        // Using the NSP ensures identity signatures remain portable, while mathematically isolating
         // them from completely different network forks (e.g. if a private network uses nsp "corp").
         let mut msg_bytes = format!("{}-kid-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
@@ -232,10 +232,10 @@ impl Document {
     /// is the SHA-256 hash of the primary (first) controller key's raw public bytes.
     ///
     /// # Consensus Rule
-    /// This check MUST be executed by the local `kinetic-daemon` **only** during the 
-    /// very first publication (genesis) of a KID document. It cryptographically proves 
-    /// the creator controls the key that generated the DID. It must **NOT** be called 
-    /// on subsequent updates, because authorized key rotation will change the controller 
+    /// This check MUST be executed by the local `kinetic-daemon` **only** during the
+    /// very first publication (genesis) of a KID document. It cryptographically proves
+    /// the creator controls the key that generated the DID. It must **NOT** be called
+    /// on subsequent updates, because authorized key rotation will change the controller
     /// keys while the DID remains static.
     ///
     /// # Errors
@@ -271,8 +271,8 @@ impl Document {
     /// that appeared in `previous_doc` (the currently stored document).
     ///
     /// # Security
-    /// This is the core mechanism for secure key rotation. By validating the new document's 
-    /// signature against the *old* document's authorized keys, the network maintains an 
+    /// This is the core mechanism for secure key rotation. By validating the new document's
+    /// signature against the *old* document's authorized keys, the network maintains an
     /// unbroken cryptographic chain of custody.
     ///
     /// # Returns
@@ -292,7 +292,7 @@ impl Document {
             Ok(s) => s,
             Err(_) => return false,
         };
-        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
+        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve
         // identity portability between Mainnet/Testnet while isolating private forks.
         let mut msg_bytes = format!("{}-kid-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
@@ -314,7 +314,12 @@ impl Document {
         if !authorized && self.deactivated {
             authorized = previous_doc.revocation_keys.iter().any(|rk_b64| {
                 if let Ok(pubkey_bytes) = b64_url.decode(rk_b64) {
-                    return kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok();
+                    return kinetic_primitives::verify_signature(
+                        &pubkey_bytes,
+                        &msg_bytes,
+                        &sig_bytes,
+                    )
+                    .is_ok();
                 }
                 false
             });
@@ -333,12 +338,12 @@ impl Document {
         key: &kinetic_primitives::keypairs::ControllerPrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
-        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
+        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve
         // identity portability between Mainnet/Testnet while isolating private forks.
         let mut msg_bytes = format!("{}-kid-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
         let signature_bytes = key.sign(&msg_bytes);
-        self.signature = Some(b64_url.encode(signature_bytes));
+        self.signature = Some(b64_url.encode(signature_bytes.as_bytes()));
         Ok(self)
     }
 
@@ -349,12 +354,12 @@ impl Document {
         key: &kinetic_primitives::keypairs::RevokePrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
-        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
+        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve
         // identity portability between Mainnet/Testnet while isolating private forks.
         let mut msg_bytes = format!("{}-kid-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
         let signature_bytes = key.sign(&msg_bytes);
-        self.signature = Some(b64_url.encode(signature_bytes));
+        self.signature = Some(b64_url.encode(signature_bytes.as_bytes()));
         Ok(self)
     }
 }
@@ -398,13 +403,18 @@ mod tests {
 
         // Genesis doc is signed by its own primary controller key
         let signed_genesis = doc.sign_with_controller(&controller_key).unwrap();
-        assert!(signed_genesis.verify().is_ok(), "Genesis document verification failed");
+        assert!(
+            signed_genesis.verify().is_ok(),
+            "Genesis document verification failed"
+        );
 
         let mut deactivation_update = signed_genesis.clone();
         deactivation_update.deactivated = true;
         deactivation_update.signature = None;
-        
-        let signed_deactivation = deactivation_update.sign_with_revoke(&revocation_key).unwrap();
+
+        let signed_deactivation = deactivation_update
+            .sign_with_revoke(&revocation_key)
+            .unwrap();
 
         assert!(
             signed_deactivation.verify().is_ok(),
@@ -420,8 +430,10 @@ mod tests {
         let mut unauthorized_update = signed_genesis.clone();
         unauthorized_update.deactivated = true;
         unauthorized_update.signature = None;
-        let signed_unauthorized = unauthorized_update.sign_with_revoke(&unauthorized_key).unwrap();
-        
+        let signed_unauthorized = unauthorized_update
+            .sign_with_revoke(&unauthorized_key)
+            .unwrap();
+
         assert!(
             !signed_unauthorized.is_authorized(&signed_genesis),
             "Network authorized a deactivation from an unknown key"

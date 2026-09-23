@@ -1,9 +1,9 @@
 //! Core `NetworkEventLoop` definition and main event loop execution thread.
 //!
 //! ## Layer 7 Architecture: The P2P Engine
-//! This module houses the primary asynchronous reactor (`NetworkEventLoop`) for the entire 
-//! Kinetic P2P network. Because `libp2p` Swarms are fundamentally not thread-safe (they require 
-//! exclusive mutable access to poll events), this module isolates the Swarm inside a single, 
+//! This module houses the primary asynchronous reactor (`NetworkEventLoop`) for the entire
+//! Kinetic P2P network. Because `libp2p` Swarms are fundamentally not thread-safe (they require
+//! exclusive mutable access to poll events), this module isolates the Swarm inside a single,
 //! dedicated `tokio::task`.
 //!
 //! ## State Machine Flow
@@ -12,7 +12,7 @@
 //! 2. **Command Channel:** Internal requests from the `NetworkClient` (e.g., the local Daemon requesting to publish a Reveal).
 //! 3. **Time Oracle Receiver (`kyn_rx`):** Background ticks propagating the current `KYN Provider` network time, which immediately cascades down into the `KineticRecordStore` to dynamically update the cryptographic timestamps for payload verification.
 //!
-//! By restricting all network state mutations to this single loop, Kinetic completely avoids 
+//! By restricting all network state mutations to this single loop, Kinetic completely avoids
 //! complex multi-threading mutex locks on the hot path, ensuring maximum throughput during Gossipsub floods.
 
 use libp2p::{PeerId, Swarm, kad};

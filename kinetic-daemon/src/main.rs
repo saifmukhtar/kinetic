@@ -3,25 +3,25 @@
 //! The primary user-facing Kinetic daemon executable (`kinetic-daemon`).
 //!
 //! ## Layer 8 Architecture: The All-In-One Node
-//! Unlike `kinetic-node` (headless cloud router) or `kinetic-host` (headless payload seeder), 
+//! Unlike `kinetic-node` (headless cloud router) or `kinetic-host` (headless payload seeder),
 //! the `kinetic-daemon` is designed to be installed on a user's personal laptop (macOS, Windows, Linux).
 //! It is the central coordinator of the entire Kinetic stack.
 //!
-//! Because end-users expect a rich, interactive experience, this executable bundles a massive 
+//! Because end-users expect a rich, interactive experience, this executable bundles a massive
 //! amount of functionality into a single process:
 //!
 //! - **P2P Networking**: Runs a full Kademlia DHT node to resolve and browse the `.kin` namespace.
-//! - **Cryptographic Math**: Drives the local CPU VDF engine (via `kinetic-vdf`) to generate 
+//! - **Cryptographic Math**: Drives the local CPU VDF engine (via `kinetic-vdf`) to generate
 //!   time-lock proofs for registering new premium or standard domains.
-//! - **OS Integrations**: Embeds a local DNS interceptor (via `kinetic-nrs`) to hijack `.kin` 
+//! - **OS Integrations**: Embeds a local DNS interceptor (via `kinetic-nrs`) to hijack `.kin`
 //!   DNS queries at the operating system level and route them through the Libp2p proxy.
-//! - **HTTP REST API**: Exposes port `16001` allowing the Electron Desktop UI and the `kinetic-cli` 
+//! - **HTTP REST API**: Exposes port `16001` allowing the Electron Desktop UI and the `kinetic-cli`
 //!   to send interactive commands (like transferring domains or generating KIDs).
-//! - **Service Manager**: Can install, start, stop, and uninstall itself natively using 
+//! - **Service Manager**: Can install, start, stop, and uninstall itself natively using
 //!   `systemd`, `launchd`, or `SCM`.
 //!
 //! ## Security Boundary
-//! A random API token is written to `~/.local/share/kinetic/api.token` on first run. 
+//! A random API token is written to `~/.local/share/kinetic/api.token` on first run.
 //! All mutating API calls from the CLI or UI must include this token in the `X-Kinetic-Token` header.
 
 use anyhow::Result;
@@ -235,8 +235,8 @@ fn stop_background_service() -> Result<()> {
 /// Executes the massive synchronous orchestration logic for the Kinetic Daemon.
 ///
 /// > [!IMPORTANT]
-/// > Because this executable wires together the entire Layer 4 stack (Networking, Storage, 
-/// > VDF Math, HTTP Proxy), it is structurally massive. It does not contain domain logic 
+/// > Because this executable wires together the entire Layer 4 stack (Networking, Storage,
+/// > VDF Math, HTTP Proxy), it is structurally massive. It does not contain domain logic
 /// > itself, but rather orchestrates the boot sequence.
 ///
 /// This function is responsible for:
@@ -504,7 +504,9 @@ async fn run_daemon() -> Result<()> {
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
+                                kinetic_types::action::ActionSyncRequest {
+                                    from_kyn: kinetic_kyn::types::Kyn(0),
+                                },
                             )
                             .await
                         && !resp.actions.is_empty()

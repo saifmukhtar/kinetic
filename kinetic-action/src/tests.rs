@@ -2,25 +2,31 @@
 #[allow(clippy::module_inception)]
 mod tests {
     use super::super::logic::process_action_message;
-    use super::super::types::{
-        ActionEffect, ActionState, NetworkAction, SignedNetworkAction,
-    };
-    use kinetic_primitives::keypairs::SovereignPrivKey;
+    use super::super::types::{ActionEffect, ActionState, NetworkAction, SignedNetworkAction};
     use kinetic_kyn::types::Kyn;
+    use kinetic_primitives::keypairs::SovereignPrivKey;
     fn get_root_sk() -> SovereignPrivKey {
         let bytes = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
             .unwrap();
         SovereignPrivKey::from_seed(bytes.as_slice().try_into().unwrap())
     }
 
-    fn generate_key(seed: u8) -> (SovereignPrivKey, kinetic_primitives::keypairs::SovereignPubKey) {
+    fn generate_key(
+        seed: u8,
+    ) -> (
+        SovereignPrivKey,
+        kinetic_primitives::keypairs::SovereignPubKey,
+    ) {
         let bytes = [seed; 32];
         let signing_key = SovereignPrivKey::from_seed(&bytes);
         let verifying_key = signing_key.to_pubkey(); // Return strongly typed pubkey
         (signing_key, verifying_key)
     }
 
-    fn sign_action(msg: &SignedNetworkAction, signer: &SovereignPrivKey) -> Vec<u8> {
+    fn sign_action(
+        msg: &SignedNetworkAction,
+        signer: &SovereignPrivKey,
+    ) -> kinetic_primitives::keypairs::SovereignSignature {
         let serialized = msg.to_bytes();
         signer.sign(&serialized)
     }
@@ -33,7 +39,6 @@ mod tests {
             action_model: "sovereign".to_string(),
         }
     }
-
 
     #[test]
     fn test_rotate_sovereign_key() {
@@ -66,7 +71,10 @@ mod tests {
             &get_test_config(),
         )
         .unwrap();
-        assert!(matches!(effect, Some(ActionEffect::SovereignKeyRotated { .. })));
+        assert!(matches!(
+            effect,
+            Some(ActionEffect::SovereignKeyRotated { .. })
+        ));
 
         // The state should now have the new Sovereign key
         assert_eq!(
@@ -80,7 +88,9 @@ mod tests {
             timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(current_kyn + 1), // Advance time so hash is different
             sovereign_signatures: vec![],
         };
-        map_msg.sovereign_signatures.push(sign_action(&map_msg, &root_sk)); // signed with old key
+        map_msg
+            .sovereign_signatures
+            .push(sign_action(&map_msg, &root_sk)); // signed with old key
 
         let err = process_action_message(
             &mut state,
@@ -93,7 +103,9 @@ mod tests {
 
         // Action 3: Halt the network using the NEW Sovereign key (should succeed)
         map_msg.sovereign_signatures.clear();
-        map_msg.sovereign_signatures.push(sign_action(&map_msg, &new_root_sk)); // signed with NEW key
+        map_msg
+            .sovereign_signatures
+            .push(sign_action(&map_msg, &new_root_sk)); // signed with NEW key
 
         let effect = process_action_message(
             &mut state,
@@ -155,7 +167,9 @@ mod tests {
             timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(current_kyn),
             sovereign_signatures: vec![],
         };
-        halt_msg.sovereign_signatures.push(sign_action(&halt_msg, &root_sk));
+        halt_msg
+            .sovereign_signatures
+            .push(sign_action(&halt_msg, &root_sk));
 
         let effect = process_action_message(
             &mut state,
@@ -188,8 +202,6 @@ mod tests {
         assert_eq!(state.total_paused_kyns, 1000);
     }
 
-
-
     #[test]
     fn test_replay_attack_prevention() {
         let (root_sk, root_pubkey) = generate_key(1);
@@ -209,23 +221,29 @@ mod tests {
         msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
         // First submission succeeds
-        let effect =
-            process_action_message(&mut state, &msg, kinetic_kyn::types::CurrentKyn::from(*msg.timestamp_kyn), &get_test_config())
-                .unwrap();
+        let effect = process_action_message(
+            &mut state,
+            &msg,
+            kinetic_kyn::types::CurrentKyn::from(*msg.timestamp_kyn),
+            &get_test_config(),
+        )
+        .unwrap();
         assert!(matches!(effect, Some(ActionEffect::NetworkHalted)));
 
         // Resubmitting the exact same message triggers the new AlreadyExecuted taxonomy error
-        let err =
-            process_action_message(&mut state, &msg, kinetic_kyn::types::CurrentKyn::from(*msg.timestamp_kyn), &get_test_config())
-                .unwrap_err();
+        let err = process_action_message(
+            &mut state,
+            &msg,
+            kinetic_kyn::types::CurrentKyn::from(*msg.timestamp_kyn),
+            &get_test_config(),
+        )
+        .unwrap_err();
         assert!(
             matches!(err, crate::error::ActionError::AlreadyExecuted),
             "Expected AlreadyExecuted error on replay attack, got: {:?}",
             err
         );
     }
-
-
 
     #[test]
     fn test_stale_proposal() {
@@ -246,8 +264,13 @@ mod tests {
         };
         msg.sovereign_signatures.push(sign_action(&msg, &root_sk));
 
-        let err = process_action_message(&mut state, &msg, kinetic_kyn::types::CurrentKyn::from(current_kyn), &get_test_config())
-            .unwrap_err();
+        let err = process_action_message(
+            &mut state,
+            &msg,
+            kinetic_kyn::types::CurrentKyn::from(current_kyn),
+            &get_test_config(),
+        )
+        .unwrap_err();
         assert!(matches!(err, crate::error::ActionError::StaleProposal));
     }
 }

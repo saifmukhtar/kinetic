@@ -53,13 +53,14 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
         },
         iterations: 1,
         pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
-        identity_signature: vec![],
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         previous_proof: None,
         authorization: None,
     };
     let keypair = kinetic_primitives::keypairs::IdentityPrivKey::generate();
     reveal.pubkey = keypair.to_pubkey();
-    reveal.identity_signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+    reveal.identity_signature =
+        keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
     reveal
 }
 

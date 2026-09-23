@@ -38,15 +38,20 @@ macro_rules! impl_pubkey_opt_serde {
             use super::$key_type;
             use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-            pub fn serialize<S: Serializer>(key: &Option<$key_type>, s: S) -> Result<S::Ok, S::Error> {
+            pub fn serialize<S: Serializer>(
+                key: &Option<$key_type>,
+                s: S,
+            ) -> Result<S::Ok, S::Error> {
                 match key {
                     Some(k) => s.serialize_some(&k.0),
                     None => s.serialize_none(),
                 }
             }
 
-            pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<$key_type>, D::Error> {
-                let opt_bytes = Option::<std::vec::Vec::<u8>>::deserialize(d)?;
+            pub fn deserialize<'de, D: Deserializer<'de>>(
+                d: D,
+            ) -> Result<Option<$key_type>, D::Error> {
+                let opt_bytes = Option::<std::vec::Vec<u8>>::deserialize(d)?;
                 Ok(opt_bytes.map($key_type))
             }
         }

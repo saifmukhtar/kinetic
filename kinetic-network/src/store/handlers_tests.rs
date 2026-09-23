@@ -21,7 +21,7 @@ mod tests {
                 proof_bytes: vec![],
             },
             pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
-            identity_signature: vec![],
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             previous_proof: None,
             authorization: None,
         }
@@ -130,7 +130,7 @@ mod tests {
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
             latest_kyn: kinetic_kyn::types::Kyn(49),
-            owner_signature: vec![],
+            owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             authorization: None,
         };
 
@@ -143,8 +143,6 @@ mod tests {
             crate::error::KineticStoreError::StaleHeartbeat
         ));
     }
-
-
 
     #[test]
     fn test_future_heartbeat() {
@@ -164,7 +162,7 @@ mod tests {
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
             latest_kyn: kinetic_kyn::types::Kyn(105),
-            owner_signature: vec![],
+            owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             authorization: None,
         };
 

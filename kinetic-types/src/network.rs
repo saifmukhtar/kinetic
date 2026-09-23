@@ -1,7 +1,7 @@
 //! Core network taxonomies and opcodes for peer-to-peer communication.
 //!
 //! Defines the strict binary formats used by the network layer to efficiently
-//! multiplex distinct message channels (like Action and Kyn) over a 
+//! multiplex distinct message channels (like Action and Kyn) over a
 //! single global P2P publication topic.
 
 /// 1-byte opcode prepended to all P2P payloads on the global publication topic.
@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 
 /// Identifies the specific Kinetic binary running on the network.
 ///
-/// Used in telemetry to distinguish between local user clients (`Daemon`), 
+/// Used in telemetry to distinguish between local user clients (`Daemon`),
 /// public infrastructure routers (`Node`), and headless seeders (`Host`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PeerType {
@@ -60,7 +60,7 @@ pub enum NetworkMode {
 
 /// A highly restricted enumeration of Operating Systems.
 ///
-/// Used in telemetry instead of raw `std::env::consts::OS` strings to strictly 
+/// Used in telemetry instead of raw `std::env::consts::OS` strings to strictly
 /// prevent hardware/software fingerprinting and protect user anonymity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OsType {
@@ -81,8 +81,8 @@ pub enum Reachability {
 
 /// Opt-in, anonymous payload broadcast to map global network health without tracking users.
 ///
-/// This structure aggregates network performance metrics and node statuses to help 
-/// developers diagnose P2P network health, without exposing any personally identifiable 
+/// This structure aggregates network performance metrics and node statuses to help
+/// developers diagnose P2P network health, without exposing any personally identifiable
 /// information or deterministic hardware fingerprints.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryHeartbeat {

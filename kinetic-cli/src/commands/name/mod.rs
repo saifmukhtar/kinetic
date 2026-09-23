@@ -1,15 +1,15 @@
 //! CLI subcommands for interacting with the Kinetic Name Registration System (NRS).
 //!
 //! ## Layer 9 Architecture: NRS Dispatcher
-//! This module acts as the CLI wrapper for domain operations. It does not perform any 
-//! cryptographic VDF generation or Ed25519 signature signing itself. Instead, it serializes 
-//! the user's terminal arguments (e.g., `kinetic name register myname --iterations 1000`) 
+//! This module acts as the CLI wrapper for domain operations. It does not perform any
+//! cryptographic VDF generation or Ed25519 signature signing itself. Instead, it serializes
+//! the user's terminal arguments (e.g., `kinetic name register myname --iterations 1000`)
 //! into structured JSON payloads and dispatches them to the `kinetic-daemon` over HTTP.
 //!
 //! ### Subcommand Flow
-//! - **Heavy Tasks (`register`, `renew`)**: Dispatch to the Daemon's asynchronous Macro API, 
+//! - **Heavy Tasks (`register`, `renew`)**: Dispatch to the Daemon's asynchronous Macro API,
 //!   which returns a `task_id`. The CLI then drops into a terminal UI polling loop to render a progress bar.
-//! - **Instant Tasks (`publish`, `query`, `verify`)**: Dispatch to the Daemon's synchronous Micro API, 
+//! - **Instant Tasks (`publish`, `query`, `verify`)**: Dispatch to the Daemon's synchronous Micro API,
 //!   which immediately performs DHT resolution or local disk reads and returns the JSON result for terminal printing.
 
 use clap::Subcommand;

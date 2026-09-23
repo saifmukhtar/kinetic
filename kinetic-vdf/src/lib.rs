@@ -6,7 +6,7 @@
 //! ## Layer 6 Architecture: Isolated Infrastructure
 //! This crate operates strictly as an isolated infrastructure implementor. It does not
 //! know what the Kinetic network is, it does not perform network I/O, and it does not
-//! interact with local storage. It exclusively consumes the abstract `VdfEngine` trait 
+//! interact with local storage. It exclusively consumes the abstract `VdfEngine` trait
 //! from `kinetic-core` and executes the heavy RSA cryptographic math to satisfy it.
 //!
 //! ## Security & Consensus Guarantees

@@ -1,6 +1,6 @@
 //! Cryptographic identity, Kinetic Identity Document (KID) documents, and Identity key management.
 //!
-//! This module provides the core identity types for the network. It strictly isolates the 
+//! This module provides the core identity types for the network. It strictly isolates the
 //! abstract identity structures from any local disk I/O or filesystem paths.
 //!
 //! ## Signature Framing
@@ -36,7 +36,7 @@ mod tests {
         let auth_kid = AuthorizedKid {
             name: "test.kin".to_string(),
             kid_doc: doc,
-            owner_signature: vec![1, 2, 3],
+            owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![1, 2, 3]),
         };
 
         let bytes = auth_kid.signable_bytes(crate::constants::NETWORK_SALT);
@@ -64,7 +64,7 @@ mod tests {
             name: "test.kin".to_string(),
             manifest,
             kid_doc: None,
-            owner_signature: vec![1, 2, 3],
+            owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![1, 2, 3]),
         };
 
         let bytes = auth_manifest.signable_bytes(crate::constants::NETWORK_SALT);

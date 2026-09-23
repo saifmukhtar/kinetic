@@ -277,8 +277,12 @@ mod tests {
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-            identity_signature: vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+                vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+            ),
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            ),
             previous_proof: None,
             authorization: None,
         };

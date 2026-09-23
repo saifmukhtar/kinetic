@@ -39,22 +39,22 @@ fn test_xor_eclipse_routing() {
         iterations,
         vdf_proof: real_vdf_proof,
         pubkey: pubkey.clone(),
-        identity_signature: vec![],
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         protocol_version: 1,
         payload: vec![],
         previous_proof: None,
         authorization: None,
     };
-    real_reveal.identity_signature = keypair
-        .sign(&real_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+    real_reveal.identity_signature =
+        keypair.sign(&real_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
     // Generate ADVERSARIAL payload with proof bytes matching the kyn exactly (so XOR = 0)
     // but the VDF is invalid.
     let mut adversarial_reveal = real_reveal.clone();
     adversarial_reveal.vdf_proof.proof_bytes = kyn_bytes.to_vec(); // will xor to 0, which is perfectly close
     // re-sign so signature is valid
-    adversarial_reveal.identity_signature = keypair
-        .sign(&adversarial_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+    adversarial_reveal.identity_signature =
+        keypair.sign(&adversarial_reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
 
     let real_bytes = serde_json::to_vec(&real_reveal).unwrap();
     let adversarial_bytes = serde_json::to_vec(&adversarial_reveal).unwrap();

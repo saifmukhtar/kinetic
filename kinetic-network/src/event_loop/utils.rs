@@ -1,19 +1,19 @@
 //! Utility data structures, async task spawners, and the XOR distance tie-breaker conflict resolver.
 //!
 //! ## Layer 7 Architecture: The Consensus Tie-Breaker
-//! While `kinetic-network/src/store/verification.rs` handles the hard mathematical rejection 
-//! of invalid records, `utils.rs` handles the soft *consensus resolution* when multiple valid 
+//! While `kinetic-network/src/store/verification.rs` handles the hard mathematical rejection
+//! of invalid records, `utils.rs` handles the soft *consensus resolution* when multiple valid
 //! records compete for the same namespace simultaneously.
 //!
 //! ## The XOR Collision Rule
-//! Because Kinetic is a decentralized network without a global ledger, two users might 
-//! submit mathematically valid Reveals for the exact same name (e.g., `alice.kin`) at the 
+//! Because Kinetic is a decentralized network without a global ledger, two users might
+//! submit mathematically valid Reveals for the exact same name (e.g., `alice.kin`) at the
 //! exact same KYN Provider time, with the exact same VDF iteration count.
-//! 
-//! When this extremely rare collision occurs, the `resolve_conflict()` utility here acts 
-//! as the final arbiter. It calculates the XOR distance between the Domain Name Hash and 
-//! the Ed25519 Public Key of each competitor. The key that produces the closest XOR 
-//! numerical distance wins the namespace. This guarantees determinism across all routing 
+//!
+//! When this extremely rare collision occurs, the `resolve_conflict()` utility here acts
+//! as the final arbiter. It calculates the XOR distance between the Domain Name Hash and
+//! the Ed25519 Public Key of each competitor. The key that produces the closest XOR
+//! numerical distance wins the namespace. This guarantees determinism across all routing
 //! nodes without requiring communication.
 use kinetic_core::error::{NetworkClientError, ResolutionError};
 use kinetic_core::types::RevealExt;
@@ -173,9 +173,9 @@ impl super::core::NetworkEventLoop {
         }
 
         if is_kid {
-            let current_time = kinetic_kyn::types::Kyn(current_kyn.as_u64()).to_ukyn(
-                kinetic_core::constants::BEACON_GENESIS,
-            ).0;
+            let current_time = kinetic_kyn::types::Kyn(current_kyn.as_u64())
+                .to_ukyn(kinetic_core::constants::BEACON_GENESIS)
+                .0;
 
             parsed
                 .into_iter()
@@ -282,7 +282,11 @@ impl super::core::NetworkEventLoop {
                         }
                     };
 
-                    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.as_u64(), &reveal.beacon_signature, dev_mode) {
+                    if !kinetic_kyn::beacon::verify_beacon_signature(
+                        reveal.kyn.as_u64(),
+                        &reveal.beacon_signature,
+                        dev_mode,
+                    ) {
                         tracing::warn!(
                             error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
                             "Skipping candidate: Invalid beacon_signature in tie-breaker"
@@ -413,8 +417,12 @@ mod tests {
             beacon_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,
-            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-            identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+                vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+            ),
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            ),
             previous_proof: None,
             authorization: None,
         };

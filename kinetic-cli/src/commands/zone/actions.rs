@@ -22,7 +22,10 @@ pub async fn handle_fat_zone(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     println!("Successfully published Fat Zone for {}", name);
@@ -50,7 +53,10 @@ pub async fn handle_local_zone(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     println!("Successfully saved local DNS override for {}", name);
@@ -72,7 +78,10 @@ pub async fn handle_local_zone_delete(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     println!("Successfully deleted local DNS override for {}", name);
@@ -100,7 +109,10 @@ pub async fn handle_fat_heartbeat(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     println!("Successfully broadcasted Fat Heartbeat for {}", name);

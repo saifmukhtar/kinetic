@@ -149,7 +149,6 @@ impl From<ActionError> for ApiError {
             ActionError::StaleProposal | ActionError::AlreadyExecuted => (409, "Conflict"),
             ActionError::KeyLengthMismatch
             | ActionError::InvalidSignature
-
             | ActionError::InvalidSeedState => (400, "Bad Request"),
             ActionError::StateSaveFailed | ActionError::StateReadFailed => {
                 (500, "Internal Server Error")

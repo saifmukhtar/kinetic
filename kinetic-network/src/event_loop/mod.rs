@@ -3,11 +3,11 @@
 /// Outbound command handlers.
 pub mod command_handler;
 pub mod core;
-/// The core event loop definition.
-pub(crate) mod router;
+pub(crate) mod edge;
 /// Specialized handlers.
 pub mod handlers;
-pub(crate) mod edge;
+/// The core event loop definition.
+pub(crate) mod router;
 /// Swarm initialization logic.
 pub mod swarm_builder;
 /// Inbound swarm handlers.

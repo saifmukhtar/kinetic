@@ -16,7 +16,7 @@ use std::fmt;
 
 /// Strict type for Unix Time in seconds.
 ///
-/// This wrapper prevents accidental math operations between network `Kyn` units 
+/// This wrapper prevents accidental math operations between network `Kyn` units
 /// and local wall-clock seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -24,8 +24,8 @@ pub struct UKyn(pub u64);
 
 /// Strict type for an absolute Kinetic Network Time `Kyn`.
 ///
-/// A `Kyn` represents a verified tick representing 1 second of network age. 
-/// Because it is mathematically proven, it is the only safe unit of time for 
+/// A `Kyn` represents a verified tick representing 1 second of network age.
+/// Because it is mathematically proven, it is the only safe unit of time for
 /// protocol-level validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -61,7 +61,7 @@ macro_rules! define_nested_kyns {
                     Self(kyn)
                 }
             }
-            
+
             impl From<u64> for $type_name {
                 fn from(val: u64) -> Self {
                     Self(Kyn(val))
@@ -131,5 +131,3 @@ impl fmt::Display for Kyn {
         write!(f, "{}", self.0)
     }
 }
-
-

@@ -4,19 +4,19 @@
 //! The headless Kinetic content-hosting executable (`kinetic-host`).
 //!
 //! ## Layer 8 Architecture: The Headless Seeder
-//! A host is a `.kin` domain owner that publicly serves content 24/7. It acts simultaneously 
-//! as a full P2P node and as an ingress reverse proxy. Incoming P2P privacy-routed requests 
-//! for a registered domain are intercepted by this binary and transparently forwarded to a 
+//! A host is a `.kin` domain owner that publicly serves content 24/7. It acts simultaneously
+//! as a full P2P node and as an ingress reverse proxy. Incoming P2P privacy-routed requests
+//! for a registered domain are intercepted by this binary and transparently forwarded to a
 //! backend HTTP server running locally on the same machine.
 //!
-//! Unlike `kinetic-daemon` (which requires interactive CLI inputs, UI access, and heavily 
-//! caches user activity), this executable is designed to be run via `systemd` or Docker 
+//! Unlike `kinetic-daemon` (which requires interactive CLI inputs, UI access, and heavily
+//! caches user activity), this executable is designed to be run via `systemd` or Docker
 //! in the background to ensure data availability.
 //!
 //! ## Key responsibilities
 //!
-//! - **Dynamic identity**: Unlike the cloud infrastructure node (`kinetic-node`), the host 
-//!   must fight DHT spam via an epoch-bound PoW keypair (S/Kademlia). It is automatically 
+//! - **Dynamic identity**: Unlike the cloud infrastructure node (`kinetic-node`), the host
+//!   must fight DHT spam via an epoch-bound PoW keypair (S/Kademlia). It is automatically
 //!   rotated each KYN Provider epoch, providing mathematical Sybil resistance.
 //! - **Static host identity**: A separate, long-lived Ed25519 keypair
 //!   (`host.key`) uniquely identifies this host across epochs.
@@ -142,7 +142,8 @@ async fn run_host() -> Result<()> {
     info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
-    let kyn_provider: Arc<dyn KynProvider> = Arc::new(TimeOracleProvider::new(Some(storage.clone())));
+    let kyn_provider: Arc<dyn KynProvider> =
+        Arc::new(TimeOracleProvider::new(Some(storage.clone())));
 
     // 6. Enforce Time Oracle beacon availability on boot (unless in dev mode, which loads a mock cache)
     let initial_kyn = match kyn_provider.fetch_latest().await {
@@ -283,7 +284,9 @@ async fn run_host() -> Result<()> {
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
+                                kinetic_types::action::ActionSyncRequest {
+                                    from_kyn: kinetic_kyn::types::Kyn(0),
+                                },
                             )
                             .await
                         && !resp.actions.is_empty()

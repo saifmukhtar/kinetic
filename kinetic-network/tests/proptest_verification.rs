@@ -54,14 +54,14 @@ proptest! {
             iterations: 1000,
             vdf_proof: VdfProof { proof_bytes: vec![] },
             pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0u8; 32]),
-            identity_signature: vec![0u8; 64],
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![0u8; 64]),
             previous_proof: Some(PreviousProof {
                 salt: [0u8; 32],
                 kyn: kinetic_kyn::types::TargetKyn::from(prev_pulse),
                 beacon_signature: "abcd".to_string(),
                 iterations: prev_iterations,
                 vdf_proof: VdfProof { proof_bytes: vec![] },
-                identity_signature: vec![0u8; 64],
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![0u8; 64]),
             }),
             authorization: None,
         };

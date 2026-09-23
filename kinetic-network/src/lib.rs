@@ -3,10 +3,10 @@
 //!
 //! The massive P2P networking trunk of the Kinetic workspace.
 //!
-//! This crate is the absolute Trunk of Layer 7. It owns everything related to peer-to-peer 
-//! connections, Kademlia DHT state, and Gossipsub message flooding. It encapsulates the 
-//! `libp2p::Swarm` within a dedicated Tokio task and exposes a thread-safe `NetworkClient` 
-//! API so that the Layer 8 executables (`kinetic-daemon`, `kinetic-node`, `kinetic-host`) can 
+//! This crate is the absolute Trunk of Layer 7. It owns everything related to peer-to-peer
+//! connections, Kademlia DHT state, and Gossipsub message flooding. It encapsulates the
+//! `libp2p::Swarm` within a dedicated Tokio task and exposes a thread-safe `NetworkClient`
+//! API so that the Layer 8 executables (`kinetic-daemon`, `kinetic-node`, `kinetic-host`) can
 //! safely drive network operations without lock contention.
 //!
 //! ## Layer 7 Architecture

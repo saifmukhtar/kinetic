@@ -16,7 +16,6 @@ pub enum ActionCommands {
     },
     /// View the status of the current active network action proposal
     Status,
-
 }
 
 /// Dispatches action-related CLI subcommands.
@@ -53,7 +52,10 @@ pub async fn handle_action_command(
             } else {
                 let status = publish_resp.status();
                 let err_text = publish_resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &err_text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &err_text)
+                );
             }
         }
         ActionCommands::Status => {
@@ -62,12 +64,14 @@ pub async fn handle_action_command(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);
         }
-
     }
 
     Ok(())

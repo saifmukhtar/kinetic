@@ -48,7 +48,7 @@ async fn test_action_integration_halt() {
             proof_bytes: vec![],
         },
         previous_proof: None,
-        identity_signature: vec![],
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         payload: vec![],
         protocol_version: 2,
         authorization: None,

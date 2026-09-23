@@ -1,8 +1,8 @@
 //! HTTP REST API router, authentication middleware, state management, and server bootstrap.
 //!
 //! ## Layer 8 Architecture: The Desktop/CLI Bridge
-//! This module represents the absolute edge of the Kinetic workspace. It is a synchronous 
-//! `axum` HTTP server designed explicitly to receive commands from the local Electron Desktop UI 
+//! This module represents the absolute edge of the Kinetic workspace. It is a synchronous
+//! `axum` HTTP server designed explicitly to receive commands from the local Electron Desktop UI
 //! and the local `kinetic-cli`.
 //!
 //! ### The Data Flow
@@ -13,7 +13,7 @@
 //! 4. Returns JSON via synchronous HTTP response.
 //!
 //! ### Security Boundaries
-//! This API is **strictly local**. It binds exclusively to `127.0.0.1`. If external network interfaces 
+//! This API is **strictly local**. It binds exclusively to `127.0.0.1`. If external network interfaces
 //! are specified, the daemon enforces JWT Bearer authentication on every route except `/api/v1/ping`.
 
 use axum::{Router, extract::State, http::StatusCode, routing::post};
@@ -421,7 +421,6 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/action/status",
             axum::routing::get(action::handle_get_action_status),
         )
-
         .route(
             "/v1/micro/nrs/zone/{name}",
             axum::routing::get(handle_get_zone),
@@ -815,8 +814,9 @@ async fn auth_middleware(
                 && let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes)
             {
                 // Verify expiration using cached Kyn
-                let kyn_provider =
-                    kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+                let kyn_provider = kinetic_network::client::time_oracle::TimeOracleProvider::new(
+                    Some(state.storage.clone()),
+                );
                 let current_kyn = kyn_provider.load_cached().map(|d| d.kyn()).unwrap_or(0);
 
                 if current_kyn > 0 && current_kyn > session.expiry_kyn.as_u64() {

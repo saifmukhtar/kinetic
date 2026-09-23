@@ -28,7 +28,7 @@ pub mod keypairs;
 pub const KINETIC_PUBKEY_LENGTH: usize = 1952;
 
 /// The exact byte length of a Kinetic Network post-quantum signature (ML-DSA-65).
-/// Note: This was previously hardcoded as 4627 in some places, which was the length for ML-DSA-87. 
+/// Note: This was previously hardcoded as 4627 in some places, which was the length for ML-DSA-87.
 /// ML-DSA-65 signatures are exactly 3309 bytes.
 pub const KINETIC_SIGNATURE_LENGTH: usize = 3309;
 
@@ -93,8 +93,8 @@ pub fn sha256_concat(chunks: &[&[u8]]) -> [u8; 32] {
 /// Verifies a `KineticKeypair` signature against a given public key and message.
 ///
 /// # Security
-/// This boundary assumes the caller has already extracted the raw signature bytes 
-/// from the network payload. It performs strict mathematical validation but does 
+/// This boundary assumes the caller has already extracted the raw signature bytes
+/// from the network payload. It performs strict mathematical validation but does
 /// **not** check authorization logic (e.g., whether the key is permitted to sign).
 ///
 /// # Arguments

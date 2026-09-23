@@ -6,7 +6,8 @@
 use crate::error::ActionError;
 use crate::traits::ActionEngine;
 use crate::types::{
-    ActionConfig, ActionEffect, ActionState, NetworkAction, SignedNetworkAction, verify_sovereign_signature,
+    ActionConfig, ActionEffect, ActionState, NetworkAction, SignedNetworkAction,
+    verify_sovereign_signature,
 };
 
 /// Single-signer network action engine driver controlled exclusively by the Sovereign key.
@@ -42,8 +43,6 @@ impl ActionEngine for SovereignEngine {
 
         if is_sovereign_signed {
             let effect = match &msg.action {
-
-
                 NetworkAction::RotateSovereignKey { new_key } => {
                     if new_key.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
                         return Err(ActionError::KeyLengthMismatch);
@@ -75,8 +74,6 @@ impl ActionEngine for SovereignEngine {
             .insert(action_hash, *msg.timestamp_kyn);
 
         match &msg.action {
-
-
             NetworkAction::RotateSovereignKey { new_key } => {
                 state.active_sovereign_key = Some(new_key.clone());
                 Some(ActionEffect::SovereignKeyRotated {
@@ -87,7 +84,8 @@ impl ActionEngine for SovereignEngine {
                 if !state.is_halted {
                     state.is_halted = true;
                     if state.halt_start_kyn.is_none() {
-                        state.halt_start_kyn = Some(kinetic_kyn::types::HaltStartKyn::from(*current_kyn));
+                        state.halt_start_kyn =
+                            Some(kinetic_kyn::types::HaltStartKyn::from(*current_kyn));
                     }
                 }
                 Some(ActionEffect::NetworkHalted)
@@ -95,12 +93,15 @@ impl ActionEngine for SovereignEngine {
             NetworkAction::EmergencyResume => {
                 if state.is_halted {
                     state.is_halted = false;
-                    let start_kyn = state.halt_start_kyn.take().unwrap_or(kinetic_kyn::types::HaltStartKyn::from(*current_kyn));
+                    let start_kyn = state
+                        .halt_start_kyn
+                        .take()
+                        .unwrap_or(kinetic_kyn::types::HaltStartKyn::from(*current_kyn));
                     let paused_kyns = current_kyn.as_u64().saturating_sub(start_kyn.as_u64());
                     state.total_paused_kyns = state.total_paused_kyns.saturating_add(paused_kyns);
                     state.pause_history.push((
                         kinetic_kyn::types::StartKyn::from(start_kyn.as_u64()),
-                        kinetic_kyn::types::EndKyn::from(current_kyn.as_u64())
+                        kinetic_kyn::types::EndKyn::from(current_kyn.as_u64()),
                     ));
                 }
                 Some(ActionEffect::NetworkResumed)

@@ -1,9 +1,9 @@
 //! Background network loops for dynamic PoW identity rotation and periodic DHT name republishing.
 //!
 //! ## Layer 8 Architecture: Client Identity Rotation
-//! Just like the `kinetic-host` payload seeder, the `kinetic-daemon` must maintain Sybil 
-//! resistance to interact with the Kademlia DHT. It achieves this by continuously calculating 
-//! a Proof-of-Work threshold bound to the current KYN epoch. When the time oracle pulses a 
+//! Just like the `kinetic-host` payload seeder, the `kinetic-daemon` must maintain Sybil
+//! resistance to interact with the Kademlia DHT. It achieves this by continuously calculating
+//! a Proof-of-Work threshold bound to the current KYN epoch. When the time oracle pulses a
 //! new network time, this background worker safely hot-swaps the underlying P2P swarm identity.
 
 use kinetic_core::traits::StorageEngine;
@@ -12,18 +12,18 @@ use kinetic_core::traits::StorageEngine;
 /// Initiates the Sybil-resistant Proof-of-Work (PoW) hot-swapping loop.
 ///
 /// > [!IMPORTANT]
-/// > Kinetic requires all DHT participants to prove identity through a PoW challenge bound 
+/// > Kinetic requires all DHT participants to prove identity through a PoW challenge bound
 /// > to the current cryptographic time epoch (KYN). When time advances, identities expire.
 ///
-/// This asynchronous worker operates completely independently from the REST API. It performs 
+/// This asynchronous worker operates completely independently from the REST API. It performs
 /// three critical state transitions:
 ///
-/// 1. **Time Epoch Monitoring**: It blocks on `kyn_rx.changed()`, waiting for the Gossipsub 
+/// 1. **Time Epoch Monitoring**: It blocks on `kyn_rx.changed()`, waiting for the Gossipsub
 ///    mesh to flood a new Time Oracle pulse.
-/// 2. **Preemptive Mining**: When the network time advances, it spins up a heavily threaded 
-///    background miner (`tokio::task::spawn_blocking`) to calculate a new valid Ed25519 identity 
+/// 2. **Preemptive Mining**: When the network time advances, it spins up a heavily threaded
+///    background miner (`tokio::task::spawn_blocking`) to calculate a new valid Ed25519 identity
 ///    that satisfies the mathematical leading-zero requirement of the new epoch.
-/// 3. **The Hot Swap**: It terminates the existing Libp2p `NetworkEventLoop` handle, re-initializes 
+/// 3. **The Hot Swap**: It terminates the existing Libp2p `NetworkEventLoop` handle, re-initializes
 ///    the Swarm with the newly mined PoW identity, and seamlessly re-attaches the MPSC channels.
 ///
 /// ### Arguments
@@ -149,12 +149,12 @@ pub fn start_pow_miner_loop(
 /// Initiates the background Distributed Hash Table (DHT) liveness republisher.
 ///
 /// > [!NOTE]
-/// > Because Kademlia DHT nodes are highly ephemeral (laptops go to sleep, routers reboot), 
-/// > records naturally fall out of the network over time. 
+/// > Because Kademlia DHT nodes are highly ephemeral (laptops go to sleep, routers reboot),
+/// > records naturally fall out of the network over time.
 ///
-/// To guarantee that a user's locally owned `.kin` domain routing payloads remain discoverable, 
-/// this asynchronous worker periodically wakes up, queries the local `kinetic-storage` for all 
-/// owned `NameRecord` datasets, and aggressively pushes `put_record` requests back into the DHT 
+/// To guarantee that a user's locally owned `.kin` domain routing payloads remain discoverable,
+/// this asynchronous worker periodically wakes up, queries the local `kinetic-storage` for all
+/// owned `NameRecord` datasets, and aggressively pushes `put_record` requests back into the DHT
 /// to refresh their Time-To-Live (TTL).
 pub fn start_republisher(
     republish_network: kinetic_network::NetworkClient,

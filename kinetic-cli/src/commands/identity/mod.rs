@@ -85,7 +85,10 @@ pub async fn handle_identity_command(
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
         }
         IdentityCommands::List => {
@@ -106,17 +109,14 @@ pub async fn handle_identity_command(
                         for k in kids {
                             let name = k.get("name").and_then(|v| v.as_str()).unwrap_or("-");
                             let did = k.get("did").and_then(|v| v.as_str()).unwrap_or("-");
-                            let has_key = k.get("has_key").and_then(|v| v.as_bool()).unwrap_or(false);
+                            let has_key =
+                                k.get("has_key").and_then(|v| v.as_bool()).unwrap_or(false);
                             let has_key_cell = if has_key {
                                 Cell::new("Yes").fg(Color::Green)
                             } else {
                                 Cell::new("No").fg(Color::Red)
                             };
-                            table.add_row(vec![
-                                Cell::new(name),
-                                Cell::new(did),
-                                has_key_cell,
-                            ]);
+                            table.add_row(vec![Cell::new(name), Cell::new(did), has_key_cell]);
                         }
                         println!("\n{}", table);
                     }
@@ -126,7 +126,10 @@ pub async fn handle_identity_command(
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
         }
         IdentityCommands::Info { name } => {
@@ -138,7 +141,10 @@ pub async fn handle_identity_command(
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
         }
         IdentityCommands::RotateKey { name } => {
@@ -149,7 +155,10 @@ pub async fn handle_identity_command(
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
         }
         IdentityCommands::Revoke { name } => {
@@ -160,7 +169,10 @@ pub async fn handle_identity_command(
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
         }
         IdentityCommands::Manifest { name } => {
@@ -172,7 +184,10 @@ pub async fn handle_identity_command(
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
         }
         IdentityCommands::UpdateManifest { name, file } => {
@@ -189,7 +204,10 @@ pub async fn handle_identity_command(
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
         }
         IdentityCommands::Publish {
@@ -209,7 +227,7 @@ pub async fn handle_identity_command(
                 let mut auth_kid = kinetic_core::types::AuthorizedKid {
                     name: name.clone(),
                     kid_doc: doc,
-                    owner_signature: vec![],
+                    owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
                 };
                 let signable = auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT);
                 auth_kid.owner_signature = keypair.sign(&signable);
@@ -226,7 +244,14 @@ pub async fn handle_identity_command(
                 } else {
                     let status = response.status();
                     let text = response.text().await.unwrap_or_default();
-                    warn!("{}", crate::utils::parse_and_format_api_error("Daemon rejected KID", status, &text));
+                    warn!(
+                        "{}",
+                        crate::utils::parse_and_format_api_error(
+                            "Daemon rejected KID",
+                            status,
+                            &text
+                        )
+                    );
                 }
             } else {
                 warn!("KID file '{}' not found. Skipping KID publish.", kid);
@@ -240,7 +265,7 @@ pub async fn handle_identity_command(
                     name: name.clone(),
                     manifest: doc,
                     kid_doc: None,
-                    owner_signature: vec![],
+                    owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
                 };
                 let signable = auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT);
                 auth_manifest.owner_signature = keypair.sign(&signable);
@@ -253,7 +278,14 @@ pub async fn handle_identity_command(
                 } else {
                     let status = response.status();
                     let text = response.text().await.unwrap_or_default();
-                    warn!("{}", crate::utils::parse_and_format_api_error("Daemon rejected Manifest", status, &text));
+                    warn!(
+                        "{}",
+                        crate::utils::parse_and_format_api_error(
+                            "Daemon rejected Manifest",
+                            status,
+                            &text
+                        )
+                    );
                 }
             } else {
                 warn!(
@@ -271,7 +303,10 @@ pub async fn handle_identity_command(
             } else {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
         }
     }

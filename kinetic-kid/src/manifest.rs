@@ -60,8 +60,8 @@ impl Manifest {
     /// Returns the canonical JCS (RFC 8785) serialization of the manifest without the signature field.
     ///
     /// # Security
-    /// JCS Canonicalization ensures that arbitrary JSON formatting (whitespace, key ordering) 
-    /// does not alter the underlying byte representation, which would otherwise invalidate 
+    /// JCS Canonicalization ensures that arbitrary JSON formatting (whitespace, key ordering)
+    /// does not alter the underlying byte representation, which would otherwise invalidate
     /// the cryptographic signature.
     ///
     /// # Errors
@@ -110,7 +110,7 @@ impl Manifest {
     /// use kinetic_kid::{Document, Did, ControllerKey, Manifest, Service};
     /// use kinetic_primitives::keypairs::ControllerPrivKey;
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-    /// 
+    ///
     /// let controller_key = ControllerPrivKey::generate();
     /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
     /// let did = Did::new(&format!("did:kin:{}", "0".repeat(64))).unwrap();
@@ -139,9 +139,9 @@ impl Manifest {
     ///     services: vec![],
     ///     signature: None,
     /// };
-    /// 
+    ///
     /// let signed_manifest = manifest.sign_with_controller(&controller_key).unwrap();
-    /// 
+    ///
     /// // Verify at Unix timestamp 1005 (valid since it is >= valid_from)
     /// assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UKyn(1005)).is_ok());
     /// ```
@@ -187,9 +187,9 @@ impl Manifest {
 
         let msg_str = self.canonicalize()?;
         // ARCHITECTURE NOTE: We intentionally inject the namespace prefix (NSP) as the domain
-        // separator rather than the 32-byte `NETWORK_SALT`. KIDs are Layer 2 identities and 
+        // separator rather than the 32-byte `NETWORK_SALT`. KIDs are Layer 2 identities and
         // are meant to be seamlessly portable between Mainnet and Testnet (which share the same NSP).
-        // Using the NSP ensures identity signatures remain portable, while mathematically isolating 
+        // Using the NSP ensures identity signatures remain portable, while mathematically isolating
         // them from completely different network forks (e.g. if a private network uses nsp "corp").
         let mut msg_bytes = format!("{}-manifest-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
@@ -197,7 +197,8 @@ impl Manifest {
         for key in &kid_document.controller_keys {
             if key.key_type.eq_ignore_ascii_case("Controller")
                 && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                && kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
+                && kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                    .is_ok()
             {
                 return Ok(());
             }
@@ -215,12 +216,12 @@ impl Manifest {
         key: &kinetic_primitives::keypairs::ControllerPrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
-        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
+        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve
         // identity portability between Mainnet/Testnet while isolating private forks.
         let mut msg_bytes = format!("{}-manifest-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
         let signature_bytes = key.sign(&msg_bytes);
-        self.signature = Some(b64_url.encode(signature_bytes));
+        self.signature = Some(b64_url.encode(signature_bytes.as_bytes()));
         Ok(self)
     }
 }

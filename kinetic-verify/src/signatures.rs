@@ -3,7 +3,7 @@
 //! This module provides the [`VerifySignature`] extension trait, which ensures
 //! that state-mutating payloads (like [`NameRecord`] mappings and [`Reveal`] actions)
 //! possess mathematically valid Identity signatures before they are accepted.
-//! 
+//!
 //! It includes logic for direct Owner signatures as well as bounded Delegated identity signatures.
 
 use crate::error::SignatureVerifyError;
@@ -24,8 +24,8 @@ pub trait VerifySignature {
     ///
     /// # Security
     ///
-    /// This function acts as the strict cryptographic boundary for the network. It must 
-    /// perfectly serialize the signable byte payload—including the `network_salt`—before 
+    /// This function acts as the strict cryptographic boundary for the network. It must
+    /// perfectly serialize the signable byte payload—including the `network_salt`—before
     /// verification to completely mitigate cross-network (e.g., testnet to mainnet) replay attacks.
     fn verify_signature(&self, network_salt: &[u8; 32]) -> Result<(), SignatureVerifyError>;
 }
@@ -40,7 +40,11 @@ impl VerifySignature for Reveal {
             }
 
             let auth_signable = auth.signable_bytes(network_salt);
-            if self.pubkey.verify(&auth_signable, &auth.owner_signature).is_err() {
+            if self
+                .pubkey
+                .verify(&auth_signable, &auth.owner_signature)
+                .is_err()
+            {
                 return Err(SignatureVerifyError::DelegatedAuthorizationInvalid);
             }
 
@@ -64,7 +68,10 @@ impl VerifySignature for Reveal {
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
                 {
                     let temp_pubkey = kinetic_primitives::keypairs::DelegatedPubKey(pubkey_bytes);
-                    if temp_pubkey.verify(&signable, &self.identity_signature).is_ok() {
+                    let delegated_sig = kinetic_primitives::keypairs::DelegatedSignature(
+                        self.identity_signature.0.clone(),
+                    );
+                    if temp_pubkey.verify(&signable, &delegated_sig).is_ok() {
                         verified = true;
                         break;
                     }
@@ -74,13 +81,21 @@ impl VerifySignature for Reveal {
             if !verified {
                 return Err(SignatureVerifyError::InvalidSignature);
             }
-        } else if self.pubkey.verify(&signable, &self.identity_signature).is_err() {
+        } else if self
+            .pubkey
+            .verify(&signable, &self.identity_signature)
+            .is_err()
+        {
             return Err(SignatureVerifyError::InvalidSignature);
         }
 
         if let Some(prev) = &self.previous_proof {
             let prev_signable = prev.signable_bytes(network_salt);
-            if self.pubkey.verify(&prev_signable, &prev.identity_signature).is_err() {
+            if self
+                .pubkey
+                .verify(&prev_signable, &prev.identity_signature)
+                .is_err()
+            {
                 return Err(SignatureVerifyError::InvalidSignature);
             }
         }
@@ -117,7 +132,7 @@ mod tests {
         name: &str,
         payload: &[u8],
         salt: &[u8],
-    ) -> Vec<u8> {
+    ) -> kinetic_primitives::keypairs::IdentitySignature {
         let mut signable = Vec::new();
         signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
         signable.extend_from_slice(name.as_bytes());
@@ -132,7 +147,7 @@ mod tests {
         name: &str,
         payload: &[u8],
         salt: &[u8],
-    ) -> Vec<u8> {
+    ) -> kinetic_primitives::keypairs::DelegatedSignature {
         let mut signable = Vec::new();
         signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
         signable.extend_from_slice(name.as_bytes());
@@ -160,7 +175,7 @@ mod tests {
                 proof_bytes: vec![0, 0, 0],
             },
             pubkey: kinetic_primitives::keypairs::IdentityPubKey(identity_vk_bytes),
-            identity_signature: vec![],
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             authorization: None,
             previous_proof: None,
         };
@@ -173,7 +188,7 @@ mod tests {
         assert!(reveal.verify_signature(network_salt).is_ok());
 
         // Corrupt signature
-        reveal.identity_signature[0] ^= 0xFF;
+        reveal.identity_signature.0[0] ^= 0xFF;
         assert!(matches!(
             reveal.verify_signature(network_salt),
             Err(SignatureVerifyError::InvalidSignature)

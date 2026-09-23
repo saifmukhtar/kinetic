@@ -21,11 +21,7 @@ pub fn handle_action_gossip(
             let mut state = GLOBAL_ACTION_STATE
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let result = process_action_message(
-                &mut state,
-                &signed_msg,
-                current_kyn,
-            );
+            let result = process_action_message(&mut state, &signed_msg, current_kyn);
             (state.clone(), result)
         };
 
@@ -115,7 +111,13 @@ mod tests {
         let invalid_payload = b"not valid json";
 
         // This should not panic
-        handle_action_gossip(invalid_payload, path, None, None, kinetic_kyn::types::CurrentKyn::from(100));
+        handle_action_gossip(
+            invalid_payload,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -132,7 +134,13 @@ mod tests {
 
         // This should parse JSON successfully, but the process_action_message should fail
         // or reject it. It should not panic.
-        handle_action_gossip(&payload, path, None, None, kinetic_kyn::types::CurrentKyn::from(100));
+        handle_action_gossip(
+            &payload,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -143,7 +151,13 @@ mod tests {
         let wrong_schema = b"{\"hello\": \"world\"}";
 
         // This should fail JSON parsing and exit gracefully
-        handle_action_gossip(wrong_schema, path, None, None, kinetic_kyn::types::CurrentKyn::from(100));
+        handle_action_gossip(
+            wrong_schema,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -156,7 +170,13 @@ mod tests {
         huge_payload.extend(vec![b']'; 500_000]);
 
         // Should reject immediately gracefully during parsing
-        handle_action_gossip(&huge_payload, path, None, None, kinetic_kyn::types::CurrentKyn::from(100));
+        handle_action_gossip(
+            &huge_payload,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -167,7 +187,13 @@ mod tests {
         let extra_fields = b"{\"action\": \"EmergencyHalt\", \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
         // Should parse and handle or ignore the extra field without panicking
-        handle_action_gossip(extra_fields, path, None, None, kinetic_kyn::types::CurrentKyn::from(100));
+        handle_action_gossip(
+            extra_fields,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -185,7 +211,13 @@ mod tests {
         let payload = serde_json::to_vec(&msg).unwrap();
 
         // Should not panic when `state.save_to_disk` returns an Err
-        handle_action_gossip(&payload, path, None, None, kinetic_kyn::types::CurrentKyn::from(100));
+        handle_action_gossip(
+            &payload,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 }
 

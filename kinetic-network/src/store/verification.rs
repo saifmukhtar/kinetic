@@ -77,7 +77,7 @@ pub(crate) fn verify_host_routing_record(
     let verifying_key =
         VerifyingKey::from_bytes(&pubkey_bytes).map_err(|_| KineticStoreError::InvalidPublicKey)?;
 
-    let sig = Signature::from_slice(&record.host_signature)
+    let sig = Signature::from_slice(record.host_signature.as_bytes())
         .map_err(|_| KineticStoreError::MalformedSignature)?;
 
     let signable = record.signable_bytes(kinetic_core::constants::NETWORK_SALT);
@@ -128,7 +128,11 @@ pub(crate) fn compute_required_iterations(
     let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
 
     let dev_mode = kinetic_core::config::is_dev_mode();
-    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.as_u64(), &reveal.beacon_signature, dev_mode) {
+    if !kinetic_kyn::beacon::verify_beacon_signature(
+        reveal.kyn.as_u64(),
+        &reveal.beacon_signature,
+        dev_mode,
+    ) {
         let err = KineticStoreError::InvalidBeaconSignature;
         err.log_warning(
             &reveal.name,
@@ -153,7 +157,11 @@ pub(crate) fn compute_required_iterations(
             }
         };
 
-        if !kinetic_kyn::beacon::verify_beacon_signature(prev.kyn.as_u64(), &prev.beacon_signature, dev_mode) {
+        if !kinetic_kyn::beacon::verify_beacon_signature(
+            prev.kyn.as_u64(),
+            &prev.beacon_signature,
+            dev_mode,
+        ) {
             tracing::warn!(
                 "Invalid PreviousProof attached for {}: Invalid Drand BLS signature. Falling back to full difficulty.",
                 reveal.name
@@ -182,7 +190,8 @@ pub(crate) fn compute_required_iterations(
             0
         };
 
-        let effective_age = current_kyn.as_u64()
+        let effective_age = current_kyn
+            .as_u64()
             .saturating_sub(prev.kyn.as_u64())
             .saturating_sub(paused_kyns);
         let is_not_too_old = effective_age <= kinetic_core::types::RESQUARING_EPOCH_KYNS * 2;
@@ -282,7 +291,11 @@ pub(crate) fn verify_reveal(
         return Err(err);
     }
 
-    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.as_u64(), &reveal.beacon_signature, dev_mode) {
+    if !kinetic_kyn::beacon::verify_beacon_signature(
+        reveal.kyn.as_u64(),
+        &reveal.beacon_signature,
+        dev_mode,
+    ) {
         let err = KineticStoreError::InvalidBeaconSignature;
         err.log_warning(
             &reveal.name,
@@ -424,11 +437,13 @@ pub(crate) fn verify_authorized_kid(
         err
     })?;
 
-    if record.pubkey().verify(
-        &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-        auth_kid.owner_signature.as_slice(),
-    )
-    .is_err()
+    if record
+        .pubkey()
+        .verify(
+            &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+            &auth_kid.owner_signature,
+        )
+        .is_err()
     {
         let err = KineticStoreError::InvalidKidSignature;
         err.log_warning(
@@ -512,11 +527,13 @@ pub(crate) fn verify_authorized_manifest(
         err
     })?;
 
-    if record.pubkey().verify(
-        &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-        auth_manifest.owner_signature.as_slice(),
-    )
-    .is_err()
+    if record
+        .pubkey()
+        .verify(
+            &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+            &auth_manifest.owner_signature,
+        )
+        .is_err()
     {
         let err = KineticStoreError::InvalidManifestSignature;
         err.log_warning(
@@ -547,9 +564,9 @@ pub(crate) fn verify_authorized_manifest(
         return Err(err);
     }
 
-    let current_time = kinetic_kyn::types::Kyn(current_kyn.as_u64()).to_ukyn(
-        kinetic_core::constants::BEACON_GENESIS,
-    ).0;
+    let current_time = kinetic_kyn::types::Kyn(current_kyn.as_u64())
+        .to_ukyn(kinetic_core::constants::BEACON_GENESIS)
+        .0;
 
     if auth_manifest
         .manifest

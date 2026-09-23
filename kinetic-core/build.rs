@@ -217,8 +217,6 @@ fn main() {
         config.time_oracle.kyn_genesis
     ));
 
-
-
     // Expose NSP as compile-time env vars so constants.rs can use env!() for
     // fork-isolated gossip topics and DB key prefixes without requiring a generated file.
     println!("cargo:rustc-env=KINETIC_NSP={}", config.network.nsp);

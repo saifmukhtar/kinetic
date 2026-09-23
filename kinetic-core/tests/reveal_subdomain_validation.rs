@@ -18,8 +18,12 @@ fn test_subdomain_escalation_validation() {
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-        identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+            vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+        ),
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+            vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+        ),
         previous_proof: None,
         authorization: None,
     };
@@ -40,8 +44,12 @@ fn test_subdomain_escalation_validation() {
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-        identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+            vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+        ),
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+            vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+        ),
         previous_proof: None,
         authorization: None,
     };

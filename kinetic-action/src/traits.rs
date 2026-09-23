@@ -1,7 +1,7 @@
 //! Interface definitions for action evaluation engines.
 //!
 //! Provides the core [`ActionEngine`] trait that all specific consensus modules
-//! (e.g., Sovereign or Permissionless) must implement to validate and execute 
+//! (e.g., Sovereign or Permissionless) must implement to validate and execute
 //! incoming network actions.
 
 use crate::error::ActionError;

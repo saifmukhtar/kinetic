@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 /// Parsed NRS zone mapping subname labels to collections of [`NrsRecord`] entries.
 ///
-/// The zone acts identically to a traditional DNS zone file, but is published securely 
+/// The zone acts identically to a traditional DNS zone file, but is published securely
 /// into the Kinetic network's decentralized DHT.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NrsZone {
@@ -52,7 +52,8 @@ pub struct HostRoutingRecord {
     /// The Kyn when this record was created.
     pub kyn: kinetic_kyn::types::TargetKyn,
     /// Host signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
-    pub host_signature: Vec<u8>,
+    #[serde(with = "crate::sig_serde::delegated_sig_serde")]
+    pub host_signature: kinetic_primitives::keypairs::DelegatedSignature,
 }
 
 impl HostRoutingRecord {
@@ -62,8 +63,8 @@ impl HostRoutingRecord {
     /// `network_salt` (32 bytes) + `b"-nrs-routing-v1"` + `u32_be(host_id.len())` + `host_bytes` + `u32_be(peer_id.len())` + `peer_bytes` + `u64_be(kyn)`
     ///
     /// # Security
-    /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte 
-    /// `network_salt` and the literal `b"-nrs-routing-v1"`, a routing record signed for 
+    /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte
+    /// `network_salt` and the literal `b"-nrs-routing-v1"`, a routing record signed for
     /// the `.kin` network cannot be maliciously replayed on other networks.
     ///
     /// # Examples
@@ -76,7 +77,7 @@ impl HostRoutingRecord {
     ///     kyn: kinetic_kyn::types::Kyn(150000),
     ///     host_signature: vec![],
     /// };
-    /// 
+    ///
     /// let salt = [0x42; 32];
     /// let bytes = routing.signable_bytes(&salt);
     /// assert!(bytes.len() > 32);

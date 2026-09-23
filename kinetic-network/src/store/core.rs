@@ -2,20 +2,20 @@
 //!
 //! ## Layer 7 Architecture: The Kademlia Interceptor
 //! This module defines the [`KineticRecordStore`]. It implements libp2p's
-//! [`RecordStore`](libp2p::kad::store::RecordStore) trait, but acts as a hostile 
-//! interceptor. Standard libp2p nodes accept `put` requests blindly into an in-memory 
-//! hashmap. `KineticRecordStore` rejects this behavior. Every incoming DHT record 
-//! must mathematically prove its right to exist in the namespace before it is 
+//! [`RecordStore`](libp2p::kad::store::RecordStore) trait, but acts as a hostile
+//! interceptor. Standard libp2p nodes accept `put` requests blindly into an in-memory
+//! hashmap. `KineticRecordStore` rejects this behavior. Every incoming DHT record
+//! must mathematically prove its right to exist in the namespace before it is
 //! allowed to touch the local database.
 //!
 //! ## Defense Mechanisms
-//! - **LRU Memory Hardening:** Employs strict bounds via `lru::LruCache` to prevent 
+//! - **LRU Memory Hardening:** Employs strict bounds via `lru::LruCache` to prevent
 //!   OOM (Out Of Memory) crashing vectors from malicious peers spamming large DHT payloads.
-//! - **VDF State Tracking:** Maintains a running view of `current_kyn` (KYN Provider network time). 
-//!   It uses this state to aggressively drop stale records, future-dated timestamps, 
+//! - **VDF State Tracking:** Maintains a running view of `current_kyn` (KYN Provider network time).
+//!   It uses this state to aggressively drop stale records, future-dated timestamps,
 //!   or proofs that lack the required VDF difficulty.
-//! - **Storage Abstraction:** Wraps the generic `StorageEngine` trait from `kinetic-core`, 
-//!   allowing the P2P network to remain completely decoupled from whether the node is running 
+//! - **Storage Abstraction:** Wraps the generic `StorageEngine` trait from `kinetic-core`,
+//!   allowing the P2P network to remain completely decoupled from whether the node is running
 //!   on a native OS (`kinetic-storage` via Redb) or a web browser (WASM OPFS).
 use libp2p::{PeerId, kad};
 use std::collections::HashMap;
@@ -407,7 +407,9 @@ impl KineticRecordStore {
                         let mut key = Vec::with_capacity(KRS_COMMIT_PREFIX.len() + 32);
                         key.extend_from_slice(KRS_COMMIT_PREFIX);
                         key.extend_from_slice(&commitment.hash);
-                        let _ = self.storage.put(&key, &self.current_kyn.as_u64().to_be_bytes());
+                        let _ = self
+                            .storage
+                            .put(&key, &self.current_kyn.as_u64().to_be_bytes());
                         return self
                             .inner
                             .put(r)
@@ -628,20 +630,23 @@ mod tests {
         );
 
         let name = "a.kin"; // Standard name, requires heartbeats
-        let record = kinetic_core::types::NameRecord::Standard(Box::new(kinetic_types::vdf::Reveal {
-            protocol_version: 1,
-            name: name.to_string(),
-            payload: vec![],
-            salt: [0; 32],
-            kyn: kinetic_kyn::types::TargetKyn::from(0),
-            beacon_signature: String::new(),
-            iterations: 1,
-            vdf_proof: kinetic_types::vdf::VdfProof { proof_bytes: vec![] },
-            previous_proof: None,
-            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
-            identity_signature: vec![],
-            authorization: None,
-        }));
+        let record =
+            kinetic_core::types::NameRecord::Standard(Box::new(kinetic_types::vdf::Reveal {
+                protocol_version: 1,
+                name: name.to_string(),
+                payload: vec![],
+                salt: [0; 32],
+                kyn: kinetic_kyn::types::TargetKyn::from(0),
+                beacon_signature: String::new(),
+                iterations: 1,
+                vdf_proof: kinetic_types::vdf::VdfProof {
+                    proof_bytes: vec![],
+                },
+                previous_proof: None,
+                pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
+                authorization: None,
+            }));
 
         let record_bytes = serde_json::to_vec(&record).unwrap();
         let derived_keys =
@@ -653,7 +658,8 @@ mod tests {
 
         assert!(store.get_fallback(name).is_some());
 
-        store.current_kyn = kinetic_kyn::types::CurrentKyn::from(store.current_kyn.as_u64() + 300000);
+        store.current_kyn =
+            kinetic_kyn::types::CurrentKyn::from(store.current_kyn.as_u64() + 300000);
         store.prune();
 
         // Wait for async deletion task to run
@@ -667,8 +673,6 @@ mod tests {
             "Zombie record RAM leak detected! Record still exists in MemoryStore!"
         );
     }
-
-
 
     #[tokio::test]
     async fn test_unreferenced_heartbeat_cleanup_on_boot() {
@@ -727,20 +731,23 @@ mod tests {
         );
 
         let large_payload = vec![0u8; 34000];
-        let record = kinetic_core::types::NameRecord::Standard(Box::new(kinetic_core::types::vdf::Reveal {
-            protocol_version: 1,
-            name: "large.kin".to_string(),
-            payload: large_payload,
-            salt: [0; 32],
-            kyn: kinetic_kyn::types::TargetKyn::from(0),
-            beacon_signature: String::new(),
-            iterations: 1,
-            vdf_proof: kinetic_core::types::vdf::VdfProof { proof_bytes: vec![] },
-            previous_proof: None,
-            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
-            identity_signature: vec![],
-            authorization: None,
-        }));
+        let record =
+            kinetic_core::types::NameRecord::Standard(Box::new(kinetic_core::types::vdf::Reveal {
+                protocol_version: 1,
+                name: "large.kin".to_string(),
+                payload: large_payload,
+                salt: [0; 32],
+                kyn: kinetic_kyn::types::TargetKyn::from(0),
+                beacon_signature: String::new(),
+                iterations: 1,
+                vdf_proof: kinetic_core::types::vdf::VdfProof {
+                    proof_bytes: vec![],
+                },
+                previous_proof: None,
+                pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
+                authorization: None,
+            }));
 
         let record_bytes = serde_json::to_vec(&record).unwrap();
         let key = libp2p::kad::RecordKey::new(&"dummy");

@@ -3,7 +3,7 @@
 use kinetic_core::config::KineticConfig;
 use kinetic_core::traits::KynProvider;
 use kinetic_types::network::{
-    NetworkMode, NetworkOpcode, PeerType, OsType, Reachability, TelemetryHeartbeat,
+    NetworkMode, NetworkOpcode, OsType, PeerType, Reachability, TelemetryHeartbeat,
 };
 use std::env;
 use std::sync::Arc;

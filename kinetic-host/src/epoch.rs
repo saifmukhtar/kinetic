@@ -1,17 +1,17 @@
 //! Dynamic DHT routing record publisher and KYN Epoch PoW hot-swapping heartbeat.
 //!
 //! ## Layer 8 Architecture: The Seamless Hot-Swap
-//! The Kinetic network aggressively protects its DHT from Sybil attacks by enforcing that 
-//! every node's Kademlia `PeerId` (which is derived from an Ed25519 public key) satisfies a 
+//! The Kinetic network aggressively protects its DHT from Sybil attacks by enforcing that
+//! every node's Kademlia `PeerId` (which is derived from an Ed25519 public key) satisfies a
 //! Proof-of-Work threshold bound to the *current* network time epoch (the KYN).
 //!
-//! Because time advances, a PoW identity eventually expires. If a headless server goes offline, 
-//! the hosted `.kin` zone becomes unreachable. To ensure 24/7 uptime, this module runs the 
+//! Because time advances, a PoW identity eventually expires. If a headless server goes offline,
+//! the hosted `.kin` zone becomes unreachable. To ensure 24/7 uptime, this module runs the
 //! `start_time_oracle_heartbeat` loop (Note: functionally acting as a generic KYN Time Oracle).
 //!
-//! When the loop detects that the network epoch is about to advance, it preemptively spins up 
-//! a background thread to calculate a *new* Proof-of-Work identity for the upcoming time epoch. 
-//! Once the network epoch rolls over, it hot-swaps the underlying Swarm identity seamlessly, 
+//! When the loop detects that the network epoch is about to advance, it preemptively spins up
+//! a background thread to calculate a *new* Proof-of-Work identity for the upcoming time epoch.
+//! Once the network epoch rolls over, it hot-swaps the underlying Swarm identity seamlessly,
 //! rebroadcasting the payload without dropping connections.
 
 use kinetic_core::traits::KynProvider;
@@ -57,13 +57,14 @@ pub async fn start_routing_publisher(
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
             kyn: kinetic_kyn::types::TargetKyn::from(kyn),
-            host_signature: vec![],
+            host_signature: kinetic_primitives::keypairs::DelegatedSignature(vec![]),
         };
 
         use ed25519_dalek::Signer;
         let signature =
             dalek_kp.sign(&record.signable_bytes(kinetic_core::constants::NETWORK_SALT));
-        record.host_signature = signature.to_bytes().to_vec();
+        record.host_signature =
+            kinetic_primitives::keypairs::DelegatedSignature(signature.to_bytes().to_vec());
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {
             let err =

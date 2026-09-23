@@ -31,7 +31,10 @@ pub async fn handle_heartbeat(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);
@@ -47,7 +50,10 @@ pub async fn handle_heartbeat(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
             println!(
                 "Successfully triggered {}heartbeat for '{}'.",

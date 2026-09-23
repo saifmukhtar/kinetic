@@ -77,9 +77,13 @@ mod tests {
     fn valid_reveal() -> Reveal {
         Reveal {
             name: format!("{}{}", "satoshi", crate::constants::NSP_SUFFIX),
-            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![0u8; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+                vec![0u8; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+            ),
             payload: vec![0u8; 100],
-            identity_signature: vec![0u8; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                vec![0u8; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            ),
             previous_proof: None,
             iterations: 1000,
             vdf_proof: VdfProof {
@@ -155,7 +159,8 @@ mod tests {
         // Too short
         reveal.pubkey = kinetic_primitives::keypairs::IdentityPubKey(vec![
             0u8;
-            kinetic_primitives::KINETIC_PUBKEY_LENGTH - 1
+            kinetic_primitives::KINETIC_PUBKEY_LENGTH
+                - 1
         ]);
         let err = reveal.validate().unwrap_err();
         assert_eq!(
@@ -169,7 +174,8 @@ mod tests {
         let mut invalid_reveal2 = reveal.clone();
         invalid_reveal2.pubkey = kinetic_primitives::keypairs::IdentityPubKey(vec![
             0u8;
-            kinetic_primitives::KINETIC_PUBKEY_LENGTH + 1
+            kinetic_primitives::KINETIC_PUBKEY_LENGTH
+                + 1
         ]);
         let err2 = invalid_reveal2.validate().unwrap_err();
         assert_eq!(
@@ -186,10 +192,11 @@ mod tests {
         let mut reveal = valid_reveal();
 
         // Too short
-        reveal.identity_signature = vec![
+        reveal.identity_signature = kinetic_primitives::keypairs::IdentitySignature(vec![
             0u8;
-            kinetic_primitives::KINETIC_SIGNATURE_LENGTH - 1
-        ];
+            kinetic_primitives::KINETIC_SIGNATURE_LENGTH
+                - 1
+        ]);
         let err = reveal.validate().unwrap_err();
         assert_eq!(
             err,
@@ -200,10 +207,10 @@ mod tests {
         );
 
         let mut invalid_reveal2 = reveal.clone();
-        invalid_reveal2.identity_signature = vec![
+        invalid_reveal2.identity_signature = kinetic_primitives::keypairs::IdentitySignature(vec![
             0u8;
             kinetic_primitives::KINETIC_SIGNATURE_LENGTH + 1
-        ];
+        ]);
         let err2 = invalid_reveal2.validate().unwrap_err();
         assert_eq!(
             err2,

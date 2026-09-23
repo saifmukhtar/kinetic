@@ -1,9 +1,9 @@
 //! Periodic name heartbeat generator and KYN Time Oracle synchronization worker loop.
 //!
 //! ## Layer 8 Architecture: The Liveness Engine
-//! Domains on the Kinetic network require periodic "heartbeats" to prove liveness and 
-//! remain discoverable. This background worker constantly queries the local Storage engine 
-//! for locally owned `.kin` names, calculates the current cryptographic KYN epoch, and 
+//! Domains on the Kinetic network require periodic "heartbeats" to prove liveness and
+//! remain discoverable. This background worker constantly queries the local Storage engine
+//! for locally owned `.kin` names, calculates the current cryptographic KYN epoch, and
 //! floods `Heartbeat` packets over the Gossipsub mesh.
 
 use kinetic_core::traits::KynProvider;
@@ -17,8 +17,8 @@ use std::time::Duration;
 /// Initiates the domain Liveness Heartbeat broadcaster.
 ///
 /// > [!NOTE]
-/// > Because the Kinetic DHT does not store static ledgers, namespaces will naturally 
-/// > expire if the owner goes offline. The owner must periodically "pulse" the network 
+/// > Because the Kinetic DHT does not store static ledgers, namespaces will naturally
+/// > expire if the owner goes offline. The owner must periodically "pulse" the network
 /// > to prove they are still actively hosting the domain.
 ///
 /// This asynchronous loop wakes up every 10 seconds. It performs the following steps:
@@ -26,7 +26,7 @@ use std::time::Duration;
 /// 2. Derives the *current* network time epoch from the `hb_kyn_provider`.
 /// 3. Computes the required math against `BEACON_GENESIS`.
 /// 4. Generates a signed `Heartbeat` packet containing the Time Oracle's signature.
-/// 5. Injects the packet into the Libp2p Swarm via the `hb_network` client, which floods it 
+/// 5. Injects the packet into the Libp2p Swarm via the `hb_network` client, which floods it
 ///    to the `_kinetic_domain_liveness` Gossipsub topic.
 pub fn start_heartbeat_loop(
     hb_storage: Arc<dyn StorageEngine>,
@@ -122,7 +122,7 @@ pub fn start_heartbeat_loop(
                     let mut heartbeat = Heartbeat {
                         name: name.clone(),
                         latest_kyn: kinetic_kyn::types::Kyn(kyn.kyn()),
-                        owner_signature: vec![],
+                        owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
                         authorization: None,
                     };
 
@@ -134,7 +134,8 @@ pub fn start_heartbeat_loop(
                             .await
                             .unwrap();
 
-                    heartbeat.owner_signature = sig_bytes;
+                    heartbeat.owner_signature =
+                        kinetic_primitives::keypairs::IdentitySignature(sig_bytes.0);
 
                     let name_clone = name.clone();
                     let hb_network_clone = hb_network.clone();

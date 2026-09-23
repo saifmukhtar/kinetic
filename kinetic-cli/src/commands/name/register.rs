@@ -14,7 +14,7 @@ use std::time::Duration;
 ///
 /// ### Execution Flow
 /// 1. **Normalization**: Forces the name to lowercase and ensures the `.kin` suffix.
-/// 2. **Difficulty Prediction**: Calculates the required `iterations` based on the namespace length 
+/// 2. **Difficulty Prediction**: Calculates the required `iterations` based on the namespace length
 ///    and queries the Daemon's `micro/consensus/difficulty` endpoint to estimate the wall-clock time required.
 /// 3. **UI Warning**: Displays a stark terminal warning to the user if the registration will take hours.
 /// 4. **Macro API Dispatch**: Dispatches an HTTP POST to the Daemon's `macro/nrs/register` endpoint.

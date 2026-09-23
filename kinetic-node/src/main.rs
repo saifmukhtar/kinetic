@@ -3,21 +3,21 @@
 //! The Kinetic public infrastructure node executable (`kinetic-node`).
 //!
 //! ## Layer 8 Architecture: The Headless Router
-//! `kinetic-node` is a highly privileged, headless server process designed exclusively 
-//! to run on cloud infrastructure (e.g. AWS, DigitalOcean). 
-//! 
-//! **CRITICAL DISTINCTION:** This is *not* a blockchain validator. It does not mine blocks, 
+//! `kinetic-node` is a highly privileged, headless server process designed exclusively
+//! to run on cloud infrastructure (e.g. AWS, DigitalOcean).
+//!
+//! **CRITICAL DISTINCTION:** This is *not* a blockchain validator. It does not mine blocks,
 //! build a ledger, or process user transactions. There is no global state.
 //!
 //! Its architectural responsibilities are strictly limited to:
-//! 1. **DHT Bootstrapping:** Providing stable IP addresses (via a static Ed25519 `node_key`) 
+//! 1. **DHT Bootstrapping:** Providing stable IP addresses (via a static Ed25519 `node_key`)
 //!    for new user daemons to connect to when joining the network.
-//! 2. **Time Oracle Ingestion:** This binary acts as the bridge to the external KYN Provider. 
-//!    It runs a background heartbeat that fetches cryptographically secure entropy over HTTP/DNS, 
-//!    wraps it in a `NetworkOpcode::KynTime`, and floods it into the Gossipsub mesh so that 
+//! 2. **Time Oracle Ingestion:** This binary acts as the bridge to the external KYN Provider.
+//!    It runs a background heartbeat that fetches cryptographically secure entropy over HTTP/DNS,
+//!    wraps it in a `NetworkOpcode::KynTime`, and floods it into the Gossipsub mesh so that
 //!    local user daemons never have to make external HTTP requests.
 //! 3. **Action Gossip Relay:** Relaying Global Action State pauses/upgrades across the swarm.
-//! 4. **Load Balancer Health:** Exposing a minimal Axum web server on port 16003 for Kubernetes 
+//! 4. **Load Balancer Health:** Exposing a minimal Axum web server on port 16003 for Kubernetes
 //!    or HAProxy load balancer liveness checks.
 
 mod api;
@@ -38,8 +38,8 @@ use tokio::sync::watch;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_kyn::beacon::RawKyn;
 use kinetic_core::traits::KynProvider;
+use kinetic_kyn::beacon::RawKyn;
 use kinetic_network::client::time_oracle::TimeOracleProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
@@ -199,7 +199,8 @@ pub async fn run_node() -> Result<()> {
     info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
-    let kyn_provider: Arc<dyn KynProvider> = Arc::new(TimeOracleProvider::new(Some(storage.clone())));
+    let kyn_provider: Arc<dyn KynProvider> =
+        Arc::new(TimeOracleProvider::new(Some(storage.clone())));
 
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
@@ -338,7 +339,9 @@ pub async fn run_node() -> Result<()> {
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
+                                kinetic_types::action::ActionSyncRequest {
+                                    from_kyn: kinetic_kyn::types::Kyn(0),
+                                },
                             )
                             .await
                         && !resp.actions.is_empty()
@@ -406,10 +409,12 @@ pub async fn run_node() -> Result<()> {
                 let actual_payload = &payload[1..];
 
                 if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
-
                     let current_kyn = match kyn_provider_gossip.fetch_latest().await {
                         Ok(kyn) => kyn.kyn(),
-                        Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
+                        Err(_) => {
+                            kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS)
+                                .0
+                        }
                     };
                     gossip::handle_action_gossip(
                         actual_payload,

@@ -1,10 +1,10 @@
-use crate::types::{Kyn, UKyn, CrystallizedKyn};
+use crate::types::{CrystallizedKyn, Kyn, UKyn};
 
 impl Kyn {
     /// Converts a `Kyn` number into a `UKyn` (Unix epoch timestamp in seconds).
     ///
-    /// This is the secure method for deriving current time, as it bridges the 
-    /// mathematical Kyn into standard Unix time for interoperability 
+    /// This is the secure method for deriving current time, as it bridges the
+    /// mathematical Kyn into standard Unix time for interoperability
     /// (e.g., verifying `expires_at` in Identity Documents).
     ///
     /// # Examples
@@ -29,7 +29,6 @@ impl Kyn {
     pub fn from_be_bytes(bytes: [u8; 8]) -> Self {
         Self(u64::from_be_bytes(bytes))
     }
-
 }
 
 impl UKyn {
@@ -103,7 +102,7 @@ impl CrystallizedKyn {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{Kyn, UKyn, CrystallizedKyn};
+    use crate::types::{CrystallizedKyn, Kyn, UKyn};
 
     #[test]
     fn test_kyn_unix_conversion_roundtrip() {
@@ -139,17 +138,11 @@ mod tests {
 
         // Exactly 1 Prism (86,400 kyns)
         let t5 = CrystallizedKyn::from_kyn(Kyn(1000 + 86400), genesis);
-        assert_eq!(
-            (t5.prism, t5.facet, t5.kyn, t5.total),
-            (1, 0, 0, 86400)
-        );
+        assert_eq!((t5.prism, t5.facet, t5.kyn, t5.total), (1, 0, 0, 86400));
 
         // Complex time: 1 Prism + 2 Facets + 3 Kyns = 86400 + 7200 + 3 = 93603
         let t6 = CrystallizedKyn::from_kyn(Kyn(1000 + 93603), genesis);
-        assert_eq!(
-            (t6.prism, t6.facet, t6.kyn, t6.total),
-            (1, 2, 3, 93603)
-        );
+        assert_eq!((t6.prism, t6.facet, t6.kyn, t6.total), (1, 2, 3, 93603));
     }
 
     #[test]
@@ -183,8 +176,7 @@ mod tests {
     #[test]
     fn test_kinetic_time_pre_genesis() {
         let genesis_kyn = 30579969;
-        let time =
-            CrystallizedKyn::from_kyn(Kyn(genesis_kyn - 1), Kyn(genesis_kyn));
+        let time = CrystallizedKyn::from_kyn(Kyn(genesis_kyn - 1), Kyn(genesis_kyn));
         assert_eq!(time.total, 0);
     }
 
@@ -207,12 +199,9 @@ mod tests {
     fn test_network_kyn_unix_conversion() {
         let kyn = Kyn(30_579_969);
         let drand_genesis = 1692803367;
-        
+
         let unix_secs = kyn.to_ukyn(drand_genesis);
-        assert_eq!(
-            unix_secs,
-            UKyn(drand_genesis + kyn.0)
-        );
+        assert_eq!(unix_secs, UKyn(drand_genesis + kyn.0));
         let recovered = unix_secs.to_kyn(drand_genesis);
         assert_eq!(recovered, kyn);
     }

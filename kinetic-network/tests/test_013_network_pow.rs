@@ -1,5 +1,5 @@
-use kinetic_network::pow::{mine_p2p_keypair, verify_p2p_pow};
 use kinetic_kyn::types::Kyn;
+use kinetic_network::pow::{mine_p2p_keypair, verify_p2p_pow};
 use libp2p::PeerId;
 #[test]
 #[ignore = "simulation feature mocks PoW"]

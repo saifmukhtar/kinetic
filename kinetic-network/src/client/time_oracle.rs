@@ -1,6 +1,6 @@
-use kinetic_kyn::beacon::RawKyn;
 use kinetic_core::error::KynProviderError;
 use kinetic_core::traits::{KynProvider, StorageEngine};
+use kinetic_kyn::beacon::RawKyn;
 use std::sync::Arc;
 use tracing::warn;
 use web_time::Duration;
@@ -93,7 +93,8 @@ impl TimeOracleProvider {
                             .map_err(|e| KynProviderError::StreamReadFailed(e.to_string()))?
                         {
                             body.extend_from_slice(&chunk);
-                            if body.len() > kinetic_core::constants::LIMITS_BEACON_MAX_RESPONSE_BYTES
+                            if body.len()
+                                > kinetic_core::constants::LIMITS_BEACON_MAX_RESPONSE_BYTES
                             {
                                 return Err(KynProviderError::ResponseTooLarge(body.len()));
                             }

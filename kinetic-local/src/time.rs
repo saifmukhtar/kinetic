@@ -7,6 +7,6 @@ pub fn now_local(genesis: u64) -> Kyn {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-        
+
     UKyn(now_sec).to_kyn(genesis)
 }

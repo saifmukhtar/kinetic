@@ -25,10 +25,14 @@ pub struct RawKyn {
 }
 
 /// Abstract cryptographic verifier for time beacon signatures.
-/// 
-/// Confirms that the `signature_hex` is a valid BLS12-381 G2 signature produced by the 
+///
+/// Confirms that the `signature_hex` is a valid BLS12-381 G2 signature produced by the
 /// globally trusted time beacon for the provided `kyn` round.
-pub fn verify_beacon_signature(beacon_idx: u64, signature_hex: &str, bypass_signature: bool) -> bool {
+pub fn verify_beacon_signature(
+    beacon_idx: u64,
+    signature_hex: &str,
+    bypass_signature: bool,
+) -> bool {
     if bypass_signature {
         return true;
     }
@@ -145,7 +149,10 @@ mod tests {
         };
 
         // Should cryptographically verify against QUICKNET_PUBLIC_KEY
-        assert!(kyn.verify_beacon(false), "Valid Quicknet kyn failed BLS verification");
+        assert!(
+            kyn.verify_beacon(false),
+            "Valid Quicknet kyn failed BLS verification"
+        );
     }
 
     #[test]
@@ -163,7 +170,10 @@ mod tests {
             !kyn.verify_beacon(false),
             "Invalid Quicknet kyn incorrectly passed BLS verification"
         );
-        assert!(kyn.verify_beacon(true), "Bypass signature should always pass verification");
+        assert!(
+            kyn.verify_beacon(true),
+            "Bypass signature should always pass verification"
+        );
     }
 
     #[test]
