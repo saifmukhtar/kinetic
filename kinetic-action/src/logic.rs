@@ -102,7 +102,7 @@ impl ActionState {
     /// Returns an [`ActionError`] if the key is missing, invalid, or has the wrong length.
     pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<kinetic_primitives::keypairs::SovereignPubKey, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
-            return Ok(kinetic_primitives::keypairs::SovereignPubKey(key.clone()));
+            return Ok(key.clone());
         }
 
         let bytes = hex::decode(&config.sovereign_key_hex)

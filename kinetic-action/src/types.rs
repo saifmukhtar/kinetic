@@ -62,7 +62,8 @@ pub struct ActionState {
     /// Genesis Kyn when action tracking started.
     pub genesis_kyn: kinetic_kyn::types::GenesisKyn,
     /// Active Sovereign public key controlling the network.
-    pub active_sovereign_key: Option<Vec<u8>>,
+    #[serde(with = "kinetic_types::pubkey_serde::opt_sovereign_serde")]
+    pub active_sovereign_key: Option<kinetic_primitives::keypairs::SovereignPubKey>,
     /// Master boolean flag if the network is currently paused.
     #[serde(default)]
     pub is_halted: bool,

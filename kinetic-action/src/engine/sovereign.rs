@@ -78,7 +78,7 @@ impl ActionEngine for SovereignEngine {
 
 
             NetworkAction::RotateSovereignKey { new_key } => {
-                state.active_sovereign_key = Some(new_key.as_bytes().to_vec());
+                state.active_sovereign_key = Some(new_key.clone());
                 Some(ActionEffect::SovereignKeyRotated {
                     new_key: new_key.clone(),
                 })

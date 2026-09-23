@@ -69,7 +69,7 @@ pub async fn handle_get_action_status(
         })
     })?;
 
-    let active_key_hex = action_state.active_sovereign_key.as_ref().map(hex::encode);
+    let active_key_hex = action_state.active_sovereign_key.as_ref().map(|k| hex::encode(&k.0));
 
     // Fetch verified Kyn from the node's constantly updating local cache
     let current_kyn = {

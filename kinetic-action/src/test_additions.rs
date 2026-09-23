@@ -10,10 +10,10 @@ fn get_root_sk() -> SovereignPrivKey {
     SovereignPrivKey::from_seed(bytes.as_slice().try_into().unwrap())
 }
 
-fn generate_key(seed: u8) -> (SovereignPrivKey, Vec<u8>) {
+fn generate_key(seed: u8) -> (SovereignPrivKey, kinetic_primitives::keypairs::SovereignPubKey) {
     let bytes = [seed; 32];
     let signing_key = SovereignPrivKey::from_seed(&bytes);
-    let verifying_key = signing_key.to_pubkey().0; // Extract raw bytes
+    let verifying_key = signing_key.to_pubkey();
     (signing_key, verifying_key)
 }
 

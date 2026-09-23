@@ -13,10 +13,10 @@ mod tests {
         SovereignPrivKey::from_seed(bytes.as_slice().try_into().unwrap())
     }
 
-    fn generate_key(seed: u8) -> (SovereignPrivKey, Vec<u8>) {
+    fn generate_key(seed: u8) -> (SovereignPrivKey, kinetic_primitives::keypairs::SovereignPubKey) {
         let bytes = [seed; 32];
         let signing_key = SovereignPrivKey::from_seed(&bytes);
-        let verifying_key = signing_key.to_pubkey().0; // Extract raw bytes for test usage
+        let verifying_key = signing_key.to_pubkey(); // Return strongly typed pubkey
         (signing_key, verifying_key)
     }
 
@@ -50,7 +50,7 @@ mod tests {
         // Action 1: Rotate to the new Sovereign Key (signed by current genesis Sovereign key)
         let mut rotate_msg = SignedNetworkAction {
             action: NetworkAction::RotateSovereignKey {
-                new_key: kinetic_primitives::keypairs::SovereignPubKey(new_root_pubkey.clone()),
+                new_key: new_root_pubkey.clone(),
             },
             timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(current_kyn),
             sovereign_signatures: vec![],
@@ -71,7 +71,7 @@ mod tests {
         // The state should now have the new Sovereign key
         assert_eq!(
             state.get_sovereign_key(&get_test_config()).unwrap(),
-            kinetic_primitives::keypairs::SovereignPubKey(new_root_pubkey.clone())
+            new_root_pubkey.clone()
         );
 
         // Action 2: Try halting the network using the OLD Sovereign key (should fail)
