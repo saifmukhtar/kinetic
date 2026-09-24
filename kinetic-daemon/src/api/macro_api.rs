@@ -192,7 +192,7 @@ pub async fn handle_macro_register_name(
             30,
         );
         let required_iters =
-            kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
+            kinetic_core::vdf_math::VdfParams::default().iterations(&fqdn);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
         let vdf_engine = kinetic_vdf::RsaVdfEngine::new();
@@ -574,7 +574,7 @@ pub async fn handle_macro_renew_name(
         );
 
         let required_iters =
-            kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
+            kinetic_core::vdf_math::VdfParams::default().iterations(&fqdn);
         // Renewals get an 80% discount
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);

@@ -184,7 +184,7 @@ pub async fn handle_name_difficulty(
     let port = config.daemon.api_port;
 
     let base_url = format!(
-        "http://{}:{}/api/v1/micro/consensus/difficulty/{}",
+        "http://{}:{}/api/v1/micro/vdf/iterations/{}",
         config.daemon.bind_ip, port, fqdn
     );
     let resp = client.get(&base_url).send().await?;
@@ -198,18 +198,18 @@ pub async fn handle_name_difficulty(
     }
 
     let base_json: serde_json::Value = resp.json().await?;
-    println!("Base Difficulty (Mining):");
+    println!("Base Iterations (VDF):");
     println!("{}", serde_json::to_string_pretty(&base_json)?);
 
     if let Some(idle) = kyns_idle {
         let takeover_url = format!(
-            "http://{}:{}/api/v1/micro/consensus/takeover-difficulty/{}?kyns_idle={}",
+            "http://{}:{}/api/v1/micro/vdf/takeover-iterations/{}?kyns_idle={}",
             config.daemon.bind_ip, port, fqdn, idle
         );
         let t_resp = client.get(&takeover_url).send().await?;
         if t_resp.status().is_success() {
             let t_json: serde_json::Value = t_resp.json().await?;
-            println!("\nTakeover Difficulty ({} Kyns idle):", idle);
+            println!("\nTakeover Iterations ({} Kyns idle):", idle);
             println!("{}", serde_json::to_string_pretty(&t_json)?);
         }
     }
@@ -224,7 +224,7 @@ pub async fn handle_name_validate(
 ) -> anyhow::Result<()> {
     let port = config.daemon.api_port;
     let url = format!(
-        "http://{}:{}/api/v1/micro/consensus/validate",
+        "http://{}:{}/api/v1/micro/nrs/validate",
         config.daemon.bind_ip, port
     );
 

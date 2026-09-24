@@ -14,7 +14,7 @@
 //! - **[`error`]** — Unified error logbook ([`KineticError`](error::KineticError)), domain errors ([`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), [`RegistrationError`](error::RegistrationError)), and stable error codes.
 //! - **[`traits`]** — Core abstraction traits ([`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine)).
 //! - **[`action`]** — Sovereign state machine and parameter rulebooks controlling privileged protocol actions.
-//! - **[`consensus_math`]** — Deterministic math routines for VDF difficulty scaling, name-length pricing, and grace period calculations.
+//! - **[`vdf_math`]** — Deterministic math routines for VDF difficulty scaling, name-length pricing, and grace period calculations.
 //! - **[`net`]** — Network security primitives, IP classification, and SSRF prevention guards.
 //! - **[`shutdown`]** — Cross-platform graceful shutdown listeners.
 
@@ -26,7 +26,7 @@
 /// Config file loading, default values, and port constants for all Kinetic binaries.
 pub mod config;
 /// Mathematical helpers for consensus: VDF difficulty scaling and name-length fees.
-pub mod consensus_math;
+pub mod vdf_math;
 /// Global protocol constants.
 pub mod constants;
 

@@ -12,11 +12,11 @@ pub async fn handle_name_renew(
     client: &Client,
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
-    let required_iters = kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
+    let required_iters = kinetic_core::vdf_math::VdfParams::default().iterations(&fqdn);
     let actual_iterations = std::cmp::max(iterations, required_iters);
 
     let diff_url = format!(
-        "http://{}:{}/api/v1/micro/consensus/difficulty/{}",
+        "http://{}:{}/api/v1/micro/vdf/iterations/{}",
         config.daemon.bind_ip, config.daemon.api_port, fqdn
     );
     let mut time_str = "an unknown amount of time".to_string();

@@ -125,7 +125,7 @@ pub(crate) fn compute_required_iterations(
         return Err(err);
     }
 
-    let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
+    let consensus_math = kinetic_core::vdf_math::VdfParams::default();
 
     let dev_mode = kinetic_core::config::is_dev_mode();
     if !kinetic_kyn::beacon::verify_beacon_signature(

@@ -32,7 +32,7 @@ pub mod atlas;
 pub mod auth;
 /// API endpoints for configuration management.
 pub mod config;
-pub mod consensus;
+pub mod vdf_api;
 /// Error mappings and Newtype wrappers for HTTP response conversion.
 pub mod error;
 /// API endpoints for streaming Gossip.
@@ -374,16 +374,16 @@ pub fn app(state: ApiState) -> Router {
     let public_api_routes: Router<ApiState> = Router::new()
         .route("/v1/micro/health", axum::routing::get(handle_get_health))
         .route(
-            "/v1/micro/consensus/difficulty/{name}",
-            axum::routing::get(consensus::handle_get_difficulty),
+            "/v1/micro/vdf/iterations/{name}",
+            axum::routing::get(vdf_api::handle_get_iterations),
         )
         .route(
-            "/v1/micro/consensus/takeover-difficulty/{name}",
-            axum::routing::get(consensus::handle_takeover_difficulty),
+            "/v1/micro/vdf/takeover-iterations/{name}",
+            axum::routing::get(vdf_api::handle_takeover_iterations),
         )
         .route(
-            "/v1/micro/consensus/validate",
-            axum::routing::post(consensus::handle_validate_name),
+            "/v1/micro/nrs/validate",
+            axum::routing::post(vdf_api::handle_validate_name),
         )
         .route(
             "/v1/micro/network/peer-id",

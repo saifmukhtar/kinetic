@@ -68,7 +68,7 @@ impl KineticRecordStore {
 
         if let Some(existing_record) = self.get_fallback(record.name()) {
             if existing_record.pubkey() != record.pubkey() {
-                let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
+                let consensus_math = kinetic_core::vdf_math::VdfParams::default();
                 let last_hb_kyn = self
                     .last_heartbeats_by_name
                     .get(record.name())
@@ -83,7 +83,7 @@ impl KineticRecordStore {
                 ) = (existing_record, record);
 
                 let base_diff = consensus_math.iterations(&new_reveal.name);
-                let takeover_threshold = consensus_math.takeover_diff(base_diff, hb_age);
+                let takeover_threshold = consensus_math.takeover_iterations(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
                 if new_reveal.iterations == existing_reveal.iterations && hb_age < 100 {
