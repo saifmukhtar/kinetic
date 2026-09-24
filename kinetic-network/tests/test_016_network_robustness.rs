@@ -25,7 +25,7 @@ fn create_base_config() -> NetworkConfig {
         lru_cache_size: std::num::NonZeroUsize::new(100).unwrap(),
         max_reveals_per_hour: 100,
         seed_domain: vec![],
-        disable_pow: true,
+        disable_challenge: true,
         disable_storage_sync: true,
         test_mode: true,
     }

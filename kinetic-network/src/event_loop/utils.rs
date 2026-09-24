@@ -73,10 +73,10 @@ where
 
 pub(crate) fn is_routable_multiaddr(
     addr: &libp2p::Multiaddr,
-    disable_pow: bool,
+    disable_challenge: bool,
     allow_dns: bool,
 ) -> bool {
-    if kinetic_core::config::is_dev_mode() || disable_pow {
+    if kinetic_core::config::is_dev_mode() || disable_challenge {
         return true;
     }
 

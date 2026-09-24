@@ -19,7 +19,7 @@ use kinetic_core::traits::KynProvider;
 ///
 /// If matched, it passes the payload to `kinetic_action::process_action_message()`, which
 /// cryptographically verifies the Sovereign ML-DSA-65 signatures. If the signatures are valid,
-/// the Global Action State (e.g., Network Halt, PoW Disable) is persisted to disk, and the daemon
+/// the Global Action State (e.g., Network Halt, Challenge Disable) is persisted to disk, and the daemon
 /// dynamically adjusts its runtime behavior.
 pub fn start_gossip_processor(
     network_client: kinetic_network::NetworkClient,

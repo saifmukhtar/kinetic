@@ -9,11 +9,11 @@ use libp2p::{kad, swarm::SwarmEvent};
 
 impl super::core::NetworkEventLoop {
     pub(crate) fn is_valid_pow(&self, peer_id: &libp2p::PeerId, difficulty: u32) -> bool {
-        if self.disable_pow {
+        if self.disable_challenge {
             return true;
         }
         self.current_kyn.as_u64() > 0
-            && crate::pow::verify_p2p_pow(
+            && crate::challenge::verify_p2p_challenge(
                 peer_id,
                 kinetic_kyn::types::Kyn(self.current_kyn.as_u64()),
                 difficulty,
@@ -138,7 +138,7 @@ impl super::core::NetworkEventLoop {
                         .insert(peer_id, web_time::Instant::now());
                 }
 
-                if self.current_kyn.as_u64() == 0 && !is_bootstrap && !self.disable_pow {
+                if self.current_kyn.as_u64() == 0 && !is_bootstrap && !self.disable_challenge {
                     tracing::debug!(
                         "Peer {} connected during uninitialized KYN Provider time, disconnecting",
                         peer_id
@@ -147,7 +147,7 @@ impl super::core::NetworkEventLoop {
                     return;
                 }
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
-                if self.disable_pow {
+                if self.disable_challenge {
                     return;
                 }
 
@@ -162,16 +162,16 @@ impl super::core::NetworkEventLoop {
                         let (valid_server, valid_client) =
                             crate::event_loop::utils::spawn_blocking(move || {
                                 let kyn = kinetic_kyn::types::Kyn(current_kyn.as_u64());
-                                let server = crate::pow::verify_p2p_pow(
+                                let server = crate::challenge::verify_p2p_challenge(
                                     &peer_id_clone,
                                     kyn,
-                                    kinetic_core::constants::POW_DIFFICULTY_BITS,
+                                    kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
                                 );
                                 let client = server
-                                    || crate::pow::verify_p2p_pow(
+                                    || crate::challenge::verify_p2p_challenge(
                                         &peer_id_clone,
                                         kyn,
-                                        kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT,
+                                        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS_CLIENT,
                                     );
                                 (server, client)
                             })
@@ -258,9 +258,9 @@ impl super::core::NetworkEventLoop {
                 let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
                 let is_server = info.protocols.iter().any(|p| p.to_string().contains("kad"));
                 let expected_diff = if is_server {
-                    kinetic_core::constants::POW_DIFFICULTY_BITS
+                    kinetic_core::constants::CHALLENGE_THRESHOLD_BITS
                 } else {
-                    kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT
+                    kinetic_core::constants::CHALLENGE_THRESHOLD_BITS_CLIENT
                 };
 
                 let pow_valid = self.is_valid_pow(&peer_id, expected_diff);
@@ -282,15 +282,15 @@ impl super::core::NetworkEventLoop {
                     && conn_time.elapsed() > web_time::Duration::from_secs(24 * 3600)
                 {
                     let err =
-                        kinetic_core::error::P2pError::BootstrapPowTimeout(peer_id.to_string());
+                        kinetic_core::error::P2pError::BootstrapChallengeTimeout(peer_id.to_string());
                     tracing::warn!(error_code = err.code(), "{}", err);
                     let _ = self.swarm.disconnect_peer_id(peer_id);
                     return;
                 }
 
-                if self.disable_pow || pow_valid || is_bootstrap {
+                if self.disable_challenge || pow_valid || is_bootstrap {
                     for addr in info.listen_addrs {
-                        if !is_routable_multiaddr(&addr, self.disable_pow, is_bootstrap) {
+                        if !is_routable_multiaddr(&addr, self.disable_challenge, is_bootstrap) {
                             tracing::debug!(
                                 "Discarding unroutable address {:?} for peer {}",
                                 addr,
@@ -320,7 +320,7 @@ impl super::core::NetworkEventLoop {
                     let is_bootstrap = self.bootstrap_peers.contains(&peer_id);
                     let pow_valid = self.is_valid_pow(
                         &peer_id,
-                        kinetic_core::constants::POW_DIFFICULTY_BITS_CLIENT,
+                        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS_CLIENT,
                     );
 
                     if pow_valid || is_bootstrap {

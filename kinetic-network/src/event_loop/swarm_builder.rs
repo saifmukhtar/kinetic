@@ -88,7 +88,7 @@ impl super::core::NetworkEventLoop {
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers,
             startup_time: web_time::Instant::now(),
-            disable_pow: config.disable_pow,
+            disable_challenge: config.disable_challenge,
             banned_peers: {
                 let mut peers = lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap());
                 if let Ok(iter) = storage.scan_prefix(

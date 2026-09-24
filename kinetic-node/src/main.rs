@@ -271,7 +271,7 @@ pub async fn run_node() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
-        disable_pow: false,
+        disable_challenge: false,
         test_mode: false,
         disable_storage_sync: false,
     };

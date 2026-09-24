@@ -37,7 +37,7 @@ async fn spawn_test_node(
         lru_cache_size: std::num::NonZeroUsize::new(100).unwrap(),
         max_reveals_per_hour: 100,
         seed_domain: vec![],
-        disable_pow: true,
+        disable_challenge: true,
         test_mode: true,
         disable_storage_sync: false,
     };

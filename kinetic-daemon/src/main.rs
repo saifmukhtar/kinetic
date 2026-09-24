@@ -362,9 +362,9 @@ async fn run_daemon() -> Result<()> {
     }
 
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
-    let local_key = kinetic_network::pow::mine_p2p_keypair(
+    let local_key = kinetic_network::challenge::solve_p2p_challenge(
         kinetic_kyn::types::Kyn(initial_kyn),
-        kinetic_core::constants::POW_DIFFICULTY_BITS,
+        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
     );
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     tracing::info!("Daemon starting with Peer ID: {}", local_peer_id);
@@ -419,7 +419,7 @@ async fn run_daemon() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
-        disable_pow: false,
+        disable_challenge: false,
         test_mode: false,
         disable_storage_sync: false,
     };
@@ -544,7 +544,7 @@ async fn run_daemon() -> Result<()> {
 
     info!("P2P Network architecture wired");
 
-    kinetic_daemon::services::network::start_pow_miner_loop(
+    kinetic_daemon::services::network::start_challenge_solver_loop(
         network_client.clone(),
         kyn_rx.clone(),
         network_config.clone(),

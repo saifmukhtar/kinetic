@@ -16,7 +16,7 @@
 //! ## Key responsibilities
 //!
 //! - **Dynamic identity**: Unlike the cloud infrastructure node (`kinetic-node`), the host
-//!   must fight DHT spam via an epoch-bound PoW keypair (S/Kademlia). It is automatically
+//!   must fight DHT spam via an epoch-bound peer challenge keypair (S/Kademlia). It is automatically
 //!   rotated each KYN Provider epoch, providing mathematical Sybil resistance.
 //! - **Static host identity**: A separate, long-lived Ed25519 keypair
 //!   (`host.key`) uniquely identifies this host across epochs.
@@ -24,7 +24,7 @@
 //!   that are published to the DHT so clients can always locate the current
 //!   ephemeral peer ID.
 //! - **Hot-swap network loop**: When the time oracle epoch advances, the host
-//!   automatically aborts the old network loop, mines a new PoW keypair, and
+//!   automatically aborts the old network loop, solves a new peer challenge keypair, and
 //!   restarts the loop without terminating the proxy connections.
 //! - **Health API**: Exposed on port 16004.
 
@@ -141,7 +141,7 @@ async fn run_host() -> Result<()> {
     let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
     info!("Storage engine initialized at {:?}", storage_path);
 
-    // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
+    // 3. Initialize KYN Provider client for peer challenge validation of ephemeral clients
     let kyn_provider: Arc<dyn KynProvider> =
         Arc::new(BeaconProvider::new(Some(storage.clone())));
 
@@ -167,19 +167,19 @@ async fn run_host() -> Result<()> {
     let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
     info!("Infrastructure Node static Host Identity: {}", host_peer_id);
 
-    // 4.5. Mine the Epoch-Bound Ephemeral PoW Key
-    info!("Mining PoW S/Kademlia identity for current epoch...");
+    // 4.5. Solve the Epoch-Bound Ephemeral peer challenge Key
+    info!("Solving peer challenge S/Kademlia identity for current epoch...");
     let local_key = tokio::task::spawn_blocking(move || {
-        kinetic_network::pow::mine_p2p_keypair(
+        kinetic_network::challenge::solve_p2p_challenge(
             kinetic_kyn::types::Kyn(initial_kyn),
-            kinetic_core::constants::POW_DIFFICULTY_BITS,
+            kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
         )
     })
     .await
-    .map_err(|e| anyhow::anyhow!("PoW mining task failed: {}", e))?;
+    .map_err(|e| anyhow::anyhow!("peer challenge solving task failed: {}", e))?;
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     info!(
-        "Infrastructure Node ephemeral PoW Identity: {}",
+        "Infrastructure Node ephemeral peer challenge Identity: {}",
         local_peer_id
     );
 
@@ -223,7 +223,7 @@ async fn run_host() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
-        disable_pow: false,
+        disable_challenge: false,
         enable_relay_server: false,
         enable_upnp: false,
         test_mode: false,

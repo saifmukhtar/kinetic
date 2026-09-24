@@ -49,7 +49,7 @@ pub mod error;
 /// The central background task that drives the libp2p swarm.
 pub mod event_loop;
 /// Proof-of-Work utilities for Sybil resistance and rate-limiting DHT writes.
-pub mod pow;
+pub mod challenge;
 /// The in-memory Kademlia record store implementation.
 pub mod store;
 

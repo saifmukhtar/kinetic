@@ -79,8 +79,8 @@ pub enum P2pError {
     /// A bootstrap peer failed to provide a valid Proof of Work handshake.
     /// The connection was kept alive for 24 hours (a grace period for bootstrap nodes) but the peer never authenticated.
     /// The connection is now being reaped. No action is required.
-    #[error("Bootstrap peer {0} failed to provide valid PoW after 24 hours. Disconnecting.")]
-    BootstrapPowTimeout(String),
+    #[error("Bootstrap peer {0} failed to provide valid peer challenge after 24 hours. Disconnecting.")]
+    BootstrapChallengeTimeout(String),
 
     /// The local PeerRegistry database cache is corrupted and could not be parsed.
     /// This happens if the disk or embedded database suffers data corruption or format changes.
@@ -110,7 +110,7 @@ impl P2pError {
             Self::OutgoingConnectionError(..) => "KIN-P2P-012",
             Self::BootstrapDialFailed(..) => "KIN-P2P-013",
             Self::BannedPeerConnectionAttempt(_) => "KIN-P2P-014",
-            Self::BootstrapPowTimeout(_) => "KIN-P2P-015",
+            Self::BootstrapChallengeTimeout(_) => "KIN-P2P-015",
             Self::PeerRegistryCorruption(_) => "KIN-P2P-016",
             Self::PeerRegistrySerialization(_) => "KIN-P2P-017",
         }
@@ -167,8 +167,8 @@ impl P2pError {
             Self::BannedPeerConnectionAttempt(_) => {
                 "Banned peer attempted to connect; disconnected immediately.".to_string()
             }
-            Self::BootstrapPowTimeout(_) => {
-                "Bootstrap peer failed to provide valid PoW after 24 hours. Disconnecting."
+            Self::BootstrapChallengeTimeout(_) => {
+                "Bootstrap peer failed to provide valid peer challenge after 24 hours. Disconnecting."
                     .to_string()
             }
             Self::PeerRegistryCorruption(_) => {

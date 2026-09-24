@@ -99,10 +99,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
     let current_pulse = fetch_kyn().await;
-    println!("Mining PoW to satisfy kinetic-host anti-spam...");
-    let key = kinetic_network::pow::mine_p2p_keypair(
+    println!("Solving peer challenge to satisfy kinetic-host anti-spam...");
+    let key = kinetic_network::challenge::solve_p2p_challenge(
         kinetic_kyn::types::Kyn(current_pulse),
-        kinetic_core::constants::POW_DIFFICULTY_BITS,
+        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
     );
     let storage = Arc::new(KineticStorage::new("./kinetic_gateway_db")?);
 
@@ -124,7 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
-        disable_pow: false,
+        disable_challenge: false,
         enable_relay_server: false,
         enable_upnp: false,
         test_mode: false,

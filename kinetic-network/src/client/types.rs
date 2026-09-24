@@ -60,7 +60,7 @@ pub struct NetworkConfig {
     /// An optional externally reachable IP or domain to announce.
     pub external_address: Option<libp2p::Multiaddr>,
     /// Bypass PoW verification for tests.
-    pub disable_pow: bool,
+    pub disable_challenge: bool,
     /// The maximum number of reveals a node will accept into the cache per hour (Rate Limiting).
     pub max_reveals_per_hour: usize,
     /// Disable storage sync checks at startup.

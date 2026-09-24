@@ -7,12 +7,12 @@
 //!
 //! Because the underlying `NetworkClient` channel is fully thread-safe, these workers are spawned
 //! independently via `tokio::spawn` during daemon boot. They operate silently in the background
-//! to refresh PoW identities (`network`), broadcast liveness (`heartbeat`), and react to emergency
+//! to refresh peer challenge identities (`network`), broadcast liveness (`heartbeat`), and react to emergency
 //! network halts (`gossip`).
 
 /// Gossip protocol processor service.
 pub mod gossip;
 /// Heartbeat broadcast and verification service.
 pub mod heartbeat;
-/// Network loops including PoW mining and republishing.
+/// Network loops including peer challenge solving and republishing.
 pub mod network;

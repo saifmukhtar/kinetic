@@ -116,7 +116,7 @@ pub struct NetworkEventLoop {
     pub(crate) seed_domain: Vec<std::sync::Arc<str>>,
     pub(crate) bootstrap_peers: FxHashSet<libp2p::PeerId>,
     pub(crate) startup_time: web_time::Instant,
-    pub(crate) disable_pow: bool,
+    pub(crate) disable_challenge: bool,
     pub(crate) banned_peers: lru::LruCache<libp2p::PeerId, u64>,
 
     pub(crate) bootstrap_connection_time: FxHashMap<PeerId, web_time::Instant>,
@@ -251,7 +251,7 @@ impl NetworkEventLoop {
                         if let Some(tx) = &self.loopback_tx {
                             let tx_clone = tx.clone();
                             let domains = self.seed_domain.clone();
-                            let disable_pow = self.disable_pow;
+                            let disable_challenge = self.disable_challenge;
                             tokio::spawn(async move {
                                 for domain in &domains {
                                     let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
@@ -260,7 +260,7 @@ impl NetworkEventLoop {
                                         tracing::warn!(error_code = err.code(), "{}", err);
                                     }
                                     for multiaddr in addrs {
-                                        if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {
+                                        if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_challenge, true) {
                                             let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
                                         } else {
                                             let err = kinetic_core::error::P2pError::UnroutableSeedMultiaddr(multiaddr.to_string());

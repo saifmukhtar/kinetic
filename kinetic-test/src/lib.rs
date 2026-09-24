@@ -23,7 +23,7 @@ mod tests {
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
-            disable_pow: false,
+            disable_challenge: false,
             test_mode: false,
             bootstrap_nodes: bootstrap_nodes
                 .into_iter()
@@ -169,7 +169,7 @@ mod tests {
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(1).unwrap(), // Size 1
-            disable_pow: false,
+            disable_challenge: false,
             test_mode: false,
             bootstrap_nodes: vec![],
             initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),
@@ -233,7 +233,7 @@ mod tests {
             external_address: None,
             max_reveals_per_hour: 100,
             lru_cache_size: std::num::NonZeroUsize::new(1000).unwrap(),
-            disable_pow: false,
+            disable_challenge: false,
             test_mode: false,
             bootstrap_nodes: vec![],
             initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),

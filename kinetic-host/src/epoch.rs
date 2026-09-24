@@ -1,11 +1,11 @@
-//! Dynamic DHT routing record publisher and KYN Epoch PoW hot-swapping heartbeat.
+//! Dynamic DHT routing record publisher and KYN Epoch peer challenge hot-swapping heartbeat.
 //!
 //! ## Layer 8 Architecture: The Seamless Hot-Swap
 //! The Kinetic network aggressively protects its DHT from Sybil attacks by enforcing that
 //! every node's Kademlia `PeerId` (which is derived from an Ed25519 public key) satisfies a
 //! Proof-of-Work threshold bound to the *current* network time epoch (the KYN).
 //!
-//! Because time advances, a PoW identity eventually expires. If a headless server goes offline,
+//! Because time advances, a peer challenge identity eventually expires. If a headless server goes offline,
 //! the hosted `.kin` zone becomes unreachable. To ensure 24/7 uptime, this module runs the
 //! `start_beacon_heartbeat` loop (Note: functionally acting as a generic KYN Beacon).
 //!
@@ -76,9 +76,9 @@ pub async fn start_routing_publisher(
     }
 }
 
-/// Starts a continuous heartbeat loop that monitors the KYN Provider time oracle and hot-swaps the ephemeral PoW identity when the epoch advances.
+/// Starts a continuous heartbeat loop that monitors the KYN Provider time oracle and hot-swaps the ephemeral peer challenge identity when the epoch advances.
 ///
-/// This function listens for new kyns and uses them to verify the validity of the current PoW identity.
+/// This function listens for new kyns and uses them to verify the validity of the current peer challenge identity.
 /// If the identity is found to be expired based on the staggered epoch progression, it terminates the existing
 /// network loop, mines a new identity, and restarts the P2P swarm asynchronously to ensure seamless connectivity.
 #[allow(clippy::too_many_arguments)]
@@ -114,7 +114,7 @@ pub async fn start_beacon_heartbeat(
         {
             let _ = kyn_tx.send(kyn.kyn());
 
-            let current_epoch = kinetic_network::pow::staggered_epoch(
+            let current_epoch = kinetic_network::challenge::staggered_epoch(
                 &hb_local_peer_id.to_bytes(),
                 kinetic_kyn::types::Kyn(kyn.kyn()),
             );
@@ -127,31 +127,31 @@ pub async fn start_beacon_heartbeat(
             if needs_validation {
                 let peer_id_clone = hb_local_peer_id;
                 let kyn_round = kyn.kyn();
-                let pow_valid = tokio::task::spawn_blocking(move || {
-                    kinetic_network::pow::verify_p2p_pow(
+                let challenge_valid = tokio::task::spawn_blocking(move || {
+                    kinetic_network::challenge::verify_p2p_challenge(
                         &peer_id_clone,
                         kinetic_kyn::types::Kyn(kyn_round),
-                        kinetic_core::constants::POW_DIFFICULTY_BITS,
+                        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
                     )
                 })
                 .await
                 .unwrap_or(false);
 
-                if !pow_valid {
+                if !challenge_valid {
                     tracing::info!(
-                        "PoW epoch expired for ephemeral identity. Hot-swapping network loop..."
+                        "peer challenge epoch expired for ephemeral identity. Hot-swapping network loop..."
                     );
                     let current_local_key = tokio::task::spawn_blocking(move || {
-                        kinetic_network::pow::mine_p2p_keypair(
+                        kinetic_network::challenge::solve_p2p_challenge(
                             kinetic_kyn::types::Kyn(kyn_round),
-                            kinetic_core::constants::POW_DIFFICULTY_BITS,
+                            kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
                         )
                     })
                     .await
                     .unwrap_or_else(|_| {
                         tracing::error!(
-                            error = ?kinetic_core::error::SystemError::ServerCrashed("PoW mining task panicked".into()),
-                            "Background PoW mining task panicked, falling back to an unverified identity"
+                            error = ?kinetic_core::error::SystemError::ServerCrashed("peer challenge solving task panicked".into()),
+                            "Background peer challenge solving task panicked, falling back to an unverified identity"
                         );
                         libp2p::identity::Keypair::generate_ed25519()
                     });
@@ -201,7 +201,7 @@ pub async fn start_beacon_heartbeat(
                                 new_loop.run().await;
                             });
                             tracing::info!(
-                                "Successfully hot-swapped P2P backend with new PoW identity in Host mode."
+                                "Successfully hot-swapped P2P backend with new peer challenge identity in Host mode."
                             );
                         }
                         None => {
