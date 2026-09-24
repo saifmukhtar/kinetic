@@ -26,12 +26,12 @@ pub use kinetic_types::action::{Hash256, NetworkAction, SignedNetworkAction};
 ///
 /// # Examples
 /// ```rust,no_run
-/// use kinetic_action::types::verify_signature;
-/// use kinetic_primitives::kinetic_keypair::SovereignPubKey;
+/// use kinetic_action::types::verify_sovereign_signature;
+/// use kinetic_primitives::keypairs::{SovereignPubKey, SovereignSignature};
 ///
 /// let pubkey = SovereignPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]);
 /// let msg = b"hello";
-/// let sig = vec![0; 64];
+/// let sig = SovereignSignature(vec![0; 64]);
 /// // Returns true only if the Sovereign signature strictly matches the pubkey and msg.
 /// let is_valid = verify_sovereign_signature(&pubkey, msg, &sig);
 /// ```
@@ -91,16 +91,16 @@ impl ActionState {
     /// # Examples
     /// ```rust
     /// use kinetic_action::types::ActionState;
-    /// use kinetic_kyn::types::Kyn;
+    /// use kinetic_kyn::types::{Kyn, GenesisKyn, StartKyn, EndKyn};
     /// use std::collections::HashMap;
     ///
     /// let mut state = ActionState {
-    ///     genesis_kyn: Kyn(0),
+    ///     genesis_kyn: GenesisKyn(Kyn(0)),
     ///     active_sovereign_key: None,
     ///     is_halted: false,
     ///     halt_start_kyn: None,
     ///     total_paused_kyns: 0,
-    ///     pause_history: vec![(Kyn(100), Kyn(200))], // Paused for 100 kyns
+    ///     pause_history: vec![(StartKyn(Kyn(100)), EndKyn(Kyn(200)))], // Paused for 100 kyns
     ///     executed_hashes: HashMap::new(),
     ///     action_log: vec![],
     /// };

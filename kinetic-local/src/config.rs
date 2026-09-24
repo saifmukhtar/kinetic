@@ -29,7 +29,7 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             let mut default_cfg = KineticConfig::default();
-            default_cfg.time_oracle.p2p_only = ctx == ConfigContext::Daemon;
+            default_cfg.beacon.p2p_only = ctx == ConfigContext::Daemon;
 
             if let Some(parent) = config_path.parent() {
                 let _ = fs::create_dir_all(parent)

@@ -74,8 +74,8 @@ impl HostRoutingRecord {
     /// let routing = HostRoutingRecord {
     ///     host_id: "host-123".to_string(),
     ///     current_peer_id: "12D3KooW...".to_string(),
-    ///     kyn: kinetic_kyn::types::Kyn(150000),
-    ///     host_signature: vec![],
+    ///     kyn: kinetic_kyn::types::TargetKyn(kinetic_kyn::types::Kyn(150000)),
+    ///     host_signature: kinetic_primitives::keypairs::DelegatedSignature(vec![]),
     /// };
     ///
     /// let salt = [0x42; 32];

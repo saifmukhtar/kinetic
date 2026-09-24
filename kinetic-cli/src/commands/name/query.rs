@@ -125,7 +125,7 @@ pub async fn handle_name_info(
 
         let kinetic_core::types::NameRecord::Standard(r) = record;
         table.add_row(vec!["Type", "Standard"]);
-        table.add_row(vec!["Created at KYN Time Oracle Epoch", &r.kyn.to_string()]);
+        table.add_row(vec!["Created at Kyn Epoch", &r.kyn.to_string()]);
         table.add_row(vec!["VDF Iterations", &r.iterations.to_string()]);
         println!("\nInfo for {} (Local Cache):", fqdn);
         println!("{table}");

@@ -7,7 +7,7 @@
     "local_bind_ip": "127.0.0.2",
     "bootstrap_nodes": []
   },
-  "time_oracle": {
+  "beacon": {
     "beacon_genesis": 1692803367,
     "kyn_period": 3,
     "kyn_genesis": 30579969,

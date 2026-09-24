@@ -814,7 +814,7 @@ async fn auth_middleware(
                 && let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes)
             {
                 // Verify expiration using cached Kyn
-                let kyn_provider = kinetic_network::client::time_oracle::TimeOracleProvider::new(
+                let kyn_provider = kinetic_network::client::beacon::BeaconProvider::new(
                     Some(state.storage.clone()),
                 );
                 let current_kyn = kyn_provider.load_cached().map(|d| d.kyn()).unwrap_or(0);

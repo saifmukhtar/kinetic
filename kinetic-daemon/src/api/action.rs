@@ -74,7 +74,7 @@ pub async fn handle_get_action_status(
 
     // Fetch verified Kyn from the node's constantly updating local cache
     let current_kyn = {
-        let kyn_provider = kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(
+        let kyn_provider = kinetic_network::client::beacon::BeaconProvider::new(Some(
             state.storage.clone(),
         ));
         use kinetic_core::traits::KynProvider;
@@ -135,7 +135,7 @@ pub async fn handle_publish_action(
     tracing::info!("Received API publish request for Action action");
 
     let _current_kyn = {
-        let kyn_provider = kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(
+        let kyn_provider = kinetic_network::client::beacon::BeaconProvider::new(Some(
             state.storage.clone(),
         ));
 

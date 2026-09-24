@@ -12,7 +12,7 @@ fn main() {
         let content = fs::read_to_string(&network_json_path).expect("Failed to read network.json");
         let parsed: Value = serde_json::from_str(&content).expect("Failed to parse network.json");
 
-        if let Some(oracle) = parsed.get("time_oracle") {
+        if let Some(oracle) = parsed.get("beacon") {
             if let Some(genesis_time) = oracle.get("beacon_genesis").and_then(|v| v.as_u64()) {
                 println!("cargo:rustc-env=BEACON_GENESIS={}", genesis_time);
             }

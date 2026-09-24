@@ -57,19 +57,17 @@ pub struct KineticConfig {
     pub network: P2pConfig,
     /// Network time provider settings: custom endpoints and DNS seed.
     #[serde(default)]
-    #[serde(alias = "drand")]
-    pub time_oracle: TimeOracleConfig,
+    pub beacon: BeaconConfig,
 }
 
 /// KYN Provider networking configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TimeOracleConfig {
+pub struct BeaconConfig {
     /// KYN Provider HTTP endpoints to query for Quicknet kyns.
     #[serde(default = "default_beacon_endpoints")]
     pub endpoints: Vec<String>,
     /// Domains to query via DNS TXT records for dynamic provider endpoints.
     #[serde(default = "default_beacon_seed_domain")]
-    #[serde(alias = "drand_domain")]
     pub beacon_seed_domain: Vec<String>,
     /// If true, the node will only listen to P2P gossipsub for network kyns
     /// and will not query the internet via HTTP/DNS.
@@ -88,7 +86,7 @@ fn default_beacon_seed_domain() -> Vec<String> {
     vec![format!("beacon.{}", crate::constants::BASE_DOMAIN)]
 }
 
-impl Default for TimeOracleConfig {
+impl Default for BeaconConfig {
     fn default() -> Self {
         Self {
             endpoints: default_beacon_endpoints(),
@@ -294,7 +292,7 @@ impl Default for KineticConfig {
                 external_address: None,
                 enable_anonymous_telemetry: true,
             },
-            time_oracle: TimeOracleConfig::default(),
+            beacon: BeaconConfig::default(),
         }
     }
 }

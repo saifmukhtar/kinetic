@@ -111,20 +111,20 @@ pub async fn handle_macro_register_name(
 
     tokio::spawn(async move {
         // Step 1: KYN Time Oracle
-        update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);
+        update_task_status(&tasks_clone, &task_id_clone, "Fetching Network Beacon", 10);
         let kyn_provider: std::sync::Arc<dyn kinetic_core::traits::KynProvider> =
             std::sync::Arc::new(
-                kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(
+                kinetic_network::client::beacon::BeaconProvider::new(Some(
                     storage_clone.clone(),
                 )),
             );
-        let drand_data = match kyn_provider.load_cached() {
+        let raw_kyn = match kyn_provider.load_cached() {
             Ok(data) => data,
             Err(e) => {
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    format!("KYN Time Oracle error: {}", e),
+                    format!("Beacon error: {}", e),
                 );
                 return;
             }
@@ -164,13 +164,13 @@ pub async fn handle_macro_register_name(
             );
             return;
         }
-        let sig_bytes = match hex::decode(&drand_data.signature) {
+        let sig_bytes = match hex::decode(&raw_kyn.signature) {
             Ok(b) => b,
             Err(e) => {
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    format!("Failed to decode Time Oracle signature: {}", e),
+                    format!("Failed to decode Beacon signature: {}", e),
                 );
                 return;
             }
@@ -270,7 +270,7 @@ pub async fn handle_macro_register_name(
         // Generate or fetch KID for the user to attach to the new zone
         update_task_status(&tasks_clone, &task_id_clone, "Injecting Identity (KID)", 92);
         let current_kyn = {
-            let kyn_provider = kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(
+            let kyn_provider = kinetic_network::client::beacon::BeaconProvider::new(Some(
                 storage_clone.clone(),
             ));
             use kinetic_core::traits::KynProvider;
@@ -329,8 +329,8 @@ pub async fn handle_macro_register_name(
             name: fqdn.clone(),
             payload,
             salt,
-            kyn: kinetic_kyn::types::TargetKyn::from(drand_data.kyn()),
-            beacon_signature: drand_data.signature.clone(),
+            kyn: kinetic_kyn::types::TargetKyn::from(raw_kyn.kyn()),
+            beacon_signature: raw_kyn.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,
@@ -502,20 +502,20 @@ pub async fn handle_macro_renew_name(
         let kinetic_core::types::NameRecord::Standard(old_reveal) = old_record;
 
         // Step 2: KYN Time Oracle
-        update_task_status(&tasks_clone, &task_id_clone, "Fetching KYN Time Oracle", 10);
+        update_task_status(&tasks_clone, &task_id_clone, "Fetching Network Beacon", 10);
         let kyn_provider: std::sync::Arc<dyn kinetic_core::traits::KynProvider> =
             std::sync::Arc::new(
-                kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(
+                kinetic_network::client::beacon::BeaconProvider::new(Some(
                     storage_clone.clone(),
                 )),
             );
-        let drand_data = match kyn_provider.load_cached() {
+        let raw_kyn = match kyn_provider.load_cached() {
             Ok(d) => d,
             Err(e) => {
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    format!("KYN Time Oracle error: {}", e),
+                    format!("Beacon error: {}", e),
                 );
                 return;
             }
@@ -545,13 +545,13 @@ pub async fn handle_macro_renew_name(
             );
             return;
         }
-        let sig_bytes = match hex::decode(&drand_data.signature) {
+        let sig_bytes = match hex::decode(&raw_kyn.signature) {
             Ok(b) => b,
             Err(e) => {
                 update_task_error(
                     &tasks_clone,
                     &task_id_clone,
-                    format!("Failed to decode Time Oracle signature: {}", e),
+                    format!("Failed to decode Beacon signature: {}", e),
                 );
                 return;
             }
@@ -663,8 +663,8 @@ pub async fn handle_macro_renew_name(
             name: fqdn.clone(),
             payload: old_reveal.payload.clone(), // Keep existing zone payload
             salt,
-            kyn: kinetic_kyn::types::TargetKyn::from(drand_data.kyn()),
-            beacon_signature: drand_data.signature.clone(),
+            kyn: kinetic_kyn::types::TargetKyn::from(raw_kyn.kyn()),
+            beacon_signature: raw_kyn.signature.clone(),
             iterations: actual_iterations,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: proof.proof_bytes,

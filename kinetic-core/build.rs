@@ -62,7 +62,7 @@ struct NetworkSection {
 }
 
 #[derive(Deserialize)]
-struct TimeOracleSection {
+struct BeaconSection {
     beacon_genesis: u64,
 
     kyn_genesis: u64,
@@ -90,7 +90,7 @@ struct AdvancedSection {
 #[derive(Deserialize)]
 struct NetworkConfig {
     network: NetworkSection,
-    time_oracle: TimeOracleSection,
+    beacon: BeaconSection,
     #[serde(alias = "action")]
     action: ActionSection,
     consensus: ConsensusConfig,
@@ -209,12 +209,12 @@ fn main() {
 
     out.push_str(&format!(
         "/// Unix timestamp of the time oracle beacon's genesis.\npub const BEACON_GENESIS: u64 = {};\n\n",
-        config.time_oracle.beacon_genesis
+        config.beacon.beacon_genesis
     ));
 
     out.push_str(&format!(
         "/// The absolute oracle round at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Prism/Facet/Kyn).\npub const KYN_GENESIS: u64 = {};\n\n",
-        config.time_oracle.kyn_genesis
+        config.beacon.kyn_genesis
     ));
 
     // Expose NSP as compile-time env vars so constants.rs can use env!() for
@@ -227,11 +227,11 @@ fn main() {
 
     out.push_str(&format!(
         "/// The public key for the time oracle beacon.\npub const BEACON_PUBLIC_KEY: &str = \"{}\";\n\n",
-        config.time_oracle.beacon_public_key
+        config.beacon.beacon_public_key
     ));
 
     out.push_str("/// The set of time oracle HTTP endpoints tried in order.\npub const BEACON_ENDPOINTS: &[&str] = &[\n");
-    for endpoint in config.time_oracle.beacon_endpoints {
+    for endpoint in config.beacon.beacon_endpoints {
         out.push_str(&format!("    \"{}\",\n", endpoint));
     }
     out.push_str("];\n\n");
@@ -360,15 +360,15 @@ fn main() {
     // Compute the PROD salt (ROOT_KEY + BEACON_KEY + GENESIS_TIME)
     let mut hasher = Sha256::new();
     hasher.update(prod_key.as_bytes());
-    hasher.update(config.time_oracle.beacon_public_key.as_bytes());
-    hasher.update(config.time_oracle.beacon_genesis.to_be_bytes());
+    hasher.update(config.beacon.beacon_public_key.as_bytes());
+    hasher.update(config.beacon.beacon_genesis.to_be_bytes());
     let prod_salt = hasher.finalize();
 
     // Compute the TEST salt (ROOT_KEY + BEACON_KEY + GENESIS_TIME)
     let mut hasher_test = Sha256::new();
     hasher_test.update(test_key.as_bytes());
-    hasher_test.update(config.time_oracle.beacon_public_key.as_bytes());
-    hasher_test.update(config.time_oracle.beacon_genesis.to_be_bytes());
+    hasher_test.update(config.beacon.beacon_public_key.as_bytes());
+    hasher_test.update(config.beacon.beacon_genesis.to_be_bytes());
     let test_salt = hasher_test.finalize();
 
     out.push_str(&format!(

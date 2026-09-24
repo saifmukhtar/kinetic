@@ -27,4 +27,4 @@ pub use self::command::*;
 pub use self::core::*;
 pub use self::types::*;
 /// KYN Provider entropy beacon client.
-pub mod time_oracle;
+pub mod beacon;

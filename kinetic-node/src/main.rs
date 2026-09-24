@@ -40,7 +40,7 @@ use tracing_subscriber::FmtSubscriber;
 
 use kinetic_core::traits::KynProvider;
 use kinetic_kyn::beacon::RawKyn;
-use kinetic_network::client::time_oracle::TimeOracleProvider;
+use kinetic_network::client::beacon::BeaconProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -200,11 +200,11 @@ pub async fn run_node() -> Result<()> {
 
     // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
     let kyn_provider: Arc<dyn KynProvider> =
-        Arc::new(TimeOracleProvider::new(Some(storage.clone())));
+        Arc::new(BeaconProvider::new(Some(storage.clone())));
 
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn());
+            info!("Beacon Provider connected — kyn #{}", kyn.kyn());
             kyn
         }
         Err(e) => {
@@ -465,7 +465,7 @@ pub async fn run_node() -> Result<()> {
     // 6. Start Time Oracle Heartbeat
     let hb_kyn_provider = kyn_provider.clone();
     let hb_network = network_client.clone();
-    let p2p_only = config.time_oracle.p2p_only;
+    let p2p_only = config.beacon.p2p_only;
     tokio::spawn(async move {
         // Quicknet produces a block every 3 seconds.
         let mut interval = tokio::time::interval(Duration::from_secs(3));

@@ -42,7 +42,7 @@
         }
       }
     },
-    "time_oracle": {
+    "beacon": {
       "type": "object",
       "required": ["beacon_genesis", "kyn_period", "kyn_genesis", "beacon_public_key", "beacon_endpoints"],
       "properties": {

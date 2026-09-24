@@ -61,7 +61,7 @@ impl AuthorizedKid {
     /// let auth = AuthorizedKid {
     ///     name: "example.kin".to_string(),
     ///     kid_doc,
-    ///     owner_signature: vec![],
+    ///     owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
     /// };
     ///
     /// let production_network_salt = [0x42; 32];
@@ -131,7 +131,7 @@ impl AuthorizedManifest {
     ///     name: "example.kin".to_string(),
     ///     manifest,
     ///     kid_doc: None,
-    ///     owner_signature: vec![],
+    ///     owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
     /// };
     ///
     /// let test_network_salt = [0xFF; 32];

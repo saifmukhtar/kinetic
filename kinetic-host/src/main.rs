@@ -55,7 +55,7 @@ use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use kinetic_kyn::beacon::RawKyn;
-use kinetic_network::client::time_oracle::TimeOracleProvider;
+use kinetic_network::client::beacon::BeaconProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -143,12 +143,12 @@ async fn run_host() -> Result<()> {
 
     // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
     let kyn_provider: Arc<dyn KynProvider> =
-        Arc::new(TimeOracleProvider::new(Some(storage.clone())));
+        Arc::new(BeaconProvider::new(Some(storage.clone())));
 
     // 6. Enforce Time Oracle beacon availability on boot (unless in dev mode, which loads a mock cache)
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn());
+            info!("Beacon Provider connected — kyn #{}", kyn.kyn());
             kyn
         }
         Err(e) => {
@@ -364,7 +364,7 @@ async fn run_host() -> Result<()> {
         kyn_rx.clone(),
     ));
 
-    tokio::spawn(epoch::start_time_oracle_heartbeat(
+    tokio::spawn(epoch::start_beacon_heartbeat(
         kyn_provider.clone(),
         kyn_tx,
         local_peer_id,

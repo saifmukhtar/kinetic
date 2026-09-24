@@ -17,7 +17,7 @@ pub async fn handle_get_time(
     State(state): State<ApiState>,
 ) -> Result<Json<CrystallizedKyn>, crate::api::error::AppError> {
     let kyn_provider =
-        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+        kinetic_network::client::beacon::BeaconProvider::new(Some(state.storage.clone()));
 
     // Always prefer the cache for instantaneous responses,
     // the Heartbeat loop ensures this cache is populated.

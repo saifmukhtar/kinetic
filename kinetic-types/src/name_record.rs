@@ -44,7 +44,7 @@ impl Heartbeat {
     /// let hb = Heartbeat {
     ///     name: "example".to_string(),
     ///     latest_kyn: kinetic_kyn::types::Kyn(12345),
-    ///     owner_signature: vec![],
+    ///     owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
     ///     authorization: None,
     /// };
     /// let salt = [0x42; 32];
