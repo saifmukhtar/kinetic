@@ -203,12 +203,12 @@ use serde::Deserialize;
 pub struct AuthorizedUpdateRequest {
     /// The private key of the hot key, hex encoded, to sign the heartbeat.
     pub hot_key_hex: String,
-    /// The master-key authorized delegation proof.
+    /// The identity-key authorized delegation proof.
     pub authorized_manifest: kinetic_core::types::identity::AuthorizedManifest,
 }
 
 /// Manually constructs and broadcasts a AuthorizedUpdate for a specific name to the DHT,
-/// using a delegated hot key and an authorized manifest instead of the daemon master key.
+/// using a delegated hot key and an authorized manifest instead of the daemon root Identity Key.
 pub async fn handle_post_authorized_update(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,

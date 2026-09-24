@@ -827,7 +827,7 @@ pub async fn handle_get_local_zone(
 pub struct NrsUpdateRequest {
     /// The private key of the delegated hot key, hex encoded.
     pub hot_key_hex: String,
-    /// The master-key authorized delegation proof.
+    /// The identity-key authorized delegation proof.
     pub authorized_manifest: kinetic_core::types::identity::AuthorizedManifest,
     /// The new DNS zone data.
     pub zone: kinetic_core::types::NrsZone,

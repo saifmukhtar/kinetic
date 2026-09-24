@@ -10,7 +10,7 @@ use tracing::{info, warn};
 /// Available subcommands for managing node seed phrases.
 #[derive(Subcommand)]
 pub enum SeedCommands {
-    /// Generate a new master seed phrase and derive the node identity
+    /// Generate a new root seed phrase and derive the node identity
     Init,
     /// Restore the node identity from an existing seed phrase
     Restore,

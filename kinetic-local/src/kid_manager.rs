@@ -17,7 +17,7 @@
 //!    DHT verification rules (`is_authorized`).
 //!
 //! All KID operations wrap the resulting document in an [`AuthorizedKid`] container signed by the node's
-//! master `identity.key` (the name owner).
+//! root `identity.key` (the name owner).
 
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -47,7 +47,7 @@ pub struct GeneratedKid {
     pub did: String,
     /// The inner signed [`Document`].
     pub kid_doc: Document,
-    /// The outer [`AuthorizedKid`] envelope signed by the master `identity.key`.
+    /// The outer [`AuthorizedKid`] envelope signed by the root `identity.key`.
     pub auth_kid: AuthorizedKid,
     /// Path to the KID JSON document file on disk.
     pub doc_path: PathBuf,
@@ -66,7 +66,7 @@ pub struct RotatedKid {
     pub did: String,
     /// The newly rotated and signed [`Document`].
     pub kid_doc: Document,
-    /// The outer [`AuthorizedKid`] envelope signed by the master `identity.key`.
+    /// The outer [`AuthorizedKid`] envelope signed by the root `identity.key`.
     pub auth_kid: AuthorizedKid,
     /// Path to the updated KID JSON document file on disk.
     pub doc_path: PathBuf,
@@ -185,14 +185,14 @@ fn load_raw_signing_key(
     })
 }
 
-/// Wraps a [`Document`] in an [`AuthorizedKid`] envelope and signs it with the master `identity.key`.
+/// Wraps a [`Document`] in an [`AuthorizedKid`] envelope and signs it with the root `identity.key`.
 pub fn authorize_kid_document(
     name: &str,
     doc: &Document,
-    master_key_path: &Path,
+    identity_key_path: &Path,
 ) -> Result<AuthorizedKid, IdentityError> {
     let fqdn = normalize_name(name);
-    let identity_keypair = load_keypair(master_key_path)?;
+    let identity_keypair = load_keypair(identity_key_path)?;
 
     let mut auth_kid = AuthorizedKid {
         name: fqdn,
@@ -223,7 +223,7 @@ pub fn get_or_create_kid_for_name(
     inherit_subname: bool,
     force: bool,
     current_kyn: kinetic_kyn::types::Kyn,
-    master_key_path: &Path,
+    identity_key_path: &Path,
 ) -> Result<GeneratedKid, IdentityError> {
     let fqdn = normalize_name(name);
     let apex = extract_apex_name(&fqdn);
@@ -241,7 +241,7 @@ pub fn get_or_create_kid_for_name(
             let apex_doc: Document = serde_json::from_str(&doc_data)
                 .map_err(|e| IdentityError::MalformedApexDocument(format!("{}", e)))?;
 
-            let auth_kid = authorize_kid_document(&fqdn, &apex_doc, master_key_path)?;
+            let auth_kid = authorize_kid_document(&fqdn, &apex_doc, identity_key_path)?;
 
             return Ok(GeneratedKid {
                 name: fqdn,
@@ -301,8 +301,8 @@ pub fn get_or_create_kid_for_name(
     write_private_key_securely(&key_path, &keypair.to_secret_bytes())?;
     write_json_document(&doc_path, &json_data)?;
 
-    // 5. Wrap and sign with master identity.key
-    let auth_kid = authorize_kid_document(&fqdn, &signed_doc, master_key_path)?;
+    // 5. Wrap and sign with root identity.key
+    let auth_kid = authorize_kid_document(&fqdn, &signed_doc, identity_key_path)?;
 
     Ok(GeneratedKid {
         name: fqdn,
@@ -323,13 +323,13 @@ pub fn get_or_create_kid_for_name(
 /// 3. Cryptographically signs the updated document with the **OLD key** so the network can verify
 ///    the handover via [`Document::is_authorized`].
 /// 4. Atomically replaces the local key and document files.
-/// 5. Wraps the new document in [`AuthorizedKid`] signed by the master `identity.key`.
+/// 5. Wraps the new document in [`AuthorizedKid`] signed by the root `identity.key`.
 ///
 /// # Errors
 ///
 /// - Returns [`IdentityError::KidNotFound`] if the document or key does not exist.
 /// - Returns [`IdentityError::KidSigningFailed`] if signing fails.
-pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid, IdentityError> {
+pub fn rotate_name_kid(name: &str, identity_key_path: &Path) -> Result<RotatedKid, IdentityError> {
     let fqdn = normalize_name(name);
     let paths = kid_paths(&fqdn);
     let (doc_path, key_path) = (paths.did_path, paths.key_path);
@@ -377,7 +377,7 @@ pub fn rotate_name_kid(name: &str, master_key_path: &Path) -> Result<RotatedKid,
     write_json_document(&doc_path, &json_data)?;
 
     // 5. Wrap in AuthorizedKid signed by identity.key
-    let auth_kid = authorize_kid_document(&fqdn, &signed_doc, master_key_path)?;
+    let auth_kid = authorize_kid_document(&fqdn, &signed_doc, identity_key_path)?;
 
     Ok(RotatedKid {
         name: fqdn,
@@ -530,7 +530,7 @@ pub fn save_and_sign_local_manifest(
     name: &str,
     services: Vec<Service>,
     current_kyn: kinetic_kyn::types::Kyn,
-    master_key_path: &Path,
+    identity_key_path: &Path,
 ) -> Result<(Manifest, AuthorizedManifest), IdentityError> {
     let fqdn = normalize_name(name);
     let (doc, _) = load_local_kid(&fqdn)?;
@@ -594,7 +594,7 @@ pub fn save_and_sign_local_manifest(
     };
 
     let signable = auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT);
-    let owner_key = load_keypair(master_key_path)?;
+    let owner_key = load_keypair(identity_key_path)?;
     auth_manifest.owner_signature = owner_key.sign(&signable);
 
     Ok((signed_manifest, auth_manifest))
@@ -615,7 +615,7 @@ mod tests {
 
     struct TestEnv {
         _dir: tempfile::TempDir,
-        master_key_path: PathBuf,
+        identity_key_path: PathBuf,
         _guard: std::sync::MutexGuard<'static, ()>,
     }
 
@@ -633,7 +633,7 @@ mod tests {
 
             Self {
                 _dir: dir,
-                master_key_path: id_path,
+                identity_key_path: id_path,
                 _guard: guard,
             }
         }
@@ -653,7 +653,7 @@ mod tests {
 
         // 1. Apex Name KID generation
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.identity_key_path)
                 .unwrap();
         assert_eq!(apex.name, "saif.kin");
         assert!(!apex.is_inherited);
@@ -665,13 +665,13 @@ mod tests {
 
         // Test Overwrite Guard (KIN-IDN-006)
         let err =
-            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.identity_key_path)
                 .unwrap_err();
         assert_eq!(err.code(), "KIN-IDN-006");
 
         // Test force overwrite
         let force_res =
-            get_or_create_kid_for_name("saif.kin", true, true, Kyn(100), &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, true, Kyn(100), &env.identity_key_path)
                 .unwrap();
         assert_eq!(force_res.name, "saif.kin");
     }
@@ -680,7 +680,7 @@ mod tests {
     fn test_kid_subname_inheritance() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.identity_key_path)
                 .unwrap();
 
         let sub = get_or_create_kid_for_name(
@@ -688,7 +688,7 @@ mod tests {
             true,
             false,
             Kyn(100),
-            &env.master_key_path,
+            &env.identity_key_path,
         )
         .unwrap();
         assert_eq!(sub.name, "blog.saif.kin");
@@ -702,7 +702,7 @@ mod tests {
     fn test_kid_subname_isolation() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.identity_key_path)
                 .unwrap();
 
         let isolated_sub = get_or_create_kid_for_name(
@@ -710,7 +710,7 @@ mod tests {
             false,
             false,
             Kyn(100),
-            &env.master_key_path,
+            &env.identity_key_path,
         )
         .unwrap();
         assert_eq!(isolated_sub.name, "api.saif.kin");
@@ -725,11 +725,11 @@ mod tests {
     fn test_kid_rotation_handover() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.identity_key_path)
                 .unwrap();
         let old_pubkey = apex.kid_doc.controller_keys[0].public_key.clone();
 
-        let rotated = rotate_name_kid("saif.kin", &env.master_key_path).unwrap();
+        let rotated = rotate_name_kid("saif.kin", &env.identity_key_path).unwrap();
         assert_eq!(rotated.did, apex.did);
         let new_pubkey = rotated.kid_doc.controller_keys[0].public_key.clone();
         assert_ne!(new_pubkey, old_pubkey);
@@ -742,7 +742,7 @@ mod tests {
     fn test_manifest_version_increments() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.identity_key_path)
                 .unwrap();
 
         let services = vec![Service {
@@ -756,7 +756,7 @@ mod tests {
             "saif.kin",
             services.clone(),
             Kyn(100),
-            &env.master_key_path,
+            &env.identity_key_path,
         )
         .unwrap();
         assert_eq!(saved_manifest.version, 1);
@@ -773,7 +773,7 @@ mod tests {
         assert_eq!(loaded.unwrap().version, 1);
 
         let (v2_manifest, _) =
-            save_and_sign_local_manifest("saif.kin", services, Kyn(100), &env.master_key_path)
+            save_and_sign_local_manifest("saif.kin", services, Kyn(100), &env.identity_key_path)
                 .unwrap();
         assert_eq!(v2_manifest.version, 2);
     }
@@ -786,25 +786,25 @@ mod tests {
             true,
             false,
             Kyn(100),
-            &env.master_key_path,
+            &env.identity_key_path,
         );
     }
 
     #[test]
     fn test_rotate_inherited_subname_fails() {
         let env = TestEnv::new([42u8; 32]);
-        let _ = get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
+        let _ = get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.identity_key_path)
             .unwrap();
         let _ = get_or_create_kid_for_name(
             "blog.saif.kin",
             true,
             false,
             Kyn(100),
-            &env.master_key_path,
+            &env.identity_key_path,
         )
         .unwrap();
 
-        let err = rotate_name_kid("blog.saif.kin", &env.master_key_path).unwrap_err();
+        let err = rotate_name_kid("blog.saif.kin", &env.identity_key_path).unwrap_err();
         assert!(
             matches!(err, IdentityError::KidNotFound(_)),
             "Err was {:?}",
@@ -820,7 +820,7 @@ mod tests {
             false,
             false,
             Kyn(100),
-            &env.master_key_path,
+            &env.identity_key_path,
         )
         .unwrap();
 
@@ -828,13 +828,13 @@ mod tests {
         assert!(revoked.deactivated);
 
         let deactivated_err =
-            save_and_sign_local_manifest("api.saif.kin", vec![], Kyn(100), &env.master_key_path)
+            save_and_sign_local_manifest("api.saif.kin", vec![], Kyn(100), &env.identity_key_path)
                 .unwrap_err();
         assert!(matches!(deactivated_err, IdentityError::KidDeactivated(_)));
     }
 
     #[test]
-    fn test_missing_master_identity() {
+    fn test_missing_identity_key() {
         let _guard = ENV_LOCK.lock().unwrap();
         let env = tempdir().unwrap();
         unsafe {
@@ -855,7 +855,7 @@ mod tests {
     fn test_corrupted_kid_document() {
         let env = TestEnv::new([42u8; 32]);
         let apex =
-            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.master_key_path)
+            get_or_create_kid_for_name("saif.kin", true, false, Kyn(100), &env.identity_key_path)
                 .unwrap();
 
         // Corrupt the json file

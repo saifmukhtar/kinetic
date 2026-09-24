@@ -15,7 +15,7 @@ use kinetic_local::shutdown::wait_for_shutdown;
 // 1. Boot up: Load the TOML configuration (or generate a default fail-closed one)
 let config = load_config();
 
-// 2. Load the master identity from the secure keystore
+// 2. Load the root identity from the secure keystore
 let keypair = load_keypair(&config.paths.keystore)?;
 
 // 3. Keep the daemon alive until the OS sends SIGINT/SIGTERM
