@@ -96,7 +96,7 @@ pub async fn handle_publish_record(
 
     let mut name_record = req.record;
 
-    let kinetic_core::types::NameRecord::Standard(ref mut reveal) = name_record;
+    let kinetic_core::types::NameEnvelope::Standard(ref mut reveal) = name_record;
     reveal.name = fqdn.clone();
     if let Err(e) = reveal.validate() {
         return Err(crate::api::error::AppError::from(
@@ -323,7 +323,7 @@ pub async fn handle_publish_commit(
 pub async fn handle_resolve_name(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<kinetic_core::types::NameRecord>, crate::api::error::AppError> {
+) -> Result<Json<kinetic_core::types::NameEnvelope>, crate::api::error::AppError> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     if kinetic_core::types::names::is_reserved_name(&fqdn) {
@@ -344,7 +344,7 @@ pub async fn handle_resolve_name(
                 "timestamp": 0
             });
             if let Ok(record) =
-                serde_json::from_value::<kinetic_core::types::NameRecord>(dummy_json)
+                serde_json::from_value::<kinetic_core::types::NameEnvelope>(dummy_json)
             {
                 return Ok(Json(record));
             }
@@ -359,9 +359,9 @@ pub async fn handle_resolve_name(
 
     let record = match state.network.resolve_redundant_payload(&fqdn).await {
         Ok(payload) => {
-            let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
+            let record = serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&payload)
                 .map_err(|_| kinetic_core::error::ResolutionError::Internal {
-                    message: "Invalid NameRecord payload on DHT".to_string(),
+                    message: "Invalid NameEnvelope payload on DHT".to_string(),
                     source: None,
                 })?;
 
@@ -396,7 +396,7 @@ pub async fn handle_resolve_name(
 
             match record_bytes {
                 Some(bytes) => {
-                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes).map_err(
+                    serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&bytes).map_err(
                         |e| {
                             tracing::error!(
                                 error = ?kinetic_core::error::StorageError::DeserializationFailed(e.to_string()),
@@ -442,14 +442,14 @@ pub struct QuorumResponse {
 pub async fn handle_verify_quorum(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-    Json(record): Json<kinetic_core::types::NameRecord>,
+    Json(record): Json<kinetic_core::types::NameEnvelope>,
 ) -> Result<Json<QuorumResponse>, crate::api::error::AppError> {
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
     let payload = serde_json::to_vec(&record).map_err(|_| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
-            "Invalid NameRecord payload".to_string(),
+            "Invalid NameEnvelope payload".to_string(),
         ))
     })?;
 
@@ -623,7 +623,7 @@ pub async fn handle_publish_zone(
             )
         })?;
 
-    let mut record: kinetic_core::types::NameRecord = serde_json::from_slice(&reveal_bytes)
+    let mut record: kinetic_core::types::NameEnvelope = serde_json::from_slice(&reveal_bytes)
         .map_err(|_| {
             crate::api::error::AppError::from(
                 kinetic_core::error::StorageError::DeserializationFailed(
@@ -660,8 +660,8 @@ pub async fn handle_publish_zone(
         crate::api::error::AppError::from(err)
     })?;
 
-    let kinetic_core::types::NameRecord::Standard(r) = &mut record;
-    r.payload = payload;
+    let kinetic_core::types::NameEnvelope::Standard(r) = &mut record;
+    r.embedded_nrs = payload;
     let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     r.identity_signature = keypair.sign(&signable);
 
@@ -824,7 +824,7 @@ pub async fn handle_get_local_zone(
 
 /// Request payload for manually broadcasting a Fat NRS Zone update.
 #[derive(serde::Deserialize)]
-pub struct FatZoneRequest {
+pub struct NrsUpdateRequest {
     /// The private key of the delegated hot key, hex encoded.
     pub hot_key_hex: String,
     /// The master-key authorized delegation proof.
@@ -833,12 +833,12 @@ pub struct FatZoneRequest {
     pub zone: kinetic_core::types::NrsZone,
 }
 
-/// Publishes a Fat NRS NameRecord (Zone Update) using a delegated hot key.
-pub async fn handle_publish_fat_zone(
+/// Publishes a Fat NRS NameEnvelope (Zone Update) using a delegated hot key.
+pub async fn handle_publish_nrs_update(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     axum::extract::State(state): axum::extract::State<crate::api::ApiState>,
     axum::extract::Path(name): axum::extract::Path<String>,
-    axum::Json(req): axum::Json<FatZoneRequest>,
+    axum::Json(req): axum::Json<NrsUpdateRequest>,
 ) -> Result<axum::Json<crate::api::nrs::PublishResponse>, crate::api::error::AppError> {
     if !role.can_nrs() {
         return Err(crate::api::error::AppError::from(
@@ -894,7 +894,7 @@ pub async fn handle_publish_fat_zone(
             )
         })?;
 
-    let mut record: kinetic_core::types::NameRecord = serde_json::from_slice(&reveal_bytes)
+    let mut record: kinetic_core::types::NameEnvelope = serde_json::from_slice(&reveal_bytes)
         .map_err(|_| {
             crate::api::error::AppError::from(
                 kinetic_core::error::StorageError::DeserializationFailed(
@@ -910,8 +910,8 @@ pub async fn handle_publish_fat_zone(
         crate::api::error::AppError::from(err)
     })?;
 
-    let kinetic_core::types::NameRecord::Standard(reveal) = &mut record;
-    reveal.payload = payload_bytes;
+    let kinetic_core::types::NameEnvelope::Standard(reveal) = &mut record;
+    reveal.embedded_nrs = payload_bytes;
     reveal.authorization = Some(Box::new(req.authorized_manifest));
     let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     reveal.identity_signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
@@ -936,6 +936,6 @@ pub async fn handle_publish_fat_zone(
 
     Ok(axum::Json(crate::api::nrs::PublishResponse {
         status: "success".to_string(),
-        message: format!("Fat Zone payload successfully broadcast for {}", fqdn),
+        message: format!("NrsZone payload successfully broadcast for {}", fqdn),
     }))
 }

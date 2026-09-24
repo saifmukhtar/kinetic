@@ -92,11 +92,11 @@ async fn test_chaos_routing_partition() {
 
     // Node 5 publishes a payload (since Node 5 has all other nodes in its bootstrap list)
     let test_key = "chaos-key-test.kin";
-    let test_payload = serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+    let test_payload = serde_json::to_vec(&kinetic_core::types::NameEnvelope::Standard(Box::new(
         kinetic_core::types::Reveal {
             protocol_version: 1,
             name: test_key.to_string(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0; 32],
             kyn: kinetic_kyn::types::TargetKyn::from(1000),
             beacon_signature: "0".repeat(192),

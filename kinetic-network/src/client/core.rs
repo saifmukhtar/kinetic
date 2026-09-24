@@ -11,7 +11,7 @@
 //! order they arrive.
 //!
 //! ## Responding Back
-//! To receive data *back* from the network (e.g. querying a `NameRecord` from the DHT),
+//! To receive data *back* from the network (e.g. querying a `NameEnvelope` from the DHT),
 //! the `NetworkClient` methods dynamically construct `tokio::sync::oneshot::channel` instances,
 //! attach the `Sender` side to the `Command`, and `await` on the `Receiver` side. This allows
 //! HTTP API handlers in the daemon to wait for DHT responses without stalling the underlying
@@ -455,7 +455,7 @@ impl NetworkClient {
     /// Returns a `NetworkClientError` if serialization fails or publishing the payload fails.
     pub async fn publish_host_routing_record(
         &self,
-        record: kinetic_core::types::HostRoutingRecord,
+        record: kinetic_core::types::HostRoute,
     ) -> std::result::Result<(), NetworkClientError> {
         let key = format!("host_route_{}", record.host_id);
         let bytes =
@@ -493,14 +493,14 @@ impl NetworkClient {
     pub async fn resolve_host_routing_record(
         &self,
         host_id: &str,
-    ) -> std::result::Result<Option<kinetic_core::types::HostRoutingRecord>, NetworkClientError>
+    ) -> std::result::Result<Option<kinetic_core::types::HostRoute>, NetworkClientError>
     {
         let current_kyn = self.current_kyn().await?;
         let key = format!("host_route_{}", host_id);
         match self.resolve_redundant_payload(&key).await {
             Ok(bytes) => {
                 let record =
-                    serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&bytes)
+                    serde_json::from_slice::<kinetic_core::types::HostRoute>(&bytes)
                         .map_err(|e| NetworkClientError::Other(e.to_string()))?;
                 crate::store::verification::verify_host_routing_record(
                     &record,

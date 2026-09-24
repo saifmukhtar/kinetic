@@ -135,7 +135,7 @@ mod tests {
                 "record_type": "Standard",
                 "protocol_version": 1,
                 "name": "sub.example.kin",
-                "payload": [1, 2, 3],
+                "embedded_nrs": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100,
                 "beacon_signature": "0".repeat(192),
@@ -173,7 +173,7 @@ mod tests {
                 "record_type": "Standard",
                 "protocol_version": 0,
                 "name": "validname.kin",
-                "payload": [1, 2, 3],
+                "embedded_nrs": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100,
                 "beacon_signature": "0".repeat(192),
@@ -228,7 +228,7 @@ mod tests {
                 "record_type": "Standard",
                 "protocol_version": 1,
                 "name": "validname.kin",
-                "payload": [1, 2, 3],
+                "embedded_nrs": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100, // Very old
                 "beacon_signature": "0".repeat(192),
@@ -269,7 +269,7 @@ mod tests {
         let mock_reveal = kinetic_core::types::Reveal {
             protocol_version: 1,
             name: "validname.kin".to_string(),
-            payload: vec![1, 2, 3],
+            embedded_nrs: vec![1, 2, 3],
             salt: [0; 32],
             kyn: kinetic_kyn::types::TargetKyn::from(100),
             beacon_signature: "0".repeat(192),
@@ -290,7 +290,7 @@ mod tests {
         storage
             .put(
                 reveal_key.as_bytes(),
-                &serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+                &serde_json::to_vec(&kinetic_core::types::NameEnvelope::Standard(Box::new(
                     mock_reveal,
                 )))
                 .unwrap(),

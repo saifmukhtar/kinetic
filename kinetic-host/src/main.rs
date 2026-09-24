@@ -20,7 +20,7 @@
 //!   rotated each KYN Provider epoch, providing mathematical Sybil resistance.
 //! - **Static host identity**: A separate, long-lived Ed25519 keypair
 //!   (`host.key`) uniquely identifies this host across epochs.
-//!   It is used to sign [`HostRoutingRecord`](kinetic_core::types::HostRoutingRecord)s
+//!   It is used to sign [`HostRoute`](kinetic_core::types::HostRoute)s
 //!   that are published to the DHT so clients can always locate the current
 //!   ephemeral peer ID.
 //! - **Hot-swap network loop**: When the time oracle epoch advances, the host

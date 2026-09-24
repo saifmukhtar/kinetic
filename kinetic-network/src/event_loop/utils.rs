@@ -142,7 +142,7 @@ impl super::core::NetworkEventLoop {
         enum ParsedPayload {
             Kid(kinetic_kid::Document),
             Reveal(kinetic_core::types::Reveal),
-            HostRouting(kinetic_core::types::HostRoutingRecord),
+            HostRouting(kinetic_core::types::HostRoute),
         }
 
         let mut parsed = Vec::new();
@@ -158,7 +158,7 @@ impl super::core::NetworkEventLoop {
                     parsed.push((p, ParsedPayload::Kid(doc)));
                 }
             } else if let Ok(host_route) =
-                serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&p)
+                serde_json::from_slice::<kinetic_core::types::HostRoute>(&p)
             {
                 if query_name == format!("routing:{}", host_route.host_id) {
                     is_host_routing = true;
@@ -411,7 +411,7 @@ mod tests {
         let reveal = Reveal {
             protocol_version: 1,
             name: "dummy.kin".to_string(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0u8; 32],
             kyn: kinetic_kyn::types::TargetKyn::from(0),
             beacon_signature: "0".repeat(192),

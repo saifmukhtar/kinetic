@@ -305,7 +305,7 @@ pub async fn handle_macro_register_name(
         let mut records = HashMap::new();
         records.insert(
             "@".to_string(),
-            vec![kinetic_core::types::NrsRecord::KID(kid_id)],
+            vec![kinetic_core::types::NrsEntry::KID(kid_id)],
         );
         let zone = kinetic_core::types::NrsZone { records };
         let payload = match serde_json::to_vec(&zone) {
@@ -327,7 +327,7 @@ pub async fn handle_macro_register_name(
         let mut reveal = kinetic_core::types::Reveal {
             protocol_version: 1,
             name: fqdn.clone(),
-            payload,
+            embedded_nrs: payload,
             salt,
             kyn: kinetic_kyn::types::TargetKyn::from(raw_kyn.kyn()),
             beacon_signature: raw_kyn.signature.clone(),
@@ -481,7 +481,7 @@ pub async fn handle_macro_renew_name(
                 return;
             }
         };
-        let old_record: kinetic_core::types::NameRecord = match serde_json::from_slice(
+        let old_record: kinetic_core::types::NameEnvelope = match serde_json::from_slice(
             &old_reveal_bytes,
         ) {
             Ok(r) => r,
@@ -499,7 +499,7 @@ pub async fn handle_macro_renew_name(
                 return;
             }
         };
-        let kinetic_core::types::NameRecord::Standard(old_reveal) = old_record;
+        let kinetic_core::types::NameEnvelope::Standard(old_reveal) = old_record;
 
         // Step 2: KYN Time Oracle
         update_task_status(&tasks_clone, &task_id_clone, "Fetching Network Beacon", 10);
@@ -661,7 +661,7 @@ pub async fn handle_macro_renew_name(
         let mut new_reveal = kinetic_core::types::Reveal {
             protocol_version: 1,
             name: fqdn.clone(),
-            payload: old_reveal.payload.clone(), // Keep existing zone payload
+            embedded_nrs: old_reveal.embedded_nrs.clone(), // Keep existing zone payload
             salt,
             kyn: kinetic_kyn::types::TargetKyn::from(raw_kyn.kyn()),
             beacon_signature: raw_kyn.signature.clone(),

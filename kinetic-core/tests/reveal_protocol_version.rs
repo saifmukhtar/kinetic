@@ -6,7 +6,7 @@ fn test_protocol_downgrade_prevention() {
     let reveal_v1 = Reveal {
         protocol_version: 1,
         name: format!("{}{}", "saifmukhtar", kinetic_core::constants::NSP_SUFFIX),
-        payload: vec![1, 2, 3],
+        embedded_nrs: vec![1, 2, 3],
         salt: [0u8; 32],
         kyn: kinetic_kyn::types::TargetKyn::from(100),
         beacon_signature: "0".repeat(192),

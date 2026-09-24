@@ -47,7 +47,7 @@ proptest! {
         let reveal = Reveal {
             protocol_version: 1,
             name: name.clone(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0u8; 32],
             kyn: kinetic_kyn::types::TargetKyn::from(kyn),
             beacon_signature: "abcd".to_string(),

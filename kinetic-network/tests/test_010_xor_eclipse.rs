@@ -41,7 +41,7 @@ fn test_xor_eclipse_routing() {
         pubkey: pubkey.clone(),
         identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         protocol_version: 1,
-        payload: vec![],
+        embedded_nrs: vec![],
         previous_proof: None,
         authorization: None,
     };

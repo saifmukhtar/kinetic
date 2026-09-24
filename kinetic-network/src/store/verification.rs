@@ -1,4 +1,4 @@
-//! Cryptographic verification rules for Reveals, HostRoutingRecords, AuthorizedKids, and AuthorizedManifests.
+//! Cryptographic verification rules for Reveals, HostRoutes, AuthorizedKids, and AuthorizedManifests.
 //!
 //! This module acts as the strict gatekeeper for the Kademlia DHT. It enforces
 //! Ed25519 signature checks, VDF iteration verification (including loyalty discounts),
@@ -8,7 +8,7 @@ use crate::error::KineticStoreError;
 use kinetic_core::types::RevealExt;
 use kinetic_verify::signatures::VerifySignature;
 
-/// Finding 13 (Critical): Verify a HostRoutingRecord's signature and timestamp freshness.
+/// Finding 13 (Critical): Verify a HostRoute's signature and timestamp freshness.
 ///
 /// This lives in `kinetic-network` (not `kinetic-core`) because it requires the libp2p dependency
 /// to extract the Ed25519 public key from the PeerId multihash.
@@ -24,7 +24,7 @@ use kinetic_verify::signatures::VerifySignature;
 /// * Returns `KineticStoreError::InvalidPublicKey` if the `host_id` cannot be parsed as a valid `PeerId` containing an Ed25519 key.
 /// * Returns `KineticStoreError::MalformedSignature` if the signature bytes are structurally invalid.
 pub(crate) fn verify_host_routing_record(
-    record: &kinetic_core::types::HostRoutingRecord,
+    record: &kinetic_core::types::HostRoute,
     current_kyn: kinetic_kyn::types::Kyn,
 ) -> Result<(), KineticStoreError> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -36,7 +36,7 @@ pub(crate) fn verify_host_routing_record(
         err.log_warning(
             &record.host_id,
             &format!(
-                "HostRoutingRecord is stale ({} kyns old)",
+                "HostRoute is stale ({} kyns old)",
                 current_kyn.0.saturating_sub(record.kyn.as_u64())
             ),
         );
@@ -48,7 +48,7 @@ pub(crate) fn verify_host_routing_record(
         err.log_warning(
             &record.host_id,
             &format!(
-                "HostRoutingRecord is too far in the future ({} kyns ahead, max 2 allowed)",
+                "HostRoute is too far in the future ({} kyns ahead, max 2 allowed)",
                 record.kyn.as_u64().saturating_sub(current_kyn.0)
             ),
         );
@@ -425,7 +425,7 @@ pub(crate) fn verify_reveal(
 /// binding fails on first publication, or the update is not authorised by a prior key.
 pub(crate) fn verify_authorized_kid(
     auth_kid: &kinetic_core::types::AuthorizedKid,
-    active_record: Option<&kinetic_core::types::NameRecord>,
+    active_record: Option<&kinetic_core::types::NameEnvelope>,
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
 ) -> Result<(), KineticStoreError> {
     let record = active_record.ok_or_else(|| {
@@ -514,7 +514,7 @@ pub(crate) fn verify_authorized_kid(
 /// the KID document is missing/invalid, or a version rollback is detected.
 pub(crate) fn verify_authorized_manifest(
     auth_manifest: &kinetic_core::types::AuthorizedManifest,
-    active_record: Option<&kinetic_core::types::NameRecord>,
+    active_record: Option<&kinetic_core::types::NameEnvelope>,
     existing_record: Option<&std::borrow::Cow<'_, libp2p::kad::Record>>,
     current_kyn: kinetic_kyn::types::CurrentKyn,
 ) -> Result<(), KineticStoreError> {

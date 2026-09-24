@@ -10,7 +10,7 @@
 //! ## Architecture & Module Map
 //!
 //! - **[`config`]** — Daemon configuration structures ([`KineticConfig`](config::KineticConfig)) and network port defaults.
-//! - **[`types`]** — Shared wire-format types ([`NrsZone`](types::NrsZone), [`NrsRecord`](types::NrsRecord), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
+//! - **[`types`]** — Shared wire-format types ([`NrsZone`](types::NrsZone), [`NrsEntry`](types::NrsEntry), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
 //! - **[`error`]** — Unified error logbook ([`KineticError`](error::KineticError)), domain errors ([`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), [`RegistrationError`](error::RegistrationError)), and stable error codes.
 //! - **[`traits`]** — Core abstraction traits ([`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine)).
 //! - **[`action`]** — Sovereign state machine and parameter rulebooks controlling privileged protocol actions.

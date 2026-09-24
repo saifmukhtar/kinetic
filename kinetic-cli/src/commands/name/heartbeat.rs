@@ -10,7 +10,7 @@ pub enum HeartbeatCommands {
     Trigger {
         /// The name to heartbeat
         name: String,
-        /// Trigger a Fat Zone payload sync instead of a standard zone sync
+        /// Trigger a NrsZone payload sync instead of a standard zone sync
         #[arg(long, default_value_t = false)]
         fat: bool,
     },
@@ -57,7 +57,7 @@ pub async fn handle_heartbeat(
             }
             println!(
                 "Successfully triggered {}heartbeat for '{}'.",
-                if fat { "Fat Zone " } else { "" },
+                if fat { "NrsZone " } else { "" },
                 name
             );
         }

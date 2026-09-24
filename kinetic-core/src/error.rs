@@ -125,7 +125,7 @@ pub enum KineticError {
     /// An Ed25519 or Identity signature failed verification.
     ///
     /// Ed25519 signatures are used for Libp2p transport identity and routing records.
-    /// Identity signatures are used for the daemon identity and payload authorization (NameRecord/Reveal).
+    /// Identity signatures are used for the daemon identity and payload authorization (NameEnvelope/Reveal).
     #[error("Signature verification failed")]
     InvalidSignature,
 

@@ -104,16 +104,16 @@ pub enum ProxyError {
     /// The resolved DHT record failed cryptographic signature verification.
     /// A malicious peer attempted to spoof the DNS response. The record was dropped.
     #[error(
-        "Security violation! NameRecord signature verification failed (Spoofed DHT response): {0}"
+        "Security violation! NameEnvelope signature verification failed (Spoofed DHT response): {0}"
     )]
     SignatureVerificationFailed(String),
 
-    /// The proxy failed to deserialize the NameRecord JSON payload from the DHT.
+    /// The proxy failed to deserialize the NameEnvelope JSON payload from the DHT.
     /// The record publisher used an invalid schema version.
-    #[error("Failed to deserialize NameRecord JSON from DHT for '{0}': {1}")]
-    NameRecordDeserializationFailed(String, String),
+    #[error("Failed to deserialize NameEnvelope JSON from DHT for '{0}': {1}")]
+    NameEnvelopeDeserializationFailed(String, String),
 
-    /// The NRS Zone payload within the NameRecord was invalid or corrupt.
+    /// The NRS Zone payload within the NameEnvelope was invalid or corrupt.
     /// The record publisher uploaded malformed zone data.
     #[error("Invalid NrsZone payload: {0}")]
     InvalidNrsZonePayload(String),
@@ -143,9 +143,9 @@ pub enum ProxyError {
     #[error("Failed to reach IP gateway: {0}")]
     IpGatewayUnreachable(String),
 
-    /// The HostRoutingRecord returned an invalid Libp2p PeerId.
+    /// The HostRoute returned an invalid Libp2p PeerId.
     /// Ensure the base58 encoded PeerId in the zone is correct.
-    #[error("HostRoutingRecord returned invalid PeerId: {0}")]
+    #[error("HostRoute returned invalid PeerId: {0}")]
     InvalidPeerId(String),
 
     /// The proxy failed to read the body stream of the incoming P2P request.
@@ -220,7 +220,7 @@ impl ProxyError {
             Self::RequestFailed(_) => "KIN-PRX-007",
             Self::DhtResolutionFailed(..) => "KIN-PRX-008",
             Self::SignatureVerificationFailed(_) => "KIN-PRX-009",
-            Self::NameRecordDeserializationFailed(..) => "KIN-PRX-010",
+            Self::NameEnvelopeDeserializationFailed(..) => "KIN-PRX-010",
             Self::InvalidNrsZonePayload(_) => "KIN-PRX-011",
             Self::SubnameNotFound(_) => "KIN-PRX-012",
             Self::NoRoutableTargets(_) => "KIN-PRX-013",

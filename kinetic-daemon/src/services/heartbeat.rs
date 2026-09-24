@@ -22,7 +22,7 @@ use std::time::Duration;
 /// > to prove they are still actively hosting the domain.
 ///
 /// This asynchronous loop wakes up every 10 seconds. It performs the following steps:
-/// 1. Queries the local `kinetic-storage` for any locally registered `NameRecord`s.
+/// 1. Queries the local `kinetic-storage` for any locally registered `NameEnvelope`s.
 /// 2. Derives the *current* network time epoch from the `hb_kyn_provider`.
 /// 3. Computes the required math against `BEACON_GENESIS`.
 /// 4. Generates a signed `Heartbeat` packet containing the Time Oracle's signature.

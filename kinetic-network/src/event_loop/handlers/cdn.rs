@@ -47,7 +47,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnReques
                 if let Some(domain) = event_loop.pending_cdn_requests.remove(&request_id)
                     && let Some(record_bytes) = response.record
                     && let Ok(record) =
-                        serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes)
+                        serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&record_bytes)
                 {
                     let skip_verify = kinetic_core::config::is_dev_mode();
                     let loopback = event_loop.loopback_tx.clone();
@@ -63,7 +63,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnReques
                                 true
                             } else {
                                 crate::event_loop::utils::spawn_blocking(move || {
-                                    let kinetic_core::types::NameRecord::Standard(reveal) = &record;
+                                    let kinetic_core::types::NameEnvelope::Standard(reveal) = &record;
                                     crate::store::verification::verify_reveal(
                                         reveal,
                                         &storage,

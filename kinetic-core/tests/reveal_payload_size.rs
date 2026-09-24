@@ -11,7 +11,7 @@ fn test_003_oom_payload_exhaustion() {
     let reveal = Reveal {
         protocol_version: 1,
         name: format!("{}{}", "malicious", kinetic_core::constants::NSP_SUFFIX),
-        payload: oversized_payload,
+        embedded_nrs: oversized_payload,
         salt: [0u8; 32],
         kyn: kinetic_kyn::types::TargetKyn::from(100),
         beacon_signature: "random".to_string(),

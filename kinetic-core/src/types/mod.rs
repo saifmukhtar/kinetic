@@ -5,7 +5,7 @@
 //! | Module | Key Types | Role |
 //! |---|---|---|
 //! | `clock` | `KineticTime` | Drand-kyn-to-branded-time conversion |
-//! | `nrs` | `NrsZone`, `NrsRecord` | NRS zone payload stored in DHT reveal records |
+//! | `nrs` | `NrsZone`, `NrsEntry` | NRS zone payload stored in DHT reveal records |
 //! | `domain` | `Heartbeat` | Domain heartbeats and DHT key derivation |
 //! | `identity` | `AuthorizedKid`, `AuthorizedManifest` | ML-DSA-65 keypair management |
 //! | `infrastructure` | `InfraNode` | Bootstrap/infrastructure node metadata |

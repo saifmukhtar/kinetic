@@ -100,7 +100,7 @@ pub enum ResolutionError {
         count: usize,
     },
     /// The name's registration has passed its validity window.
-    /// The network time (network kyn) has advanced past the expiration limit of the NameRecord.
+    /// The network time (network kyn) has advanced past the expiration limit of the NameEnvelope.
     /// The apex owner failed to broadcast a heartbeat within the required grace period.
     /// The name must be re-registered or it is currently vulnerable to thermodynamic takeover.
     #[error("Record for {name} expired {age} kyns ago")]
@@ -324,11 +324,11 @@ pub enum PublishError {
     /// Verify your NrsZone struct data and ensure all fields are standard strings/numbers.
     #[error("Failed to serialize zone data: {0}")]
     ZoneSerializationFailed(String),
-    /// Failed to broadcast the dynamic HostRoutingRecord to the DHT.
+    /// Failed to broadcast the dynamic HostRoute to the DHT.
     /// A libp2p timeout or swarm error occurred while propagating the host IP/PeerID.
     /// The host may not be fully reachable on the network. Check port forwarding.
-    #[error("Failed to broadcast dynamic HostRoutingRecord to DHT: {0}")]
-    HostRoutingRecordPublishFailed(String),
+    #[error("Failed to broadcast dynamic HostRoute to DHT: {0}")]
+    HostRoutePublishFailed(String),
     /// Failed to publish the cryptographic KID document to the DHT.
     /// A lower-level network error or DHT timeout blocked the put request.
     /// Retry the publish operation.
@@ -360,7 +360,7 @@ impl PublishError {
             Self::MissingLocalRevealForKid(_) => "KIN-PUB-013",
             Self::MissingLocalRevealForManifest(_) => "KIN-PUB-014",
             Self::ZoneSerializationFailed(_) => "KIN-PUB-015",
-            Self::HostRoutingRecordPublishFailed(_) => "KIN-PUB-016",
+            Self::HostRoutePublishFailed(_) => "KIN-PUB-016",
             Self::KidPublishFailed(_) => "KIN-PUB-017",
             Self::ManifestPublishFailed(_) => "KIN-PUB-018",
         }
@@ -394,7 +394,7 @@ impl PublishError {
             Self::MissingLocalRevealForKid(_) => Severity::Warning,
             Self::MissingLocalRevealForManifest(_) => Severity::Warning,
             Self::ZoneSerializationFailed(_) => Severity::Error,
-            Self::HostRoutingRecordPublishFailed(_) => Severity::Error,
+            Self::HostRoutePublishFailed(_) => Severity::Error,
             Self::KidPublishFailed(_) => Severity::Error,
             Self::ManifestPublishFailed(_) => Severity::Error,
         }

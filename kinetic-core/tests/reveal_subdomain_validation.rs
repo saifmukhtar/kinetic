@@ -10,7 +10,7 @@ fn test_subdomain_escalation_validation() {
             "blog.saifmukhtar",
             kinetic_core::constants::NSP_SUFFIX
         ), // Subdomain!
-        payload: vec![],
+        embedded_nrs: vec![],
         salt: [0; 32],
         kyn: kinetic_kyn::types::TargetKyn::from(1000),
         beacon_signature: "0".repeat(192),
@@ -36,7 +36,7 @@ fn test_subdomain_escalation_validation() {
     let valid_reveal = Reveal {
         protocol_version: 1,
         name: format!("{}{}", "saifmukhtar", kinetic_core::constants::NSP_SUFFIX), // Apex domain!
-        payload: vec![],
+        embedded_nrs: vec![],
         salt: [0; 32],
         kyn: kinetic_kyn::types::TargetKyn::from(1000),
         beacon_signature: "0".repeat(192),

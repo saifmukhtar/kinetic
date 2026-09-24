@@ -28,7 +28,7 @@ fn test_memory_store_bloat() {
         let name = format!("name{}.kin", i);
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::NameRecord::Standard(Box::new(Reveal {
+            kinetic_core::types::NameEnvelope::Standard(Box::new(Reveal {
                 name,
                 salt: [0; 32],
                 beacon_signature: String::new(),
@@ -40,7 +40,7 @@ fn test_memory_store_bloat() {
                 identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
                 protocol_version: 1,
                 pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
-                payload: vec![],
+                embedded_nrs: vec![],
                 previous_proof: None,
                 authorization: None,
             })),

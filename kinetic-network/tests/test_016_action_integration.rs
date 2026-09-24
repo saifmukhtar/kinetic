@@ -1,4 +1,4 @@
-use kinetic_core::types::NameRecord;
+use kinetic_core::types::NameEnvelope;
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 
 use kinetic_network::store::core::KineticRecordStore;
@@ -49,12 +49,12 @@ async fn test_action_integration_halt() {
         },
         previous_proof: None,
         identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
-        payload: vec![],
+        embedded_nrs: vec![],
         protocol_version: 2,
         authorization: None,
     };
 
-    let domain_record = NameRecord::Standard(Box::new(forged_reveal));
+    let domain_record = NameEnvelope::Standard(Box::new(forged_reveal));
     let record_bytes = serde_json::to_vec(&domain_record).unwrap();
     let record = Record::new(libp2p::kad::RecordKey::new(&"test"), record_bytes);
 

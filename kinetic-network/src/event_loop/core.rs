@@ -432,7 +432,7 @@ impl NetworkEventLoop {
                 peer,
             } => {
                 if let Ok(record) =
-                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes)
+                    serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&record_bytes)
                     && self
                         .swarm
                         .behaviour_mut()

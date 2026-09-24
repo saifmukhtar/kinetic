@@ -6,7 +6,7 @@ fn test_reveal_crypto_lengths() {
     let base_reveal = Reveal {
         protocol_version: 1,
         name: format!("{}{}", "valid", kinetic_core::constants::NSP_SUFFIX),
-        payload: vec![],
+        embedded_nrs: vec![],
         salt: [0; 32],
         kyn: kinetic_kyn::types::TargetKyn::from(1000),
         beacon_signature: "0".repeat(192), // 192 hex chars for BLS

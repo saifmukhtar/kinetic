@@ -63,7 +63,7 @@ use kid::{
 use macro_api::*;
 use nrs::{
     handle_delete_local_zone, handle_get_local_zone, handle_get_reserved_names, handle_get_zone,
-    handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_fat_zone,
+    handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_nrs_update,
     handle_publish_record, handle_publish_zone, handle_resolve_name, handle_verify_quorum,
 };
 use time::*;
@@ -212,8 +212,8 @@ pub struct ApiState {
 /// Payload for publishing a direct reveal configuration.
 #[derive(Deserialize, Debug)]
 pub struct PublishRequest {
-    /// The NameRecord object to publish.
-    pub record: kinetic_core::types::NameRecord,
+    /// The NameEnvelope object to publish.
+    pub record: kinetic_core::types::NameEnvelope,
 }
 
 /// Response format for a publish action.
@@ -340,7 +340,7 @@ pub fn app(state: ApiState) -> Router {
         )
         .route(
             "/v1/micro/nrs/fat-zone/{name}",
-            axum::routing::post(handle_publish_fat_zone),
+            axum::routing::post(handle_publish_nrs_update),
         )
         .route(
             "/v1/macro/register",
@@ -364,7 +364,7 @@ pub fn app(state: ApiState) -> Router {
         )
         .route(
             "/v1/micro/nrs/fat-heartbeat/{name}",
-            axum::routing::post(handle_post_fat_heartbeat),
+            axum::routing::post(handle_post_authorized_update),
         )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),

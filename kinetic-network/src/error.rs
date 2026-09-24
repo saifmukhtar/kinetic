@@ -86,10 +86,10 @@ pub enum KineticStoreError {
     /// Wait for the next KYN Provider pulse before broadcasting a new heartbeat.
     #[error("stale heartbeat: received kyn is not newer than existing record")]
     StaleHeartbeat,
-    /// The HostRoutingRecord failed signature verification or timestamp check (Finding 13).
+    /// The HostRoute failed signature verification or timestamp check (Finding 13).
     /// The IP/PeerID routing data is either forged, signed by the wrong key, or dangerously stale.
     /// Generate a fresh routing record and sign it with the name's active capability key.
-    #[error("HostRoutingRecord signature verification failed or record is stale")]
+    #[error("HostRoute signature verification failed or record is stale")]
     InvalidHostRouteSignature,
     /// The node is rate-limiting reveal ingestion.
     /// Too many reveals were submitted from your IP/PeerID in a short window, triggering anti-spam protections.

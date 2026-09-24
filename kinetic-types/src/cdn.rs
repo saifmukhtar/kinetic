@@ -1,7 +1,7 @@
 //! High-performance network payloads for the CDN caching layer.
 //!
 //! This module provides the zero-copy, reference-counted request and response
-//! structures ([`CdnRequest`], [`CdnResponse`]) used for serving `NameRecord`s
+//! structures ([`CdnRequest`], [`CdnResponse`]) used for serving `NameEnvelope`s
 //! directly from DHT node caches. By avoiding deep structural parsing during
 //! cache hits, these payloads enable maximum throughput for the Kinetic Name
 //! Resolution System (NRS).
@@ -34,7 +34,7 @@ pub struct CdnRequest {
 /// A network payload containing the result of a CDN cache lookup.
 ///
 /// If the requested `.kin` name is found in the node's local cache (e.g., the DHT
-/// cache), the raw serialized bytes of the `NameRecord` are returned. Returning
+/// cache), the raw serialized bytes of the `NameEnvelope` are returned. Returning
 /// raw bytes instead of a parsed struct avoids unnecessary deserialization overhead
 /// on the proxy node when forwarding the payload back to the client.
 ///
@@ -45,11 +45,11 @@ pub struct CdnRequest {
 /// // A cache miss
 /// let response_miss = CdnResponse { record: None };
 ///
-/// // A cache hit (raw bytes of a NameRecord)
+/// // A cache hit (raw bytes of a NameEnvelope)
 /// let response_hit = CdnResponse { record: Some(vec![0x01, 0x02, 0x03]) };
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CdnResponse {
-    /// The serialized `NameRecord` bytes if found, or `None` if the name is not cached.
+    /// The serialized `NameEnvelope` bytes if found, or `None` if the name is not cached.
     pub record: Option<Vec<u8>>,
 }

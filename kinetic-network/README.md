@@ -41,7 +41,7 @@ Because `kinetic-network` is exposed directly to the public internet, it employs
 To fully understand this crate, we recommend reading it in the following order:
 
 ### Prerequisites
-* **kinetic-core:** You must understand `NrsZone`, `Kyn`, and `NameRecord` structures.
+* **kinetic-core:** You must understand `NrsZone`, `Kyn`, and `NameEnvelope` structures.
 * **kinetic-local:** You should understand `GLOBAL_ACTION_STATE` (which dictates emergency network pauses).
 * **kinetic-verify:** You must understand how identity signatures are validated.
 

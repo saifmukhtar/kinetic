@@ -5,7 +5,7 @@
 
 ## 2. Architecture & Responsibilities
 1. **Dynamic Sybil Resistance (`epoch.rs`):** To prevent DHT spam, the network enforces that all routing nodes complete a heavy Proof-of-Work bound to the current time epoch. As time advances, the PoW expires. `kinetic-host` runs a background heartbeat that preemptively mines the *next* epoch's PoW, and seamlessly hot-swaps the underlying Libp2p Swarm identity without terminating active user connections.
-2. **Static Domain Identity (`host_key.rs`):** While the P2P identity rotates constantly, the host maintains a static Ed25519 `host.key` on disk. This is used to sign `HostRoutingRecord`s and publish them to the DHT, allowing clients to always locate the host's current ephemeral peer ID.
+2. **Static Domain Identity (`host_key.rs`):** While the P2P identity rotates constantly, the host maintains a static Ed25519 `host.key` on disk. This is used to sign `HostRoute`s and publish them to the DHT, allowing clients to always locate the host's current ephemeral peer ID.
 3. **Ingress Reverse Proxy (`proxy.rs`):** It acts as an ingress router, intercepting incoming `.kin` P2P privacy-routed requests and transparently tunneling them to a backend HTTP server running locally on the same machine.
 
 ## 3. Reading Guide

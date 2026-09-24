@@ -42,7 +42,7 @@ pub struct KineticRecordStore {
     /// VDF Engine used for proof validation.
     pub vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     /// Cache of verified apex name records.
-    pub reveals_by_name: LruCache<String, kinetic_core::types::NameRecord>,
+    pub reveals_by_name: LruCache<String, kinetic_core::types::NameEnvelope>,
     /// The latest heartbeat kyn observed for each apex name.
     pub last_heartbeats_by_name: HashMap<String, u64>,
 
@@ -95,11 +95,11 @@ impl KineticRecordStore {
                 }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if let Ok(record) =
-                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&val_bytes)
+                    serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&val_bytes)
                 {
                     let mut is_valid = false;
                     match &record {
-                        kinetic_core::types::NameRecord::Standard(reveal) => {
+                        kinetic_core::types::NameEnvelope::Standard(reveal) => {
                             if let Ok(req) = super::verification::compute_required_iterations(
                                 reveal,
                                 kinetic_kyn::types::CurrentKyn::from(initial_kyn.as_u64()),
@@ -146,14 +146,14 @@ impl KineticRecordStore {
                     }
 
                     if is_valid {
-                        tracing::info!("[KRS restore] NameRecord for {}", name);
+                        tracing::info!("[KRS restore] NameEnvelope for {}", name);
                         reveals_by_name.put(name, record);
                     } else {
                         let err =
                             kinetic_core::error::storage::StorageError::InvalidRecordDiscarded;
                         tracing::warn!(
                             error_code = err.code(),
-                            "[KRS restore] Discarding invalid locally stored NameRecord for {}",
+                            "[KRS restore] Discarding invalid locally stored NameEnvelope for {}",
                             name
                         );
                     }
@@ -259,7 +259,7 @@ impl KineticRecordStore {
 
         for (name, record) in &self.reveals_by_name {
             match record {
-                kinetic_core::types::NameRecord::Standard(reveal) => {
+                kinetic_core::types::NameEnvelope::Standard(reveal) => {
                     let age = current_kyn.saturating_sub(reveal.kyn.as_u64());
                     if age > max_age_kyns {
                         expired_names.push(name.clone());
@@ -328,13 +328,13 @@ impl KineticRecordStore {
         }
     }
 
-    pub(crate) fn get_fallback(&mut self, name: &str) -> Option<kinetic_core::types::NameRecord> {
+    pub(crate) fn get_fallback(&mut self, name: &str) -> Option<kinetic_core::types::NameEnvelope> {
         if let Some(r) = self.reveals_by_name.get(name) {
             return Some(r.clone());
         }
         let key = [crate::store::constants::KRS_REVEAL_PREFIX, name.as_bytes()].concat();
         if let Ok(Some(bytes)) = self.storage.get(&key)
-            && let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
+            && let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&bytes)
         {
             self.reveals_by_name.put(name.to_string(), record.clone());
             return Some(record);
@@ -347,7 +347,7 @@ impl KineticRecordStore {
     /// Attempts to put a record, returning a typed [`KineticStoreError`] on failure.
     ///
     /// This method enforces all Kinetic validation rules dynamically based on the payload type
-    /// (e.g., `Commitment`, `Reveal`, `Heartbeat`, `AuthorizedKid`, `AuthorizedManifest`, `HostRoutingRecord`).
+    /// (e.g., `Commitment`, `Reveal`, `Heartbeat`, `AuthorizedKid`, `AuthorizedManifest`, `HostRoute`).
     ///
     /// # Arguments
     ///
@@ -422,17 +422,17 @@ impl KineticRecordStore {
                     }
                 }
             } else if parsed.get("vdf_proof").is_some() || parsed.get("kyn").is_some() {
-                match serde_json::from_value::<kinetic_core::types::NameRecord>(parsed) {
+                match serde_json::from_value::<kinetic_core::types::NameEnvelope>(parsed) {
                     Ok(record) => {
                         tracing::debug!(
-                            "KineticRecordStore::put parsed NameRecord for {}",
+                            "KineticRecordStore::put parsed NameEnvelope for {}",
                             record.name()
                         );
                         self.handle_put_record(&record, skip_reveal_verify)?;
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse NameRecord schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse NameEnvelope schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -487,7 +487,7 @@ impl KineticRecordStore {
                     }
                 }
             } else if parsed.get("host_id").is_some() {
-                match serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed) {
+                match serde_json::from_value::<kinetic_core::types::HostRoute>(parsed) {
                     Ok(host_route) => {
                         match crate::store::verification::verify_host_routing_record(
                             &host_route,
@@ -495,19 +495,19 @@ impl KineticRecordStore {
                         ) {
                             Ok(()) => {
                                 tracing::info!(
-                                    "KineticRecordStore::put accepted verified HostRoutingRecord for {}",
+                                    "KineticRecordStore::put accepted verified HostRoute for {}",
                                     host_route.host_id
                                 );
                             }
                             Err(err) => {
-                                tracing::warn!(error_code = err.code(), host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);
+                                tracing::warn!(error_code = err.code(), host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoute: {}", err);
                                 return Err(err);
                             }
                         }
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse HostRoutingRecord schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse HostRoute schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -631,10 +631,10 @@ mod tests {
 
         let name = "a.kin"; // Standard name, requires heartbeats
         let record =
-            kinetic_core::types::NameRecord::Standard(Box::new(kinetic_types::vdf::Reveal {
+            kinetic_core::types::NameEnvelope::Standard(Box::new(kinetic_types::vdf::Reveal {
                 protocol_version: 1,
                 name: name.to_string(),
-                payload: vec![],
+                embedded_nrs: vec![],
                 salt: [0; 32],
                 kyn: kinetic_kyn::types::TargetKyn::from(0),
                 beacon_signature: String::new(),
@@ -734,10 +734,10 @@ mod tests {
 
         let large_payload = vec![0u8; 34000];
         let record =
-            kinetic_core::types::NameRecord::Standard(Box::new(kinetic_core::types::vdf::Reveal {
+            kinetic_core::types::NameEnvelope::Standard(Box::new(kinetic_core::types::vdf::Reveal {
                 protocol_version: 1,
                 name: "large.kin".to_string(),
-                payload: large_payload,
+                embedded_nrs: large_payload,
                 salt: [0; 32],
                 kyn: kinetic_kyn::types::TargetKyn::from(0),
                 beacon_signature: String::new(),

@@ -62,7 +62,7 @@ pub struct VdfProof {
     pub proof_bytes: Vec<u8>,
 }
 
-/// Initial commitment submission request payload.
+/// Initial commitment submission request embedded_nrs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommitRequest {
     /// Target `.kin` name.
@@ -91,7 +91,7 @@ pub struct PreviousProof {
 }
 
 impl PreviousProof {
-    /// Serializes the previous proof container into length-prefixed bytes for payload chaining.
+    /// Serializes the previous proof container into length-prefixed bytes for embedded_nrs chaining.
     pub fn bytes(&self, network_salt: &[u8; 32]) -> Vec<u8> {
         let prefix = b"vdf-prev-proof-v1";
         let capacity = network_salt.len()
@@ -174,7 +174,7 @@ impl PreviousProof {
     }
 }
 
-/// Revealed name registration payload submitted to the network during Phase 2.
+/// Revealed name registration embedded_nrs submitted to the network during Phase 2.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Reveal {
     /// Protocol version indicator (default: `1`).
@@ -182,8 +182,8 @@ pub struct Reveal {
     pub protocol_version: u8,
     /// Registered `.kin` name.
     pub name: String,
-    /// Arbitrary name metadata or NRS zone record payload bytes.
-    pub payload: Vec<u8>,
+    /// Arbitrary name metadata or NRS zone record embedded_nrs bytes.
+    pub embedded_nrs: Vec<u8>,
     /// 32-byte salt value for commitment blinding.
     pub salt: [u8; 32],
     /// Kyn at time of reveal.
@@ -208,7 +208,7 @@ pub struct Reveal {
 }
 
 impl Reveal {
-    /// Serializes the reveal payload into a canonical byte string for cryptographic signature.
+    /// Serializes the reveal embedded_nrs into a canonical byte string for cryptographic signature.
     ///
     /// # Security
     /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte
@@ -222,7 +222,7 @@ impl Reveal {
     /// let reveal = Reveal {
     ///     protocol_version: 1,
     ///     name: "example".to_string(),
-    ///     payload: vec![],
+    ///     embedded_nrs: vec![],
     ///     salt: [0u8; 32],
     ///     kyn: kinetic_kyn::types::TargetKyn(kinetic_kyn::types::Kyn(12345)),
     ///     beacon_signature: "abcd".to_string(),
@@ -249,7 +249,7 @@ impl Reveal {
             + prefix.len()
             + 1 // protocol_version
             + 4 + self.name.len()
-            + 4 + self.payload.len()
+            + 4 + self.embedded_nrs.len()
             + 32 // salt
             + 8 // kyn
             + 4 + self.beacon_signature.len()
@@ -270,8 +270,8 @@ impl Reveal {
         bytes.extend_from_slice(&(self.name.len() as u32).to_be_bytes());
         bytes.extend_from_slice(self.name.as_bytes());
 
-        bytes.extend_from_slice(&(self.payload.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(&self.payload);
+        bytes.extend_from_slice(&(self.embedded_nrs.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&self.embedded_nrs);
 
         bytes.extend_from_slice(&self.salt);
         bytes.extend_from_slice(&self.kyn.to_be_bytes());

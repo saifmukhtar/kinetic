@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::sync::watch;
 
-/// Starts an async loop publishing dynamic HostRoutingRecords to the DHT every 30 seconds.
+/// Starts an async loop publishing dynamic HostRoutes to the DHT every 30 seconds.
 pub async fn start_routing_publisher(
     publisher_host_key: libp2p::identity::Keypair,
     local_peer_id_str: Arc<RwLock<String>>,
@@ -50,7 +50,7 @@ pub async fn start_routing_publisher(
 
         let kyn = *kyn_rx.borrow();
 
-        let mut record = kinetic_core::types::HostRoutingRecord {
+        let mut record = kinetic_core::types::HostRoute {
             host_id: host_peer_id_str.clone(),
             current_peer_id: local_peer_id_str
                 .read()
@@ -68,10 +68,10 @@ pub async fn start_routing_publisher(
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {
             let err =
-                kinetic_core::error::PublishError::HostRoutingRecordPublishFailed(e.to_string());
+                kinetic_core::error::PublishError::HostRoutePublishFailed(e.to_string());
             tracing::warn!(error_code = err.code(), "{}", err);
         } else {
-            tracing::info!("Published dynamic HostRoutingRecord to DHT");
+            tracing::info!("Published dynamic HostRoute to DHT");
         }
     }
 }

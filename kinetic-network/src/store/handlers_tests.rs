@@ -12,7 +12,7 @@ mod tests {
         Reveal {
             protocol_version: 1,
             name: name.to_string(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0u8; 32],
             kyn: kinetic_kyn::types::TargetKyn::from(kyn),
             beacon_signature: String::new(),
@@ -121,7 +121,7 @@ mod tests {
 
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::NameRecord::Standard(Box::new(reveal)),
+            kinetic_core::types::NameEnvelope::Standard(Box::new(reveal)),
         );
 
         // Set existing kyn to 200
@@ -155,7 +155,7 @@ mod tests {
 
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::NameRecord::Standard(Box::new(reveal)),
+            kinetic_core::types::NameEnvelope::Standard(Box::new(reveal)),
         );
         store.last_heartbeats_by_name.insert(name.clone(), 100);
 
@@ -186,7 +186,7 @@ mod tests {
         existing.iterations = 1000;
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::NameRecord::Standard(Box::new(existing)),
+            kinetic_core::types::NameEnvelope::Standard(Box::new(existing)),
         );
         store.last_heartbeats_by_name.insert(name.clone(), 100);
 
@@ -197,7 +197,7 @@ mod tests {
         attacker_lose.iterations = 1000;
 
         let result_lose = store.handle_put_record(
-            &kinetic_core::types::NameRecord::Standard(Box::new(attacker_lose)),
+            &kinetic_core::types::NameEnvelope::Standard(Box::new(attacker_lose)),
             true,
         );
         assert!(matches!(
@@ -212,7 +212,7 @@ mod tests {
         attacker_win.iterations = 1000;
 
         let result_win = store.handle_put_record(
-            &kinetic_core::types::NameRecord::Standard(Box::new(attacker_win)),
+            &kinetic_core::types::NameEnvelope::Standard(Box::new(attacker_win)),
             true,
         );
         assert!(result_win.is_ok());

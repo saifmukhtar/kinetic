@@ -1,4 +1,4 @@
-//! Verifiable Delay Function (VDF) commitments, reveal payloads, and proof models.
+//! Verifiable Delay Function (VDF) commitments, reveal embedded_nrss, and proof models.
 //!
 //! This module imports the core cryptographic types from `kinetic_verify` and
 //! provides network-specific validation logic for domain names.
@@ -11,14 +11,14 @@ pub use kinetic_verify::{
 
 use crate::error::vdf::RevealValidationError;
 
-/// Extension trait providing network-specific validation logic for Reveal payloads.
+/// Extension trait providing network-specific validation logic for Reveal embedded_nrss.
 pub trait RevealExt {
-    /// Validates the reveal payload structure against protocol rules.
+    /// Validates the reveal embedded_nrs structure against protocol rules.
     fn validate(&self) -> Result<(), RevealValidationError>;
 }
 
 impl RevealExt for Reveal {
-    /// Validates the reveal payload structure against protocol rules.
+    /// Validates the reveal embedded_nrs structure against protocol rules.
     ///
     /// # Errors
     ///
@@ -32,9 +32,9 @@ impl RevealExt for Reveal {
 
         is_valid_apex_name(&self.name)?;
 
-        if self.payload.len() > MAX_PAYLOAD_SIZE {
+        if self.embedded_nrs.len() > MAX_PAYLOAD_SIZE {
             return Err(RevealValidationError::PayloadTooLarge(
-                self.payload.len(),
+                self.embedded_nrs.len(),
                 MAX_PAYLOAD_SIZE,
             ));
         }
@@ -80,7 +80,7 @@ mod tests {
             pubkey: kinetic_primitives::keypairs::IdentityPubKey(
                 vec![0u8; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
             ),
-            payload: vec![0u8; 100],
+            embedded_nrs: vec![0u8; 100],
             identity_signature: kinetic_primitives::keypairs::IdentitySignature(
                 vec![0u8; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
             ),
@@ -124,9 +124,9 @@ mod tests {
     }
 
     #[test]
-    fn test_payload_too_large() {
+    fn test_embedded_nrs_too_large() {
         let mut reveal = valid_reveal();
-        reveal.payload = vec![0u8; MAX_PAYLOAD_SIZE + 1];
+        reveal.embedded_nrs = vec![0u8; MAX_PAYLOAD_SIZE + 1];
         assert!(matches!(
             reveal.validate().unwrap_err(),
             RevealValidationError::PayloadTooLarge(_, _)

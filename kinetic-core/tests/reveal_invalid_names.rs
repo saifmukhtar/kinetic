@@ -6,7 +6,7 @@ fn test_reveal_invalid_names() {
     let mut reveal = Reveal {
         protocol_version: 1,
         name: String::new(),
-        payload: vec![],
+        embedded_nrs: vec![],
         salt: [0; 32],
         kyn: kinetic_kyn::types::TargetKyn::from(1000),
         beacon_signature: "0".repeat(192),

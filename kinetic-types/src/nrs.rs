@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Parsed NRS zone mapping subname labels to collections of [`NrsRecord`] entries.
+/// Parsed NRS zone mapping subname labels to collections of [`NrsEntry`] entries.
 ///
 /// The zone acts identically to a traditional DNS zone file, but is published securely
 /// into the Kinetic network's decentralized DHT.
@@ -16,13 +16,13 @@ use std::collections::HashMap;
 pub struct NrsZone {
     /// Mapping from subname label (e.g., `@`, `www`, `api`) to a list of associated NRS records.
     #[serde(default)]
-    pub records: HashMap<String, Vec<NrsRecord>>,
+    pub records: HashMap<String, Vec<NrsEntry>>,
 }
 
 /// Strongly typed NRS record variant supported by the Kinetic network resolver.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "value")]
-pub enum NrsRecord {
+pub enum NrsEntry {
     /// Standard IPv4 address record.
     A(std::net::Ipv4Addr),
     /// Standard IPv6 address record.
@@ -44,19 +44,19 @@ pub enum NrsRecord {
 
 /// Host routing record mapping a decentralized host identifier to an active P2P peer ID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HostRoutingRecord {
+pub struct HostRoute {
     /// Unique host identifier string.
     pub host_id: String,
     /// Currently assigned P2P network peer ID.
     pub current_peer_id: String,
     /// The Kyn when this record was created.
     pub kyn: kinetic_kyn::types::TargetKyn,
-    /// Host signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
+    /// Host signature over [`signable_bytes`](HostRoute::signable_bytes).
     #[serde(with = "crate::sig_serde::delegated_sig_serde")]
     pub host_signature: kinetic_primitives::keypairs::DelegatedSignature,
 }
 
-impl HostRoutingRecord {
+impl HostRoute {
     /// Serializes the host routing record into a canonical byte string for host signature verification.
     ///
     /// The byte layout is:
@@ -69,9 +69,9 @@ impl HostRoutingRecord {
     ///
     /// # Examples
     /// ```rust
-    /// use kinetic_types::nrs::HostRoutingRecord;
+    /// use kinetic_types::nrs::HostRoute;
     ///
-    /// let routing = HostRoutingRecord {
+    /// let routing = HostRoute {
     ///     host_id: "host-123".to_string(),
     ///     current_peer_id: "12D3KooW...".to_string(),
     ///     kyn: kinetic_kyn::types::TargetKyn(kinetic_kyn::types::Kyn(150000)),

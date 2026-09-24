@@ -1,13 +1,13 @@
 //! Cryptographic signature verification for Kinetic network payloads.
 //!
 //! This module provides the [`VerifySignature`] extension trait, which ensures
-//! that state-mutating payloads (like [`NameRecord`] mappings and [`Reveal`] actions)
+//! that state-mutating payloads (like [`NameEnvelope`] mappings and [`Reveal`] actions)
 //! possess mathematically valid Identity signatures before they are accepted.
 //!
 //! It includes logic for direct Owner signatures as well as bounded Delegated identity signatures.
 
 use crate::error::SignatureVerifyError;
-use kinetic_types::name_record::NameRecord;
+use kinetic_types::name_record::NameEnvelope;
 use kinetic_types::vdf::Reveal;
 
 /// Extension trait for verifying Identity/Delegated signatures over Kinetic payloads.
@@ -104,7 +104,7 @@ impl VerifySignature for Reveal {
     }
 }
 
-impl VerifySignature for NameRecord {
+impl VerifySignature for NameEnvelope {
     fn verify_signature(&self, network_salt: &[u8; 32]) -> Result<(), SignatureVerifyError> {
         match self {
             Self::Standard(reveal) => reveal.verify_signature(network_salt),
@@ -134,7 +134,7 @@ mod tests {
         let mut reveal = Reveal {
             protocol_version: 1,
             name: "isolated-test.kin".to_string(),
-            payload: vec![10, 20, 30],
+            embedded_nrs: vec![10, 20, 30],
             salt: [3u8; 32],
             kyn: kinetic_kyn::types::TargetKyn::from(9999),
             beacon_signature: "aabbcc".to_string(),

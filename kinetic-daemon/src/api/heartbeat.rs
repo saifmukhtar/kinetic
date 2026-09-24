@@ -198,22 +198,22 @@ pub async fn handle_post_heartbeat(
 
 use serde::Deserialize;
 
-/// Request payload for manually broadcasting a Fat Heartbeat.
+/// Request payload for manually broadcasting a AuthorizedUpdate.
 #[derive(Deserialize)]
-pub struct FatHeartbeatRequest {
+pub struct AuthorizedUpdateRequest {
     /// The private key of the hot key, hex encoded, to sign the heartbeat.
     pub hot_key_hex: String,
     /// The master-key authorized delegation proof.
     pub authorized_manifest: kinetic_core::types::identity::AuthorizedManifest,
 }
 
-/// Manually constructs and broadcasts a Fat Heartbeat for a specific name to the DHT,
+/// Manually constructs and broadcasts a AuthorizedUpdate for a specific name to the DHT,
 /// using a delegated hot key and an authorized manifest instead of the daemon master key.
-pub async fn handle_post_fat_heartbeat(
+pub async fn handle_post_authorized_update(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
     Path(name): Path<String>,
-    Json(req): Json<FatHeartbeatRequest>,
+    Json(req): Json<AuthorizedUpdateRequest>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_heartbeat() {
         return Err(crate::api::error::AppError::from(
@@ -284,7 +284,7 @@ pub async fn handle_post_fat_heartbeat(
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
-            "Failed to serialize fat heartbeat: {}",
+            "Failed to serialize authorized update: {}",
             e
         )))
     })?;
@@ -292,7 +292,7 @@ pub async fn handle_post_fat_heartbeat(
     match state.network.publish_heartbeat(&normalized, payload).await {
         Ok(_) => Ok(Json(serde_json::json!({
             "status": "success",
-            "message": format!("Manually broadcasted Fat Heartbeat for {}", normalized),
+            "message": format!("Manually broadcasted AuthorizedUpdate for {}", normalized),
             "kyn": current_kyn
         }))),
         Err(e) => Err(crate::api::error::AppError::from(e)),

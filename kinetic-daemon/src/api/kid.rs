@@ -360,7 +360,7 @@ pub async fn handle_publish_kid(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&bytes) {
                 record
                     .pubkey()
                     .verify(
@@ -438,7 +438,7 @@ pub async fn handle_publish_manifest(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&bytes) {
                 record
                     .pubkey()
                     .verify(

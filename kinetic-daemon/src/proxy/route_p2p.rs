@@ -23,7 +23,7 @@ pub async fn forward_to_p2p(
         .await
     {
         tracing::info!(
-            "Resolved HostRoutingRecord for static Host ID {}: dynamically routing to Ephemeral Peer ID {}",
+            "Resolved HostRoute for static Host ID {}: dynamically routing to Ephemeral Peer ID {}",
             peer_id,
             record.current_peer_id
         );

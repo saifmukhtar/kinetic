@@ -2,7 +2,7 @@
 //!
 //! On the Kinetic network, name ownership is structured into three distinct classes:
 //!
-//! 1. **Standard Names** ([`NameRecord::Standard`]): Registered trustlessly via Proof of Patience
+//! 1. **Standard Names** ([`NameEnvelope::Standard`]): Registered trustlessly via Proof of Patience
 //!    and Verifiable Delay Function (VDF) computation. Ownership is proven via the reveal record.
 //!
 //! To maintain active routing and prove name liveness, standard owners periodically publish [`Heartbeat`]
@@ -26,7 +26,7 @@ pub struct Heartbeat {
     /// Owner's cryptographic signature over [`signable_bytes`](Heartbeat::signable_bytes).
     #[serde(with = "crate::sig_serde::identity_sig_serde")]
     pub owner_signature: kinetic_primitives::keypairs::IdentitySignature,
-    /// Optional delegated authorization proof (Fat Heartbeat).
+    /// Optional delegated authorization proof (AuthorizedUpdate).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization: Option<Box<crate::identity::AuthorizedManifest>>,
 }
@@ -79,12 +79,12 @@ impl Heartbeat {
 /// Represents the different ways a name can be owned on the Kinetic network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "record_type")]
-pub enum NameRecord {
+pub enum NameEnvelope {
     /// A standard name registered via Proof of Patience and VDF.
     Standard(Box<crate::vdf::Reveal>),
 }
 
-impl NameRecord {
+impl NameEnvelope {
     /// Returns the name.
     pub fn name(&self) -> &str {
         match self {
@@ -100,9 +100,9 @@ impl NameRecord {
     }
 
     /// Returns the zone payload.
-    pub fn payload(&self) -> &[u8] {
+    pub fn embedded_nrs(&self) -> &[u8] {
         match self {
-            Self::Standard(r) => &r.payload,
+            Self::Standard(r) => &r.embedded_nrs,
         }
     }
 

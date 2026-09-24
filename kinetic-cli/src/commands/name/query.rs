@@ -115,7 +115,7 @@ pub async fn handle_name_info(
         .join(format!("{}.record.json", fqdn));
     if record_path.exists() {
         let content = std::fs::read_to_string(&record_path)?;
-        let record: kinetic_core::types::NameRecord = serde_json::from_str(&content)?;
+        let record: kinetic_core::types::NameEnvelope = serde_json::from_str(&content)?;
 
         let mut table = Table::new();
         table.set_header(vec![
@@ -123,7 +123,7 @@ pub async fn handle_name_info(
             Cell::new("Value").fg(Color::White),
         ]);
 
-        let kinetic_core::types::NameRecord::Standard(r) = record;
+        let kinetic_core::types::NameEnvelope::Standard(r) = record;
         table.add_row(vec!["Type", "Standard"]);
         table.add_row(vec!["Created at Kyn Epoch", &r.kyn.to_string()]);
         table.add_row(vec!["VDF Iterations", &r.iterations.to_string()]);

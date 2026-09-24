@@ -154,7 +154,7 @@ pub fn start_challenge_solver_loop(
 ///
 /// To guarantee that a user's locally owned `.kin` domain routing payloads remain discoverable,
 /// this asynchronous worker periodically wakes up, queries the local `kinetic-storage` for all
-/// owned `NameRecord` datasets, and aggressively pushes `put_record` requests back into the DHT
+/// owned `NameEnvelope` datasets, and aggressively pushes `put_record` requests back into the DHT
 /// to refresh their Time-To-Live (TTL).
 pub fn start_republisher(
     republish_network: kinetic_network::NetworkClient,

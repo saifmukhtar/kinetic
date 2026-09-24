@@ -26,11 +26,11 @@ use kinetic_verify::signatures::VerifySignature;
 impl KineticRecordStore {
     pub(crate) fn handle_put_record(
         &mut self,
-        record: &kinetic_core::types::NameRecord,
+        record: &kinetic_core::types::NameEnvelope,
         skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
         let reveal_ref = match record {
-            kinetic_core::types::NameRecord::Standard(r) => Some(r),
+            kinetic_core::types::NameEnvelope::Standard(r) => Some(r),
         };
 
         if let Some(reveal) = reveal_ref {
@@ -78,8 +78,8 @@ impl KineticRecordStore {
                 let hb_age = self.current_kyn.as_u64().saturating_sub(last_hb_kyn);
 
                 let (
-                    kinetic_core::types::NameRecord::Standard(existing_reveal),
-                    kinetic_core::types::NameRecord::Standard(new_reveal),
+                    kinetic_core::types::NameEnvelope::Standard(existing_reveal),
+                    kinetic_core::types::NameEnvelope::Standard(new_reveal),
                 ) = (existing_record, record);
 
                 let base_diff = consensus_math.iterations(&new_reveal.name);
@@ -164,17 +164,17 @@ impl KineticRecordStore {
                 }
             } else {
                 let existing_pulse = match &existing_record {
-                    kinetic_core::types::NameRecord::Standard(r) => r.kyn,
+                    kinetic_core::types::NameEnvelope::Standard(r) => r.kyn,
                 };
                 let new_pulse = match &record {
-                    kinetic_core::types::NameRecord::Standard(r) => r.kyn,
+                    kinetic_core::types::NameEnvelope::Standard(r) => r.kyn,
                 };
 
                 if new_pulse < existing_pulse {
                     let err = KineticStoreError::StaleReveal;
                     err.log_warning(record.name(), "Rejecting Replayed Reveal:");
                     return Err(err);
-                } else if record.payload() == existing_record.payload()
+                } else if record.embedded_nrs() == existing_record.embedded_nrs()
                     && record.signature() == existing_record.signature()
                 {
                     return Ok(());

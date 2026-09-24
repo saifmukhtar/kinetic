@@ -2,7 +2,7 @@
 mod tests {
     use crate::error::KineticStoreError;
     use crate::store::verification::verify_host_routing_record;
-    use kinetic_core::types::HostRoutingRecord;
+    use kinetic_core::types::HostRoute;
     use libp2p::PeerId;
     use libp2p::identity::Keypair;
     #[test]
@@ -12,7 +12,7 @@ mod tests {
         let current_drand_round = 1000;
         let stale_pulse = current_drand_round - 150; // 150 rounds old, > 100 max age
 
-        let record = HostRoutingRecord {
+        let record = HostRoute {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
             kyn: kinetic_kyn::types::TargetKyn::from(stale_pulse),
@@ -29,7 +29,7 @@ mod tests {
 
     #[test]
     fn test_peer_id_extraction_safeguard() {
-        // Create a HostRoutingRecord with a totally invalid PeerId (not Ed25519, or too short)
+        // Create a HostRoute with a totally invalid PeerId (not Ed25519, or too short)
         // A SHA2-256 multihash instead of identity will cause the length/format check to fail safely.
         let mh = libp2p::multihash::Multihash::wrap(0x12, &[0u8; 32]).unwrap();
         let peer_id = PeerId::from_multihash(mh).unwrap();
@@ -37,7 +37,7 @@ mod tests {
         let current_drand_round = 1000;
         let recent_pulse = current_drand_round;
 
-        let record = HostRoutingRecord {
+        let record = HostRoute {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
             kyn: kinetic_kyn::types::TargetKyn::from(recent_pulse),
@@ -64,7 +64,7 @@ mod tests {
         let reveal = Reveal {
             protocol_version: 1,
             name: "test.kinetic".to_string(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0u8; 32],
             kyn: kinetic_kyn::types::TargetKyn::from(100),
             beacon_signature: String::new(),
@@ -131,7 +131,7 @@ mod tests {
         let dummy_key = libp2p::kad::RecordKey::new(&[0u8; 32]);
         let existing_record = libp2p::kad::Record::new(dummy_key, vec![]);
 
-        let record = kinetic_core::types::NameRecord::Standard(Box::new(reveal));
+        let record = kinetic_core::types::NameEnvelope::Standard(Box::new(reveal));
         let res = verify_authorized_kid(
             &auth_kid,
             Some(&record),

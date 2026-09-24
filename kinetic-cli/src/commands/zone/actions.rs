@@ -1,16 +1,16 @@
 use kinetic_core::config::KineticConfig;
 use std::path::PathBuf;
 
-pub async fn handle_fat_zone(
+pub async fn handle_nrs_update(
     name: String,
     file: PathBuf,
     config: &KineticConfig,
     client: &reqwest::Client,
 ) -> anyhow::Result<()> {
     let payload = std::fs::read_to_string(&file)
-        .map_err(|e| anyhow::anyhow!("Failed to read fat zone file {:?}: {}", file, e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to read NrsZone file {:?}: {}", file, e))?;
     let json_body: serde_json::Value = serde_json::from_str(&payload)
-        .map_err(|e| anyhow::anyhow!("Failed to parse fat zone JSON: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to parse NrsZone JSON: {}", e))?;
 
     let port = config.daemon.api_port;
     let url = format!(
@@ -28,7 +28,7 @@ pub async fn handle_fat_zone(
         );
     }
 
-    println!("Successfully published Fat Zone for {}", name);
+    println!("Successfully published NrsZone for {}", name);
     Ok(())
 }
 
@@ -88,16 +88,16 @@ pub async fn handle_local_zone_delete(
     Ok(())
 }
 
-pub async fn handle_fat_heartbeat(
+pub async fn handle_authorized_update(
     name: String,
     file: PathBuf,
     config: &KineticConfig,
     client: &reqwest::Client,
 ) -> anyhow::Result<()> {
     let payload = std::fs::read_to_string(&file)
-        .map_err(|e| anyhow::anyhow!("Failed to read fat heartbeat file {:?}: {}", file, e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to read authorized update file {:?}: {}", file, e))?;
     let json_body: serde_json::Value = serde_json::from_str(&payload)
-        .map_err(|e| anyhow::anyhow!("Failed to parse fat heartbeat JSON: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to parse authorized update JSON: {}", e))?;
 
     let port = config.daemon.api_port;
     let url = format!(
@@ -115,6 +115,6 @@ pub async fn handle_fat_heartbeat(
         );
     }
 
-    println!("Successfully broadcasted Fat Heartbeat for {}", name);
+    println!("Successfully broadcasted AuthorizedUpdate for {}", name);
     Ok(())
 }
