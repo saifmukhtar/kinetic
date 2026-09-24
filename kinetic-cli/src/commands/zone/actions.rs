@@ -14,7 +14,7 @@ pub async fn handle_nrs_update(
 
     let port = config.daemon.api_port;
     let url = format!(
-        "http://{}:{}/api/v1/micro/nrs/fat-zone/{}",
+        "http://{}:{}/api/v1/micro/nrs/nrs-update/{}",
         config.daemon.bind_ip, port, name
     );
 
@@ -101,7 +101,7 @@ pub async fn handle_authorized_update(
 
     let port = config.daemon.api_port;
     let url = format!(
-        "http://{}:{}/api/v1/micro/nrs/fat-heartbeat/{}",
+        "http://{}:{}/api/v1/micro/nrs/authorized-update/{}",
         config.daemon.bind_ip, port, name
     );
 

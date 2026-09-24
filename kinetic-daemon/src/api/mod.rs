@@ -339,7 +339,7 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::post(handle_publish_zone),
         )
         .route(
-            "/v1/micro/nrs/fat-zone/{name}",
+            "/v1/micro/nrs/nrs-update/{name}",
             axum::routing::post(handle_publish_nrs_update),
         )
         .route(
@@ -363,7 +363,7 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::post(handle_post_heartbeat),
         )
         .route(
-            "/v1/micro/nrs/fat-heartbeat/{name}",
+            "/v1/micro/nrs/authorized-update/{name}",
             axum::routing::post(handle_post_authorized_update),
         )
         .layer(axum::middleware::from_fn_with_state(

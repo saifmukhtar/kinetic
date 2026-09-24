@@ -1486,7 +1486,7 @@ paths:
                       type: integer
                     error:
                       type: string
-  /api/v1/micro/nrs/fat-zone/{name}:
+  /api/v1/micro/nrs/nrs-update/{name}:
     post:
       operationId: postNrsUpdate
       summary: Publish a Fat NRS Zone Update using a delegated hot key [Private]
@@ -1519,7 +1519,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /api/v1/micro/nrs/fat-heartbeat/{name}:
+  /api/v1/micro/nrs/authorized-update/{name}:
     post:
       operationId: postAuthorizedUpdate
       summary: Broadcast a AuthorizedUpdate using a delegated hot key [Private]
