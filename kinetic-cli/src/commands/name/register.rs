@@ -27,7 +27,7 @@ pub async fn handle_name_register(
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
-    let required_iters = kinetic_core::vdf_math::VdfParams::default().iterations(&fqdn);
+    let required_iters = kinetic_core::physics::NetworkPhysics::default().iterations(&fqdn);
     let actual_iterations = std::cmp::max(iterations, required_iters);
 
     let label = kinetic_core::types::names::extract_apex_name(&fqdn);

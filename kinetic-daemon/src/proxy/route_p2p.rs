@@ -9,7 +9,7 @@ use hyper::{Request, Response, body::Incoming};
 /// - **Uploads (Requests):** Max 1MB (1,048,576 bytes)
 /// - **Downloads (Responses):** Max 10MB (10,485,760 bytes)
 ///
-/// If a decentralized `.kin` app attempts to serve or receive media larger than these limits,
+/// If a peer-to-peer `.kin` app attempts to serve or receive media larger than these limits,
 /// the Libp2p swarm will aggressively drop the packets. For large files, video streaming,
 /// or bulk data transfers, developers must use IPFS (`route_ipfs.rs`) instead of P2P routing.
 pub async fn forward_to_p2p(

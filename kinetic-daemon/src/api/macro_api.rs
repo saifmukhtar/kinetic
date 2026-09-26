@@ -192,7 +192,7 @@ pub async fn handle_macro_register_name(
             30,
         );
         let required_iters =
-            kinetic_core::vdf_math::VdfParams::default().iterations(&fqdn);
+            kinetic_core::physics::NetworkPhysics::default().iterations(&fqdn);
         let actual_iterations = std::cmp::max(iterations, required_iters);
 
         let vdf_engine = kinetic_vdf::RsaVdfEngine::new();
@@ -256,7 +256,7 @@ pub async fn handle_macro_register_name(
         }
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
-        let wait_secs = kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS + 2;
+        let wait_secs = kinetic_core::constants::PHYSICS_MINIMUM_COMMIT_AGE_KYNS + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,
@@ -574,7 +574,7 @@ pub async fn handle_macro_renew_name(
         );
 
         let required_iters =
-            kinetic_core::vdf_math::VdfParams::default().iterations(&fqdn);
+            kinetic_core::physics::NetworkPhysics::default().iterations(&fqdn);
         // Renewals get an 80% discount
         let discounted_iters = (required_iters as f64 * 0.2) as u64;
         let actual_iterations = std::cmp::max(iterations, discounted_iters);
@@ -638,7 +638,7 @@ pub async fn handle_macro_renew_name(
         }
 
         // Wait enough kyns to satisfy the commit_age rule in verify_reveal.
-        let wait_secs = kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS + 2;
+        let wait_secs = kinetic_core::constants::PHYSICS_MINIMUM_COMMIT_AGE_KYNS + 2;
         update_task_status(
             &tasks_clone,
             &task_id_clone,

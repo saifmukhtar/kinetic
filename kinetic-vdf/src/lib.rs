@@ -429,7 +429,7 @@ mod tests {
 
         assert_eq!(
             proof_a.proof_bytes, proof_b.proof_bytes,
-            "CONSENSUS FLAW: Prover produced different proof bytes for identical inputs! Network will split."
+            "PHYSICS FLAW: Prover produced different proof bytes for identical inputs! Network will split."
         );
     }
 

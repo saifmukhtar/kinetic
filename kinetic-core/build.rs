@@ -19,7 +19,7 @@ struct NdcMultipliers {
 }
 
 #[derive(Deserialize)]
-struct ConsensusConfig {
+struct PhysicsConfig {
     minimum_commit_age_kyns: u64,
     ndc_multipliers: NdcMultipliers,
     vdf_discount_min_iterations: u64,
@@ -93,7 +93,7 @@ struct NetworkConfig {
     beacon: BeaconSection,
     #[serde(alias = "action")]
     action: ActionSection,
-    consensus: ConsensusConfig,
+    physics: PhysicsConfig,
     advanced: AdvancedSection,
 }
 
@@ -203,8 +203,8 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The minimum number of Drand kyns a Commitment must age before a Reveal is accepted.\npub const CONSENSUS_MINIMUM_COMMIT_AGE_KYNS: u64 = {};\n\n",
-        config.consensus.minimum_commit_age_kyns
+        "/// The minimum number of Drand kyns a Commitment must age before a Reveal is accepted.\npub const PHYSICS_MINIMUM_COMMIT_AGE_KYNS: u64 = {};\n\n",
+        config.physics.minimum_commit_age_kyns
     ));
 
     out.push_str(&format!(
@@ -257,52 +257,52 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Multiplier for NDC length 0 to 1\npub const CONSENSUS_NDC_LEN_0_TO_1: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_0_to_1
+        "/// Multiplier for NDC length 0 to 1\npub const PHYSICS_NDC_LEN_0_TO_1: u64 = {};\n",
+        config.physics.ndc_multipliers.len_0_to_1
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 2\npub const CONSENSUS_NDC_LEN_2: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_2
+        "/// Multiplier for NDC length 2\npub const PHYSICS_NDC_LEN_2: u64 = {};\n",
+        config.physics.ndc_multipliers.len_2
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 3\npub const CONSENSUS_NDC_LEN_3: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_3
+        "/// Multiplier for NDC length 3\npub const PHYSICS_NDC_LEN_3: u64 = {};\n",
+        config.physics.ndc_multipliers.len_3
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 4\npub const CONSENSUS_NDC_LEN_4: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_4
+        "/// Multiplier for NDC length 4\npub const PHYSICS_NDC_LEN_4: u64 = {};\n",
+        config.physics.ndc_multipliers.len_4
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 5\npub const CONSENSUS_NDC_LEN_5: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_5
+        "/// Multiplier for NDC length 5\npub const PHYSICS_NDC_LEN_5: u64 = {};\n",
+        config.physics.ndc_multipliers.len_5
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 6\npub const CONSENSUS_NDC_LEN_6: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_6
+        "/// Multiplier for NDC length 6\npub const PHYSICS_NDC_LEN_6: u64 = {};\n",
+        config.physics.ndc_multipliers.len_6
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 7\npub const CONSENSUS_NDC_LEN_7: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_7
+        "/// Multiplier for NDC length 7\npub const PHYSICS_NDC_LEN_7: u64 = {};\n",
+        config.physics.ndc_multipliers.len_7
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 8 to 10\npub const CONSENSUS_NDC_LEN_8_TO_10: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_8_to_10
+        "/// Multiplier for NDC length 8 to 10\npub const PHYSICS_NDC_LEN_8_TO_10: u64 = {};\n",
+        config.physics.ndc_multipliers.len_8_to_10
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 11 to 17\npub const CONSENSUS_NDC_LEN_11_TO_17: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_11_to_17
+        "/// Multiplier for NDC length 11 to 17\npub const PHYSICS_NDC_LEN_11_TO_17: u64 = {};\n",
+        config.physics.ndc_multipliers.len_11_to_17
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 18 to 20\npub const CONSENSUS_NDC_LEN_18_TO_20: u64 = {};\n\n", config.consensus.ndc_multipliers.len_18_to_20
+        "/// Multiplier for NDC length 18 to 20\npub const PHYSICS_NDC_LEN_18_TO_20: u64 = {};\n\n", config.physics.ndc_multipliers.len_18_to_20
     ));
 
-    out.push_str(&format!("/// Minimum iterations for VDF discount\npub const CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS: u64 = {};\n", config.consensus.vdf_discount_min_iterations));
-    out.push_str(&format!("/// Discount percentage for VDF iterations\npub const CONSENSUS_VDF_DISCOUNT_PERCENTAGE: u64 = {};\n", config.consensus.vdf_discount_percentage));
+    out.push_str(&format!("/// Minimum iterations for VDF discount\npub const PHYSICS_VDF_DISCOUNT_MIN_ITERATIONS: u64 = {};\n", config.physics.vdf_discount_min_iterations));
+    out.push_str(&format!("/// Discount percentage for VDF iterations\npub const PHYSICS_VDF_DISCOUNT_PERCENTAGE: u64 = {};\n", config.physics.vdf_discount_percentage));
     out.push_str(&format!(
-        "/// Maximum iterations for VDF\npub const CONSENSUS_VDF_MAX_ITERATIONS: u64 = {};\n",
-        config.consensus.vdf_max_iterations
+        "/// Maximum iterations for VDF\npub const PHYSICS_VDF_MAX_ITERATIONS: u64 = {};\n",
+        config.physics.vdf_max_iterations
     ));
-    out.push_str(&format!("/// Maximum bytes for a VDF proof\npub const CONSENSUS_VDF_MAX_PROOF_BYTES: usize = {};\n\n", config.consensus.vdf_max_proof_bytes));
+    out.push_str(&format!("/// Maximum bytes for a VDF proof\npub const PHYSICS_VDF_MAX_PROOF_BYTES: usize = {};\n\n", config.physics.vdf_max_proof_bytes));
 
     out.push_str(&format!(
         "/// Maximum P2P packet size\npub const LIMITS_P2P_MAX_PACKET_SIZE: usize = {};\n",

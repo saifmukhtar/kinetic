@@ -42,7 +42,7 @@ fn cli_styles() -> Styles {
 
 #[derive(Parser)]
 #[command(name = "kinetic")]
-#[command(about = "CLI for the Kinetic Decentralized DNS Network", long_about = None)]
+#[command(about = "CLI for the Kinetic P2P DNS Engine", long_about = None)]
 #[command(styles = cli_styles())]
 #[command(override_usage = "kinetic <COMMAND> <SUBCOMMAND>")]
 struct Cli {

@@ -38,7 +38,7 @@ pub enum NameCommands {
         #[arg(short, long, default_value_t = 4_194_304)]
         iterations: u64,
     },
-    /// Push your local zone.json routing configuration to the decentralized network
+    /// Push your local zone.json routing configuration to the P2P network
     Publish {
         /// The name to publish routing for (e.g. myname.kin)
         name: String,
@@ -70,7 +70,7 @@ pub enum NameCommands {
     },
     /// View background VDF proofs and macro jobs
     Tasks,
-    /// Query the VDF mining difficulty and network takeover difficulty for a name
+    /// Query the VDF physics difficulty and network takeover difficulty for a name
     Difficulty {
         /// The name to check difficulty for
         name: String,

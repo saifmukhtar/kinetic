@@ -5,7 +5,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use kinetic_core::vdf_math::VdfParams;
+use kinetic_core::physics::NetworkPhysics;
 use serde::{Deserialize, Serialize};
 
 /// Protocol-level VDF requirements for a name.
@@ -119,7 +119,7 @@ pub async fn handle_get_iterations(
         return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(e)));
     }
 
-    let params = VdfParams::default();
+    let params = NetworkPhysics::default();
     let iterations = params.iterations(&normalized);
     let apex = kinetic_core::types::names::extract_apex_name(&normalized).to_string();
     let label = apex
@@ -130,16 +130,16 @@ pub async fn handle_get_iterations(
 
     let ndc_tier = format!("{}_chars", label_length);
     let network_reference_target_minutes = match label_length {
-        0 | 1 => kinetic_core::constants::CONSENSUS_NDC_LEN_0_TO_1,
-        2 => kinetic_core::constants::CONSENSUS_NDC_LEN_2,
-        3 => kinetic_core::constants::CONSENSUS_NDC_LEN_3,
-        4 => kinetic_core::constants::CONSENSUS_NDC_LEN_4,
-        5 => kinetic_core::constants::CONSENSUS_NDC_LEN_5,
-        6 => kinetic_core::constants::CONSENSUS_NDC_LEN_6,
-        7 => kinetic_core::constants::CONSENSUS_NDC_LEN_7,
-        8..=10 => kinetic_core::constants::CONSENSUS_NDC_LEN_8_TO_10,
-        11..=17 => kinetic_core::constants::CONSENSUS_NDC_LEN_11_TO_17,
-        18..=20 => kinetic_core::constants::CONSENSUS_NDC_LEN_18_TO_20,
+        0 | 1 => kinetic_core::constants::PHYSICS_NDC_LEN_0_TO_1,
+        2 => kinetic_core::constants::PHYSICS_NDC_LEN_2,
+        3 => kinetic_core::constants::PHYSICS_NDC_LEN_3,
+        4 => kinetic_core::constants::PHYSICS_NDC_LEN_4,
+        5 => kinetic_core::constants::PHYSICS_NDC_LEN_5,
+        6 => kinetic_core::constants::PHYSICS_NDC_LEN_6,
+        7 => kinetic_core::constants::PHYSICS_NDC_LEN_7,
+        8..=10 => kinetic_core::constants::PHYSICS_NDC_LEN_8_TO_10,
+        11..=17 => kinetic_core::constants::PHYSICS_NDC_LEN_11_TO_17,
+        18..=20 => kinetic_core::constants::PHYSICS_NDC_LEN_18_TO_20,
         _ => kinetic_core::constants::TARGET_MINUTES as u64,
     };
 
@@ -195,7 +195,7 @@ pub async fn handle_takeover_iterations(
     Query(query): Query<TakeoverQuery>,
 ) -> Result<Json<TakeoverIterationsResponse>, crate::api::error::AppError> {
     let normalized = kinetic_core::types::names::normalize_name(&name);
-    let params = VdfParams::default();
+    let params = NetworkPhysics::default();
     let base_iterations = params.iterations(&normalized);
 
     let kyns_idle = match query.kyns_idle {

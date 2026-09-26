@@ -125,7 +125,7 @@ pub(crate) fn compute_required_iterations(
         return Err(err);
     }
 
-    let consensus_math = kinetic_core::vdf_math::VdfParams::default();
+    let physics_math = kinetic_core::physics::NetworkPhysics::default();
 
     let dev_mode = kinetic_core::config::is_dev_mode();
     if !kinetic_kyn::beacon::verify_beacon_signature(
@@ -141,7 +141,7 @@ pub(crate) fn compute_required_iterations(
         return Err(err);
     }
 
-    let base_required_iterations = consensus_math.iterations(&reveal.name);
+    let base_required_iterations = physics_math.iterations(&reveal.name);
     let required_iterations = if let Some(prev) = &reveal.previous_proof {
         // Verify previous proof
         // Verify previous proof
@@ -182,7 +182,7 @@ pub(crate) fn compute_required_iterations(
             Ok(true)
         );
 
-        let prev_req = consensus_math.iterations(&reveal.name);
+        let prev_req = physics_math.iterations(&reveal.name);
 
         let paused_kyns = if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
             state.paused_kyns_since(*prev.kyn)
@@ -203,12 +203,12 @@ pub(crate) fn compute_required_iterations(
                 .unwrap_or(&normalized_name)
                 .len();
             let discount_iterations = match name_len {
-                1 => kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS, // 100% discount (minimum iterations)
+                1 => kinetic_core::constants::PHYSICS_VDF_DISCOUNT_MIN_ITERATIONS, // 100% discount (minimum iterations)
                 2..=6 => base_required_iterations / 2,                               // 50% discount
                 7..=10 => base_required_iterations / 5,                              // 80% discount
                 _ => {
                     (base_required_iterations
-                        * kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_PERCENTAGE)
+                        * kinetic_core::constants::PHYSICS_VDF_DISCOUNT_PERCENTAGE)
                         / 100
                 } // 85% discount for 11+
             };
@@ -219,7 +219,7 @@ pub(crate) fn compute_required_iterations(
                 name_len
             );
             std::cmp::max(
-                kinetic_core::constants::CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS,
+                kinetic_core::constants::PHYSICS_VDF_DISCOUNT_MIN_ITERATIONS,
                 discount_iterations,
             )
         } else {
@@ -331,7 +331,7 @@ pub(crate) fn verify_reveal(
     if let Some(commit_kyn) = commit_kyn {
         if !dev_mode
             && current_kyn.as_u64().saturating_sub(commit_kyn)
-                < kinetic_core::constants::CONSENSUS_MINIMUM_COMMIT_AGE_KYNS
+                < kinetic_core::constants::PHYSICS_MINIMUM_COMMIT_AGE_KYNS
         {
             let err = KineticStoreError::StaleReveal;
             err.log_warning(

@@ -22,7 +22,7 @@ pub async fn handle_connect_req(
     // 1. Get leaf cert for this domain (uses the full requested subdomain!)
     let server_config = {
         let mut cache = leaf_cache.lock().await;
-        cache.get_or_create(&raw_host, &root_ca)?
+        cache.load_or_create(&raw_host, &root_ca)?
     }; // Lock released here — important
 
     // 2. TLS handshake with browser

@@ -97,14 +97,14 @@ pub fn solve_p2p_challenge(current_kyn: kinetic_kyn::types::Kyn, difficulty: u32
     }
 
     if kinetic_core::config::is_dev_mode() {
-        info!("Dev mode active: Skipping S/Kademlia identity PoW mining.");
+        info!("Dev mode active: Skipping S/Kademlia identity PoW challenge.");
         return Keypair::generate_ed25519();
     }
 
     let mut attempts: u64 = 0;
 
     info!(
-        "Mining epoch-bound S/Kademlia identity (difficulty: {} bits)...",
+        "Solving epoch-bound S/Kademlia identity challenge (difficulty: {} bits)...",
         difficulty
     );
 
@@ -121,7 +121,7 @@ pub fn solve_p2p_challenge(current_kyn: kinetic_kyn::types::Kyn, difficulty: u32
         let current_epoch = staggered_epoch(&peer_bytes, current_kyn);
 
         let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch)
-            .expect("Argon2 memory allocation failed during mining");
+            .expect("Argon2 memory allocation failed during challenge");
 
         attempts += 1;
         if leading_zeros(&hash) >= difficulty {
@@ -141,7 +141,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_pow_mining_and_validation() {
+    fn test_peer_challenge_validation() {
         let kyn = 10_000_000;
         let difficulty = 8; // Low difficulty for fast test
         let kp = solve_p2p_challenge(kinetic_kyn::types::Kyn(kyn), difficulty);

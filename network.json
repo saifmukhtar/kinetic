@@ -24,7 +24,7 @@
     "action_model": "sovereign",
     "max_age_kyns": 201600
   },
-  "consensus": {
+  "physics": {
     "ndc_multipliers": {
       "len_0_to_1": 52596000,
       "len_2": 43200,
