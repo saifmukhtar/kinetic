@@ -2,9 +2,9 @@ use crate::client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, Pro
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 
+use super::edge;
 #[cfg(not(target_arch = "wasm32"))]
-use super::fullnode;
-use super::lightnode;
+use super::router;
 
 impl super::core::NetworkEventLoop {
     /// Initializes a new P2P Swarm and returns the client handle and the event loop.
@@ -32,16 +32,16 @@ impl super::core::NetworkEventLoop {
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
         let (tx, rx) = mpsc::channel(32);
 
-        let (mut swarm, client) = if config.mode == NetworkMode::LightNode {
-            lightnode::build_light_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
+        let (mut swarm, client) = if config.mode == NetworkMode::Edge {
+            edge::build_edge_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         } else {
             #[cfg(target_arch = "wasm32")]
             return Err(anyhow::anyhow!(
-                "FullNode mode is not supported on WebAssembly"
+                "Router mode is not supported on WebAssembly"
             ));
 
             #[cfg(not(target_arch = "wasm32"))]
-            fullnode::build_full_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
+            router::build_router_swarm(&config, local_key, storage.clone(), vdf_engine, tx)?
         };
 
         let mut bootstrap_peers = rustc_hash::FxHashSet::default();
@@ -83,12 +83,12 @@ impl super::core::NetworkEventLoop {
             incoming_proxy_tx,
             gossip_tx,
             bad_vdf_counts: lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap()),
-            current_kyn: config.initial_kyn,
+            current_kyn: kinetic_kyn::types::CurrentKyn::from(config.initial_kyn.as_u64()),
             kyn_rx,
             bootstrap_nodes: config.bootstrap_nodes.clone(),
             bootstrap_peers,
             startup_time: web_time::Instant::now(),
-            disable_pow: config.disable_pow,
+            disable_challenge: config.disable_challenge,
             banned_peers: {
                 let mut peers = lru::LruCache::new(std::num::NonZeroUsize::new(100_000).unwrap());
                 if let Ok(iter) = storage.scan_prefix(
@@ -104,7 +104,7 @@ impl super::core::NetworkEventLoop {
                         {
                             let expire =
                                 u64::from_be_bytes(val_bytes[..8].try_into().unwrap_or([0; 8]));
-                            let now = config.initial_kyn;
+                            let now = config.initial_kyn.as_u64();
                             if expire > now {
                                 peers.put(peer_id, expire);
                             } else {

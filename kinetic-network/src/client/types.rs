@@ -31,15 +31,15 @@ pub use kinetic_types::proxy::{ProxyRequest, ProxyResponse, serde_bytes_wrapper}
 #[derive(Debug, Clone, PartialEq)]
 pub enum NetworkMode {
     /// Fully participates in the DHT and gossip protocols.
-    FullNode,
+    Router,
     /// Client-only mode; issues requests but does not store DHT records.
-    LightNode,
+    Edge,
 }
 
 /// Configuration settings for instantiating the network swarm.
 #[derive(Debug, Clone)]
 pub struct NetworkConfig {
-    /// Operating mode (FullNode or LightNode).
+    /// Operating mode (Core or Edge).
     pub mode: NetworkMode,
     /// The multiaddrs to listen on for TCP/IP traffic.
     pub listen_addrs: Vec<libp2p::Multiaddr>,
@@ -56,11 +56,11 @@ pub struct NetworkConfig {
     /// Whether to act as a public Relay Server.
     pub enable_relay_server: bool,
     /// The initial KYN Provider time to use for VDF verification.
-    pub initial_kyn: u64,
+    pub initial_kyn: kinetic_kyn::types::InitialKyn,
     /// An optional externally reachable IP or domain to announce.
     pub external_address: Option<libp2p::Multiaddr>,
     /// Bypass PoW verification for tests.
-    pub disable_pow: bool,
+    pub disable_challenge: bool,
     /// The maximum number of reveals a node will accept into the cache per hour (Rate Limiting).
     pub max_reveals_per_hour: usize,
     /// Disable storage sync checks at startup.

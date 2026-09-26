@@ -1,13 +1,13 @@
 //! Cryptographic signature verification for Kinetic network payloads.
 //!
 //! This module provides the [`VerifySignature`] extension trait, which ensures
-//! that state-mutating payloads (like [`NameRecord`] mappings and [`Reveal`] actions)
+//! that state-mutating payloads (like [`NameEnvelope`] mappings and [`Reveal`] actions)
 //! possess mathematically valid Identity signatures before they are accepted.
-//! 
+//!
 //! It includes logic for direct Owner signatures as well as bounded Delegated identity signatures.
 
 use crate::error::SignatureVerifyError;
-use kinetic_types::name_record::NameRecord;
+use kinetic_types::name_record::NameEnvelope;
 use kinetic_types::vdf::Reveal;
 
 /// Extension trait for verifying Identity/Delegated signatures over Kinetic payloads.
@@ -24,8 +24,8 @@ pub trait VerifySignature {
     ///
     /// # Security
     ///
-    /// This function acts as the strict cryptographic boundary for the network. It must 
-    /// perfectly serialize the signable byte payload—including the `network_salt`—before 
+    /// This function acts as the strict cryptographic boundary for the network. It must
+    /// perfectly serialize the signable byte payload—including the `network_salt`—before
     /// verification to completely mitigate cross-network (e.g., testnet to mainnet) replay attacks.
     fn verify_signature(&self, network_salt: &[u8; 32]) -> Result<(), SignatureVerifyError>;
 }
@@ -40,7 +40,11 @@ impl VerifySignature for Reveal {
             }
 
             let auth_signable = auth.signable_bytes(network_salt);
-            if self.pubkey.verify(&auth_signable, &auth.owner_signature).is_err() {
+            if self
+                .pubkey
+                .verify(&auth_signable, &auth.owner_signature)
+                .is_err()
+            {
                 return Err(SignatureVerifyError::DelegatedAuthorizationInvalid);
             }
 
@@ -63,8 +67,11 @@ impl VerifySignature for Reveal {
                 if ck.key_type == "Delegated"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
                 {
-                    let temp_pubkey = kinetic_primitives::kinetic_keypair::DelegatedPubKey(pubkey_bytes);
-                    if temp_pubkey.verify(&signable, &self.identity_signature).is_ok() {
+                    let temp_pubkey = kinetic_primitives::keypairs::DelegatedPubKey(pubkey_bytes);
+                    let delegated_sig = kinetic_primitives::keypairs::DelegatedSignature(
+                        self.identity_signature.0.clone(),
+                    );
+                    if temp_pubkey.verify(&signable, &delegated_sig).is_ok() {
                         verified = true;
                         break;
                     }
@@ -74,13 +81,21 @@ impl VerifySignature for Reveal {
             if !verified {
                 return Err(SignatureVerifyError::InvalidSignature);
             }
-        } else if self.pubkey.verify(&signable, &self.identity_signature).is_err() {
+        } else if self
+            .pubkey
+            .verify(&signable, &self.identity_signature)
+            .is_err()
+        {
             return Err(SignatureVerifyError::InvalidSignature);
         }
 
         if let Some(prev) = &self.previous_proof {
             let prev_signable = prev.signable_bytes(network_salt);
-            if self.pubkey.verify(&prev_signable, &prev.identity_signature).is_err() {
+            if self
+                .pubkey
+                .verify(&prev_signable, &prev.identity_signature)
+                .is_err()
+            {
                 return Err(SignatureVerifyError::InvalidSignature);
             }
         }
@@ -89,7 +104,7 @@ impl VerifySignature for Reveal {
     }
 }
 
-impl VerifySignature for NameRecord {
+impl VerifySignature for NameEnvelope {
     fn verify_signature(&self, network_salt: &[u8; 32]) -> Result<(), SignatureVerifyError> {
         match self {
             Self::Standard(reveal) => reveal.verify_signature(network_salt),
@@ -101,46 +116,14 @@ impl VerifySignature for NameRecord {
 mod tests {
     use super::*;
     use crate::error::SignatureVerifyError;
-    use kinetic_types::name_record::NameRecord;
+    
     use kinetic_types::vdf::{Reveal, VdfProof};
 
-    fn generate_identity_keypair() -> kinetic_primitives::kinetic_keypair::IdentityPrivKey {
-        kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate()
+    fn generate_identity_keypair() -> kinetic_primitives::keypairs::IdentityPrivKey {
+        kinetic_primitives::keypairs::IdentityPrivKey::generate()
     }
 
-    fn generate_delegated_keypair() -> kinetic_primitives::kinetic_keypair::DelegatedPrivKey {
-        kinetic_primitives::kinetic_keypair::DelegatedPrivKey::generate()
-    }
 
-    fn sign_identity_payload(
-        sk: &kinetic_primitives::kinetic_keypair::IdentityPrivKey,
-        name: &str,
-        payload: &[u8],
-        salt: &[u8],
-    ) -> Vec<u8> {
-        let mut signable = Vec::new();
-        signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
-        signable.extend_from_slice(name.as_bytes());
-        signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
-        signable.extend_from_slice(payload);
-        signable.extend_from_slice(salt);
-        sk.sign(&signable)
-    }
-
-    fn sign_delegated_payload(
-        sk: &kinetic_primitives::kinetic_keypair::DelegatedPrivKey,
-        name: &str,
-        payload: &[u8],
-        salt: &[u8],
-    ) -> Vec<u8> {
-        let mut signable = Vec::new();
-        signable.extend_from_slice(&(name.len() as u32).to_be_bytes());
-        signable.extend_from_slice(name.as_bytes());
-        signable.extend_from_slice(&(payload.len() as u32).to_be_bytes());
-        signable.extend_from_slice(payload);
-        signable.extend_from_slice(salt);
-        sk.sign(&signable)
-    }
 
     #[test]
     fn test_reveal_serialization_and_verification() {
@@ -151,16 +134,16 @@ mod tests {
         let mut reveal = Reveal {
             protocol_version: 1,
             name: "isolated-test.kin".to_string(),
-            payload: vec![10, 20, 30],
+            embedded_nrs: vec![10, 20, 30],
             salt: [3u8; 32],
-            kyn: kinetic_kyn::types::Kyn(9999),
+            kyn: kinetic_kyn::types::TargetKyn::from(9999),
             beacon_signature: "aabbcc".to_string(),
             iterations: 500,
             vdf_proof: VdfProof {
                 proof_bytes: vec![0, 0, 0],
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(identity_vk_bytes),
-            identity_signature: vec![],
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(identity_vk_bytes),
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             authorization: None,
             previous_proof: None,
         };
@@ -173,7 +156,7 @@ mod tests {
         assert!(reveal.verify_signature(network_salt).is_ok());
 
         // Corrupt signature
-        reveal.identity_signature[0] ^= 0xFF;
+        reveal.identity_signature.0[0] ^= 0xFF;
         assert!(matches!(
             reveal.verify_signature(network_salt),
             Err(SignatureVerifyError::InvalidSignature)

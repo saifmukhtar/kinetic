@@ -44,22 +44,23 @@ fn mock_reveal(name: &str, payload: Vec<u8>) -> kinetic_core::types::Reveal {
     let mut reveal = kinetic_core::types::Reveal {
         protocol_version: 1,
         name: name.to_string(),
-        payload,
+        embedded_nrs: payload,
         salt: [0u8; 32],
-        kyn: kinetic_kyn::types::Kyn(0),
+        kyn: kinetic_kyn::types::TargetKyn::from(0),
         beacon_signature: "".to_string(),
         vdf_proof: kinetic_core::types::VdfProof {
             proof_bytes: vec![],
         },
         iterations: 1,
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-        identity_signature: vec![],
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         previous_proof: None,
         authorization: None,
     };
-    let keypair = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+    let keypair = kinetic_primitives::keypairs::IdentityPrivKey::generate();
     reveal.pubkey = keypair.to_pubkey();
-    reveal.identity_signature = keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
+    reveal.identity_signature =
+        keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
     reveal
 }
 
@@ -74,7 +75,7 @@ async fn start_mock_daemon() -> String {
                     };
                     zone.records.insert(
                         "@".to_string(),
-                        vec![kinetic_core::types::NrsRecord::A(
+                        vec![kinetic_core::types::NrsEntry::A(
                             "1.2.3.4".parse().unwrap(),
                         )],
                     );
@@ -82,7 +83,7 @@ async fn start_mock_daemon() -> String {
                     let reveal = mock_reveal("test1.kin", payload);
                     (
                         StatusCode::OK,
-                        serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+                        serde_json::to_vec(&kinetic_core::types::NameEnvelope::Standard(Box::new(
                             reveal,
                         )))
                         .unwrap(),
@@ -94,7 +95,7 @@ async fn start_mock_daemon() -> String {
                     let reveal = mock_reveal("invalid-zone.kin", vec![1, 2, 3, 4]); // Invalid JSON for NrsZone
                     (
                         StatusCode::OK,
-                        serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+                        serde_json::to_vec(&kinetic_core::types::NameEnvelope::Standard(Box::new(
                             reveal,
                         )))
                         .unwrap(),

@@ -94,7 +94,7 @@ pub async fn handle_dns_tree_command(cmd: DnsTreeCommands) -> anyhow::Result<()>
 }
 
 fn hash_content(data: &str) -> String {
-    let result = kinetic_primitives::sha256_hash(data.as_bytes());
+    let result = kinetic_primitives::sha256(data.as_bytes());
     // Use the first 32 characters (160 bits) of the base32 string to keep DNS labels short
     BASE32_NOPAD.encode(&result).to_lowercase()[..32].to_string()
 }

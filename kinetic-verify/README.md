@@ -4,11 +4,11 @@
 `kinetic-verify` is a lightweight, `no_std`-compatible cryptographic verification library for the Kinetic network. It acts as the strict rules engine for validating state-mutating payloads, ensuring they possess mathematically valid Identity and Delegated signatures and Proof of Patience (VDF) claims before they are ever allowed to mutate node state.
 
 ## 2. Usage & Integration
-This crate provides the `VerifySignature` trait, which extends Kinetic's core data models (like `NameRecord` and `Reveal`) with mathematically pure validation logic. Higher-level crates call this validation prior to accepting data from peers.
+This crate provides the `VerifySignature` trait, which extends Kinetic's core data models (like `NameEnvelope` and `Reveal`) with mathematically pure validation logic. Higher-level crates call this validation prior to accepting data from peers.
 
 ```rust
 use kinetic_verify::signatures::VerifySignature;
-use kinetic_types::name_record::NameRecord;
+use kinetic_types::name_record::NameEnvelope;
 
 // Attempt to verify a payload received over the network
 match record.verify_signature(&network_salt) {
@@ -25,7 +25,7 @@ This crate does not implement cryptographic algorithms directly (that is handled
 ### Prerequisites
 Before reading this crate, you must understand:
 * **`kinetic-primitives`**: You must understand how the strict key taxonomy wrappers function, avoiding raw bytes and raw keypairs.
-* **`kinetic-types`**: You must be familiar with the `NameRecord` and `Reveal` data structures, as this crate exclusively operates on them.
+* **`kinetic-types`**: You must be familiar with the `NameEnvelope` and `Reveal` data structures, as this crate exclusively operates on them.
 
 ### File Traversal (Leaf-First)
 Do not read this crate top-to-bottom. Read it in this order:

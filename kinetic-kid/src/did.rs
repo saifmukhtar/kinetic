@@ -1,6 +1,6 @@
 //! Decentralized Identifier (DID) parsing and validation for the Kinetic Network.
 //!
-//! This module enforces the strict W3C DID Core Specification and ensures that all 
+//! This module enforces the strict W3C DID Core Specification and ensures that all
 //! identity pointers strictly conform to the 64-character lowercase hex requirement.
 
 use crate::error::Error;
@@ -9,17 +9,17 @@ use std::fmt;
 
 /// A Decentralized Identifier (DID) representing a self-sovereign identity on the Kinetic network.
 ///
-/// The identifier format defaults to `did:kin:<method-specific-id>`, though the exact 
-/// namespace prefix is dynamically configured at compile time via the `KINETIC_DID_PREFIX` 
-/// environment variable. The `<method-specific-id>` must be exactly 64 lowercase 
+/// The identifier format defaults to `did:kin:<method-specific-id>`, though the exact
+/// namespace prefix is dynamically configured at compile time via the `KINETIC_DID_PREFIX`
+/// environment variable. The `<method-specific-id>` must be exactly 64 lowercase
 /// hexadecimal characters, representing the SHA-256 hash of the identity's primary public key.
-/// 
+///
 /// This cryptographically binds the DID string to its genesis controller key,
 /// establishing a verifiable root of trust without requiring a central registry.
 ///
 /// # Security
-/// A `Did` contains only public routing information and a public key hash. 
-/// It contains no sensitive material and is safe to log, broadcast, and embed 
+/// A `Did` contains only public routing information and a public key hash.
+/// It contains no sensitive material and is safe to log, broadcast, and embed
 /// directly inside JSON manifests.
 ///
 /// # Examples
@@ -47,10 +47,10 @@ impl Did {
     /// # Examples
     /// ```rust
     /// use kinetic_kid::Did;
-    /// 
+    ///
     /// let valid_id = format!("did:kin:{}", "0".repeat(64));
     /// assert!(Did::new(&valid_id).is_ok());
-    /// 
+    ///
     /// // Fails due to uppercase hex characters
     /// let invalid_id = format!("did:kin:{}", "A".repeat(64));
     /// assert!(Did::new(&invalid_id).is_err());

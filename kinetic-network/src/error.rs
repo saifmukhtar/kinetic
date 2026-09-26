@@ -86,10 +86,10 @@ pub enum KineticStoreError {
     /// Wait for the next KYN Provider pulse before broadcasting a new heartbeat.
     #[error("stale heartbeat: received kyn is not newer than existing record")]
     StaleHeartbeat,
-    /// The HostRoutingRecord failed signature verification or timestamp check (Finding 13).
+    /// The HostRoute failed signature verification or timestamp check (Finding 13).
     /// The IP/PeerID routing data is either forged, signed by the wrong key, or dangerously stale.
     /// Generate a fresh routing record and sign it with the name's active capability key.
-    #[error("HostRoutingRecord signature verification failed or record is stale")]
+    #[error("HostRoute signature verification failed or record is stale")]
     InvalidHostRouteSignature,
     /// The node is rate-limiting reveal ingestion.
     /// Too many reveals were submitted from your IP/PeerID in a short window, triggering anti-spam protections.
@@ -166,9 +166,6 @@ pub enum KineticStoreError {
     /// Sync your system clock with an NTP server and retry.
     #[error("heartbeat timestamp is too far in the future")]
     FutureHeartbeat,
-    /// The name type is classified as strictly immutable.
-    /// Infrastructure identities cannot be forcefully taken over via PoW.
-
 
     // ==========================================
     // KIN-QRY Error Codes
@@ -233,7 +230,6 @@ impl KineticStoreError {
             Self::ManifestVersionRollback => "KIN-DHT-029",
             Self::ManifestVerificationFailed => "KIN-DHT-030",
             Self::FutureHeartbeat => "KIN-DHT-031",
-
 
             Self::RevealNotFound => "KIN-QRY-007",
             Self::MissingCommitment { .. } => "KIN-QRY-008",
@@ -303,7 +299,6 @@ impl KineticStoreError {
             Self::ManifestVerificationFailed => "Manifest failed local verification".to_string(),
             Self::FutureHeartbeat => "Heartbeat timestamp is from the future".to_string(),
 
-
             Self::RevealNotFound => "No reveal record found for name".to_string(),
             Self::MissingCommitment { .. } => {
                 "No prior commitment found in DHT for this reveal".to_string()
@@ -349,7 +344,6 @@ impl KineticStoreError {
             | Self::ManifestVersionRollback
             | Self::ManifestVerificationFailed
             | Self::FutureHeartbeat
-
             | Self::MissingKidDocument
             | Self::MalformedJson
             | Self::SchemaValidationError

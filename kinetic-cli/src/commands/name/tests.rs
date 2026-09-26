@@ -70,7 +70,7 @@ async fn test_name_publish_no_zone() {
     let port = listener.local_addr().unwrap().port();
     let mut config = KineticConfig::default();
     config.daemon.api_port = port;
-    config.daemon.bind_ip = "127.0.0.1".to_string();
+    config.peer.bind_ip = "127.0.0.1".to_string();
 
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();

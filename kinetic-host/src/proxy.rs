@@ -144,8 +144,7 @@ pub async fn handle_incoming_proxy_requests(
         let reqwest_client = reqwest_client.clone();
         let client_clone = client.clone();
 
-        let config_path = kinetic_local::config::get_base_dir().join("host_config.json");
-        let host_config = crate::config::HostConfig::load_or_default(&config_path);
+        let host_config = kinetic_local::config::load_config().host;
         let backend_host_clone = host_config.backend_host;
         let local_port = host_config.backend_port;
 

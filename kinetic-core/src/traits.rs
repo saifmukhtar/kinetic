@@ -109,9 +109,9 @@ pub trait StorageEngine: Send + Sync {
     ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, StorageError>;
 }
 
-use crate::drand::RawKyn;
 use crate::error::kyn_provider::KynProviderError;
 use async_trait::async_trait;
+use kinetic_kyn::beacon::RawKyn;
 
 /// Abstract interface for fetching and validating the network's consensus clock (Kyn).
 ///

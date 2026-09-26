@@ -4,15 +4,15 @@
 //!
 //! ## Layer 6 Architecture: Network Boundary Adapter
 //! This crate operates strictly as an infrastructural adapter. It translates internal
-//! domain errors (`kinetic-core::error`) into standardized HTTP JSON responses adhering 
-//! to RFC 7807 (Problem Details for HTTP APIs). It explicitly ignores Kinetic consensus 
-//! rules, identity validation, and cryptography, serving solely as a translation layer 
+//! domain errors (`kinetic-core::error`) into standardized HTTP JSON responses adhering
+//! to RFC 7807 (Problem Details for HTTP APIs). It explicitly ignores Kinetic consensus
+//! rules, identity validation, and cryptography, serving solely as a translation layer
 //! between the daemon's internal state and external web clients.
 //!
 //! ## Core Functions
-//! - **Status Code Mapping:** Prevents HTTP status code logic (e.g. `404 Not Found` vs 
+//! - **Status Code Mapping:** Prevents HTTP status code logic (e.g. `404 Not Found` vs
 //!   `502 Bad Gateway`) from leaking into core consensus crates.
-//! - **Asynchronous Tracing:** Provides Tokio task-local `request_id` correlation for 
+//! - **Asynchronous Tracing:** Provides Tokio task-local `request_id` correlation for
 //!   telemetry spanning complex asynchronous execution trees.
 //!
 //! ## Architecture Context

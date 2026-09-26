@@ -1,7 +1,7 @@
 use comfy_table::{Cell, Color, Table};
 use indicatif::{ProgressBar, ProgressStyle};
 use kinetic_core::config::KineticConfig;
-use kinetic_local::config::get_zones_dir;
+use kinetic_local::config::zones_dir;
 
 pub async fn handle_name_list(
     config: &KineticConfig,
@@ -14,7 +14,7 @@ pub async fn handle_name_list(
 
     let daemon_url = format!(
         "http://{}:{}/api/v1/micro/nrs/owned",
-        config.daemon.bind_ip, config.daemon.api_port
+        config.peer.bind_ip, config.daemon.api_port
     );
     let response = client.get(&daemon_url).send().await;
     pb.finish_and_clear();
@@ -28,7 +28,7 @@ pub async fn handle_name_list(
         }
         _ => {
             source = "Local Disk (Daemon Offline)";
-            let config_dir = get_zones_dir().join("config");
+            let config_dir = zones_dir().join("config");
             if let Ok(entries) = std::fs::read_dir(&config_dir) {
                 for entry in entries.flatten() {
                     if let Some(name) = entry.file_name().to_str()
@@ -73,7 +73,7 @@ pub async fn handle_name_info(
 
     let daemon_url = format!(
         "http://{}:{}/api/v1/micro/nrs/resolve/{}",
-        config.daemon.bind_ip, config.daemon.api_port, fqdn
+        config.peer.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
     pb.finish_and_clear();
@@ -88,11 +88,14 @@ pub async fn handle_name_info(
             Cell::new("Key").fg(Color::Cyan),
             Cell::new("Value").fg(Color::White),
         ]);
-        
+
         if let Some(obj) = json.as_object() {
             for (k, v) in obj {
                 if v.is_object() || v.is_array() {
-                    table.add_row(vec![k.to_string(), serde_json::to_string(v).unwrap_or_default()]);
+                    table.add_row(vec![
+                        k.to_string(),
+                        serde_json::to_string(v).unwrap_or_default(),
+                    ]);
                 } else if let Some(s) = v.as_str() {
                     table.add_row(vec![k.to_string(), s.to_string()]);
                 } else {
@@ -107,12 +110,12 @@ pub async fn handle_name_info(
     }
 
     println!("Daemon unreachable or name not found on DHT. Checking local cache...");
-    let record_path = get_zones_dir()
+    let record_path = zones_dir()
         .join("cache")
         .join(format!("{}.record.json", fqdn));
     if record_path.exists() {
         let content = std::fs::read_to_string(&record_path)?;
-        let record: kinetic_core::types::NameRecord = serde_json::from_str(&content)?;
+        let record: kinetic_core::types::NameEnvelope = serde_json::from_str(&content)?;
 
         let mut table = Table::new();
         table.set_header(vec![
@@ -120,9 +123,9 @@ pub async fn handle_name_info(
             Cell::new("Value").fg(Color::White),
         ]);
 
-        let kinetic_core::types::NameRecord::Standard(r) = record;
+        let kinetic_core::types::NameEnvelope::Standard(r) = record;
         table.add_row(vec!["Type", "Standard"]);
-        table.add_row(vec!["Created at KYN Time Oracle Epoch", &r.kyn.to_string()]);
+        table.add_row(vec!["Created at Kyn Epoch", &r.kyn.to_string()]);
         table.add_row(vec!["VDF Iterations", &r.iterations.to_string()]);
         println!("\nInfo for {} (Local Cache):", fqdn);
         println!("{table}");
@@ -147,7 +150,7 @@ pub async fn handle_name_resolve(
 
     let daemon_url = format!(
         "http://{}:{}/api/v1/micro/nrs/resolve/{}",
-        config.daemon.bind_ip, config.daemon.api_port, fqdn
+        config.peer.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
     pb.finish_and_clear();
@@ -181,29 +184,32 @@ pub async fn handle_name_difficulty(
     let port = config.daemon.api_port;
 
     let base_url = format!(
-        "http://{}:{}/api/v1/micro/consensus/difficulty/{}",
-        config.daemon.bind_ip, port, fqdn
+        "http://{}:{}/api/v1/micro/vdf/iterations/{}",
+        config.peer.bind_ip, port, fqdn
     );
     let resp = client.get(&base_url).send().await?;
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     let base_json: serde_json::Value = resp.json().await?;
-    println!("Base Difficulty (Mining):");
+    println!("Base Iterations (VDF):");
     println!("{}", serde_json::to_string_pretty(&base_json)?);
 
     if let Some(idle) = kyns_idle {
         let takeover_url = format!(
-            "http://{}:{}/api/v1/micro/consensus/takeover-difficulty/{}?kyns_idle={}",
-            config.daemon.bind_ip, port, fqdn, idle
+            "http://{}:{}/api/v1/micro/vdf/takeover-iterations/{}?kyns_idle={}",
+            config.peer.bind_ip, port, fqdn, idle
         );
         let t_resp = client.get(&takeover_url).send().await?;
         if t_resp.status().is_success() {
             let t_json: serde_json::Value = t_resp.json().await?;
-            println!("\nTakeover Difficulty ({} Kyns idle):", idle);
+            println!("\nTakeover Iterations ({} Kyns idle):", idle);
             println!("{}", serde_json::to_string_pretty(&t_json)?);
         }
     }
@@ -218,8 +224,8 @@ pub async fn handle_name_validate(
 ) -> anyhow::Result<()> {
     let port = config.daemon.api_port;
     let url = format!(
-        "http://{}:{}/api/v1/micro/consensus/validate",
-        config.daemon.bind_ip, port
+        "http://{}:{}/api/v1/micro/nrs/validate",
+        config.peer.bind_ip, port
     );
 
     let payload = serde_json::json!({ "name": name });
@@ -228,7 +234,10 @@ pub async fn handle_name_validate(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     let json: serde_json::Value = resp.json().await?;

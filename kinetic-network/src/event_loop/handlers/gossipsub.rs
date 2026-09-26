@@ -47,9 +47,9 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                     let opcode = payload_clone[0];
                     let actual_payload = &payload_clone[1..];
 
-                    if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8 {
+                    if opcode == kinetic_types::network::NetworkOpcode::Kyn as u8 {
                         if let Ok(kyn) =
-                            serde_json::from_slice::<kinetic_core::drand::RawKyn>(actual_payload)
+                            serde_json::from_slice::<kinetic_kyn::beacon::RawKyn>(actual_payload)
                         {
                             return kyn.verify_beacon(kinetic_core::config::is_dev_mode());
                         }
@@ -59,18 +59,18 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                             return false;
                         }
                         if let Ok(signed_msg) = serde_json::from_slice::<
-                            kinetic_core::action::SignedActionMessage,
+                            kinetic_core::action::SignedNetworkAction,
                         >(actual_payload)
                         {
                             let action_state =
                                 kinetic_local::action::GLOBAL_ACTION_STATE.lock().unwrap();
-                            if let Ok(root_key) = action_state
-                                .get_sovereign_key(&kinetic_core::action::get_action_config())
+                            if let Ok(root_key) =
+                                action_state.sovereign_key(&kinetic_core::action::action_config())
                             {
                                 drop(action_state);
                                 let action_bytes = signed_msg.to_bytes();
                                 return signed_msg.sovereign_signatures.iter().any(|sig| {
-                                    kinetic_core::action::verify_signature(
+                                    kinetic_core::action::verify_sovereign_signature(
                                         &root_key,
                                         &action_bytes,
                                         sig,

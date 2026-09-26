@@ -3,25 +3,25 @@
 //! The primary user-facing Kinetic daemon executable (`kinetic-daemon`).
 //!
 //! ## Layer 8 Architecture: The All-In-One Node
-//! Unlike `kinetic-node` (headless cloud router) or `kinetic-host` (headless payload seeder), 
+//! Unlike `kinetic-node` (headless cloud router) or `kinetic-host` (headless payload seeder),
 //! the `kinetic-daemon` is designed to be installed on a user's personal laptop (macOS, Windows, Linux).
 //! It is the central coordinator of the entire Kinetic stack.
 //!
-//! Because end-users expect a rich, interactive experience, this executable bundles a massive 
+//! Because end-users expect a rich, interactive experience, this executable bundles a massive
 //! amount of functionality into a single process:
 //!
 //! - **P2P Networking**: Runs a full Kademlia DHT node to resolve and browse the `.kin` namespace.
-//! - **Cryptographic Math**: Drives the local CPU VDF engine (via `kinetic-vdf`) to generate 
+//! - **Cryptographic Math**: Drives the local CPU VDF engine (via `kinetic-vdf`) to generate
 //!   time-lock proofs for registering new premium or standard domains.
-//! - **OS Integrations**: Embeds a local DNS interceptor (via `kinetic-nrs`) to hijack `.kin` 
+//! - **OS Integrations**: Embeds a local DNS interceptor (via `kinetic-nrs`) to hijack `.kin`
 //!   DNS queries at the operating system level and route them through the Libp2p proxy.
-//! - **HTTP REST API**: Exposes port `16001` allowing the Electron Desktop UI and the `kinetic-cli` 
+//! - **HTTP REST API**: Exposes port `16001` allowing the Electron Desktop UI and the `kinetic-cli`
 //!   to send interactive commands (like transferring domains or generating KIDs).
-//! - **Service Manager**: Can install, start, stop, and uninstall itself natively using 
+//! - **Service Manager**: Can install, start, stop, and uninstall itself natively using
 //!   `systemd`, `launchd`, or `SCM`.
 //!
 //! ## Security Boundary
-//! A random API token is written to `~/.local/share/kinetic/api.token` on first run. 
+//! A random API token is written to `~/.local/share/kinetic/api.token` on first run.
 //! All mutating API calls from the CLI or UI must include this token in the `X-Kinetic-Token` header.
 
 use anyhow::Result;
@@ -66,7 +66,7 @@ enum Commands {
     },
     /// Uninstall the daemon system service
     Uninstall,
-    /// Start the daemon (foregkyn)
+    /// Start the daemon (foreground)
     Run,
     /// Start the daemon service (background)
     Start,
@@ -122,7 +122,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     let base_config_dir = if let Some(dir) = config_dir_opt {
         std::path::PathBuf::from(dir)
     } else {
-        kinetic_local::config::get_base_dir()
+        kinetic_local::config::base_dir()
     };
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
@@ -235,8 +235,8 @@ fn stop_background_service() -> Result<()> {
 /// Executes the massive synchronous orchestration logic for the Kinetic Daemon.
 ///
 /// > [!IMPORTANT]
-/// > Because this executable wires together the entire Layer 4 stack (Networking, Storage, 
-/// > VDF Math, HTTP Proxy), it is structurally massive. It does not contain domain logic 
+/// > Because this executable wires together the entire Layer 4 stack (Networking, Storage,
+/// > VDF Math, HTTP Proxy), it is structurally massive. It does not contain domain logic
 /// > itself, but rather orchestrates the boot sequence.
 ///
 /// This function is responsible for:
@@ -289,8 +289,8 @@ async fn run_daemon() -> Result<()> {
 
     info!("Starting Kinetic Daemon (PID: {})...", std::process::id());
 
-    let base_config_dir = kinetic_local::config::get_base_dir();
-    let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
+    let base_config_dir = kinetic_local::config::base_dir();
+    let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
     let storage_path = storage_dir.join("kinetic.db");
@@ -334,11 +334,11 @@ async fn run_daemon() -> Result<()> {
     );
 
     let kyn_provider: Arc<dyn KynProvider> = Arc::new(
-        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(storage.clone())),
+        kinetic_network::client::beacon::BeaconProvider::new(Some(storage.clone())),
     );
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
+            info!("Beacon Provider connected — kyn #{}", kyn.kyn());
             kyn
         }
         Err(e) => {
@@ -346,10 +346,10 @@ async fn run_daemon() -> Result<()> {
             warn!(error_code = err.code(), "{}", err);
             let err2 = kinetic_core::error::KynProviderError::RegistrationDisabled;
             warn!(error_code = err2.code(), "{}", err2);
-            kinetic_core::drand::RawKyn::unavailable()
+            kinetic_kyn::beacon::RawKyn::unavailable()
         }
     };
-    let initial_kyn = initial_kyn.kyn;
+    let initial_kyn = initial_kyn.kyn();
 
     // Generate API token early so CLI commands (e.g. `kinetic status`) work immediately
     // without having to wait for the 30-40 second PoW mining loop to finish.
@@ -362,16 +362,16 @@ async fn run_daemon() -> Result<()> {
     }
 
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
-    let local_key = kinetic_network::pow::mine_p2p_keypair(
+    let local_key = kinetic_network::challenge::solve_p2p_challenge(
         kinetic_kyn::types::Kyn(initial_kyn),
-        kinetic_core::constants::POW_DIFFICULTY_BITS,
+        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
     );
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     tracing::info!("Daemon starting with Peer ID: {}", local_peer_id);
 
-    let mode = match config.daemon.network_mode.as_str() {
-        "LightNode" => NetworkMode::LightNode,
-        _ => NetworkMode::FullNode,
+    let mode = match config.peer.network_mode.as_str() {
+        "Edge" => NetworkMode::Edge,
+        _ => NetworkMode::Router,
     };
     let network_config = NetworkConfig {
         mode,
@@ -410,7 +410,7 @@ async fn run_daemon() -> Result<()> {
         enable_mdns: config.network.enable_mdns,
         enable_upnp: config.network.enable_upnp,
         enable_relay_server: config.network.enable_relay_server,
-        initial_kyn,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(initial_kyn),
         external_address: config
             .network
             .external_address
@@ -419,12 +419,12 @@ async fn run_daemon() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
-        disable_pow: false,
+        disable_challenge: false,
         test_mode: false,
         disable_storage_sync: false,
     };
 
-    let base_config_dir = kinetic_local::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::base_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
         tracing::error!(
@@ -498,13 +498,15 @@ async fn run_daemon() -> Result<()> {
         if is_empty {
             tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await; // give it time to connect
-            if let Ok(peers) = network_client.get_connected_peers().await {
+            if let Ok(peers) = network_client.connected_peers().await {
                 for peer_str in peers {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>()
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
+                                kinetic_types::action::ActionSyncRequest {
+                                    from_kyn: kinetic_kyn::types::Kyn(0),
+                                },
                             )
                             .await
                         && !resp.actions.is_empty()
@@ -521,7 +523,7 @@ async fn run_daemon() -> Result<()> {
                                 if let Err(e) = kinetic_core::action::process_action_message(
                                     &mut action_state,
                                     msg,
-                                    kinetic_kyn::types::Kyn(0),
+                                    kinetic_kyn::types::CurrentKyn::from(0),
                                 ) {
                                     tracing::error!("Failed to apply synced action: {}", e);
                                 }
@@ -542,7 +544,7 @@ async fn run_daemon() -> Result<()> {
 
     info!("P2P Network architecture wired");
 
-    kinetic_daemon::services::network::start_pow_miner_loop(
+    kinetic_daemon::services::network::start_challenge_solver_loop(
         network_client.clone(),
         kyn_rx.clone(),
         network_config.clone(),
@@ -567,10 +569,10 @@ async fn run_daemon() -> Result<()> {
         network_client.clone(),
         kyn_provider.clone(),
         config.clone(),
-        kinetic_types::network::NodeType::Daemon,
+        kinetic_types::network::PeerType::Daemon,
     );
 
-    let base_config_dir = kinetic_local::config::get_base_dir();
+    let base_config_dir = kinetic_local::config::base_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
         tracing::error!(
@@ -625,7 +627,7 @@ async fn run_daemon() -> Result<()> {
     });
 
     let handler_client = network_client.clone();
-    let handler_bind_ip = config.daemon.bind_ip.clone();
+    let handler_bind_ip = config.peer.bind_ip.clone();
     tokio::spawn(async move {
         proxy::handle_incoming_proxy_requests(
             handler_client,
@@ -642,7 +644,7 @@ async fn run_daemon() -> Result<()> {
         network_client.clone(),
         storage.clone(),
         gossip_tx.clone(),
-        config.daemon.bind_ip.clone(),
+        config.peer.bind_ip.clone(),
         config.daemon.api_port,
         atlas_nsps.clone(),
         host_speed_ips,
@@ -658,7 +660,7 @@ async fn run_daemon() -> Result<()> {
         storage.clone(),
         network_client.clone(),
         kyn_provider.clone(),
-        config.time_oracle.p2p_only,
+        config.daemon.p2p_only,
         initial_kyn,
         daemon_keypair.clone(),
         kyn_tx.clone(),
@@ -692,7 +694,7 @@ async fn run_daemon() -> Result<()> {
     if config.daemon.enable_nrs {
         let api_url = format!(
             "http://{}:{}",
-            config.daemon.bind_ip, config.daemon.api_port
+            config.peer.bind_ip, config.daemon.api_port
         );
         let dns_handler = kinetic_nrs::KineticNrsHandler::new(
             api_url,
@@ -703,13 +705,13 @@ async fn run_daemon() -> Result<()> {
 
         let udp_bind = tokio::net::UdpSocket::bind(format!(
             "{}:{}",
-            config.daemon.bind_ip, config.daemon.nrs_port
+            config.peer.bind_ip, config.daemon.nrs_port
         ))
         .await;
 
         let tcp_bind = tokio::net::TcpListener::bind(format!(
             "{}:{}",
-            config.daemon.bind_ip, config.daemon.nrs_port
+            config.peer.bind_ip, config.daemon.nrs_port
         ))
         .await;
 
@@ -733,7 +735,7 @@ async fn run_daemon() -> Result<()> {
             }
             (Err(e), _) | (_, Err(e)) => {
                 tracing::error!(
-                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", config.daemon.bind_ip, config.daemon.nrs_port)),
+                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", config.peer.bind_ip, config.daemon.nrs_port)),
                     "Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}",
                     config.daemon.nrs_port, e
                 );

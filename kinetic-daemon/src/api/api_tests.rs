@@ -14,7 +14,7 @@ mod tests {
     use tokio::sync::mpsc;
     use tower::ServiceExt;
 
-    fn get_test_token() -> String {
+    fn test_token() -> String {
         "test-token-123".to_string()
     }
 
@@ -31,7 +31,7 @@ mod tests {
             gossip_tx,
             storage: storage.clone(),
             host_speed_ips: 100_000,
-            daemon_keypair: kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate(),
+            daemon_keypair: kinetic_primitives::keypairs::IdentityPrivKey::generate(),
             dns_cache: std::sync::Arc::new(tokio::sync::Mutex::new(
                 crate::proxy::dns_cache::DnsCache::new(100, 300),
             )),
@@ -87,7 +87,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -114,7 +114,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/commit")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -135,7 +135,7 @@ mod tests {
                 "record_type": "Standard",
                 "protocol_version": 1,
                 "name": "sub.example.kin",
-                "payload": [1, 2, 3],
+                "embedded_nrs": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100,
                 "beacon_signature": "0".repeat(192),
@@ -151,7 +151,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -173,7 +173,7 @@ mod tests {
                 "record_type": "Standard",
                 "protocol_version": 0,
                 "name": "validname.kin",
-                "payload": [1, 2, 3],
+                "embedded_nrs": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100,
                 "beacon_signature": "0".repeat(192),
@@ -189,7 +189,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -209,8 +209,8 @@ mod tests {
         let (app, _, storage) = setup_test_app().await;
 
         // Mock current KYN Time Oracle epoch to 10_000_000 (must be > RESQUARING_EPOCH_KYNS)
-        let mock_kyn = kinetic_core::drand::RawKyn {
-            kyn: 10_000_000,
+        let mock_kyn = kinetic_kyn::beacon::RawKyn {
+            beacon_idx: 10_000_000,
             randomness: "0".repeat(192),
             signature: "0".repeat(192),
             is_from_cache: true,
@@ -228,7 +228,7 @@ mod tests {
                 "record_type": "Standard",
                 "protocol_version": 1,
                 "name": "validname.kin",
-                "payload": [1, 2, 3],
+                "embedded_nrs": [1, 2, 3],
                 "salt": vec![0; 32],
                 "kyn": 100, // Very old
                 "beacon_signature": "0".repeat(192),
@@ -244,7 +244,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/record/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();
@@ -269,16 +269,20 @@ mod tests {
         let mock_reveal = kinetic_core::types::Reveal {
             protocol_version: 1,
             name: "validname.kin".to_string(),
-            payload: vec![1, 2, 3],
+            embedded_nrs: vec![1, 2, 3],
             salt: [0; 32],
-            kyn: kinetic_kyn::types::Kyn(100),
+            kyn: kinetic_kyn::types::TargetKyn::from(100),
             beacon_signature: "0".repeat(192),
             iterations: 1000,
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-            identity_signature: vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+                vec![1; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+            ),
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                vec![2; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            ),
             previous_proof: None,
             authorization: None,
         };
@@ -286,7 +290,7 @@ mod tests {
         storage
             .put(
                 reveal_key.as_bytes(),
-                &serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+                &serde_json::to_vec(&kinetic_core::types::NameEnvelope::Standard(Box::new(
                     mock_reveal,
                 )))
                 .unwrap(),
@@ -329,7 +333,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/nrs/zone/validname.kin/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .body(Body::empty())
             .unwrap();
 
@@ -351,7 +355,7 @@ mod tests {
         let req1 = Request::builder()
             .uri("/api/v1/macro/register")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body_str.clone()))
             .unwrap();
@@ -359,7 +363,7 @@ mod tests {
         let req2 = Request::builder()
             .uri("/api/v1/macro/register")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body_str.clone()))
             .unwrap();
@@ -390,7 +394,7 @@ mod tests {
         let req = Request::builder()
             .uri("/api/v1/micro/kid/publish")
             .method("POST")
-            .header("Authorization", format!("Bearer {}", get_test_token()))
+            .header("Authorization", format!("Bearer {}", test_token()))
             .header("Content-Type", "application/json")
             .body(Body::from(req_body.to_string()))
             .unwrap();

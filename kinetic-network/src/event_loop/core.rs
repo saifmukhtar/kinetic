@@ -1,9 +1,9 @@
 //! Core `NetworkEventLoop` definition and main event loop execution thread.
 //!
 //! ## Layer 7 Architecture: The P2P Engine
-//! This module houses the primary asynchronous reactor (`NetworkEventLoop`) for the entire 
-//! Kinetic P2P network. Because `libp2p` Swarms are fundamentally not thread-safe (they require 
-//! exclusive mutable access to poll events), this module isolates the Swarm inside a single, 
+//! This module houses the primary asynchronous reactor (`NetworkEventLoop`) for the entire
+//! Kinetic P2P network. Because `libp2p` Swarms are fundamentally not thread-safe (they require
+//! exclusive mutable access to poll events), this module isolates the Swarm inside a single,
 //! dedicated `tokio::task`.
 //!
 //! ## State Machine Flow
@@ -12,7 +12,7 @@
 //! 2. **Command Channel:** Internal requests from the `NetworkClient` (e.g., the local Daemon requesting to publish a Reveal).
 //! 3. **Time Oracle Receiver (`kyn_rx`):** Background ticks propagating the current `KYN Provider` network time, which immediately cascades down into the `KineticRecordStore` to dynamically update the cryptographic timestamps for payload verification.
 //!
-//! By restricting all network state mutations to this single loop, Kinetic completely avoids 
+//! By restricting all network state mutations to this single loop, Kinetic completely avoids
 //! complex multi-threading mutex locks on the hot path, ensuring maximum throughput during Gossipsub floods.
 
 use libp2p::{PeerId, Swarm, kad};
@@ -93,7 +93,7 @@ pub struct NetworkEventLoop {
             >,
         >,
     >,
-    pub(crate) action_log: Vec<kinetic_types::action::SignedActionMessage>,
+    pub(crate) action_log: Vec<kinetic_types::action::SignedNetworkAction>,
     pub(crate) peer_registry: crate::peer_registry::PeerRegistry,
     pub(crate) incoming_proxy_tx: Option<
         mpsc::Sender<(
@@ -110,13 +110,13 @@ pub struct NetworkEventLoop {
         )>,
     >,
     pub(crate) bad_vdf_counts: lru::LruCache<PeerId, (u32, web_time::Instant)>,
-    pub(crate) current_kyn: u64,
+    pub(crate) current_kyn: kinetic_kyn::types::CurrentKyn,
     pub(crate) kyn_rx: watch::Receiver<u64>,
     pub(crate) bootstrap_nodes: Vec<libp2p::Multiaddr>,
     pub(crate) seed_domain: Vec<std::sync::Arc<str>>,
     pub(crate) bootstrap_peers: FxHashSet<libp2p::PeerId>,
     pub(crate) startup_time: web_time::Instant,
-    pub(crate) disable_pow: bool,
+    pub(crate) disable_challenge: bool,
     pub(crate) banned_peers: lru::LruCache<libp2p::PeerId, u64>,
 
     pub(crate) bootstrap_connection_time: FxHashMap<PeerId, web_time::Instant>,
@@ -162,7 +162,7 @@ impl NetworkEventLoop {
         if new_val.0 >= 3 {
             let err = kinetic_core::error::P2pError::GossipSpamBan(source.to_string());
             tracing::warn!(error_code = err.code(), "{}", err);
-            let expire_kyn = self.current_kyn + 28800;
+            let expire_kyn = self.current_kyn.as_u64() + 28800;
             self.banned_peers.put(source, expire_kyn);
         }
     }
@@ -219,7 +219,7 @@ impl NetworkEventLoop {
                     tracing::info!("Running periodic Storage pruning...");
                     self.swarm.behaviour_mut().kademlia.store_mut().prune();
                     let storage = self.swarm.behaviour_mut().kademlia.store_mut().storage.clone();
-                    let current_kyn = self.current_kyn;
+                    let current_kyn = self.current_kyn.as_u64();
                     crate::event_loop::utils::spawn(async move {
                         let _ = crate::event_loop::utils::spawn_blocking(move || {
                             if let Ok(iter) = storage.scan_prefix(kinetic_core::constants::DB_PREFIX_BANNED_PEER.as_bytes(), None) {
@@ -251,7 +251,7 @@ impl NetworkEventLoop {
                         if let Some(tx) = &self.loopback_tx {
                             let tx_clone = tx.clone();
                             let domains = self.seed_domain.clone();
-                            let disable_pow = self.disable_pow;
+                            let disable_challenge = self.disable_challenge;
                             tokio::spawn(async move {
                                 for domain in &domains {
                                     let addrs = crate::dns_tree::resolve_dns_tree(domain.as_ref()).await;
@@ -260,7 +260,7 @@ impl NetworkEventLoop {
                                         tracing::warn!(error_code = err.code(), "{}", err);
                                     }
                                     for multiaddr in addrs {
-                                        if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_pow, true) {
+                                        if crate::event_loop::utils::is_routable_multiaddr(&multiaddr, disable_challenge, true) {
                                             let _ = tx_clone.send(LoopbackCommand::DialResolvedSeed(multiaddr));
                                         } else {
                                             let err = kinetic_core::error::P2pError::UnroutableSeedMultiaddr(multiaddr.to_string());
@@ -288,10 +288,10 @@ impl NetworkEventLoop {
                 }
                 Ok(()) = self.kyn_rx.changed() => {
                     let new_kyn = *self.kyn_rx.borrow();
-                    if new_kyn > self.current_kyn {
-                        tracing::debug!("NetworkEventLoop: KYN Provider time updated {} -> {}", self.current_kyn, new_kyn);
-                        self.current_kyn = new_kyn;
-                        self.swarm.behaviour_mut().kademlia.store_mut().current_kyn = new_kyn;
+                    if new_kyn > self.current_kyn.as_u64() {
+                        tracing::debug!("NetworkEventLoop: KYN Provider time updated {} -> {}", self.current_kyn.as_u64(), new_kyn);
+                        self.current_kyn = kinetic_kyn::types::CurrentKyn::from(new_kyn);
+                        self.swarm.behaviour_mut().kademlia.store_mut().current_kyn = kinetic_kyn::types::CurrentKyn::from(new_kyn);
                     }
                 }
                 event = libp2p::futures::StreamExt::select_next_some(&mut self.swarm) => self.handle_swarm_event(event).await,
@@ -348,7 +348,7 @@ impl NetworkEventLoop {
                                 );
                                 tracing::warn!(error_code = err.code(), "{}", err);
                                 let _ = self.swarm.disconnect_peer_id(source);
-                                let expire_kyn = self.current_kyn + 28800;
+                                let expire_kyn = self.current_kyn.as_u64() + 28800;
                                 self.banned_peers.put(source, expire_kyn);
                             }
                         }
@@ -432,7 +432,7 @@ impl NetworkEventLoop {
                 peer,
             } => {
                 if let Ok(record) =
-                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&record_bytes)
+                    serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&record_bytes)
                     && self
                         .swarm
                         .behaviour_mut()

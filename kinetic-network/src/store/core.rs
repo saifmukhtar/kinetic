@@ -2,20 +2,20 @@
 //!
 //! ## Layer 7 Architecture: The Kademlia Interceptor
 //! This module defines the [`KineticRecordStore`]. It implements libp2p's
-//! [`RecordStore`](libp2p::kad::store::RecordStore) trait, but acts as a hostile 
-//! interceptor. Standard libp2p nodes accept `put` requests blindly into an in-memory 
-//! hashmap. `KineticRecordStore` rejects this behavior. Every incoming DHT record 
-//! must mathematically prove its right to exist in the namespace before it is 
+//! [`RecordStore`](libp2p::kad::store::RecordStore) trait, but acts as a hostile
+//! interceptor. Standard libp2p nodes accept `put` requests blindly into an in-memory
+//! hashmap. `KineticRecordStore` rejects this behavior. Every incoming DHT record
+//! must mathematically prove its right to exist in the namespace before it is
 //! allowed to touch the local database.
 //!
 //! ## Defense Mechanisms
-//! - **LRU Memory Hardening:** Employs strict bounds via `lru::LruCache` to prevent 
+//! - **LRU Memory Hardening:** Employs strict bounds via `lru::LruCache` to prevent
 //!   OOM (Out Of Memory) crashing vectors from malicious peers spamming large DHT payloads.
-//! - **VDF State Tracking:** Maintains a running view of `current_kyn` (KYN Provider network time). 
-//!   It uses this state to aggressively drop stale records, future-dated timestamps, 
+//! - **VDF State Tracking:** Maintains a running view of `current_kyn` (KYN Provider network time).
+//!   It uses this state to aggressively drop stale records, future-dated timestamps,
 //!   or proofs that lack the required VDF difficulty.
-//! - **Storage Abstraction:** Wraps the generic `StorageEngine` trait from `kinetic-core`, 
-//!   allowing the P2P network to remain completely decoupled from whether the node is running 
+//! - **Storage Abstraction:** Wraps the generic `StorageEngine` trait from `kinetic-core`,
+//!   allowing the P2P network to remain completely decoupled from whether the node is running
 //!   on a native OS (`kinetic-storage` via Redb) or a web browser (WASM OPFS).
 use libp2p::{PeerId, kad};
 use std::collections::HashMap;
@@ -42,7 +42,7 @@ pub struct KineticRecordStore {
     /// VDF Engine used for proof validation.
     pub vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     /// Cache of verified apex name records.
-    pub reveals_by_name: LruCache<String, kinetic_core::types::NameRecord>,
+    pub reveals_by_name: LruCache<String, kinetic_core::types::NameEnvelope>,
     /// The latest heartbeat kyn observed for each apex name.
     pub last_heartbeats_by_name: HashMap<String, u64>,
 
@@ -50,7 +50,7 @@ pub struct KineticRecordStore {
     pub accepted_reveals_timestamps:
         LruCache<String, std::collections::VecDeque<web_time::Instant>>,
     /// The current observed Drand kyn kyn.
-    pub current_kyn: u64,
+    pub current_kyn: kinetic_kyn::types::CurrentKyn,
     /// Configuration for rate limiting reveals
     pub max_reveals_per_hour: usize,
 }
@@ -77,7 +77,7 @@ impl KineticRecordStore {
     pub fn new(
         local_peer_id: PeerId,
         storage: Arc<dyn StorageEngine>,
-        initial_kyn: u64,
+        initial_kyn: kinetic_kyn::types::InitialKyn,
         lru_cache_size: NonZeroUsize,
         max_reveals_per_hour: usize,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
@@ -95,14 +95,14 @@ impl KineticRecordStore {
                 }
                 let name = String::from_utf8_lossy(&key_bytes[prefix_len..]).into_owned();
                 if let Ok(record) =
-                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&val_bytes)
+                    serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&val_bytes)
                 {
                     let mut is_valid = false;
                     match &record {
-                        kinetic_core::types::NameRecord::Standard(reveal) => {
+                        kinetic_core::types::NameEnvelope::Standard(reveal) => {
                             if let Ok(req) = super::verification::compute_required_iterations(
                                 reveal,
-                                initial_kyn,
+                                kinetic_kyn::types::CurrentKyn::from(initial_kyn.as_u64()),
                                 vdf_engine.as_ref(),
                             ) && reveal.iterations >= req
                             {
@@ -146,14 +146,14 @@ impl KineticRecordStore {
                     }
 
                     if is_valid {
-                        tracing::info!("[KRS restore] NameRecord for {}", name);
+                        tracing::info!("[KRS restore] NameEnvelope for {}", name);
                         reveals_by_name.put(name, record);
                     } else {
                         let err =
                             kinetic_core::error::storage::StorageError::InvalidRecordDiscarded;
                         tracing::warn!(
                             error_code = err.code(),
-                            "[KRS restore] Discarding invalid locally stored NameRecord for {}",
+                            "[KRS restore] Discarding invalid locally stored NameEnvelope for {}",
                             name
                         );
                     }
@@ -217,7 +217,7 @@ impl KineticRecordStore {
             reveals_by_name,
             last_heartbeats_by_name,
             accepted_reveals_timestamps: LruCache::new(lru_cache_size),
-            current_kyn: initial_kyn,
+            current_kyn: kinetic_kyn::types::CurrentKyn::from(initial_kyn.as_u64()),
             max_reveals_per_hour,
         }
     }
@@ -227,7 +227,7 @@ impl KineticRecordStore {
     /// `Reveal` records older than the resquaring epoch, and idle heartbeats
     /// older than 7 days (where applicable for infrastructure).
     pub fn prune(&mut self) {
-        let current_kyn = self.current_kyn;
+        let current_kyn = self.current_kyn.as_u64();
         let mut keys_to_delete = Vec::new();
 
         // 1. Scan and Prune Commitments from storage
@@ -259,8 +259,8 @@ impl KineticRecordStore {
 
         for (name, record) in &self.reveals_by_name {
             match record {
-                kinetic_core::types::NameRecord::Standard(reveal) => {
-                    let age = current_kyn.saturating_sub(reveal.kyn.0);
+                kinetic_core::types::NameEnvelope::Standard(reveal) => {
+                    let age = current_kyn.saturating_sub(reveal.kyn.as_u64());
                     if age > max_age_kyns {
                         expired_names.push(name.clone());
                         continue;
@@ -270,7 +270,7 @@ impl KineticRecordStore {
                         .last_heartbeats_by_name
                         .get(name)
                         .copied()
-                        .unwrap_or(reveal.kyn.0);
+                        .unwrap_or(reveal.kyn.as_u64());
                     let hb_age = current_kyn.saturating_sub(last_hb);
 
                     if hb_age > idle_timeout {
@@ -328,13 +328,13 @@ impl KineticRecordStore {
         }
     }
 
-    pub(crate) fn get_fallback(&mut self, name: &str) -> Option<kinetic_core::types::NameRecord> {
+    pub(crate) fn get_fallback(&mut self, name: &str) -> Option<kinetic_core::types::NameEnvelope> {
         if let Some(r) = self.reveals_by_name.get(name) {
             return Some(r.clone());
         }
         let key = [crate::store::constants::KRS_REVEAL_PREFIX, name.as_bytes()].concat();
         if let Ok(Some(bytes)) = self.storage.get(&key)
-            && let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes)
+            && let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&bytes)
         {
             self.reveals_by_name.put(name.to_string(), record.clone());
             return Some(record);
@@ -347,7 +347,7 @@ impl KineticRecordStore {
     /// Attempts to put a record, returning a typed [`KineticStoreError`] on failure.
     ///
     /// This method enforces all Kinetic validation rules dynamically based on the payload type
-    /// (e.g., `Commitment`, `Reveal`, `Heartbeat`, `AuthorizedKid`, `AuthorizedManifest`, `HostRoutingRecord`).
+    /// (e.g., `Commitment`, `Reveal`, `Heartbeat`, `AuthorizedKid`, `AuthorizedManifest`, `HostRoute`).
     ///
     /// # Arguments
     ///
@@ -407,7 +407,9 @@ impl KineticRecordStore {
                         let mut key = Vec::with_capacity(KRS_COMMIT_PREFIX.len() + 32);
                         key.extend_from_slice(KRS_COMMIT_PREFIX);
                         key.extend_from_slice(&commitment.hash);
-                        let _ = self.storage.put(&key, &self.current_kyn.to_be_bytes());
+                        let _ = self
+                            .storage
+                            .put(&key, &self.current_kyn.as_u64().to_be_bytes());
                         return self
                             .inner
                             .put(r)
@@ -420,17 +422,17 @@ impl KineticRecordStore {
                     }
                 }
             } else if parsed.get("vdf_proof").is_some() || parsed.get("kyn").is_some() {
-                match serde_json::from_value::<kinetic_core::types::NameRecord>(parsed) {
+                match serde_json::from_value::<kinetic_core::types::NameEnvelope>(parsed) {
                     Ok(record) => {
                         tracing::debug!(
-                            "KineticRecordStore::put parsed NameRecord for {}",
+                            "KineticRecordStore::put parsed NameEnvelope for {}",
                             record.name()
                         );
                         self.handle_put_record(&record, skip_reveal_verify)?;
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse NameRecord schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse NameEnvelope schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -485,27 +487,27 @@ impl KineticRecordStore {
                     }
                 }
             } else if parsed.get("host_id").is_some() {
-                match serde_json::from_value::<kinetic_core::types::HostRoutingRecord>(parsed) {
+                match serde_json::from_value::<kinetic_core::types::HostRoute>(parsed) {
                     Ok(host_route) => {
                         match crate::store::verification::verify_host_routing_record(
                             &host_route,
-                            kinetic_kyn::types::Kyn(self.current_kyn),
+                            *self.current_kyn,
                         ) {
                             Ok(()) => {
                                 tracing::info!(
-                                    "KineticRecordStore::put accepted verified HostRoutingRecord for {}",
+                                    "KineticRecordStore::put accepted verified HostRoute for {}",
                                     host_route.host_id
                                 );
                             }
                             Err(err) => {
-                                tracing::warn!(error_code = err.code(), host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoutingRecord: {}", err);
+                                tracing::warn!(error_code = err.code(), host_id = %host_route.host_id, severity = ?err.severity(), "Rejecting HostRoute: {}", err);
                                 return Err(err);
                             }
                         }
                     }
                     Err(e) => {
                         let err = KineticStoreError::SchemaValidationError;
-                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse HostRoutingRecord schema: {}", e);
+                        tracing::warn!(error_code = err.code(), severity = ?err.severity(), "Failed to parse HostRoute schema: {}", e);
                         return Err(err);
                     }
                 }
@@ -595,7 +597,7 @@ mod tests {
         let mut store = KineticRecordStore::new(
             peer_id,
             db_storage,
-            0,
+            0.into(),
             NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
@@ -621,27 +623,32 @@ mod tests {
         let mut store = KineticRecordStore::new(
             peer_id,
             db_storage.clone(),
-            1000000, // Very high drand kyn
+            1000000.into(), // Very high drand kyn
             NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
         );
 
         let name = "a.kin"; // Standard name, requires heartbeats
-        let record = kinetic_core::types::NameRecord::Standard(Box::new(kinetic_types::vdf::Reveal {
-            protocol_version: 1,
-            name: name.to_string(),
-            payload: vec![],
-            salt: [0; 32],
-            kyn: kinetic_kyn::types::Kyn(0),
-            beacon_signature: String::new(),
-            iterations: 1,
-            vdf_proof: kinetic_types::vdf::VdfProof { proof_bytes: vec![] },
-            previous_proof: None,
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-            identity_signature: vec![],
-            authorization: None,
-        }));
+        let record =
+            kinetic_core::types::NameEnvelope::Standard(Box::new(kinetic_types::vdf::Reveal {
+                protocol_version: 1,
+                name: name.to_string(),
+                embedded_nrs: vec![],
+                salt: [0; 32],
+                kyn: kinetic_kyn::types::TargetKyn::from(0),
+                beacon_signature: String::new(),
+                iterations: 1,
+                vdf_proof: kinetic_types::vdf::VdfProof {
+                    proof_bytes: vec![],
+                },
+                previous_proof: None,
+                pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                    vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+                ),
+                authorization: None,
+            }));
 
         let record_bytes = serde_json::to_vec(&record).unwrap();
         let derived_keys =
@@ -653,7 +660,8 @@ mod tests {
 
         assert!(store.get_fallback(name).is_some());
 
-        store.current_kyn += 300000;
+        store.current_kyn =
+            kinetic_kyn::types::CurrentKyn::from(store.current_kyn.as_u64() + 300000);
         store.prune();
 
         // Wait for async deletion task to run
@@ -667,8 +675,6 @@ mod tests {
             "Zombie record RAM leak detected! Record still exists in MemoryStore!"
         );
     }
-
-
 
     #[tokio::test]
     async fn test_unreferenced_heartbeat_cleanup_on_boot() {
@@ -692,7 +698,7 @@ mod tests {
         let store = KineticRecordStore::new(
             peer_id,
             storage.clone(),
-            1000,
+            1000.into(),
             std::num::NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
@@ -720,26 +726,32 @@ mod tests {
         let mut store = KineticRecordStore::new(
             peer_id,
             storage,
-            1000,
+            1000.into(),
             std::num::NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,
         );
 
         let large_payload = vec![0u8; 34000];
-        let record = kinetic_core::types::NameRecord::Standard(Box::new(kinetic_core::types::vdf::Reveal {
-            protocol_version: 1,
-            name: "large.kin".to_string(),
-            payload: large_payload,
-            salt: [0; 32],
-            kyn: kinetic_kyn::types::Kyn(0),
-            beacon_signature: String::new(),
-            iterations: 1,
-            vdf_proof: vec![],
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-            identity_signature: vec![],
-            authorization: None,
-        }));
+        let record =
+            kinetic_core::types::NameEnvelope::Standard(Box::new(kinetic_core::types::vdf::Reveal {
+                protocol_version: 1,
+                name: "large.kin".to_string(),
+                embedded_nrs: large_payload,
+                salt: [0; 32],
+                kyn: kinetic_kyn::types::TargetKyn::from(0),
+                beacon_signature: String::new(),
+                iterations: 1,
+                vdf_proof: kinetic_core::types::vdf::VdfProof {
+                    proof_bytes: vec![],
+                },
+                previous_proof: None,
+                pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                    vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+                ),
+                authorization: None,
+            }));
 
         let record_bytes = serde_json::to_vec(&record).unwrap();
         let key = libp2p::kad::RecordKey::new(&"dummy");
@@ -761,7 +773,7 @@ mod tests {
         let mut store = KineticRecordStore::new(
             peer_id,
             storage,
-            100,
+            100.into(),
             std::num::NonZeroUsize::new(100).unwrap(),
             100,
             vdf_engine,

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::did::Did;
 use crate::document::Document;
 use crate::error::Error;
-use kinetic_kyn::types::UTime;
+use kinetic_kyn::types::UKyn;
 
 /// A single service endpoint published in a [`Manifest`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -41,13 +41,13 @@ pub struct Manifest {
     /// Verified against the network's consensus clock (e.g., Drand beacon timestamps)
     /// to prevent malicious forward-dating. The network permits a maximum 300-second
     /// (5-minute) clock skew allowance.
-    pub valid_from: UTime,
+    pub valid_from: UKyn,
     /// Optional Unix timestamp (seconds) dictating when this manifest expires.
     ///
     /// If provided, network nodes will reject or drop this manifest once the consensus
     /// clock passes this time, forcing the controller to publish a fresh manifest.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<UTime>,
+    pub expires_at: Option<UKyn>,
     /// Ordered list of service endpoints this DID owner is advertising.
     #[serde(deserialize_with = "crate::bounded::deserialize_max_50")]
     pub services: Vec<Service>,
@@ -60,8 +60,8 @@ impl Manifest {
     /// Returns the canonical JCS (RFC 8785) serialization of the manifest without the signature field.
     ///
     /// # Security
-    /// JCS Canonicalization ensures that arbitrary JSON formatting (whitespace, key ordering) 
-    /// does not alter the underlying byte representation, which would otherwise invalidate 
+    /// JCS Canonicalization ensures that arbitrary JSON formatting (whitespace, key ordering)
+    /// does not alter the underlying byte representation, which would otherwise invalidate
     /// the cryptographic signature.
     ///
     /// # Errors
@@ -108,9 +108,9 @@ impl Manifest {
     /// # Examples
     /// ```rust
     /// use kinetic_kid::{Document, Did, ControllerKey, Manifest, Service};
-    /// use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
+    /// use kinetic_primitives::keypairs::ControllerPrivKey;
     /// use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-    /// 
+    ///
     /// let controller_key = ControllerPrivKey::generate();
     /// let pubkey_b64 = b64_url.encode(controller_key.to_pubkey().as_bytes());
     /// let did = Did::new(&format!("did:kin:{}", "0".repeat(64))).unwrap();
@@ -118,7 +118,7 @@ impl Manifest {
     /// let doc = Document {
     ///     doc_type: "kinetic.kid.v1".to_string(),
     ///     kid: did.clone(),
-    ///     created_at: kinetic_kyn::types::UTime(1000),
+    ///     created_at: kinetic_kyn::types::UKyn(1000),
     ///     controller_keys: vec![ControllerKey {
     ///         id: format!("{}#primary", did.as_str()),
     ///         key_type: "Controller".to_string(),
@@ -134,18 +134,18 @@ impl Manifest {
     ///     doc_type: "kinetic.manifest.v1".to_string(),
     ///     kid: did,
     ///     version: 1,
-    ///     valid_from: kinetic_kyn::types::UTime(1000),
+    ///     valid_from: kinetic_kyn::types::UKyn(1000),
     ///     expires_at: None,
     ///     services: vec![],
     ///     signature: None,
     /// };
-    /// 
+    ///
     /// let signed_manifest = manifest.sign_with_controller(&controller_key).unwrap();
-    /// 
+    ///
     /// // Verify at Unix timestamp 1005 (valid since it is >= valid_from)
-    /// assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(1005)).is_ok());
+    /// assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UKyn(1005)).is_ok());
     /// ```
-    pub fn verify_at_time(&self, kid_document: &Document, unix_time: UTime) -> Result<(), Error> {
+    pub fn verify_at_time(&self, kid_document: &Document, unix_time: UKyn) -> Result<(), Error> {
         if kid_document.controller_keys.len() > 20 {
             return Err(Error::KeyLimitExceeded);
         }
@@ -187,9 +187,9 @@ impl Manifest {
 
         let msg_str = self.canonicalize()?;
         // ARCHITECTURE NOTE: We intentionally inject the namespace prefix (NSP) as the domain
-        // separator rather than the 32-byte `NETWORK_SALT`. KIDs are Layer 2 identities and 
+        // separator rather than the 32-byte `NETWORK_SALT`. KIDs are Layer 2 identities and
         // are meant to be seamlessly portable between Mainnet and Testnet (which share the same NSP).
-        // Using the NSP ensures identity signatures remain portable, while mathematically isolating 
+        // Using the NSP ensures identity signatures remain portable, while mathematically isolating
         // them from completely different network forks (e.g. if a private network uses nsp "corp").
         let mut msg_bytes = format!("{}-manifest-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
@@ -197,7 +197,8 @@ impl Manifest {
         for key in &kid_document.controller_keys {
             if key.key_type.eq_ignore_ascii_case("Controller")
                 && let Ok(pubkey_bytes) = b64_url.decode(&key.public_key)
-                && kinetic_primitives::verify_keypair(&pubkey_bytes, &msg_bytes, &sig_bytes).is_ok()
+                && kinetic_primitives::verify_signature(&pubkey_bytes, &msg_bytes, &sig_bytes)
+                    .is_ok()
             {
                 return Ok(());
             }
@@ -212,15 +213,15 @@ impl Manifest {
     /// - Returns [`Error::CanonicalizationError`] if JCS canonicalization fails.
     pub fn sign_with_controller(
         mut self,
-        key: &kinetic_primitives::kinetic_keypair::ControllerPrivKey,
+        key: &kinetic_primitives::keypairs::ControllerPrivKey,
     ) -> Result<Self, Error> {
         let msg_str = self.canonicalize()?;
-        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve 
+        // ARCHITECTURE NOTE: We use the NSP rather than NETWORK_SALT to preserve
         // identity portability between Mainnet/Testnet while isolating private forks.
         let mut msg_bytes = format!("{}-manifest-v1\0", env!("KINETIC_NSP")).into_bytes();
         msg_bytes.extend_from_slice(msg_str.as_bytes());
         let signature_bytes = key.sign(&msg_bytes);
-        self.signature = Some(b64_url.encode(signature_bytes));
+        self.signature = Some(b64_url.encode(signature_bytes.as_bytes()));
         Ok(self)
     }
 }

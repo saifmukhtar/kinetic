@@ -1,17 +1,17 @@
-//! Dynamic DHT routing record publisher and KYN Epoch PoW hot-swapping heartbeat.
+//! Dynamic DHT routing record publisher and KYN Epoch peer challenge hot-swapping heartbeat.
 //!
 //! ## Layer 8 Architecture: The Seamless Hot-Swap
-//! The Kinetic network aggressively protects its DHT from Sybil attacks by enforcing that 
-//! every node's Kademlia `PeerId` (which is derived from an Ed25519 public key) satisfies a 
+//! The Kinetic network aggressively protects its DHT from Sybil attacks by enforcing that
+//! every node's Kademlia `PeerId` (which is derived from an Ed25519 public key) satisfies a
 //! Proof-of-Work threshold bound to the *current* network time epoch (the KYN).
 //!
-//! Because time advances, a PoW identity eventually expires. If a headless server goes offline, 
-//! the hosted `.kin` zone becomes unreachable. To ensure 24/7 uptime, this module runs the 
-//! `start_time_oracle_heartbeat` loop (Note: functionally acting as a generic KYN Time Oracle).
+//! Because time advances, a peer challenge identity eventually expires. If a headless server goes offline,
+//! the hosted `.kin` zone becomes unreachable. To ensure 24/7 uptime, this module runs the
+//! `start_beacon_heartbeat` loop (Note: functionally acting as a generic KYN Beacon).
 //!
-//! When the loop detects that the network epoch is about to advance, it preemptively spins up 
-//! a background thread to calculate a *new* Proof-of-Work identity for the upcoming time epoch. 
-//! Once the network epoch rolls over, it hot-swaps the underlying Swarm identity seamlessly, 
+//! When the loop detects that the network epoch is about to advance, it preemptively spins up
+//! a background thread to calculate a *new* Proof-of-Work identity for the upcoming time epoch.
+//! Once the network epoch rolls over, it hot-swaps the underlying Swarm identity seamlessly,
 //! rebroadcasting the payload without dropping connections.
 
 use kinetic_core::traits::KynProvider;
@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::sync::watch;
 
-/// Starts an async loop publishing dynamic HostRoutingRecords to the DHT every 30 seconds.
+/// Starts an async loop publishing dynamic HostRoutes to the DHT every 30 seconds.
 pub async fn start_routing_publisher(
     publisher_host_key: libp2p::identity::Keypair,
     local_peer_id_str: Arc<RwLock<String>>,
@@ -50,38 +50,39 @@ pub async fn start_routing_publisher(
 
         let kyn = *kyn_rx.borrow();
 
-        let mut record = kinetic_core::types::HostRoutingRecord {
+        let mut record = kinetic_core::types::HostRoute {
             host_id: host_peer_id_str.clone(),
             current_peer_id: local_peer_id_str
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone(),
-            kyn: kinetic_kyn::types::Kyn(kyn),
-            host_signature: vec![],
+            kyn: kinetic_kyn::types::TargetKyn::from(kyn),
+            host_signature: kinetic_primitives::keypairs::DelegatedSignature(vec![]),
         };
 
         use ed25519_dalek::Signer;
         let signature =
             dalek_kp.sign(&record.signable_bytes(kinetic_core::constants::NETWORK_SALT));
-        record.host_signature = signature.to_bytes().to_vec();
+        record.host_signature =
+            kinetic_primitives::keypairs::DelegatedSignature(signature.to_bytes().to_vec());
 
         if let Err(e) = publisher_client.publish_host_routing_record(record).await {
             let err =
-                kinetic_core::error::PublishError::HostRoutingRecordPublishFailed(e.to_string());
+                kinetic_core::error::PublishError::HostRoutePublishFailed(e.to_string());
             tracing::warn!(error_code = err.code(), "{}", err);
         } else {
-            tracing::info!("Published dynamic HostRoutingRecord to DHT");
+            tracing::info!("Published dynamic HostRoute to DHT");
         }
     }
 }
 
-/// Starts a continuous heartbeat loop that monitors the KYN Provider time oracle and hot-swaps the ephemeral PoW identity when the epoch advances.
+/// Starts a continuous heartbeat loop that monitors the KYN Provider time oracle and hot-swaps the ephemeral peer challenge identity when the epoch advances.
 ///
-/// This function listens for new kyns and uses them to verify the validity of the current PoW identity.
+/// This function listens for new kyns and uses them to verify the validity of the current peer challenge identity.
 /// If the identity is found to be expired based on the staggered epoch progression, it terminates the existing
 /// network loop, mines a new identity, and restarts the P2P swarm asynchronously to ensure seamless connectivity.
 #[allow(clippy::too_many_arguments)]
-pub async fn start_time_oracle_heartbeat(
+pub async fn start_beacon_heartbeat(
     hb_kyn_provider: Arc<dyn KynProvider>,
     kyn_tx: watch::Sender<u64>,
     mut hb_local_peer_id: libp2p::PeerId,
@@ -111,11 +112,11 @@ pub async fn start_time_oracle_heartbeat(
             && !kyn.is_unavailable
             && !kyn.is_from_cache
         {
-            let _ = kyn_tx.send(kyn.kyn);
+            let _ = kyn_tx.send(kyn.kyn());
 
-            let current_epoch = kinetic_network::pow::get_staggered_epoch(
+            let current_epoch = kinetic_network::challenge::staggered_epoch(
                 &hb_local_peer_id.to_bytes(),
-                kinetic_kyn::types::Kyn(kyn.kyn),
+                kinetic_kyn::types::Kyn(kyn.kyn()),
             );
 
             let needs_validation = match last_verified_epoch {
@@ -125,32 +126,32 @@ pub async fn start_time_oracle_heartbeat(
 
             if needs_validation {
                 let peer_id_clone = hb_local_peer_id;
-                let kyn_round = kyn.kyn;
-                let pow_valid = tokio::task::spawn_blocking(move || {
-                    kinetic_network::pow::verify_p2p_pow(
+                let kyn_round = kyn.kyn();
+                let challenge_valid = tokio::task::spawn_blocking(move || {
+                    kinetic_network::challenge::verify_p2p_challenge(
                         &peer_id_clone,
                         kinetic_kyn::types::Kyn(kyn_round),
-                        kinetic_core::constants::POW_DIFFICULTY_BITS,
+                        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
                     )
                 })
                 .await
                 .unwrap_or(false);
 
-                if !pow_valid {
+                if !challenge_valid {
                     tracing::info!(
-                        "PoW epoch expired for ephemeral identity. Hot-swapping network loop..."
+                        "peer challenge epoch expired for ephemeral identity. Hot-swapping network loop..."
                     );
                     let current_local_key = tokio::task::spawn_blocking(move || {
-                        kinetic_network::pow::mine_p2p_keypair(
+                        kinetic_network::challenge::solve_p2p_challenge(
                             kinetic_kyn::types::Kyn(kyn_round),
-                            kinetic_core::constants::POW_DIFFICULTY_BITS,
+                            kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
                         )
                     })
                     .await
                     .unwrap_or_else(|_| {
                         tracing::error!(
-                            error = ?kinetic_core::error::SystemError::ServerCrashed("PoW mining task panicked".into()),
-                            "Background PoW mining task panicked, falling back to an unverified identity"
+                            error = ?kinetic_core::error::SystemError::ServerCrashed("peer challenge solving task panicked".into()),
+                            "Background peer challenge solving task panicked, falling back to an unverified identity"
                         );
                         libp2p::identity::Keypair::generate_ed25519()
                     });
@@ -194,15 +195,13 @@ pub async fn start_time_oracle_heartbeat(
 
                     match new_network {
                         Some((new_client, new_loop)) => {
-                            hc_client.update_backend(
-                                new_client.get_sender(),
-                                new_client.stream_control(),
-                            );
+                            hc_client
+                                .update_backend(new_client.sender(), new_client.stream_control());
                             *handle = tokio::spawn(async move {
                                 new_loop.run().await;
                             });
                             tracing::info!(
-                                "Successfully hot-swapped P2P backend with new PoW identity in Host mode."
+                                "Successfully hot-swapped P2P backend with new peer challenge identity in Host mode."
                             );
                         }
                         None => {

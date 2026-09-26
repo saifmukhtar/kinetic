@@ -1,18 +1,18 @@
 //! Local HTTP/HTTPS MITM proxy server and P2P routing engine for `.kin` domain resolution.
 //!
 //! ## Layer 8 Architecture: The Network Interceptor
-//! This module contains the core `.kin` routing engine. When the user types a `http://name.kin` 
-//! URL into their standard web browser (like Chrome or Firefox), the OS-level DNS hijacks the 
+//! This module contains the core `.kin` routing engine. When the user types a `http://name.kin`
+//! URL into their standard web browser (like Chrome or Firefox), the OS-level DNS hijacks the
 //! request and routes it to this proxy server running on `127.0.0.1:16000`.
 //!
 //! ### The MITM Flow (TLS Interception)
-//! 1. **Certificate Generation**: Uses `crate::ca` to dynamically generate a spoofed SSL/TLS 
+//! 1. **Certificate Generation**: Uses `crate::ca` to dynamically generate a spoofed SSL/TLS
 //!    certificate for `name.kin` signed by the user's local `Kinetic Root CA`.
 //! 2. **Request Decryption**: Intercepts the HTTPS traffic, decrypts it locally.
-//! 3. **P2P Tunneling**: Serializes the HTTP request into a `kinetic_network::ProxyRequest` 
-//!    and pushes it through the Libp2p Swarm (`NetworkClient`) directly to the `.kin` domain 
+//! 3. **P2P Tunneling**: Serializes the HTTP request into a `kinetic_network::ProxyRequest`
+//!    and pushes it through the Libp2p Swarm (`NetworkClient`) directly to the `.kin` domain
 //!    owner's underlying `kinetic-host` node.
-//! 4. **Response Re-encryption**: Receives the P2P response, re-encrypts it, and returns it 
+//! 4. **Response Re-encryption**: Receives the P2P response, re-encrypts it, and returns it
 //!    to the local browser.
 
 pub mod dns_cache;
@@ -104,16 +104,16 @@ pub enum ProxyError {
     /// The resolved DHT record failed cryptographic signature verification.
     /// A malicious peer attempted to spoof the DNS response. The record was dropped.
     #[error(
-        "Security violation! NameRecord signature verification failed (Spoofed DHT response): {0}"
+        "Security violation! NameEnvelope signature verification failed (Spoofed DHT response): {0}"
     )]
     SignatureVerificationFailed(String),
 
-    /// The proxy failed to deserialize the NameRecord JSON payload from the DHT.
+    /// The proxy failed to deserialize the NameEnvelope JSON payload from the DHT.
     /// The record publisher used an invalid schema version.
-    #[error("Failed to deserialize NameRecord JSON from DHT for '{0}': {1}")]
-    NameRecordDeserializationFailed(String, String),
+    #[error("Failed to deserialize NameEnvelope JSON from DHT for '{0}': {1}")]
+    NameEnvelopeDeserializationFailed(String, String),
 
-    /// The NRS Zone payload within the NameRecord was invalid or corrupt.
+    /// The NRS Zone payload within the NameEnvelope was invalid or corrupt.
     /// The record publisher uploaded malformed zone data.
     #[error("Invalid NrsZone payload: {0}")]
     InvalidNrsZonePayload(String),
@@ -143,9 +143,9 @@ pub enum ProxyError {
     #[error("Failed to reach IP gateway: {0}")]
     IpGatewayUnreachable(String),
 
-    /// The HostRoutingRecord returned an invalid Libp2p PeerId.
+    /// The HostRoute returned an invalid Libp2p PeerId.
     /// Ensure the base58 encoded PeerId in the zone is correct.
-    #[error("HostRoutingRecord returned invalid PeerId: {0}")]
+    #[error("HostRoute returned invalid PeerId: {0}")]
     InvalidPeerId(String),
 
     /// The proxy failed to read the body stream of the incoming P2P request.
@@ -220,7 +220,7 @@ impl ProxyError {
             Self::RequestFailed(_) => "KIN-PRX-007",
             Self::DhtResolutionFailed(..) => "KIN-PRX-008",
             Self::SignatureVerificationFailed(_) => "KIN-PRX-009",
-            Self::NameRecordDeserializationFailed(..) => "KIN-PRX-010",
+            Self::NameEnvelopeDeserializationFailed(..) => "KIN-PRX-010",
             Self::InvalidNrsZonePayload(_) => "KIN-PRX-011",
             Self::SubnameNotFound(_) => "KIN-PRX-012",
             Self::NoRoutableTargets(_) => "KIN-PRX-013",

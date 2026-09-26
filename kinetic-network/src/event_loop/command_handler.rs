@@ -96,8 +96,8 @@ impl super::core::NetworkEventLoop {
 
     pub(crate) async fn handle_command(&mut self, command: Command) {
         match command {
-            Command::GetCurrentKyn { responder } => {
-                let _ = responder.send(self.current_kyn);
+            Command::FetchCurrentKyn { responder } => {
+                let _ = responder.send(self.current_kyn.as_u64());
             }
             Command::PublishRedundant {
                 name,
@@ -314,7 +314,7 @@ impl super::core::NetworkEventLoop {
                     "bytes_received": 0,
                 })));
             }
-            Command::GetConnectedPeers { responder } => {
+            Command::FetchConnectedPeers { responder } => {
                 let peers: Vec<String> = self
                     .swarm
                     .connected_peers()
@@ -322,7 +322,7 @@ impl super::core::NetworkEventLoop {
                     .collect();
                 let _ = responder.send(Ok(peers));
             }
-            Command::GetGossipTopics { responder } => {
+            Command::FetchGossipTopics { responder } => {
                 let topics: Vec<String> = self
                     .swarm
                     .behaviour()
@@ -332,7 +332,7 @@ impl super::core::NetworkEventLoop {
                     .collect();
                 let _ = responder.send(Ok(topics));
             }
-            Command::GetBannedPeers { responder } => {
+            Command::FetchBannedPeers { responder } => {
                 let banned = self
                     .banned_peers
                     .iter()

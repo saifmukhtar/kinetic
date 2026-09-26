@@ -8,10 +8,10 @@ pub fn load_config() -> KineticConfig {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
+pub fn load_config_ctx(_ctx: ConfigContext) -> KineticConfig {
     let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG)
         .map(PathBuf::from)
-        .unwrap_or_else(|_| get_base_dir().join("config.toml"));
+        .unwrap_or_else(|_| base_dir().join("config.toml"));
 
     let config = match fs::read_to_string(&config_path) {
         Ok(config_str) => match toml::from_str(&config_str) {
@@ -28,8 +28,8 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
             }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            let mut default_cfg = KineticConfig::default();
-            default_cfg.time_oracle.p2p_only = ctx == ConfigContext::Daemon;
+            let default_cfg = KineticConfig::default();
+
 
             if let Some(parent) = config_path.parent() {
                 let _ = fs::create_dir_all(parent)
@@ -93,7 +93,7 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
 pub fn save_config(config: &KineticConfig) -> Result<(), kinetic_core::error::ConfigError> {
     let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG)
         .map(PathBuf::from)
-        .unwrap_or_else(|_| get_base_dir().join("config.toml"));
+        .unwrap_or_else(|_| base_dir().join("config.toml"));
 
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent).map_err(|e| {
@@ -107,11 +107,11 @@ pub fn save_config(config: &KineticConfig) -> Result<(), kinetic_core::error::Co
         .map_err(|e| kinetic_core::error::ConfigError::WriteFailed(e.to_string()))
 }
 
-pub fn get_zones_dir() -> PathBuf {
-    get_base_dir().join("zones")
+pub fn zones_dir() -> PathBuf {
+    base_dir().join("zones")
 }
 
-pub fn get_base_dir() -> PathBuf {
+pub fn base_dir() -> PathBuf {
     if let Ok(path) = std::env::var(kinetic_core::constants::ENV_DATA) {
         return PathBuf::from(path);
     }
@@ -134,6 +134,6 @@ pub fn get_base_dir() -> PathBuf {
     }
 }
 
-pub fn get_api_tokens_dir() -> PathBuf {
-    get_base_dir().join("tokens")
+pub fn api_tokens_dir() -> PathBuf {
+    base_dir().join("tokens")
 }

@@ -1,6 +1,6 @@
-use kinetic_core::drand::RawKyn;
 use kinetic_core::error::KynProviderError;
 use kinetic_core::traits::{KynProvider, StorageEngine};
+use kinetic_kyn::beacon::RawKyn;
 use std::sync::Arc;
 use tracing::warn;
 use web_time::Duration;
@@ -10,8 +10,8 @@ use hickory_resolver::config::*;
 
 const MAX_STALE_ROUNDS_FOR_HEARTBEAT: u64 = 200;
 
-/// HTTP and DNS-backed client for fetching and caching Time Oracle randomness kyns.
-pub struct TimeOracleProvider {
+/// HTTP and DNS-backed client for fetching and caching Beacon randomness kyns.
+pub struct BeaconProvider {
     http: reqwest::Client,
     storage: Option<Arc<dyn StorageEngine>>,
     endpoints: Vec<String>,
@@ -20,8 +20,8 @@ pub struct TimeOracleProvider {
     resolver: hickory_resolver::TokioAsyncResolver,
 }
 
-impl TimeOracleProvider {
-    /// Creates a new [`TimeOracleProvider`].
+impl BeaconProvider {
+    /// Creates a new [`BeaconProvider`].
     ///
     /// Accepts an optional [`StorageEngine`] handle to cache successfully fetched kyns on disk.
     pub fn new(storage: Option<Arc<dyn StorageEngine>>) -> Self {
@@ -35,8 +35,8 @@ impl TimeOracleProvider {
             #[cfg(target_arch = "wasm32")]
             http: reqwest::Client::new(),
             storage,
-            endpoints: config.time_oracle.endpoints,
-            beacon_seed_domain: config.time_oracle.beacon_seed_domain,
+            endpoints: config.beacon.endpoints,
+            beacon_seed_domain: config.beacon.beacon_seed_domain,
             #[cfg(not(target_arch = "wasm32"))]
             resolver: hickory_resolver::TokioAsyncResolver::tokio(
                 ResolverConfig::default(),
@@ -93,7 +93,8 @@ impl TimeOracleProvider {
                             .map_err(|e| KynProviderError::StreamReadFailed(e.to_string()))?
                         {
                             body.extend_from_slice(&chunk);
-                            if body.len() > kinetic_core::constants::LIMITS_BEACON_MAX_RESPONSE_BYTES
+                            if body.len()
+                                > kinetic_core::constants::LIMITS_BEACON_MAX_RESPONSE_BYTES
                             {
                                 return Err(KynProviderError::ResponseTooLarge(body.len()));
                             }
@@ -126,7 +127,7 @@ impl TimeOracleProvider {
 }
 
 #[async_trait::async_trait]
-impl KynProvider for TimeOracleProvider {
+impl KynProvider for BeaconProvider {
     /// Fetches the latest available kyn by racing HTTP endpoints and DNS records.
     ///
     /// # Errors
@@ -185,21 +186,19 @@ impl KynProvider for TimeOracleProvider {
                         .duration_since(web_time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    let estimated_kyn = (now
-                        .saturating_sub(kinetic_core::constants::KYN_GENESIS_TIME))
-                        / kinetic_core::constants::KYN_PERIOD;
-                    let age = estimated_kyn.saturating_sub(kyn.kyn);
+                    let estimated_kyn = now.saturating_sub(kinetic_core::constants::BEACON_GENESIS);
+                    let age = estimated_kyn.saturating_sub(kyn.kyn());
 
                     if age > MAX_STALE_ROUNDS_FOR_HEARTBEAT {
                         let err = KynProviderError::StaleKyn {
                             expected: kinetic_kyn::types::Kyn(estimated_kyn),
-                            got: kinetic_kyn::types::Kyn(kyn.kyn),
+                            got: kinetic_kyn::types::Kyn(kyn.kyn()),
                         };
                         warn!(
                             "{}: Drand endpoint {} returned an unacceptably stale kyn (kyn {}, expected ~{}).",
                             err.code(),
                             endpoint,
-                            kyn.kyn,
+                            kyn.kyn(),
                             estimated_kyn
                         );
                         continue;
@@ -255,7 +254,7 @@ impl KynProvider for TimeOracleProvider {
             let err = KynProviderError::DevModeMockKyn;
             tracing::warn!(error_code = err.code(), "{}", err);
             return Ok(RawKyn {
-                kyn: 5000000,
+                beacon_idx: 1666666,
                 randomness: "mock_randomness".to_string(),
                 signature: String::new(),
                 is_from_cache: true,

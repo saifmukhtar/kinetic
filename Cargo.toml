@@ -55,7 +55,7 @@ clap = "4.6.6"
 criterion = "0.8.2"
 data-encoding = "2.11.1"
 dirs = "6.0.0"
-drand-verify = "0.6.2"
+beacon-verify = { package = "drand-verify", version = "0.6.2" }
 ed25519-dalek = "2.2.0"
 futures = "0.3.34"
 futures-timer = "3.0.4"

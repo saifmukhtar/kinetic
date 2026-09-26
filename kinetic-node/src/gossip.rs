@@ -1,6 +1,6 @@
 //! Action gossip message handler, state update processor, and disk persistence engine.
 
-use kinetic_core::action::{SignedActionMessage, process_action_message};
+use kinetic_core::action::{SignedNetworkAction, process_action_message};
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -14,18 +14,14 @@ pub fn handle_action_gossip(
     gossip_action_path: Arc<PathBuf>,
     network_client: Option<kinetic_network::NetworkClient>,
     _storage: Option<Arc<dyn kinetic_core::traits::StorageEngine>>,
-    current_kyn: u64,
+    current_kyn: kinetic_kyn::types::CurrentKyn,
 ) {
-    if let Ok(signed_msg) = serde_json::from_slice::<SignedActionMessage>(payload) {
+    if let Ok(signed_msg) = serde_json::from_slice::<SignedNetworkAction>(payload) {
         let (state_snapshot, effect_result) = {
             let mut state = GLOBAL_ACTION_STATE
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let result = process_action_message(
-                &mut state,
-                &signed_msg,
-                kinetic_kyn::types::Kyn(current_kyn),
-            );
+            let result = process_action_message(&mut state, &signed_msg, current_kyn);
             (state.clone(), result)
         };
 
@@ -104,7 +100,7 @@ pub fn handle_action_gossip(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kinetic_core::action::{NetworkAction, SignedActionMessage};
+    use kinetic_core::action::{NetworkAction, SignedNetworkAction};
     use tempfile::tempdir;
 
     #[test]
@@ -115,7 +111,13 @@ mod tests {
         let invalid_payload = b"not valid json";
 
         // This should not panic
-        handle_action_gossip(invalid_payload, path, None, None, 100);
+        handle_action_gossip(
+            invalid_payload,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -123,16 +125,22 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = Arc::new(dir.path().join("action.bin"));
 
-        let msg = SignedActionMessage {
-            action: NetworkAction::EmergencyPause,
-            timestamp_kyn: kinetic_kyn::types::Kyn(0),
+        let msg = SignedNetworkAction {
+            action: NetworkAction::EmergencyHalt,
+            timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(0),
             sovereign_signatures: vec![],
         };
         let payload = serde_json::to_vec(&msg).unwrap();
 
         // This should parse JSON successfully, but the process_action_message should fail
         // or reject it. It should not panic.
-        handle_action_gossip(&payload, path, None, None, 100);
+        handle_action_gossip(
+            &payload,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -143,7 +151,13 @@ mod tests {
         let wrong_schema = b"{\"hello\": \"world\"}";
 
         // This should fail JSON parsing and exit gracefully
-        handle_action_gossip(wrong_schema, path, None, None, 100);
+        handle_action_gossip(
+            wrong_schema,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -156,7 +170,13 @@ mod tests {
         huge_payload.extend(vec![b']'; 500_000]);
 
         // Should reject immediately gracefully during parsing
-        handle_action_gossip(&huge_payload, path, None, None, 100);
+        handle_action_gossip(
+            &huge_payload,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -164,10 +184,16 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = Arc::new(dir.path().join("action.bin"));
 
-        let extra_fields = b"{\"action\": \"EmergencyPause\", \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
+        let extra_fields = b"{\"action\": \"EmergencyHalt\", \"timestamp_kyn\": 0, \"signatures\": [], \"extra_unwanted_field\": 123}";
 
         // Should parse and handle or ignore the extra field without panicking
-        handle_action_gossip(extra_fields, path, None, None, 100);
+        handle_action_gossip(
+            extra_fields,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 
     #[test]
@@ -177,15 +203,21 @@ mod tests {
         let path = Arc::new(dir.path().to_path_buf());
 
         // Valid message that would typically trigger a save (even with no effect, it saves)
-        let msg = SignedActionMessage {
-            action: NetworkAction::EmergencyPause,
-            timestamp_kyn: kinetic_kyn::types::Kyn(0),
+        let msg = SignedNetworkAction {
+            action: NetworkAction::EmergencyHalt,
+            timestamp_kyn: kinetic_kyn::types::TimestampKyn::from(0),
             sovereign_signatures: vec![],
         };
         let payload = serde_json::to_vec(&msg).unwrap();
 
         // Should not panic when `state.save_to_disk` returns an Err
-        handle_action_gossip(&payload, path, None, None, 100);
+        handle_action_gossip(
+            &payload,
+            path,
+            None,
+            None,
+            kinetic_kyn::types::CurrentKyn::from(100),
+        );
     }
 }
 
@@ -203,7 +235,7 @@ mod fuzzing {
         ) {
             let dir = tempdir().unwrap();
             let path = Arc::new(dir.path().join("action.bin"));
-            handle_action_gossip(&raw_payload, path, None, None, 100);
+            handle_action_gossip(&raw_payload, path, None, None, kinetic_kyn::types::CurrentKyn::from(100));
         }
     }
 }

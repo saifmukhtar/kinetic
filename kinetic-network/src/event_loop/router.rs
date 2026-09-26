@@ -8,7 +8,7 @@ use crate::behavior::KineticBehavior;
 use crate::client::{NetworkClient, NetworkConfig, ProxyRequest, ProxyResponse};
 use crate::store::KineticRecordStore;
 
-pub(crate) fn build_full_swarm(
+pub(crate) fn build_router_swarm(
     config: &NetworkConfig,
     local_key: libp2p::identity::Keypair,
     storage: Arc<dyn kinetic_core::traits::StorageEngine>,

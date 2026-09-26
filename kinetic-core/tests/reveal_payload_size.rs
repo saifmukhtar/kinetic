@@ -11,16 +11,16 @@ fn test_003_oom_payload_exhaustion() {
     let reveal = Reveal {
         protocol_version: 1,
         name: format!("{}{}", "malicious", kinetic_core::constants::NSP_SUFFIX),
-        payload: oversized_payload,
+        embedded_nrs: oversized_payload,
         salt: [0u8; 32],
-        kyn: kinetic_kyn::types::Kyn(100),
+        kyn: kinetic_kyn::types::TargetKyn::from(100),
         beacon_signature: "random".to_string(),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-        identity_signature: vec![],
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         previous_proof: None,
         authorization: None,
     };

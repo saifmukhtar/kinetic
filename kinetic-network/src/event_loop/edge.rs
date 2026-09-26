@@ -7,7 +7,7 @@ use crate::client::{NetworkClient, NetworkConfig, ProxyRequest, ProxyResponse};
 use crate::store::KineticRecordStore;
 
 #[allow(clippy::type_complexity)]
-pub(crate) fn build_light_swarm(
+pub(crate) fn build_edge_swarm(
     config: &NetworkConfig,
     local_key: libp2p::identity::Keypair,
     storage: Arc<dyn kinetic_core::traits::StorageEngine>,

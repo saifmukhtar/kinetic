@@ -24,15 +24,17 @@ pub async fn start_gossip_listener(
 
             if opcode == kinetic_types::network::NetworkOpcode::Action as u8
                 && let Ok(signed_msg) = serde_json::from_slice::<
-                    kinetic_core::action::SignedActionMessage,
+                    kinetic_core::action::SignedNetworkAction,
                 >(actual_payload)
             {
-
                 let current_kyn = match kyn_provider.load_cached() {
-                    Ok(kyn) => kyn.kyn,
+                    Ok(kyn) => kyn.kyn(),
                     Err(_) => match kyn_provider.fetch_latest().await {
-                        Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_kyn::types::Kyn::now_local().0,
+                        Ok(kyn) => kyn.kyn(),
+                        Err(_) => {
+                            kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS)
+                                .0
+                        }
                     },
                 };
 
@@ -48,7 +50,7 @@ pub async fn start_gossip_listener(
                     match kinetic_core::action::process_action_message(
                         &mut state,
                         &signed_msg,
-                        kinetic_kyn::types::Kyn(current_kyn),
+                        kinetic_kyn::types::CurrentKyn::from(current_kyn),
                     ) {
                         Ok(Some(effect)) => {
                             tracing::info!("Action state updated via gossip. Effect: {:?}", effect);
@@ -99,7 +101,7 @@ mod proptests {
         fn test_gossip_malformed_payloads(payload in prop::collection::vec(any::<u8>(), 0..1024)) {
             // Guarantee that receiving malformed payloads over the P2P gossip network
             // will never cause a deserialization panic.
-            let _ = serde_json::from_slice::<kinetic_core::action::SignedActionMessage>(&payload);
+            let _ = serde_json::from_slice::<kinetic_core::action::SignedNetworkAction>(&payload);
         }
     }
 }

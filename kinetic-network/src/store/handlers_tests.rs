@@ -12,16 +12,16 @@ mod tests {
         Reveal {
             protocol_version: 1,
             name: name.to_string(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0u8; 32],
-            kyn: kinetic_kyn::types::Kyn(kyn),
+            kyn: kinetic_kyn::types::TargetKyn::from(kyn),
             beacon_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-            identity_signature: vec![],
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             previous_proof: None,
             authorization: None,
         }
@@ -42,7 +42,7 @@ mod tests {
         let store = KineticRecordStore::new(
             peer_id,
             storage.clone(),
-            100, // initial drand kyn
+            100.into(), // initial drand kyn
             std::num::NonZeroUsize::new(100).unwrap(),
             max_reveals,
             vdf_engine,
@@ -116,12 +116,12 @@ mod tests {
         let name = "test.kinetic".to_string();
 
         let mut reveal = mock_reveal(&name, 100);
-        let ml_kp = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+        let ml_kp = kinetic_primitives::keypairs::IdentityPrivKey::generate();
         reveal.pubkey = ml_kp.to_pubkey();
 
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::NameRecord::Standard(Box::new(reveal)),
+            kinetic_core::types::NameEnvelope::Standard(Box::new(reveal)),
         );
 
         // Set existing kyn to 200
@@ -130,7 +130,7 @@ mod tests {
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
             latest_kyn: kinetic_kyn::types::Kyn(49),
-            owner_signature: vec![],
+            owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             authorization: None,
         };
 
@@ -144,27 +144,25 @@ mod tests {
         ));
     }
 
-
-
     #[test]
     fn test_future_heartbeat() {
         let (mut store, _storage) = setup_store(100);
         let name = "test.kin".to_string();
 
         let mut reveal = mock_reveal(&name, 100);
-        let ml_kp = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+        let ml_kp = kinetic_primitives::keypairs::IdentityPrivKey::generate();
         reveal.pubkey = ml_kp.to_pubkey();
 
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::NameRecord::Standard(Box::new(reveal)),
+            kinetic_core::types::NameEnvelope::Standard(Box::new(reveal)),
         );
         store.last_heartbeats_by_name.insert(name.clone(), 100);
 
         let mut hb = kinetic_core::types::Heartbeat {
             name: name.clone(),
             latest_kyn: kinetic_kyn::types::Kyn(105),
-            owner_signature: vec![],
+            owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             authorization: None,
         };
 
@@ -183,23 +181,23 @@ mod tests {
         let name = "tie.kin".to_string();
 
         let mut existing = mock_reveal(&name, 100);
-        existing.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0x00]);
+        existing.pubkey = kinetic_primitives::keypairs::IdentityPubKey(vec![0x00]);
         existing.vdf_proof.proof_bytes = vec![0x01];
         existing.iterations = 1000;
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::NameRecord::Standard(Box::new(existing)),
+            kinetic_core::types::NameEnvelope::Standard(Box::new(existing)),
         );
         store.last_heartbeats_by_name.insert(name.clone(), 100);
 
         let mut attacker_lose = mock_reveal(&name, 100);
-        attacker_lose.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0x01]);
+        attacker_lose.pubkey = kinetic_primitives::keypairs::IdentityPubKey(vec![0x01]);
         attacker_lose.vdf_proof.proof_bytes = vec![0x03]; // XOR = 2
         attacker_lose.vdf_proof.proof_bytes = vec![0x02];
         attacker_lose.iterations = 1000;
 
         let result_lose = store.handle_put_record(
-            &kinetic_core::types::NameRecord::Standard(Box::new(attacker_lose)),
+            &kinetic_core::types::NameEnvelope::Standard(Box::new(attacker_lose)),
             true,
         );
         assert!(matches!(
@@ -208,13 +206,13 @@ mod tests {
         ));
 
         let mut attacker_win = mock_reveal(&name, 100);
-        attacker_win.pubkey = kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0x01]);
+        attacker_win.pubkey = kinetic_primitives::keypairs::IdentityPubKey(vec![0x01]);
         attacker_win.vdf_proof.proof_bytes = vec![0x01]; // XOR = 0 (closer)
         attacker_win.vdf_proof.proof_bytes = vec![0x00];
         attacker_win.iterations = 1000;
 
         let result_win = store.handle_put_record(
-            &kinetic_core::types::NameRecord::Standard(Box::new(attacker_win)),
+            &kinetic_core::types::NameEnvelope::Standard(Box::new(attacker_win)),
             true,
         );
         assert!(result_win.is_ok());

@@ -91,7 +91,7 @@ pub async fn handle_gossip_publish(
 pub async fn handle_get_gossip_topics(
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    match state.network.get_gossip_topics().await {
+    match state.network.gossip_topics().await {
         Ok(topics) => Ok(Json(serde_json::json!({ "topics": topics }))),
         Err(e) => Err(crate::api::error::AppError::from(e)),
     }

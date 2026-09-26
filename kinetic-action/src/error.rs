@@ -60,10 +60,6 @@ pub enum ActionError {
     #[error("Invalid signature")]
     InvalidSignature,
 
-
-
-
-
     /// **What**: The daemon could not persist the updated action state to disk.
     /// **Why**: The file system may be read-only, or the daemon process lacks necessary write permissions.
     /// **Fix**: Check disk space and permissions for the `base_dir/networks/nsp-salt_id/` directory.
@@ -112,7 +108,6 @@ impl ActionError {
             Self::StaleProposal => "KIN-ACN-005",
             Self::AlreadyExecuted => "KIN-ACN-006",
             Self::InvalidSignature => "KIN-ACN-007",
-
 
             Self::StateSaveFailed => "KIN-ACN-013",
             Self::P2pPublishFailed => "KIN-ACN-014",

@@ -45,7 +45,7 @@ pub async fn handle_auth_command(
             let port = config.daemon.api_port;
             let url = format!(
                 "http://{}:{}/api/v1/micro/auth/session",
-                config.daemon.bind_ip, port
+                config.peer.bind_ip, port
             );
 
             let payload = serde_json::json!({
@@ -61,7 +61,10 @@ pub async fn handle_auth_command(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
 
             let json: serde_json::Value = resp.json().await?;
@@ -83,7 +86,7 @@ pub async fn handle_auth_command(
             let port = config.daemon.api_port;
             let url = format!(
                 "http://{}:{}/api/v1/micro/auth/sessions",
-                config.daemon.bind_ip, port
+                config.peer.bind_ip, port
             );
 
             let pb = ProgressBar::new_spinner();
@@ -98,7 +101,10 @@ pub async fn handle_auth_command(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
 
             let json: serde_json::Value = resp.json().await?;
@@ -156,7 +162,7 @@ pub async fn handle_auth_command(
             let port = config.daemon.api_port;
             let url = format!(
                 "http://{}:{}/api/v1/micro/auth/session/{}",
-                config.daemon.bind_ip, port, id
+                config.peer.bind_ip, port, id
             );
             let resp = client.delete(&url).send().await?;
 
@@ -165,7 +171,10 @@ pub async fn handle_auth_command(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
 
             println!("✅ Successfully revoked session: {}", id);

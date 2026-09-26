@@ -21,14 +21,14 @@ use ml_dsa::{KeyInit, MlDsa65};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
-pub mod keys;
-pub mod kinetic_keypair;
+pub mod core;
+pub mod keypairs;
 
 /// The exact byte length of a Kinetic Network post-quantum public key (ML-DSA-65).
 pub const KINETIC_PUBKEY_LENGTH: usize = 1952;
 
 /// The exact byte length of a Kinetic Network post-quantum signature (ML-DSA-65).
-/// Note: This was previously hardcoded as 4627 in some places, which was the length for ML-DSA-87. 
+/// Note: This was previously hardcoded as 4627 in some places, which was the length for ML-DSA-87.
 /// ML-DSA-65 signatures are exactly 3309 bytes.
 pub const KINETIC_SIGNATURE_LENGTH: usize = 3309;
 
@@ -58,12 +58,12 @@ pub enum SignatureError {
 ///
 /// # Examples
 /// ```rust
-/// use kinetic_primitives::sha256_hash;
+/// use kinetic_primitives::sha256;
 ///
-/// let hash = sha256_hash(b"hello world");
+/// let hash = sha256(b"hello world");
 /// assert_eq!(hash.len(), 32);
 /// ```
-pub fn sha256_hash(data: &[u8]) -> [u8; 32] {
+pub fn sha256(data: &[u8]) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(data);
     hasher.finalize().into()
@@ -76,13 +76,13 @@ pub fn sha256_hash(data: &[u8]) -> [u8; 32] {
 ///
 /// # Examples
 /// ```rust
-/// use kinetic_primitives::{sha256_hash, sha256_hash_concat};
+/// use kinetic_primitives::{sha256, sha256_concat};
 ///
-/// let combined = sha256_hash_concat(&[b"hello", b" ", b"world"]);
-/// let direct = sha256_hash(b"hello world");
+/// let combined = sha256_concat(&[b"hello".as_ref(), b" ".as_ref(), b"world".as_ref()]);
+/// let direct = sha256(b"hello world");
 /// assert_eq!(combined, direct);
 /// ```
-pub fn sha256_hash_concat(chunks: &[&[u8]]) -> [u8; 32] {
+pub fn sha256_concat(chunks: &[&[u8]]) -> [u8; 32] {
     let mut hasher = Sha256::new();
     for chunk in chunks {
         hasher.update(*chunk);
@@ -93,8 +93,8 @@ pub fn sha256_hash_concat(chunks: &[&[u8]]) -> [u8; 32] {
 /// Verifies a `KineticKeypair` signature against a given public key and message.
 ///
 /// # Security
-/// This boundary assumes the caller has already extracted the raw signature bytes 
-/// from the network payload. It performs strict mathematical validation but does 
+/// This boundary assumes the caller has already extracted the raw signature bytes
+/// from the network payload. It performs strict mathematical validation but does
 /// **not** check authorization logic (e.g., whether the key is permitted to sign).
 ///
 /// # Arguments
@@ -109,18 +109,18 @@ pub fn sha256_hash_concat(chunks: &[&[u8]]) -> [u8; 32] {
 ///
 /// # Examples
 /// ```rust
-/// use kinetic_primitives::keys::KineticKeypair;
-/// use kinetic_primitives::verify_keypair;
+/// use kinetic_primitives::core::KineticKeypair;
+/// use kinetic_primitives::verify_signature;
 ///
 /// let keypair = KineticKeypair::generate();
 /// let message = b"consensus payload";
 /// let signature = keypair.sign(message);
-/// let pubkey = keypair.pubkey_bytes();
+/// let pubkey = keypair.to_public_bytes();
 ///
 /// // Verify the signature
-/// assert!(verify_keypair(&pubkey, message, &signature).is_ok());
+/// assert!(verify_signature(&pubkey, message, &signature).is_ok());
 /// ```
-pub fn verify_keypair(
+pub fn verify_signature(
     pubkey_bytes: &[u8],
     message: &[u8],
     signature_bytes: &[u8],

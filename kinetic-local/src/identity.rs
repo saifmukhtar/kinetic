@@ -1,5 +1,5 @@
 use kinetic_core::error::IdentityError;
-use kinetic_primitives::kinetic_keypair::IdentityPrivKey;
+use kinetic_primitives::keypairs::IdentityPrivKey;
 use std::path::Path;
 
 #[cfg(not(target_arch = "wasm32"))]

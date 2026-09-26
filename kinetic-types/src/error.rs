@@ -1,7 +1,7 @@
 //! Unified error taxonomy and severity classifications.
 //!
-//! Provides the core [`Severity`] classification enum used across all 
-//! domain-specific error types in the Kinetic architecture to drive deterministic 
+//! Provides the core [`Severity`] classification enum used across all
+//! domain-specific error types in the Kinetic architecture to drive deterministic
 //! logging, alerting, and failure boundaries.
 
 use serde::{Deserialize, Serialize};
@@ -9,12 +9,12 @@ use serde::{Deserialize, Serialize};
 /// Alert and logging severity level for a Kinetic network error.
 ///
 /// Every domain error type in the Kinetic network implements a `severity()` method
-/// returning one of these variants. This decoupling allows the routing layer to 
-/// universally filter logs and UI alerts without needing to understand the underlying 
+/// returning one of these variants. This decoupling allows the routing layer to
+/// universally filter logs and UI alerts without needing to understand the underlying
 /// error context.
 ///
 /// # Semantic Output Boundary
-/// The integer order of these variants (0-3) is mathematically significant for 
+/// The integer order of these variants (0-3) is mathematically significant for
 /// strict magnitude comparisons (`Info < Warning < Error < Critical`).
 ///
 /// # Examples

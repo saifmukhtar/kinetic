@@ -108,8 +108,6 @@ pub fn is_valid_apex_name(name: &str) -> Result<(), crate::error::NamesError> {
         return Err(crate::error::NamesError::ReservedName);
     }
 
-
-
     Ok(())
 }
 
@@ -281,9 +279,7 @@ mod tests {
 
 #[cfg(test)]
 mod names_tests {
-    use super::*;
-
-
+    
 }
 
 #[cfg(test)]

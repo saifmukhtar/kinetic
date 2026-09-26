@@ -68,7 +68,7 @@ pub async fn handle_owned_names(
 pub async fn handle_network_status(
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    match state.network.get_network_status().await {
+    match state.network.network_status().await {
         Ok(status) => Ok(Json(status)),
         Err(e) => Err(crate::api::error::AppError::from(e)),
     }
@@ -98,7 +98,7 @@ pub async fn handle_network_bootstrap(
 pub async fn handle_network_nat(
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    match state.network.get_network_status().await {
+    match state.network.network_status().await {
         Ok(mut status) => {
             let nat_status = status
                 .as_object_mut()
@@ -114,7 +114,7 @@ pub async fn handle_network_nat(
 pub async fn handle_network_banned(
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    match state.network.get_banned_peers().await {
+    match state.network.banned_peers().await {
         Ok(peers) => {
             let json_peers: Vec<serde_json::Value> = peers
                 .into_iter()
@@ -130,7 +130,7 @@ pub async fn handle_network_banned(
 pub async fn handle_network_peers(
     State(state): State<ApiState>,
 ) -> Result<Json<Vec<String>>, crate::api::error::AppError> {
-    match state.network.get_connected_peers().await {
+    match state.network.connected_peers().await {
         Ok(peers) => Ok(Json(peers)),
         Err(e) => Err(crate::api::error::AppError::from(e)),
     }
@@ -206,7 +206,7 @@ pub async fn handle_get_health(
     State(state): State<ApiState>,
 ) -> (axum::http::StatusCode, Json<serde_json::Value>) {
     // Check if network channel is responsive
-    let network_ok = state.network.get_network_status().await.is_ok();
+    let network_ok = state.network.network_status().await.is_ok();
     // Check if storage is accessible by reading a known key
     let storage_ok = state
         .storage
@@ -238,7 +238,7 @@ pub async fn handle_get_health(
 pub async fn handle_get_peer_id(
     State(state): State<ApiState>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
-    match state.network.get_network_status().await {
+    match state.network.network_status().await {
         Ok(status) => {
             if let Some(peer_id) = status.get("peer_id").and_then(|p| p.as_str()) {
                 Ok(Json(serde_json::json!({ "peer_id": peer_id })))

@@ -22,7 +22,7 @@ async fn setup_node_with_proxy(
         external_address: None,
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(10_000).unwrap(),
-        disable_pow: true,
+        disable_challenge: true,
         enable_mdns: false,
         enable_relay_server: false,
         enable_upnp: false,
@@ -30,8 +30,8 @@ async fn setup_node_with_proxy(
             .into_iter()
             .map(|s| s.parse().unwrap())
             .collect(),
-        initial_kyn: 1000,
-        mode: kinetic_network::NetworkMode::FullNode,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),
+        mode: kinetic_network::NetworkMode::Router,
 
         seed_domain: vec![],
         test_mode: false,

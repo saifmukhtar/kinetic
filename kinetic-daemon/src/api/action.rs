@@ -5,20 +5,18 @@ use axum::Json;
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 use serde::Serialize;
 
-
 /// A period of time when the network was halted.
 #[derive(Serialize)]
 pub struct PausePeriod {
     /// The exact Kyn when the network was halted.
-    pub start_kyn: u64,
+    pub start_kyn: kinetic_kyn::types::StartKyn,
     /// The exact Kyn when the network was resumed.
-    pub end_kyn: u64,
+    pub end_kyn: kinetic_kyn::types::EndKyn,
 }
 
 /// High-level metrics summarizing the action state.
 #[derive(Serialize)]
 pub struct ActionMetrics {
-
     /// Total number of action/action commands executed since genesis.
     pub total_executed_actions: usize,
 }
@@ -27,9 +25,9 @@ pub struct ActionMetrics {
 #[derive(Serialize)]
 pub struct ActionStatusResponse {
     /// Genesis Kyn when action tracking started.
-    pub genesis_kyn: u64,
+    pub genesis_kyn: kinetic_kyn::types::GenesisKyn,
     /// The current exact network Kyn.
-    pub current_kyn: u64,
+    pub current_kyn: kinetic_kyn::types::CurrentKyn,
     /// The mathematically verified uptime age of the network in kyns.
     pub active_kyn_age: u64,
     /// Active ML-DSA-65 root public key controlling the network (hex encoded).
@@ -37,7 +35,7 @@ pub struct ActionStatusResponse {
     /// Master boolean flag if the network is currently paused.
     pub is_halted: bool,
     /// The exact Kyn when the network was halted (if currently halted).
-    pub halt_start_kyn: Option<u64>,
+    pub halt_start_kyn: Option<kinetic_kyn::types::HaltStartKyn>,
     /// Total number of drand kyns the network has been paused for since genesis.
     pub total_paused_kyns: u64,
     /// The last time the network was paused (if ever).
@@ -69,29 +67,33 @@ pub async fn handle_get_action_status(
         })
     })?;
 
-    let active_key_hex = action_state.active_sovereign_key.as_ref().map(hex::encode);
+    let active_key_hex = action_state
+        .active_sovereign_key
+        .as_ref()
+        .map(|k| hex::encode(&k.0));
 
     // Fetch verified Kyn from the node's constantly updating local cache
     let current_kyn = {
-        let kyn_provider =
-            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+        let kyn_provider = kinetic_network::client::beacon::BeaconProvider::new(Some(
+            state.storage.clone(),
+        ));
         use kinetic_core::traits::KynProvider;
         match kyn_provider.load_cached() {
-            Ok(kyn) => kyn.kyn,
-            Err(_) => kinetic_kyn::types::Kyn::now_local().0, // Fallback to OS clock if DB is completely empty (genesis)
+            Ok(kyn) => kyn.kyn(),
+            Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0, // Fallback to OS clock if DB is completely empty (genesis)
         }
     };
 
     let active_kyn_age = current_kyn
-        .saturating_sub(action_state.genesis_kyn.0)
+        .saturating_sub(action_state.genesis_kyn.as_u64())
         .saturating_sub(action_state.total_paused_kyns);
 
     let last_pause = action_state
         .pause_history
         .last()
         .map(|(start, end)| PausePeriod {
-            start_kyn: start.0,
-            end_kyn: end.0,
+            start_kyn: *start,
+            end_kyn: *end,
         });
 
     let metrics = ActionMetrics {
@@ -99,19 +101,17 @@ pub async fn handle_get_action_status(
     };
 
     Ok(Json(ActionStatusResponse {
-        genesis_kyn: action_state.genesis_kyn.0,
-        current_kyn,
+        genesis_kyn: action_state.genesis_kyn,
+        current_kyn: current_kyn.into(),
         active_kyn_age,
         active_sovereign_key_hex: active_key_hex,
         is_halted: action_state.is_halted,
-        halt_start_kyn: action_state.halt_start_kyn.map(|k| k.0),
+        halt_start_kyn: action_state.halt_start_kyn,
         total_paused_kyns: action_state.total_paused_kyns,
         last_pause,
         metrics,
     }))
 }
-
-
 
 use crate::api::ApiState;
 use crate::api::PublishResponse;
@@ -127,7 +127,7 @@ use kinetic_core::traits::KynProvider;
 pub async fn handle_publish_action(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
-    Json(msg): Json<kinetic_core::action::SignedActionMessage>,
+    Json(msg): Json<kinetic_core::action::SignedNetworkAction>,
 ) -> Result<Json<PublishResponse>, crate::api::error::AppError> {
     if !role.can_action() {
         return Err(kinetic_core::error::RestApiError::InsufficientPrivileges.into());
@@ -135,14 +135,15 @@ pub async fn handle_publish_action(
     tracing::info!("Received API publish request for Action action");
 
     let _current_kyn = {
-        let kyn_provider =
-            kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+        let kyn_provider = kinetic_network::client::beacon::BeaconProvider::new(Some(
+            state.storage.clone(),
+        ));
 
         match kyn_provider.load_cached() {
-            Ok(kyn) => kyn.kyn,
+            Ok(kyn) => kyn.kyn(),
             Err(_) => match kyn_provider.fetch_latest().await {
-                Ok(kyn) => kyn.kyn,
-                Err(_) => kinetic_kyn::types::Kyn::now_local().0,
+                Ok(kyn) => kyn.kyn(),
+                Err(_) => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
             },
         }
     };
@@ -152,7 +153,7 @@ pub async fn handle_publish_action(
         let res = kinetic_core::action::process_action_message(
             &mut action_state,
             &msg,
-            kinetic_kyn::types::Kyn(0), // Doesn't matter because it relies on signed_timestamp anyway
+            kinetic_kyn::types::CurrentKyn::from(0), // Doesn't matter because it relies on signed_timestamp anyway
         );
         match res {
             Ok(_) => {
@@ -160,8 +161,8 @@ pub async fn handle_publish_action(
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|_| {
                         let config = kinetic_local::config::load_config();
-                        kinetic_local::config::get_base_dir()
-                            .join(config.daemon.storage_dir)
+                        kinetic_local::config::base_dir()
+                            .join(config.peer.storage_dir)
                             .join("action.db")
                     });
                 if let Err(e) = kinetic_local::action::save_action_to_disk(&action_state, &path) {

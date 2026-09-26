@@ -7,10 +7,10 @@
     "local_bind_ip": "127.0.0.2",
     "bootstrap_nodes": []
   },
-  "time_oracle": {
-    "kyn_genesis_time": 1692803367,
-    "kyn_period": 3,
-    "kinetic_genesis_kyn": 30579969,
+  "beacon": {
+    "beacon_genesis": 1692803367,
+    "kyn_period": 1,
+    "kyn_genesis": 30579969,
     "beacon_public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
     "beacon_endpoints": [
       "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/latest",
@@ -22,31 +22,31 @@
   },
   "action": {
     "action_model": "sovereign",
-    "max_age_kyns": 201600
+    "max_age_kyns": 604800
   },
-  "consensus": {
+  "physics": {
     "ndc_multipliers": {
-      "len_0_to_1": 52596000,
-      "len_2": 43200,
-      "len_3": 34560,
-      "len_4": 21600,
-      "len_5": 1440,
-      "len_6": 720,
-      "len_7": 150,
-      "len_8_to_10": 120,
-      "len_11_to_17": 90,
-      "len_18_to_20": 60
+      "len_0_to_1": 157788000,
+      "len_2": 129600,
+      "len_3": 103680,
+      "len_4": 64800,
+      "len_5": 4320,
+      "len_6": 2160,
+      "len_7": 450,
+      "len_8_to_10": 360,
+      "len_11_to_17": 270,
+      "len_18_to_20": 180
     },
     "vdf_discount_min_iterations": 1000,
     "vdf_discount_percentage": 15,
     "vdf_max_iterations": 400000000000,
     "vdf_max_proof_bytes": 1024,
-    "minimum_commit_age_kyns": 10
+    "minimum_commit_age_kyns": 30
   },
   "advanced": {
     "benchmark_base_iterations": 238819830,
     "benchmark_target_minutes": 30.0,
-    "takeover_target_kyns": 7884000,
+    "takeover_target_kyns": 23652000,
     "m_redundancy": 32,
     "dev_mode_iterations": 1000,
     "limits": {

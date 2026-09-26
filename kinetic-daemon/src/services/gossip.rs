@@ -1,25 +1,25 @@
 //! Background pub/sub gossip message processor for action updates and KYN Time Oracle pulses.
 //!
 //! ## Layer 8 Architecture: The Global State Interceptor
-//! This background worker connects the local OS Action State to the decentralized Gossipsub 
-//! mesh. It listens for cryptographically signed network commands (like `Pause`, `Upgrade`, 
-//! or `DisablePow`) and immediately persists them to the local `kinetic-local::action` file, 
-//! forcing the local daemon to obey the sovereign consensus.
+//! This background worker connects the local OS Action State to the peer-to-peer Gossipsub
+//! mesh. It listens for cryptographically signed network commands (like `Pause`, `Upgrade`,
+//! or `DisablePow`) and immediately persists them to the local `kinetic-local::action` file,
+//! forcing the local daemon to obey the sovereign network rules.
 
 use kinetic_core::traits::KynProvider;
 /// Initiates the Gossipsub Action Interceptor.
 ///
 /// > [!WARNING]
-/// > This function is highly privileged. It possesses the capability to alter the local 
+/// > This function is highly privileged. It possesses the capability to alter the local
 /// > configuration state of the user's daemon based on unverified network mesh floods.
 ///
-/// Because Libp2p Gossipsub is "push-based" (messages are flooded dynamically without request), 
-/// this asynchronous worker sits in a tight loop blocking on `gossip_rx.recv()`. When it detects 
+/// Because Libp2p Gossipsub is "push-based" (messages are flooded dynamically without request),
+/// this asynchronous worker sits in a tight loop blocking on `gossip_rx.recv()`. When it detects
 /// an incoming raw byte payload, it attempts to match it against `NetworkOpcode::ActionMessage`.
 ///
-/// If matched, it passes the payload to `kinetic_action::process_action_message()`, which 
-/// cryptographically verifies the Sovereign ML-DSA-65 signatures. If the signatures are valid, 
-/// the Global Action State (e.g., Network Halt, PoW Disable) is persisted to disk, and the daemon 
+/// If matched, it passes the payload to `kinetic_action::process_action_message()`, which
+/// cryptographically verifies the Sovereign ML-DSA-65 signatures. If the signatures are valid,
+/// the Global Action State (e.g., Network Halt, Challenge Disable) is persisted to disk, and the daemon
 /// dynamically adjusts its runtime behavior.
 pub fn start_gossip_processor(
     network_client: kinetic_network::NetworkClient,
@@ -52,13 +52,17 @@ pub fn start_gossip_processor(
                 if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
                     let mut is_valid = false;
                     if let Ok(signed_msg) = serde_json::from_slice::<
-                        kinetic_core::action::SignedActionMessage,
+                        kinetic_core::action::SignedNetworkAction,
                     >(actual_payload)
                     {
-
                         let current_kyn = match kyn_provider_gossip.load_cached() {
-                            Ok(kyn) => kyn.kyn,
-                            Err(_) => kinetic_kyn::types::Kyn::now_local().0,
+                            Ok(kyn) => kyn.kyn(),
+                            Err(_) => {
+                                kinetic_local::time::now_local(
+                                    kinetic_core::constants::BEACON_GENESIS,
+                                )
+                                .0
+                            }
                         };
                         let (should_update_log, log) = {
                             let Ok(mut state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock()
@@ -74,7 +78,7 @@ pub fn start_gossip_processor(
                             match kinetic_core::action::process_action_message(
                                 &mut state,
                                 &signed_msg,
-                                kinetic_kyn::types::Kyn(current_kyn),
+                                kinetic_kyn::types::CurrentKyn::from(current_kyn),
                             ) {
                                 Ok(Some(effect)) => {
                                     is_valid = true;
@@ -82,7 +86,6 @@ pub fn start_gossip_processor(
                                         "Action state updated via gossip. Effect: {:?}",
                                         effect
                                     );
-
 
                                     if let Err(e) = kinetic_local::action::save_action_to_disk(
                                         &state,
@@ -129,22 +132,24 @@ pub fn start_gossip_processor(
                         }
                     }
                     network_client.report_gossip(message_id, propagation_source, is_valid);
-                } else if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8 {
+                } else if opcode == kinetic_types::network::NetworkOpcode::Kyn as u8 {
                     let mut is_valid = false;
                     if let Ok(kyn) =
-                        serde_json::from_slice::<kinetic_core::drand::RawKyn>(actual_payload)
+                        serde_json::from_slice::<kinetic_kyn::beacon::RawKyn>(actual_payload)
                     {
                         let kyn_clone = kyn.clone();
-                        is_valid = tokio::task::spawn_blocking(move || kyn_clone.verify_beacon(kinetic_core::config::is_dev_mode()))
-                            .await
-                            .unwrap_or(false);
+                        is_valid = tokio::task::spawn_blocking(move || {
+                            kyn_clone.verify_beacon(kinetic_core::config::is_dev_mode())
+                        })
+                        .await
+                        .unwrap_or(false);
                         if is_valid {
                             let latest_kyn = match kyn_provider_gossip.load_cached() {
                                 Ok(latest) => {
                                     if latest.is_unavailable {
                                         0
                                     } else {
-                                        latest.kyn
+                                        latest.kyn()
                                     }
                                 }
                                 Err(e) => {
@@ -162,7 +167,7 @@ pub fn start_gossip_processor(
                                 }
                             };
 
-                            if kyn.kyn > latest_kyn {
+                            if kyn.kyn() > latest_kyn {
                                 if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                                     tracing::error!(
                                         error_code = e.code(),
@@ -170,7 +175,7 @@ pub fn start_gossip_processor(
                                         e
                                     );
                                 }
-                                let _ = kyn_tx_gossip.send(kyn.kyn);
+                                let _ = kyn_tx_gossip.send(kyn.kyn());
                             }
                         }
                     }

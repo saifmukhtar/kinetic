@@ -11,6 +11,6 @@ proptest! {
     ) {
         // xor_tie_breaker handles parsing JSON internally, so throwing arbitrary bytes at it
         // tests the resilience of serde_json::from_slice and the filtering logic.
-        let _ = NetworkEventLoop::xor_tie_breaker("test.kin", payloads, kyn);
+        let _ = NetworkEventLoop::xor_tie_breaker("test.kin", payloads, kyn.into());
     }
 }

@@ -2,9 +2,9 @@
 //!
 //! **Layer 4: Verification & Domain Rules**
 //!
-//! This crate implements the `ActionState` which defines how the network's global 
-//! configurations (like infrastructure names and Sovereign keys) are securely 
-//! updated over time. It is strictly a Layer 4 crate and has no knowledge of P2P 
+//! This crate implements the `ActionState` which defines how the network's global
+//! configurations (like infrastructure names and Sovereign keys) are securely
+//! updated over time. It is strictly a Layer 4 crate and has no knowledge of P2P
 //! networking or higher-level asynchronous runtimes.
 //!
 //! ## Core Components

@@ -8,21 +8,21 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Parsed NRS zone mapping subname labels to collections of [`NrsRecord`] entries.
+/// Parsed NRS zone mapping subname labels to collections of [`NrsEntry`] entries.
 ///
-/// The zone acts identically to a traditional DNS zone file, but is published securely 
+/// The zone acts identically to a traditional DNS zone file, but is published securely
 /// into the Kinetic network's decentralized DHT.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NrsZone {
     /// Mapping from subname label (e.g., `@`, `www`, `api`) to a list of associated NRS records.
     #[serde(default)]
-    pub records: HashMap<String, Vec<NrsRecord>>,
+    pub records: HashMap<String, Vec<NrsEntry>>,
 }
 
 /// Strongly typed NRS record variant supported by the Kinetic network resolver.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "value")]
-pub enum NrsRecord {
+pub enum NrsEntry {
     /// Standard IPv4 address record.
     A(std::net::Ipv4Addr),
     /// Standard IPv6 address record.
@@ -44,39 +44,40 @@ pub enum NrsRecord {
 
 /// Host routing record mapping a decentralized host identifier to an active P2P peer ID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HostRoutingRecord {
+pub struct HostRoute {
     /// Unique host identifier string.
     pub host_id: String,
     /// Currently assigned P2P network peer ID.
     pub current_peer_id: String,
-    /// The KineticTime kyn number when this record was created.
-    pub kyn: kinetic_kyn::types::Kyn,
-    /// Host signature over [`signable_bytes`](HostRoutingRecord::signable_bytes).
-    pub host_signature: Vec<u8>,
+    /// The Kyn when this record was created.
+    pub kyn: kinetic_kyn::types::TargetKyn,
+    /// Host signature over [`signable_bytes`](HostRoute::signable_bytes).
+    #[serde(with = "crate::sig_serde::delegated_sig_serde")]
+    pub host_signature: kinetic_primitives::keypairs::DelegatedSignature,
 }
 
-impl HostRoutingRecord {
+impl HostRoute {
     /// Serializes the host routing record into a canonical byte string for host signature verification.
     ///
     /// The byte layout is:
     /// `network_salt` (32 bytes) + `b"-nrs-routing-v1"` + `u32_be(host_id.len())` + `host_bytes` + `u32_be(peer_id.len())` + `peer_bytes` + `u64_be(kyn)`
     ///
     /// # Security
-    /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte 
-    /// `network_salt` and the literal `b"-nrs-routing-v1"`, a routing record signed for 
+    /// Enforces Cross-Network Replay Protection. By incorporating the 32-byte
+    /// `network_salt` and the literal `b"-nrs-routing-v1"`, a routing record signed for
     /// the `.kin` network cannot be maliciously replayed on other networks.
     ///
     /// # Examples
     /// ```rust
-    /// use kinetic_types::nrs::HostRoutingRecord;
+    /// use kinetic_types::nrs::HostRoute;
     ///
-    /// let routing = HostRoutingRecord {
+    /// let routing = HostRoute {
     ///     host_id: "host-123".to_string(),
     ///     current_peer_id: "12D3KooW...".to_string(),
-    ///     kyn: kinetic_kyn::types::Kyn(150000),
-    ///     host_signature: vec![],
+    ///     kyn: kinetic_kyn::types::TargetKyn(kinetic_kyn::types::Kyn(150000)),
+    ///     host_signature: kinetic_primitives::keypairs::DelegatedSignature(vec![]),
     /// };
-    /// 
+    ///
     /// let salt = [0x42; 32];
     /// let bytes = routing.signable_bytes(&salt);
     /// assert!(bytes.len() > 32);

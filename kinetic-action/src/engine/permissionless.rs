@@ -5,7 +5,7 @@
 
 use crate::error::ActionError;
 use crate::traits::ActionEngine;
-use crate::types::{ActionConfig, ActionEffect, ActionState, SignedActionMessage};
+use crate::types::{ActionConfig, ActionEffect, ActionState, SignedNetworkAction};
 
 /// Development-only engine driver where all modifications are rejected.
 ///
@@ -21,8 +21,8 @@ impl ActionEngine for PermissionlessEngine {
     fn verify_action(
         &self,
         _state: &mut ActionState,
-        _msg: &SignedActionMessage,
-        _current_kyn: kinetic_kyn::types::Kyn,
+        _msg: &SignedNetworkAction,
+        _current_kyn: kinetic_kyn::types::CurrentKyn,
         _config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
         // In Permissionless mode, the network is perfectly immutable.
@@ -33,8 +33,8 @@ impl ActionEngine for PermissionlessEngine {
     fn execute_action(
         &self,
         _state: &mut ActionState,
-        _msg: &SignedActionMessage,
-        _current_kyn: kinetic_kyn::types::Kyn,
+        _msg: &SignedNetworkAction,
+        _current_kyn: kinetic_kyn::types::CurrentKyn,
         _config: &ActionConfig,
     ) -> Option<ActionEffect> {
         unreachable!("Network action execution is permanently disabled in Permissionless mode")

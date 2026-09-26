@@ -69,8 +69,8 @@ where
 /// `revocation_keys`) against deserialization memory exhaustion attacks.
 ///
 /// # Security
-/// This acts as an explicit trust boundary during network payload ingestion. By enforcing 
-/// stream-level sequence bounds, the node is protected against malicious JSON payloads 
+/// This acts as an explicit trust boundary during network payload ingestion. By enforcing
+/// stream-level sequence bounds, the node is protected against malicious JSON payloads
 /// attempting to trigger Out-Of-Memory (OOM) panics.
 ///
 /// # Errors
@@ -108,8 +108,8 @@ where
 /// Used for protecting manifest `services` arrays against deserialization memory exhaustion attacks.
 ///
 /// # Security
-/// This acts as an explicit trust boundary during network payload ingestion. By enforcing 
-/// stream-level sequence bounds, the node is protected against malicious JSON payloads 
+/// This acts as an explicit trust boundary during network payload ingestion. By enforcing
+/// stream-level sequence bounds, the node is protected against malicious JSON payloads
 /// attempting to trigger Out-Of-Memory (OOM) panics.
 ///
 /// # Errors

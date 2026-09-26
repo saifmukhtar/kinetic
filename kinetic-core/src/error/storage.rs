@@ -60,10 +60,10 @@ pub enum StorageError {
     #[error("Storage deserialization failed: {0}")]
     DeserializationFailed(String),
 
-    /// The Kinetic Record Store (KRS) detected an invalid or expired NameRecord on disk.
+    /// The Kinetic Record Store (KRS) detected an invalid or expired NameEnvelope on disk.
     /// The record's TTL expired or its signature became invalid over time.
     /// The daemon safely discarded it automatically. No manual action is required.
-    #[error("Discarding invalid locally stored NameRecord")]
+    #[error("Discarding invalid locally stored NameEnvelope")]
     InvalidRecordDiscarded,
 
     /// The Kinetic Record Store (KRS) detected a heartbeat for a name that no longer exists.

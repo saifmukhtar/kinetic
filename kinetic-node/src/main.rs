@@ -3,21 +3,21 @@
 //! The Kinetic public infrastructure node executable (`kinetic-node`).
 //!
 //! ## Layer 8 Architecture: The Headless Router
-//! `kinetic-node` is a highly privileged, headless server process designed exclusively 
-//! to run on cloud infrastructure (e.g. AWS, DigitalOcean). 
-//! 
-//! **CRITICAL DISTINCTION:** This is *not* a blockchain validator. It does not mine blocks, 
+//! `kinetic-node` is a highly privileged, headless server process designed exclusively
+//! to run on cloud infrastructure (e.g. AWS, DigitalOcean).
+//!
+//! **CRITICAL DISTINCTION:** This is *not* a blockchain validator. It does not mine blocks,
 //! build a ledger, or process user transactions. There is no global state.
 //!
 //! Its architectural responsibilities are strictly limited to:
-//! 1. **DHT Bootstrapping:** Providing stable IP addresses (via a static Ed25519 `node_key`) 
+//! 1. **DHT Bootstrapping:** Providing stable IP addresses (via a static Ed25519 `node_key`)
 //!    for new user daemons to connect to when joining the network.
-//! 2. **Time Oracle Ingestion:** This binary acts as the bridge to the external KYN Provider. 
-//!    It runs a background heartbeat that fetches cryptographically secure entropy over HTTP/DNS, 
-//!    wraps it in a `NetworkOpcode::KynTime`, and floods it into the Gossipsub mesh so that 
+//! 2. **Time Oracle Ingestion:** This binary acts as the bridge to the external KYN Provider.
+//!    It runs a background heartbeat that fetches cryptographically secure entropy over HTTP/DNS,
+//!    wraps it in a `NetworkOpcode::KynTime`, and floods it into the Gossipsub mesh so that
 //!    local user daemons never have to make external HTTP requests.
 //! 3. **Action Gossip Relay:** Relaying Global Action State pauses/upgrades across the swarm.
-//! 4. **Load Balancer Health:** Exposing a minimal Axum web server on port 16003 for Kubernetes 
+//! 4. **Load Balancer Health:** Exposing a minimal Axum web server on port 16003 for Kubernetes
 //!    or HAProxy load balancer liveness checks.
 
 mod api;
@@ -38,9 +38,9 @@ use tokio::sync::watch;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_core::drand::RawKyn;
 use kinetic_core::traits::KynProvider;
-use kinetic_network::client::time_oracle::TimeOracleProvider;
+use kinetic_kyn::beacon::RawKyn;
+use kinetic_network::client::beacon::BeaconProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -57,7 +57,7 @@ enum Commands {
     Install,
     /// Uninstall the node system service
     Uninstall,
-    /// Start the node (foregkyn)
+    /// Start the node (foreground)
     Run,
     /// Start the node service (background)
     Start,
@@ -190,8 +190,8 @@ pub async fn run_node() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let base_config_dir = kinetic_local::config::get_base_dir();
-    let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
+    let base_config_dir = kinetic_local::config::base_dir();
+    let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
     let storage_path = storage_dir.join("kinetic-node.db");
@@ -199,11 +199,12 @@ pub async fn run_node() -> Result<()> {
     info!("Storage engine initialized at {:?}", storage_path);
 
     // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
-    let kyn_provider: Arc<dyn KynProvider> = Arc::new(TimeOracleProvider::new(Some(storage.clone())));
+    let kyn_provider: Arc<dyn KynProvider> =
+        Arc::new(BeaconProvider::new(Some(storage.clone())));
 
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
+            info!("Beacon Provider connected — kyn #{}", kyn.kyn());
             kyn
         }
         Err(e) => {
@@ -213,11 +214,11 @@ pub async fn run_node() -> Result<()> {
         }
     };
 
-    let initial_kyn = initial_kyn.kyn;
+    let initial_kyn = initial_kyn.kyn();
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity
-    let key_path = kinetic_local::config::get_base_dir().join("node.key");
+    let key_path = kinetic_local::config::base_dir().join("node.key");
     let local_key = node_key::load_or_generate_key(&key_path);
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
@@ -228,7 +229,7 @@ pub async fn run_node() -> Result<()> {
 
     // 5. Initialize P2P Network
     let network_config = NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: NetworkMode::Router,
         listen_addrs: vec![
             format!("/ip4/0.0.0.0/tcp/{}", config.network.node_port)
                 .parse()
@@ -261,7 +262,7 @@ pub async fn run_node() -> Result<()> {
         enable_mdns: config.network.enable_mdns,
         enable_upnp: config.network.enable_upnp,
         enable_relay_server: config.network.enable_relay_server,
-        initial_kyn,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(initial_kyn),
         external_address: config
             .network
             .external_address
@@ -270,7 +271,7 @@ pub async fn run_node() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
-        disable_pow: false,
+        disable_challenge: false,
         test_mode: false,
         disable_storage_sync: false,
     };
@@ -332,13 +333,15 @@ pub async fn run_node() -> Result<()> {
         if is_empty {
             tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            if let Ok(peers) = network_client.get_connected_peers().await {
+            if let Ok(peers) = network_client.connected_peers().await {
                 for peer_str in peers {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>()
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
+                                kinetic_types::action::ActionSyncRequest {
+                                    from_kyn: kinetic_kyn::types::Kyn(0),
+                                },
                             )
                             .await
                         && !resp.actions.is_empty()
@@ -356,7 +359,7 @@ pub async fn run_node() -> Result<()> {
                                 if let Err(e) = kinetic_core::action::process_action_message(
                                     &mut action_state,
                                     msg,
-                                    kinetic_kyn::types::Kyn(0),
+                                    kinetic_kyn::types::CurrentKyn::from(0),
                                 ) {
                                     tracing::error!("Failed to apply synced action: {}", e);
                                 }
@@ -387,7 +390,7 @@ pub async fn run_node() -> Result<()> {
         network_client.clone(),
         kyn_provider.clone(),
         config.clone(),
-        kinetic_types::network::NodeType::Node,
+        kinetic_types::network::PeerType::Node,
     );
 
     let gossip_network_client = network_client.clone();
@@ -406,19 +409,21 @@ pub async fn run_node() -> Result<()> {
                 let actual_payload = &payload[1..];
 
                 if opcode == kinetic_types::network::NetworkOpcode::Action as u8 {
-
                     let current_kyn = match kyn_provider_gossip.fetch_latest().await {
-                        Ok(kyn) => kyn.kyn,
-                        Err(_) => kinetic_kyn::types::Kyn::now_local().0,
+                        Ok(kyn) => kyn.kyn(),
+                        Err(_) => {
+                            kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS)
+                                .0
+                        }
                     };
                     gossip::handle_action_gossip(
                         actual_payload,
                         gossip_action_path.clone(),
                         Some(gossip_network_client.clone()),
                         Some(gossip_storage.clone()),
-                        current_kyn,
+                        kinetic_kyn::types::CurrentKyn::from(current_kyn),
                     );
-                } else if opcode == kinetic_types::network::NetworkOpcode::KineticTime as u8
+                } else if opcode == kinetic_types::network::NetworkOpcode::Kyn as u8
                     && let Ok(kyn) = serde_json::from_slice::<RawKyn>(actual_payload)
                     && kyn.verify_beacon(kinetic_core::config::is_dev_mode())
                 {
@@ -427,7 +432,7 @@ pub async fn run_node() -> Result<()> {
                             if latest.is_unavailable {
                                 0
                             } else {
-                                latest.kyn
+                                latest.kyn()
                             }
                         }
                         Err(e) => {
@@ -442,7 +447,7 @@ pub async fn run_node() -> Result<()> {
                         }
                     };
 
-                    if kyn.kyn > latest_kyn {
+                    if kyn.kyn() > latest_kyn {
                         if let Err(e) = kyn_provider_gossip.cache(&kyn) {
                             tracing::error!(
                                 error_code = e.code(),
@@ -450,7 +455,7 @@ pub async fn run_node() -> Result<()> {
                                 e
                             );
                         }
-                        let _ = kyn_tx_gossip.send(kyn.kyn);
+                        let _ = kyn_tx_gossip.send(kyn.kyn());
                     }
                 }
             }
@@ -460,7 +465,7 @@ pub async fn run_node() -> Result<()> {
     // 6. Start Time Oracle Heartbeat
     let hb_kyn_provider = kyn_provider.clone();
     let hb_network = network_client.clone();
-    let p2p_only = config.time_oracle.p2p_only;
+    let p2p_only = config.node.p2p_only;
     tokio::spawn(async move {
         // Quicknet produces a block every 3 seconds.
         let mut interval = tokio::time::interval(Duration::from_secs(3));
@@ -475,13 +480,11 @@ pub async fn run_node() -> Result<()> {
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    let estimated_kyn = now
-                        .saturating_sub(kinetic_core::constants::KYN_GENESIS_TIME)
-                        / kinetic_core::constants::KYN_PERIOD;
+                    let estimated_kyn = now.saturating_sub(kinetic_core::constants::BEACON_GENESIS);
 
-                    if estimated_kyn > latest.kyn + 5 {
+                    if estimated_kyn > latest.kyn() + 5 {
                         let err = kinetic_core::error::KynProviderError::P2pFallbackTriggered {
-                            behind: estimated_kyn.saturating_sub(latest.kyn),
+                            behind: estimated_kyn.saturating_sub(latest.kyn()),
                         };
                         tracing::warn!(error_code = err.code(), "{}", err);
                         should_fetch_http = true;
@@ -496,10 +499,10 @@ pub async fn run_node() -> Result<()> {
                 && !kyn.is_unavailable
                 && !kyn.is_from_cache
             {
-                let _ = kyn_tx.send(kyn.kyn);
+                let _ = kyn_tx.send(kyn.kyn());
                 // Broadcast to P2P network if we are fetching HTTP
                 if !p2p_only && let Ok(payload) = serde_json::to_vec(&kyn) {
-                    let mut envelope = vec![kinetic_types::network::NetworkOpcode::KineticTime as u8];
+                    let mut envelope = vec![kinetic_types::network::NetworkOpcode::Kyn as u8];
                     envelope.extend(payload);
                     let _ = hb_network
                         .broadcast_gossip(kinetic_core::constants::GOSSIP_TOPIC_GLOBAL, envelope)
@@ -513,7 +516,7 @@ pub async fn run_node() -> Result<()> {
     let app = api::build_router(local_peer_id);
     let api_port = 16003;
     let bind_ip = config
-        .daemon
+        .peer
         .bind_ip
         .parse::<std::net::IpAddr>()
         .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));

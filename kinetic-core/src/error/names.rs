@@ -51,8 +51,6 @@ pub enum NamesError {
     #[error("name is an RFC reserved public utility name")]
     ReservedName,
 
-
-
     /// An operation was attempted on a subname (e.g., `sub.example.kin`), but the operation strictly requires an apex name.
     /// The core Kinetic DHT only manages apex names (`example.kin`) to prevent state bloat.
     /// Subnames must be managed independently by the apex owner via their local zone file.

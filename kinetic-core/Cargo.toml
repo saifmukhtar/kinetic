@@ -32,7 +32,7 @@ tracing.workspace = true
 
 # --- External Crates ---
 bytes.workspace = true
-drand-verify.workspace = true
+beacon-verify.workspace = true
 hex.workspace = true
 libp2p-identity = { workspace = true, features = ["peerid"] }
 serde = { workspace = true, features = ["derive"] }

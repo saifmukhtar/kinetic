@@ -1,9 +1,9 @@
 //! HTTP REST API handlers for managing Cryptographic Kinetic Identities (KIDs).
 //!
 //! ## Layer 8 Architecture: The Identity Manager
-//! A Kinetic Identity (KID) is a serialized Sovereign keypair that proves ownership 
-//! of specific namespaces. This module handles all local operations relating to 
-//! identity management: derivation from seed phrases, exporting to disk, and 
+//! A Kinetic Identity (KID) is a serialized Sovereign keypair that proves ownership
+//! of specific namespaces. This module handles all local operations relating to
+//! identity management: derivation from seed phrases, exporting to disk, and
 //! cryptographically signing `AuthorizedKid` payloads to delegate trust on the DHT.
 
 use super::*;
@@ -17,18 +17,18 @@ use kinetic_kyn::types::Kyn;
 use serde::Deserialize;
 
 /// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
-async fn get_safe_current_kyn(state: &ApiState) -> Kyn {
-    if let Ok(kyn) = state.network.get_current_kyn().await
+async fn safe_current_kyn(state: &ApiState) -> Kyn {
+    if let Ok(kyn) = state.network.current_kyn().await
         && kyn > 0
     {
         return Kyn(kyn);
     }
 
     let kyn_provider =
-        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+        kinetic_network::client::beacon::BeaconProvider::new(Some(state.storage.clone()));
     match kyn_provider.load_cached() {
-        Ok(kyn) if kyn.kyn > 0 => Kyn(kyn.kyn),
-        _ => Kyn::now_local(),
+        Ok(kyn) if kyn.kyn() > 0 => Kyn(kyn.kyn()),
+        _ => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS),
     }
 }
 
@@ -88,9 +88,9 @@ pub async fn handle_generate_kid(
         base_fqdn
     };
 
-    let current_kyn = get_safe_current_kyn(&state).await;
+    let current_kyn = safe_current_kyn(&state).await;
 
-    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::base_dir().join("identity.key");
     let res = kinetic_local::kid_manager::get_or_create_kid_for_name(
         &final_name,
         req.inherit_subname,
@@ -136,7 +136,7 @@ pub async fn handle_rotate_kid(
         ));
     }
 
-    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::base_dir().join("identity.key");
     let rotated = kinetic_local::kid_manager::rotate_name_kid(&name, &identity_path)?;
 
     // Publish rotated document to DHT
@@ -177,7 +177,7 @@ pub async fn handle_revoke_kid(
 
     let revoked_doc = kinetic_local::kid_manager::revoke_local_kid(&name)?;
 
-    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::base_dir().join("identity.key");
     let auth_kid =
         kinetic_local::kid_manager::authorize_kid_document(&name, &revoked_doc, &identity_path)?;
 
@@ -237,9 +237,9 @@ pub async fn handle_update_kid_manifest(
         ));
     }
 
-    let current_kyn = get_safe_current_kyn(&state).await;
+    let current_kyn = safe_current_kyn(&state).await;
 
-    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::base_dir().join("identity.key");
     let (manifest, auth_manifest) = kinetic_local::kid_manager::save_and_sign_local_manifest(
         &name,
         req.services,
@@ -248,7 +248,7 @@ pub async fn handle_update_kid_manifest(
     )?;
 
     // Publish to DHT under hex(sha256(did#manifest))
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+    let manifest_key = hex::encode(kinetic_primitives::sha256(
         format!("{}#manifest", manifest.kid).as_bytes(),
     ));
 
@@ -303,7 +303,7 @@ pub async fn handle_resolve_kid(
         };
 
     // Try to resolve Manifest
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+    let manifest_key = hex::encode(kinetic_primitives::sha256(
         format!("{}#manifest", did).as_bytes(),
     ));
 
@@ -360,12 +360,14 @@ pub async fn handle_publish_kid(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                record.pubkey().verify(
-                    &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-                    &auth_kid.owner_signature,
-                )
-                .is_ok()
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&bytes) {
+                record
+                    .pubkey()
+                    .verify(
+                        &auth_kid.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+                        &auth_kid.owner_signature,
+                    )
+                    .is_ok()
             } else {
                 false
             }
@@ -436,12 +438,14 @@ pub async fn handle_publish_manifest(
     );
     let is_authorized = match state.storage.get(reveal_key.as_bytes()) {
         Ok(Some(bytes)) => {
-            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes) {
-                record.pubkey().verify(
-                    &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-                    &auth_manifest.owner_signature,
-                )
-                .is_ok()
+            if let Ok(record) = serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&bytes) {
+                record
+                    .pubkey()
+                    .verify(
+                        &auth_manifest.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+                        &auth_manifest.owner_signature,
+                    )
+                    .is_ok()
             } else {
                 false
             }
@@ -482,7 +486,9 @@ pub async fn handle_publish_manifest(
         };
 
     // 2. Verify the manifest against the registered KID using network time
-    let current_network_time = get_safe_current_kyn(&state).await.to_utime(kinetic_core::constants::KYN_GENESIS_TIME, kinetic_core::constants::KYN_PERIOD);
+    let current_network_time = safe_current_kyn(&state)
+        .await
+        .to_ukyn(kinetic_core::constants::BEACON_GENESIS);
     if let Err(e) = auth_manifest
         .manifest
         .verify_at_time(&kid_doc, current_network_time)
@@ -496,7 +502,7 @@ pub async fn handle_publish_manifest(
     }
 
     // 3. Serialize and Publish to DHT under the derived manifest key
-    let manifest_key = hex::encode(kinetic_primitives::sha256_hash(
+    let manifest_key = hex::encode(kinetic_primitives::sha256(
         format!("{}#manifest", did_str).as_bytes(),
     ));
 

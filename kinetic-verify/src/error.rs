@@ -91,8 +91,7 @@ impl SignatureVerifyError {
             }
             Self::MalformedSignature => "The signature format is malformed.".to_string(),
             Self::InvalidSignature => {
-                "The ownership signature failed cryptographic verification."
-                    .to_string()
+                "The ownership signature failed cryptographic verification.".to_string()
             }
             Self::DelegatedCapabilityMissing => {
                 "The delegated manifest does not grant the required capability for this action."

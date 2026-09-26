@@ -1,9 +1,9 @@
 //! DNS zone models, record types, and host routing structures.
 //!
-//! Handles standard DNS record types ([`A`](NrsRecord::A), [`AAAA`](NrsRecord::AAAA), [`CNAME`](NrsRecord::CNAME), [`TXT`](NrsRecord::TXT))
-//! as well as Kinetic-native decentralized record types ([`PeerId`](NrsRecord::PeerId), [`KID`](NrsRecord::KID), [`IPFS`](NrsRecord::IPFS)).
+//! Handles standard DNS record types ([`A`](NrsEntry::A), [`AAAA`](NrsEntry::AAAA), [`CNAME`](NrsEntry::CNAME), [`TXT`](NrsEntry::TXT))
+//! as well as Kinetic-native decentralized record types ([`PeerId`](NrsEntry::PeerId), [`KID`](NrsEntry::KID), [`IPFS`](NrsEntry::IPFS)).
 
-pub use kinetic_types::nrs::{HostRoutingRecord, NrsRecord, NrsZone};
+pub use kinetic_types::nrs::{HostRoute, NrsEntry, NrsZone};
 
 /// Extension trait for NrsZone containing validation and parsing logic.
 pub trait NrsZoneExt: Sized {
@@ -27,7 +27,7 @@ impl NrsZoneExt for NrsZone {
     fn parse_payload(payload: &[u8]) -> Result<Self, crate::error::NrsError> {
         let mut zone = serde_json::from_slice::<NrsZone>(payload)?;
 
-        let mut lower_records: std::collections::HashMap<String, Vec<NrsRecord>> =
+        let mut lower_records: std::collections::HashMap<String, Vec<NrsEntry>> =
             std::collections::HashMap::new();
         for (k, v) in zone.records.drain() {
             lower_records.entry(k.to_lowercase()).or_default().extend(v);
@@ -78,7 +78,7 @@ impl NrsZoneExt for NrsZone {
 
             let cname_count = records
                 .iter()
-                .filter(|r| matches!(r, NrsRecord::CNAME(_)))
+                .filter(|r| matches!(r, NrsEntry::CNAME(_)))
                 .count();
             if cname_count > 1 {
                 return Err(crate::error::NrsError::MultipleCnames(label.clone()));
@@ -91,7 +91,7 @@ impl NrsZoneExt for NrsZone {
                 // the `KID` (Kinetic Identity Document) record to coexist with a CNAME.
                 let has_forbidden = records
                     .iter()
-                    .any(|r| !matches!(r, NrsRecord::CNAME(_) | NrsRecord::KID(_)));
+                    .any(|r| !matches!(r, NrsEntry::CNAME(_) | NrsEntry::KID(_)));
                 if has_forbidden {
                     return Err(crate::error::NrsError::InvalidCnameConfiguration(
                         label.clone(),
@@ -101,13 +101,13 @@ impl NrsZoneExt for NrsZone {
 
             for record in records {
                 match record {
-                    NrsRecord::A(_) | NrsRecord::AAAA(_) => {}
-                    NrsRecord::TXT(txt) => {
+                    NrsEntry::A(_) | NrsEntry::AAAA(_) => {}
+                    NrsEntry::TXT(txt) => {
                         if txt.len() > 255 {
                             return Err(crate::error::NrsError::TxtRecordTooLong(label.clone()));
                         }
                     }
-                    NrsRecord::CNAME(cname) => {
+                    NrsEntry::CNAME(cname) => {
                         if cname.is_empty() || cname.len() > 253 {
                             return Err(crate::error::NrsError::InvalidCnameTarget(label.clone()));
                         }
@@ -119,18 +119,18 @@ impl NrsZoneExt for NrsZone {
                             }
                         }
                     }
-                    NrsRecord::PeerId(peer_id_str) => {
+                    NrsEntry::PeerId(peer_id_str) => {
                         use std::str::FromStr;
                         if libp2p_identity::PeerId::from_str(peer_id_str).is_err() {
                             return Err(crate::error::NrsError::InvalidPeerId(peer_id_str.clone()));
                         }
                     }
-                    NrsRecord::KID(kid_str) => {
+                    NrsEntry::KID(kid_str) => {
                         if !kid_str.starts_with(crate::constants::DID_PREFIX) {
                             return Err(crate::error::NrsError::InvalidKid(kid_str.clone()));
                         }
                     }
-                    NrsRecord::IPFS(cid) => {
+                    NrsEntry::IPFS(cid) => {
                         if cid.is_empty() || cid.len() > 100 {
                             return Err(crate::error::NrsError::InvalidIpfsCid(cid.clone()));
                         }
@@ -138,7 +138,7 @@ impl NrsZoneExt for NrsZone {
                             return Err(crate::error::NrsError::InvalidIpfsCid(cid.clone()));
                         }
                     }
-                    NrsRecord::Other => {}
+                    NrsEntry::Other => {}
                 }
             }
         }
@@ -157,7 +157,7 @@ mod tests {
         let zone = NrsZone::parse_payload(json.as_bytes()).unwrap();
         if let Some(records) = zone.records.get("@") {
             assert_eq!(records.len(), 1);
-            if let NrsRecord::PeerId(ref pid) = records[0] {
+            if let NrsEntry::PeerId(ref pid) = records[0] {
                 assert_eq!(pid, "12D3KooWNvSVhMTBqYq5AStb2H8s1uA5PpH8Zt9vEHQo6bC8vJ2K");
             } else {
                 panic!("Expected PeerId");
@@ -172,7 +172,7 @@ mod tests {
         let mut zone = NrsZone::default();
         let mut records = Vec::new();
         for _ in 0..51 {
-            records.push(NrsRecord::TXT("test".to_string()));
+            records.push(NrsEntry::TXT("test".to_string()));
         }
         zone.records.insert("@".to_string(), records);
 
@@ -185,7 +185,7 @@ mod tests {
         let mut zone = NrsZone::default();
         let long_label = "a".repeat(64);
         zone.records
-            .insert(long_label.clone(), vec![NrsRecord::TXT("test".to_string())]);
+            .insert(long_label.clone(), vec![NrsEntry::TXT("test".to_string())]);
 
         let result = zone.validate();
         assert_eq!(
@@ -196,7 +196,7 @@ mod tests {
         let mut zone_empty = NrsZone::default();
         zone_empty
             .records
-            .insert("".to_string(), vec![NrsRecord::TXT("test".to_string())]);
+            .insert("".to_string(), vec![NrsEntry::TXT("test".to_string())]);
         assert_eq!(
             zone_empty.validate().unwrap_err(),
             NrsError::InvalidLabelLength("".to_string())
@@ -208,7 +208,7 @@ mod tests {
         let mut zone = NrsZone::default();
         zone.records.insert(
             "-starts-with-hyphen".to_string(),
-            vec![NrsRecord::TXT("test".to_string())],
+            vec![NrsEntry::TXT("test".to_string())],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
@@ -218,7 +218,7 @@ mod tests {
         let mut zone2 = NrsZone::default();
         zone2.records.insert(
             "invalid!char".to_string(),
-            vec![NrsRecord::TXT("test".to_string())],
+            vec![NrsEntry::TXT("test".to_string())],
         );
         assert_eq!(
             zone2.validate().unwrap_err(),
@@ -232,8 +232,8 @@ mod tests {
         zone.records.insert(
             "www".to_string(),
             vec![
-                NrsRecord::CNAME("target.kin".to_string()),
-                NrsRecord::TXT("other record".to_string()),
+                NrsEntry::CNAME("target.kin".to_string()),
+                NrsEntry::TXT("other record".to_string()),
             ],
         );
         assert_eq!(
@@ -249,8 +249,8 @@ mod tests {
         zone.records.insert(
             "www".to_string(),
             vec![
-                NrsRecord::CNAME("target.kin".to_string()),
-                NrsRecord::KID("did:kin:123".to_string()),
+                NrsEntry::CNAME("target.kin".to_string()),
+                NrsEntry::KID("did:kin:123".to_string()),
             ],
         );
         assert!(zone.validate().is_ok());
@@ -261,7 +261,7 @@ mod tests {
         let mut zone = NrsZone::default();
         let long_txt = "a".repeat(256);
         zone.records
-            .insert("@".to_string(), vec![NrsRecord::TXT(long_txt)]);
+            .insert("@".to_string(), vec![NrsEntry::TXT(long_txt)]);
         assert_eq!(
             zone.validate().unwrap_err(),
             NrsError::TxtRecordTooLong("@".to_string())
@@ -273,7 +273,7 @@ mod tests {
         let mut zone = NrsZone::default();
         let long_cname = "a".repeat(254);
         zone.records
-            .insert("@".to_string(), vec![NrsRecord::CNAME(long_cname)]);
+            .insert("@".to_string(), vec![NrsEntry::CNAME(long_cname)]);
         assert_eq!(
             zone.validate().unwrap_err(),
             NrsError::InvalidCnameTarget("@".to_string())
@@ -285,7 +285,7 @@ mod tests {
         let mut zone = NrsZone::default();
         zone.records.insert(
             "@".to_string(),
-            vec![NrsRecord::PeerId("not-a-peer-id".to_string())],
+            vec![NrsEntry::PeerId("not-a-peer-id".to_string())],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
@@ -298,7 +298,7 @@ mod tests {
         let mut zone = NrsZone::default();
         zone.records.insert(
             "@".to_string(),
-            vec![NrsRecord::KID("did:eth:123".to_string())],
+            vec![NrsEntry::KID("did:eth:123".to_string())],
         );
         assert_eq!(
             zone.validate().unwrap_err(),
@@ -311,8 +311,8 @@ mod tests {
         zone.records.insert(
             "www".to_string(),
             vec![
-                NrsRecord::CNAME("target1.kin".to_string()),
-                NrsRecord::CNAME("target2.kin".to_string()),
+                NrsEntry::CNAME("target1.kin".to_string()),
+                NrsEntry::CNAME("target2.kin".to_string()),
             ],
         );
         assert_eq!(
@@ -326,7 +326,7 @@ mod tests {
         let mut zone = NrsZone::default();
         zone.records.insert(
             "www".to_string(),
-            vec![NrsRecord::CNAME("https://hacker.com/?q=evil".to_string())],
+            vec![NrsEntry::CNAME("https://hacker.com/?q=evil".to_string())],
         );
         assert_eq!(
             zone.validate().unwrap_err(),

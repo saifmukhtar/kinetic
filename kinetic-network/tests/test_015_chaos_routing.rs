@@ -25,19 +25,19 @@ async fn spawn_test_node(
     let listen_addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/{}", port).parse().unwrap();
 
     let config = NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: NetworkMode::Router,
         listen_addrs: vec![listen_addr.clone()],
         quic_listen_addrs: vec![],
         bootstrap_nodes,
         external_address: None,
-        initial_kyn: 1000,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(1000),
         enable_mdns: false,
         enable_relay_server: false,
         enable_upnp: false,
         lru_cache_size: std::num::NonZeroUsize::new(100).unwrap(),
         max_reveals_per_hour: 100,
         seed_domain: vec![],
-        disable_pow: true,
+        disable_challenge: true,
         test_mode: true,
         disable_storage_sync: false,
     };
@@ -92,20 +92,24 @@ async fn test_chaos_routing_partition() {
 
     // Node 5 publishes a payload (since Node 5 has all other nodes in its bootstrap list)
     let test_key = "chaos-key-test.kin";
-    let test_payload = serde_json::to_vec(&kinetic_core::types::NameRecord::Standard(Box::new(
+    let test_payload = serde_json::to_vec(&kinetic_core::types::NameEnvelope::Standard(Box::new(
         kinetic_core::types::Reveal {
             protocol_version: 1,
             name: test_key.to_string(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0; 32],
-            kyn: kinetic_kyn::types::Kyn(1000),
+            kyn: kinetic_kyn::types::TargetKyn::from(1000),
             beacon_signature: "0".repeat(192),
             vdf_proof: kinetic_core::types::VdfProof {
                 proof_bytes: vec![0; 100],
             },
             iterations: 1000,
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-            identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+                vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+            ),
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            ),
             previous_proof: None,
             authorization: None,
         },

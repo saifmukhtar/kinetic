@@ -13,19 +13,19 @@ use tokio::sync::watch;
 
 fn create_base_config() -> NetworkConfig {
     NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: NetworkMode::Router,
         listen_addrs: vec!["/ip4/127.0.0.1/tcp/0".parse().unwrap()],
         quic_listen_addrs: vec![],
         bootstrap_nodes: vec![],
         external_address: None,
-        initial_kyn: 0,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(0),
         enable_mdns: false,
         enable_relay_server: false,
         enable_upnp: false,
         lru_cache_size: std::num::NonZeroUsize::new(100).unwrap(),
         max_reveals_per_hour: 100,
         seed_domain: vec![],
-        disable_pow: true,
+        disable_challenge: true,
         disable_storage_sync: true,
         test_mode: true,
     }
@@ -39,7 +39,7 @@ fn create_engine_and_store() -> (Arc<KineticStorage>, Arc<dyn VdfEngine>) {
 }
 
 #[tokio::test]
-async fn test_fullnode_initialization() {
+async fn test_router_initialization() {
     let config = create_base_config();
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();
@@ -52,13 +52,13 @@ async fn test_fullnode_initialization() {
         None,
         vdf_engine,
     );
-    assert!(result.is_ok(), "Full node should initialize cleanly");
+    assert!(result.is_ok(), "Router node should initialize cleanly");
 }
 
 #[tokio::test]
-async fn test_lightnode_initialization() {
+async fn test_edge_initialization() {
     let mut config = create_base_config();
-    config.mode = NetworkMode::LightNode;
+    config.mode = NetworkMode::Edge;
     let keypair = Keypair::generate_ed25519();
     let (storage, vdf_engine) = create_engine_and_store();
     let result = NetworkEventLoop::new(

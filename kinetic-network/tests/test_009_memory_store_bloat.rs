@@ -17,7 +17,7 @@ fn test_memory_store_bloat() {
     let mut store = KineticRecordStore::new(
         peer_id,
         storage,
-        0,
+        kinetic_kyn::types::InitialKyn::from(0),
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
@@ -28,19 +28,19 @@ fn test_memory_store_bloat() {
         let name = format!("name{}.kin", i);
         store.reveals_by_name.put(
             name.clone(),
-            kinetic_core::types::NameRecord::Standard(Box::new(Reveal {
+            kinetic_core::types::NameEnvelope::Standard(Box::new(Reveal {
                 name,
                 salt: [0; 32],
                 beacon_signature: String::new(),
-                kyn: kinetic_kyn::types::Kyn(100),
+                kyn: kinetic_kyn::types::TargetKyn::from(100),
                 iterations: 100,
                 vdf_proof: kinetic_core::types::VdfProof {
                     proof_bytes: vec![],
                 },
-                identity_signature: vec![],
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
                 protocol_version: 1,
-                pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-                payload: vec![],
+                pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+                embedded_nrs: vec![],
                 previous_proof: None,
                 authorization: None,
             })),

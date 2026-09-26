@@ -6,11 +6,11 @@ pub mod actions;
 
 #[derive(Subcommand)]
 pub enum ZoneCommands {
-    /// Publish a Fat Zone using a delegated hot key payload
-    Fat {
+    /// Publish a NrsUpdate Zone using a delegated hot key payload
+    NrsUpdate {
         /// The name to publish routing for
         name: String,
-        /// Path to the Fat Zone JSON file
+        /// Path to the NrsUpdate Zone JSON file
         #[arg(short, long)]
         file: std::path::PathBuf,
     },
@@ -27,11 +27,11 @@ pub enum ZoneCommands {
         /// The name to stop overriding locally
         name: String,
     },
-    /// Broadcast a manual DHT heartbeat for a Fat Zone payload
-    FatHeartbeat {
-        /// The name of the Fat Zone
+    /// Broadcast a manual DHT heartbeat for a NrsUpdate Zone payload
+    AuthorizedUpdate {
+        /// The name of the NrsUpdate Zone
         name: String,
-        /// Path to the Fat Zone Heartbeat JSON file (containing hot_key_hex and manifest)
+        /// Path to the NrsUpdate Zone Heartbeat JSON file (containing hot_key_hex and manifest)
         #[arg(short, long)]
         file: std::path::PathBuf,
     },
@@ -43,11 +43,11 @@ pub async fn handle_zone_command(
     client: &Client,
 ) -> anyhow::Result<()> {
     match cmd {
-        ZoneCommands::Fat { name, file } => {
-            actions::handle_fat_zone(name, file, config, client).await
+        ZoneCommands::NrsUpdate { name, file } => {
+            actions::handle_nrs_update(name, file, config, client).await
         }
-        ZoneCommands::FatHeartbeat { name, file } => {
-            actions::handle_fat_heartbeat(name, file, config, client).await
+        ZoneCommands::AuthorizedUpdate { name, file } => {
+            actions::handle_authorized_update(name, file, config, client).await
         }
         ZoneCommands::Local { name, file } => {
             actions::handle_local_zone(name, file, config, client).await

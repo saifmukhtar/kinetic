@@ -84,7 +84,7 @@ async fn test_client_channel_closed_gracefully() {
 #[tokio::test]
 async fn test_xor_tie_breaker_empty_list() {
     // Edge case: tie breaker called on an empty payload list
-    let winner = NetworkEventLoop::xor_tie_breaker("test_empty", vec![], 9999);
+    let winner = NetworkEventLoop::xor_tie_breaker("test_empty", vec![], 9999.into());
 
     assert!(winner.is_none());
 }

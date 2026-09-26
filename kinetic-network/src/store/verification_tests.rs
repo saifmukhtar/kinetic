@@ -2,7 +2,7 @@
 mod tests {
     use crate::error::KineticStoreError;
     use crate::store::verification::verify_host_routing_record;
-    use kinetic_core::types::HostRoutingRecord;
+    use kinetic_core::types::HostRoute;
     use libp2p::PeerId;
     use libp2p::identity::Keypair;
     #[test]
@@ -12,11 +12,11 @@ mod tests {
         let current_drand_round = 1000;
         let stale_pulse = current_drand_round - 150; // 150 rounds old, > 100 max age
 
-        let record = HostRoutingRecord {
+        let record = HostRoute {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            kyn: kinetic_kyn::types::Kyn(stale_pulse),
-            host_signature: vec![],
+            kyn: kinetic_kyn::types::TargetKyn::from(stale_pulse),
+            host_signature: kinetic_primitives::keypairs::DelegatedSignature(vec![]),
         };
 
         // Even with a bad signature, it should fail on freshness first
@@ -29,7 +29,7 @@ mod tests {
 
     #[test]
     fn test_peer_id_extraction_safeguard() {
-        // Create a HostRoutingRecord with a totally invalid PeerId (not Ed25519, or too short)
+        // Create a HostRoute with a totally invalid PeerId (not Ed25519, or too short)
         // A SHA2-256 multihash instead of identity will cause the length/format check to fail safely.
         let mh = libp2p::multihash::Multihash::wrap(0x12, &[0u8; 32]).unwrap();
         let peer_id = PeerId::from_multihash(mh).unwrap();
@@ -37,11 +37,11 @@ mod tests {
         let current_drand_round = 1000;
         let recent_pulse = current_drand_round;
 
-        let record = HostRoutingRecord {
+        let record = HostRoute {
             host_id: peer_id.to_string(),
             current_peer_id: String::new(),
-            kyn: kinetic_kyn::types::Kyn(recent_pulse),
-            host_signature: vec![],
+            kyn: kinetic_kyn::types::TargetKyn::from(recent_pulse),
+            host_signature: kinetic_primitives::keypairs::DelegatedSignature(vec![]),
         };
 
         let res = verify_host_routing_record(&record, kinetic_kyn::types::Kyn(current_drand_round));
@@ -58,22 +58,22 @@ mod tests {
         use crate::store::verification::verify_authorized_kid;
         use kinetic_core::types::{AuthorizedKid, Reveal, VdfProof};
         use kinetic_kid::document::Document;
-        let ml_kp = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+        let ml_kp = kinetic_primitives::keypairs::IdentityPrivKey::generate();
         let ml_pub_bytes = ml_kp.to_pubkey().as_bytes().to_vec();
 
         let reveal = Reveal {
             protocol_version: 1,
             name: "test.kinetic".to_string(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0u8; 32],
-            kyn: kinetic_kyn::types::Kyn(100),
+            kyn: kinetic_kyn::types::TargetKyn::from(100),
             beacon_signature: String::new(),
             iterations: 100,
             vdf_proof: VdfProof {
                 proof_bytes: vec![],
             },
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(ml_pub_bytes.clone()),
-            identity_signature: vec![],
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(ml_pub_bytes.clone()),
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
             previous_proof: None,
             authorization: None,
         };
@@ -81,7 +81,7 @@ mod tests {
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
         let pub_key_b64 = b64_url.encode(&ml_pub_bytes);
 
-        let hash = kinetic_primitives::sha256_hash(&ml_pub_bytes);
+        let hash = kinetic_primitives::sha256(&ml_pub_bytes);
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -97,7 +97,7 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid,
-            created_at: kinetic_kyn::types::UTime(1234567890),
+            created_at: kinetic_kyn::types::UKyn(1234567890),
             controller_keys: vec![kinetic_kid::document::ControllerKey {
                 id: format!(
                     "{}{}#primary",
@@ -112,13 +112,15 @@ mod tests {
             deactivated: false,
             signature: None,
         };
-        let controller_kp = kinetic_primitives::kinetic_keypair::ControllerPrivKey::from_slice(&ml_kp.to_secret_bytes()).unwrap();
+        let controller_kp =
+            kinetic_primitives::keypairs::ControllerPrivKey::from_slice(&ml_kp.to_secret_bytes())
+                .unwrap();
         let did_doc = doc.sign_with_controller(&controller_kp).unwrap();
 
         let mut auth_kid = AuthorizedKid {
             name: "test.kinetic".to_string(),
             kid_doc: did_doc,
-            owner_signature: vec![],
+            owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         };
 
         // Sign the kid_doc with our ML-DSA key
@@ -129,7 +131,7 @@ mod tests {
         let dummy_key = libp2p::kad::RecordKey::new(&[0u8; 32]);
         let existing_record = libp2p::kad::Record::new(dummy_key, vec![]);
 
-        let record = kinetic_core::types::NameRecord::Standard(Box::new(reveal));
+        let record = kinetic_core::types::NameEnvelope::Standard(Box::new(reveal));
         let res = verify_authorized_kid(
             &auth_kid,
             Some(&record),

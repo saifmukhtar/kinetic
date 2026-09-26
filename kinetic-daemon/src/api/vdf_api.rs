@@ -1,14 +1,14 @@
-//! API endpoints for consensus math, Name Difficulty Curve (NDC), and name validation.
+//! API endpoints for VDF math, Name Difficulty Curve (NDC), and name validation.
 
 use crate::api::ApiState;
 use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use kinetic_core::consensus_math::ConsensusParams;
+use kinetic_core::physics::NetworkPhysics;
 use serde::{Deserialize, Serialize};
 
-/// Protocol-level consensus requirements for a name.
+/// Protocol-level VDF requirements for a name.
 #[derive(Serialize)]
 pub struct ProtocolRequirements {
     /// The base required iterations to register this name.
@@ -38,7 +38,7 @@ pub struct LocalPrediction {
 
 /// Response returned by the pre-flight difficulty calculator.
 #[derive(Serialize)]
-pub struct DifficultyResponse {
+pub struct IterationsResponse {
     /// The normalized name used for the calculation.
     pub name: String,
     /// The extracted apex label of the name.
@@ -60,7 +60,7 @@ pub struct TakeoverQuery {
 
 /// Response returned by the takeover difficulty calculator.
 #[derive(Serialize)]
-pub struct TakeoverDifficultyResponse {
+pub struct TakeoverIterationsResponse {
     /// The normalized name used for the calculation.
     pub name: String,
     /// The base required iterations to register this name if it was perfectly new.
@@ -110,16 +110,16 @@ fn format_duration(secs: u64) -> String {
 }
 
 /// Retrieves the base difficulty (required VDF iterations) to register a specific name.
-pub async fn handle_get_difficulty(
+pub async fn handle_get_iterations(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<DifficultyResponse>, crate::api::error::AppError> {
+) -> Result<Json<IterationsResponse>, crate::api::error::AppError> {
     let normalized = kinetic_core::types::names::normalize_name(&name);
     if let Err(e) = kinetic_core::types::names::is_valid_apex_name(&normalized) {
         return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(e)));
     }
 
-    let params = ConsensusParams::default();
+    let params = NetworkPhysics::default();
     let iterations = params.iterations(&normalized);
     let apex = kinetic_core::types::names::extract_apex_name(&normalized).to_string();
     let label = apex
@@ -130,16 +130,16 @@ pub async fn handle_get_difficulty(
 
     let ndc_tier = format!("{}_chars", label_length);
     let network_reference_target_minutes = match label_length {
-        0 | 1 => kinetic_core::constants::CONSENSUS_NDC_LEN_0_TO_1,
-        2 => kinetic_core::constants::CONSENSUS_NDC_LEN_2,
-        3 => kinetic_core::constants::CONSENSUS_NDC_LEN_3,
-        4 => kinetic_core::constants::CONSENSUS_NDC_LEN_4,
-        5 => kinetic_core::constants::CONSENSUS_NDC_LEN_5,
-        6 => kinetic_core::constants::CONSENSUS_NDC_LEN_6,
-        7 => kinetic_core::constants::CONSENSUS_NDC_LEN_7,
-        8..=10 => kinetic_core::constants::CONSENSUS_NDC_LEN_8_TO_10,
-        11..=17 => kinetic_core::constants::CONSENSUS_NDC_LEN_11_TO_17,
-        18..=20 => kinetic_core::constants::CONSENSUS_NDC_LEN_18_TO_20,
+        0 | 1 => kinetic_core::constants::PHYSICS_NDC_LEN_0_TO_1,
+        2 => kinetic_core::constants::PHYSICS_NDC_LEN_2,
+        3 => kinetic_core::constants::PHYSICS_NDC_LEN_3,
+        4 => kinetic_core::constants::PHYSICS_NDC_LEN_4,
+        5 => kinetic_core::constants::PHYSICS_NDC_LEN_5,
+        6 => kinetic_core::constants::PHYSICS_NDC_LEN_6,
+        7 => kinetic_core::constants::PHYSICS_NDC_LEN_7,
+        8..=10 => kinetic_core::constants::PHYSICS_NDC_LEN_8_TO_10,
+        11..=17 => kinetic_core::constants::PHYSICS_NDC_LEN_11_TO_17,
+        18..=20 => kinetic_core::constants::PHYSICS_NDC_LEN_18_TO_20,
         _ => kinetic_core::constants::TARGET_MINUTES as u64,
     };
 
@@ -167,7 +167,7 @@ pub async fn handle_get_difficulty(
         }
     );
 
-    Ok(Json(DifficultyResponse {
+    Ok(Json(IterationsResponse {
         name: normalized,
         label,
         label_length,
@@ -189,13 +189,13 @@ pub async fn handle_get_difficulty(
 
 /// Calculates the decayed takeover difficulty for an idle name.
 /// Requires the client to pass `?kyns_idle=X` in the query string.
-pub async fn handle_takeover_difficulty(
+pub async fn handle_takeover_iterations(
     State(_state): State<ApiState>,
     Path(name): Path<String>,
     Query(query): Query<TakeoverQuery>,
-) -> Result<Json<TakeoverDifficultyResponse>, crate::api::error::AppError> {
+) -> Result<Json<TakeoverIterationsResponse>, crate::api::error::AppError> {
     let normalized = kinetic_core::types::names::normalize_name(&name);
-    let params = ConsensusParams::default();
+    let params = NetworkPhysics::default();
     let base_iterations = params.iterations(&normalized);
 
     let kyns_idle = match query.kyns_idle {
@@ -209,14 +209,14 @@ pub async fn handle_takeover_difficulty(
         }
     };
 
-    let current_iterations = params.takeover_diff(base_iterations, kyns_idle);
+    let current_iterations = params.takeover_iterations(base_iterations, kyns_idle);
     let decay_multiplier = if base_iterations > 0 {
         current_iterations as f64 / base_iterations as f64
     } else {
         1.0
     };
 
-    Ok(Json(TakeoverDifficultyResponse {
+    Ok(Json(TakeoverIterationsResponse {
         name: normalized,
         base_iterations,
         kyns_idle,

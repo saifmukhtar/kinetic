@@ -1,21 +1,21 @@
 //! Handler logic for processing apex name reveals, commitments, and liveness heartbeats.
 //!
 //! ## The State Machine Transition Rules
-//! This module houses `handle_put_record`, the most complex state transition function 
-//! in the Kinetic DHT. It enforces the economic and cryptographic rules of namespace 
+//! This module houses `handle_put_record`, the most complex state transition function
+//! in the Kinetic DHT. It enforces the economic and cryptographic rules of namespace
 //! acquisition without relying on a global blockchain ledger.
 //!
 //! ## Core Enforcement Mechanics
-//! - **Commit-Reveal Timelocks:** Enforces that a valid Commitment (hash) existed 
-//!   in the DHT for at least N network kyns before accepting the plaintext Reveal. 
+//! - **Commit-Reveal Timelocks:** Enforces that a valid Commitment (hash) existed
+//!   in the DHT for at least N network kyns before accepting the plaintext Reveal.
 //!   This prevents front-running and namespace snipping by malicious routing peers.
-//! - **Loyalty Discounts:** Analyzes the `previous_proof` attached to a Reveal. 
-//!   If a user has continuously maintained their namespace by chaining proofs over 
-//!   months, this module automatically calculates a drastic reduction in the required 
+//! - **Loyalty Discounts:** Analyzes the `previous_proof` attached to a Reveal.
+//!   If a user has continuously maintained their namespace by chaining proofs over
+//!   months, this module automatically calculates a drastic reduction in the required
 //!   VDF (Verifiable Delay Function) iterations to renew the name.
-//! - **Network Action Pauses:** Queries `kinetic-local::action::GLOBAL_ACTION_STATE` 
-//!   to deduct any paused network kyns from the age of a record. If the network was 
-//!   halted for an emergency upgrade, time is effectively frozen, ensuring legitimate 
+//! - **Network Action Pauses:** Queries `kinetic-local::action::GLOBAL_ACTION_STATE`
+//!   to deduct any paused network kyns from the age of a record. If the network was
+//!   halted for an emergency upgrade, time is effectively frozen, ensuring legitimate
 //!   users do not lose their names due to missed renewals.
 
 use crate::error::KineticStoreError;
@@ -26,23 +26,24 @@ use kinetic_verify::signatures::VerifySignature;
 impl KineticRecordStore {
     pub(crate) fn handle_put_record(
         &mut self,
-        record: &kinetic_core::types::NameRecord,
+        record: &kinetic_core::types::NameEnvelope,
         skip_verify: bool,
     ) -> Result<(), KineticStoreError> {
         let reveal_ref = match record {
-            kinetic_core::types::NameRecord::Standard(r) => Some(r),
+            kinetic_core::types::NameEnvelope::Standard(r) => Some(r),
         };
 
         if let Some(reveal) = reveal_ref {
             let paused_kyns = if let Ok(state) = kinetic_local::action::GLOBAL_ACTION_STATE.lock() {
-                state.paused_kyns_since(reveal.kyn)
+                state.paused_kyns_since(*reveal.kyn)
             } else {
                 0
             };
 
             let effective_age = self
                 .current_kyn
-                .saturating_sub(reveal.kyn.0)
+                .as_u64()
+                .saturating_sub(reveal.kyn.as_u64())
                 .saturating_sub(paused_kyns);
 
             if effective_age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
@@ -67,26 +68,29 @@ impl KineticRecordStore {
 
         if let Some(existing_record) = self.get_fallback(record.name()) {
             if existing_record.pubkey() != record.pubkey() {
-                let consensus_math = kinetic_core::consensus_math::ConsensusParams::default();
+                let physics_math = kinetic_core::physics::NetworkPhysics::default();
                 let last_hb_kyn = self
                     .last_heartbeats_by_name
                     .get(record.name())
                     .copied()
-                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.kyn.0));
+                    .unwrap_or_else(|| reveal_ref.map_or(0, |r| r.kyn.as_u64()));
 
-                let hb_age = self.current_kyn.saturating_sub(last_hb_kyn);
+                let hb_age = self.current_kyn.as_u64().saturating_sub(last_hb_kyn);
 
-                let (kinetic_core::types::NameRecord::Standard(existing_reveal),
-                     kinetic_core::types::NameRecord::Standard(new_reveal)) = (existing_record, record);
+                let (
+                    kinetic_core::types::NameEnvelope::Standard(existing_reveal),
+                    kinetic_core::types::NameEnvelope::Standard(new_reveal),
+                ) = (existing_record, record);
 
-                let base_diff = consensus_math.iterations(&new_reveal.name);
-                let takeover_threshold = consensus_math.takeover_diff(base_diff, hb_age);
+                let base_diff = physics_math.iterations(&new_reveal.name);
+                let takeover_threshold = physics_math.takeover_iterations(base_diff, hb_age);
 
                 // Case 121: Deterministic Tie-Breaking
                 if new_reveal.iterations == existing_reveal.iterations && hb_age < 100 {
                     let dist_new: Vec<u8> = new_reveal
                         .pubkey
-                        .0.iter()
+                        .0
+                        .iter()
                         .zip(
                             new_reveal
                                 .vdf_proof
@@ -100,7 +104,8 @@ impl KineticRecordStore {
 
                     let dist_existing: Vec<u8> = existing_reveal
                         .pubkey
-                        .0.iter()
+                        .0
+                        .iter()
                         .zip(
                             existing_reveal
                                 .vdf_proof
@@ -159,17 +164,17 @@ impl KineticRecordStore {
                 }
             } else {
                 let existing_pulse = match &existing_record {
-                    kinetic_core::types::NameRecord::Standard(r) => r.kyn,
+                    kinetic_core::types::NameEnvelope::Standard(r) => r.kyn,
                 };
                 let new_pulse = match &record {
-                    kinetic_core::types::NameRecord::Standard(r) => r.kyn,
+                    kinetic_core::types::NameEnvelope::Standard(r) => r.kyn,
                 };
 
                 if new_pulse < existing_pulse {
                     let err = KineticStoreError::StaleReveal;
                     err.log_warning(record.name(), "Rejecting Replayed Reveal:");
                     return Err(err);
-                } else if record.payload() == existing_record.payload()
+                } else if record.embedded_nrs() == existing_record.embedded_nrs()
                     && record.signature() == existing_record.signature()
                 {
                     return Ok(());
@@ -299,7 +304,10 @@ impl KineticRecordStore {
             writes_to_perform.push((reveal_key, bytes));
         }
 
-        let current_kyn = std::cmp::max(self.current_kyn, reveal_ref.map_or(0, |r| r.kyn.0));
+        let current_kyn = std::cmp::max(
+            self.current_kyn.as_u64(),
+            reveal_ref.map_or(0, |r| r.kyn.as_u64()),
+        );
         self.last_heartbeats_by_name
             .insert(name.to_string(), current_kyn);
         let hb_key = [KRS_HB_PREFIX, name.as_bytes()].concat();
@@ -353,11 +361,13 @@ impl KineticRecordStore {
 
         let signable = heartbeat.signable_bytes(kinetic_core::constants::NETWORK_SALT);
         let is_valid_signature = if let Some(auth) = &heartbeat.authorization {
-            if existing_record.pubkey().verify(
-                &auth.signable_bytes(kinetic_core::constants::NETWORK_SALT),
-                &auth.owner_signature,
-            )
-            .is_err()
+            if existing_record
+                .pubkey()
+                .verify(
+                    &auth.signable_bytes(kinetic_core::constants::NETWORK_SALT),
+                    &auth.owner_signature,
+                )
+                .is_err()
             {
                 let err = KineticStoreError::DelegatedAuthorizationInvalid;
                 err.log_warning(&heartbeat.name, "Rejecting Heartbeat:");
@@ -387,8 +397,11 @@ impl KineticRecordStore {
                 if ck.key_type == "Delegated"
                     && let Ok(pubkey_bytes) = b64_url.decode(&ck.public_key)
                 {
-                    let temp_pubkey = kinetic_primitives::kinetic_keypair::DelegatedPubKey(pubkey_bytes);
-                    if temp_pubkey.verify(&signable, &heartbeat.owner_signature).is_ok() {
+                    let temp_pubkey = kinetic_primitives::keypairs::DelegatedPubKey(pubkey_bytes);
+                    let delegated_sig = kinetic_primitives::keypairs::DelegatedSignature(
+                        heartbeat.owner_signature.0.clone(),
+                    );
+                    if temp_pubkey.verify(&signable, &delegated_sig).is_ok() {
                         verified = true;
                         break;
                     }
@@ -396,11 +409,10 @@ impl KineticRecordStore {
             }
             verified
         } else {
-            existing_record.pubkey().verify(
-                &signable,
-                &heartbeat.owner_signature,
-            )
-            .is_ok()
+            existing_record
+                .pubkey()
+                .verify(&signable, &heartbeat.owner_signature)
+                .is_ok()
         };
 
         if !is_valid_signature {
@@ -409,7 +421,7 @@ impl KineticRecordStore {
             return Err(err);
         }
 
-        if heartbeat.latest_kyn.0 > self.current_kyn + 2 {
+        if heartbeat.latest_kyn.0 > self.current_kyn.as_u64() + 2 {
             let err = KineticStoreError::FutureHeartbeat;
             err.log_warning(&heartbeat.name, "Rejecting Heartbeat: future-dated:");
             return Err(err);
