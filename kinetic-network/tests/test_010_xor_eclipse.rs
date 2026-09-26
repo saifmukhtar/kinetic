@@ -17,7 +17,7 @@ fn test_xor_eclipse_routing() {
     let beacon_signature = hex::encode(kyn_bytes);
 
     let name = "thisisaverylongnamethatisverycheap.kin";
-    let vdf_math = kinetic_core::vdf_math::VdfParams::default();
+    let vdf_math = kinetic_core::physics::NetworkPhysics::default();
     let iterations = vdf_math.iterations(name);
 
     // Generate REAL VDF Proof
