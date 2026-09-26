@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! Core cryptographic primitives for the Kinetic Network.
 //!
 //! This module centralizes all raw hashing and `KineticKeypair` signature logic
