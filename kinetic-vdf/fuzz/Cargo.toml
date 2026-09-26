@@ -11,7 +11,7 @@ cargo-fuzz = true
 libfuzzer-sys.workspace = true
 arbitrary = { workspace = true, features = ["derive"] }
 kinetic-vdf = { path = ".." }
-kinetic-core = { path = "../../kinetic-core" }
+kinetic-core.workspace = true
 
 [[bin]]
 name = "vdf_ops"
@@ -20,3 +20,6 @@ test = false
 doc = false
 
 [workspace]
+
+[lints]
+workspace = true

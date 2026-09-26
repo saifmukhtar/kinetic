@@ -26,7 +26,6 @@
 //! [kinetic-daemon HTTP Handlers] (External JSON Responses)
 //! ```
 
-#![deny(missing_docs)]
 
 pub mod api_error;
 pub mod request_id;

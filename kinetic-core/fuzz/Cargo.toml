@@ -35,3 +35,6 @@ path = "fuzz_targets/core_bincode.rs"
 test = false
 doc = false
 bench = false
+
+[lints]
+workspace = true

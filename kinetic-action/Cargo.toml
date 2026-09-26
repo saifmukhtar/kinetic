@@ -11,20 +11,18 @@ keywords = ["kinetic", "action", "consensus"]
 categories = ["cryptography", "network-programming"]
 
 [dependencies]
-# --- Workspace Crates ---
-kinetic-types = { path = "../kinetic-types" }
-kinetic-primitives = { path = "../kinetic-primitives" }
-kinetic-kyn = { path = "../kinetic-kyn", default-features = false }
-
-# --- External Crates ---
-hex.workspace = true
-
-# --- Workspace Inherited ---
 anyhow.workspace = true
+hex.workspace = true
+kinetic-kyn.workspace = true
+kinetic-primitives.workspace = true
+kinetic-types.workspace = true
+serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tracing.workspace = true
-serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true
+
+[lints]
+workspace = true

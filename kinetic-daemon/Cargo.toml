@@ -36,18 +36,18 @@ http-body-util.workspace = true
 hyper = { workspace = true, features = ["full"] }
 hyper-util = { workspace = true, features = ["full"] }
 keyring.workspace = true
-kinetic-core = { path = "../kinetic-core" }
-kinetic-kid = { path = "../kinetic-kid" }
-kinetic-kyn = { path = "../kinetic-kyn" }
-kinetic-local = { path = "../kinetic-local" }
-kinetic-network = { path = "../kinetic-network" }
-kinetic-nrs = { path = "../kinetic-nrs" }
-kinetic-primitives = { path = "../kinetic-primitives" }
-kinetic-rpc = { path = "../kinetic-rpc" }
-kinetic-storage = { path = "../kinetic-storage" }
-kinetic-types = { path = "../kinetic-types" }
-kinetic-vdf = { path = "../kinetic-vdf" }
-kinetic-verify = { path = "../kinetic-verify" }
+kinetic-core.workspace = true
+kinetic-kid.workspace = true
+kinetic-kyn.workspace = true
+kinetic-local.workspace = true
+kinetic-network.workspace = true
+kinetic-nrs.workspace = true
+kinetic-primitives.workspace = true
+kinetic-rpc.workspace = true
+kinetic-storage.workspace = true
+kinetic-types.workspace = true
+kinetic-vdf.workspace = true
+kinetic-verify.workspace = true
 libp2p = { workspace = true, features = ["ed25519"] }
 percent-encoding.workspace = true
 rand.workspace = true
@@ -69,7 +69,7 @@ tokio-rustls.workspace = true
 tokio-stream = { workspace = true, features = ["sync"] }
 tower-http = { workspace = true, features = ["fs", "cors"] }
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
@@ -79,3 +79,6 @@ proptest.workspace = true
 tempfile.workspace = true
 tower = { workspace = true, features = ["util"] }
 turmoil.workspace = true
+
+[lints]
+workspace = true

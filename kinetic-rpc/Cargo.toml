@@ -13,14 +13,12 @@ keywords = ["kinetic", "rpc", "api", "tracing"]
 categories = ["network-programming", "web-programming"]
 
 [dependencies]
-# --- Workspace & Internal Crates ---
-kinetic-core = { path = "../kinetic-core" }
-
-# --- Workspace Inherited ---
+kinetic-core.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 tokio = { workspace = true, features = ["rt", "macros"] }
 tracing.workspace = true
 
-# --- External Crates ---
-serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
 
+[lints]
+workspace = true

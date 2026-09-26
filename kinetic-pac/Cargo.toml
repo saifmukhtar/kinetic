@@ -17,7 +17,7 @@ anyhow.workspace = true
 axum.workspace = true
 clap = { workspace = true, features = ["derive"] }
 dirs.workspace = true
-kinetic-core = { path = "../kinetic-core" }
+kinetic-core.workspace = true
 reqwest = { workspace = true, features = ["blocking"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -25,7 +25,10 @@ service-manager.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["net", "rt", "rt-multi-thread", "macros"] }
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
 tempfile.workspace = true
+
+[lints]
+workspace = true

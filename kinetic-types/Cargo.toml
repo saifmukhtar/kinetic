@@ -12,18 +12,18 @@ keywords = ["kinetic", "action", "cryptography", "post-quantum"]
 categories = ["cryptography", "data-structures"]
 
 [dependencies]
-# --- Workspace & Internal Crates ---
-kinetic-kid = { path = "../kinetic-kid" }
-kinetic-kyn = { path = "../kinetic-kyn" }
-kinetic-primitives = { path = "../kinetic-primitives" }
-thiserror.workspace = true
-
-# --- External Crates ---
 bytes.workspace = true
+kinetic-kid.workspace = true
+kinetic-kyn.workspace = true
+kinetic-primitives.workspace = true
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_bytes.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
 rand.workspace = true
 serde_json.workspace = true
+
+[lints]
+workspace = true

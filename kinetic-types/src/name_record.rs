@@ -8,7 +8,6 @@
 //! To maintain active routing and prove name liveness, standard owners periodically publish [`Heartbeat`]
 //! proofs signed with their `DelegatedPrivKey`s (or `ControllerPrivKey`s).
 
-#![allow(clippy::collapsible_if)]
 use kinetic_primitives::keypairs::IdentityPubKey;
 use serde::{Deserialize, Serialize};
 

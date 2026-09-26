@@ -37,7 +37,6 @@
 //! [kinetic-daemon] (Local node)
 //! ```
 
-#![deny(missing_docs)]
 
 use axum::{Router, routing::get};
 use clap::{Parser, Subcommand};

@@ -13,24 +13,27 @@ simulation = ["kinetic-core/simulation"]
 anyhow.workspace = true
 axum.workspace = true
 clap = { workspace = true, features = ["derive"] }
-kinetic-core = { path = "../kinetic-core" }
-kinetic-local = { path = "../kinetic-local" }
-kinetic-kyn = { path = "../kinetic-kyn" }
-kinetic-network = { path = "../kinetic-network" }
-kinetic-storage = { path = "../kinetic-storage" }
-kinetic-types = { path = "../kinetic-types" }
-kinetic-vdf = { path = "../kinetic-vdf" }
+kinetic-core.workspace = true
+kinetic-local.workspace = true
+kinetic-kyn.workspace = true
+kinetic-network.workspace = true
+kinetic-storage.workspace = true
+kinetic-types.workspace = true
+kinetic-vdf.workspace = true
 libp2p = { workspace = true, features = ["ed25519", "tokio", "macros"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 service-manager.workspace = true
 tokio = { workspace = true, features = ["net"] }
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
 http-body-util.workspace = true
 proptest.workspace = true
 tempfile.workspace = true
 tower = { workspace = true, features = ["util"] }
-kinetic-primitives = { path = "../kinetic-primitives" }
+kinetic-primitives.workspace = true
+
+[lints]
+workspace = true

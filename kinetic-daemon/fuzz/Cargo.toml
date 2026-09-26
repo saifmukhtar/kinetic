@@ -30,3 +30,6 @@ doc = false
 bench = false
 
 [workspace]
+
+[lints]
+workspace = true

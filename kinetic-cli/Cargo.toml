@@ -25,19 +25,19 @@ dirs.workspace = true
 getrandom.workspace = true
 hex.workspace = true
 indicatif.workspace = true
-kinetic-core = { path = "../kinetic-core" }
-kinetic-kid = { path = "../kinetic-kid" }
-kinetic-kyn = { path = "../kinetic-kyn" }
-kinetic-local = { path = "../kinetic-local" }
-kinetic-network = { path = "../kinetic-network" }
-kinetic-primitives = { path = "../kinetic-primitives" }
-kinetic-rpc = { path = "../kinetic-rpc" }
+kinetic-core.workspace = true
+kinetic-kid.workspace = true
+kinetic-kyn.workspace = true
+kinetic-local.workspace = true
+kinetic-network.workspace = true
+kinetic-primitives.workspace = true
+kinetic-rpc.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 rpassword.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
 axum.workspace = true
@@ -45,3 +45,6 @@ mockito.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 
+
+[lints]
+workspace = true

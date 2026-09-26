@@ -1,4 +1,3 @@
-#![allow(rustdoc::redundant_explicit_links)]
 //! # kinetic-core
 //!
 //! The foundational shared kernel for the Kinetic decentralized naming network.
@@ -21,7 +20,6 @@
 //! - **[`api_error`]** *(Non-WASM)* — HTTP status code mapping and Axum-compatible API error responses ([`ApiError`](api_error::ApiError)).
 //! - **[`request_id`]** *(Non-WASM)* — Idempotency key generators for daemon API requests.
 
-#![deny(missing_docs)]
 
 /// Config file loading, default values, and port constants for all Kinetic binaries.
 pub mod config;

@@ -13,9 +13,9 @@ cargo-fuzz = true
 libfuzzer-sys.workspace = true
 libp2p = { workspace = true, features = ["kad"] }
 tempfile.workspace = true
-kinetic-storage = { path = "../../kinetic-storage" }
-kinetic-core = { path = "../../kinetic-core" }
-kinetic-vdf = { path = "../../kinetic-vdf" }
+kinetic-storage.workspace = true
+kinetic-core.workspace = true
+kinetic-vdf.workspace = true
 [dependencies.kinetic-network]
 path = ".."
 
@@ -32,3 +32,6 @@ path = "fuzz_targets/fuzz_get_record.rs"
 test = false
 doc = false
 bench = false
+
+[lints]
+workspace = true

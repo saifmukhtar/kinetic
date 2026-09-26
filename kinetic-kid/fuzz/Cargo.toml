@@ -22,3 +22,6 @@ path = "fuzz_targets/fuzz_kid_parser.rs"
 test = false
 doc = false
 bench = false
+
+[lints]
+workspace = true
