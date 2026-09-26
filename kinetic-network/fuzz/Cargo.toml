@@ -10,12 +10,12 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-libp2p = { version = "0.56.0", features = ["kad"] }
-tempfile = "3.27.0"
-kinetic-storage = { path = "../../kinetic-storage" }
-kinetic-core = { path = "../../kinetic-core" }
-kinetic-vdf = { path = "../../kinetic-vdf" }
+libfuzzer-sys.workspace = true
+libp2p = { workspace = true, features = ["kad"] }
+tempfile.workspace = true
+kinetic-storage.workspace = true
+kinetic-core.workspace = true
+kinetic-vdf.workspace = true
 [dependencies.kinetic-network]
 path = ".."
 
@@ -32,3 +32,6 @@ path = "fuzz_targets/fuzz_get_record.rs"
 test = false
 doc = false
 bench = false
+
+[lints]
+workspace = true

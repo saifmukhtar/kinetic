@@ -8,9 +8,9 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-hickory-proto = "0.24.4"
-kinetic-core = { path = "../../kinetic-core" }
+libfuzzer-sys.workspace = true
+hickory-proto.workspace = true
+kinetic-core.workspace = true
 kinetic-dns = { path = ".." }
 
 # Prevent this from interfering with workspaces
@@ -22,3 +22,6 @@ name = "parse_dns"
 path = "fuzz_targets/parse_dns.rs"
 test = false
 doc = false
+
+[lints]
+workspace = true

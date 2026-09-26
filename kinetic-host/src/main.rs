@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //! # kinetic-host (Layer 8: Payload Seeder)
 //!
 //! The headless Kinetic content-hosting executable (`kinetic-host`).

@@ -69,9 +69,9 @@ pub async fn handle_create_session(
     }
 
     // Generate a secure 32-byte token
-    use rand::RngCore;
+    use rand::Rng;
     let mut rand_bytes = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut rand_bytes);
+    rand::rng().fill_bytes(&mut rand_bytes);
     let token = hex::encode(rand_bytes);
 
     let id = uuid::Uuid::new_v4().to_string();

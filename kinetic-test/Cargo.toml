@@ -5,17 +5,17 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-kinetic-core = { path = "../kinetic-core" }
-kinetic-network = { path = "../kinetic-network" }
-kinetic-vdf = { path = "../kinetic-vdf" }
-kinetic-storage = { path = "../kinetic-storage" }
-kinetic-kyn = { path = "../kinetic-kyn" }
+kinetic-core.workspace = true
+kinetic-network.workspace = true
+kinetic-vdf.workspace = true
+kinetic-storage.workspace = true
+kinetic-kyn.workspace = true
 libp2p = { workspace = true, features = ["tokio", "tcp", "noise", "yamux", "dns", "kad", "request-response", "macros", "gossipsub"] }
 tokio.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
-kinetic-nrs = { path = "../kinetic-nrs" }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+kinetic-nrs.workspace = true
 hickory-client.workspace = true
 hickory-server.workspace = true
 hickory-proto.workspace = true
@@ -25,7 +25,10 @@ reqwest.workspace = true
 [dev-dependencies]
 serde_json.workspace = true
 tempfile.workspace = true
-kinetic-primitives = { path = "../kinetic-primitives" }
+kinetic-primitives.workspace = true
 axum.workspace = true
 ed25519-dalek = { workspace = true, features = ["rand_core"] }
-rand_core = { workspace = true, features = ["getrandom"] }
+rand_core = { workspace = true }
+
+[lints]
+workspace = true

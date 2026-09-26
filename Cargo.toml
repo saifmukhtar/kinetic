@@ -40,90 +40,141 @@ repository = "https://github.com/saifmukhtar/kinetic"
 homepage = "https://github.com/saifmukhtar/kinetic"
 
 [workspace.dependencies]
-anyhow = "1.0.104"
+# ==========================================
+# INTERNAL KINETIC CRATES
+# ==========================================
+kinetic-action     = { version = "0.2.0", path = "kinetic-action" }
+kinetic-cli        = { version = "0.2.0", path = "kinetic-cli" }
+kinetic-core       = { version = "0.2.0", path = "kinetic-core" }
+kinetic-daemon     = { version = "0.2.0", path = "kinetic-daemon" }
+kinetic-host       = { version = "0.2.0", path = "kinetic-host" }
+kinetic-kid        = { version = "0.2.0", path = "kinetic-kid" }
+kinetic-kyn        = { version = "0.2.0", path = "kinetic-kyn" }
+kinetic-local      = { version = "0.2.0", path = "kinetic-local" }
+kinetic-network    = { version = "0.2.0", path = "kinetic-network" }
+kinetic-node       = { version = "0.2.0", path = "kinetic-node" }
+kinetic-nrs        = { version = "0.2.0", path = "kinetic-nrs" }
+kinetic-pac        = { version = "0.2.0", path = "kinetic-pac" }
+kinetic-primitives = { version = "0.2.0", path = "kinetic-primitives" }
+kinetic-rpc        = { version = "0.2.0", path = "kinetic-rpc" }
+kinetic-storage    = { version = "0.2.0", path = "kinetic-storage" }
+kinetic-test       = { version = "0.2.0", path = "kinetic-test" }
+kinetic-types      = { version = "0.2.0", path = "kinetic-types" }
+kinetic-vdf        = { version = "0.2.0", path = "kinetic-vdf" }
+kinetic-verify     = { version = "0.2.0", path = "kinetic-verify" }
+
+# ==========================================
+# CRYPTOGRAPHY & SECURITY
+# ==========================================
 argon2 = "0.6.0"
-async-stream = "0.3.6"
-async-trait = "0.1.92"
-axum = "0.8.9"
-base64 = "0.23.1"
-# bincode is discontinued (social drama, zero security vulnerabilities). 
-# We intentionally lock at 1.3.3 rather than migrate. A tribute to a legendary, rock-solid crate.
-bincode = "1.3.3"
-bip39 = "2.2.2"
-bytes = "1.12.1"
-clap = "4.6.6"
-criterion = "0.8.2"
-data-encoding = "2.11.1"
-dirs = "6.0.0"
-beacon-verify = { package = "drand-verify", version = "0.6.2" }
-ed25519-dalek = "2.2.0"
-futures = "0.3.34"
-futures-timer = "3.0.4"
-futures-util = "0.3.34"
-getrandom = "0.4.3"
-gloo-timers = "0.4.0"
+ed25519-dalek = "3.0.0"
 hex = "0.4.3"
+ml-dsa = "0.1.1"
+pbkdf2 = "0.13.0"
+rand = "0.10.3"
+rand_core = "0.10.1"
+rcgen = "0.13.2"
+rustls = "0.23.45"
+rustls-pemfile = "2.2.0"
+rustls-pki-types = "1.15.1"
+sha2 = "0.11.0"
+subtle = "2.6.1"
+zeroize = "1.9.0"
+
+# ==========================================
+# NETWORKING (P2P / HTTP / DNS)
+# ==========================================
+axum = "0.8.9"
+beacon-verify = { package = "drand-verify", version = "0.6.2" }
 hickory-client = "0.24.4"
 hickory-proto = "0.24.4"
 hickory-resolver = "0.24.4"
 hickory-server = "0.24.4"
 http = "1.5.0"
 http-body-util = "0.1.5"
-httptest = "0.16.4"
 hyper = "1.11.1"
 hyper-util = "0.1.20"
-keyring = "3.6.2"
-lazy_static = "1.5.0"
-libp2p = { version = "0.56.0", default-features = false }
-libp2p-identity = "0.2.14"
-libp2p-stream = "0.4.0-alpha"
-libp2p-webrtc = "0.9.0-alpha.1"
-lru = "0.18.3"
-ml-dsa = "0.1.1"
-mockito = "1.7.2"
-moka = "0.12"
-num-bigint = "0.4.8"
-num-prime = "0.5.0"
-num-traits = "0.2.19"
-pbkdf2 = "0.13.0"
+libp2p = { version = "0.57.0", default-features = false }
+libp2p-identity = "0.3.0"
+libp2p-stream = "0.5.0-alpha"
+libp2p-webrtc = "0.10.0-alpha"
+reqwest = "0.13.5"
+tower = "0.5.3"
+tower-http = "0.7.1"
+turmoil = "0.7.2"
+
+# ==========================================
+# ASYNC & RUNTIME
+# ==========================================
+async-stream = "0.3.6"
+async-trait = "0.1.92"
+futures = "0.3.34"
+futures-timer = "3.0.3"
+futures-util = "0.3.34"
+gloo-timers = "0.3.0"
+tokio = "1.53.1"
+tokio-rustls = "0.26.4"
+tokio-stream = "0.1.19"
+wasm-bindgen = "=0.2.108"
+wasm-bindgen-futures = "=0.4.58"
+
+# ==========================================
+# SERIALIZATION & DATA
+# ==========================================
+# bincode is discontinued (social drama, zero security vulnerabilities). 
+# We intentionally lock at 1.3.3 rather than migrate. A tribute to a legendary, rock-solid crate.
+bincode = "1.3.3"
+bytes = "1.12.1"
+data-encoding = "2.11.1"
 percent-encoding = "2.3.2"
-privdrop = "0.5.6"
-proptest = "1.11.0"
-rand = "0.8.5"
-rand_core = "0.6.4"
-rcgen = "0.13.2"
-redb = "4.2.0"
-reqwest = "0.13.4"
-rpassword = "7.5.4"
-rustc-hash = "2.1.3"
-rustls = "0.23.43"
-rustls-pemfile = "2.2.0"
-rustls-pki-types = "1.15.1"
 serde = "1.0.229"
 serde_bytes = "0.11.19"
 serde_jcs = "0.2.0"
 serde_json = "1.0.151"
+toml = "1.1.6"
+
+# ==========================================
+# SYSTEM & UTILS
+# ==========================================
+anyhow = "1.0.104"
+base64 = "0.23.1"
+bip39 = "3.0.0"
+clap = "4.6.7"
+colored = "3.1.1"
+comfy-table = "8.0.1"
+dirs = "7.0.0"
+getrandom = "0.4.3"
+indicatif = "0.18.6"
+keyring = "3.6.2"
+lazy_static = "1.5.0"
+lru = "0.18.5"
+moka = "0.12"
+num-bigint = "0.4.8"
+num-prime = "0.5.0"
+num-traits = "0.2.19"
+privdrop = "0.5.7"
+redb = "4.3.0"
+rpassword = "7.5.4"
+rustc-hash = "2.1.3"
 service-manager = "0.11.0"
-sha2 = "0.11.0"
-subtle = "2.6.1"
-tempfile = "3.27.0"
-thiserror = "2.0.20"
-time = "0.3.51"
-tokio = { version = "1.53.1", features = ["full"] }
-tokio-rustls = "0.26.4"
-tokio-stream = "0.1.19"
-toml = "1.1.5"
-tower = "0.5.3"
-tower-http = "0.7.1"
+thiserror = "2.0.21"
+time = "0.3.55"
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
-turmoil = "0.7.2"
-uuid = "1.26.0"
-wasm-bindgen = "0.2.127"
-wasm-bindgen-futures = "0.4.77"
+tracing-subscriber = "0.3.23"
+uuid = "1.26.1"
 web-sys = "0.3"
 web-time = "1.1.0"
-zeroize = "1.9.0"
+
+# ==========================================
+# TESTING & BENCHMARKING
+# ==========================================
+arbitrary = "1.4.2"
+criterion = "0.8.2"
+httptest = "0.16.4"
+libfuzzer-sys = "0.4.13"
+mockito = "1.7.2"
+proptest = "1.11.0"
+tempfile = "3.27.0"
 
 [profile.release]
 strip = true
@@ -131,3 +182,14 @@ lto = "fat"
 codegen-units = 1
 opt-level = "z"
 panic = "abort"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+redundant_explicit_links = "allow"
+
+[workspace.lints.clippy]
+collapsible_if = "allow"
+unwrap_used = "warn"
+expect_used = "warn"

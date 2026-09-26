@@ -30,7 +30,6 @@
 //! [redb Native] [WASM OPFS]
 //! ```
 
-#![deny(missing_docs)]
 
 use kinetic_core::error::StorageError;
 use kinetic_core::traits::StorageEngine;

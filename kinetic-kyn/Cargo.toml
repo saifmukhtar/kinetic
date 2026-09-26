@@ -7,7 +7,7 @@ edition = "2024"
 serde = { workspace = true, features = ["derive"] }
 beacon-verify = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
-kinetic-primitives = { path = "../kinetic-primitives" }
+kinetic-primitives.workspace = true
 
 [features]
 default = ["beacon"]
@@ -15,3 +15,6 @@ beacon = ["dep:beacon-verify", "dep:hex"]
 
 [build-dependencies]
 serde_json = { workspace = true }
+
+[lints]
+workspace = true

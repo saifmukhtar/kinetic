@@ -8,7 +8,7 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
+libfuzzer-sys.workspace = true
 
 [dependencies.kinetic-core]
 path = ".."
@@ -35,3 +35,6 @@ path = "fuzz_targets/core_bincode.rs"
 test = false
 doc = false
 bench = false
+
+[lints]
+workspace = true

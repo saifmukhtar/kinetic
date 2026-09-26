@@ -9,7 +9,7 @@ repository.workspace = true
 
 [dependencies]
 bytes.workspace = true
-kinetic-core = { path = "../kinetic-core" }
+kinetic-core.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
@@ -35,3 +35,6 @@ features = [
     "StorageManager",
     "Window"
 ]
+
+[lints]
+workspace = true

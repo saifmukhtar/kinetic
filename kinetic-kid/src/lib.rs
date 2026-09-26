@@ -1,4 +1,3 @@
-#![allow(rustdoc::redundant_explicit_links)]
 //! # kinetic-kid
 //!
 //! Kinetic Identity Documents (KIDs) — the self-sovereign identity layer.
@@ -31,7 +30,6 @@
 //! RFC 8785) before signing so that the byte representation is deterministic
 //! across platforms.
 
-#![deny(missing_docs)]
 
 include!(concat!(env!("OUT_DIR"), "/kid_limits.rs"));
 

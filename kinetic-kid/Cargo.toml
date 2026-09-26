@@ -15,20 +15,20 @@ categories = ["cryptography", "authentication"]
 simulation = []
 
 [dependencies]
-# --- Workspace & Internal Crates ---
-kinetic-primitives = { path = "../kinetic-primitives" }
-kinetic-kyn = { path = "../kinetic-kyn", default-features = false }
-
-# --- External Crates ---
 base64.workspace = true
+kinetic-kyn.workspace = true
+kinetic-primitives.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_jcs.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-rand_core = { workspace = true, features = ["getrandom"] }
+rand_core = { workspace = true }
 proptest.workspace = true
 
 [build-dependencies]
 serde_json.workspace = true
+
+[lints]
+workspace = true

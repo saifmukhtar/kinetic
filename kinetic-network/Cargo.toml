@@ -15,15 +15,15 @@ bincode.workspace = true
 bytes = { workspace = true, features = ["serde"] }
 ed25519-dalek.workspace = true
 hex.workspace = true
-kinetic-core = { path = "../kinetic-core" }
-kinetic-kid = { path = "../kinetic-kid" }
-kinetic-kyn = { path = "../kinetic-kyn" }
-kinetic-local = { path = "../kinetic-local" }
-kinetic-primitives = { path = "../kinetic-primitives" }
-kinetic-storage = { path = "../kinetic-storage" }
-kinetic-types = { path = "../kinetic-types" }
-kinetic-vdf = { path = "../kinetic-vdf" }
-kinetic-verify = { path = "../kinetic-verify" }
+kinetic-core.workspace = true
+kinetic-kid.workspace = true
+kinetic-kyn.workspace = true
+kinetic-local.workspace = true
+kinetic-primitives.workspace = true
+kinetic-storage.workspace = true
+kinetic-types.workspace = true
+kinetic-vdf.workspace = true
+kinetic-verify.workspace = true
 libp2p = { workspace = true, features = ["kad", "gossipsub", "noise", "yamux", "macros", "identify", "relay", "dcutr", "ping", "request-response", "cbor", "autonat", "upnp", "quic", "dns"] }
 lru.workspace = true
 rand.workspace = true
@@ -56,13 +56,16 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros
 
 [dev-dependencies]
 base64.workspace = true
-kinetic-core = { path = "../kinetic-core", features = ["simulation"] }
+kinetic-core = { workspace = true, features = ["simulation"] }
 proptest.workspace = true
-rand_core = { workspace = true, features = ["std"] }
+rand_core = { workspace = true }
 tempfile.workspace = true
-tracing-subscriber.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [[bench]]
 name = "pow_benchmark"
 harness = false
 
+
+[lints]
+workspace = true

@@ -16,34 +16,28 @@ categories = ["cryptography", "network-programming"]
 simulation = []
 
 [dependencies]
-# --- Workspace & Internal Crates ---
-kinetic-action = { path = "../kinetic-action" }
-kinetic-kid = { path = "../kinetic-kid" }
-kinetic-kyn = { path = "../kinetic-kyn", default-features = false }
-kinetic-primitives = { path = "../kinetic-primitives" }
-kinetic-types = { path = "../kinetic-types" }
-kinetic-verify = { path = "../kinetic-verify" }
-
-# --- Workspace Inherited ---
 anyhow.workspace = true
 async-trait.workspace = true
-thiserror.workspace = true
-tracing.workspace = true
-
-# --- External Crates ---
-bytes.workspace = true
 beacon-verify.workspace = true
+bytes.workspace = true
 hex.workspace = true
+kinetic-action.workspace = true
+kinetic-kid.workspace = true
+kinetic-kyn.workspace = true
+kinetic-primitives.workspace = true
+kinetic-types.workspace = true
+kinetic-verify.workspace = true
 libp2p-identity = { workspace = true, features = ["peerid"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom_02 = { package = "getrandom", version = "0.2.14", features = ["js"] }
 getrandom = { workspace = true, features = ["wasm_js"] }
 
 [dev-dependencies]
-# --- External Crates ---
 criterion.workspace = true
 ed25519-dalek = { workspace = true, features = ["serde"] }
 getrandom.workspace = true
@@ -51,7 +45,6 @@ proptest.workspace = true
 sha2.workspace = true
 
 [build-dependencies]
-# --- External Crates ---
 hex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -64,3 +57,6 @@ harness = false
 [[bench]]
 name = "names_bench"
 harness = false
+
+[lints]
+workspace = true

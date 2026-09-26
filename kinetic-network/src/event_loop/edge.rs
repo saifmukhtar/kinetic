@@ -48,7 +48,7 @@ pub(crate) fn build_edge_swarm(
         .with_other_transport(|key| {
             libp2p_webrtc::tokio::Transport::new(
                 key.clone(),
-                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng())
+                libp2p_webrtc::tokio::Certificate::generate(&mut rand::rng())
                     .expect("Failed to generate WebRTC cert"),
             )
         })
@@ -67,7 +67,7 @@ pub(crate) fn build_edge_swarm(
         .with_other_transport(|key| {
             libp2p_webrtc::tokio::Transport::new(
                 key.clone(),
-                libp2p_webrtc::tokio::Certificate::generate(&mut rand::thread_rng())
+                libp2p_webrtc::tokio::Certificate::generate(&mut rand::rng())
                     .expect("Failed to generate WebRTC cert"),
             )
         })

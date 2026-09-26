@@ -6,7 +6,6 @@
 //! 2. **Phase 2 (Reveal)**: Revealing name metadata, salt, drand randomness, and the computed
 //!    [`VdfProof`] inside a [`Reveal`] structure verified with Identity signatures.
 
-#![allow(clippy::collapsible_if)]
 use kinetic_primitives::keypairs::IdentityPubKey;
 use serde::{Deserialize, Serialize};
 

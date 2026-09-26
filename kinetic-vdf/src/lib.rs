@@ -32,7 +32,6 @@
 //! - **[`hash_to_prime`]** — Fiat-Shamir prime generation for proofs.
 //! - **[`RsaVdfEngine`]** — The concrete implementation of `VdfEngine`.
 
-#![deny(missing_docs)]
 
 pub mod constants;
 pub mod hash_to_prime;

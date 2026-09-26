@@ -8,9 +8,9 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-reqwest = "0.13.4"
-subtle = "2.6.1"
+libfuzzer-sys.workspace = true
+reqwest.workspace = true
+subtle.workspace = true
 
 [dependencies.kinetic-daemon]
 path = ".."
@@ -30,3 +30,6 @@ doc = false
 bench = false
 
 [workspace]
+
+[lints]
+workspace = true

@@ -1,4 +1,3 @@
-#![allow(rustdoc::redundant_explicit_links)]
 //! # kinetic-network (Layer 7 Trunk)
 //!
 //! The massive P2P networking trunk of the Kinetic workspace.
@@ -36,7 +35,6 @@
 //! - **`pow`** — Proof-of-Work helpers used to rate-limit DHT writes.
 //! - **`error`** — [`KineticStoreError`] variants for store-level failures.
 
-#![deny(missing_docs)]
 
 /// The aggregate network behavior combining Kademlia, Gossipsub, and Proxy layers.
 pub mod behavior;

@@ -10,9 +10,12 @@ readme = "README.md"
 homepage.workspace = true
 
 [dependencies]
-kinetic-core = { path = "../kinetic-core" }
-kinetic-primitives = { path = "../kinetic-primitives" }
+kinetic-core.workspace = true
+kinetic-primitives.workspace = true
 # num-prime 0.5.0 is hard-locked to num-bigint ^0.4.6. Do not upgrade to 0.5.x.
 num-bigint.workspace = true
 num-prime.workspace = true
 num-traits.workspace = true
+
+[lints]
+workspace = true
